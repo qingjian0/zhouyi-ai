@@ -107,6 +107,20 @@ class E02I2CContractsTests(unittest.TestCase):
         ))
         self.assertEqual(decision.event, EventType.SUSPEND)
 
+    def test_reused_sample_cannot_suspend_across_two_windows(self):
+        decision = adjudicate_event(active(), (opp(0), opp(1)), (
+            packet("a0", 0, EvidencePolarity.ABSENCE, signature=None, sample="same-sample"),
+            packet("a1", 1, EvidencePolarity.ABSENCE, signature=None, sample="same-sample"),
+        ))
+        self.assertEqual(decision.event, EventType.ABSTAIN)
+
+    def test_reused_sample_cannot_retire_across_two_windows(self):
+        decision = adjudicate_event(active("SUSPENDED"), (opp(2), opp(3)), (
+            packet("c2", 2, EvidencePolarity.CONTRADICTS, signature=None, sample="same-sample"),
+            packet("c3", 3, EvidencePolarity.CONTRADICTS, signature=None, sample="same-sample"),
+        ))
+        self.assertEqual(decision.event, EventType.ABSTAIN)
+
     def test_insufficient_window_breaks_absence_streak(self):
         decision = adjudicate_event(active(), (
             opp(0), opp(1, observed=0, coverage=0.0, reason=MissingReason.NO_EXPOSURE), opp(2),
@@ -131,11 +145,18 @@ class E02I2CContractsTests(unittest.TestCase):
         ))
         self.assertEqual(decision.event, EventType.ABSTAIN)
 
-    def test_suspended_identity_reactivates_only_with_fresh_support(self):
-        decision = adjudicate_event(active("SUSPENDED"), (opp(2),), (
-            packet("fresh", 2, EvidencePolarity.SUPPORTS, "a&b", source="v1"),
+    def test_suspended_identity_reactivates_only_with_repeated_fresh_support(self):
+        decision = adjudicate_event(active("SUSPENDED"), (opp(2), opp(3)), (
+            packet("fresh-2", 2, EvidencePolarity.SUPPORTS, "a&b", source="v1"),
+            packet("fresh-3", 3, EvidencePolarity.SUPPORTS, "a&b", source="v1"),
         ))
         self.assertEqual(decision.event, EventType.REACTIVATE)
+
+    def test_single_fresh_sample_does_not_reactivate(self):
+        decision = adjudicate_event(active("SUSPENDED"), (opp(2),), (
+            packet("fresh-once", 2, EvidencePolarity.SUPPORTS, "a&b", source="v1"),
+        ))
+        self.assertEqual(decision.event, EventType.ABSTAIN)
 
     def test_suspended_changed_version_requires_linked_multwindow_support(self):
         decision = adjudicate_event(active("SUSPENDED"), (opp(2), opp(3)), (

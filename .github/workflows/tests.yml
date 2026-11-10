@@ -2,7 +2,7 @@ name: tests
 
 on:
   push:
-    branches: [main, research/e02i-ci-runner, research/e02i-persistent-evidence, research/e02i2-relation-lineage, research/e02i2-hidden-identity-benchmark, research/e02i2c-event-adjudication]
+    branches: [main, research/e02i-ci-runner, research/e02i-persistent-evidence, research/e02i2-relation-lineage, research/e02i2-hidden-identity-benchmark, research/e02i2c-event-adjudication, research/e02i2c-hidden-event-benchmark]
   pull_request:
     branches: [main, research/e02e-autonomous-discovery, research/e02f-falsification, research/e02g-multienvironment-stability, research/e02i-relation-evolution, research/e02h-baseline, research/e02i-persistent-evidence, research/e02i2-relation-lineage]
 
@@ -54,6 +54,12 @@ jobs:
         run: python -m prototype.e02i2_hidden_identity --seeds 30 --start-seed 7000
       - name: Run E02-I2-C evidence adjudication tests
         run: python -m unittest tests.test_e02i2c_adjudication -v
+      - name: Run E02-I2-C hidden event benchmark tests
+        run: python -m unittest tests.test_e02i2c_hidden_event_benchmark -v
+      - name: Run E02-I2-C hidden event development benchmark (train)
+        run: python -m prototype.e02i2c_hidden_event_benchmark --seeds 20 --start-seed 1000 --split train
+      - name: Run E02-I2-C hidden event development benchmark (gate)
+        run: python -m prototype.e02i2c_hidden_event_benchmark --seeds 20 --start-seed 2000 --split gate
 
   e02i2-hidden-identity:
     runs-on: ubuntu-latest

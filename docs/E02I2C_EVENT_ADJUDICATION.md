@@ -54,9 +54,9 @@ I2-A 建立身份/版本/谱系账本；I2-B 提供确定性候选匹配；I2-E 
 
 建议确定性基线的保守规则：
 - 单个合格窗口缺失：不改变身份状态，只记录 observation miss。
-- 连续两个有充分采样机会的窗口没有确认：允许 SUSPEND。
+- 连续两个有充分采样机会的窗口没有确认，且反例样本 ID 独立：允许 SUSPEND。
 - SUSPENDED 后至少两个独立反例窗口持续否定旧关系，才允许 RETIRE。
-- REACTIVATE 必须有新证据；若恢复时结构不同，恢复与 MODIFY 应作为一个原子事务。
+- REACTIVATE 必须有跨至少两个窗口、两个独立样本的新证据；若恢复时结构不同，恢复与 MODIFY 应作为一个原子事务。
 - 以上窗口数是待 Gate 校准的初始协议参数，不是自然定律；锁定 Test 前固定。
 
 ## 5. 特殊边界
@@ -82,7 +82,7 @@ SPLIT / MERGE 不由一对一 Hungarian 结果推断。它们需要独立的谱�
 
 ### 5.4 REACTIVATE 与结构变化的原子性
 
-当前账本的 reactivate() 和 modify() 是两个独立调用。如果恢复后结构已经变化，先 REACTIVATE 再 MODIFY 存在中间状态暴露风险。I2-C 实现前应增加原子操作或事务预检，保证任一步失败都不留下半完成状态。
+账本现已提供 `reactivate_and_modify()` 组合操作：先验证身份状态、结构变化、证据引用和新版本构造，再一次性写入版本、身份状态、版本迁移与单个组合事件。验证失败不应留下部分状态；相关回归测试位于 `tests/test_e02i2_lineage.py`。
 
 ## 6. 初始证伪条件
 
@@ -131,14 +131,14 @@ SPLIT / MERGE 不由一对一 Hungarian 结果推断。它们需要独立的谱�
 - `EvidencePacket`：证据/样本/窗口/环境/split/polarity/source-version/candidate-signature/raw provenance；不包含 hidden identity 或 hidden event truth；`split=test` 的原始观测可以作为推理输入，但隐藏身份/事件真值只保留在 evaluator，绝不进入裁决器。
 - 支持与反例同时出现时强制 ABSTAIN，并将冲突证据引用保留在裁决结果中，不做置信度平均。
 - `IdentitySnapshot`：裁决器只接收当前身份状态与版本摘要，不读取生成器转换计划。
-- 确定性 `adjudicate_event`：支持 CREATE、KEEP、MODIFY、ABSTAIN、SUSPEND、REACTIVATE、REACTIVATE_MODIFY、RETIRE 的保守提案。
-- CREATE/MODIFY 需要跨多个独立窗口和样本的支持；SUSPEND 需要连续且充分观测的 ABSENCE；采样不足会打断缺失连续段；CONTRADICTION 不等同于 ABSENCE；RETIRE 仅对已暂停身份开放并要求重复反例。
-- 18 项专项单测覆盖核心边界；另有 2 项账本原子事务测试；完整 CI 尚待结果确认。
+- 确定性 `adjudicate_event`：支持 CREATE、KEEP、MODIFY、ABSTAIN、SUSPEND、REACTIVATE（至少两个独立窗口/样本）、REACTIVATE_MODIFY、RETIRE 的保守提案。
+- CREATE/MODIFY 需要跨多个独立窗口和样本的支持；SUSPEND 需要连续且充分观测的 ABSENCE，且跨窗口样本 ID 独立；采样不足会打断缺失连续段；CONTRADICTION 不等同于 ABSENCE；RETIRE 仅对已暂停身份开放并要求跨窗口、跨样本的重复反例。
+- 21 项专项单测覆盖核心边界；另有 2 项账本原子事务测试；完整 CI 尚待结果确认。
 
 仍未实现：
 - REPLACE、SPLIT、MERGE 的自动事件推断与多身份图证据。
-- REACTIVATE + MODIFY 的账本原子事务提交；当前只输出组合提案，不执行账本写入。
-- 证据投影/迁移、隐藏事件基准、Train/Gate/locked-Test 校准与置信区间。
+- 将裁决提案自动、事务性地应用到账本的统一 orchestration 层；目前原子账本操作已实现，但 adjudicator proposal 到 ledger command 的安全映射尚未完成。
+- 证据投影/迁移、多身份事件推断、完整 Train/Gate/locked-Test 泛化评估与置信区间。隐藏事件开发基准已在 `prototype/e02i2c_hidden_event_benchmark.py` 中建立，当前仅支持 Train/Gate，不提供 locked Test。
 - E03 集成。
 
-因此当前只是 I2-C 的可执行第一阶段，不代表完整事件裁决器通过。下一步实现事务安全的 ledger apply 层，再建立隐藏事件基准；在 I2-F 通过前不接入 E03 主引擎。
+因此当前仍是 I2-C 的可执行基线，不代表完整事件裁决器通过。下一步完善多身份事件证据和独立泛化评估；在 I2-F 通过前不接入 E03 主引擎。
