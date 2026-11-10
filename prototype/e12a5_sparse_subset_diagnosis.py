@@ -191,9 +191,10 @@ def diagnose_sparse_subsets(
                         unmatched_evidence_ids=tuple(sorted(
                             view.records[i].evidence_id for i in unmatched
                         )),
-                        skipped_positions=(subset[-1] and
-                            feature_names.index(subset[-1]) -
-                            feature_names.index(subset[0]) + 1 - len(subset)),
+                        skipped_positions=sum(
+                            feature_names.index(right) - feature_names.index(left) - 1
+                            for left, right in zip(subset, subset[1:])
+                        ),
                     )
                     ranked.append(candidate)
 
