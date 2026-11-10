@@ -185,11 +185,26 @@ MODIFY 保留身份谱系，但新版本的证据状态必须重新计算。REPL
 
 这些术语必须映射到明确的数据结构和可证伪操作。不能用卦象相似度直接继承身份或证据。
 
-## 10. 实施顺序
+## 10. I2-B 当前实现边界
+
+I2-B 已开始实现确定性匹配基线，代码位于 `prototype/e02i2_matching.py`：
+
+- **Exact signature**：成员、角色、算子、规则签名和上下文完全相同才匹配。
+- **Jaccard members**：只看成员集合重叠，故意保留其语义盲点，作为弱基线。
+- **Role-aligned similarity**：成员 Jaccard、成员-角色配对重叠、规则、算子和上下文的固定加权分数。
+- **Hungarian assignment**：在候选与历史身份间做全局一对一最大权匹配，并为每个候选加入独立 dummy 列，允许不匹配。
+
+所有方法支持最低分门槛和局部歧义 margin；低分、近似平局或无历史身份时返回 ABSTAIN。贪心基线按全局边权排序并用稳定 ID 打破平局，避免依赖输入候选顺序。
+
+**重要限制：** 当前角色相似分数权重与阈值是透明的工程基线，不是从数据学习或校准出来的概率。Hungarian 只解决一对一分配，不推断 SPLIT/MERGE。Jaccard 可能把同成员但不同规则的候选错误匹配，这正是后续实验要量化的基线弱点。
+
+测试位于 `tests/test_e02i2_matching.py`。GitHub Actions 必须显式运行 I2-A 和 I2-B 两组定向测试；仅执行通用测试发现不足以证明阶段验收。
+
+## 11. 实施顺序
 
 - I2-A：定义 identity/version/lineage 数据模型与不可变事件日志。
-- I2-B：实现 Exact/Jaccard/Hungarian 基线和 ABSTAIN。
-- I2-C：实现 KEEP/MODIFY/SUSPEND/REACTIVATE/REPLACE/RETIRE。
+- I2-B：实现 Exact/Jaccard/role-aligned/Hungarian 基线和 ABSTAIN。
+- I2-C：实现 KEEP/MODIFY/SUSPEND/REACTIVATE/REPLACE/RETIRE 的匹配后事件裁决。
 - I2-D：实现 SPLIT/MERGE 及证据 provenance 约束。
 - I2-E：构造隐藏身份的合成生成器和防泄漏审计。
 - I2-F：多种子评估、OOD 变化组合、强基线比较。
