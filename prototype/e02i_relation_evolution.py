@@ -277,6 +277,7 @@ def run_episode(*, seed: int, scenario: str, windows: int = 5,
             "candidate_members": list(snapshot.members),
             "candidate_truth_table": snapshot.truth_table,
             "gate_accuracy": snapshot.gate_accuracy,
+            "current_gate_accuracy": snapshot.current_gate_accuracy,
             "pairwise_gate_accuracy": snapshot.pairwise_accuracy,
             "candidate_test_accuracy": test_acc,
             "pairwise_test_accuracy": pair_test_acc,
@@ -374,6 +375,13 @@ def run(*, seeds: int = 20, start_seed: int = 1200) -> dict:
                     if any(w["persistent_test_accuracy"] is not None
                            for e in episodes for w in e["windows"]) else None
                 )
+                for scenario, episodes in results.items()
+            },
+            "degraded_episode_rate_by_scenario": {
+                scenario: sum(
+                    any(w["current_status"] == "DEGRADED" for w in e["windows"])
+                    for e in episodes
+                ) / seeds
                 for scenario, episodes in results.items()
             },
             "persistent_relation_coverage_by_scenario": {
