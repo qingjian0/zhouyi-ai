@@ -27,15 +27,17 @@ class UCB1Allocator:
         exploration_floor: int = 1,
         exploration_constant: float = math.sqrt(2.0),
     ) -> None:
+        if any(not isinstance(name, str) or not name for name in families):
+            raise ValueError("family IDs must be non-empty strings")
         names = tuple(sorted(set(families)))
-        if not names or any(not name for name in names):
-            raise ValueError("at least one non-empty family is required")
-        if total_budget < 0:
-            raise ValueError("total_budget must be non-negative")
-        if batch_size < 1:
-            raise ValueError("batch_size must be positive")
-        if exploration_floor < 0:
-            raise ValueError("exploration_floor must be non-negative")
+        if not names:
+            raise ValueError("at least one family is required")
+        if isinstance(total_budget, bool) or not isinstance(total_budget, int) or total_budget < 0:
+            raise ValueError("total_budget must be a non-negative integer")
+        if isinstance(batch_size, bool) or not isinstance(batch_size, int) or batch_size < 1:
+            raise ValueError("batch_size must be a positive integer")
+        if isinstance(exploration_floor, bool) or not isinstance(exploration_floor, int) or exploration_floor < 0:
+            raise ValueError("exploration_floor must be a non-negative integer")
         if not math.isfinite(exploration_constant) or exploration_constant < 0:
             raise ValueError("exploration_constant must be finite and non-negative")
         if exploration_floor * len(names) * batch_size > total_budget:
@@ -109,8 +111,8 @@ class UCB1Allocator:
             raise RuntimeError("no pending allocation batch")
         if family != self._pending_family:
             raise ValueError("reward family does not match pending allocation")
-        if not math.isfinite(reward):
-            raise ValueError("reward must be finite")
+        if isinstance(reward, bool) or not isinstance(reward, (int, float)) or not math.isfinite(reward):
+            raise ValueError("reward must be a finite number")
         slots = self._pending_slots if used_slots is None else used_slots
         if isinstance(slots, bool) or not isinstance(slots, int):
             raise TypeError("used_slots must be an integer")
