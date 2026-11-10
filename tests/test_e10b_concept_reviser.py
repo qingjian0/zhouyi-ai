@@ -129,5 +129,49 @@ class ConceptReviserTests(unittest.TestCase):
             any(event["operation"] == "reroute_pending" for event in merged["events"])
         )
 
+    def test_proposal_budget_fails_closed_without_partial_split(self):
+        learner = ConceptReviser(
+            min_members_per_child=2,
+            min_split_gain=0.2,
+            proposal_budget=1,
+        )
+        for index, color, target in (
+            (0, "red", True), (1, "red", True),
+            (2, "blue", False), (3, "blue", False),
+        ):
+            learner.observe(
+                observation_id=f"budget-{index}",
+                entity_id=f"budget-entity-{index}",
+                features={"a_noise": f"unique-{index}", "z_color": color},
+                target=target,
+            )
+        snapshot = learner.snapshot()
+        self.assertTrue(snapshot["budget_exhausted"])
+        self.assertLessEqual(snapshot["proposal_evaluations"], 1)
+        self.assertEqual(len(snapshot["active_concepts"]), 1)
+        self.assertFalse(any(e["operation"] == "split" for e in snapshot["events"]))
+
+    def test_revision_cooldown_prevents_immediate_split_merge_reversal(self):
+        learner = ConceptReviser(
+            min_members_per_child=2,
+            min_split_gain=0.2,
+            merge_rate_tolerance=0.4,
+            revision_cooldown=2,
+        )
+        for prefix, color, target in (
+            ("r1", "red", True), ("r2", "red", True),
+            ("b1", "blue", False), ("b2", "blue", False),
+        ):
+            snapshot = self._observe(learner, prefix, color, target)
+        self.assertEqual(len(snapshot["active_concepts"]), 2)
+
+        one_step = self._observe(learner, "r3", "red", False)
+        self.assertEqual(len(one_step["active_concepts"]), 2)
+        self.assertFalse(any(e["operation"] == "merge" for e in one_step["events"]))
+
+        two_steps = self._observe(learner, "b3", "blue", True)
+        self.assertEqual(len(two_steps["active_concepts"]), 1)
+        self.assertTrue(any(e["operation"] == "merge" for e in two_steps["events"]))
+
 if __name__ == "__main__":
     unittest.main()

@@ -33,6 +33,7 @@ class _Concept:
     split_key: str | None = None
     children: dict[str, str] = field(default_factory=dict)
     generation: int = 0
+    last_revision_step: int = -10**9
 
 
 class ConceptReviser:
@@ -45,6 +46,8 @@ class ConceptReviser:
         min_split_gain: float = 0.10,
         merge_rate_tolerance: float = 0.10,
         max_children: int = 4,
+        proposal_budget: int = 128,
+        revision_cooldown: int = 2,
     ):
         if (not isinstance(min_members_per_child, int) or isinstance(min_members_per_child, bool)
                 or min_members_per_child < 2):
@@ -55,10 +58,16 @@ class ConceptReviser:
             raise ValueError("merge_rate_tolerance must be in [0, 1]")
         if not isinstance(max_children, int) or isinstance(max_children, bool) or max_children < 2:
             raise ValueError("max_children must be an integer >= 2")
+        if not isinstance(proposal_budget, int) or isinstance(proposal_budget, bool) or proposal_budget < 1:
+            raise ValueError("proposal_budget must be an integer >= 1")
+        if not isinstance(revision_cooldown, int) or isinstance(revision_cooldown, bool) or revision_cooldown < 0:
+            raise ValueError("revision_cooldown must be an integer >= 0")
         self.min_members_per_child = min_members_per_child
         self.min_split_gain = min_split_gain
         self.merge_rate_tolerance = merge_rate_tolerance
         self.max_children = max_children
+        self.proposal_budget = proposal_budget
+        self.revision_cooldown = revision_cooldown
         self._root_id = "concept-root"
         self._nodes: dict[str, _Concept] = {self._root_id: _Concept(self._root_id, None)}
         self._evidence: dict[str, dict[str, Any]] = {}
@@ -68,6 +77,9 @@ class ConceptReviser:
         self._pending_observations: set[str] = set()
         self._events: list[dict[str, Any]] = []
         self._step = 0
+        self._observation_step = 0
+        self._proposal_evaluations = 0
+        self._budget_exhausted = False
 
     def _leaf_for(self, features: dict[str, str]) -> str | None:
         current = self._root_id
@@ -127,6 +139,8 @@ class ConceptReviser:
     def _try_merge(self, parent: _Concept) -> bool:
         if parent.split_key is None or not parent.children:
             return False
+        if self._observation_step - parent.last_revision_step < self.revision_cooldown:
+            return False
         child_nodes = [self._nodes[cid] for _, cid in sorted(parent.children.items())]
         if any(not child.members or child.split_key is not None for child in child_nodes):
             return False
@@ -142,6 +156,7 @@ class ConceptReviser:
         parent.split_key = None
         parent.children = {}
         parent.generation += 1
+        parent.last_revision_step = self._observation_step
         self._record("merge", {
             "parent_concept_id": parent.concept_id,
             "retired_child_concept_ids": child_ids,
@@ -166,6 +181,10 @@ class ConceptReviser:
         })
         best: tuple[str, dict[str, list[str]], float] | None = None
         for key in keys:
+            if self._proposal_evaluations >= self.proposal_budget:
+                self._budget_exhausted = True
+                return None
+            self._proposal_evaluations += 1
             groups: dict[str, list[str]] = {}
             for eid in node.members:
                 value = self._evidence[eid]["features"].get(key)
@@ -193,6 +212,8 @@ class ConceptReviser:
         return best
 
     def _try_split(self, node: _Concept) -> bool:
+        if self._observation_step - node.last_revision_step < self.revision_cooldown:
+            return False
         proposal = self._best_split(node)
         if proposal is None:
             return False
@@ -214,6 +235,7 @@ class ConceptReviser:
         node.members = []
         node.split_key = key
         node.children = child_ids
+        node.last_revision_step = self._observation_step
         self._record("split", {
             "parent_concept_id": node.concept_id,
             "feature_key": key,
@@ -247,6 +269,9 @@ class ConceptReviser:
             raise ValueError("feature keys and values must be non-empty strings")
         if not isinstance(target, bool):
             raise ValueError("target must be boolean")
+        self._observation_step += 1
+        self._proposal_evaluations = 0
+        self._budget_exhausted = False
         copied = dict(sorted(features.items()))
         self._evidence[observation_id] = {
             "observation_id": observation_id,
@@ -327,4 +352,8 @@ class ConceptReviser:
             "evidence_count": len(self._evidence),
             "pending_count": len(self._pending_observations),
             "pending_observation_ids": sorted(self._pending_observations),
+            "observation_step": self._observation_step,
+            "proposal_evaluations": self._proposal_evaluations,
+            "proposal_budget": self.proposal_budget,
+            "budget_exhausted": self._budget_exhausted,
         }
