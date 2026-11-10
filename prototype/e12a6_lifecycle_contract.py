@@ -269,5 +269,8 @@ class LifecycleLedger:
             evidence_ids=evidence_ids,
             state=CandidateState.REVALIDATION_PENDING,
         )
-        self.add_candidate(revision)
+        key = (revision.candidate_id, revision.version)
+        if key in self.candidates:
+            raise ValueError(f"duplicate candidate version: {key}")
+        self.candidates[key] = revision
         return revision
