@@ -82,7 +82,7 @@ SPLIT / MERGE 不由一对一 Hungarian 结果推断。它们需要独立的谱�
 
 ### 5.4 REACTIVATE 与结构变化的原子性
 
-当前账本的 reactivate() 和 modify() 是两个独立调用。如果恢复后结构已经变化，先 REACTIVATE 再 MODIFY 存在中间状态暴露风险。I2-C 实现前应增加原子操作或事务预检，保证任一步失败都不留下半完成状态。
+账本现已提供 `reactivate_and_modify()` 组合操作：先验证身份状态、结构变化、证据引用和新版本构造，再一次性写入版本、身份状态、版本迁移与单个组合事件。验证失败不应留下部分状态；相关回归测试位于 `tests/test_e02i2_lineage.py`。
 
 ## 6. 初始证伪条件
 
@@ -137,8 +137,8 @@ SPLIT / MERGE 不由一对一 Hungarian 结果推断。它们需要独立的谱�
 
 仍未实现：
 - REPLACE、SPLIT、MERGE 的自动事件推断与多身份图证据。
-- REACTIVATE + MODIFY 的账本原子事务提交；当前只输出组合提案，不执行账本写入。
-- 证据投影/迁移、隐藏事件基准、Train/Gate/locked-Test 校准与置信区间。
+- 将裁决提案自动、事务性地应用到账本的统一 orchestration 层；目前原子账本操作已实现，但 adjudicator proposal 到 ledger command 的安全映射尚未完成。
+- 证据投影/迁移、多身份事件推断、完整 Train/Gate/locked-Test 泛化评估与置信区间。隐藏事件开发基准已在 `prototype/e02i2c_hidden_event_benchmark.py` 中建立，当前仅支持 Train/Gate，不提供 locked Test。
 - E03 集成。
 
-因此当前只是 I2-C 的可执行第一阶段，不代表完整事件裁决器通过。下一步实现事务安全的 ledger apply 层，再建立隐藏事件基准；在 I2-F 通过前不接入 E03 主引擎。
+因此当前仍是 I2-C 的可执行基线，不代表完整事件裁决器通过。下一步完善多身份事件证据和独立泛化评估；在 I2-F 通过前不接入 E03 主引擎。
