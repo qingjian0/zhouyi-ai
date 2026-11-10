@@ -57,3 +57,39 @@ mixing behavior is characterized should the project report a larger type-I
 error calibration or motif-recovery power curve. Do not interpret synthetic
 pair recovery as semantic understanding, causal discovery, or general
 intelligence.
+
+
+## Heterogeneous-graph sensitivity runner
+
+M2.3 now includes a reproducible sensitivity-grid runner and a second synthetic
+graph family with variable row degrees and Zipf-like item popularity.
+
+```bash
+python - <<'PY'
+from prototype.e12m2_mixing_sensitivity import run_mixing_sensitivity
+
+result = run_mixing_sensitivity(
+    dataset_seeds=5,
+    chains=4,
+    samples_per_chain=100,
+    burn_in_grid=(0, 5, 20, 50),
+    thinning_grid=(1, 3, 10),
+    seed_start=500,
+)
+for configuration in result["configurations"]:
+    print(configuration)
+print("margin profiles:", result["margin_profiles"])
+PY
+```
+
+The runner reports, per burn-in/thinning configuration, mean normalized ESS,
+mean lag-1 autocorrelation, between-chain score-mean variance, and acceptance
+rate across generated datasets. It also reports row-degree and item-degree
+summaries, including item-degree Gini concentration.
+
+This is a sensitivity experiment, not a proof of sampler correctness. The
+heterogeneous generator is a synthetic family with a Zipf-like weighting rule;
+its results must not be generalized to arbitrary real incidence graphs. A
+future validation stage should include exact-enumerable small graphs, known
+stationary-frequency checks, and multiple graph families before treating the
+2-switch null as calibrated.
