@@ -49,14 +49,12 @@ def make_episode(seed: int = 17, *, object_count: int = 240,
             concept for concept in schemas
             if rng.random() < (0.34 if concept != "latent-c" else 0.28)
         }
-        # Ensure a useful mixture without exposing memberships to the learner.
         attrs = set()
         for concept in memberships:
             attrs.update(schemas[concept])
         for noise_index in range(12):
             if rng.random() < 0.12:
                 attrs.add(f"noise-{noise_index:02d}")
-        # Rare distractor attributes make single-feature frequency insufficient.
         if rng.random() < 0.08:
             attrs.add("rare-decoy")
         object_id = f"object-{index:04d}"
@@ -64,9 +62,7 @@ def make_episode(seed: int = 17, *, object_count: int = 240,
         truth[object_id] = frozenset(memberships)
     rng.shuffle(objects)
     split = int(object_count * train_fraction)
-    learner = tuple(objects[:split])
-    query = tuple(objects[split:])
-    return Episode(learner, query, truth, schemas)
+    return Episode(tuple(objects[:split]), tuple(objects[split:]), truth, schemas)
 
 
 def _canonical(items: Iterable[str]) -> tuple[str, ...]:
@@ -117,8 +113,106 @@ def _f1(predicted: set[str], actual: set[str]) -> float:
     return 2 * precision * recall / (precision + recall)
 
 
+def _one_to_one_evaluation(
+    episode: Episode,
+    concepts: tuple[tuple[str, ...], ...],
+    predictions: dict[str, frozenset[int]],
+) -> dict:
+    """Maximum-weight one-to-one matching of candidate extensions to truths.
+
+    Exact dynamic programming is practical for the small, declared number of
+    evaluator concepts (up to 16). Candidate extensions are deduplicated so
+    syntactically different patterns with identical query behavior cannot
+    inflate the number of discovered concepts.
+    """
+    latent_ids = sorted(episode.hidden_schemas)
+    if not latent_ids:
+        raise ValueError("evaluator must declare at least one hidden concept")
+    if len(latent_ids) > 16:
+        raise ValueError("one-to-one evaluator supports at most 16 latent concepts")
+
+    actual_by_latent = {
+        latent_id: {
+            obj.object_id for obj in episode.query_objects
+            if latent_id in episode.truth[obj.object_id]
+        }
+        for latent_id in latent_ids
+    }
+
+    extension_to_candidate: dict[frozenset[str], tuple[str, ...]] = {}
+    for candidate_index, candidate in enumerate(concepts):
+        extension = frozenset(
+            object_id for object_id, indices in predictions.items()
+            if candidate_index in indices
+        )
+        canonical_candidate = tuple(candidate)
+        previous = extension_to_candidate.get(extension)
+        if previous is None or (len(canonical_candidate), canonical_candidate) < (
+            len(previous), previous
+        ):
+            extension_to_candidate[extension] = canonical_candidate
+
+    extensions = sorted(
+        extension_to_candidate,
+        key=lambda values: (len(values), tuple(sorted(values))),
+    )
+
+    # mask -> (total matched F1, ((latent index, extension index, F1), ...))
+    states: dict[int, tuple[float, tuple[tuple[int, int, float], ...]]] = {
+        0: (0.0, ())
+    }
+    for extension_index, extension in enumerate(extensions):
+        updated = dict(states)  # this candidate may remain unmatched
+        for mask, (score, pairs) in states.items():
+            for latent_index, latent_id in enumerate(latent_ids):
+                bit = 1 << latent_index
+                if mask & bit:
+                    continue
+                value = _f1(set(extension), actual_by_latent[latent_id])
+                if value <= 0.0:
+                    continue
+                new_mask = mask | bit
+                proposal = (
+                    score + value,
+                    pairs + ((latent_index, extension_index, value),),
+                )
+                current = updated.get(new_mask)
+                if current is None or (
+                    proposal[0], len(proposal[1]), proposal[1]
+                ) > (current[0], len(current[1]), current[1]):
+                    updated[new_mask] = proposal
+        states = updated
+
+    best_score, best_pairs = max(
+        states.values(),
+        key=lambda item: (item[0], len(item[1]), item[1]),
+    )
+    matches = [
+        {
+            "latent_concept": latent_ids[latent_index],
+            "candidate_attributes": list(extension_to_candidate[extensions[extension_index]]),
+            "query_f1": value,
+        }
+        for latent_index, extension_index, value in best_pairs
+    ]
+    matched_count = len(matches)
+    extension_count = len(extensions)
+    latent_count = len(latent_ids)
+    return {
+        "unique_candidate_extension_count": extension_count,
+        "matched_candidate_count": matched_count,
+        "unmatched_candidate_extension_count": extension_count - matched_count,
+        "one_to_one_candidate_precision": (
+            matched_count / extension_count if extension_count else 1.0
+        ),
+        "one_to_one_concept_recall": matched_count / latent_count,
+        "mean_one_to_one_query_f1": best_score / latent_count,
+        "one_to_one_matches": matches,
+    }
+
+
 def evaluate(episode: Episode, concepts: tuple[tuple[str, ...], ...]) -> dict:
-    """Evaluator-only best-match scoring; concepts remain unlabeled."""
+    """Report both optimistic best-match diagnostics and one-to-one scores."""
     predictions = predict(episode.query_objects, concepts)
     rows = []
     for latent_id in sorted(episode.hidden_schemas):
@@ -136,11 +230,13 @@ def evaluate(episode: Episode, concepts: tuple[tuple[str, ...], ...]) -> dict:
         ), default=0.0)
         rows.append({"latent_concept": latent_id, "best_query_f1": best,
                      "query_positive_count": len(actual)})
+    one_to_one = _one_to_one_evaluation(episode, concepts, predictions)
     return {
         "query_objects": len(episode.query_objects),
         "candidate_count": len(concepts),
         "per_concept": rows,
         "mean_best_query_f1": sum(r["best_query_f1"] for r in rows) / len(rows),
+        **one_to_one,
     }
 
 
@@ -164,12 +260,20 @@ def run(seed: int = 17, *, object_count: int = 240,
         "min_support": min_support,
         "candidate_count": len(candidates),
         "mean_best_query_f1": result["mean_best_query_f1"],
+        "unique_candidate_extension_count": result["unique_candidate_extension_count"],
+        "matched_candidate_count": result["matched_candidate_count"],
+        "unmatched_candidate_extension_count": result["unmatched_candidate_extension_count"],
+        "one_to_one_candidate_precision": result["one_to_one_candidate_precision"],
+        "one_to_one_concept_recall": result["one_to_one_concept_recall"],
+        "mean_one_to_one_query_f1": result["mean_one_to_one_query_f1"],
+        "one_to_one_matches": result["one_to_one_matches"],
         "per_concept": result["per_concept"],
         "limitations": [
             "The generator uses three planted attribute conjunctions.",
             "The learner is bounded frequent-pattern enumeration, not autonomous ontology induction.",
             "Evaluator truth is available only to evaluate(), not proposal or prediction.",
             "The benchmark does not establish causal, compositional, or natural-language concepts.",
+            "One-to-one matching is exact only within the declared evaluator limit of 16 latent concepts.",
         ],
     }
 
