@@ -97,8 +97,10 @@ class SQLiteEvidenceStore:
         CREATE UNIQUE INDEX IF NOT EXISTS one_observation_id
           ON events(episode_id, json_extract(payload_json, '$.observation_id'))
           WHERE event_type='observation';
-        CREATE UNIQUE INDEX IF NOT EXISTS one_prediction_per_observation
-          ON events(episode_id, json_extract(payload_json, '$.observation_id'))
+        DROP INDEX IF EXISTS one_prediction_per_observation;
+        CREATE UNIQUE INDEX IF NOT EXISTS one_prediction_per_observation_track
+          ON events(episode_id, json_extract(payload_json, '$.observation_id'),
+                    json_extract(payload_json, '$.learner_track'))
           WHERE event_type='prediction_commit';
         CREATE UNIQUE INDEX IF NOT EXISTS one_prediction_id
           ON events(episode_id, json_extract(payload_json, '$.prediction_id'))
@@ -120,9 +122,11 @@ class SQLiteEvidenceStore:
             if not payload.get("observation_id"):
                 raise ProtocolError("observation requires observation_id")
         elif event_type == "prediction_commit":
-            required = {"prediction_id", "observation_id", "model_version", "decision_status"}
+            required = {"prediction_id", "observation_id", "model_version", "learner_track", "decision_status"}
             if not required.issubset(payload):
                 raise ProtocolError(f"prediction_commit missing fields: {sorted(required - payload.keys())}")
+            if not isinstance(payload["learner_track"], str) or not payload["learner_track"].strip():
+                raise ProtocolError("prediction_commit learner_track must be a non-empty string")
             if payload["decision_status"] not in {
                 "PREDICT", "ABSTAIN_AMBIGUOUS", "ABSTAIN_INCONSISTENT", "ABSTAIN_BUDGET"
             }:
