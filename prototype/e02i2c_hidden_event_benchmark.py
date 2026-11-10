@@ -13,7 +13,6 @@ from __future__ import annotations
 import argparse
 import json
 import random
-from collections import Counter, defaultdict
 from dataclasses import dataclass
 from typing import Callable
 
@@ -228,7 +227,7 @@ def _adjudicator(episode: ObservationView) -> EventType:
     ).event
 
 
-POLICIES: dict[str, Callable[[Episode], EventType]] = {
+POLICIES: dict[str, Callable[[ObservationView], EventType]] = {
     "similarity_only": _similarity_only,
     "single_window": _single_window,
     "evidence_gated": _adjudicator,
