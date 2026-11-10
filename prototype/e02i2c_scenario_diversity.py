@@ -12,14 +12,14 @@ import argparse
 import json
 import random
 import secrets
-from dataclasses import dataclass, replace
+from dataclasses import replace
 from typing import Iterable
 
 from prototype.e02i2c_hidden_event_benchmark import (
-    Episode, EventType, ObservationView, SUPPORTED_EVENTS, build_episode,
+    Episode, EventType, ObservationView, SUPPORTED_EVENTS,
 )
 from prototype.e02i2c_adjudication import (
-    EvidencePacket, EvidencePolarity, MissingReason, ObservationOpportunity,
+    EvidencePacket, EvidencePolarity, IdentitySnapshot, MissingReason, ObservationOpportunity,
     adjudicate_event,
 )
 from prototype.e02i2c_metadata_attack import (
@@ -175,25 +175,107 @@ def _family_c(event: EventType, view: ObservationView,
     return replace(view, opportunities=tuple(opportunities), evidence=tuple(packets))
 
 
-def generate_episode(event: EventType, seed: int, *, family: str,
-                     split: str) -> Episode:
+def _independent_view(event: EventType, seed: int, family: str, split: str) -> ObservationView:
+    """Independent event-valid simulator; does not reuse hidden-event fixtures."""
+    rng = random.Random(f"independent:{family}:{seed}")
+    alphabet = "abcdefghjkmnpqrstuvwxyz"
+    def sig(prefix: str) -> str:
+        return prefix + "-" + "".join(rng.choice(alphabet) for _ in range(rng.randint(4, 9)))
+    old, changed = sig("r"), sig("x")
+    while old == changed:
+        changed = sig("x")
+    identity_id, version_id = secrets.token_hex(8), secrets.token_hex(8)
+    if family == "A":
+        first, lo, hi = rng.randint(0, 80), 8, 18
+        envs = ("temporal-stable", "temporal-seasonal", "temporal-bursty")
+    elif family == "B":
+        first, lo, hi = rng.randint(10, 300), 18, 40
+        envs = ("batch-alpha", "batch-beta", "batch-gamma")
+    elif family == "C":
+        first, lo, hi = rng.randint(1000, 9000), 30, 90
+        envs = ("site-north-dry", "site-south-wet", "site-coastal", "site-altitude", "site-urban")
+    else:
+        raise ValueError("unknown family")
+    identity = IdentitySnapshot(identity_id, "ACTIVE", version_id, old)
+    candidate: str | None = old
+    if event == EventType.KEEP:
+        windows, specs = [first], [(first, EvidencePolarity.SUPPORTS, old, version_id)]
+    elif event == EventType.MODIFY:
+        candidate, windows = changed, [first, first + 1]
+        specs = [(w, EvidencePolarity.SUPPORTS, changed, version_id) for w in windows]
+    elif event == EventType.CREATE:
+        identity, candidate, windows = None, changed, [first, first + 1]
+        specs = [(w, EvidencePolarity.SUPPORTS, changed, None) for w in windows]
+    elif event == EventType.ABSTAIN:
+        mode = seed % 4
+        if mode == 0:
+            identity, candidate, windows = None, changed, [first]
+            specs = [(first, EvidencePolarity.SUPPORTS, changed, None)]
+        elif mode == 1:
+            candidate, windows = changed, [first]
+            specs = [(first, EvidencePolarity.SUPPORTS, changed, "unlinked-" + version_id)]
+        elif mode == 2:
+            windows = [first, first + 1]
+            specs = [(w, EvidencePolarity.ABSENCE, None, version_id) for w in windows]
+        else:
+            candidate, windows = changed, [first]
+            specs = [(first, EvidencePolarity.SUPPORTS, changed, version_id),
+                     (first, EvidencePolarity.CONTRADICTS, None, version_id)]
+    elif event == EventType.SUSPEND:
+        windows = [first, first + 1]
+        specs = [(w, EvidencePolarity.ABSENCE, None, version_id) for w in windows]
+    elif event == EventType.REACTIVATE:
+        identity = IdentitySnapshot(identity_id, "SUSPENDED", version_id, old)
+        windows = [first, first + 1]
+        specs = [(w, EvidencePolarity.SUPPORTS, old, version_id) for w in windows]
+    elif event == EventType.REACTIVATE_MODIFY:
+        identity, candidate, windows = IdentitySnapshot(identity_id, "SUSPENDED", version_id, old), changed, [first, first + 1]
+        specs = [(w, EvidencePolarity.SUPPORTS, changed, version_id) for w in windows]
+    elif event == EventType.RETIRE:
+        identity = IdentitySnapshot(identity_id, "SUSPENDED", version_id, old)
+        candidate, windows = None, [first, first + 1]
+        specs = [(w, EvidencePolarity.CONTRADICTS, None, version_id) for w in windows]
+    else:
+        raise ValueError(f"unsupported event {event}")
+    opportunities, packets = [], []
+    for w in windows:
+        environment = rng.choice(envs)
+        expected = rng.randint(lo, hi)
+        insufficient = event == EventType.ABSTAIN and seed % 4 == 2
+        if insufficient:
+            observed = rng.randint(0, 1)
+            coverage = observed / expected
+            reason = MissingReason.NO_EXPOSURE
+        else:
+            coverage = rng.uniform(0.84, 1.0)
+            observed = min(expected, max((expected * 8 + 9) // 10, int(expected * coverage)))
+            coverage, reason = observed / expected, None
+        opportunities.append(ObservationOpportunity(
+            window=w, environment=environment, expected_samples=expected,
+            observed_samples=observed, coverage=coverage, missing_reason=reason))
+    env_by_window = {o.window: o.environment for o in opportunities}
+    for w, polarity, signature, source in specs:
+        token = secrets.token_hex(16)
+        packets.append(EvidencePacket(
+            evidence_id="evidence-" + token, sample_id="sample-" + token,
+            window=w, environment=env_by_window[w], split=split, polarity=polarity,
+            source_version_id=source, candidate_signature=signature,
+            raw_observation_ref="observation://" + token))
+    rng.shuffle(opportunities)
+    rng.shuffle(packets)
+    return ObservationView(identity, candidate, tuple(opportunities), tuple(packets))
+
+
+def generate_episode(event: EventType, seed: int, *, family: str, split: str) -> Episode:
     if family not in FAMILIES:
         raise ValueError("family must be A, B or C; D is reserved")
     expected_split = "gate" if family == "C" else "train"
     if split != expected_split:
         raise ValueError("family/split violation: A+B are Train and C is Gate")
-    base = build_episode(event, seed, split=split)
-    rng = random.Random(f"e02i2cf:{family}:{seed}")
-    if family == "A":
-        view = _family_a(base.observation, rng)
-    elif family == "B":
-        view = _family_b(base.observation, rng)
-    else:
-        view = _family_c(event, base.observation, rng)
     return Episode(
         episode_id=f"eval-{family}-{split}-{seed}",
         truth=event,
-        observation=view,
+        observation=_independent_view(event, seed, family, split),
     )
 
 
