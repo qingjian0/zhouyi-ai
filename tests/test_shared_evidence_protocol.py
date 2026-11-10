@@ -32,7 +32,7 @@ class SharedEvidenceProtocolTests(unittest.TestCase):
     def reveal(self, event="r1", key="rk1", prediction="p1"):
         return self.store.reveal_evidence(
             episode_id="ep1", event_id=event, idempotency_key=key,
-            payload={"prediction_id": prediction, "target_or_feedback": "A"},
+            payload={"prediction_id": prediction, "learner_track": "e09", "target_or_feedback": "A"},
         )
 
     def test_prediction_requires_prior_observation_and_commit_precedes_reveal(self):
@@ -86,6 +86,27 @@ class SharedEvidenceProtocolTests(unittest.TestCase):
                 actor_role="evaluator",
                 payload={"prediction_id": "p1", "observation_id": "o1",
                          "model_version": "m0", "learner_track": "e09", "decision_status": "PREDICT", "prediction": "A"},
+            )
+
+
+    def test_reveal_cannot_cross_learner_tracks(self):
+        self.commit(learner_track="e09")
+        with self.assertRaises(MissingReference):
+            self.store.reveal_evidence(
+                episode_id="ep1", event_id="cross-track-reveal", idempotency_key="cross-track-reveal",
+                payload={"prediction_id": "p1", "learner_track": "e10", "target_or_feedback": "A"},
+            )
+
+    def test_prediction_rejects_empty_learner_track(self):
+        self.store.append_event(
+            episode_id="ep1", event_id="obs-o1", event_type="observation",
+            idempotency_key="obs-key-o1", payload={"observation_id": "o1"},
+        )
+        with self.assertRaises(ValueError):
+            self.store.commit_prediction(
+                episode_id="ep1", event_id="pc-empty-track", idempotency_key="pc-empty-track",
+                payload={"prediction_id": "p-empty", "observation_id": "o1", "model_version": "m0",
+                         "learner_track": "  ", "decision_status": "PREDICT"},
             )
 
     def test_one_prediction_per_observation_per_track(self):
