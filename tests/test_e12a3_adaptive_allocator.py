@@ -79,6 +79,13 @@ class E12A3AdaptiveAllocatorTests(unittest.TestCase):
         self.assertEqual(allocator.remaining_budget, 2)
         self.assertEqual(allocator.pulls[family], 0)
 
+    def test_ucb1_reward_must_be_normalized(self):
+        allocator = UCB1Allocator(["A"], total_budget=2, batch_size=1)
+        family = allocator.choose_next_family()
+        with self.assertRaises(ValueError):
+            allocator.observe_batch(family, 1.5)
+        self.assertEqual(allocator.remaining_budget, 2)
+
     def test_exploration_floor_must_fit_budget(self):
         with self.assertRaises(ValueError):
             UCB1Allocator(["A", "B", "C"], total_budget=5,
