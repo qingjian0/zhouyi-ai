@@ -27,6 +27,10 @@ class Episode:
     queries: tuple[tuple[int, int], ...]
     candidates: tuple[tuple[int, ...], ...]
     targets: tuple[int, ...]
+    # Ground-truth fields are available to tests/evaluators only and are never
+    # serialized into the learner-visible episode payload.
+    hidden_rule: tuple[int, int, int]
+    visible_symbols: tuple[int, ...]
 
 
 def _validate_cardinality(k: int) -> None:
@@ -88,10 +92,13 @@ def make_episode(
         queries=tuple((visible[a], visible[b]) for a, b in query_pairs),
         candidates=tuple(candidate_rows),
         targets=tuple(targets),
+        hidden_rule=(alpha, beta, delta),
+        visible_symbols=visible,
     )
 
 
 def episode_to_dict(episode: Episode) -> dict[str, Any]:
+    """Return only learner-visible information; never leak hidden rule fields."""
     return {
         "cardinality": episode.cardinality,
         "support": [[x.a, x.b, x.c] for x in episode.support],
