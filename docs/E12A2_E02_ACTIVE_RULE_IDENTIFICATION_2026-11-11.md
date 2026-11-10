@@ -44,6 +44,8 @@ Do not treat individual query outcomes as independent statistical samples; the i
 
 ## Leakage and decision boundary
 
+The initial Support query is selected from the seed alone and is shared across all 27 target rules within that seed. It must not be selected from the hidden rule ID or any target-derived metadata. An earlier draft accidentally indexed the shuffled query list using the target rule coefficients; that would have leaked information through the choice of initial query. The implementation was corrected before any benchmark result was accepted, and a regression test now covers the seed-only query helper.
+
 The policy functions accept only evidence and permitted query IDs. The hidden target is used by the episode runner solely to reveal the selected query's outcome. Mutating the target while holding learner evidence fixed must not change the selected query.
 
 A singleton consistent set is IDENTIFIABLE only within this declared finite grammar and noiseless observation model. If no permitted query separates remaining candidates, the system must remain ambiguous; it must not infer an unobserved distinction.
