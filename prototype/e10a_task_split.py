@@ -111,6 +111,8 @@ def _validate_views(
             raise ValueError("evaluator valid must be an exact boolean")
         _nonempty_string(truth.get("template_id"),
                          f"instances[{index}].template_id")
+        _nonempty_string(truth.get("source_group_id"),
+                         f"instances[{index}].source_group_id")
         violation = truth.get("violation")
         if violation is not None and not isinstance(violation, str):
             raise ValueError("evaluator violation must be a string or null")
@@ -118,9 +120,14 @@ def _validate_views(
 
     if set(observation_by_id) != set(truth_by_id):
         raise ValueError("learner/evaluator observation identity mismatch")
+    source_relation: dict[str, str] = {}
     for oid, row in observation_by_id.items():
         if row["outcome"] is not truth_by_id[oid]["valid"]:
             raise ValueError(f"learner/evaluator label mismatch for {oid}")
+        source_id = truth_by_id[oid]["source_group_id"]
+        previous_relation = source_relation.setdefault(source_id, row["relation_symbol"])
+        if previous_relation != row["relation_symbol"]:
+            raise ValueError("source group spans multiple relation symbols")
 
     return observations, truth_by_id, object_id_set
 
@@ -150,22 +157,57 @@ def build_support_query_task(
         raise ValueError("seed must be an integer")
 
     observations, truth_by_id, _ = _validate_views(learner_view, evaluator_view)
-    groups: dict[tuple[str, tuple[str, ...]], list[dict[str, Any]]] = defaultdict(list)
-    for row in observations:
-        groups[_group_key(row)].append(row)
+    # Build connected components under two independent constraints:
+    # (1) same relation + unordered participant set (A-P), and
+    # (2) same evaluator-only source instance (A-S).
+    parent = {row["observation_id"]: row["observation_id"] for row in observations}
 
-    by_relation: dict[str, list[tuple[str, tuple[str, ...]]]] = defaultdict(list)
-    for key in groups:
-        by_relation[key[0]].append(key)
+    def find(item: str) -> str:
+        while parent[item] != item:
+            parent[item] = parent[parent[item]]
+            item = parent[item]
+        return item
+
+    def union(left: str, right: str) -> None:
+        root_left, root_right = find(left), find(right)
+        if root_left != root_right:
+            first, second = sorted((root_left, root_right))
+            parent[second] = first
+
+    participant_owner: dict[tuple[str, tuple[str, ...]], str] = {}
+    source_owner: dict[str, str] = {}
+    for row in observations:
+        oid = row["observation_id"]
+        participant_key = _group_key(row)
+        source_id = truth_by_id[oid]["source_group_id"]
+        if participant_key in participant_owner:
+            union(oid, participant_owner[participant_key])
+        else:
+            participant_owner[participant_key] = oid
+        if source_id in source_owner:
+            union(oid, source_owner[source_id])
+        else:
+            source_owner[source_id] = oid
+
+    components: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for row in observations:
+        components[find(row["observation_id"])].append(row)
+
+    by_relation: dict[str, list[str]] = defaultdict(list)
+    for component_id, rows in components.items():
+        relation_symbols = {row["relation_symbol"] for row in rows}
+        if len(relation_symbols) != 1:
+            raise ValueError("split component spans multiple relation symbols")
+        by_relation[next(iter(relation_symbols))].append(component_id)
 
     rng = random.Random(seed)
-    support_keys: set[tuple[str, tuple[str, ...]]] = set()
-    query_keys: set[tuple[str, tuple[str, ...]]] = set()
+    support_keys: set[str] = set()
+    query_keys: set[str] = set()
     for relation_symbol, keys in sorted(by_relation.items()):
         if len(keys) < 3:
             raise ValueError(
-                f"relation {relation_symbol!r} needs at least 3 distinct "
-                "participant groups for support/query evaluation"
+                f"relation {relation_symbol!r} needs at least 3 independent "
+                "split components after A-P/A-S grouping"
             )
         shuffled = sorted(keys)
         rng.shuffle(shuffled)
@@ -179,7 +221,7 @@ def build_support_query_task(
     support_rows: list[dict[str, Any]] = []
     query_rows: list[dict[str, Any]] = []
     evaluator_truth: dict[str, dict[str, Any]] = {}
-    for key, rows in groups.items():
+    for key, rows in components.items():
         destination = query_rows if key in query_keys else support_rows
         for row in rows:
             if key in query_keys:
@@ -227,7 +269,8 @@ def build_support_query_task(
         "query_observation_count": len(query_rows),
         "support_observation_ids_hash": _canonical_hash(sorted(support_ids)),
         "query_observation_ids_hash": _canonical_hash(sorted(query_ids)),
-        "grouping": "relation_symbol+unordered_participant_set",
+        "grouping": "connected_components(relation_symbol+unordered_participant_set,source_group_id)",
+        "split_tracks": ["A-P", "A-S"],
         "selection_policy": "label_blind_uniform_group_shuffle_v1",
         "support_label_counts": dict(sorted(support_label_counts.items())),
     }
