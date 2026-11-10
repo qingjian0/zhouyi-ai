@@ -39,7 +39,7 @@ The exact planner is not given the hidden target or the environment's private pr
 - Mean posterior entropy and MAP confidence.
 - Mean acquisition cost.
 
-The benchmark uses paired target draws across policies within each family/prior cell. Sensor outcomes are sampled with deterministic action-specific random streams. Current implementation uses Monte Carlo episodes; confidence intervals and larger independent world families are future work.
+The benchmark uses paired target draws and common action-specific sensor random streams across every prior and policy arm within each family/episode. If two arms select the same action at the same episode, they receive the same sampled sensor outcome. Current implementation uses Monte Carlo episodes; confidence intervals and larger independent world families are future work.
 
 ## Interpretation safeguards
 
