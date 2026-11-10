@@ -111,8 +111,9 @@ class UCB1Allocator:
             raise RuntimeError("no pending allocation batch")
         if family != self._pending_family:
             raise ValueError("reward family does not match pending allocation")
-        if isinstance(reward, bool) or not isinstance(reward, (int, float)) or not math.isfinite(reward):
-            raise ValueError("reward must be a finite number")
+        if (isinstance(reward, bool) or not isinstance(reward, (int, float))
+                or not math.isfinite(reward) or reward < 0.0 or reward > 1.0):
+            raise ValueError("UCB1 reward must be a finite number in [0, 1]")
         slots = self._pending_slots if used_slots is None else used_slots
         if isinstance(slots, bool) or not isinstance(slots, int):
             raise TypeError("used_slots must be an integer")
