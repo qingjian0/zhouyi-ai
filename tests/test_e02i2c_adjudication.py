@@ -145,11 +145,18 @@ class E02I2CContractsTests(unittest.TestCase):
         ))
         self.assertEqual(decision.event, EventType.ABSTAIN)
 
-    def test_suspended_identity_reactivates_only_with_fresh_support(self):
-        decision = adjudicate_event(active("SUSPENDED"), (opp(2),), (
-            packet("fresh", 2, EvidencePolarity.SUPPORTS, "a&b", source="v1"),
+    def test_suspended_identity_reactivates_only_with_repeated_fresh_support(self):
+        decision = adjudicate_event(active("SUSPENDED"), (opp(2), opp(3)), (
+            packet("fresh-2", 2, EvidencePolarity.SUPPORTS, "a&b", source="v1"),
+            packet("fresh-3", 3, EvidencePolarity.SUPPORTS, "a&b", source="v1"),
         ))
         self.assertEqual(decision.event, EventType.REACTIVATE)
+
+    def test_single_fresh_sample_does_not_reactivate(self):
+        decision = adjudicate_event(active("SUSPENDED"), (opp(2),), (
+            packet("fresh-once", 2, EvidencePolarity.SUPPORTS, "a&b", source="v1"),
+        ))
+        self.assertEqual(decision.event, EventType.ABSTAIN)
 
     def test_suspended_changed_version_requires_linked_multwindow_support(self):
         decision = adjudicate_event(active("SUSPENDED"), (opp(2), opp(3)), (
