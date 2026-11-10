@@ -448,12 +448,18 @@ def run(*, seeds: int = 20, start_seed: int = 1200) -> dict:
             ),
         },
         "wilson95": {
-            name: _wilson_interval(count, seeds)
-            for name, count in wilson_counts.items()
-        },
-        "wilson95": {
-            name: _wilson_interval(count, seeds)
-            for name, count in wilson_counts.items()
+            **{
+                name: _wilson_interval(count, seeds)
+                for name, count in wilson_counts.items()
+            },
+            "null_window_false_create_rate": _wilson_interval(
+                sum(w["action"] == "CREATE" for episodes in results.values()
+                    for e in episodes for w in e["windows"]
+                    if w["target_for_audit_only"] is None),
+                sum(w["target_for_audit_only"] is None
+                    for episodes in results.values()
+                    for e in episodes for w in e["windows"]),
+            ),
         },
         "episodes": results,
         "limitations": [
