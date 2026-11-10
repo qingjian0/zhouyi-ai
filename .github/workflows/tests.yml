@@ -2,7 +2,7 @@ name: tests
 
 on:
   push:
-    branches: [main]
+    branches: [main, research/e12a3-proposer-competition-2026-11-11]
   pull_request:
     branches: [main]
 
@@ -16,6 +16,10 @@ jobs:
           python-version: "3.11"
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
+      - name: Run E12-A3 multi-proposer unit tests
+        run: python -m unittest tests.test_e12a3_multi_proposer -v
+      - name: Run E12-A3 multi-proposer smoke test
+        run: python -m prototype.e12a3_multi_proposer
       - name: Run E01 demonstration
         run: python -m prototype.e01_sparse_composition --json
       - name: Run E01-B five-seed evaluation
