@@ -56,6 +56,22 @@ class E02I2MatchingTests(unittest.TestCase):
         self.assertEqual(similarity(base, self.old["r1"]), similarity(permuted, self.old["r1"]))
         self.assertGreater(similarity(base, self.old["r1"]), similarity(swapped, self.old["r1"]))
 
+    def test_rule_change_requires_event_adjudication_not_identity_match(self):
+        changed = RelationCandidate("new-rule", ("a", "b"), ("source", "target"), "AND", "a^b", "lab")
+        for method in (MatchingMethod.ROLE_ALIGNED, MatchingMethod.HUNGARIAN):
+            decision = match_candidates(
+                (changed,), self.old, method=method,
+                min_score=0.70, min_margin=0.05,
+            )[0]
+            self.assertTrue(decision.abstained, method.value)
+            self.assertIsNone(decision.identity_id)
+        # Jaccard remains intentionally semantic-blind as a weak control.
+        weak = match_candidates(
+            (changed,), self.old, method=MatchingMethod.JACCARD,
+            min_score=0.70, min_margin=0.05,
+        )[0]
+        self.assertEqual(weak.identity_id, "r1")
+
     def test_ambiguous_candidates_abstain(self):
         near = version("r3", ("a", "b"), ("source", "target"), "a&b", context="lab")
         candidates = (RelationCandidate("c1", ("a", "b"), ("source", "target"), "AND", "a&b", "lab"),)
