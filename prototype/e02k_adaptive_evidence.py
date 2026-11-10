@@ -20,6 +20,8 @@ class EvidenceObservation:
     def __post_init__(self) -> None:
         if self.candidate_wins < 0 or self.candidate_losses < 0:
             raise ValueError("paired counts cannot be negative")
+        if not math.isfinite(self.current_invalid_evidence):
+            raise ValueError("current invalidity evidence must be finite")
 
 
 class AdaptiveEvidenceController:
@@ -122,11 +124,28 @@ class AdaptiveEvidenceController:
 
         if self.current_signature is not None and signature == self.current_signature:
             self._reset_pending()
-            self.invalid_score = 0.0
-            self.invalid_support_windows = 0
-            self.current_status = "ACTIVE"
-            action = "KEEP"
-            self.events.append(self._event(window, action, 0.0, 0.0))
+            health_evidence = self._observe_current_health(
+                observation.current_invalid_evidence
+            )
+            if (
+                self.invalid_score >= self.threshold
+                and self.invalid_support_windows >= self.min_support_windows
+            ):
+                old = self.current_signature
+                self.current_signature = None
+                self.current_status = "ABSENT"
+                self.invalid_score = 0.0
+                self.invalid_support_windows = 0
+                action = "RETIRE"
+                self.events.append(self._event(
+                    window, action, 0.0, health_evidence, old=old
+                ))
+                return action
+            self.current_status = "DEGRADED" if self.invalid_score > 0 else "ACTIVE"
+            action = "DEGRADE" if self.invalid_score > 0 else "KEEP"
+            self.events.append(self._event(
+                window, action, 0.0, health_evidence
+            ))
             return action
 
         candidate_evidence = self._observe_candidate(observation)
