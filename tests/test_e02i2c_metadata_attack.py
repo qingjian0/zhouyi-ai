@@ -79,6 +79,24 @@ class E02I2CMetadataAttackTests(unittest.TestCase):
         self.assertIn("accuracy_ci_95", first)
         self.assertIn("macro_f1_lift_ci_95", first)
 
+    def test_m0_features_are_invariant_to_opaque_token_renaming(self):
+        episode = build_episode(EventType.ABSTAIN, 1013, split="gate")
+        original = episode.observation
+        renamed_packets = tuple(
+            replace(
+                packet,
+                evidence_id=f"ev-{'a' * 32}{index:02d}",
+                sample_id=f"sample-{'b' * 32}{index:02d}",
+                raw_observation_ref=f"synthetic://observation/{'c' * 32}{index:02d}",
+            )
+            for index, packet in enumerate(original.evidence)
+        )
+        renamed = replace(original, evidence=renamed_packets)
+        self.assertEqual(
+            extract_features(original, "M0"),
+            extract_features(renamed, "M0"),
+        )
+
     def test_unknown_tier_is_rejected(self):
         episode = build_episode(EventType.KEEP, 1010, split="train")
         with self.assertRaises(ValueError):
