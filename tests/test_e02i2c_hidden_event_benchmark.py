@@ -1,5 +1,5 @@
 import unittest
-from dataclasses import fields
+from dataclasses import fields, replace
 
 from prototype.e02i2c_adjudication import EvidencePacket, EvidencePolarity, EventType
 from prototype.e02i2c_hidden_event_benchmark import (
@@ -82,6 +82,35 @@ class E02I2CHiddenEventBenchmarkTests(unittest.TestCase):
             {packet.polarity for packet in modes[3].observation.evidence},
             {EvidencePolarity.SUPPORTS, EvidencePolarity.CONTRADICTS},
         )
+
+    def test_observable_provenance_ids_do_not_encode_event_labels(self):
+        forbidden = tuple(event.value.lower() for event in SUPPORTED_EVENTS)
+        for seed in range(40):
+            for event in SUPPORTED_EVENTS:
+                episode = build_episode(event, 10000 + seed, split="gate")
+                for packet in episode.observation.evidence:
+                    metadata = " ".join((
+                        packet.evidence_id, packet.sample_id,
+                        packet.raw_observation_ref,
+                    )).lower()
+                    self.assertFalse(any(label in metadata for label in forbidden))
+                    self.assertNotIn("unconfirmed-new", metadata)
+                    self.assertNotIn("conflict-positive", metadata)
+                    self.assertNotIn("undersampled", metadata)
+
+    def test_random_bijective_provenance_renaming_preserves_semantic_decision(self):
+        episode = build_episode(EventType.MODIFY, 31337, split="gate")
+        renamed = []
+        for index, packet in enumerate(episode.observation.evidence):
+            renamed.append(replace(
+                packet,
+                evidence_id=f"opaque-e-{index}-x",
+                sample_id=f"opaque-s-{index}-y",
+                raw_observation_ref=f"opaque://{index}/z",
+            ))
+        original = _adjudicator(episode.observation)
+        transformed = replace(episode.observation, evidence=tuple(renamed))
+        self.assertEqual(_adjudicator(transformed), original)
 
     def test_locked_test_is_not_available_during_development(self):
         with self.assertRaisesRegex(ValueError, "locked Test"):
