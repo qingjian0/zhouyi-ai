@@ -15,12 +15,12 @@ def parity_view():
             residual = int((int(a) + int(b) + int(c)) % 2 == 1)
             rows.append(ResidualRecord(
                 f"e{index:03d}",
-                (("a", a), ("b", b), ("c", c), ("d", float(repeat % 2))),
+                (("a", a), ("d", float(repeat % 2)), ("b", b), ("c", c)),
                 residual, 0,
             ))
             index += 1
     return ResidualView(
-        tuple(FeatureSpec(name) for name in ("a", "b", "c", "d")),
+        tuple(FeatureSpec(name) for name in ("a", "d", "b", "c")),
         tuple(rows), "out_of_fold", "a3-parity-fixture",
     )
 
