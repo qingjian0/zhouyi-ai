@@ -87,6 +87,24 @@ class E02I2CContractsTests(unittest.TestCase):
         self.assertEqual(decision.event, EventType.MODIFY)
         self.assertEqual(set(decision.evidence_refs), {"e0", "e1"})
 
+    def test_competing_current_and_changed_support_abstains_with_both_provenances(self):
+        decision = adjudicate_event(active(), (opp(0), opp(1), opp(2)), (
+            packet("old", 0, EvidencePolarity.SUPPORTS, "a&b", source="v1"),
+            packet("new-1", 1, EvidencePolarity.SUPPORTS, "a^b", source="v1"),
+            packet("new-2", 2, EvidencePolarity.SUPPORTS, "a^b", source="v1"),
+        ), candidate_signature="a^b")
+        self.assertEqual(decision.event, EventType.ABSTAIN)
+        self.assertIn("competing support", decision.reason)
+        self.assertEqual(set(decision.evidence_refs), {"old", "new-1", "new-2"})
+
+    def test_single_old_support_does_not_mask_multiwindow_change(self):
+        decision = adjudicate_event(active(), (opp(0), opp(1), opp(2)), (
+            packet("old", 0, EvidencePolarity.SUPPORTS, "a&b", source="v1"),
+            packet("new-1", 1, EvidencePolarity.SUPPORTS, "a^b", source="v1"),
+            packet("new-2", 2, EvidencePolarity.SUPPORTS, "a^b", source="v1"),
+        ), candidate_signature="a^b")
+        self.assertEqual(decision.event, EventType.ABSTAIN)
+
     def test_unlinked_changed_rule_does_not_modify(self):
         decision = adjudicate_event(active(), (opp(0), opp(1)), (
             packet("e0", 0, EvidencePolarity.SUPPORTS, "a^b", source="other"),
