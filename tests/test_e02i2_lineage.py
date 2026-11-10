@@ -49,6 +49,40 @@ class E02I2LineageLedgerTests(unittest.TestCase):
         self.assertEqual(ledger.version_transitions[0].from_version_id, "r1v1")
         ledger.assert_consistent()
 
+    def test_modify_rejects_identical_structure(self):
+        ledger = RelationLineageLedger()
+        create(ledger)
+        with self.assertRaises(LineageError):
+            ledger.modify(
+                "r1", version_id="r1v2", members=("a", "b"),
+                roles=("source", "target"), operator="AND",
+                rule_signature="a&b", context_signature="lab",
+                window=1, evidence_refs=("ev2",),
+            )
+        self.assertEqual(ledger.identities["r1"].version_ids, ("r1v1",))
+        self.assertNotIn("r1v2", ledger.versions)
+
+    def test_split_preflight_prevents_partial_child_creation(self):
+        ledger = RelationLineageLedger()
+        create(ledger)
+        with self.assertRaises((LineageError, ValueError, KeyError)):
+            ledger.split(
+                "r1",
+                children=(
+                    {"identity_id": "r2", "version_id": "r2v1",
+                     "members": ("a", "b"), "roles": ("x", "y"),
+                     "operator": "AND", "rule_signature": "a&b"},
+                    {"identity_id": "r3", "version_id": "r3v1",
+                     "members": ("c", "d"), "roles": ("only-one-role",),
+                     "operator": "OR", "rule_signature": "c|d"},
+                ),
+                window=1,
+            )
+        self.assertEqual(ledger.identities["r1"].status, IdentityStatus.ACTIVE)
+        self.assertNotIn("r2", ledger.identities)
+        self.assertNotIn("r3", ledger.identities)
+        self.assertEqual(len(ledger.events), 1)
+
     def test_suspend_then_reactivate_requires_fresh_evidence(self):
         ledger = RelationLineageLedger()
         create(ledger)
