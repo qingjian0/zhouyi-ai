@@ -56,11 +56,11 @@ This is a review finding and validation record, not a patch to that branch. The 
 
 ## 4. Proposal portfolio validation status
 
-The multi-proposer branch has a passing full unit-test step and passing A3-specific benchmark-test and smoke-test steps on commit `b11592038e0cd6bc01b36608b209bbc450110a13`.
+The multi-proposer branch passed the full repository workflow on commit `55cd2ca7fc4d72e729df83fc3003398c09295be1` (run `42870394169`). The run includes all E12-A3 tests, smoke execution, the 20-seed benchmark, and the repository's existing E01/E02 experiment steps.
 
-The subsequent 20-seed equal-budget benchmark step also completed successfully on the later branch run. The complete repository workflow was still running at the time of this record; do not label the whole workflow successful until all legacy experiment steps finish.
+The exact-budget benchmark uses 31 proposal slots per method, Support exact-consistency screening, Gate selection, and evaluator-side Locked Test scoring. The equal-share PORTFOLIO achieved 27.5% selection coverage, below RELATIONAL (42.5%) and BOUNDED_ENUM (35.0%). This is a negative result for fixed round-robin allocation; see `docs/E12A3_M0_BENCHMARK_RESULTS_2026-11-11.md`.
 
-The benchmark uses equal proposal slots, Support exact-consistency screening, Gate selection, and evaluator-side Locked Test scoring. It does not yet match CPU operations or wall-clock time.
+CPU operations and wall-clock time are not yet matched. The benchmark does not establish generalization beyond two synthetic task families.
 
 ## 5. Integration gates
 
