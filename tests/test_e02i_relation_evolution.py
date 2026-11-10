@@ -50,8 +50,7 @@ class E02IRelationEvolutionTests(unittest.TestCase):
 
 
     def test_gate_controls_decisions_but_independent_test_split_is_audit_only(self):
-        result = run_episode(seed=83, scenario="stable", train_n=256,
-                             gate_n=128, test_n=128)
+        result = run_episode(seed=83, scenario="stable")
         self.assertTrue(all(w["split_ids_disjoint"] for w in result["windows"]))
         self.assertTrue(all("test_accuracy" in w for w in result["windows"]))
         self.assertTrue(all("pairwise_test_accuracy" in w for w in result["windows"]))
