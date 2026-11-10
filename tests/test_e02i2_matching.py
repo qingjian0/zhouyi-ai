@@ -92,6 +92,17 @@ class E02I2MatchingTests(unittest.TestCase):
         self.assertEqual(by_id_forward["a-exact"], "r1")
         self.assertIsNone(by_id_forward["b-partial"])
 
+    def test_hungarian_tie_breaking_is_input_order_invariant(self):
+        a = RelationCandidate("a-candidate", ("a", "b"), ("source", "target"), "AND", "a&b", "lab")
+        b = RelationCandidate("b-candidate", ("a", "b"), ("source", "target"), "AND", "a&b", "lab")
+        forward = match_candidates((b, a), {"r1": self.old["r1"]}, method=MatchingMethod.HUNGARIAN)
+        reverse = match_candidates((a, b), {"r1": self.old["r1"]}, method=MatchingMethod.HUNGARIAN)
+        by_id_forward = {d.candidate_id: d.identity_id for d in forward}
+        by_id_reverse = {d.candidate_id: d.identity_id for d in reverse}
+        self.assertEqual(by_id_forward, by_id_reverse)
+        self.assertEqual(by_id_forward["a-candidate"], "r1")
+        self.assertIsNone(by_id_forward["b-candidate"])
+
     def test_empty_identity_set_abstains(self):
         candidate = RelationCandidate("c1", ("x", "y"), ("a", "b"), "AND", "x&y")
         result = match_candidates((candidate,), {}, method=MatchingMethod.HUNGARIAN)
