@@ -217,6 +217,19 @@ def adjudicate_event(
             candidate_signature,
             conflict_refs,
         )
+    # A support packet and an absence packet in the same window conflict
+    # regardless of whether the identity is active, suspended, or absent.
+    # This check must precede status-specific reactivation/creation paths.
+    support_windows = {item.window for item in all_supporting}
+    absence_windows = {item.window for item in absences}
+    if support_windows.intersection(absence_windows):
+        return _abstain(
+            identity,
+            "support and absence coexist in the same observation window",
+            candidate_signature,
+            refs((*all_supporting, *absences)),
+        )
+
     if identity is None:
         windows = distinct_windows(supporting)
         samples = {item.sample_id for item in supporting}
@@ -278,18 +291,6 @@ def adjudicate_event(
             )
         return _abstain(identity, "suspended identity lacks sufficient reactivation or retirement evidence",
                         candidate_signature)
-
-    # A current support packet and an absence packet in the same window
-    # are contradictory observations. Do not let either polarity win by order.
-    support_windows = {item.window for item in all_supporting}
-    absence_windows = {item.window for item in absences}
-    if support_windows.intersection(absence_windows):
-        return _abstain(
-            identity,
-            "support and absence coexist in the same observation window",
-            candidate_signature,
-            refs((*all_supporting, *absences)),
-        )
 
     # A sufficiently observed consecutive absence tail can suspend an active
     # identity even when older windows still contain support. Historical KEEP
