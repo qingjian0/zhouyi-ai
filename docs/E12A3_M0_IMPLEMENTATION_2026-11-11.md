@@ -1,7 +1,7 @@
 # E12-A3-M0 — Bounded Sparse Composition Engine
 
 Date: 2026-11-11  
-Status: implementation committed; focused tests, smoke test, and full unit-test discovery passed in GitHub Actions; remaining repository benchmark workflow steps are running.
+Status: implementation committed; focused tests, smoke test, full unit-test discovery, and all repository benchmark workflow steps passed in GitHub Actions run #375.
 
 ## Files
 
@@ -54,7 +54,7 @@ The CLI uses a conservative depth-1, arity-3 demo configuration to keep the exam
 
 ## Limitations / next validation gates
 
-1. The focused A3-M0 tests, CLI smoke test, and full unit-test discovery have passed in GitHub Actions. The remaining repository benchmark steps are tracked separately.
+1. The focused A3-M0 tests, CLI smoke test, full unit-test discovery, and all repository benchmark workflow steps passed in GitHub Actions run #375.
 2. Candidate generation is exhaustive only within the declared finite grammar and caps.
 3. The current baseline uses hard Boolean outputs and exact consistency; noisy predicates and probabilistic scoring are not implemented.
 4. Nested compositions require disjoint feature supports, a conservative restriction to revisit in a separate ablation.
