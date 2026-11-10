@@ -6,9 +6,9 @@ from prototype.e02_edge_lifecycle import (
 
 
 def proposal(edge_id, members=("a", "b", "c"), roles=("x", "y", "z"),
-             gain=0.1, support=("s1", "s2", "s3")):
+             gain=0.1, support=("s1", "s2", "s3"), counter=()):
     return EdgeProposal(edge_id, members, roles, "constraint",
-                        support, (), gain, 1.0)
+                        support, counter, gain, 1.0)
 
 
 class HyperedgeLifecycleTests(unittest.TestCase):
