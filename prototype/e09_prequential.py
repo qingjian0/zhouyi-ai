@@ -14,6 +14,7 @@ from prototype.e09_counterexample_learner import (
     CounterexampleRuleLearner, Example,
 )
 from prototype.e09_evidence_ledger import EvidenceLedger, EvidenceError
+from prototype.e09_incremental_learner import IncrementalConjunctionLearner
 
 Value = Hashable
 Label = Hashable
@@ -57,12 +58,19 @@ class RevisionEvent:
 
 
 class PrequentialRunner:
-    """Enforces predict -> commit -> reveal -> append -> batch-refit."""
+    """Enforces predict -> commit -> reveal -> append -> selected revision arm."""
 
     REVISION_MODE = "BATCH_REFIT"
 
-    def __init__(self, learner: CounterexampleRuleLearner,
-                 ledger: EvidenceLedger | None = None) -> None:
+    def __init__(self, learner, ledger: EvidenceLedger | None = None, *,
+                 revision_mode: str = "BATCH_REFIT") -> None:
+        if revision_mode not in {"BATCH_REFIT", "INCREMENTAL_INDEX"}:
+            raise PrequentialError("unsupported revision mode")
+        if revision_mode == "INCREMENTAL_INDEX" and not isinstance(
+            learner, IncrementalConjunctionLearner
+        ):
+            raise PrequentialError("INCREMENTAL_INDEX requires IncrementalConjunctionLearner")
+        self.REVISION_MODE = revision_mode
         self.learner = learner
         self.ledger = ledger or EvidenceLedger()
         self.model_version = 0
@@ -79,7 +87,13 @@ class PrequentialRunner:
             raise PrequentialError("bootstrap requires at least one record")
         for sample_id, example in records:
             self.ledger.append(sample_id, example, source="bootstrap")
-        self.ledger.fit(self.learner)
+        if self.REVISION_MODE == "BATCH_REFIT":
+            self.ledger.fit(self.learner)
+        else:
+            # Replay every raw record, including conflicts, so the index learns
+            # which historical inputs are quarantined by ledger adjudication.
+            for record in self.ledger.records():
+                self.learner.observe(record.example.inputs, record.example.label)
         self.model_version = 1
         self.step += 1
 
@@ -142,8 +156,15 @@ class PrequentialRunner:
             raise PrequentialError("this reveal already triggered a revision")
         before = json.dumps(self.learner.snapshot(), sort_keys=True, default=repr)
         before_version = self.model_version
-        # Explicit baseline: this recomputes from all uncontested ledger rows.
-        self.ledger.fit(self.learner)
+        before_cost = self.learner.report.get("candidate_patterns_evaluated", 0)
+        if self.REVISION_MODE == "BATCH_REFIT":
+            # Baseline: recompute from all uncontested historical evidence.
+            self.ledger.fit(self.learner)
+        else:
+            commit = self._predictions[prediction_id]
+            # Apply only this newly revealed input; conflicts retract its prior
+            # contribution inside the incremental learner.
+            self.learner.observe(commit.inputs, reveal.label)
         self.model_version += 1
         self.step += 1
         after = json.dumps(self.learner.snapshot(), sort_keys=True, default=repr)
@@ -157,7 +178,7 @@ class PrequentialRunner:
             after_snapshot=after,
             operation=self.REVISION_MODE,
             training_example_count=report.get("training_examples", 0),
-            candidate_evaluations=report.get("candidate_patterns_evaluated", 0),
+            candidate_evaluations=(report.get("candidate_patterns_evaluated", 0) if self.REVISION_MODE == "BATCH_REFIT" else report.get("candidate_patterns_evaluated", 0) - before_cost),
             step=self.step,
         )
         self._revisions.append(event)
