@@ -280,9 +280,13 @@ def adjudicate_event(
         if item.window in sufficient_windows
     }
     consecutive = 0
+    expected_previous: int | None = None
     for window in sorted(sufficient_windows, reverse=True):
+        if expected_previous is not None and window != expected_previous:
+            break
         if window in absence_windows:
             consecutive += 1
+            expected_previous = window - 1
         else:
             break
     if consecutive >= required_windows:
