@@ -5,7 +5,6 @@ Diagnostics are descriptive. Acceptance rate and ESS do not prove that the
 """
 from __future__ import annotations
 
-import math
 import random
 from statistics import mean, variance
 from typing import Sequence
@@ -97,7 +96,7 @@ def diagnose_permutation_chains(
     edge_count = sum(len(row) for row in original)
     attempts_per_edge = max(1, edge_count)
     burn_attempts = burn_in_swaps_per_edge * attempts_per_edge
-    thin_attempts = max(1, thinning_swaps_per_edge * attempts_per_edge)
+    thin_attempts = thinning_swaps_per_edge * attempts_per_edge
     observed_score = _motif_score(original, candidate)
     rng = random.Random(seed)
     chain_reports = []
