@@ -59,9 +59,24 @@ CI runs a smaller deterministic sweep to keep feedback time bounded. The full sw
 - Do not call this a natural-world, language, causal, or neural architecture benchmark.
 - The action prediction tables are supplied to all policies; autonomous action-model learning is not evaluated.
 - The current protocol uses uniform priors and deterministic observations. Noisy observations and prior misspecification are separate follow-up experiments.
-- Report all three world families, not only the family most favorable to a policy.
+- Report all three world families, not only the family most favorable to a policy. The benchmark JSON now includes `family_summary` in addition to the pooled `summary`; each family-policy cell contains all eight targets per seed.
 - Compare policies at the same action set and budget. Report residual entropy alongside identification rate so abstention or partial identification is not hidden.
 - Do not infer a Yijing-specific advantage: this benchmark contains no Yijing encoding.
+
+## CI result snapshot (Run #360, commit 7206be86)
+
+The CI sweep used 5 seeds per family, budget 4, and 8 exhaustive targets per world (720 policy-episodes total). Pooled results:
+
+| Policy | Identification rate | Mean residual entropy (bits) | Mean cost |
+|---|---:|---:|---:|
+| Random | 0.4583 | 0.6099 | 3.0833 |
+| Fixed | 0.3417 | 0.7022 | 2.7500 |
+| Max disagreement | 0.8250 | 0.1896 | 3.3417 |
+| Expected IG | 0.8250 | 0.1896 | 3.3250 |
+| Cost-normalized IG | 0.5250 | 0.5189 | 2.8083 |
+| Exact optimal | 0.8583 | 0.1563 | 3.5750 |
+
+This is one small synthetic sweep, not a general performance claim. The pooled summary hides interactions between policy and world family; `family_summary` was added so future runs can report those interactions directly. The Run #360 full workflow completed successfully.
 
 ## Next steps
 
