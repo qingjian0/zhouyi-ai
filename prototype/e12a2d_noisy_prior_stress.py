@@ -256,6 +256,19 @@ def prior_for(world: NoisyWorld, arm: str) -> tuple[float, ...]:
     raise ValueError("unknown prior arm")
 
 
+def _paired_delta(left: list[dict], right: list[dict], metric: str) -> dict:
+    differences = [float(a[metric]) - float(b[metric]) for a, b in zip(left, right)]
+    count = len(differences)
+    mean = sum(differences) / count
+    if count < 2:
+        low = high = mean
+    else:
+        variance = sum((value - mean) ** 2 for value in differences) / (count - 1)
+        margin = 1.96 * math.sqrt(variance / count)
+        low, high = mean - margin, mean + margin
+    return {"mean_delta": mean, "ci95_low": low, "ci95_high": high}
+
+
 def run_benchmark(episodes: int = 100, budget: int = 3, start_seed: int = 2026) -> dict:
     if episodes < 1 or budget < 0:
         raise ValueError("episodes must be positive and budget non-negative")
@@ -297,6 +310,35 @@ def run_benchmark(episodes: int = 100, budget: int = 3, start_seed: int = 2026) 
                     "mean_map_confidence": sum(x["map_confidence"] for x in items) / count,
                     "mean_cost": sum(x["spent_cost"] for x in items) / count,
                 })
+    contrasts = []
+    for family in families:
+        for policy in POLICIES:
+            # Reconstruct paired episodes for uncertainty estimates.
+            world = make_world(family)
+            family_index = families.index(family)
+            paired = {
+                arm: [] for arm in PRIOR_ARMS
+            }
+            for episode in range(episodes):
+                seed = start_seed + family_index * 100000 + episode
+                target = _sample_target(world.true_prior, random.Random(seed))
+                for arm in PRIOR_ARMS:
+                    paired[arm].append(run_episode(
+                        world, target, prior_for(world, arm), policy, budget, seed
+                    ))
+            for arm in ("matched", "anti_aligned"):
+                contrasts.append({
+                    "family": family,
+                    "policy": policy,
+                    "comparison": f"{arm}_minus_uniform",
+                    "accuracy": _paired_delta(paired[arm], paired["uniform"], "correct"),
+                    "brier": _paired_delta(paired[arm], paired["uniform"], "brier"),
+                    "log_loss": _paired_delta(paired[arm], paired["uniform"], "log_loss"),
+                    "overconfident_wrong": _paired_delta(
+                        paired[arm], paired["uniform"], "overconfident_wrong"
+                    ),
+                })
+
     return {
         "benchmark": "E12-A2-D noisy measurement and prior misspecification",
         "episodes_per_cell": episodes,
@@ -305,6 +347,7 @@ def run_benchmark(episodes: int = 100, budget: int = 3, start_seed: int = 2026) 
         "prior_arms": list(PRIOR_ARMS),
         "policies": list(POLICIES),
         "rows": rows,
+        "paired_prior_contrasts": contrasts,
         "protocol": {
             "target_distribution": "environment-private true prior per world family",
             "learner_visibility": "learner prior arm, public noisy likelihoods, costs, remaining budget",
