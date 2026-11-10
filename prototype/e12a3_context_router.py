@@ -28,7 +28,8 @@ from prototype.e12a3_multi_proposer import (
 TASKS = ("THRESHOLD", "PAIRWISE_DIFFERENCE", "PARITY")
 METHODS = (
     "STAT", "RELATIONAL", "RANDOM", "BOUNDED_ENUM",
-    "EQUAL", "ROUND_ROBIN", "UCB1_MEAN", "SUPPORT_CONTEXT_ROUTER",
+    "EQUAL", "ROUND_ROBIN", "UCB1_MEAN",
+    "SUPPORT_CONTEXT_ROUTER", "SUPPORT_CONTEXT_ROUTER_STRATIFIED",
 )
 
 
@@ -73,23 +74,72 @@ def _accuracy(proposal: Proposal, rows: Sequence[Observation]) -> float:
     ) / len(rows)
 
 
+def _random_probe_candidates(
+    pools: dict[str, tuple[Proposal, ...]], batch_size: int = 4,
+) -> dict[str, tuple[Proposal, ...]]:
+    return {
+        family: tuple(pools[family][:batch_size])
+        for family in ADAPTIVE_FAMILIES
+    }
+
+
+def _balanced_probe_candidates(
+    pools: dict[str, tuple[Proposal, ...]], batch_size: int = 4,
+) -> dict[str, tuple[Proposal, ...]]:
+    """Choose operator-diverse probes, then distinct feature-role candidates."""
+    result = {}
+    for family in ADAPTIVE_FAMILIES:
+        proposals = list(pools[family])
+        chosen: list[Proposal] = []
+        seen_operators = set()
+        for proposal in proposals:
+            operator = proposal.expression.operator
+            if operator not in seen_operators:
+                chosen.append(proposal)
+                seen_operators.add(operator)
+            if len(chosen) == batch_size:
+                break
+
+        seen_roles = {
+            (p.expression.feature, p.expression.other_feature)
+            for p in chosen
+        }
+        if len(chosen) < batch_size:
+            for proposal in proposals:
+                role = (proposal.expression.feature,
+                        proposal.expression.other_feature)
+                if proposal not in chosen and role not in seen_roles:
+                    chosen.append(proposal)
+                    seen_roles.add(role)
+                if len(chosen) == batch_size:
+                    break
+
+        if len(chosen) < batch_size:
+            for proposal in proposals:
+                if proposal not in chosen:
+                    chosen.append(proposal)
+                if len(chosen) == batch_size:
+                    break
+        if len(chosen) != batch_size:
+            raise RuntimeError(f"{family} cannot supply {batch_size} context probes")
+        result[family] = tuple(chosen)
+    return result
+
+
 def _context_descriptors(
-    pools: dict[str, tuple[Proposal, ...]],
+    probes: dict[str, tuple[Proposal, ...]],
     context_support: Sequence[Observation],
     top_k: int = 3,
-    probe_limit: int = 4,
 ) -> dict[str, float]:
-    if top_k < 1 or probe_limit < top_k:
-        raise ValueError("probe_limit must be at least top_k")
+    if top_k < 1:
+        raise ValueError("top_k must be positive")
     scores = {}
     for family in ADAPTIVE_FAMILIES:
         candidate_scores = sorted(
-            (_accuracy(p, context_support) for p in pools[family][:probe_limit]),
+            (_accuracy(p, context_support) for p in probes[family]),
             reverse=True,
         )
-        scores[family] = (
-            mean(candidate_scores[:top_k]) if candidate_scores else 0.0
-        )
+        scores[family] = mean(candidate_scores[:top_k]) if candidate_scores else 0.0
     return scores
 
 
@@ -113,33 +163,59 @@ def _unique_registry(proposals: Sequence[Proposal]) -> tuple[Proposal, ...]:
 def _context_route_allocate(
     pools: dict[str, tuple[Proposal, ...]],
     descriptors: dict[str, float],
+    probes: dict[str, tuple[Proposal, ...]],
     budget: int = 31,
     batch_size: int = 4,
+    probe_strategy: str = "RANDOM",
 ) -> dict[str, Any]:
     """Route from precomputed Support context; no Gate/Test input."""
     if budget < batch_size * len(ADAPTIVE_FAMILIES):
         raise ValueError("budget must fund one exploration batch per family")
     if set(descriptors) != set(ADAPTIVE_FAMILIES):
         raise ValueError("context descriptors must cover every proposer family")
-    offsets = {family: 0 for family in ADAPTIVE_FAMILIES}
+    if set(probes) != set(ADAPTIVE_FAMILIES) or any(
+        len(probes[name]) != batch_size for name in ADAPTIVE_FAMILIES
+    ):
+        raise ValueError("each family must have exactly one full probe batch")
+
     emitted: list[Proposal] = []
     trace = []
     allocations = {family: 0 for family in ADAPTIVE_FAMILIES}
     remaining = budget
 
-    # Mandatory exploration: one batch per family, stable family-ID order.
-    schedule = [(family, batch_size) for family in ADAPTIVE_FAMILIES]
+    # The context probes are also the mandatory exploration batch.
+    for family in ADAPTIVE_FAMILIES:
+        batch = probes[family]
+        emitted.extend(batch)
+        allocations[family] += len(batch)
+        remaining -= len(batch)
+        trace.append({
+            "family": family, "slots": len(batch),
+            "context_score": descriptors[family],
+            "probe_strategy": probe_strategy,
+            "remaining_budget": remaining,
+        })
+
+    probe_ids = {
+        family: {proposal.proposal_id for proposal in probes[family]}
+        for family in ADAPTIVE_FAMILIES
+    }
+    queues = {
+        family: [
+            proposal for proposal in pools[family]
+            if proposal.proposal_id not in probe_ids[family]
+        ]
+        for family in ADAPTIVE_FAMILIES
+    }
+    offsets = {family: 0 for family in ADAPTIVE_FAMILIES}
+
     while remaining > 0:
-        if schedule:
-            family, requested = schedule.pop(0)
-        else:
-            family = sorted(
-                ADAPTIVE_FAMILIES,
-                key=lambda name: (-descriptors[name], name),
-            )[0]
-            requested = min(batch_size, remaining)
-        requested = min(requested, remaining)
-        batch = tuple(pools[family][offsets[family]:offsets[family] + requested])
+        family = sorted(
+            ADAPTIVE_FAMILIES,
+            key=lambda name: (-descriptors[name], name),
+        )[0]
+        requested = min(batch_size, remaining)
+        batch = tuple(queues[family][offsets[family]:offsets[family] + requested])
         if len(batch) != requested:
             raise RuntimeError(f"{family} proposal pool exhausted")
         offsets[family] += len(batch)
@@ -147,9 +223,9 @@ def _context_route_allocate(
         allocations[family] += len(batch)
         remaining -= len(batch)
         trace.append({
-            "family": family,
-            "slots": len(batch),
+            "family": family, "slots": len(batch),
             "context_score": descriptors[family],
+            "probe_strategy": "ROUTED_REMAINDER",
             "remaining_budget": remaining,
         })
 
@@ -161,7 +237,9 @@ def _context_route_allocate(
         "trace": tuple(trace),
         "proposal_slots_used": budget,
         "candidate_count": len(candidates),
-        "context_probe_evaluations": batch_size * len(ADAPTIVE_FAMILIES),
+        "context_probe_evaluations": sum(
+            len(probes[family]) for family in ADAPTIVE_FAMILIES
+        ),
     }
 
 
@@ -192,10 +270,15 @@ def run_episode(seed: int, task: str, budget: int = 31) -> dict[str, Any]:
     support, gate_dev, gate_final, locked_test = make_four_way_world(seed, task)
     proposal_support, context_support = split_support_context(support, seed)
     pools = _make_pools(proposal_support, seed)
-    # One shared, capacity-matched context probe: first four candidates per
-    # family, exactly 12 Support-context evaluations for every policy run.
-    context_scores = _context_descriptors(
-        pools, context_support, top_k=3, probe_limit=4
+    # Compare random and grammar-stratified probes under the same 12-evaluation
+    # Support-context budget. Each probe batch is also the exploration batch.
+    random_probes = _random_probe_candidates(pools, batch_size=4)
+    random_context_scores = _context_descriptors(
+        random_probes, context_support, top_k=3
+    )
+    stratified_probes = _balanced_probe_candidates(pools, batch_size=4)
+    stratified_context_scores = _context_descriptors(
+        stratified_probes, context_support, top_k=3
     )
     methods: dict[str, dict[str, Any]] = {}
 
@@ -229,7 +312,8 @@ def run_episode(seed: int, task: str, budget: int = 31) -> dict[str, Any]:
     }
 
     routed = _context_route_allocate(
-        pools, context_scores, budget
+        pools, random_context_scores, random_probes, budget,
+        probe_strategy="RANDOM",
     )
     route_selection = _select_on_gate_final(routed["candidates"], gate_final)
     methods["SUPPORT_CONTEXT_ROUTER"] = {
@@ -243,10 +327,28 @@ def run_episode(seed: int, task: str, budget: int = 31) -> dict[str, Any]:
         "context_probe_evaluations": routed["context_probe_evaluations"],
     }
 
-    # Context probes are a shared 12-slot data-acquisition overhead, charged
-    # equally to every method; only the router uses the resulting descriptor.
+    stratified = _context_route_allocate(
+        pools, stratified_context_scores, stratified_probes, budget,
+        probe_strategy="GRAMMAR_STRATIFIED",
+    )
+    stratified_selection = _select_on_gate_final(
+        stratified["candidates"], gate_final
+    )
+    methods["SUPPORT_CONTEXT_ROUTER_STRATIFIED"] = {
+        "locked_test_accuracy": _score_locked_test(stratified_selection, locked_test),
+        "gate_final_accuracy": stratified_selection["gate_final_accuracy"],
+        "candidate_count": stratified_selection["candidate_count"],
+        "proposal_slots_used": stratified["proposal_slots_used"],
+        "allocations": stratified["allocations"],
+        "context_scores": stratified["context_scores"],
+        "trace": list(stratified["trace"]),
+        "context_probe_evaluations": stratified["context_probe_evaluations"],
+    }
+
+    # Each policy variant uses the same 12-evaluation context-probe budget.
+    shared_probe_cost = 12
     for result in methods.values():
-        result["context_probe_evaluations"] = routed["context_probe_evaluations"]
+        result["context_probe_evaluations"] = shared_probe_cost
 
     for name, result in methods.items():
         if result["proposal_slots_used"] != budget:
@@ -287,7 +389,8 @@ def run_benchmark(
         }
     paired = {
         method: _paired_clustered(episodes, method)
-        for method in ("UCB1_MEAN", "SUPPORT_CONTEXT_ROUTER")
+        for method in ("UCB1_MEAN", "SUPPORT_CONTEXT_ROUTER",
+                       "SUPPORT_CONTEXT_ROUTER_STRATIFIED")
     }
     task_metrics = {}
     for task in TASKS:
