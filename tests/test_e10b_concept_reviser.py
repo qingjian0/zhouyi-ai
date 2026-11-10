@@ -85,5 +85,49 @@ class ConceptReviserTests(unittest.TestCase):
         self.assertEqual(result["decision_status"], "ABSTAIN_UNSEEN_CONCEPT_BRANCH")
 
 
+    def test_unassigned_evidence_is_rerouted_after_blocking_split_merges(self):
+        learner = ConceptReviser(
+            min_members_per_child=2,
+            min_split_gain=0.2,
+            merge_rate_tolerance=0.35,
+        )
+        self._observe(learner, "r1", "red", True)
+        self._observe(learner, "r2", "red", True)
+        self._observe(learner, "b1", "blue", False)
+        split = self._observe(learner, "b2", "blue", False)
+        self.assertEqual(len(split["active_concepts"]), 2)
+
+        pending = learner.observe(
+            observation_id="missing-color-obs",
+            entity_id="missing-color-entity",
+            features={"texture": "rough"},
+            target=False,
+        )
+        self.assertEqual(pending["pending_count"], 1)
+        self.assertIn("missing-color-obs", pending["pending_observation_ids"])
+
+        learner.observe(
+            observation_id="r3-obs",
+            entity_id="r3-entity",
+            features={"color": "red", "noise": "r3"},
+            target=False,
+        )
+        merged = learner.observe(
+            observation_id="b3-obs",
+            entity_id="b3-entity",
+            features={"color": "blue", "noise": "b3"},
+            target=True,
+        )
+        self.assertEqual(merged["pending_count"], 0)
+        self.assertEqual(merged["pending_observation_ids"], [])
+        root = next(
+            concept for concept in merged["active_concepts"]
+            if concept["concept_id"] == "concept-root"
+        )
+        self.assertIn("missing-color-obs", root["members"])
+        self.assertTrue(
+            any(event["operation"] == "reroute_pending" for event in merged["events"])
+        )
+
 if __name__ == "__main__":
     unittest.main()
