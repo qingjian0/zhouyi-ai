@@ -207,6 +207,15 @@ class OrthogonalLifecycleLedger:
         epistemic = state["epistemic"].get((ref, scope_id), EpistemicStatus.UNKNOWN)
         scope = state["scopes"].get((ref, scope_id), ScopeStatus.UNTESTED)
 
+        challenge_scopes = {
+            event.scope_id for event in self._events
+            if event.candidate_ref == ref
+            and event.kind is EventKind.WORKFLOW_TRANSITION
+            and event.workflow_to is WorkflowStage.CHALLENGED
+        }
+        global_challenge = None in challenge_scopes
+        challenged_here = scope_id in challenge_scopes
+
         if workflow is WorkflowStage.RETIRED:
             policy = InvocationPolicy.ABSTAIN
         elif epistemic in (EpistemicStatus.UNDERDETERMINED, EpistemicStatus.CONTRADICTED,
@@ -215,12 +224,14 @@ class OrthogonalLifecycleLedger:
         elif scope in (ScopeStatus.OUT_OF_SCOPE, ScopeStatus.SHIFT_SUSPECTED,
                        ScopeStatus.UNTESTED):
             policy = InvocationPolicy.ABSTAIN
-        elif workflow is WorkflowStage.CHALLENGED:
+        elif challenged_here or global_challenge:
             policy = InvocationPolicy.ABSTAIN
         elif workflow is WorkflowStage.REVISION_PENDING:
             policy = InvocationPolicy.REQUIRE_CONFIRMATION
-        elif workflow in (WorkflowStage.GATE_VALIDATED, WorkflowStage.REUSED) and epistemic is EpistemicStatus.SUPPORTED and scope is ScopeStatus.IN_SCOPE_SUPPORTED:
-            policy = InvocationPolicy.ALLOW
+        elif workflow in (WorkflowStage.GATE_VALIDATED, WorkflowStage.REUSED, WorkflowStage.CHALLENGED) and epistemic is EpistemicStatus.SUPPORTED and scope is ScopeStatus.IN_SCOPE_SUPPORTED:
+            policy = (InvocationPolicy.ALLOW_WITH_WARNING
+                      if workflow is WorkflowStage.CHALLENGED
+                      else InvocationPolicy.ALLOW)
         elif scope is ScopeStatus.SPECIALIZED:
             policy = InvocationPolicy.REQUIRE_CONFIRMATION
         else:
