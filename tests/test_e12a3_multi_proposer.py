@@ -1,9 +1,9 @@
 import unittest
 
 from prototype.e12a3_multi_proposer import (
-    CandidateSignature, LifecycleState, Observation, PredicateExpr,
+    CandidateSignature, LifecycleState, Observation, PredicateExpr, Proposal,
     allocate_equal_budget, allocate_round_robin, demo_rows, evaluate_gate,
-    group_empirical_equivalence, lifecycle_transition, observed_signature,
+    deduplicate_proposal_pools, group_empirical_equivalence, lifecycle_transition, observed_signature,
     propose_exhaustive, propose_random, propose_relational, propose_statistical,
     run_demo, validate_observations,
 )
@@ -64,6 +64,18 @@ class E12A3MultiProposerTests(unittest.TestCase):
         self.assertEqual(selected[0], relational[0])
         self.assertEqual(selected[1], stat[0])
         self.assertEqual(selected[2], relational[1])
+
+    def test_cross_family_syntax_dedup_preserves_provenance(self):
+        expr = PredicateExpr("x", "GE", 3)
+        stat = Proposal("p-stat", "STAT", "1", expr, ("o1",), 1, (), ("STAT",))
+        random = Proposal("p-random", "RANDOM", "1", expr, ("o2",), 1, (), ("RANDOM",))
+        pools, provenance = deduplicate_proposal_pools({
+            "STAT": (stat,), "RANDOM": (random,),
+        })
+        unique = [proposal for items in pools.values() for proposal in items]
+        self.assertEqual(len(unique), 1)
+        self.assertEqual(unique[0].supporting_families, ("RANDOM", "STAT"))
+        self.assertEqual(provenance[expr.canonical()], ("RANDOM", "STAT"))
 
     def test_empirical_equivalence_is_dataset_scoped(self):
         rows = demo_rows()
