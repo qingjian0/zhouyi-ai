@@ -24,7 +24,7 @@ Each seed generates one episode for each event class:
 - CREATE
 - ABSTAIN — four distinct causes, rotated by seed: no prior identity with only one support window (must not CREATE), single-window unlinked rule change, insufficient sampling opportunity, and simultaneous support/contradiction
 - SUSPEND
-- REACTIVATE
+- REACTIVATE — fresh support across at least two distinct windows and sample IDs
 - REACTIVATE_MODIFY
 - RETIRE
 
