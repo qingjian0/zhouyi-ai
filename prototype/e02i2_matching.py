@@ -187,16 +187,24 @@ def match_candidates(
         ]
         assigned = _hungarian_max(weights)
     else:
-        assigned = []
-        used: set[int] = set()
-        for row in score_rows:
-            choices = sorted(
-                ((score, idx) for idx, score in enumerate(row) if idx not in used),
-                reverse=True,
+        # Global deterministic greedy matching avoids input-order dependence.
+        assigned = [-1] * len(candidates)
+        edges = sorted(
+            (
+                (-score, candidates[row_index].candidate_id, identity_ids[column], row_index, column)
+                for row_index, row in enumerate(score_rows)
+                for column, score in enumerate(row)
+                if score >= min_score
             )
-            assigned.append(choices[0][1] if choices else -1)
-            if choices:
-                used.add(choices[0][1])
+        )
+        used_candidates: set[int] = set()
+        used_identities: set[int] = set()
+        for _, _, _, row_index, column in edges:
+            if row_index in used_candidates or column in used_identities:
+                continue
+            assigned[row_index] = column
+            used_candidates.add(row_index)
+            used_identities.add(column)
 
     decisions = []
     for candidate, row, column in zip(candidates, score_rows, assigned):
