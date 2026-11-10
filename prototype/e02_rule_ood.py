@@ -87,7 +87,9 @@ def run(seed: int = 17, support_size: int = 6) -> dict:
         "identification_coverage": identified / n,
         "accuracy_on_all_episodes": correct / n,
         "accuracy_when_identified": correct / identified if identified else None,
-        "memorization_unseen_rule_chance_baseline": 1 / 3,
+        "exact_lookup_baseline_coverage": 0.0,
+        "exact_lookup_baseline_accuracy": 0.0,
+        "uniform_random_expected_accuracy": 1 / 3,
         "mean_consistent_hypotheses": sum(
             r["consistent_hypotheses"] for r in results) / n,
         "limitations": [
@@ -126,6 +128,9 @@ def run_support_sweep(seeds: int = 20, start_seed: int = 7) -> dict:
     return {
         "task": "Z3_affine_rule_family_support_sweep",
         "hypothesis_class_size": len(RULES),
+        "exact_lookup_baseline_coverage": 0.0,
+        "exact_lookup_baseline_accuracy": 0.0,
+        "uniform_random_expected_accuracy": 1 / 3,
         "seed_start": start_seed,
         "support_sweep": rows,
         "interpretation": (
