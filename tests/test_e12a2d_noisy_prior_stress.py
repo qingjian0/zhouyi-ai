@@ -132,9 +132,9 @@ class E12A2DNoisyPriorStressTests(unittest.TestCase):
 
     def test_benchmark_covers_every_family_prior_and_policy(self):
         result = run_benchmark(episodes=2, budget=2, start_seed=5)
-        self.assertEqual(len(result["rows"]), 3 * 3 * len(POLICIES))
-        self.assertTrue(all(row["episodes"] == 2 for row in result["rows"]))
         from prototype.e12a2d_noisy_prior_stress import PRIOR_ARMS
+        self.assertEqual(len(result["rows"]), 3 * len(PRIOR_ARMS) * len(POLICIES))
+        self.assertTrue(all(row["episodes"] == 2 for row in result["rows"]))
         self.assertEqual(
             len(result["paired_prior_contrasts"]),
             3 * len(POLICIES) * (len(PRIOR_ARMS) - 1),
