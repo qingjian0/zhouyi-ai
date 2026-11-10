@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import json
 import random
+from dataclasses import replace
 from statistics import mean
 from typing import Any, Sequence
 
@@ -198,6 +199,7 @@ def _adaptive_allocate(
         "trace": tuple(trace),
         "allocations": allocator.allocations,
         "gate_dev_unique_evaluations": len(evaluated_gate_dev),
+        "gate_final_unique_evaluations": len(registry),
         "proposal_slots_used": slots_used,
     }
 
@@ -240,18 +242,38 @@ def _score_locked_test(
     return _accuracy(selected, locked_test) if selected is not None else None
 
 
+def _unique_candidate_registry(
+    proposals: Sequence[Proposal],
+) -> tuple[Proposal, ...]:
+    registry: dict[str, Proposal] = {}
+    for proposal in proposals:
+        key = proposal.canonical_expression
+        existing = registry.get(key)
+        if existing is None:
+            registry[key] = proposal
+        else:
+            families = tuple(sorted(set(
+                (existing.supporting_families or (existing.family,))
+                + (proposal.supporting_families or (proposal.family,))
+            )))
+            registry[key] = replace(existing, supporting_families=families)
+    return tuple(registry.values())
+
+
 def _fixed_select(
     proposals: Sequence[Proposal],
     gate_final: Sequence[Observation],
     locked_test: Sequence[Observation],
     budget: int,
 ) -> dict[str, Any]:
-    selected = tuple(proposals[:budget])
+    emitted = tuple(proposals[:budget])
+    selected = _unique_candidate_registry(emitted)
     result = _select_on_gate_final(selected, gate_final)
     result["locked_test_accuracy"] = _score_locked_test(result, locked_test)
     result.pop("selected_proposal", None)
-    result["proposal_slots_used"] = len(selected)
+    result["proposal_slots_used"] = len(emitted)
     result["gate_dev_unique_evaluations"] = 0
+    result["gate_final_unique_evaluations"] = len(selected)
     result["trace"] = []
     return result
 
@@ -292,6 +314,7 @@ def run_episode(seed: int, task: str, budget: int = 31) -> dict[str, Any]:
     adaptive_result.update({
         "proposal_slots_used": adaptive["proposal_slots_used"],
         "gate_dev_unique_evaluations": adaptive["gate_dev_unique_evaluations"],
+        "gate_final_unique_evaluations": adaptive["gate_final_unique_evaluations"],
         "trace": list(adaptive["trace"]),
         "allocations": adaptive["allocations"],
     })
@@ -342,6 +365,9 @@ def run_benchmark(
             ),
             "mean_gate_dev_unique_evaluations": mean(
                 item["gate_dev_unique_evaluations"] for item in values
+            ),
+            "mean_gate_final_unique_evaluations": mean(
+                item["gate_final_unique_evaluations"] for item in values
             ),
         }
     return {
