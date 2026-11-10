@@ -948,7 +948,7 @@ No result in this section establishes continual learning, a new neural architect
 
 ### 17.1 New invariants added on the PR #99 branch
 
-The multi-track correction exposed a second class of integration error: even when predictions are namespaced by learner track, an adapter could accidentally reveal a prediction using the wrong track identity. The protocol now requires `learner_track` on `evidence_reveal` and verifies that the referenced prediction commit belongs to the same track.
+The multi-track correction exposed a second class of integration error: even when predictions are namespaced by learner track, an adapter could accidentally reveal a prediction using the wrong track identity. The protocol now requires `learner_track` on `evidence_reveal` and verifies that the referenced prediction commit belongs to the same track. It also provides a narrowly scoped read-time upcast for v0.1 prediction/reveal events that lacked an explicit track: they replay under `legacy` without rewriting the original event payload or digest.
 
 New regression coverage:
 - Cross-track reveal attempt (E09 prediction revealed as E10) is rejected as a missing same-track reference.
@@ -960,7 +960,7 @@ These tests strengthen local single-host concurrency and lineage guarantees. The
 
 ### 17.2 CI status must be reported against the exact head
 
-PR #99 workflow run #580 completed successfully at commit `3c36f2d76373597a12d78f15713e12c47bfe92fb`. Subsequent protocol, test, and documentation commits advanced the PR head to `b932c9c14418af7fc4fa8a406c78f8e5305a5885`. The available run therefore does not validate the latest head. Report the run as a successful earlier checkpoint, not as proof that the current PR head passes.
+PR #99 workflow run #580 completed successfully at commit `3c36f2d76373597a12d78f15713e12c47bfe92fb`. Subsequent protocol, test, and documentation commits advanced the PR head beyond `b932c9c14418af7fc4fa8a406c78f8e5305`. The available run therefore does not validate the latest head. The later changes include track-bound reveal, concurrent-connection coverage, duplicate-event rollback, and a v0.1 legacy-track read-time upcast. Report the run as a successful earlier checkpoint, not as proof that the current PR head passes.
 
 ### 17.3 SQLite concurrency interpretation
 
@@ -978,6 +978,6 @@ References:
 4. Implement E09 adapter with explicit `BATCH_REFIT` outcome.
 5. Implement E10 adapter with durable reveal before revision and preserve candidate-set hashes.
 6. Add evaluator/learner process isolation with hidden-truth noninterference canaries.
-7. Add schema upcasters and a migration test from v0.1 databases containing already committed prediction events; the current index replacement alone does not solve old v0.1 prediction payloads that lack `learner_track`.
+7. Expand schema upcasters beyond the narrowly scoped v0.1-to-legacy-track compatibility shim and test real historical database fixtures, including v0.1 prediction/reveal sequences.
 
 No adapter integration or continual-learning claim is made in this checkpoint.
