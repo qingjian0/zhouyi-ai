@@ -16,7 +16,7 @@ import random
 class E12A2DNoisyPriorStressTests(unittest.TestCase):
     def test_noisy_sensor_has_fractional_information_gain(self):
         world = make_world("complementary")
-        gain = information_gain((0.5, 0.5, 0.0, 0.0), world.actions[0])
+        gain = information_gain((0.5, 0.0, 0.5, 0.0), world.actions[0])
         self.assertGreater(gain, 0.0)
         self.assertLess(gain, 1.0)
 
