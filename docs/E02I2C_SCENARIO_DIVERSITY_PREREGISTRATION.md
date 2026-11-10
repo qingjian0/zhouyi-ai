@@ -71,6 +71,25 @@ Separate feature groups:
 
 Identity status and candidate shape are not automatically nuisance variables. They may be legitimate context. Their predictive power must be reported separately and compared with evidence-aware adjudication.
 
+## 4A. Event-specific semantic feasibility envelope
+
+The scenario generator must preserve the adjudication contract while varying nuisance metadata. The following minimum semantic constraints are the starting contract; the implementation must verify them against the adjudicator before any benchmark run.
+
+| Event | Identity context | Required evidence semantics | Minimum independent support |
+|---|---|---|---|
+| KEEP | Active identity | Support for the existing signature | At least one sufficient support observation |
+| MODIFY | Active identity | Support for a changed candidate signature | At least two independent windows |
+| CREATE | No prior identity | Support for a new candidate | At least two independent windows |
+| ABSTAIN | Varies by subtype | Insufficient confirmation, unlinked change, inadequate sampling, or unresolved support/contradiction conflict | Must not satisfy another event's confirmation rule |
+| SUSPEND | Active identity | Sufficient ABSENCE evidence | At least two sufficiently sampled consecutive windows |
+| REACTIVATE | Suspended identity | Support for the existing signature | At least two independent windows |
+| REACTIVATE_MODIFY | Suspended identity | Support for a changed candidate signature | At least two independent windows |
+| RETIRE | Suspended identity | Repeated CONTRADICTS evidence | At least two independent windows |
+
+Nuisance schedules may vary above these minima. For example, KEEP can have multiple independent support observations; MODIFY can have three or more support windows; SUSPEND can have more than two consecutive sufficient absence windows; and all event classes can receive extra no-exposure opportunities that are explicitly marked as insufficient evidence. Evidence count, opportunity count and window schedule must therefore not be hard-coded one-to-one with the event class.
+
+The generator must not pad an episode with duplicated evidence in a way that manufactures independence. If a repeated record reuses the same sample ID, it must remain non-independent to the adjudicator. Any transformation that changes the adjudicated event is not a nuisance transformation and must be excluded from the invariance set.
+
 ## 5. Required anti-shortcut checks
 
 Before training any attacker:
