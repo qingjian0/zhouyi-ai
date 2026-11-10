@@ -394,6 +394,127 @@ def _bootstrap_metrics(
     }
 
 
+_M0_CARDINALITY_KEYS = {
+    "id.evidence_count",
+    "id.evidence_duplicates",
+    "id.sample_duplicates",
+    "id.raw_duplicates",
+    "id.same_value_cross_field",
+}
+
+
+def _m0_ablation_features(features: FeatureRow, mode: str) -> FeatureRow:
+    if mode == "format_only":
+        return {
+            key: value for key, value in features.items()
+            if key not in _M0_CARDINALITY_KEYS
+        }
+    if mode == "cardinality_only":
+        return {
+            key: value for key, value in features.items()
+            if key in _M0_CARDINALITY_KEYS
+        }
+    raise ValueError("M0 ablation mode must be format_only or cardinality_only")
+
+
+def run_m0_ablation(
+    *, seeds: int = 30, train_start_seed: int = 1000,
+    gate_start_seed: int = 20000, bootstrap_samples: int = 1000,
+) -> dict:
+    """Post-hoc M0 diagnostic on a fresh Gate range.
+
+    This splits the preregistered M0 bundle into token-format and identifier-
+    cardinality components. It is explicitly exploratory and must not replace
+    the preregistered M0 result.
+    """
+    if seeds < 30 or bootstrap_samples < 100:
+        raise ValueError("M0 diagnostic requires 30 seed blocks and 100 bootstrap samples")
+    train_end = train_start_seed + seeds * len(SUPPORTED_EVENTS)
+    gate_end = gate_start_seed + seeds * len(SUPPORTED_EVENTS)
+    if train_start_seed < 0 or gate_start_seed < 0 or not (
+        train_end <= gate_start_seed or gate_end <= train_start_seed
+    ):
+        raise ValueError("M0 diagnostic Train and fresh Gate ranges must be disjoint")
+
+    train_episodes = _build_episodes(
+        seeds=seeds, start_seed=train_start_seed, split="train"
+    )
+    gate_episodes = _build_episodes(
+        seeds=seeds, start_seed=gate_start_seed, split="gate"
+    )
+    train_labels = [episode.truth.value for episode in train_episodes]
+    gate_labels = [episode.truth.value for episode in gate_episodes]
+    majority_label = _majority(train_labels)
+    majority_predictions = [majority_label] * len(gate_labels)
+    blocks = [
+        _seed_block(ep.episode_id, gate_start_seed) for ep in gate_episodes
+    ]
+    results = {}
+    for mode in ("format_only", "cardinality_only"):
+        train_rows = [
+            _m0_ablation_features(extract_features(ep.observation, "M0"), mode)
+            for ep in train_episodes
+        ]
+        gate_rows = [
+            _m0_ablation_features(extract_features(ep.observation, "M0"), mode)
+            for ep in gate_episodes
+        ]
+        attackers = {
+            "majority": majority_predictions,
+            "categorical_naive_bayes": CategoricalNaiveBayes().fit(
+                train_rows, train_labels
+            ).predict(gate_rows),
+            "decision_tree_depth_3": ShallowCategoricalTree(max_depth=3).fit(
+                train_rows, train_labels
+            ).predict(gate_rows),
+        }
+        mode_results = {}
+        for name, predictions in attackers.items():
+            metrics = _metrics(gate_labels, predictions)
+            interval = _bootstrap_metrics(
+                gate_labels, predictions, majority_predictions, blocks,
+                samples=bootstrap_samples, seed=20261111,
+            )
+            metrics["seed_block_bootstrap"] = interval
+            if name != "majority":
+                lift = metrics["macro_f1"] - _metrics(
+                    gate_labels, majority_predictions
+                )["macro_f1"]
+                metrics["majority_macro_f1_lift"] = round(lift, 4)
+                metrics["leakage_alarm"] = (
+                    lift >= 0.05
+                    and interval["macro_f1_lift_ci_95"][0] > 0.0
+                )
+            mode_results[name] = metrics
+        results[mode] = mode_results
+    return {
+        "status": "exploratory_post_hoc_diagnostic",
+        "train_seed_range": [train_start_seed, train_end - 1],
+        "fresh_gate_seed_range": [gate_start_seed, gate_end - 1],
+        "seeds_per_event": seeds,
+        "train_episodes": len(train_episodes),
+        "gate_episodes": len(gate_episodes),
+        "feature_sets": {
+            "format_only": sorted(
+                _m0_ablation_features(
+                    extract_features(train_episodes[0].observation, "M0"),
+                    "format_only",
+                )
+            ),
+            "cardinality_only": sorted(
+                _m0_ablation_features(
+                    extract_features(train_episodes[0].observation, "M0"),
+                    "cardinality_only",
+                )
+            ),
+        },
+        "results": results,
+        "interpretation": (
+            "Diagnostic ablation on a fresh Gate range; does not replace the preregistered M0 result."
+        ),
+    }
+
+
 def run_metadata_attack(
     *, seeds: int = 30, train_start_seed: int = 1000,
     gate_start_seed: int = 10000, bootstrap_samples: int = 1000,
@@ -523,6 +644,12 @@ def run_metadata_attack(
         ],
         "evidence_aware_reference": _metrics(gate_labels, evidence_aware_predictions),
         "tiers": results,
+        "exploratory_m0_ablation": run_m0_ablation(
+            seeds=seeds,
+            train_start_seed=train_start_seed,
+            gate_start_seed=gate_start_seed + 10000,
+            bootstrap_samples=bootstrap_samples,
+        ),
         "interpretation": (
             "Finite-template leakage audit only; not an open-world generalization result."
         ),
