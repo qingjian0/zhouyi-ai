@@ -25,7 +25,7 @@ class E02JSynthesisTests(unittest.TestCase):
         domain = ternary_domain(roles)
         programs = enumerate_programs(roles, max_depth=2)
         target = Expr("add", (variable(0), Expr("mul", (variable(2), variable(5)))))
-        observations = [(row, evaluate(target, row, 3)) for row in domain[:8]]
+        observations = [(row, evaluate(target, row, 3)) for row in domain]
         candidate = synthesize(observations, programs)
         self.assertIsNotNone(candidate)
         self.assertTrue(all(
