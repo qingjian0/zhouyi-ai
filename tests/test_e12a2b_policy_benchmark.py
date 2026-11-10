@@ -8,6 +8,7 @@ from prototype.e12a2b_policy_benchmark import (
     _information_gain,
     _gini_disagreement,
     make_world_family,
+    run_benchmark,
     run_episode,
     select_policy_action,
 )
@@ -111,6 +112,13 @@ class E12A2BPolicyBenchmarkTests(unittest.TestCase):
         ]
         self.assertEqual(len(rows), 8)
         self.assertEqual(len({row.target_hypothesis for row in rows}), 8)
+
+    def test_benchmark_reports_each_world_family_separately(self):
+        result = run_benchmark(seeds=1, budget=2, start_seed=17)
+        self.assertEqual(set(result["family_summary"]), {"balanced", "skewed", "redundant"})
+        for family, rows in result["family_summary"].items():
+            self.assertEqual(len(rows), len(POLICIES))
+            self.assertTrue(all(row["episodes"] == 8 for row in rows))
 
     def test_unknown_policy_is_rejected(self):
         with self.assertRaises(ValueError):
