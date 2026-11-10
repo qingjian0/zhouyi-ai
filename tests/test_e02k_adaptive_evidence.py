@@ -10,6 +10,34 @@ NEW = ((0, 1, 3), 173)
 
 
 class E02KAdaptiveEvidenceTests(unittest.TestCase):
+
+    def test_rejects_non_finite_controller_parameters(self):
+        with self.assertRaises(ValueError):
+            AdaptiveEvidenceController(alpha=float("nan"))
+
+    def test_rejects_noncanonical_relation_signature(self):
+        state = AdaptiveEvidenceController()
+        with self.assertRaises(ValueError):
+            state.observe(EvidenceObservation(((1, 0), 173)), window=0)
+
+    def test_rejects_repeated_or_reversed_window_ids(self):
+        state = AdaptiveEvidenceController()
+        state.observe(EvidenceObservation(OLD), window=3)
+        with self.assertRaises(ValueError):
+            state.observe(EvidenceObservation(OLD), window=3)
+        with self.assertRaises(ValueError):
+            state.observe(EvidenceObservation(OLD), window=2)
+
+    def test_candidate_losses_can_reverse_accumulated_evidence(self):
+        state = AdaptiveEvidenceController()
+        state.observe(EvidenceObservation(OLD), window=0)
+        positive = EvidenceObservation(NEW, candidate_wins=100)
+        negative = EvidenceObservation(NEW, candidate_losses=100)
+        self.assertEqual(state.observe(positive, window=1), "HOLD_PENDING")
+        self.assertEqual(state.observe(negative, window=2), "HOLD_PENDING")
+        self.assertLess(state.pending_score, state.threshold)
+        self.assertEqual(state.current_signature, OLD)
+
     def test_first_discovery_bootstraps_immediately(self):
         state = AdaptiveEvidenceController()
         self.assertEqual(
