@@ -90,6 +90,36 @@ class HyperedgeLifecycleTests(unittest.TestCase):
         self.assertNotIn("a", manager.edges)
         self.assertIn("m", manager.edges)
 
+    def test_merge_rejects_below_threshold_gain_after_stale_observations(self):
+        manager = HyperedgeLifecycle(min_gain=0.01, prune_patience=5)
+        manager.create(proposal("a"))
+        manager.create(proposal("b", members=("a", "b", "d")))
+        manager.observe("a", support_ids=(), counterexample_ids=("n1",),
+                        validation_gain=-0.2, cost=1.0)
+        manager.observe("b", support_ids=(), counterexample_ids=("n2",),
+                        validation_gain=-0.1, cost=1.0)
+        before = dict(manager.edges)
+        with self.assertRaises(LifecycleError):
+            manager.merge("a", "b", new_edge_id="m",
+                          measured_validation_gain=-0.05)
+        self.assertEqual(manager.edges, before)
+
+    def test_merge_rejects_cost_overflow_without_mutation(self):
+        manager = HyperedgeLifecycle()
+        manager.create(EdgeProposal(
+            "a", ("x", "y", "z"), ("r", "s", "t"), "constraint",
+            ("s1", "s2", "s3"), (), 0.1, 1.0e308,
+        ))
+        manager.create(EdgeProposal(
+            "b", ("x", "y", "w"), ("r", "s", "u"), "constraint",
+            ("s4", "s5", "s6"), (), 0.1, 1.0e308,
+        ))
+        before = dict(manager.edges)
+        with self.assertRaises(LifecycleError):
+            manager.merge("a", "b", new_edge_id="m",
+                          measured_validation_gain=0.1)
+        self.assertEqual(manager.edges, before)
+
     def test_merge_rejects_role_mismatch(self):
         manager = HyperedgeLifecycle()
         manager.create(proposal("a"))
