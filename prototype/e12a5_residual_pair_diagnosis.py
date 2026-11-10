@@ -79,8 +79,9 @@ def validate_view(view: ResidualView) -> None:
     if any(not isinstance(item, str) or not item for item in ids) or len(ids) != len(set(ids)):
         raise ValueError("evidence IDs must be unique and non-empty")
     for record in view.records:
-        if record.label not in (0, 1) or record.a3_prediction not in (0, 1):
-            raise ValueError("labels and A3 predictions must be binary")
+        if (isinstance(record.label, bool) or isinstance(record.a3_prediction, bool)
+                or record.label not in (0, 1) or record.a3_prediction not in (0, 1)):
+            raise ValueError("labels and A3 predictions must be binary integers")
         if len(record.values) != len(names) or {key for key, _ in record.values} != set(names):
             raise ValueError("each record must contain exactly the schema features")
         if any(not _finite_number(value) for _, value in record.values):
