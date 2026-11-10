@@ -111,6 +111,8 @@ def _validate_views(
             raise ValueError("evaluator valid must be an exact boolean")
         _nonempty_string(truth.get("template_id"),
                          f"instances[{index}].template_id")
+        _nonempty_string(truth.get("source_group_id"),
+                         f"instances[{index}].source_group_id")
         violation = truth.get("violation")
         if violation is not None and not isinstance(violation, str):
             raise ValueError("evaluator violation must be a string or null")
@@ -135,6 +137,7 @@ def build_support_query_task(
     *,
     seed: int,
     query_fraction: float = 0.25,
+    grouping_policy: str = "participant_set",
 ) -> dict[str, Any]:
     """Build a deterministic label-blind group split.
 
@@ -148,19 +151,27 @@ def build_support_query_task(
         raise ValueError("query_fraction must be strictly between 0 and 1")
     if type(seed) is not int:
         raise ValueError("seed must be an integer")
+    if (not isinstance(grouping_policy, str)
+            or grouping_policy not in {"participant_set", "source_group"}):
+        raise ValueError("grouping_policy must be participant_set or source_group")
 
     observations, truth_by_id, _ = _validate_views(learner_view, evaluator_view)
-    groups: dict[tuple[str, tuple[str, ...]], list[dict[str, Any]]] = defaultdict(list)
+    groups: dict[tuple[str, Any], list[dict[str, Any]]] = defaultdict(list)
     for row in observations:
-        groups[_group_key(row)].append(row)
+        if grouping_policy == "participant_set":
+            key = _group_key(row)
+        else:
+            source_group_id = truth_by_id[row["observation_id"]]["source_group_id"]
+            key = (row["relation_symbol"], source_group_id)
+        groups[key].append(row)
 
-    by_relation: dict[str, list[tuple[str, tuple[str, ...]]]] = defaultdict(list)
+    by_relation: dict[str, list[tuple[str, Any]]] = defaultdict(list)
     for key in groups:
         by_relation[key[0]].append(key)
 
     rng = random.Random(seed)
-    support_keys: set[tuple[str, tuple[str, ...]]] = set()
-    query_keys: set[tuple[str, tuple[str, ...]]] = set()
+    support_keys: set[tuple[str, Any]] = set()
+    query_keys: set[tuple[str, Any]] = set()
     for relation_symbol, keys in sorted(by_relation.items()):
         if len(keys) < 3:
             raise ValueError(
@@ -236,7 +247,12 @@ def build_support_query_task(
         "query_observation_count": len(query_rows),
         "support_observation_ids_hash": _canonical_hash(sorted(support_ids)),
         "query_observation_ids_hash": _canonical_hash(sorted(query_ids)),
-        "grouping": "relation_symbol+unordered_participant_set",
+        "grouping": (
+            "relation_symbol+unordered_participant_set"
+            if grouping_policy == "participant_set"
+            else "relation_symbol+evaluator_source_group_id"
+        ),
+        "grouping_policy": grouping_policy,
         "selection_policy": "label_blind_uniform_group_shuffle_v1",
         "sampling_unit": "relation_symbol+unordered_participant_set",
         "sampling_weighting": "uniform_group_selection; observation inclusion varies with group size",

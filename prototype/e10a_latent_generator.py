@@ -47,6 +47,7 @@ class TemplateTruth:
 @dataclass(frozen=True)
 class InstanceTruth:
     observation_id: str
+    source_group_id: str
     template_id: str
     role_objects: tuple[str, ...]
     valid: bool
@@ -103,6 +104,7 @@ class Episode:
             "instances": [
                 {
                     "observation_id": row.observation_id,
+                    "source_group_id": row.source_group_id,
                     "template_id": row.template_id,
                     "role_objects": list(row.role_objects),
                     "valid": row.valid,
@@ -187,6 +189,18 @@ def _validate_episode(episode: Episode) -> None:
     if len(symbol_to_template) != len(episode.templates):
         raise ValueError("relation symbols must identify distinct templates")
     truth_by_id = {row.observation_id: row for row in episode.instances}
+    source_groups: dict[str, list[InstanceTruth]] = {}
+    for row in episode.instances:
+        if not isinstance(row.source_group_id, str) or not row.source_group_id:
+            raise ValueError("source group IDs must be non-empty strings")
+        source_groups.setdefault(row.source_group_id, []).append(row)
+    for source_group_id, rows in source_groups.items():
+        if len({row.template_id for row in rows}) != 1:
+            raise ValueError("source group cannot span multiple templates")
+        if sum(row.valid for row in rows) != 1:
+            raise ValueError("each source group must contain exactly one positive observation")
+        if not any(not row.valid for row in rows):
+            raise ValueError("each source group must contain negative evidence")
     template_by_id = {row.template_id: row for row in episode.templates}
     for obs in episode.observations:
         if not set(obs.participants) <= object_id_set:
@@ -282,6 +296,11 @@ def generate_episode(seed: int, *, object_count: int = 18,
             for bucket in buckets
         ]
         for instance_index in range(instances_per_template):
+            # All observations derived from this base role assignment share one
+            # evaluator-only provenance key, including role-near-miss variants.
+            source_group_id = (
+                f"{episode_id}-src-{template_index:02d}-{instance_index:05d}"
+            )
             role_objects = tuple(
                 pool[instance_index % len(pool)] for pool in role_pools
             )
@@ -324,6 +343,7 @@ def generate_episode(seed: int, *, object_count: int = 18,
                 ))
                 instances.append(InstanceTruth(
                     observation_id=observation_id,
+                    source_group_id=source_group_id,
                     template_id=template_id,
                     role_objects=tuple(candidate_roles),
                     valid=valid,
