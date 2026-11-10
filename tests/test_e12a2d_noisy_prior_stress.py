@@ -114,6 +114,9 @@ class E12A2DNoisyPriorStressTests(unittest.TestCase):
         result = run_benchmark(episodes=2, budget=2, start_seed=5)
         self.assertEqual(len(result["rows"]), 3 * 3 * len(POLICIES))
         self.assertTrue(all(row["episodes"] == 2 for row in result["rows"]))
+        self.assertEqual(len(result["paired_prior_contrasts"]), 3 * len(POLICIES) * 2)
+        for contrast in result["paired_prior_contrasts"]:
+            self.assertLessEqual(contrast["brier"]["ci95_low"], contrast["brier"]["ci95_high"])
 
 
 if __name__ == "__main__":
