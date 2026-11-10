@@ -29,12 +29,18 @@ class E09ContextDiscoveryTests(unittest.TestCase):
             audit["context_blind_unique_train_rows"],
             audit["contextual_train_rows"],
         )
+        self.assertGreater(result["context_blind"]["unsafe_clauses_quarantined"], 0)
+        for metrics in result["context_blind"]["metrics_by_environment"].values():
+            self.assertGreater(metrics["abstentions"], 0)
+            self.assertLess(metrics["coverage"], 1.0)
 
     def test_contextual_model_can_represent_different_environment_rules(self):
         result = run(seed=41)
         contextual = result["contextual"]["metrics_by_environment"]
         self.assertGreater(contextual["0"]["coverage"], 0.0)
         self.assertGreater(contextual["1"]["coverage"], 0.0)
+        self.assertGreater(contextual["0"]["selective_accuracy"], 0.0)
+        self.assertGreater(contextual["1"]["selective_accuracy"], 0.0)
 
     def test_sweep_is_reproducible_and_reports_each_environment(self):
         first = run_sweep(seeds=2, start_seed=51)
