@@ -75,3 +75,7 @@ The result rejects the simplistic hypothesis that a fixed equal-share portfolio 
 The current prototype proves that the proposer interfaces, exact slot accounting, reproducible benchmark, Support/Gate/Test split, and CI execution work on the declared synthetic tasks. It does not prove that a multi-proposer portfolio is more effective.
 
 The next research target is **adaptive resource allocation under candidate redundancy and task uncertainty**, not simply adding more proposer families.
+
+## Follow-up
+
+This file records the M0 portfolio baseline **before** cross-family syntactic deduplication. The subsequent provenance-preserving dedup experiment is recorded separately in [E12-A3-M0.1 results](E12A3_M0_1_DEDUP_RESULTS_2026-11-11.md). Do not treat the two portfolio rows as one unchanged method; the allocation queue construction differs.
