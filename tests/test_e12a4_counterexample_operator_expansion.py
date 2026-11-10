@@ -56,7 +56,7 @@ class CounterexampleOperatorExpansionTests(unittest.TestCase):
             Observation("g1", (("x", 0), ("y", 5), ("z", 15)), 1),
             Observation("g2", (("x", 3), ("y", 4), ("z", 11)), 0),
         )
-        result = infer(LearnerView(schema, train, gate))
+        result = infer(LearnerView(schema, train, gate, (("x", "y"), ("x", "z"))))
         self.assertEqual(result["status"], "AMBIGUOUS")
         self.assertIsNone(result["selected"])
 
