@@ -5,7 +5,7 @@ It is a transparent research baseline, not an open-ended concept learner.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import Enum
 import hashlib
 import json
@@ -87,6 +87,7 @@ class Proposal:
     source_observation_ids: tuple[str, ...]
     proposal_cost: int = 1
     parent_ids: tuple[str, ...] = ()
+    supporting_families: tuple[str, ...] = ()
 
     @property
     def canonical_expression(self) -> str:
@@ -134,7 +135,7 @@ def _proposal(family: str, expr: PredicateExpr, source_ids: Iterable[str],
     raw = f"{family}|{version}|{expr.canonical()}"
     pid = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16]
     return Proposal(pid, family, version, expr, tuple(sorted(set(source_ids))),
-                    1, parents)
+                    1, parents, (family,))
 
 
 def validate_observations(rows: Sequence[Observation]) -> None:
@@ -242,6 +243,40 @@ def propose_exhaustive(rows: Sequence[Observation], limit: int = 128) -> tuple[P
     ordered = sorted(unique.values(), key=lambda p: (p.family, p.canonical_expression))
     return tuple(_proposal("BOUNDED_ENUM", p.expression, p.source_observation_ids)
                  for p in ordered[:limit])
+
+
+def deduplicate_proposal_pools(
+    pools: Mapping[str, Sequence[Proposal]],
+) -> tuple[dict[str, tuple[Proposal, ...]], dict[str, tuple[str, ...]]]:
+    """Deduplicate syntactically identical expressions across proposer families.
+
+    The first family in stable lexical order owns the representative proposal;
+    supporting_families preserves every proposer that independently emitted it.
+    Empirical equivalence is deliberately handled separately.
+    """
+    grouped: dict[str, list[Proposal]] = {}
+    for family in sorted(pools):
+        for proposal in pools[family]:
+            grouped.setdefault(proposal.canonical_expression, []).append(proposal)
+
+    result: dict[str, list[Proposal]] = {family: [] for family in pools}
+    provenance: dict[str, tuple[str, ...]] = {}
+    for expression, proposals in sorted(grouped.items()):
+        representative = min(proposals, key=lambda p: (p.family, p.proposal_id))
+        families = tuple(sorted({
+            family
+            for proposal in proposals
+            for family in (proposal.supporting_families or (proposal.family,))
+        }))
+        result.setdefault(representative.family, []).append(
+            replace(representative, supporting_families=families)
+        )
+        provenance[expression] = families
+    return (
+        {family: tuple(sorted(items, key=lambda p: p.canonical_expression))
+         for family, items in result.items()},
+        provenance,
+    )
 
 
 def observed_signature(proposal: Proposal, rows: Sequence[Observation],
