@@ -2,6 +2,7 @@ import unittest
 
 from prototype.e10a_structural_ood import build_structural_ood_task
 from prototype.e10a_primitive_expansion import PrimitiveExpansionLearner
+from prototype.e10a_mechanism_learner import E10AMechanismLearner
 from prototype.e10a_prequential_ledger import PrequentialLedger
 
 
@@ -111,6 +112,16 @@ class PrimitiveExpansionTests(unittest.TestCase):
             rationale_code=revision["status"],
         )
         self.assertEqual(event["operation"], "expand")
+
+
+    def test_unknown_relation_does_not_delete_unrelated_base_candidates(self):
+        support, objects, query, labels = _novel_relation_episode()
+        learner = E10AMechanismLearner(support)
+        learner.add_query_objects(objects)
+        initial = learner.candidate_count
+        self.assertGreater(initial, 0)
+        learner.revise(query[0], labels[0])
+        self.assertEqual(learner.candidate_count, initial)
 
     def test_future_query_labels_are_not_part_of_learner_state(self):
         support, objects, query, labels = _novel_relation_episode()
