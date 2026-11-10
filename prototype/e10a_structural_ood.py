@@ -50,7 +50,9 @@ def build_structural_ood_task(seed: int, *, instances_per_role: int = 4) -> tupl
         serial = 0
         if support_mode:
             cases = [
-                (context_requirements, roles, True, "positive"),
+                (context_requirements, roles, True, f"positive_{index}")
+                for index in range(3)
+            ] + [
                 ((("phase", "inactive"), ("permission", "granted")), roles, False, "phase_only_violation"),
                 ((("phase", "active"), ("permission", "denied")), roles, False, "permission_only_violation"),
                 ((("phase", "inactive"), ("permission", "denied")), roles, False, "double_violation"),
