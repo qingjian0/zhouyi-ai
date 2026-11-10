@@ -9,7 +9,6 @@ from __future__ import annotations
 import argparse
 import json
 import random
-from collections import defaultdict
 from statistics import mean
 from typing import Any, Sequence
 
