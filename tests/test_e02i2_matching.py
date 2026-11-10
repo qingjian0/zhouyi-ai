@@ -80,6 +80,18 @@ class E02I2MatchingTests(unittest.TestCase):
         self.assertEqual(len(matched), len(set(matched)))
         self.assertTrue(any(d.abstained for d in decisions))
 
+    def test_greedy_matching_is_independent_of_candidate_input_order(self):
+        exact = RelationCandidate("a-exact", ("a", "b"), ("source", "target"), "AND", "a&b", "lab")
+        partial = RelationCandidate("b-partial", ("a", "b", "e"), ("source", "target", "extra"), "AND", "other", "lab")
+        kwargs = dict(method=MatchingMethod.ROLE_ALIGNED, min_score=0.3, min_margin=0.01)
+        forward = match_candidates((partial, exact), {"r1": self.old["r1"]}, **kwargs)
+        reverse = match_candidates((exact, partial), {"r1": self.old["r1"]}, **kwargs)
+        by_id_forward = {d.candidate_id: d.identity_id for d in forward}
+        by_id_reverse = {d.candidate_id: d.identity_id for d in reverse}
+        self.assertEqual(by_id_forward, by_id_reverse)
+        self.assertEqual(by_id_forward["a-exact"], "r1")
+        self.assertIsNone(by_id_forward["b-partial"])
+
     def test_empty_identity_set_abstains(self):
         candidate = RelationCandidate("c1", ("x", "y"), ("a", "b"), "AND", "x&y")
         result = match_candidates((candidate,), {}, method=MatchingMethod.HUNGARIAN)
