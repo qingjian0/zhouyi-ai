@@ -151,7 +151,8 @@ def build_support_query_task(
         raise ValueError("query_fraction must be strictly between 0 and 1")
     if type(seed) is not int:
         raise ValueError("seed must be an integer")
-    if grouping_policy not in {"participant_set", "source_group"}:
+    if (not isinstance(grouping_policy, str)
+            or grouping_policy not in {"participant_set", "source_group"}):
         raise ValueError("grouping_policy must be participant_set or source_group")
 
     observations, truth_by_id, _ = _validate_views(learner_view, evaluator_view)
