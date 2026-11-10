@@ -56,6 +56,15 @@ class E12A3MultiProposerTests(unittest.TestCase):
         counts = {name: sum(p.family == name for p in selected) for name in families}
         self.assertLessEqual(max(counts.values()) - min(counts.values()), 1)
 
+    def test_round_robin_preserves_seeded_caller_order(self):
+        rows = demo_rows()
+        stat = tuple(reversed(propose_statistical(rows)))
+        relational = tuple(reversed(propose_relational(rows)))
+        selected = allocate_round_robin({"STAT": stat, "RELATIONAL": relational}, 3)
+        self.assertEqual(selected[0], stat[0])
+        self.assertEqual(selected[1], relational[0])
+        self.assertEqual(selected[2], stat[1])
+
     def test_empirical_equivalence_is_dataset_scoped(self):
         rows = demo_rows()
         proposals = propose_statistical(rows)
