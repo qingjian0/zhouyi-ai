@@ -128,11 +128,11 @@ SPLIT / MERGE 不由一对一 Hungarian 结果推断。它们需要独立的谱�
 
 已实现：
 - `ObservationOpportunity`：窗口、环境、期望/实际样本数、覆盖率和缺失原因；不足采样不会成为 absence。
-- `EvidencePacket`：证据/样本/窗口/环境/split/polarity/source-version/candidate-signature/raw provenance；不包含 hidden identity 或 hidden event truth。
+- `EvidencePacket`：证据/样本/窗口/环境/split/polarity/source-version/candidate-signature/raw provenance；不包含 hidden identity 或 hidden event truth；裁决器明确拒绝 `split=test` 的 locked Test 证据。
 - `IdentitySnapshot`：裁决器只接收当前身份状态与版本摘要，不读取生成器转换计划。
 - 确定性 `adjudicate_event`：支持 CREATE、KEEP、MODIFY、ABSTAIN、SUSPEND、REACTIVATE、REACTIVATE_MODIFY、RETIRE 的保守提案。
 - CREATE/MODIFY 需要跨多个独立窗口和样本的支持；SUSPEND 需要连续且充分观测的 ABSENCE；采样不足会打断缺失连续段；CONTRADICTION 不等同于 ABSENCE；RETIRE 仅对已暂停身份开放并要求重复反例。
-- 15 项专项单测覆盖核心边界；完整 CI 尚待结果确认。
+- 17 项专项单测覆盖核心边界；另有 2 项账本原子事务测试；完整 CI 尚待结果确认。
 
 仍未实现：
 - REPLACE、SPLIT、MERGE 的自动事件推断与多身份图证据。
