@@ -12,6 +12,7 @@ work:
 1. Missing defining attributes and false-positive attributes.
 2. Shared attributes across concepts.
 3. A nuisance cue whose correlation reverses across environments.
+4. An unknown latent concept count and variable schema sizes.
 
 ## Data contract
 
@@ -31,6 +32,9 @@ boundary.
 - `nuisance-confounded`: learner observations come from `env-0`,
   where `nuisance-77` is positively associated with concept-a. Query
   observations come from `env-1`, where the association is reversed.
+- `variable-concept-count`: the evaluator samples 2–5 latent concepts and
+  2–4 attributes per concept from the seed. The learner receives only object
+  observations; the number and schemas of latent concepts are not in its view.
 
 All modes permit overlapping memberships and use disjoint learner/query object
 identities. The nuisance arm deliberately changes environment between splits;
@@ -42,6 +46,7 @@ it is not interchangeable with an ordinary random object split.
 - Missing and false-positive attribute presence.
 - Shared attribute commonality.
 - Nuisance correlation reversal between environments.
+- Variable hidden concept count and schema size without learner-side membership fields.
 - Invalid configuration rejection.
 
 These are test definitions, not reported test results. No CI run or benchmark
@@ -50,8 +55,10 @@ score is claimed.
 ## Interpretation limits
 
 This increment supplies harder data, not a concept learner. It does not solve
-one-to-one candidate assignment, estimate unknown concept count, select
-concepts by MDL, or prove open-world concept discovery. Those are separate
+one-to-one candidate assignment, infer the unknown concept count from data,
+select concepts by MDL, or prove open-world concept discovery. The variable
+count arm only varies the evaluator's hidden ground truth; it does not yet
+measure whether a learner can infer that count. Those are separate
 tracks. The one-to-one evaluation work is intentionally left to the parallel
 E11-A evaluation branch.
 
