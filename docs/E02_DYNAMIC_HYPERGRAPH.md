@@ -116,6 +116,7 @@ U(e)=\Delta L_{val}(e)-\lambda_c Cost(e)-\lambda_r Redundancy(e)
 新增 `prototype/e02_edge_lifecycle.py`，以确定性状态机实现 CREATE、OBSERVE、MERGE、SPLIT、PRUNE 和最近一次操作回滚。每次结构变更保留事件日志与变更前快照。
 
 关键约束：
+- 所有验证收益、成本和生命周期阈值必须是有限数值；拒绝 NaN/正负无穷，防止 NaN 绕过阈值比较并被误记为有效收益。
 - CREATE 要求成员唯一、角色一一对应、独立支持样本数达到阈值，且保留验证集收益超过门槛。
 - MERGE 要求关系类型/重叠成员角色兼容、成员 Jaccard 达阈值，并且合并后的独立验证收益不能明显退化。
 - SPLIT 要求子边完整且不重叠地划分父边成员、各自有足够支持，且子结构总验证收益超过父边。
