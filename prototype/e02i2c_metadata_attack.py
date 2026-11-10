@@ -526,13 +526,16 @@ def run_m0_ablation(
 
 
 def _feature_families(features: FeatureRow, families: set[str]) -> FeatureRow:
-    allowed = {"id", "op", "ctx"}
+    allowed = {"id", "op", "ctx", "ctx.identity", "ctx.candidate"}
     if not families or not families.issubset(allowed):
-        raise ValueError("feature families must be a non-empty subset of id/op/ctx")
-    return {
-        key: value for key, value in features.items()
-        if key.split(".", 1)[0] in families
-    }
+        raise ValueError("feature families must be a non-empty subset of the declared feature groups")
+    def selected(key: str) -> bool:
+        if key.startswith("ctx.identity_"):
+            return "ctx" in families or "ctx.identity" in families
+        if key.startswith("ctx.candidate_"):
+            return "ctx" in families or "ctx.candidate" in families
+        return key.split(".", 1)[0] in families
+    return {key: value for key, value in features.items() if selected(key)}
 
 
 def run_feature_family_ablation(
@@ -570,6 +573,10 @@ def run_feature_family_ablation(
         "M2_without_identifier": ("M2", {"op", "ctx"}),
         "M2_without_operational": ("M2", {"id", "ctx"}),
         "M2_without_context": ("M2", {"id", "op"}),
+        "M2_identity_state_only": ("M2", {"ctx.identity"}),
+        "M2_candidate_shape_only": ("M2", {"ctx.candidate"}),
+        "M2_without_identity_state": ("M2", {"id", "op", "ctx.candidate"}),
+        "M2_without_candidate_shape": ("M2", {"id", "op", "ctx.identity"}),
     }
     results = {}
     for name, (tier, families) in definitions.items():
