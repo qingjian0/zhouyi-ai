@@ -40,6 +40,14 @@ class E02IRelationEvolutionTests(unittest.TestCase):
                 self.assertIn("HOLD_PENDING", actions)
                 self.assertIn("RECONFIGURE", actions)
 
+    def test_single_window_rule_shock_does_not_reconfigure(self):
+        result = run_episode(seed=61, scenario="transient_rule_change")
+        actions = [w["action"] for w in result["windows"]]
+        self.assertEqual(actions[0:2], ["CREATE", "KEEP"])
+        self.assertIn("HOLD_PENDING", actions)
+        self.assertNotIn("RECONFIGURE", actions)
+        self.assertEqual(actions[-1], "KEEP")
+
     def test_disappearing_relation_is_retired_after_two_failed_windows(self):
         result = run_episode(seed=53, scenario="disappear")
         actions = [w["action"] for w in result["windows"]]
