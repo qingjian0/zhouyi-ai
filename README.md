@@ -69,7 +69,7 @@
 python -m unittest discover -s tests -v
 python -m prototype.e01_sparse_composition
 python -m prototype.e01_learned_ranker --json
-python -m prototype.e12a2_active_measurement_selector\npython -m prototype.e12a3_multi_proposer\npython -m prototype.e12a3_proposer_benchmark --seeds 20 --budget 64 --json
+python -m prototype.e12a2_active_measurement_selector\npython -m prototype.e12a3_multi_proposer\npython -m prototype.e12a3_proposer_benchmark --seeds 20 --budget 32 --json
 ```
 
 ## 研究状态标记
