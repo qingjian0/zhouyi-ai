@@ -25,7 +25,7 @@ Allowed features:
 - counts of identifiers and duplicate/equality patterns.
 
 Forbidden:
-- raw identifier token values as categorical features;
+- raw identifier token values or token substrings as categorical features;
 - event names, episode IDs, seed values, truth labels;
 - evidence polarity, candidate signature, identity state, source-version semantics.
 
