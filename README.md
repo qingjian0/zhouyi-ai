@@ -53,6 +53,8 @@
 - [E09 非梯度式自主学习机制研究协议](docs/E09_NON_GRADIENT_LEARNING.md)
 - [E09-B 反例驱动结构学习器原型](docs/E09B_COUNTEREXAMPLE_LEARNER.md)
 - [E09-B 学习器代码](prototype/e09_counterexample_learner.py)
+- [E09-B2 追加式证据账本](docs/E09B_EVIDENCE_LEDGER.md)
+- [E09-B2 证据账本代码](prototype/e09_evidence_ledger.py)
 - [研究风险与证伪条件](docs/RISKS_AND_FALSIFICATION.md)
 - [开发路线图](ROADMAP.md)
 - [原型代码](prototype/)
