@@ -153,7 +153,7 @@ class E12A6LifecycleContractTests(unittest.TestCase):
         self.assertEqual(new.version, 2)
         self.assertEqual(new.state, CandidateState.REVALIDATION_PENDING)
         self.assertEqual(ledger.candidates[(old.candidate_id, 1)].state,
-                         CandidateState.CHALLENGED)
+                         CandidateState.REVISED)
         self.assertEqual(ledger.candidates[(old.candidate_id, 2)].parent_refs,
                          ("rel:greater-than@1",))
 
