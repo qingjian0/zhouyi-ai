@@ -36,6 +36,7 @@
 - [数学理论 v0.3](docs/THEORY_v0.3.md)
 - [架构设计](docs/ARCHITECTURE.md)
 - [易象模块：可检验化设计](docs/YIXIANG_MODULE.md)
+- [太玄经三值结构 TX-01：可检验化研究设计](docs/TAIXUAN_TERNARY_COGNITION_TX01.md)
 - [相关工作与文献](docs/RELATED_WORK.md)
 - [2026-11-10 研究增量报告](docs/RESEARCH_FINDINGS_2026-11-10.md)
 - [实验计划与验收标准](docs/EXPERIMENTS.md)
@@ -52,6 +53,7 @@
 - [E12-A1 类型化谓词原型](prototype/e12a1_typed_predicate_induction.py)
 - [E12-A1.1 证据溯源原型](prototype/e12a1p_evidence_provenance.py)
 - [E12-A2 主动观测选择器](prototype/e12a2_active_measurement.py)
+- [太玄经 81 首 / 9 赞 / 729 状态可逆编码原型](prototype/taixuan_ternary_encoding.py)
 - [YF-01 动态观测策略原型](prototype/yinfu_active_observation.py)
 - [YF-03 三元反馈与关系反转原型](prototype/yinfu_interaction_dynamics.py)
 - [E12-A2-B 策略对照实验](prototype/e12a2b_policy_benchmark.py)
@@ -83,6 +85,7 @@ python -m prototype.e12a2b_policy_benchmark --seeds 20 --budget 4 --json
 python -m prototype.e12a2d_noisy_prior_stress --episodes 100 --budget 3 --json
 python -m prototype.yinfu_active_observation
 python -m prototype.yinfu_interaction_dynamics --horizon 8
+python -m prototype.taixuan_ternary_encoding
 ```
 
 ## 研究状态标记
