@@ -106,3 +106,29 @@ The runner returns raw per-seed metrics for four narrowly scoped tests:
 
 The runner is deterministic for a fixed seed. Unit tests check repeatability and verify that candidate-budget truncation retains feature, difference, and product operator families. It is a smoke benchmark, not a substitute for disjoint generator-family evaluation, statistical confidence intervals, intervention-based causal tests, or equal-compute planning comparisons.
 
+
+
+## CI smoke result snapshot — Run #42893566018
+
+Exact tested head: `2c8664ba01ec2106dddedc522761732ddbc35501`. GitHub Actions completed the full unit-test suite and the five-seed smoke benchmark.
+
+| Measure | Five-seed result |
+|---|---:|
+| YF-07 change detection | 100% (60/60 episodes) |
+| YF-07 mean localization error when detected | 0.067 samples |
+| YF-07 null false-alarm rate | 0% (0/60) |
+| YF-08 mean held-out balanced accuracy | 0.837 |
+| YF-08 selected operator | Product in all 5 seeds |
+| YF-09 reversal detection | 100% (150/150 cases) |
+| YF-09 same-sign false reversal | 0% (0/150) |
+| YF-09 zero-effect false reversal | 0% (0/150) |
+| YF-10 mean greedy regret vs finite-graph oracle | 0.368 net-utility units |
+
+Interpretation is intentionally narrow:
+
+- YF-07's shift size is large relative to its Gaussian noise and the detector threshold; these results do not establish robust early warning or gradual-change detection.
+- YF-08's product operator is part of the search grammar and the generator; the result is held-out sample generalization within that known grammar, not novel open-world relation invention.
+- YF-09 uses strongly separated supplied contexts and effects; its perfect result does not demonstrate causal discovery or general context induction.
+- YF-10 shows a positive regret gap for the local greedy baseline on the generated graphs, but exhaustive search is an oracle with full graph knowledge and is not compute-matched.
+
+The benchmark used five seeds only. Treat these numbers as a smoke-test snapshot, not a confirmatory study or evidence of Yinfu/Yijing-specific benefit. Next validation must expand seeds, vary signal-to-noise and generator families, add permuted controls, and compare planning under equal node-expansion budgets.
