@@ -32,6 +32,22 @@ class E12A1CandidateInductionTests(unittest.TestCase):
         self.assertEqual(result["support_accuracy"], 1.0)
         self.assertEqual(result["gate_accuracy"], 1.0)
 
+    def test_benchmark_splits_are_disjoint(self):
+        support, gate, locked_test = make_benchmark()
+        support_values = {row.values for row in support}
+        gate_values = {row.values for row in gate}
+        test_values = {row.values for row in locked_test}
+        self.assertTrue(support_values.isdisjoint(gate_values))
+        self.assertTrue(support_values.isdisjoint(test_values))
+        self.assertTrue(gate_values.isdisjoint(test_values))
+
+    def test_selected_expression_is_human_readable(self):
+        support, gate, _ = make_benchmark()
+        result = induce(support, gate)
+        self.assertIn("AND", result["selected"])
+        self.assertIn("x0", result["selected"])
+        self.assertIn("x1", result["selected"])
+
     def test_empty_support_is_rejected(self):
         with self.assertRaises(ValueError):
             propose_candidates(())
