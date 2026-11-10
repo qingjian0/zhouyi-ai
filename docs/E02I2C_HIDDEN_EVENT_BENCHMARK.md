@@ -64,6 +64,25 @@ python -m prototype.e02i2c_hidden_event_benchmark --seeds 20 --start-seed 1000 -
 python -m prototype.e02i2c_hidden_event_benchmark --seeds 20 --start-seed 2000 --split gate
 ```
 
+## Development results (CI run 42836883823)
+
+The full workflow passed, including the complete repository experiment chain, I2-C focused tests, and both 20-seed benchmark runs. Each split contains 160 episodes: 20 per event class.
+
+| Policy | Split | Macro-F1 | Accuracy | Coverage | Selective risk | False CREATE | False MODIFY | False SUSPEND | False RETIRE |
+|---|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| Evidence-gated | Train | 1.0000 | 1.0000 | 0.8750 | 0.0000 | 0 | 0 | 0 | 0 |
+| Similarity-only | Train | 0.8222 | 0.8750 | 1.0000 | 0.1250 | 5 | 10 | 5 | 0 |
+| Single-window | Train | 0.8222 | 0.8750 | 1.0000 | 0.1250 | 5 | 10 | 5 | 0 |
+| Evidence-gated | Gate | 1.0000 | 1.0000 | 0.8750 | 0.0000 | 0 | 0 | 0 | 0 |
+| Similarity-only | Gate | 0.8222 | 0.8750 | 1.0000 | 0.1250 | 5 | 10 | 5 | 0 |
+| Single-window | Gate | 0.8222 | 0.8750 | 1.0000 | 0.1250 | 5 | 10 | 5 | 0 |
+
+The evidence-gated policy abstained on all 20 ambiguous episodes in each split and made no errors on the remaining 140. The forced baselines always decided, but made 20 errors per split, including unsupported CREATE and MODIFY decisions.
+
+The Train and Gate scores are identical because the generator uses the same finite templates with disjoint deterministic seed ranges. This is a protocol/implementation check, not evidence of broad distributional generalization. The perfect score is expected to be challenged by harder environment shifts, correlated observations, ambiguous identity continuities, and multi-identity events.
+
+Macro-F1 is computed over event classes represented in the benchmark (the eight listed classes); REPLACE/SPLIT/MERGE are not part of this score.
+
 ## Interpretation limits
 
 - Synthetic episodes are generated from known event templates.
