@@ -30,7 +30,7 @@ class ActiveMeasurementTests(unittest.TestCase):
 
     def test_impossible_revealed_outcome_is_inconsistent(self):
         p = Probe("split", 1.0, {"zero":{"H0":1.0,"H1":0.0},"one":{"H0":0.0,"H1":1.0}})
-        r = posterior_after_observation(self.priors, p, "missing")
+        r = posterior_after_observation({"H0": 1.0, "H1": 0.0}, p, "one")
         self.assertEqual(r["status"], "INCONSISTENT")
         self.assertIsNone(r["posterior"])
 
