@@ -2,7 +2,7 @@ name: tests
 
 on:
   push:
-    branches: [main, research/e02i-ci-runner, research/e02i-persistent-evidence, research/e02i2-relation-lineage, research/e02i2-hidden-identity-benchmark, research/e02i2c-event-adjudication, research/e02i2c-hidden-event-benchmark, research/e02i2c-integrity-hardening]
+    branches: [main, research/e02i-ci-runner, research/e02i-persistent-evidence, research/e02i2-relation-lineage, research/e02i2-hidden-identity-benchmark, research/e02i2c-event-adjudication, research/e02i2c-hidden-event-benchmark, research/e02i2c-integrity-hardening, research/e02i2c-metadata-attack]
   pull_request:
     branches: [main, research/e02e-autonomous-discovery, research/e02f-falsification, research/e02g-multienvironment-stability, research/e02i-relation-evolution, research/e02h-baseline, research/e02i-persistent-evidence, research/e02i2-relation-lineage, research/e02i2c-hidden-event-benchmark, research/e02i2c-integrity-hardening]
 
@@ -60,6 +60,16 @@ jobs:
         run: python -m prototype.e02i2c_hidden_event_benchmark --seeds 20 --start-seed 1000 --split train
       - name: Run E02-I2-C hidden event development benchmark (gate)
         run: python -m prototype.e02i2c_hidden_event_benchmark --seeds 20 --start-seed 2000 --split gate
+      - name: Run E02-I2-C-E metadata attacker unit tests
+        run: python -m unittest tests.test_e02i2c_metadata_attack -v
+      - name: Run E02-I2-C-E metadata-only leakage attack (30 seed blocks)
+        run: python -m prototype.e02i2c_metadata_attack --seeds 30 --train-start-seed 1000 --gate-start-seed 10000 --bootstrap-samples 1000 > e02i2c_metadata_attack.json
+      - name: Upload E02-I2-C-E metadata attack report
+        uses: actions/upload-artifact@v4
+        with:
+          name: e02i2c-metadata-attack-report
+          path: e02i2c_metadata_attack.json
+          if-no-files-found: error
 
   e02i2-hidden-identity:
     runs-on: ubuntu-latest
