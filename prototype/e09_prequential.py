@@ -90,8 +90,10 @@ class PrequentialRunner:
         if self.REVISION_MODE == "BATCH_REFIT":
             self.ledger.fit(self.learner)
         else:
-            for example in self.ledger.training_examples():
-                self.learner.observe(example.inputs, example.label)
+            # Replay every raw record, including conflicts, so the index learns
+            # which historical inputs are quarantined by ledger adjudication.
+            for record in self.ledger.records():
+                self.learner.observe(record.example.inputs, record.example.label)
         self.model_version = 1
         self.step += 1
 
