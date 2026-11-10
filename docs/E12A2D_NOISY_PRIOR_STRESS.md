@@ -72,6 +72,27 @@ Matched-minus-uniform contrasts did not establish a reliable accuracy or proper-
 
 These are exploratory finite-synthetic results. The intervals are paired normal approximations, not bootstrap intervals; there is no multiple-comparison correction, and each family uses a fixed likelihood table rather than independently sampled world structures. Do not treat these results as evidence for any Yijing prior. Their current value is methodological: a future structured prior must beat the uniform and generic controls while passing confident-error and distribution-shift guardrails.
 
+## Expanded prior-tempering result (Run #42874959341)
+
+The expanded CI run passed the complete repository workflow. It evaluated 100 episodes per cell across 3 world families, 9 prior arms, and 5 policies: 13,500 episodes, 135 summary rows, and 120 paired prior-vs-uniform contrasts.
+
+For Expected IG, the key Brier / overconfident-wrong results were:
+
+| World family | Uniform | Matched | Matched 50% + uniform 50% | Anti-aligned | Anti 25% + uniform 75% |
+|---|---:|---:|---:|---:|---:|
+| Complementary | 0.2841 / 0% | 0.2453 / 4% | 0.2533 / 1% | 0.3603 / 11% | 0.2801 / 0% |
+| Rare | 0.2643 / 1% | 0.2221 / 2% | 0.2218 / 2% | 0.3519 / 4% | 0.2614 / 1% |
+| Redundant | 0.3692 / 0% | 0.2799 / 0% | 0.3713 / 0% | 0.3861 / 0% | 0.3692 / 0% |
+
+Interpretation:
+
+1. Uniform contamination substantially reduces the damage from the anti-aligned prior in the complementary and rare families. In the complementary family, 25% anti-aligned prior + 75% uniform reduces overconfident-wrong episodes from 11% to 0%, while Brier returns close to the uniform baseline.
+2. A matched prior can improve Brier/log loss, but the best mixture weight is task-dependent. In the rare family, the 50/50 matched-uniform mixture slightly improves Brier and log loss over the full matched prior. In the redundant family, matched prior is materially better and uniform contamination removes much of that gain.
+3. There is no universally best prior weight in this benchmark. A uniform floor is a robustness control, not a free improvement.
+4. Accuracy differences are less decisive than proper-score and confident-error differences at 100 episodes per cell. Use the paired contrast table in the JSON output for uncertainty; do not select a mixture weight from these same episodes and then report it as an independent test result.
+
+The expanded run used the same target draws and action-specific sensor random streams across prior/policy arms. The 95% intervals are paired normal approximations; they are not bootstrap intervals, and no multiple-comparison correction is applied.
+
 ## Interpretation safeguards
 
 1. A matched prior is not automatically better on finite samples; stochastic sensor outcomes can still produce errors.
