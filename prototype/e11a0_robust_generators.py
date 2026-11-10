@@ -37,6 +37,18 @@ SHARED_SCHEMAS = {
 }
 
 
+def _variable_schemas(seed: int) -> dict[str, frozenset[str]]:
+    """Vary latent concept count (2..5) and schema sizes (2..4) by seed."""
+    count = 2 + (seed % 4)
+    schemas = {}
+    for index in range(count):
+        size = 2 + ((seed + index) % 3)
+        schemas[f"latent-{index:02d}"] = frozenset(
+            f"opaque-{index:02d}-{slot:02d}" for slot in range(size)
+        )
+    return schemas
+
+
 def _observe(memberships: frozenset[str], schemas: dict[str, frozenset[str]],
              rng: random.Random, *, missing_rate: float,
              false_positive_rate: float, mode: str,
@@ -52,7 +64,6 @@ def _observe(memberships: frozenset[str], schemas: dict[str, frozenset[str]],
             observed.add(attribute)
 
     if mode == "nuisance-confounded":
-        # The nuisance is predictive in environment 0 and reverses in 1.
         has_a = "concept-a" in memberships
         probability = (
             (0.85 if has_a else 0.15) if environment == "env-0"
@@ -73,8 +84,10 @@ def make_robust_episode(seed: int = 17, *, mode: str = "missing-noisy",
       missing-noisy: private schemas with missing and false-positive attributes.
       shared-attribute: concepts share one common attribute.
       nuisance-confounded: private schemas and a cue reversed across environments.
+      variable-concept-count: 2..5 hidden concepts with 2..4 attributes each.
     """
-    allowed = {"missing-noisy", "shared-attribute", "nuisance-confounded"}
+    allowed = {"missing-noisy", "shared-attribute", "nuisance-confounded",
+               "variable-concept-count"}
     if mode not in allowed:
         raise ValueError(f"mode must be one of {sorted(allowed)}")
     if objects_per_split < 30:
@@ -84,10 +97,17 @@ def make_robust_episode(seed: int = 17, *, mode: str = "missing-noisy",
     if not 0.0 <= false_positive_rate < 1.0:
         raise ValueError("false_positive_rate must be in [0, 1)")
     rng = random.Random(seed)
-    schemas = SHARED_SCHEMAS if mode == "shared-attribute" else PRIVATE_SCHEMAS
+    if mode == "shared-attribute":
+        schemas = SHARED_SCHEMAS
+    elif mode == "variable-concept-count":
+        schemas = _variable_schemas(seed)
+    else:
+        schemas = PRIVATE_SCHEMAS
+
     learner: list[RobustObjectView] = []
     query: list[RobustObjectView] = []
     truth: dict[str, frozenset[str]] = {}
+    concept_names = tuple(schemas)
 
     for split_name, target, environment in (
         ("learner", learner, "env-0"),
@@ -95,11 +115,13 @@ def make_robust_episode(seed: int = 17, *, mode: str = "missing-noisy",
     ):
         for index in range(objects_per_split):
             memberships = frozenset(
-                concept for concept in schemas
-                if rng.random() < {"concept-a": 0.34, "concept-b": 0.31,
-                                   "concept-c": 0.28}[concept]
+                concept for concept_index, concept in enumerate(concept_names)
+                if rng.random() < (
+                    {"concept-a": 0.34, "concept-b": 0.31, "concept-c": 0.28}.get(
+                        concept, 0.24 + 0.04 * (concept_index % 3)
+                    )
+                )
             )
-            # Keep the shared-feature arm clean so its intervention is isolated.
             local_missing = 0.0 if mode == "shared-attribute" else missing_rate
             local_fp = 0.0 if mode == "shared-attribute" else false_positive_rate
             attributes = _observe(
