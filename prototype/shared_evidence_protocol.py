@@ -14,7 +14,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
-PROTOCOL_VERSION = "0.1"
+PROTOCOL_VERSION = "0.2"
 EVENT_TYPES = {"observation", "prediction_commit", "evidence_reveal", "structure_version", "revision"}
 
 
