@@ -185,7 +185,7 @@ def cegis(
         raise ValueError("query_budget must be non-negative")
     observations = list(initial_observations)
     seen = {inputs for inputs, _ in observations}
-    for _ in range(query_budget + 1):
+    for _ in range(query_budget):
         candidate = synthesize(observations, programs, modulus=modulus)
         if candidate is None:
             return SynthesisResult(None, tuple(observations), len(observations) - len(initial_observations), "no_candidate")
@@ -197,7 +197,10 @@ def cegis(
             raise RuntimeError("counterexample oracle repeated an observed input")
         seen.add(inputs)
         observations.append((inputs, output))
-    return SynthesisResult(None, tuple(observations), len(observations) - len(initial_observations), "budget_exhausted")
+    # Preserve the best consistent proposal, but do not label it verified:
+    # no oracle call remains to check it after the final counterexample.
+    candidate = synthesize(observations, programs, modulus=modulus)
+    return SynthesisResult(candidate, tuple(observations), len(observations) - len(initial_observations), "budget_exhausted")
 
 
 def ternary_domain(variable_indices: Sequence[int]) -> tuple[tuple[int, ...], ...]:
