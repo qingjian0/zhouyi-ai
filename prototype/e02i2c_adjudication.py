@@ -296,24 +296,29 @@ def adjudicate_event(
     # evidence must not mask a newer sustained disappearance.
     consecutive_absence_windows = 0
     expected_previous: int | None = None
+    absence_tail_windows: set[int] = set()
     for window in sorted(sufficient_windows, reverse=True):
         if expected_previous is not None and window != expected_previous:
             break
         if window in absence_windows:
             consecutive_absence_windows += 1
+            absence_tail_windows.add(window)
             expected_previous = window - 1
         else:
             break
-    absence_samples = {
-        item.sample_id for item in absences
-        if item.window in absence_windows
-    }
+    # Independence must be established inside the qualifying consecutive
+    # tail. Older, disconnected samples cannot make a reused tail sample look
+    # independent, and must not be cited as evidence for this suspension.
+    absence_tail = tuple(
+        item for item in absences if item.window in absence_tail_windows
+    )
+    absence_tail_samples = {item.sample_id for item in absence_tail}
     if (consecutive_absence_windows >= required_windows
-            and len(absence_samples) >= required_windows):
+            and len(absence_tail_samples) >= required_windows):
         return EventDecision(
             EventType.SUSPEND, identity.identity_id, identity.version_id,
-            identity.signature, refs(absences),
-            "consecutive sufficiently observed absence windows",
+            identity.signature, refs(absence_tail),
+            "consecutive sufficiently observed absence windows with independent samples",
         )
 
     # Active identity: competing support for the current and a changed
