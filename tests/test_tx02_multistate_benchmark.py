@@ -21,7 +21,7 @@ class TX02EpisodeGeneratorTests(unittest.TestCase):
 
     def test_support_and_query_pairs_are_disjoint(self):
         for k in (2, 3, 4, 5):
-            episode = make_episode(k, seed=100 + k, support_size=3, query_count=2)
+            episode = make_episode(k, seed=100 + k, support_size=min(3, k*k - 2), query_count=2)
             support_pairs = {(row.a, row.b) for row in episode.support}
             query_pairs = set(episode.queries)
             self.assertEqual(len(query_pairs), 2)
