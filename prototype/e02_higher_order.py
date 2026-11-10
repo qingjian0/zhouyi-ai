@@ -21,8 +21,13 @@ def make_dataset(n: int, seed: int) -> list[Example]:
     pos=[p for p in PATTERNS if p[0]*p[1]*p[2]==1]
     neg=[p for p in PATTERNS if p[0]*p[1]*p[2]==-1]
     out=[]
-    for _ in range(n):
-        p=rng.choice(pos); candidates=[p,*rng.sample(neg,3)]; rng.shuffle(candidates)
+    for i in range(n):
+        # Cycle both parity classes exactly to eliminate finite-sample
+        # first-/second-order marginal leakage.
+        p=pos[i % 4]
+        omitted=i % 4
+        candidates=[p,*[x for j,x in enumerate(neg) if j != omitted]]
+        rng.shuffle(candidates)
         out.append(Example(tuple(candidates),candidates.index(p)))
     return out
 
