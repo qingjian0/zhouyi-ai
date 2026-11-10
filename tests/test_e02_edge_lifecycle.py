@@ -91,7 +91,9 @@ class HyperedgeLifecycleTests(unittest.TestCase):
         self.assertIn("m", manager.edges)
 
     def test_merge_rejects_below_threshold_gain_after_stale_observations(self):
-        manager = HyperedgeLifecycle(min_gain=0.01, prune_patience=5)
+        manager = HyperedgeLifecycle(
+            min_gain=0.01, prune_patience=5, merge_jaccard=0.5
+        )
         manager.create(proposal("a"))
         manager.create(proposal("b", members=("a", "b", "d")))
         manager.observe("a", support_ids=(), counterexample_ids=("n1",),
@@ -105,7 +107,7 @@ class HyperedgeLifecycleTests(unittest.TestCase):
         self.assertEqual(manager.edges, before)
 
     def test_merge_rejects_cost_overflow_without_mutation(self):
-        manager = HyperedgeLifecycle()
+        manager = HyperedgeLifecycle(merge_jaccard=0.5)
         manager.create(EdgeProposal(
             "a", ("x", "y", "z"), ("r", "s", "t"), "constraint",
             ("s1", "s2", "s3"), (), 0.1, 1.0e308,
