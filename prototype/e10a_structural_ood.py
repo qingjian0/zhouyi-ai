@@ -73,7 +73,8 @@ def build_structural_ood_task(seed: int, *, instances_per_role: int = 4) -> tupl
                     participants.append(by_role[idx][serial % len(by_role[idx])])
             rng = random.Random(seed + serial + (0 if support_mode else 10000))
             rng.shuffle(participants)
-            oid = f"{phase}-ood-{serial:04d}"
+            seed_tag = hashlib.sha256(str(seed).encode()).hexdigest()[:8]
+            oid = f"{phase}-{seed_tag}-ood-{serial:04d}"
             row = {"observation_id": oid, "relation_symbol": relation,
                    "participants": participants, "context": [list(x) for x in context]}
             if support_mode:
