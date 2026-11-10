@@ -23,7 +23,7 @@ from prototype.e12a3_multi_proposer import (
 )
 
 
-FAMILIES = ("STAT", "RELATIONAL", "RANDOM", "EXHAUSTIVE", "PORTFOLIO")
+FAMILIES = ("STAT", "RELATIONAL", "RANDOM", "BOUNDED_ENUM", "PORTFOLIO")
 
 
 def _make_world(seed: int, task: str) -> tuple[tuple[Observation, ...], tuple[Observation, ...], tuple[Observation, ...]]:
@@ -68,11 +68,11 @@ def _budgeted_family_pools(support: Sequence[Observation], seed: int) -> dict[st
         "STAT": propose_statistical(support),
         "RELATIONAL": propose_relational(support),
         "RANDOM": propose_random(support, seed=seed + 100_003, count=160),
-        "EXHAUSTIVE": propose_exhaustive(support, limit=512),
+        "BOUNDED_ENUM": propose_exhaustive(support, limit=512),
     }
     # A seeded permutation prevents lexicographic-prefix bias while remaining
     # exactly reproducible for every (world seed, proposer family) pair.
-    offsets = {"STAT": 11, "RELATIONAL": 23, "RANDOM": 37, "EXHAUSTIVE": 53}
+    offsets = {"STAT": 11, "RELATIONAL": 23, "RANDOM": 37, "BOUNDED_ENUM": 53}
     shuffled = {}
     for family, proposals in raw.items():
         family_rng = random.Random(seed * 1_000_003 + offsets[family])
@@ -88,7 +88,7 @@ def run_episode(seed: int, task: str, budget: int = 32) -> dict[str, Any]:
     methods: dict[str, tuple[Proposal, ...]] = {}
     for family, proposals in pools.items():
         methods[family] = tuple(proposals[:budget])
-    # EXHAUSTIVE is a control baseline, not a portfolio member: it enumerates
+    # BOUNDED_ENUM is a control baseline, not a portfolio member: it enumerates
     # the STAT/RELATIONAL grammar and would double-count their search budget.
     portfolio_families = {name: pools[name] for name in ("STAT", "RELATIONAL", "RANDOM")}
     methods["PORTFOLIO"] = allocate_round_robin(portfolio_families, budget)
