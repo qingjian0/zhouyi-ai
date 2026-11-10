@@ -43,9 +43,9 @@
 - [E12 基础认知单元自主生成研究](docs/E12_GROUNDED_PRIMITIVE_INDUCTION_2026-11-11.md)
 - [E12-A0 可辨识性基线协议](docs/E12A0_IDENTIFIABILITY_BASELINE.md)
 - [E12-A1 类型化谓词生成基线](docs/E12A1_TYPED_PREDICATE_INDUCTION.md)
-- [E12-A2 主动观测选择研究协议与实现](docs/E12A2_ACTIVE_MEASUREMENT_SELECTION.md)
+- [E12-A2 主动观测选择研究协议与实现](docs/E12A2_ACTIVE_MEASUREMENT_SELECTION.md)\n- [E12-A2-B 主动测量策略对照基准](docs/E12A2B_POLICY_BENCHMARK.md)
 - [E12-A1 类型化谓词原型](prototype/e12a1_typed_predicate_induction.py)
-- [E12-A2 主动观测选择器](prototype/e12a2_active_measurement.py)
+- [E12-A2 主动观测选择器](prototype/e12a2_active_measurement.py)\n- [E12-A2-B 策略对照实验](prototype/e12a2b_policy_benchmark.py)
 - [E02-A 结果审计与下一阶段协议](docs/E02A_NEXT_RESEARCH_2026-11-10.md)
 - [E02-B 三元有限域关系诊断协议](docs/E02B_TERNARY_PROTOCOL.md)
 - [E02-B 学习器对照原型](prototype/e02_ternary_learners.py)
@@ -68,7 +68,7 @@
 python -m unittest discover -s tests -v
 python -m prototype.e01_sparse_composition
 python -m prototype.e01_learned_ranker --json
-python -m prototype.e12a2_active_measurement --json
+python -m prototype.e12a2_active_measurement --json\npython -m prototype.e12a2b_policy_benchmark --seeds 20 --budget 4 --json
 ```
 
 ## 研究状态标记
