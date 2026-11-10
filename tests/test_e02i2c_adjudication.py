@@ -113,6 +113,17 @@ class E02I2CContractsTests(unittest.TestCase):
         ), candidate_signature="a^b")
         self.assertEqual(decision.event, EventType.ABSTAIN)
 
+    def test_candidate_filter_cannot_hide_current_support_from_contradiction(self):
+        decision = adjudicate_event(active(), (opp(0),), (
+            packet("current-positive", 0, EvidencePolarity.SUPPORTS, "a&b", source="v1"),
+            packet("contradiction", 0, EvidencePolarity.CONTRADICTS, signature=None, source="v1"),
+        ), candidate_signature="a^b")
+        self.assertEqual(decision.event, EventType.ABSTAIN)
+        self.assertEqual(
+            set(decision.evidence_refs),
+            {"current-positive", "contradiction"},
+        )
+
     def test_unlinked_changed_rule_does_not_modify(self):
         decision = adjudicate_event(active(), (opp(0), opp(1)), (
             packet("e0", 0, EvidencePolarity.SUPPORTS, "a^b", source="other"),
