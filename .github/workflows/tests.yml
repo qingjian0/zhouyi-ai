@@ -1,5 +1,5 @@
 name: tests
-# C-F prototype validation remains isolated; diagnostics retain the semantic sampling envelope.
+# C-F validation now includes independently authored A/B/C scenario mechanisms.
 
 on:
   push:
