@@ -70,14 +70,14 @@ class E02I2CHiddenEventBenchmarkTests(unittest.TestCase):
         modes = [build_episode(EventType.ABSTAIN, seed, split="gate") for seed in (0, 1, 2)]
         self.assertEqual([_adjudicator(episode.observation) for episode in modes],
                          [EventType.ABSTAIN] * 3)
-        self.assertEqual(len({tuple(packet.polarity for packet in episode.evidence)
+        self.assertEqual(len({tuple(packet.polarity for packet in episode.observation.evidence)
                               for episode in modes}), 3)
 
     def test_locked_test_is_not_available_during_development(self):
         with self.assertRaisesRegex(ValueError, "locked Test"):
             run_benchmark(seeds=1, split="test")
 
-    def test_similarity_only_baseline_exposes_false_create_on_ambiguous_case(self):
+    def test_similarity_only_baseline_overcommits_on_ambiguous_case(self):
         episode = build_episode(EventType.ABSTAIN, 303, split="gate")
         self.assertEqual(_similarity_only(episode.observation), EventType.MODIFY)
         self.assertEqual(_adjudicator(episode.observation), EventType.ABSTAIN)
