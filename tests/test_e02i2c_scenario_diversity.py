@@ -26,6 +26,9 @@ class E02I2CScenarioDiversityTests(unittest.TestCase):
                     )
                     self.assertEqual(_decision(episode.observation), event,
                                      (family, event, seed))
+                    self.assertEqual(len(episode.observation.opportunities), 4)
+                    self.assertGreaterEqual(len(episode.observation.evidence), 3)
+                    self.assertLessEqual(len(episode.observation.evidence), 8)
 
     def test_family_c_varies_environment_and_evidence_count(self):
         rows = [
