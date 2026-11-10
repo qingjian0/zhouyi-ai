@@ -99,7 +99,8 @@ class SQLiteEvidenceStore:
           ON events(episode_id, json_extract(payload_json, '$.observation_id'))
           WHERE event_type='observation';
         DROP INDEX IF EXISTS one_prediction_per_observation;
-        CREATE UNIQUE INDEX IF NOT EXISTS one_prediction_per_observation_track
+        DROP INDEX IF EXISTS one_prediction_per_observation_track;
+        CREATE UNIQUE INDEX IF NOT EXISTS one_prediction_per_observation_track_v2
           ON events(episode_id, json_extract(payload_json, '$.observation_id'),
                     COALESCE(json_extract(payload_json, '$.learner_track'), 'legacy'))
           WHERE event_type='prediction_commit';
