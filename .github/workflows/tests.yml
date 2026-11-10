@@ -2,9 +2,9 @@ name: tests
 
 on:
   push:
-    branches: [main, research/e02i-ci-runner, research/e02i-persistent-evidence]
+    branches: [main, research/e02i-ci-runner, research/e02i-persistent-evidence, research/e02i2-relation-lineage]
   pull_request:
-    branches: [main, research/e02e-autonomous-discovery, research/e02f-falsification, research/e02g-multienvironment-stability, research/e02i-relation-evolution, research/e02h-baseline]
+    branches: [main, research/e02e-autonomous-discovery, research/e02f-falsification, research/e02g-multienvironment-stability, research/e02i-relation-evolution, research/e02h-baseline, research/e02i-persistent-evidence]
 
 jobs:
   unit-tests:
