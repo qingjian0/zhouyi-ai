@@ -30,6 +30,8 @@ METHODS = (
     "STAT", "RELATIONAL", "RANDOM", "BOUNDED_ENUM",
     "EQUAL", "ROUND_ROBIN", "UCB1_MEAN",
     "SUPPORT_CONTEXT_ROUTER", "SUPPORT_CONTEXT_ROUTER_STRATIFIED",
+    "SUPPORT_CONTEXT_ROUTER_STRATIFIED_TOP2",
+    "SUPPORT_CONTEXT_ROUTER_STRATIFIED_MAX",
 )
 
 
@@ -130,16 +132,24 @@ def _context_descriptors(
     probes: dict[str, tuple[Proposal, ...]],
     context_support: Sequence[Observation],
     top_k: int = 3,
+    aggregation: str = "TOP3_MEAN",
 ) -> dict[str, float]:
-    if top_k < 1:
-        raise ValueError("top_k must be positive")
+    if aggregation not in ("TOP3_MEAN", "TOP2_MEAN", "MAX"):
+        raise ValueError("unsupported context aggregation")
     scores = {}
     for family in ADAPTIVE_FAMILIES:
         candidate_scores = sorted(
             (_accuracy(p, context_support) for p in probes[family]),
             reverse=True,
         )
-        scores[family] = mean(candidate_scores[:top_k]) if candidate_scores else 0.0
+        if not candidate_scores:
+            scores[family] = 0.0
+        elif aggregation == "MAX":
+            scores[family] = max(candidate_scores)
+        elif aggregation == "TOP2_MEAN":
+            scores[family] = mean(candidate_scores[:2])
+        else:
+            scores[family] = mean(candidate_scores[:top_k])
     return scores
 
 
@@ -278,7 +288,14 @@ def run_episode(seed: int, task: str, budget: int = 31) -> dict[str, Any]:
     )
     stratified_probes = _balanced_probe_candidates(pools, batch_size=4)
     stratified_context_scores = _context_descriptors(
-        stratified_probes, context_support, top_k=3
+        stratified_probes, context_support, top_k=3,
+        aggregation="TOP3_MEAN",
+    )
+    stratified_top2_scores = _context_descriptors(
+        stratified_probes, context_support, aggregation="TOP2_MEAN",
+    )
+    stratified_max_scores = _context_descriptors(
+        stratified_probes, context_support, aggregation="MAX",
     )
     methods: dict[str, dict[str, Any]] = {}
 
@@ -345,6 +362,42 @@ def run_episode(seed: int, task: str, budget: int = 31) -> dict[str, Any]:
         "context_probe_evaluations": stratified["context_probe_evaluations"],
     }
 
+    stratified_top2 = _context_route_allocate(
+        pools, stratified_top2_scores, stratified_probes, budget,
+        probe_strategy="GRAMMAR_STRATIFIED_TOP2_MEAN",
+    )
+    top2_selection = _select_on_gate_final(
+        stratified_top2["candidates"], gate_final
+    )
+    methods["SUPPORT_CONTEXT_ROUTER_STRATIFIED_TOP2"] = {
+        "locked_test_accuracy": _score_locked_test(top2_selection, locked_test),
+        "gate_final_accuracy": top2_selection["gate_final_accuracy"],
+        "candidate_count": top2_selection["candidate_count"],
+        "proposal_slots_used": stratified_top2["proposal_slots_used"],
+        "allocations": stratified_top2["allocations"],
+        "context_scores": stratified_top2["context_scores"],
+        "trace": list(stratified_top2["trace"]),
+        "context_probe_evaluations": stratified_top2["context_probe_evaluations"],
+    }
+
+    stratified_max = _context_route_allocate(
+        pools, stratified_max_scores, stratified_probes, budget,
+        probe_strategy="GRAMMAR_STRATIFIED_MAX",
+    )
+    max_selection = _select_on_gate_final(
+        stratified_max["candidates"], gate_final
+    )
+    methods["SUPPORT_CONTEXT_ROUTER_STRATIFIED_MAX"] = {
+        "locked_test_accuracy": _score_locked_test(max_selection, locked_test),
+        "gate_final_accuracy": max_selection["gate_final_accuracy"],
+        "candidate_count": max_selection["candidate_count"],
+        "proposal_slots_used": stratified_max["proposal_slots_used"],
+        "allocations": stratified_max["allocations"],
+        "context_scores": stratified_max["context_scores"],
+        "trace": list(stratified_max["trace"]),
+        "context_probe_evaluations": stratified_max["context_probe_evaluations"],
+    }
+
     # Each policy variant uses the same 12-evaluation context-probe budget.
     shared_probe_cost = 12
     for result in methods.values():
@@ -390,7 +443,9 @@ def run_benchmark(
     paired = {
         method: _paired_clustered(episodes, method)
         for method in ("UCB1_MEAN", "SUPPORT_CONTEXT_ROUTER",
-                       "SUPPORT_CONTEXT_ROUTER_STRATIFIED")
+                       "SUPPORT_CONTEXT_ROUTER_STRATIFIED",
+                       "SUPPORT_CONTEXT_ROUTER_STRATIFIED_TOP2",
+                       "SUPPORT_CONTEXT_ROUTER_STRATIFIED_MAX")
     }
     task_metrics = {}
     for task in TASKS:
