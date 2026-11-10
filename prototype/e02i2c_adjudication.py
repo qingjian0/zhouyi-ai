@@ -248,9 +248,11 @@ def adjudicate_event(
             item for item in changed_candidates
             if item.source_version_id == identity.version_id
         )
+        changed_signatures = {item.candidate_signature for item in changed_support}
         if (len(distinct_windows(changed_support)) >= required_windows
                 and len({item.sample_id for item in changed_support}) >= required_windows
-                and len({item.candidate_signature for item in changed_support}) == 1):
+                and len(changed_signatures) == 1
+                and (candidate_signature is None or changed_signatures == {candidate_signature})):
             signature = changed_support[0].candidate_signature
             return EventDecision(
                 EventType.REACTIVATE_MODIFY, identity.identity_id, identity.version_id,
@@ -304,7 +306,8 @@ def adjudicate_event(
     if (len(distinct_windows(changed_support)) >= required_windows
             and len({item.sample_id for item in changed_support}) >= required_windows):
         signatures = {item.candidate_signature for item in changed_support}
-        if len(signatures) == 1:
+        if (len(signatures) == 1
+                and (candidate_signature is None or signatures == {candidate_signature})):
             signature = next(iter(signatures))
             return EventDecision(
                 EventType.MODIFY, identity.identity_id, identity.version_id,
