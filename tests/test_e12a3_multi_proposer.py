@@ -85,12 +85,18 @@ class E12A3MultiProposerTests(unittest.TestCase):
         with self.assertRaises(TypeError):
             validate_observations((Observation("x", (("a", 1),), 0),
                                    Observation("y", (("a", "one"),), 1)))
+        with self.assertRaises(ValueError):
+            validate_observations((Observation("x", (("a", 1),), True),))
+        with self.assertRaises(ValueError):
+            validate_observations((Observation("x", (("a", float("nan")),), 0),))
 
     def test_expression_type_errors_are_explicit(self):
         with self.assertRaises(TypeError):
             PredicateExpr("a", "PARITY", 0).evaluate({"a": "not-number"})
         with self.assertRaises(TypeError):
             PredicateExpr("a", "DIFF_GE", 0, "b").evaluate({"a": "x", "b": "y"})
+        with self.assertRaises(TypeError):
+            PredicateExpr("a", "GE", "high").evaluate({"a": 3})
 
     def test_lifecycle_is_append_only_and_rejects_invalid_transition(self):
         first = lifecycle_transition("c1", None, LifecycleState.PROPOSED, ("o1",), "generated")
