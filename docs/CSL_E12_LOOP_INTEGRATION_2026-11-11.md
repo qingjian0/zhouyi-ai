@@ -35,6 +35,43 @@ All hypotheses are falsifiable. A result that merely passes unit tests establish
 
 These are logical responsibilities. They do not imply that each track is complete, mutually compatible, or independently beneficial.
 
+## 2.1 Existing implementation audit: do not duplicate E12-A6 or E09 protocol
+
+A review of the active research PRs changes the implementation recommendation:
+
+- **E12-A6 already defines a typed candidate lifecycle ledger.** Its `CandidateState` includes OBSERVED, PROPOSED, DISCRIMINATION_PENDING, TRAIN_SUPPORTED, GATE_VALIDATED, REUSED, CHALLENGED, REVISED, SPECIALIZED, RETIRED, and REVALIDATION_PENDING. Its `ActionType` defines legal transitions, and it checks TRAIN / GATE_FINAL evidence roles. The in-memory ledger is append-only at the action level, but it is not itself a durable cross-track event store.
+- **E12-A6 × E02-D has an end-to-end finite-world runner.** The recorded 100-seed sweep reports 2,700 episodes per support size. At support=2, 16.63% of episodes have a common query prediction while no episode uniquely identifies the mechanism; at support=4, the fixed 27-rule family is fully identifiable. This is a useful demonstration that prediction agreement and mechanism identification must remain separate, but the benchmark is deliberately finite and enumerable.
+- **E09 already has a shared SQLite evidence protocol v0.2 adapter.** It persists observation, prediction_commit, evidence_reveal, structure_version, and revision events, with track identity, parent version references, and reveal-before-revision checks. It is a local durable store, not a distributed broker, evaluator/learner security boundary, or crash-resumable live learner.
+
+Therefore CSL must **not** create a second CandidateState enum, a competing SQLite ledger, or a second predict/commit/reveal protocol. The correct design is a thin cross-track orchestration layer over these existing contracts.
+
+### Proposed semantic mapping (not a replacement enum)
+
+| CSL semantic phase | Existing E12-A6 state/action | Shared protocol representation |
+|---|---|---|
+| Proposed | PROPOSED / PROPOSE | candidate proposal metadata (not currently a first-class shared event) |
+| Evidence-supported | TRAIN_SUPPORTED / TRAIN_SUPPORT | evidence_reveal events tagged by track and split metadata |
+| Gate-validated | GATE_VALIDATED / GATE_VALIDATE | Gate evidence references plus structure_version metadata |
+| In-use | REUSED / REUSE | version use/dependency event (extension required) |
+| Challenged | CHALLENGED / CHALLENGE | evidence_reveal + lifecycle action event (extension required) |
+| Revised | REVISED / REVISE | new immutable structure_version + revision |
+| Specialized | SPECIALIZED / SPECIALIZE | new child structure_version + revision lineage |
+| Revalidation pending | REVALIDATION_PENDING / REQUEST_REVALIDATION | lifecycle action event (extension required) |
+| Retired | RETIRED / RETIRE | lifecycle action event (extension required) |
+
+The shared protocol currently has five core event types. If lifecycle actions are persisted, extend it compatibly with an explicit `lifecycle_action` event (or a versioned generic event envelope); do not overload `revision` to represent proposal, challenge, reuse, or retirement. Add schema-versioned migration and replay tests before any adapter adopts the extension.
+
+### Boundary between local candidate ledger and shared event store
+
+- E12-A6 remains the domain-level transition validator and candidate/evidence model.
+- Shared SQLite protocol remains the durable event sequence and cross-track lineage store.
+- CSL coordinates adapters, dependencies, and arbitration; it must not duplicate their state.
+- A candidate state snapshot should be reconstructible from the event stream or verified against it. If not, label it as a derived cache, never as the source of truth.
+- E09 adapter's current fail-closed semantics and fresh-episode-only limitation must remain visible. Do not claim crash recovery or evaluator isolation.
+- Cross-track dependencies need explicit IDs and invalidation policy; E12-A6's current candidate ledger alone does not provide global dependency invalidation.
+
+This audit narrows the first implementation milestone: **CSL-0 should be a compatibility/conformance layer and mapping specification, not a fresh lifecycle implementation.**
+
 ## 3. Typed cognitive structure
 
 Every candidate must declare a structure kind:
