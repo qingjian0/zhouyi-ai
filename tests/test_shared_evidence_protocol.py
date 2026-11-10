@@ -19,6 +19,10 @@ class SharedEvidenceProtocolTests(unittest.TestCase):
         self.tmp.cleanup()
 
     def commit(self, obs="o1", event="pc1", key="k1"):
+        self.store.append_event(
+            episode_id="ep1", event_id=f"obs-{obs}", event_type="observation",
+            idempotency_key=f"obs-key-{obs}", payload={"observation_id": obs, "payload_ref": f"{obs}-payload"},
+        )
         return self.store.commit_prediction(
             episode_id="ep1", event_id=event, idempotency_key=key,
             payload={"prediction_id": "p1", "observation_id": obs,
@@ -31,11 +35,23 @@ class SharedEvidenceProtocolTests(unittest.TestCase):
             payload={"prediction_id": prediction, "target_or_feedback": "A"},
         )
 
-    def test_commit_before_reveal(self):
+    def test_prediction_requires_prior_observation_and_commit_precedes_reveal(self):
+        with self.assertRaises(MissingReference):
+            self.store.commit_prediction(
+                episode_id="ep1", event_id="pc-before-observation", idempotency_key="k-before-observation",
+                payload={"prediction_id": "p-before", "observation_id": "o1", "model_version": "m0", "decision_status": "PREDICT"},
+            )
+        self.store.append_event(
+            episode_id="ep1", event_id="obs-o1", event_type="observation",
+            idempotency_key="obs-key-o1", payload={"observation_id": "o1"},
+        )
         with self.assertRaises(MissingReference):
             self.reveal()
-        self.commit()
-        self.assertEqual(self.reveal().sequence_no, 2)
+        self.store.commit_prediction(
+            episode_id="ep1", event_id="pc1", idempotency_key="k1",
+            payload={"prediction_id": "p1", "observation_id": "o1", "model_version": "m0", "decision_status": "PREDICT"},
+        )
+        self.assertEqual(self.reveal().sequence_no, 3)
 
     def test_identical_retry_returns_original_receipt(self):
         first = self.commit()
@@ -81,6 +97,18 @@ class SharedEvidenceProtocolTests(unittest.TestCase):
                          "model_version": "m0", "decision_status": "PREDICT"},
             )
 
+    def test_prediction_id_is_unique_within_episode(self):
+        self.commit()
+        self.store.append_event(
+            episode_id="ep1", event_id="obs-o2", event_type="observation",
+            idempotency_key="obs-key-o2", payload={"observation_id": "o2"},
+        )
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.store.commit_prediction(
+                episode_id="ep1", event_id="pc2", idempotency_key="k2",
+                payload={"prediction_id": "p1", "observation_id": "o2", "model_version": "m0", "decision_status": "PREDICT"},
+            )
+
     def test_stale_sequence_rejected(self):
         self.commit()
         with self.assertRaises(SequenceConflict):
@@ -114,7 +142,7 @@ class SharedEvidenceProtocolTests(unittest.TestCase):
             payload={"revision_id": "rev1", "operation": "keep", "trigger_evidence_ids": ["r1"],
                      "before_version_ids": ["v1"], "after_version_ids": ["v1"]},
         )
-        self.assertEqual(receipt.sequence_no, 4)
+        self.assertEqual(receipt.sequence_no, 5)
 
     def test_structure_parent_must_exist(self):
         with self.assertRaises(MissingReference):
