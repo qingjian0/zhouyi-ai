@@ -180,7 +180,17 @@ def match_candidates(
             if method == MatchingMethod.EXACT:
                 score = float(_candidate_signature(candidate) == _current_version(version))
             elif method == MatchingMethod.JACCARD:
+                # Deliberately semantic-blind weak baseline.
                 score = _jaccard(candidate.members, version.members)
+            elif method in {MatchingMethod.ROLE_ALIGNED, MatchingMethod.HUNGARIAN}:
+                # A changed rule may be MODIFY or a new identity. A single
+                # snapshot cannot distinguish them, so matching must abstain;
+                # I2-C event adjudication may use temporal evidence later.
+                score = (
+                    similarity(candidate, version)
+                    if candidate.rule_signature == version.rule_signature
+                    else 0.0
+                )
             else:
                 score = similarity(candidate, version)
             row.append(score)
