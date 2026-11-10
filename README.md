@@ -84,3 +84,6 @@ Evidence-gated relation structure evolution prototype and reproducible experimen
 
 
 E02-I six-scenario lifecycle validation is executed by the repository test workflow.
+
+
+E02-I distinguishes candidate quality from persistent relation quality.
