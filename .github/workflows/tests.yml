@@ -2,9 +2,9 @@ name: tests
 
 on:
   push:
-    branches: [main]
+    branches: [main, research/e09-shared-protocol-adapter-2026-11-11]
   pull_request:
-    branches: [main]
+    branches: [main, research/e09-incremental-conjunction-index-2026-11-11]
 
 jobs:
   unit-tests:
