@@ -48,7 +48,7 @@ class E10ATaskSplitTests(unittest.TestCase):
         )
         self.assertGreater(manifest["query_group_count"], 0)
         self.assertIn("support_label_counts", manifest)
-        self.assertIn("query_label_counts_evaluator_only", manifest)
+        self.assertNotIn("query_label_counts_evaluator_only", manifest)
 
     def test_query_assignment_is_invariant_to_hidden_label_mutation(self):
         _, learner, evaluator = self._views(704)
