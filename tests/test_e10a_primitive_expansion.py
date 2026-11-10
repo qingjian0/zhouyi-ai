@@ -6,8 +6,8 @@ from prototype.e10a_mechanism_learner import E10AMechanismLearner
 from prototype.e10a_prequential_ledger import PrequentialLedger
 
 
-def _novel_relation_episode():
-    support, _, _ = build_structural_ood_task(3301)
+def _novel_relation_episode(seed=3301):
+    support, _, _ = build_structural_ood_task(seed)
     values = ("rough", "smooth", "matte")
     objects = []
     for role, value in enumerate(values):
@@ -122,6 +122,27 @@ class PrimitiveExpansionTests(unittest.TestCase):
         self.assertGreater(initial, 0)
         learner.revise(query[0], labels[0])
         self.assertEqual(learner.candidate_count, initial)
+
+
+    def test_prequential_capability_across_eight_support_seeds(self):
+        predicted = 0
+        correct = 0
+        abstained = 0
+        for seed in range(3301, 3309):
+            support, objects, query, labels = _novel_relation_episode(seed)
+            learner = PrimitiveExpansionLearner(support)
+            learner.add_query_objects(objects)
+            for row, target in zip(query, labels):
+                decision = learner.predict(row)
+                if decision["decision_status"] == "PREDICT":
+                    predicted += 1
+                    correct += int(decision["prediction"] is target)
+                else:
+                    abstained += 1
+                learner.revise(row, target)
+        self.assertEqual(predicted, 24)
+        self.assertEqual(correct, 24)
+        self.assertEqual(abstained, 16)
 
     def test_duplicate_observation_reveal_is_rejected_without_mutation(self):
         support, objects, query, labels = _novel_relation_episode()
