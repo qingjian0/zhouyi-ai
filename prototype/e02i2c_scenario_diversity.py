@@ -1,10 +1,9 @@
-"""E02-I2-C-F scenario-diversity prototype.
+"""E02-I2-C-F independent scenario-family development benchmark.
 
-Train uses generator families A/B; Gate uses family C only. Event truth,
-seed, family, and split remain evaluator-side. This first implementation
-reuses the adjudication contract fixtures as semantic seeds, then applies
-family-specific nuisance mechanisms. It is a development prototype, not the
-final independent-generator or locked-test claim.
+A/B are independently parameterized Train generators; C is a held-out Gate
+generator. Event truth and seed remain evaluator-owned. All generators obey
+the same explicit event-feasibility contract but do not reuse hidden-event
+benchmark fixtures. This is not a locked-Test or open-world claim.
 """
 from __future__ import annotations
 
@@ -12,7 +11,6 @@ import argparse
 import json
 import random
 import secrets
-from dataclasses import replace
 from typing import Iterable
 
 from prototype.e02i2c_hidden_event_benchmark import (
@@ -29,151 +27,6 @@ from prototype.e02i2c_metadata_attack import (
 
 
 FAMILIES = ("A", "B", "C")
-ENVIRONMENTS = ("env-temperate", "env-arid", "env-coastal", "env-high-noise")
-
-
-def _opaque_packet(template: EvidencePacket, *, window: int, environment: str,
-                   ordinal: int) -> EvidencePacket:
-    token = secrets.token_hex(16)
-    return EvidencePacket(
-        evidence_id=f"ev-{token}",
-        sample_id=f"sample-{token}",
-        window=window,
-        environment=environment,
-        split=template.split,
-        polarity=template.polarity,
-        source_version_id=template.source_version_id,
-        candidate_signature=template.candidate_signature,
-        raw_observation_ref=f"observation://{token}/{ordinal}",
-    )
-
-
-def _shift_windows(view: ObservationView, offset: int) -> ObservationView:
-    return replace(
-        view,
-        opportunities=tuple(replace(x, window=x.window + offset) for x in view.opportunities),
-        evidence=tuple(replace(x, window=x.window + offset) for x in view.evidence),
-    )
-
-
-def _family_a(view: ObservationView, rng: random.Random) -> ObservationView:
-    # Temporal family: random origin and presentation-order permutation.
-    shifted = _shift_windows(view, rng.randrange(1, 40))
-    packets = list(shifted.evidence)
-    rng.shuffle(packets)
-    return replace(shifted, evidence=tuple(packets))
-
-
-def _family_b(view: ObservationView, rng: random.Random) -> ObservationView:
-    # Resampling family: alternate opaque provenance serialization and
-    # independent observation grouping. The semantic windows remain intact.
-    varied = []
-    for item in view.opportunities:
-        expected = item.expected_samples + rng.randrange(1, 8)
-        if item.coverage < 0.5:
-            # Preserve insufficient-sampling ABSTAIN subtypes.
-            observed = min(expected, item.observed_samples)
-            reason = item.missing_reason
-        else:
-            # A resampling nuisance must not silently cross the adjudicator's
-            # sufficiency boundary.
-            minimum_sufficient = (expected * 8 + 9) // 10
-            observed = min(expected, max(
-                minimum_sufficient, item.observed_samples + rng.randrange(1, 4)
-            ))
-            reason = None
-        varied.append(replace(
-            item, expected_samples=expected, observed_samples=observed,
-            coverage=observed / expected, missing_reason=reason,
-        ))
-    opportunities = tuple(varied)
-    packets = [_opaque_packet(p, window=p.window, environment=p.environment, ordinal=i)
-               for i, p in enumerate(view.evidence)]
-    rng.shuffle(packets)
-    return replace(view, opportunities=opportunities, evidence=tuple(packets))
-
-
-def _extra_semantic_packet(event: EventType, view: ObservationView,
-                           window: int, environment: str) -> EvidencePacket | None:
-    # Add only genuinely independent evidence that preserves the event rule.
-    # ABSTAIN fixtures are intentionally not padded into a confirmable event.
-    if event == EventType.ABSTAIN:
-        return None
-    template = view.evidence[-1]
-    if event == EventType.KEEP:
-        polarity, signature, source = EvidencePolarity.SUPPORTS, view.identity.signature, view.identity.version_id
-    elif event == EventType.MODIFY:
-        polarity, signature, source = EvidencePolarity.SUPPORTS, view.candidate_signature, view.identity.version_id
-    elif event == EventType.CREATE:
-        polarity, signature, source = EvidencePolarity.SUPPORTS, view.candidate_signature, None
-    elif event == EventType.SUSPEND:
-        polarity, signature, source = EvidencePolarity.ABSENCE, None, template.source_version_id
-    elif event == EventType.REACTIVATE:
-        polarity, signature, source = EvidencePolarity.SUPPORTS, view.identity.signature, view.identity.version_id
-    elif event == EventType.REACTIVATE_MODIFY:
-        polarity, signature, source = EvidencePolarity.SUPPORTS, view.candidate_signature, view.identity.version_id
-    elif event == EventType.RETIRE:
-        polarity, signature, source = EvidencePolarity.CONTRADICTS, None, view.identity.version_id
-    else:
-        return None
-    token = secrets.token_hex(16)
-    return EvidencePacket(
-        evidence_id=f"ev-{token}", sample_id=f"sample-{token}", window=window,
-        environment=environment, split=template.split, polarity=polarity,
-        source_version_id=source, candidate_signature=signature,
-        raw_observation_ref=f"field://{token}",
-    )
-
-
-def _family_c(event: EventType, view: ObservationView,
-              rng: random.Random) -> ObservationView:
-    # Environmental Gate family: environment shifts, coverage variation,
-    # source-independent provenance and optional extra independent evidence.
-    environment = rng.choice(ENVIRONMENTS)
-    undersampled_abstain = (
-        event == EventType.ABSTAIN
-        and bool(view.opportunities)
-        and all(item.coverage < 0.5 for item in view.opportunities)
-    )
-    opportunities = []
-    for item in view.opportunities:
-        if undersampled_abstain:
-            opportunities.append(replace(item, environment=environment))
-            continue
-        expected = max(item.expected_samples, 12 + rng.randrange(0, 12))
-        minimum_sufficient = (expected * 8 + 9) // 10
-        observed = max(minimum_sufficient, int(expected * rng.uniform(0.82, 1.0)))
-        opportunities.append(replace(
-            item, environment=environment, expected_samples=expected,
-            observed_samples=observed, coverage=observed / expected,
-            missing_reason=None,
-        ))
-    packets = [
-        replace(p, environment=environment)
-        for p in view.evidence
-    ]
-    max_window = max((x.window for x in opportunities), default=0)
-    # Extra no-exposure opportunities vary the sampling schedule without
-    # becoming sufficient evidence or breaking a valid absence tail.
-    if rng.random() < 0.65:
-        opportunities.append(ObservationOpportunity(
-            window=max_window + 3, environment=environment,
-            expected_samples=10, observed_samples=0, coverage=0.0,
-            missing_reason=MissingReason.NO_EXPOSURE,
-        ))
-    if event != EventType.ABSTAIN and rng.random() < 0.75:
-        evidence_window = max_window + 1
-        opportunities.append(ObservationOpportunity(
-            window=evidence_window, environment=environment,
-            expected_samples=16, observed_samples=14, coverage=0.875,
-            missing_reason=None,
-        ))
-        extra = _extra_semantic_packet(event, view, evidence_window, environment)
-        if extra is not None:
-            packets.append(extra)
-    rng.shuffle(packets)
-    return replace(view, opportunities=tuple(opportunities), evidence=tuple(packets))
-
 
 def _independent_view(event: EventType, seed: int, family: str, split: str) -> ObservationView:
     """Independent event-valid simulator; does not reuse hidden-event fixtures."""
@@ -238,8 +91,9 @@ def _independent_view(event: EventType, seed: int, family: str, split: str) -> O
     else:
         raise ValueError(f"unsupported event {event}")
     opportunities, packets = [], []
+    # One environment stratum per episode supports non-overlapping per-env metrics.
+    environment = rng.choice(envs)
     for w in windows:
-        environment = rng.choice(envs)
         expected = rng.randint(lo, hi)
         insufficient = event == EventType.ABSTAIN and seed % 4 == 2
         if insufficient:
@@ -253,7 +107,7 @@ def _independent_view(event: EventType, seed: int, family: str, split: str) -> O
         opportunities.append(ObservationOpportunity(
             window=w, environment=environment, expected_samples=expected,
             observed_samples=observed, coverage=coverage, missing_reason=reason))
-    env_by_window = {o.window: o.environment for o in opportunities}
+    env_by_window = {o.window: environment for o in opportunities}
     for w, polarity, signature, source in specs:
         # Add independent same-polarity observations at a variable rate. These
         # increase evidence volume without manufacturing new windows or
@@ -334,15 +188,60 @@ def _namespace_check(train: list[Episode], gate: list[Episode]) -> dict:
     }
 
 
+def _bootstrap_intervals(truths: list[str], predictions: list[str],
+                          block_ids: list[int], *, replicates: int,
+                          seed: int) -> dict:
+    if len(truths) != len(predictions) or len(truths) != len(block_ids):
+        raise ValueError("bootstrap arrays must be aligned")
+    groups: dict[int, list[int]] = {}
+    for index, block in enumerate(block_ids):
+        groups.setdefault(block, []).append(index)
+    blocks = sorted(groups)
+    if len(blocks) < 2:
+        raise ValueError("at least two seed blocks are required")
+    rng = random.Random(seed)
+    f1_values, accuracy_values = [], []
+    for _ in range(replicates):
+        selected = [rng.choice(blocks) for _ in blocks]
+        indices = [index for block in selected for index in groups[block]]
+        metrics = _metrics([truths[i] for i in indices],
+                           [predictions[i] for i in indices])
+        f1_values.append(metrics["macro_f1"])
+        accuracy_values.append(metrics["accuracy"])
+    def ci(values: list[float]) -> list[float]:
+        values.sort()
+        return [round(values[max(0, int(.025 * len(values)) - 1)], 4),
+                round(values[min(len(values) - 1, int(.975 * len(values)))], 4)]
+    return {"replicates": replicates, "resampling_unit": "gate_seed_block",
+            "macro_f1_95_ci": ci(f1_values), "accuracy_95_ci": ci(accuracy_values)}
+
+
+def _environment_metrics(gate: list[Episode], truths: list[str],
+                         predictions: list[str]) -> dict:
+    groups: dict[str, list[int]] = {}
+    for index, episode in enumerate(gate):
+        environments = {item.environment for item in episode.observation.opportunities}
+        if len(environments) != 1:
+            raise RuntimeError("per-environment metrics require one environment per episode")
+        groups.setdefault(next(iter(environments)), []).append(index)
+    return {
+        env: {"episodes": len(indices), **_metrics(
+            [truths[i] for i in indices], [predictions[i] for i in indices])}
+        for env, indices in sorted(groups.items())
+    }
+
+
 def run_scenario_diversity(*, seeds: int = 30, train_start_seed: int = 1000,
-                           gate_start_seed: int = 50000) -> dict:
+                           gate_start_seed: int = 50000,
+                           bootstrap_samples: int = 1000) -> dict:
     if seeds < 30:
         raise ValueError("C-F development evaluation requires at least 30 seed blocks per event")
+    if bootstrap_samples < 100:
+        raise ValueError("at least 100 bootstrap replicates are required")
     train = [
         generate_episode(event, train_start_seed + block * 100 + index,
                          family=family, split="train")
-        for family in ("A", "B")
-        for block in range(seeds)
+        for family in ("A", "B") for block in range(seeds)
         for index, event in enumerate(SUPPORTED_EVENTS)
     ]
     gate = [
@@ -351,84 +250,79 @@ def run_scenario_diversity(*, seeds: int = 30, train_start_seed: int = 1000,
         for block in range(seeds)
         for index, event in enumerate(SUPPORTED_EVENTS)
     ]
+    gate_blocks = [block for block in range(seeds) for _ in SUPPORTED_EVENTS]
     namespace = _namespace_check(train, gate)
     if not namespace["sample_disjoint"] or not namespace["evidence_disjoint"]:
         raise RuntimeError("Train/Gate provenance namespace collision")
-    semantic_failures = [
+    failures = [
         {"episode": ep.episode_id, "truth": ep.truth.value,
-         "decision": adjudicate_event(
-             ep.observation.identity, ep.observation.opportunities,
-             ep.observation.evidence,
-             candidate_signature=ep.observation.candidate_signature,
-         ).event.value,
-         "reason": adjudicate_event(
-             ep.observation.identity, ep.observation.opportunities,
-             ep.observation.evidence,
-             candidate_signature=ep.observation.candidate_signature,
-         ).reason,
-         "opportunities": [
-             {"window": x.window, "coverage": x.coverage,
-              "observed": x.observed_samples, "expected": x.expected_samples}
-             for x in ep.observation.opportunities
-         ],
-         "evidence": [
-             {"window": x.window, "polarity": x.polarity.value,
-              "source_version": x.source_version_id,
-              "candidate": x.candidate_signature,
-              "sample": x.sample_id}
-             for x in ep.observation.evidence
-         ]}
+         "decision": _decision(ep.observation).value}
         for ep in train + gate if _decision(ep.observation) != ep.truth
     ]
-    if semantic_failures:
-        raise RuntimeError(f"nuisance transformation changed adjudication: {semantic_failures[:5]}")
+    if failures:
+        raise RuntimeError(f"independent generator violated event semantics: {failures[:5]}")
     train_labels = [ep.truth.value for ep in train]
     gate_labels = [ep.truth.value for ep in gate]
     majority = _majority(train_labels)
     majority_predictions = [majority] * len(gate)
-    attackers = {}
+    attackers, prediction_sets = {}, {}
     for tier in ("M0", "M1", "M2"):
         train_rows = [extract_features(ep.observation, tier) for ep in train]
         gate_rows = [extract_features(ep.observation, tier) for ep in gate]
-        attackers[tier] = {}
+        attackers[tier], prediction_sets[tier] = {}, {}
         for name, model in (
             ("categorical_naive_bayes", CategoricalNaiveBayes()),
             ("decision_tree_depth_3", ShallowCategoricalTree(max_depth=3)),
         ):
             model.fit(train_rows, train_labels)
-            predictions = model.predict(gate_rows)
-            attackers[tier][name] = _metrics(gate_labels, predictions)
-        attackers[tier]["majority"] = _metrics(gate_labels, majority_predictions)
+            preds = model.predict(gate_rows)
+            prediction_sets[tier][name] = preds
+            attackers[tier][name] = {
+                **_metrics(gate_labels, preds),
+                "seed_block_bootstrap": _bootstrap_intervals(
+                    gate_labels, preds, gate_blocks, replicates=bootstrap_samples,
+                    seed=20261110 + (0 if tier == "M0" else 100 if tier == "M1" else 200)
+                    + (0 if name == "categorical_naive_bayes" else 1)),
+                "per_environment": _environment_metrics(gate, gate_labels, preds),
+            }
+        attackers[tier]["majority"] = {
+            **_metrics(gate_labels, majority_predictions),
+            "seed_block_bootstrap": _bootstrap_intervals(
+                gate_labels, majority_predictions, gate_blocks,
+                replicates=bootstrap_samples, seed=20261200),
+            "per_environment": _environment_metrics(gate, gate_labels, majority_predictions),
+        }
     evidence_predictions = [_decision(ep.observation).value for ep in gate]
+    evidence_reference = {
+        **_metrics(gate_labels, evidence_predictions),
+        "seed_block_bootstrap": _bootstrap_intervals(
+            gate_labels, evidence_predictions, gate_blocks,
+            replicates=bootstrap_samples, seed=20261300),
+        "per_environment": _environment_metrics(gate, gate_labels, evidence_predictions),
+    }
     return {
-        "benchmark": "E02-I2-C-F-scenario-diversity-prototype",
-        "status": "development_prototype_not_locked_test",
-        "families": {
-            "train": ["A", "B"], "gate": ["C"], "reserved_locked_test": ["D", "new_family"],
-        },
-        "seeds_per_event": seeds,
-        "train_episodes": len(train), "gate_episodes": len(gate),
+        "benchmark": "E02-I2-C-F-independent-scenario-families",
+        "status": "development_gate_not_locked_test",
+        "families": {"train": ["A", "B"], "gate": ["C"],
+                     "reserved_locked_test": ["D", "new_family"]},
+        "seeds_per_event": seeds, "train_episodes": len(train),
+        "gate_episodes": len(gate),
         "event_classes": [x.value for x in SUPPORTED_EVENTS],
         "truth_seed_family_split_excluded_from_features": True,
         "namespace": namespace,
-        "semantic_invariance": {
-            "passed": not semantic_failures,
-            "failure_count": len(semantic_failures),
-            "failures": semantic_failures[:20],
-        },
+        "semantic_invariance": {"passed": True, "failure_count": 0, "failures": []},
         "metadata_attackers": attackers,
-        "evidence_aware_reference": _metrics(
-            gate_labels, evidence_predictions
-        ),
+        "evidence_aware_reference": evidence_reference,
         "metadata_overlap": {
             "M0": _feature_overlap(train + gate, "M0"),
             "M1": _feature_overlap(train + gate, "M1"),
             "M2": _feature_overlap(train + gate, "M2"),
         },
         "limitations": [
-            "Families A/B/C are distinct nuisance mechanisms layered on the existing event-semantic fixture; they are not yet fully independent generative theories.",
-            "No family D locked test; no threshold tuning or open-world claim.",
-            "Seed-block bootstrap and per-environment confidence intervals remain a follow-up before final preregistered acceptance.",
+            "A/B/C are separate simulator mechanisms sharing the adjudicator's event-feasibility contract; this is not open-world relation discovery.",
+            "Family D and any new family remain reserved for a frozen locked test; no locked-test result is reported.",
+            "The event is a simulator-side intervention used to construct controlled episodes, not something autonomously discovered by the generator.",
+            "M2 context contains semantically relevant identity state and candidate shape; high attacker scores require ablation and causal controls before being called leakage.",
         ],
     }
 
@@ -438,10 +332,12 @@ def main() -> None:
     parser.add_argument("--seeds", type=int, default=30)
     parser.add_argument("--train-start-seed", type=int, default=1000)
     parser.add_argument("--gate-start-seed", type=int, default=50000)
+    parser.add_argument("--bootstrap-samples", type=int, default=1000)
     args = parser.parse_args()
     print(json.dumps(run_scenario_diversity(
         seeds=args.seeds, train_start_seed=args.train_start_seed,
         gate_start_seed=args.gate_start_seed,
+        bootstrap_samples=args.bootstrap_samples,
     ), indent=2, sort_keys=True))
 
 
