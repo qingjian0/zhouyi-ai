@@ -205,6 +205,8 @@ def _targets(scenario: str, base2: tuple[int, ...], expanded3: tuple[int, ...],
         return expanded3, (table3 ^ 255 if window == 2 else table3)
     if scenario == "disappear":
         return (expanded3, table3) if window < 2 else None
+    if scenario == "never_present":
+        return None
     raise ValueError("unknown scenario")
 
 def run_episode(*, seed: int, scenario: str, windows: int = 5,
@@ -318,7 +320,7 @@ def run_episode(*, seed: int, scenario: str, windows: int = 5,
 
 def run(*, seeds: int = 20, start_seed: int = 1200) -> dict:
     scenarios = ("stable", "member_add", "member_remove", "rule_change",
-                 "transient_rule_change", "disappear")
+                 "transient_rule_change", "disappear", "never_present")
     results = {
         scenario: [run_episode(seed=start_seed + i, scenario=scenario)
                    for i in range(seeds)]
@@ -388,6 +390,26 @@ def run(*, seeds: int = 20, start_seed: int = 1200) -> dict:
                 )
                 for scenario, episodes in results.items()
             },
+            "never_present_no_false_create": sum(
+                not any(w["action"] == "CREATE" for w in e["windows"])
+                for e in results["never_present"]
+            ) / seeds,
+            "never_present_finally_absent": sum(
+                e["final_relation"] is None for e in results["never_present"]
+            ) / seeds,
+            "null_window_false_create_rate": (
+                sum(
+                    w["action"] == "CREATE"
+                    for episodes in results.values()
+                    for e in episodes for w in e["windows"]
+                    if w["target_for_audit_only"] is None
+                )
+                / sum(
+                    w["target_for_audit_only"] is None
+                    for episodes in results.values()
+                    for e in episodes for w in e["windows"]
+                )
+            ),
             "degraded_episode_rate_by_scenario": {
                 scenario: sum(
                     any(w["current_status"] == "DEGRADED" for w in e["windows"])
