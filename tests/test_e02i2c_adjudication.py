@@ -137,6 +137,23 @@ class E02I2CContractsTests(unittest.TestCase):
         ))
         self.assertEqual(decision.event, EventType.ABSTAIN)
 
+    def test_recent_absence_streak_supersedes_older_keep_support(self):
+        decision = adjudicate_event(active(), (opp(0), opp(1), opp(2)), (
+            packet("old-support", 0, EvidencePolarity.SUPPORTS, "a&b"),
+            packet("absence-1", 1, EvidencePolarity.ABSENCE, signature=None),
+            packet("absence-2", 2, EvidencePolarity.ABSENCE, signature=None),
+        ))
+        self.assertEqual(decision.event, EventType.SUSPEND)
+        self.assertEqual(set(decision.evidence_refs), {"absence-1", "absence-2"})
+
+    def test_support_and_absence_in_same_window_abstain(self):
+        decision = adjudicate_event(active(), (opp(0),), (
+            packet("support", 0, EvidencePolarity.SUPPORTS, "a&b"),
+            packet("absence", 0, EvidencePolarity.ABSENCE, signature=None),
+        ))
+        self.assertEqual(decision.event, EventType.ABSTAIN)
+        self.assertEqual(set(decision.evidence_refs), {"support", "absence"})
+
     def test_two_consecutive_sufficient_absence_windows_suspend(self):
         decision = adjudicate_event(active(), (opp(0), opp(1)), (
             packet("a0", 0, EvidencePolarity.ABSENCE, signature=None),
