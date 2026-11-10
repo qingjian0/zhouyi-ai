@@ -122,13 +122,22 @@ SPLIT / MERGE 不由一对一 Hungarian 结果推断。它们需要独立的谱�
 
 训练/门控/测试按 episode 和 sample_id 双重隔离。阈值只在 Gate 选择，Test 锁定。每种事件需报告置信区间与失败样本。
 
-## 8. 当前实现缺口
+## 8. 当前实现状态（第一阶段）
 
-- 没有独立的 observation opportunity / missingness 数据模型。
-- 没有将 absence 与 contradiction 分开的事件记录。
-- 没有原子化 REACTIVATE + MODIFY。
-- 没有 I2-C event adjudicator。
-- SPLIT/MERGE 目前只有账本写入，不是自动推断器。
-- 证据转移规则尚未实现。
+代码位于 `prototype/e02i2c_adjudication.py`，专项测试位于 `tests/test_e02i2c_adjudication.py`。
 
-因此本文件是设计审查稿，不宣称 I2-C 已实现或通过。下一步先实现证据与观测机会的数据契约、决策矩阵单测，再运行隐藏事件基准；在 I2-F 通过前不接入 E03 主引擎。
+已实现：
+- `ObservationOpportunity`：窗口、环境、期望/实际样本数、覆盖率和缺失原因；不足采样不会成为 absence。
+- `EvidencePacket`：证据/样本/窗口/环境/split/polarity/source-version/candidate-signature/raw provenance；不包含 hidden identity 或 hidden event truth。
+- `IdentitySnapshot`：裁决器只接收当前身份状态与版本摘要，不读取生成器转换计划。
+- 确定性 `adjudicate_event`：支持 CREATE、KEEP、MODIFY、ABSTAIN、SUSPEND、REACTIVATE、REACTIVATE_MODIFY、RETIRE 的保守提案。
+- CREATE/MODIFY 需要跨多个独立窗口和样本的支持；SUSPEND 需要连续且充分观测的 ABSENCE；采样不足会打断缺失连续段；CONTRADICTION 不等同于 ABSENCE；RETIRE 仅对已暂停身份开放并要求重复反例。
+- 15 项专项单测覆盖核心边界；完整 CI 尚待结果确认。
+
+仍未实现：
+- REPLACE、SPLIT、MERGE 的自动事件推断与多身份图证据。
+- REACTIVATE + MODIFY 的账本原子事务提交；当前只输出组合提案，不执行账本写入。
+- 证据投影/迁移、隐藏事件基准、Train/Gate/locked-Test 校准与置信区间。
+- E03 集成。
+
+因此当前只是 I2-C 的可执行第一阶段，不代表完整事件裁决器通过。下一步实现事务安全的 ledger apply 层，再建立隐藏事件基准；在 I2-F 通过前不接入 E03 主引擎。
