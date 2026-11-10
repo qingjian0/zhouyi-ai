@@ -148,6 +148,8 @@ def select_policy_action(
     rng: random.Random,
 ) -> int | None:
     """Truth-free policy API: there is deliberately no target-hypothesis input."""
+    if policy not in POLICIES:
+        raise ValueError(f"unknown policy: {policy}")
     feasible = tuple(
         index for index in available
         if actions[index].cost <= remaining_budget
