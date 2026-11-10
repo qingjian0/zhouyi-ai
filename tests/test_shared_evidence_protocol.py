@@ -141,6 +141,27 @@ class SharedEvidenceProtocolTests(unittest.TestCase):
                 payload={"prediction_id": "p1", "observation_id": "o2", "model_version": "m0", "learner_track": "e09", "decision_status": "PREDICT"},
             )
 
+
+    def test_independent_connections_serialize_concurrent_writers(self):
+        import concurrent.futures
+
+        stores = [SQLiteEvidenceStore(self.db) for _ in range(6)]
+        try:
+            def write_one(index):
+                return stores[index].append_event(
+                    episode_id="concurrent-episode", event_id=f"obs-{index}",
+                    event_type="observation", idempotency_key=f"obs-key-{index}",
+                    payload={"observation_id": f"o-{index}"},
+                )
+
+            with concurrent.futures.ThreadPoolExecutor(max_workers=6) as pool:
+                receipts = list(pool.map(write_one, range(6)))
+            self.assertEqual(sorted(r.sequence_no for r in receipts), [1, 2, 3, 4, 5, 6])
+            self.assertEqual(len(self.store.replay_episode("concurrent-episode")), 6)
+        finally:
+            for store in stores:
+                store.close()
+
     def test_stale_sequence_rejected(self):
         self.commit()
         with self.assertRaises(SequenceConflict):
