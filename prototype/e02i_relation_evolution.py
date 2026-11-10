@@ -347,6 +347,8 @@ def run(*, seeds: int = 20, start_seed: int = 1200) -> dict:
         "transient_final_structure_correct": sum(e["final_relation"] == {"members": e["windows"][-1]["target_for_audit_only"], "truth_table": e["windows"][-1]["target_table_for_audit_only"]} for e in results["transient_rule_change"]),
         "disappearance_retired": sum(any(w["action"] == "RETIRE" for w in e["windows"]) for e in results["disappear"]),
         "disappearance_finally_absent": sum(e["final_relation"] is None for e in results["disappear"]),
+        "never_present_no_false_create": sum(not any(w["action"] == "CREATE" for w in e["windows"]) for e in results["never_present"]),
+        "never_present_finally_absent": sum(e["final_relation"] is None for e in results["never_present"]),
     }
     return {
         "task": "E02I_evidence_gated_relation_evolution",
