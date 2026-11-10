@@ -128,7 +128,7 @@ SPLIT / MERGE 不由一对一 Hungarian 结果推断。它们需要独立的谱�
 
 已实现：
 - `ObservationOpportunity`：窗口、环境、期望/实际样本数、覆盖率和缺失原因；不足采样不会成为 absence。
-- `EvidencePacket`：证据/样本/窗口/环境/split/polarity/source-version/candidate-signature/raw provenance；不包含 hidden identity 或 hidden event truth；裁决器明确拒绝 `split=test` 的 locked Test 证据。
+- `EvidencePacket`：证据/样本/窗口/环境/split/polarity/source-version/candidate-signature/raw provenance；不包含 hidden identity 或 hidden event truth；`split=test` 的原始观测可以作为推理输入，但隐藏身份/事件真值只保留在 evaluator，绝不进入裁决器。
 - 支持与反例同时出现时强制 ABSTAIN，并将冲突证据引用保留在裁决结果中，不做置信度平均。
 - `IdentitySnapshot`：裁决器只接收当前身份状态与版本摘要，不读取生成器转换计划。
 - 确定性 `adjudicate_event`：支持 CREATE、KEEP、MODIFY、ABSTAIN、SUSPEND、REACTIVATE、REACTIVATE_MODIFY、RETIRE 的保守提案。
