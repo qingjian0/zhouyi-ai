@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 PROTOCOL_VERSION = "0.2"
+LEGACY_LEARNER_TRACK = "legacy"
 EVENT_TYPES = {"observation", "prediction_commit", "evidence_reveal", "structure_version", "revision"}
 
 
@@ -100,7 +101,7 @@ class SQLiteEvidenceStore:
         DROP INDEX IF EXISTS one_prediction_per_observation;
         CREATE UNIQUE INDEX IF NOT EXISTS one_prediction_per_observation_track
           ON events(episode_id, json_extract(payload_json, '$.observation_id'),
-                    json_extract(payload_json, '$.learner_track'))
+                    COALESCE(json_extract(payload_json, '$.learner_track'), 'legacy'))
           WHERE event_type='prediction_commit';
         CREATE UNIQUE INDEX IF NOT EXISTS one_prediction_id
           ON events(episode_id, json_extract(payload_json, '$.prediction_id'))
@@ -146,7 +147,7 @@ class SQLiteEvidenceStore:
             commit = self._db.execute(
                 "SELECT 1 FROM events WHERE episode_id=? AND event_type='prediction_commit' "
                 "AND json_extract(payload_json, '$.prediction_id')=? "
-                "AND json_extract(payload_json, '$.learner_track')=?",
+                "AND COALESCE(json_extract(payload_json, '$.learner_track'), 'legacy')=?",
                 (episode_id, payload["prediction_id"], payload["learner_track"]),
             ).fetchone()
             if commit is None:
@@ -271,7 +272,12 @@ class SQLiteEvidenceStore:
         result = []
         for row in rows:
             item = dict(row)
-            item["payload"] = json.loads(item.pop("payload_json"))
+            payload = json.loads(item.pop("payload_json"))
+            # v0.1 had a single implicit learner track. Preserve its immutable
+            # bytes/digest while exposing it as the explicit legacy namespace.
+            if item["protocol_version"] == "0.1" and item["event_type"] in {"prediction_commit", "evidence_reveal"}:
+                payload.setdefault("learner_track", LEGACY_LEARNER_TRACK)
+            item["payload"] = payload
             item["causation_refs"] = json.loads(item.pop("causation_refs_json"))
             item["integrity_metadata"] = json.loads(item.pop("integrity_metadata_json"))
             result.append(item)
