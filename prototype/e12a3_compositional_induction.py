@@ -155,6 +155,11 @@ def generate_candidates(
 
 
 def _consistent(candidate: Candidate, examples: tuple[Example, ...]) -> bool:
+    if isinstance(candidate, Predicate):
+        return all(
+            candidate.evaluate(example.value(candidate.feature)) == example.label
+            for example in examples
+        )
     return all(candidate.evaluate(example) == example.label for example in examples)
 
 
