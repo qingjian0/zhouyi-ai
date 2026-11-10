@@ -29,7 +29,7 @@ For each numeric feature pair (x, y):
 5. Score each split using balanced accuracy against the binary residual target (A3 prediction differs from label).
 6. Keep pairs above the configured balanced-accuracy threshold, rank deterministically, and return at most top_k.
 
-Balanced accuracy is used because residual/correct counts may be imbalanced. A score of 0.5 is chance-level for a balanced binary diagnostic; the default threshold is 0.65. This score is a feature-pair association, not a causal attribution.
+Balanced accuracy is used because residual/correct counts may be imbalanced. A score of 0.5 is chance-level for a balanced binary diagnostic; the default threshold is 0.65. This score is a feature-pair association, not a causal attribution. Because many pairs and thresholds are scanned, the maximum score is subject to multiple-comparisons optimism; the current prototype has no permutation null, family-wise correction, or false-discovery-rate control. Treat diagnoses as candidate generators only, not accepted discoveries.
 
 ## A4 handoff
 
