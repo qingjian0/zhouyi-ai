@@ -81,3 +81,6 @@ python -m prototype.e01_learned_ranker --json
 ## E02-I
 
 Evidence-gated relation structure evolution prototype and reproducible experiment: `docs/E02I_RELATION_EVOLUTION.md`.
+
+
+E02-I six-scenario lifecycle validation is executed by the repository test workflow.
