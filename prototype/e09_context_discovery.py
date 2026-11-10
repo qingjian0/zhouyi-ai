@@ -73,6 +73,9 @@ def run(seed: int = 31, min_support: int = 2,
                 Example((a, b, c), target(a, b, c, env)),
             )
     blind_train = ledger.training_examples()
+    contested_inputs = tuple(
+        tuple(item["inputs"]) for item in ledger.adjudication()["contested"]
+    )
     blind = CounterexampleRuleLearner(
         (BASE_DOMAIN, BASE_DOMAIN, BASE_DOMAIN),
         min_support=min_support, max_candidates=max_candidates,
@@ -85,6 +88,22 @@ def run(seed: int = 31, min_support: int = 2,
     except RuleLearningError as exc:
         blind_error = str(exc)
 
+    unsafe_blind_clauses = {
+        index for index, clause in enumerate(blind.clauses)
+        if any(clause.matches(inputs) for inputs in contested_inputs)
+    }
+    safe_blind_clauses = tuple(
+        clause for index, clause in enumerate(blind.clauses)
+        if index not in unsafe_blind_clauses
+    )
+
+    def predict_blind_safely(inputs: tuple[int, int, int]):
+        labels = {
+            clause.label for clause in safe_blind_clauses
+            if clause.matches(inputs)
+        }
+        return next(iter(labels)) if len(labels) == 1 else None
+
     contextual_predictions = {env: [] for env in ENVIRONMENTS}
     blind_predictions = {env: [] for env in ENVIRONMENTS}
     for a, b, c in test_assignments:
@@ -95,7 +114,8 @@ def run(seed: int = 31, min_support: int = 2,
                 if contextual_error is None else None
             )
             blind_prediction = (
-                blind.predict((a, b, c)) if blind_error is None else None
+                predict_blind_safely((a, b, c))
+                if blind_error is None else None
             )
             contextual_predictions[env].append((contextual_prediction, gold))
             blind_predictions[env].append((blind_prediction, gold))
@@ -128,6 +148,8 @@ def run(seed: int = 31, min_support: int = 2,
             "error": blind_error,
             "metrics_by_environment": blind_by_env,
             "learner_snapshot": blind.snapshot(),
+            "unsafe_clauses_quarantined": len(unsafe_blind_clauses),
+            "safe_clauses_retained": len(safe_blind_clauses),
             "ledger_adjudication": ledger.adjudication(),
         },
         "limitations": [
