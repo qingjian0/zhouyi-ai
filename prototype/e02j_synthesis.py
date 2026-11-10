@@ -127,8 +127,8 @@ def enumerate_programs(
         for op in ("add", "sub", "mul"):
             for left in pool:
                 for right in pool:
-                    left, right = _canonical_pair(op, left, right)
-                    candidate = Expr(op, (left, right))
+                    ordered_left, ordered_right = _canonical_pair(op, left, right)
+                    candidate = Expr(op, (ordered_left, ordered_right))
                     if _depth(candidate) > max_depth:
                         continue
                     key = _semantic_key(candidate, domain, modulus)
