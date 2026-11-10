@@ -2,6 +2,7 @@ import unittest
 
 from prototype.e10a_structural_ood import build_structural_ood_task
 from prototype.e10a_primitive_expansion import PrimitiveExpansionLearner
+from prototype.e10a_prequential_ledger import PrequentialLedger
 
 
 def _novel_relation_episode():
@@ -81,6 +82,35 @@ class PrimitiveExpansionTests(unittest.TestCase):
         self.assertTrue(revision["budget_exceeded"])
         self.assertEqual(revision["operation"], "abstain")
         self.assertEqual(learner.predict(query[0])["decision_status"], "ABSTAIN_BUDGET")
+
+
+    def test_expansion_revision_is_accepted_by_prequential_ledger(self):
+        support, objects, query, labels = _novel_relation_episode()
+        learner = PrimitiveExpansionLearner(support)
+        learner.add_query_objects(objects)
+        ledger = PrequentialLedger(episode_id="primitive-expansion-ledger")
+        decision = learner.predict(query[0])
+        ledger.commit_prediction(
+            prediction_id="prediction-1",
+            observation_id=query[0]["observation_id"],
+            model_version=decision["model_version"],
+            candidate_set_hash=decision["candidate_set_hash"],
+            decision_status=decision["decision_status"],
+            prediction=decision["prediction"],
+        )
+        reveal = ledger.reveal_evidence(
+            reveal_id="reveal-1", prediction_id="prediction-1", target=labels[0]
+        )
+        revision = learner.revise(query[0], reveal["target"])
+        event = ledger.append_revision(
+            revision_id="revision-1",
+            operation=revision["operation"],
+            evidence_ids=[reveal["reveal_id"]],
+            before_version_ids=[decision["model_version"]],
+            after_version_ids=[revision["model_version"]],
+            rationale_code=revision["status"],
+        )
+        self.assertEqual(event["operation"], "expand")
 
     def test_future_query_labels_are_not_part_of_learner_state(self):
         support, objects, query, labels = _novel_relation_episode()
