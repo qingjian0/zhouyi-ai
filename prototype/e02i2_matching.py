@@ -161,6 +161,9 @@ def match_candidates(
         raise ValueError("score and margin thresholds must be in [0, 1]")
     if len({c.candidate_id for c in candidates}) != len(candidates):
         raise ValueError("candidate IDs must be unique")
+    original_order = tuple(candidate.candidate_id for candidate in candidates)
+    # Stable row order makes assignment tie-breaking independent of caller order.
+    candidates = tuple(sorted(candidates, key=lambda candidate: candidate.candidate_id))
 
     identity_ids = tuple(sorted(identities))
     score_rows: list[list[float]] = []
@@ -227,4 +230,5 @@ def match_candidates(
             candidate.candidate_id, identity_ids[column], best, method, False,
             "matched by configured baseline",
         ))
-    return tuple(decisions)
+    by_candidate = {decision.candidate_id: decision for decision in decisions}
+    return tuple(by_candidate[candidate_id] for candidate_id in original_order)
