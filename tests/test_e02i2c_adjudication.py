@@ -113,6 +113,14 @@ class E02I2CContractsTests(unittest.TestCase):
         ))
         self.assertEqual(decision.event, EventType.ABSTAIN)
 
+    def test_conflicting_support_and_contradiction_abstains_with_provenance(self):
+        decision = adjudicate_event(active(), (opp(0),), (
+            packet("positive", 0, EvidencePolarity.SUPPORTS, "a&b"),
+            packet("negative", 0, EvidencePolarity.CONTRADICTS, signature=None),
+        ))
+        self.assertEqual(decision.event, EventType.ABSTAIN)
+        self.assertEqual(set(decision.evidence_refs), {"positive", "negative"})
+        self.assertIn("conflicting", decision.reason)
     def test_contradiction_is_not_absence_or_immediate_retirement(self):
         decision = adjudicate_event(active(), (opp(0), opp(1)), (
             packet("c0", 0, EvidencePolarity.CONTRADICTS, signature=None),
