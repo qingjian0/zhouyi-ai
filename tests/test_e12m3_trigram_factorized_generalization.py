@@ -78,6 +78,9 @@ class TrigramFactorizedGeneralizationTests(unittest.TestCase):
         self.assertEqual(first["summary"]["affine"]["factorized_coverage"], 1.0)
         self.assertEqual(first["summary"]["affine"]["factorized_strict_accuracy"], 1.0)
         self.assertEqual(first["summary"]["affine"]["lookup_coverage"], 0.0)
+        self.assertEqual(first["summary"]["affine"]["factorized_selective_accuracy"], 1.0)
+        self.assertEqual(first["summary"]["affine"]["factorized_coverage_95ci"], [0.5, 1.0])
+        self.assertEqual(first["summary"]["affine"]["candidate_evaluations"], FAMILY_SIZE * 3)
 
 
 if __name__ == "__main__":
