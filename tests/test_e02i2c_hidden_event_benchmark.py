@@ -1,7 +1,7 @@
 import unittest
 from dataclasses import fields
 
-from prototype.e02i2c_adjudication import EvidencePacket, EventType
+from prototype.e02i2c_adjudication import EvidencePacket, EvidencePolarity, EventType
 from prototype.e02i2c_hidden_event_benchmark import (
     SUPPORTED_EVENTS,
     _adjudicator,
@@ -66,20 +66,25 @@ class E02I2CHiddenEventBenchmarkTests(unittest.TestCase):
         self.assertTrue(all(packet.split == "train" for episode in train for packet in episode.observation.evidence))
         self.assertTrue(all(packet.split == "gate" for episode in gate for packet in episode.observation.evidence))
 
-    def test_abstain_class_covers_three_distinct_failure_modes(self):
-        modes = [build_episode(EventType.ABSTAIN, seed, split="gate") for seed in (0, 1, 2)]
+    def test_abstain_class_covers_four_distinct_failure_modes(self):
+        modes = [build_episode(EventType.ABSTAIN, seed, split="gate") for seed in range(4)]
         self.assertEqual([_adjudicator(episode.observation) for episode in modes],
-                         [EventType.ABSTAIN] * 3)
-        self.assertEqual(len({tuple(packet.polarity for packet in episode.observation.evidence)
-                              for episode in modes}), 3)
+                         [EventType.ABSTAIN] * 4)
+        self.assertIsNone(modes[0].observation.identity)
+        self.assertIsNotNone(modes[1].observation.identity)
+        self.assertFalse(modes[2].observation.opportunities[0].sufficient())
+        self.assertEqual(
+            {packet.polarity for packet in modes[3].observation.evidence},
+            {EvidencePolarity.SUPPORTS, EvidencePolarity.CONTRADICTS},
+        )
 
     def test_locked_test_is_not_available_during_development(self):
         with self.assertRaisesRegex(ValueError, "locked Test"):
             run_benchmark(seeds=1, split="test")
 
-    def test_similarity_only_baseline_overcommits_on_ambiguous_case(self):
-        episode = build_episode(EventType.ABSTAIN, 303, split="gate")
-        self.assertEqual(_similarity_only(episode.observation), EventType.MODIFY)
+    def test_similarity_only_baseline_false_creates_without_repeated_support(self):
+        episode = build_episode(EventType.ABSTAIN, 300, split="gate")
+        self.assertEqual(_similarity_only(episode.observation), EventType.CREATE)
         self.assertEqual(_adjudicator(episode.observation), EventType.ABSTAIN)
 
 
