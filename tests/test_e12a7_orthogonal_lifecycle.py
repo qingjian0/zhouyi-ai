@@ -84,6 +84,34 @@ class OrthogonalLifecycleTests(unittest.TestCase):
         self.assertEqual(ledger.snapshot("primitive:delta", 1, "world-B")["invocation_policy"],
                          InvocationPolicy.ABSTAIN.value)
 
+    def test_semantic_revision_requires_a_new_candidate_version(self):
+        ledger = ready_ledger()
+        ref = "primitive:delta@1"
+        ledger.append(event(7, "reuse", ref, EventKind.WORKFLOW_TRANSITION,
+                            workflow_from=WorkflowStage.GATE_VALIDATED,
+                            workflow_to=WorkflowStage.REUSED))
+        ledger.append(event(8, "challenge", ref, EventKind.WORKFLOW_TRANSITION,
+                            scope_id="world-B",
+                            workflow_from=WorkflowStage.REUSED,
+                            workflow_to=WorkflowStage.CHALLENGED))
+        ledger.append(event(9, "revision-pending", ref, EventKind.WORKFLOW_TRANSITION,
+                            workflow_from=WorkflowStage.CHALLENGED,
+                            workflow_to=WorkflowStage.REVISION_PENDING))
+        with self.assertRaises(ValueError):
+            ledger.append(event(10, "mutate-old-version", ref, EventKind.WORKFLOW_TRANSITION,
+                                workflow_from=WorkflowStage.REVISION_PENDING,
+                                workflow_to=WorkflowStage.PROPOSED))
+        ledger.register(CandidateVersion("primitive:delta", 2, "x-y>=0", "dsl-v1",
+                                         parent_refs=("primitive:delta@1",)))
+        ledger.append(event(10, "propose-new-version", "primitive:delta@2",
+                            EventKind.WORKFLOW_TRANSITION,
+                            workflow_from=WorkflowStage.OBSERVED,
+                            workflow_to=WorkflowStage.PROPOSED))
+        self.assertEqual(ledger.snapshot("primitive:delta", 1, "world-A")["workflow_stage"],
+                         WorkflowStage.REVISION_PENDING.value)
+        self.assertEqual(ledger.snapshot("primitive:delta", 2, "world-A")["workflow_stage"],
+                         WorkflowStage.PROPOSED.value)
+
     def test_gate_validation_alone_does_not_allow_invocation(self):
         ledger = OrthogonalLifecycleLedger()
         ledger.register(CandidateVersion("p", 1, "a AND b", "dsl-v1"))
