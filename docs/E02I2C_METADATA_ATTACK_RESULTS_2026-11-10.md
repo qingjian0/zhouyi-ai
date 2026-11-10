@@ -115,3 +115,58 @@ The cardinality-only feature set still contains several correlated count/duplica
 The next diagnostic splits M1/M2 into identifier (`id.*`), operational/provenance (`op.*`), and context-shape (`ctx.*`) feature families. It also measures leave-one-family-out variants on a fresh Gate range (30000–30239). This is post-hoc diagnostic work; it does not alter the preregistered M0/M1/M2 results.
 
 The same run further splits M0 cardinality into evidence-count-only and all-other-cardinality fields. The new diagnostic is exploratory and must be reported separately from the preregistered attack.
+
+
+## 9. Exact M0 source and M1/M2 feature-family ablations
+
+**Run:** GitHub Actions `42849403133`  
+**Code head:** `c3c31078aa124d109c5700fc0a8e0c145eda379a`  
+**Train:** 240 episodes, seeds 1000–1239  
+**Fresh M0 Gate:** 20000–20239  
+**Fresh family-ablation Gate:** 30000–30239  
+**Bootstrap:** 1000 seed-block resamples  
+**Workflow:** success (unit-tests and hidden-identity jobs both completed successfully)
+
+### 9.1 M0: evidence count is the entire observed signal
+
+| Feature subset | Attacker | Accuracy | Macro-F1 | Lift | 95% CI for lift |
+|---|---|---:|---:|---:|---:|
+| Evidence-count only | Categorical NB | 0.2500 | 0.1345 | 0.1068 | [0.1011, 0.1134] |
+| Evidence-count only | Depth-3 tree | 0.2500 | 0.1345 | 0.1068 | [0.1011, 0.1134] |
+| All other cardinality fields, excluding evidence count | Categorical NB | 0.1250 | 0.0278 | 0.0000 | [0.0000, 0.0000] |
+| All other cardinality fields, excluding evidence count | Depth-3 tree | 0.1250 | 0.0278 | 0.0000 | [0.0000, 0.0000] |
+
+On this generator and Gate range, the M0 alarm is entirely reproduced by the single feature `id.evidence_count`. Duplicate counts and cross-field equality indicators add no measurable predictive signal.
+
+### 9.2 M1: operational metadata is more predictive than identifier metadata
+
+| Feature family | Attacker | Accuracy | Macro-F1 | Lift | 95% CI for lift |
+|---|---|---:|---:|---:|---:|
+| Identifier only | Categorical NB | 0.2500 | 0.1333 | 0.1056 | [0.1001, 0.1120] |
+| Operational only | Categorical NB | 0.3958 | 0.3002 | 0.2724 | [0.2437, 0.3013] |
+| Operational only | Depth-3 tree | 0.4792 | 0.3957 | 0.3679 | [0.3505, 0.3847] |
+
+The operational family alone is a much stronger event proxy than identifier format/cardinality. This shows that the current event templates also encode lifecycle labels in observation schedules, counts, sampling opportunities and related operational structure.
+
+### 9.3 M2: context shape is independently predictive
+
+| Feature family / ablation | Attacker | Accuracy | Macro-F1 | Lift | 95% CI for lift |
+|---|---|---:|---:|---:|---:|
+| Context only | Categorical NB | 0.6667 | 0.5729 | 0.5451 | [0.5128, 0.5722] |
+| Context only | Depth-3 tree | 0.6667 | 0.5729 | 0.5451 | [0.5128, 0.5722] |
+| M2 without identifier family | Categorical NB | 0.8125 | 0.7642 | 0.7364 | [0.7073, 0.7618] |
+| M2 without operational family | Categorical NB | 0.8125 | 0.7667 | 0.7389 | [0.7118, 0.7627] |
+
+Identity presence/status and coarse candidate syntax carry strong predictive information in this finite template family. Removing identifier metadata barely changes M2 performance. Removing operational metadata also leaves a strong context-only signal.
+
+This is not automatically an invalid semantic shortcut: identity status and candidate structure may legitimately inform event adjudication. The result does establish that M2 performance cannot be described as evidence-semantic reasoning alone. The next diagnostic should split identity-state fields from candidate-shape fields and compare both against an evidence-aware policy.
+
+## 10. Updated research conclusion
+
+1. The M0 identifier-surface alarm is specifically an evidence-count side channel in this benchmark.
+2. M1 operational/provenance metadata is a larger source of event-template leakage than opaque ID formatting.
+3. M2 context shape is highly predictive even without operational or identifier features.
+4. The current 8 event templates are not metadata-invariant and are not suitable as a locked generalization test.
+5. The next valid step is scenario-family diversity with semantic feasibility constraints, not more random seeds on the same templates.
+
+These results are finite-template diagnostics only. They do not demonstrate open-world generalization, autonomous relation discovery, or causal inference.
