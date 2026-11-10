@@ -1,7 +1,7 @@
 # E12-A3-M1 Adaptive Budget Allocation
 
 Date: 2026-11-11  
-Status: design protocol; implementation and benchmark pending  
+Status: design protocol; initial cross-family syntax deduplication is implemented and CI-validated; adaptive allocator and four-way split remain pending  
 Motivation: E12-A3-M0 exact-budget result shows equal-share round-robin underperforms the best specialist on the current two-task synthetic benchmark.
 
 ## 1. Research question
