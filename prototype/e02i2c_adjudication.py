@@ -206,8 +206,11 @@ def adjudicate_event(
         item for item in eligible if item.polarity == EvidencePolarity.ABSENCE
     )
 
-    if supporting and contradictions:
-        conflict_refs = tuple(sorted({item.evidence_id for item in (*supporting, *contradictions)}))
+    # Contradiction checks must use every eligible support packet, not only
+    # the caller-selected candidate. Otherwise filtering can hide a current
+    # identity's positive evidence and incorrectly permit KEEP.
+    if all_supporting and contradictions:
+        conflict_refs = tuple(sorted({item.evidence_id for item in (*all_supporting, *contradictions)}))
         return _abstain(
             identity,
             "conflicting support and contradiction evidence must be reviewed, not averaged",
