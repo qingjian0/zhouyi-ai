@@ -58,7 +58,7 @@ Evaluation reports, for each hidden concept, the best query-set F1 among propose
 ## Reproduction
 
 ```bash
-python -m unittest tests.test_e11a_unlabeled_concepts -v
+python -m unittest discover -s tests -p 'test_e11a_unlabeled_concepts.py' -v
 python -m prototype.e11a_unlabeled_concepts --json --seed 17
 ```
 
