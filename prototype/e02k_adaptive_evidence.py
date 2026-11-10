@@ -36,12 +36,18 @@ class AdaptiveEvidenceController:
         per_window_cap: float = 1.5,
         min_support_windows: int = 2,
     ) -> None:
+        numeric = (alpha, beta, alternative_win_probability, per_window_cap)
+        if not all(math.isfinite(x) for x in numeric):
+            raise ValueError("controller parameters must be finite")
         if not 0 < alpha < 1 or not 0 < beta < 1:
             raise ValueError("alpha and beta must be in (0, 1)")
         if not 0.5 < alternative_win_probability < 1:
             raise ValueError("alternative probability must be in (0.5, 1)")
-        if per_window_cap <= 0 or min_support_windows < 2:
+        if per_window_cap <= 0 or not isinstance(min_support_windows, int) or min_support_windows < 2:
             raise ValueError("invalid cap or support-window floor")
+        # This is an engineering threshold, not a calibrated type-I error bound:
+        # per-window clipping and repeated adaptive candidate searches violate
+        # the classical unmodified SPRT assumptions.
         self.threshold = math.log((1 - beta) / alpha)
         self.alternative_win_probability = alternative_win_probability
         self.per_window_cap = per_window_cap
@@ -59,6 +65,7 @@ class AdaptiveEvidenceController:
         self.invalid_support_windows = 0
         self.version = 0
         self.events: list[dict] = []
+        self._last_window: int | None = None
 
     def _clip(self, value: float) -> float:
         return max(-self.per_window_cap, min(self.per_window_cap, value))
@@ -106,10 +113,27 @@ class AdaptiveEvidenceController:
         return clipped
 
     def observe(self, observation: EvidenceObservation, *, window: int) -> str:
+        if not isinstance(window, int) or window < 0:
+            raise ValueError("window must be a non-negative integer")
+        if self._last_window is not None and window <= self._last_window:
+            raise ValueError("windows must be strictly increasing")
+        self._last_window = window
         signature = observation.candidate_signature
+        if signature is not None:
+            members, truth_table = signature
+            if (
+                len(members) < 2
+                or len(set(members)) != len(members)
+                or tuple(sorted(members)) != members
+                or any(not isinstance(member, int) or member < 0 for member in members)
+                or not isinstance(truth_table, int)
+                or not 0 <= truth_table < (1 << (1 << len(members)))
+            ):
+                raise ValueError("invalid canonical relation signature")
 
-        # First discovery is a bootstrap event. After a retirement, resurrection
-        # must pass the same accumulated evidence threshold as a reconfiguration.
+        # Bootstrap assumes the caller has already passed the candidate's
+        # independent Gate acceptance rule. Never pass a raw train-only candidate.
+        # After a retirement, resurrection must pass accumulated evidence.
         if self.current_signature is None and not self.ever_created:
             if signature is None:
                 action = "NO_RELATION"
