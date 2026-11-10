@@ -4,9 +4,9 @@
 
 ## 1. 离散扩散与非自回归语言模型
 
-- *An overview of discrete diffusion models in natural language processing*（2026）。离散扩散语言建模综述，涉及迭代去噪、双向上下文和并行生成。需要重点比较训练目标、解码策略、质量-延迟权衡。
-- *PRISM: Efficient Test-Time Scaling via Hierarchical Search and Self-Verification for Discrete Diffusion Language Models*（ICML 2026）。层级搜索与自验证，说明扩散模型的测试时搜索也在向多路径推理发展。
-- *DSL-LLaDA: Scaling Continuous Denoising to 8B Masked Diffusion LMs*（EMNLP Findings 2026）。连续嵌入去噪与多位置联合演化。
+- Yixuan Li et al., [*An overview of discrete diffusion models in natural language processing*](https://doi.org/10.1007/s44336-026-00040-5)（Vicinagearth，2026-09-30）。离散扩散语言建模综述，涉及迭代去噪、双向上下文和并行生成。需要重点比较训练目标、解码策略、质量-延迟权衡。
+- Jinbin Bai et al., [*PRISM: Efficient Test-Time Scaling via Hierarchical Search and Self-Verification for Discrete Diffusion Language Models*](https://proceedings.mlr.press/v306/bai26f.html)（ICML 2026）。层级搜索与自验证，说明扩散模型的测试时搜索也在向多路径推理发展。
+- Longxuan Yu et al., [*DSL-LLaDA: Scaling Continuous Denoising to 8B Masked Diffusion LMs*](https://aclanthology.org/2026.findings-emnlp.2101/)（EMNLP Findings 2026）。连续嵌入去噪与多位置联合演化。
 - *Diffusion LLMs Can Do Faster-Than-AR Inference via Discrete Diffusion Forcing*（ICLR 2026）。块级与跨块并行推断。
 - *Why Diffusion Language Models Struggle with Truly Parallel (Non-Autoregressive) Decoding?*。关注实际解码是否仍表现出自回归倾向。
 
@@ -14,7 +14,7 @@
 
 ## 2. 超图与高阶关系学习
 
-- *A Survey on Hypergraph Neural Networks: An In-Depth and Step-By-Step Guide*（KDD 2024）。超图神经网络综述。
+- Sunwoo Kim et al., [*A Survey on Hypergraph Neural Networks: An In-Depth and Step-By-Step Guide*](https://doi.org/10.1145/3637528.3671457)（KDD 2024）。超图神经网络综述。
 - *Recent Advances in Hypergraph Neural Networks*（2025）。讨论模型类别、复杂度与过平滑等问题。
 - *Beyond Graphs: Can Large Language Models Comprehend Hypergraphs?*（ICLR 2025）。提出高阶结构理解评测问题。
 
@@ -22,7 +22,7 @@
 
 ## 3. 易象与神经网络的已有研究
 
-- *Multi-reservoir echo state network based on the I Ching for accurate energy prediction*（Engineering Applications of Artificial Intelligence，2026-01-15）。研究将太极、五行、八卦相关结构用于多储备池网络的组织与预测。
+- Bowen Wang et al., [*Multi-reservoir echo state network based on the I Ching for accurate energy prediction*](https://doi.org/10.1016/j.engappai.2025.113307)（Engineering Applications of Artificial Intelligence，2026-01-15）。研究将太极、五行、八卦相关结构用于多储备池网络的组织与预测。
 
 **对本项目的影响：** 不能宣称首次将《周易》引入神经网络。CPG-EI 的差异假设应聚焦动态超图组合、非 Token 中心语义计算、证据约束的类象迁移与自组织更新的统一机制。
 
