@@ -50,6 +50,11 @@ def _query_id(query: tuple[int, int]) -> str:
     return f"q:{query[0]}:{query[1]}"
 
 
+def initial_query_for_seed(seed: int) -> tuple[int, int]:
+    """Choose Support query independently of the hidden target rule."""
+    return random.Random(seed).choice(QUERIES)
+
+
 def _decode_query(action_id: str) -> tuple[int, int]:
     _, a, b = action_id.split(":")
     return int(a), int(b)
@@ -180,13 +185,8 @@ def run_benchmark(seeds: int = 100, start_seed: int = 100) -> dict:
     rows = {policy: [] for policy in policies}
     for offset in range(seeds):
         seed = start_seed + offset
-        rng = random.Random(seed)
-        initial_queries = list(QUERIES)
-        rng.shuffle(initial_queries)
+        initial_query = initial_query_for_seed(seed)
         for target in RULES:
-            initial_query = initial_queries[
-                (target[0] * 9 + target[1] * 3 + target[2] + offset) % len(QUERIES)
-            ]
             for policy in policies:
                 rows[policy].append(run_episode(target, initial_query, policy, seed))
     summary = {}
