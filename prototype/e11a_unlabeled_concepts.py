@@ -127,9 +127,9 @@ def _one_to_one_evaluation(
     It must be fixed on development data before locked-seed evaluation.
     """
     if not isinstance(min_match_f1, (int, float)) or isinstance(min_match_f1, bool):
-        raise ValueError("min_match_f1 must be a number in [0, 1]")
-    if not 0.0 <= min_match_f1 <= 1.0:
-        raise ValueError("min_match_f1 must be in [0, 1]")
+        raise ValueError("min_match_f1 must be a number in (0, 1]")
+    if not 0.0 < min_match_f1 <= 1.0:
+        raise ValueError("min_match_f1 must be in (0, 1]")
 
     latent_ids = sorted(episode.hidden_schemas)
     if not latent_ids:
@@ -226,8 +226,13 @@ def _one_to_one_evaluation(
         "one_to_one_matches": matches,
     }
 
-def evaluate(episode: Episode, concepts: tuple[tuple[str, ...], ...]) -> dict:
-    """Report both optimistic best-match diagnostics and one-to-one scores."""
+def evaluate(
+    episode: Episode,
+    concepts: tuple[tuple[str, ...], ...],
+    *,
+    min_match_f1: float = 0.5,
+) -> dict:
+    """Report optimistic diagnostics and thresholded one-to-one scores."""
     predictions = predict(episode.query_objects, concepts)
     rows = []
     for latent_id in sorted(episode.hidden_schemas):
@@ -245,7 +250,9 @@ def evaluate(episode: Episode, concepts: tuple[tuple[str, ...], ...]) -> dict:
         ), default=0.0)
         rows.append({"latent_concept": latent_id, "best_query_f1": best,
                      "query_positive_count": len(actual)})
-    one_to_one = _one_to_one_evaluation(episode, concepts, predictions)
+    one_to_one = _one_to_one_evaluation(
+        episode, concepts, predictions, min_match_f1=min_match_f1
+    )
     return {
         "query_objects": len(episode.query_objects),
         "candidate_count": len(concepts),
