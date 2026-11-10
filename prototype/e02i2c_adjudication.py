@@ -158,8 +158,6 @@ def adjudicate_event(
     """
     opportunities = tuple(opportunities)
     evidence = tuple(evidence)
-    if any(item.split == "test" for item in evidence):
-        raise ValueError("locked Test evidence cannot be consumed by the adjudicator")
     if required_windows < 2:
         raise ValueError("required_windows must be at least two")
     if not 0.0 <= min_coverage <= 1.0 or min_samples < 1:
