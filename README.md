@@ -46,6 +46,7 @@
 - [E02-C 超边生命周期原型](prototype/e02_edge_lifecycle.py)
 - [E02-B 三元有限域学习器对照结果](docs/E02B_RESULTS_2026-11-10.md)
 - [E02-D 未见规则族归纳基准](prototype/e02_rule_ood.py)
+- [E02-D 实验协议](docs/E02D_RULE_FAMILY_OOD.md)
 - [E01-B 五种子结果报告](docs/E01B_RESULTS_2026-11-10.md)
 - [E01-C 组合 OOD 结果报告](docs/E01C_RESULTS_2026-11-10.md)
 - [研究风险与证伪条件](docs/RISKS_AND_FALSIFICATION.md)
