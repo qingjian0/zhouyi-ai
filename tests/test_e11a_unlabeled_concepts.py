@@ -2,7 +2,7 @@ import unittest
 from dataclasses import replace
 
 from prototype.e11a_unlabeled_concepts import (
-    evaluate, make_episode, predict, propose_concepts, run,
+    Episode, ObjectView, evaluate, make_episode, predict, propose_concepts, run,
 )
 
 
@@ -48,12 +48,16 @@ class E11AUnlabeledConceptTests(unittest.TestCase):
             episode, learner_objects=renamed_learner, query_objects=renamed_query
         )
         renamed_proposals = propose_concepts(renamed.learner_objects)
-        self.assertEqual(
-            len(proposals), len(renamed_proposals)
+        self.assertEqual(len(proposals), len(renamed_proposals))
+        original_metrics = evaluate(episode, proposals)
+        renamed_metrics = evaluate(renamed, renamed_proposals)
+        self.assertAlmostEqual(
+            original_metrics["mean_best_query_f1"],
+            renamed_metrics["mean_best_query_f1"],
         )
         self.assertAlmostEqual(
-            evaluate(episode, proposals)["mean_best_query_f1"],
-            evaluate(renamed, renamed_proposals)["mean_best_query_f1"],
+            original_metrics["mean_one_to_one_query_f1"],
+            renamed_metrics["mean_one_to_one_query_f1"],
         )
 
     def test_input_order_does_not_change_proposals(self):
@@ -61,6 +65,40 @@ class E11AUnlabeledConceptTests(unittest.TestCase):
         forward = propose_concepts(episode.learner_objects)
         reverse = propose_concepts(tuple(reversed(episode.learner_objects)))
         self.assertEqual(forward, reverse)
+
+    def test_one_candidate_cannot_be_credited_to_two_concepts(self):
+        query = (
+            ObjectView("q1", frozenset({"shared"})),
+            ObjectView("q2", frozenset({"shared"})),
+        )
+        episode = Episode(
+            learner_objects=(),
+            query_objects=query,
+            truth={"q1": frozenset({"A"}), "q2": frozenset({"B"})},
+            hidden_schemas={"A": frozenset({"a"}), "B": frozenset({"b"})},
+        )
+        result = evaluate(episode, (("shared",),))
+        self.assertAlmostEqual(result["mean_best_query_f1"], 2.0 / 3.0)
+        self.assertAlmostEqual(result["mean_one_to_one_query_f1"], 1.0 / 3.0)
+        self.assertEqual(result["matched_candidate_count"], 1)
+        self.assertEqual(result["one_to_one_concept_recall"], 0.5)
+
+    def test_duplicate_candidate_extensions_do_not_inflate_concept_count(self):
+        query = (
+            ObjectView("q1", frozenset({"x", "z"})),
+            ObjectView("q2", frozenset({"x", "z"})),
+            ObjectView("q3", frozenset({"other"})),
+        )
+        episode = Episode(
+            learner_objects=(),
+            query_objects=query,
+            truth={"q1": frozenset({"A"}), "q2": frozenset({"A"}),
+                   "q3": frozenset({"B"})},
+            hidden_schemas={"A": frozenset({"a"}), "B": frozenset({"b"})},
+        )
+        result = evaluate(episode, (("x",), ("x", "z")))
+        self.assertEqual(result["candidate_count"], 2)
+        self.assertEqual(result["unique_candidate_extension_count"], 1)
 
     def test_invalid_parameters_fail_closed(self):
         episode = make_episode(3)
@@ -77,6 +115,8 @@ class E11AUnlabeledConceptTests(unittest.TestCase):
         self.assertGreater(result["candidate_count"], 0)
         self.assertGreaterEqual(result["mean_best_query_f1"], 0.0)
         self.assertLessEqual(result["mean_best_query_f1"], 1.0)
+        self.assertGreaterEqual(result["mean_one_to_one_query_f1"], 0.0)
+        self.assertLessEqual(result["mean_one_to_one_query_f1"], 1.0)
         self.assertEqual(len(result["per_concept"]), 3)
 
 
