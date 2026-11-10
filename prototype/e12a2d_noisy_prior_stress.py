@@ -111,9 +111,11 @@ def _exact_value(
                 expected += probability * child
             if expected < best - 1e-12 or (
                 abs(expected - best) <= 1e-12
-                and best_action is not None
-                and (action.cost, action.action_id)
-                < (actions[best_action].cost, actions[best_action].action_id)
+                and (
+                    best_action is None
+                    or (action.cost, action.action_id)
+                    < (actions[best_action].cost, actions[best_action].action_id)
+                )
             ):
                 best, best_action = expected, index
         return best, best_action
@@ -178,6 +180,10 @@ def run_episode(
     seed: int,
 ) -> dict:
     _validate(world, learner_prior)
+    if isinstance(target_index, bool) or not isinstance(target_index, int) or not 0 <= target_index < len(world.hypothesis_ids):
+        raise ValueError("target_index is outside the hypothesis set")
+    if isinstance(budget, bool) or not isinstance(budget, int) or budget < 0:
+        raise ValueError("budget must be a non-negative integer")
     posterior = learner_prior
     available = tuple(range(len(world.actions)))
     spent = 0
