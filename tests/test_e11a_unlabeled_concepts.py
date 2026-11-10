@@ -147,6 +147,10 @@ class E11AUnlabeledConceptTests(unittest.TestCase):
         self.assertEqual(result["one_to_one_concept_recall"], 0.0)
 
     def test_invalid_parameters_fail_closed(self):
+        with self.assertRaises(ValueError):
+            evaluate(make_episode(3), (), min_match_f1=0.0)
+        with self.assertRaises(ValueError):
+            evaluate(make_episode(3), (), min_match_f1=1.1)
         episode = make_episode(3)
         for value in (0.0, 1.1):
             with self.assertRaises(ValueError):
