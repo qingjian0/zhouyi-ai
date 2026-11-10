@@ -56,7 +56,6 @@
 - [开发路线图](ROADMAP.md)
 - [E02-I 关系演化协议](docs/E02I_RELATION_EVOLUTION.md)
 - [E02-I 完整 CI 结果（2026-11-10）](docs/E02I_CI_RESULTS_2026-11-10.md)
-- [E02-I2 关系身份与谱系设计](docs/E02I2_RELATION_IDENTITY_LINEAGE.md)
 - [原型代码](prototype/)
 
 ## 快速开始（当前原型）
