@@ -102,6 +102,7 @@ def _adaptive_allocate(
     batch_size: int = 4,
     exploration_floor: int = 1,
     exploration_constant: float = 0.3,
+    reward_mode: str = "MEAN",
 ) -> dict[str, Any]:
     """Allocate only from Support pools and Gate-Dev feedback.
 
@@ -112,6 +113,9 @@ def _adaptive_allocate(
     """
     if budget < 1 or batch_size < 1:
         raise ValueError("budget and batch_size must be positive")
+    reward_modes = {"MEAN", "MAX", "TOP2_MEAN", "DELTA_BEST", "MEAN_NOVELTY"}
+    if reward_mode not in reward_modes:
+        raise ValueError(f"unsupported reward_mode: {reward_mode}")
     pools = _make_pools(support, seed)
     # Keep each family's raw queue. Shared expressions are deduplicated in the
     # candidate registry after emission, not assigned to a lexical owner arm.
@@ -128,6 +132,7 @@ def _adaptive_allocate(
     evaluated_gate_dev: dict[str, float] = {}
     trace: list[dict[str, Any]] = []
     slots_used = 0
+    best_gate_dev_seen = 0.0
 
     while slots_used < budget:
         family = allocator.choose_next_family()
@@ -173,18 +178,29 @@ def _adaptive_allocate(
                 evaluated_gate_dev[expression] = _accuracy(proposal, gate_dev)
                 newly_evaluated.append(expression)
 
-        # Reward is the mean Gate-Dev score of newly evaluated unique proposals.
-        # A batch containing only duplicates receives zero novelty reward.
-        reward = (
-            mean(evaluated_gate_dev[key] for key in newly_evaluated)
-            if newly_evaluated else 0.0
-        )
+        # All reward variants are bounded in [0, 1] and use only newly
+        # evaluated unique proposals from Gate-Dev.
+        scores = [evaluated_gate_dev[key] for key in newly_evaluated]
+        if not scores:
+            reward = 0.0
+        elif reward_mode == "MEAN":
+            reward = mean(scores)
+        elif reward_mode == "MAX":
+            reward = max(scores)
+        elif reward_mode == "TOP2_MEAN":
+            reward = mean(sorted(scores, reverse=True)[:2])
+        elif reward_mode == "DELTA_BEST":
+            batch_best = max(scores)
+            reward = max(0.0, batch_best - best_gate_dev_seen)
+            best_gate_dev_seen = max(best_gate_dev_seen, batch_best)
+        else:  # MEAN_NOVELTY
+            reward = mean(scores) * (len(scores) / len(batch))
         allocator.observe_batch(family, reward, used_slots=len(batch))
         slots_used += len(batch)
         trace.append({
             "family": family, "requested_slots": requested,
             "emitted": len(batch), "new_unique": len(newly_evaluated),
-            "reward": reward,
+            "reward_mode": reward_mode, "reward": reward,
             "remaining_budget": allocator.remaining_budget,
         })
 
@@ -201,6 +217,7 @@ def _adaptive_allocate(
         "gate_dev_unique_evaluations": len(evaluated_gate_dev),
         "gate_final_unique_evaluations": len(registry),
         "proposal_slots_used": slots_used,
+        "reward_mode": reward_mode,
     }
 
 
@@ -317,6 +334,7 @@ def run_episode(seed: int, task: str, budget: int = 31) -> dict[str, Any]:
         "gate_final_unique_evaluations": adaptive["gate_final_unique_evaluations"],
         "trace": list(adaptive["trace"]),
         "allocations": adaptive["allocations"],
+        "reward_mode": adaptive["reward_mode"],
     })
     methods["UCB1_ADAPTIVE"] = adaptive_result
 
