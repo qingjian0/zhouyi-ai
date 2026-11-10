@@ -117,7 +117,7 @@ def _accuracy(candidate: Candidate, examples: tuple[Example, ...],
 
 
 def induce(support: Iterable[Example], gate: Iterable[Example],
-           candidate_budget: int = 256) -> dict:
+           candidate_budget: int = 512) -> dict:
     """Return a candidate decision using Support + Gate, never Locked Test."""
     support_rows, gate_rows = tuple(support), tuple(gate)
     candidates = propose_candidates(support_rows, candidate_budget)
