@@ -97,3 +97,32 @@ P2：计算 A-C 连通分量可行性；若不足，改生成器而不是放宽�
 P3：在上述 split 语义稳定后实现有限 DSL identifiability oracle 和 learner baselines。
 
 本文件是协议统一与静态审计，不代表以上实现或测试已经完成。
+
+
+## 8. 两个必须显式处理的信息流问题
+
+### 8.1 当前 Task 返回值不是物理安全边界
+
+`build_support_query_task()` 返回对象同时包含 `support`、`query`、`evaluator_truth`。即使 Query 行本身没有标签，只要学习器进程拿到整个返回对象，就能读取 evaluator truth。Python 对象字段隔离只是 API 约定，不是安全边界。
+
+正式 runner 必须：
+- 在 evaluator 进程中构造完整 task；
+- 只把 Support 与 Query 的独立序列化字节发送给 learner 进程；
+- evaluator truth 留在独立进程/文件描述符/评测服务中；
+- 记录 learner 实际收到的 payload hash；
+- 增加 canary：修改 evaluator truth 后，learner 进程输入字节必须完全不变。
+
+不能仅把 `task["evaluator_truth"]` 从一个 dict 中隐藏，就宣称信息流隔离完成。
+
+### 8.2 当前 Support 仍携带完整 objects 表
+
+当前 splitter 将 `learner_view["objects"]` 原样放进 Support，而生成器 learner view 的 objects 表覆盖整个 episode。即使 Query participant IDs 没有出现在 Support observations 中，Query 对象的 ID 与属性仍可能通过 Support.objects 被 learner 看到。
+
+这不影响 A-P 的“已知对象组合”定义，但直接阻止 A-O 被称为 unseen-object transfer。A-O 实现时必须：
+- Support.objects 只包含 Support 侧对象；
+- Query.objects 显式包含 Query 输入所需的对象属性，但只在 Query 预测阶段提供；
+- 两侧 object ID 交集为空；
+- Support 侧任何嵌套字段、缓存、manifest 均不得包含 Query 对象属性；
+- 对象属性输入可见性与身份互斥分别审计。
+
+因此 A-O 不只是加一个 object-ID disjoint 断言，还必须重做 task payload 的对象表切分与 learner 输入时序。
