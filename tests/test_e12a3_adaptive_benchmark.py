@@ -27,7 +27,7 @@ class E12A3AdaptiveBenchmarkTests(unittest.TestCase):
         self.assertEqual(
             list(inspect.signature(_adaptive_allocate).parameters),
             ["support", "gate_dev", "seed", "budget", "batch_size",
-             "exploration_floor", "exploration_constant"],
+             "exploration_floor", "exploration_constant", "reward_mode"],
         )
         self.assertEqual(
             list(inspect.signature(_make_pools).parameters),
