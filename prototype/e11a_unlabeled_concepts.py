@@ -104,8 +104,9 @@ def predict(objects: tuple[ObjectView, ...],
 
 
 def _f1(predicted: set[str], actual: set[str]) -> float:
+    # Empty/empty is absence of observable evidence, not a successful match.
     if not predicted and not actual:
-        return 1.0
+        return 0.0
     if not predicted or not actual:
         return 0.0
     precision = len(predicted & actual) / len(predicted)
@@ -117,14 +118,19 @@ def _one_to_one_evaluation(
     episode: Episode,
     concepts: tuple[tuple[str, ...], ...],
     predictions: dict[str, frozenset[int]],
+    *,
+    min_match_f1: float = 0.5,
 ) -> dict:
-    """Maximum-weight one-to-one matching of candidate extensions to truths.
+    """Match candidate extensions only to query-observable concepts.
 
-    Exact dynamic programming is practical for the small, declared number of
-    evaluator concepts (up to 16). Candidate extensions are deduplicated so
-    syntactically different patterns with identical query behavior cannot
-    inflate the number of discovered concepts.
+    The threshold is an explicit evaluation parameter, not a learned value.
+    It must be fixed on development data before locked-seed evaluation.
     """
+    if not isinstance(min_match_f1, (int, float)) or isinstance(min_match_f1, bool):
+        raise ValueError("min_match_f1 must be a number in [0, 1]")
+    if not 0.0 <= min_match_f1 <= 1.0:
+        raise ValueError("min_match_f1 must be in [0, 1]")
+
     latent_ids = sorted(episode.hidden_schemas)
     if not latent_ids:
         raise ValueError("evaluator must declare at least one hidden concept")
@@ -138,6 +144,9 @@ def _one_to_one_evaluation(
         }
         for latent_id in latent_ids
     }
+    observable_ids = [latent_id for latent_id in latent_ids
+                      if actual_by_latent[latent_id]]
+    unobservable_count = len(latent_ids) - len(observable_ids)
 
     extension_to_candidate: dict[frozenset[str], tuple[str, ...]] = {}
     for candidate_index, candidate in enumerate(concepts):
@@ -164,12 +173,12 @@ def _one_to_one_evaluation(
     for extension_index, extension in enumerate(extensions):
         updated = dict(states)  # this candidate may remain unmatched
         for mask, (score, pairs) in states.items():
-            for latent_index, latent_id in enumerate(latent_ids):
+            for latent_index, latent_id in enumerate(observable_ids):
                 bit = 1 << latent_index
                 if mask & bit:
                     continue
                 value = _f1(set(extension), actual_by_latent[latent_id])
-                if value <= 0.0:
+                if value < min_match_f1:
                     continue
                 new_mask = mask | bit
                 proposal = (
@@ -189,7 +198,7 @@ def _one_to_one_evaluation(
     )
     matches = [
         {
-            "latent_concept": latent_ids[latent_index],
+            "latent_concept": observable_ids[latent_index],
             "candidate_attributes": list(extension_to_candidate[extensions[extension_index]]),
             "query_f1": value,
         }
@@ -197,19 +206,25 @@ def _one_to_one_evaluation(
     ]
     matched_count = len(matches)
     extension_count = len(extensions)
-    latent_count = len(latent_ids)
+    observable_count = len(observable_ids)
     return {
+        "min_match_f1": float(min_match_f1),
         "unique_candidate_extension_count": extension_count,
         "matched_candidate_count": matched_count,
         "unmatched_candidate_extension_count": extension_count - matched_count,
+        "query_observable_concept_count": observable_count,
+        "query_unobservable_concept_count": unobservable_count,
         "one_to_one_candidate_precision": (
-            matched_count / extension_count if extension_count else 1.0
+            matched_count / extension_count if extension_count else None
         ),
-        "one_to_one_concept_recall": matched_count / latent_count,
-        "mean_one_to_one_query_f1": best_score / latent_count,
+        "one_to_one_concept_recall": (
+            matched_count / observable_count if observable_count else None
+        ),
+        "mean_one_to_one_query_f1": (
+            best_score / observable_count if observable_count else None
+        ),
         "one_to_one_matches": matches,
     }
-
 
 def evaluate(episode: Episode, concepts: tuple[tuple[str, ...], ...]) -> dict:
     """Report both optimistic best-match diagnostics and one-to-one scores."""
