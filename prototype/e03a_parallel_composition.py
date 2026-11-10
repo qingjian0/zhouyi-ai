@@ -110,7 +110,12 @@ def run_episode(seed: int, *, train_n: int = 1024, gate_n: int = 512,
                                                        c.train_accuracy,
                                                        tuple(-x for x in c.members)))
                         for shortlist, gate in zip(shortlists, gates))
-    adjacent = tuple(pool[0] for pool in adjacent_pools)
+    # Fair ablation: restrict the candidate language to adjacent subsets,
+    # but use the same independent gate-selection protocol as the baseline.
+    adjacent = tuple(max(pool, key=lambda c: (accuracy(gate, c),
+                                               c.train_accuracy,
+                                               tuple(-x for x in c.members)))
+                     for pool, gate in zip(adjacent_pools, gates))
 
     coord_audit = _audit(coordinated, targets, tables, tests)
     independent_audit = _audit(independent, targets, tables, tests)
