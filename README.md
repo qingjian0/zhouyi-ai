@@ -9,7 +9,7 @@
 
 - 当前阶段：M1 数学理论定稿与 M2 最小原型准备
 - 理论版本：CPG-EI v0.3（研究草案）
-- 代码状态：E01 组合选择基线原型正在建立；E12-A0/A1 有限原型已建立；E12-A2-M 选择器原型待完整验证；E12-A3-M0 多提议器基线原型已建立，待 CI 验证
+- 代码状态：E01 组合选择基线原型正在建立；E12-A0/A1 有限原型已建立；E12-A2-M 选择器原型待完整验证；E12-A3-M0 多提议器原型与 20 种子等额候选预算基准已通过 CI；当前结果未证明组合调度优于单一专家
 - 尚无规模化模型或性能优势结论
 - 验证原则：所有架构主张均须通过可复现实验、消融和公平对照验证
 
@@ -46,6 +46,7 @@
 - [E12-A2 实现审查与验证门槛](docs/E12A2_IMPLEMENTATION_AUDIT_2026-11-11.md)
 - [E12-A3 多提议器原语发现与预算竞争](docs/E12A3_MULTI_PROPOSER_COMPETITION_2026-11-11.md)\n- [E12-A3-M0 首个可运行原型记录](docs/E12A3_M0_IMPLEMENTATION_2026-11-11.md)\n- [E12-A3 多提议器原型](prototype/e12a3_multi_proposer.py)
 - [E12-A3 公平预算基准](prototype/e12a3_proposer_benchmark.py)
+- [E12-A3-M0 基准实验结果](docs/E12A3_M0_BENCHMARK_RESULTS_2026-11-11.md)
 - [E12-A3 原语提议与稀疏组合整合审查](docs/E12A3_PORTFOLIO_COMPOSITION_INTEGRATION_2026-11-11.md)\n- [E12-A3 基准测试](tests/test_e12a3_proposer_benchmark.py)\n- [E12-A3 多提议器单元测试](tests/test_e12a3_multi_proposer.py)
 - [E12-A2-M 选择器实现记录](docs/E12A2_M_IMPLEMENTATION_2026-11-11.md)
 - [E12-A1 类型化谓词原型](prototype/e12a1_typed_predicate_induction.py)
