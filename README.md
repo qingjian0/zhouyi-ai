@@ -9,7 +9,7 @@
 
 - 当前阶段：M1 数学理论定稿与 M2 最小原型准备
 - 理论版本：CPG-EI v0.3（研究草案）
-- 代码状态：E01 组合选择基线原型正在建立；E12-A0/A1 有限原型已建立；E12-A2-M 首个选择器原型已提交待 CI 验证
+- 代码状态：E01 组合选择基线原型正在建立；E12-A0/A1 有限原型已建立；E12-A2-M 选择器原型待完整验证；E12-A3-M0 多提议器与去重基准、M1 UCB1 分配器核心已实现；A3 测试通过，固定轮询尚未证明优于单一专家
 - 尚无规模化模型或性能优势结论
 - 验证原则：所有架构主张均须通过可复现实验、消融和公平对照验证
 
@@ -44,6 +44,26 @@
 - [E12-A1 类型化谓词生成基线](docs/E12A1_TYPED_PREDICATE_INDUCTION.md)
 - [E12-A2 主动观测选择研究协议](docs/E12A2_ACTIVE_MEASUREMENT_SELECTION.md)
 - [E12-A2 实现审查与验证门槛](docs/E12A2_IMPLEMENTATION_AUDIT_2026-11-11.md)
+- [E12-A3 多提议器原语发现与预算竞争](docs/E12A3_MULTI_PROPOSER_COMPETITION_2026-11-11.md)\n- [E12-A3-M0 首个可运行原型记录](docs/E12A3_M0_IMPLEMENTATION_2026-11-11.md)\n- [E12-A3 多提议器原型](prototype/e12a3_multi_proposer.py)
+- [E12-A3 公平预算基准](prototype/e12a3_proposer_benchmark.py)
+- [E12-A3-M0 基准实验结果](docs/E12A3_M0_BENCHMARK_RESULTS_2026-11-11.md)
+- [E12-A3-M0.1 跨提议器去重实验](docs/E12A3_M0_1_DEDUP_RESULTS_2026-11-11.md)
+- [E12-A3-M1 自适应预算分配研究](docs/E12A3_M1_ADAPTIVE_BUDGET_ALLOCATION_2026-11-11.md)
+- [E12-A3 四阶段自适应预算实验](prototype/e12a3_adaptive_benchmark.py)
+- [E12-A3 四阶段自适应预算测试](tests/test_e12a3_adaptive_benchmark.py)
+- [E12-A3-M1 四阶段自适应预算实验结果](docs/E12A3_M1_FOUR_WAY_RESULTS_2026-11-11.md)
+- [E12-A3-M1.1 奖励函数消融实验](prototype/e12a3_reward_ablation.py)
+- [E12-A3-M1.1 奖励函数消融测试](tests/test_e12a3_reward_ablation.py)
+- [E12-A3-M1.1 奖励函数消融结果](docs/E12A3_M1_1_REWARD_ABLATION_RESULTS_2026-11-11.md)
+- [E12-A3-M1.2 Support 上下文任务路由协议](docs/E12A3_M1_2_SUPPORT_CONTEXT_ROUTER_2026-11-11.md)
+- [E12-A3-M1.2 Support 上下文路由原型](prototype/e12a3_context_router.py)
+- [E12-A3-M1.2 Support 上下文路由测试](tests/test_e12a3_context_router.py)
+- [E12-A3-M1.2 Support 上下文路由实验结果](docs/E12A3_M1_2_CONTEXT_ROUTER_RESULTS_2026-11-11.md)
+- [E12-A3-M1.2b 语法分层上下文探针协议](docs/E12A3_M1_2B_GRAMMAR_STRATIFIED_PROBES_2026-11-11.md)
+- [E12-A3-M1.2b 语法分层探针实验结果](docs/E12A3_M1_2B_STRATIFIED_PROBE_RESULTS_2026-11-11.md)
+- [E12-A3-M1.2c 上下文描述符聚合消融协议](docs/E12A3_M1_2C_CONTEXT_DESCRIPTOR_ABLATION_2026-11-11.md)
+- [E12-A3-M1.2c 上下文描述符聚合实验结果](docs/E12A3_M1_2C_DESCRIPTOR_AGGREGATION_RESULTS_2026-11-11.md)
+- [E12-A3 原语提议与稀疏组合整合审查](docs/E12A3_PORTFOLIO_COMPOSITION_INTEGRATION_2026-11-11.md)\n- [E12-A3 基准测试](tests/test_e12a3_proposer_benchmark.py)\n- [E12-A3 多提议器单元测试](tests/test_e12a3_multi_proposer.py)
 - [E12-A2-M 选择器实现记录](docs/E12A2_M_IMPLEMENTATION_2026-11-11.md)
 - [E12-A1 类型化谓词原型](prototype/e12a1_typed_predicate_induction.py)
 - [E12-A2-M 主动观测选择器](prototype/e12a2_active_measurement_selector.py)
@@ -66,7 +86,7 @@
 python -m unittest discover -s tests -v
 python -m prototype.e01_sparse_composition
 python -m prototype.e01_learned_ranker --json
-python -m prototype.e12a2_active_measurement_selector
+python -m prototype.e12a2_active_measurement_selector\npython -m prototype.e12a3_multi_proposer\npython -m prototype.e12a3_proposer_benchmark --seeds 20 --budget 31 --json
 ```
 
 ## 研究状态标记
