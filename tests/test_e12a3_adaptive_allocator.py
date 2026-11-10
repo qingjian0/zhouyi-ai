@@ -29,6 +29,17 @@ class E12A3AdaptiveAllocatorTests(unittest.TestCase):
         allocator.observe_batch(second, 0.9 if second == "A" else 0.1)
         self.assertEqual(allocator.choose_next_family(), "A")
 
+    def test_ucb_ties_break_by_stable_family_id(self):
+        allocator = UCB1Allocator(
+            ["B", "A"], total_budget=3, batch_size=1,
+            exploration_floor=1, exploration_constant=0.0,
+        )
+        for expected in ("A", "B"):
+            family = allocator.choose_next_family()
+            self.assertEqual(family, expected)
+            allocator.observe_batch(family, 0.5)
+        self.assertEqual(allocator.choose_next_family(), "A")
+
     def test_budget_is_conserved_with_final_partial_batch(self):
         allocator = UCB1Allocator(
             ["A", "B"], total_budget=5, batch_size=2,
