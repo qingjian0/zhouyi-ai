@@ -109,6 +109,12 @@ class E02IRelationEvolutionTests(unittest.TestCase):
         changed = next(w for w in result["windows"] if w["action"] == "RECONFIGURE")
         self.assertEqual(changed["candidate_members"], changed["persistent_members"])
 
+    def test_never_present_negative_control_does_not_create_relation(self):
+        result = run_episode(seed=97, scenario="never_present")
+        actions = [w["action"] for w in result["windows"]]
+        self.assertTrue(all(action == "NO_RELATION" for action in actions))
+        self.assertIsNone(result["final_relation"])
+
     def test_disappearing_relation_is_retired_after_two_failed_windows(self):
         result = run_episode(seed=53, scenario="disappear")
         actions = [w["action"] for w in result["windows"]]
