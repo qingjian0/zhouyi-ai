@@ -66,9 +66,9 @@ class E12A2ActiveMeasurementTests(unittest.TestCase):
             0.5,
             (
                 HypothesisPrediction("p_ge_2", (
-                    OutcomeLikelihood("1", 0.75), OutcomeLikelihood("0", 0.25))),
+                    OutcomeLikelihood("1", 0.95), OutcomeLikelihood("0", 0.05))),
                 HypothesisPrediction("p_eq_2", (
-                    OutcomeLikelihood("1", 0.25), OutcomeLikelihood("0", 0.75))),
+                    OutcomeLikelihood("1", 0.05), OutcomeLikelihood("0", 0.95))),
             ),
         )
         result = select_measurement(self.hypotheses, (costly_perfect, cheap_partial), 2.0)
