@@ -75,7 +75,7 @@ The unit tests cover:
 3. conflicting retry is rejected;
 4. idempotency fingerprint includes event type/schema;
 5. idempotency fingerprint includes actor role;
-6. one prediction per observation per learner track;
+6. one prediction per observation per learner track;\n7. independent E09/E10-style tracks may commit against the same observation;\n8. evidence reveal cannot cross learner tracks;\n9. concurrent independent SQLite connections serialize writes without losing sequence numbers;
 7. prediction IDs are unique within an episode;
 8. stale expected sequence rejection;
 9. one reveal per prediction;
@@ -94,7 +94,7 @@ python -m unittest tests.test_shared_evidence_protocol -v
 
 The v0.1 uniqueness constraint accidentally allowed only one prediction commit for an observation across the entire episode. That conflicts with the shared-ledger design: E09 and E10 must be able to independently commit predictions against the same observation without overwriting or suppressing each other.
 
-The v0.2 contract therefore requires a non-empty `learner_track` on every prediction commit and enforces uniqueness on `(episode_id, observation_id, learner_track)`. Each track may commit once per observation; independent tracks may commit separately. The store still does not decide whether a track may emit multiple candidate predictions—those belong inside the track's committed candidate set or a future explicitly versioned proposal event.
+The v0.2 contract therefore requires a non-empty `learner_track` on every prediction commit and enforces uniqueness on `(episode_id, observation_id, learner_track)`. Each track may commit once per observation; independent tracks may commit separately. Evidence reveal events must also carry the same `learner_track` as the prediction they reveal, preventing an adapter from revealing another track's prediction by mistake. The store still does not decide whether a track may emit multiple candidate predictions—those belong inside the track's committed candidate set or a future explicitly versioned proposal event.
 
 The initializer drops the old v0.1 partial index and creates the per-track index, so an existing local database receives this narrow index migration on open. The persisted `protocol_version` remains a storage-envelope version; the broader schema registry/upcaster system is still not implemented.
 
