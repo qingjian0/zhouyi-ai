@@ -72,6 +72,23 @@ The shared protocol currently has five core event types. If lifecycle actions ar
 
 This audit narrows the first implementation milestone: **CSL-0 should be a compatibility/conformance layer and mapping specification, not a fresh lifecycle implementation.**
 
+### E03-A audit: coordination advantage is not yet demonstrated
+
+The cross-branch audit for PR #18 reports a 30-seed E03-A comparison:
+- Global coordinator Test accuracy: 0.9787109375.
+- Independent Gate selection Test accuracy: 0.9787109375.
+- Both methods achieved 1.0 member recovery and 1.0 complete-rule recovery.
+- Independent selection satisfied the shared feature budget in all 30 seeds.
+- The adjacency-only ablation had 0.0 member recovery and approximately 0.719314 Test accuracy.
+
+Interpretation: the experiment supports recovery of the fixed non-contiguous relation by multi-head candidate generation, but it does **not** establish that global coordination improves on independent selection. The shared budget was inactive. Therefore E03 must not be treated as evidence that CSL arbitration is already useful.
+
+The next coordination benchmark must include a genuine conflict condition where individually attractive candidates exceed the shared budget or are mutually incompatible, plus a no-conflict control where coordination should not harm performance. Compare independent greedy selection, budget-constrained optimization, global enumeration on tiny instances, random feasible selection, and an oracle upper bound. Keep Gate and Locked-Test separate.
+
+### E02-I2-C audit implication: metadata is part of the threat model
+
+The cross-branch audit also identifies a generalization/leakage risk in identity-event work: removing obvious event strings from IDs does not establish metadata-label independence if IDs or other fields can encode low-entropy seeds, episode order, window, or hidden event class. CSL provenance must distinguish evaluator-only generator metadata from learner-visible source metadata. The E12-Loop evaluator must include attacks over all observable fields—not just candidate IDs—and should use opaque IDs independent of hidden truth and episode seed. Metadata must be audited as model input, not treated as harmless bookkeeping.
+
 ## 3. Typed cognitive structure
 
 Every candidate must declare a structure kind:
