@@ -20,6 +20,7 @@
 4. **易象状态表征**：阴阳、四象、八卦、六十四卦、卦变及五行关系能否成为可学习、可证伪的状态与关系先验？
 5. **自组织与证据约束**：结构能否根据任务反馈更新，同时避免无证据的类比和自我强化？
 6. **并行推演**：多条候选组合路径能否并行评估，并由全局协调器进行证据整合？
+7. **多状态表示自主选择**：系统能否在二值、三值、混合和自主学习表示之间按任务选择，必要时提出新的状态基数？
 
 ## 架构边界
 
@@ -37,6 +38,7 @@
 - [架构设计](docs/ARCHITECTURE.md)
 - [易象模块：可检验化设计](docs/YIXIANG_MODULE.md)
 - [太玄经三值结构 TX-01：可检验化研究设计](docs/TAIXUAN_TERNARY_COGNITION_TX01.md)
+- [TX-02 多状态表示竞争与自主选择基准](docs/TX02_MULTISTATE_REPRESENTATION_BENCHMARK.md)
 - [相关工作与文献](docs/RELATED_WORK.md)
 - [2026-11-10 研究增量报告](docs/RESEARCH_FINDINGS_2026-11-10.md)
 - [实验计划与验收标准](docs/EXPERIMENTS.md)
@@ -54,6 +56,7 @@
 - [E12-A1.1 证据溯源原型](prototype/e12a1p_evidence_provenance.py)
 - [E12-A2 主动观测选择器](prototype/e12a2_active_measurement.py)
 - [太玄经 81 首 / 9 赞 / 729 状态可逆编码原型](prototype/taixuan_ternary_encoding.py)
+- [TX-02A 跨状态基数 episode 生成器](prototype/tx02_multistate_benchmark.py)
 - [YF-01 动态观测策略原型](prototype/yinfu_active_observation.py)
 - [YF-03 三元反馈与关系反转原型](prototype/yinfu_interaction_dynamics.py)
 - [E12-A2-B 策略对照实验](prototype/e12a2b_policy_benchmark.py)
@@ -86,6 +89,7 @@ python -m prototype.e12a2d_noisy_prior_stress --episodes 100 --budget 3 --json
 python -m prototype.yinfu_active_observation
 python -m prototype.yinfu_interaction_dynamics --horizon 8
 python -m prototype.taixuan_ternary_encoding
+python -m prototype.tx02_multistate_benchmark --episodes-per-cardinality 20 --support-size 4 --query-count 2
 ```
 
 ## 研究状态标记
