@@ -5,7 +5,7 @@ It is a transparent research baseline, not an open-ended concept learner.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import Enum
 import hashlib
 import json
@@ -135,11 +135,20 @@ def validate_observations(rows: Sequence[Observation]) -> None:
     schema = set(dict(rows[0].values))
     if not schema or len(rows[0].values) != len(schema):
         raise ValueError("feature names must be non-empty and unique")
+    feature_kinds: dict[str, type] = {}
     for row in rows:
         if row.label not in (0, 1):
             raise ValueError("labels must be binary")
-        if len(row.values) != len(dict(row.values)) or set(dict(row.values)) != schema:
+        row_values = dict(row.values)
+        if len(row.values) != len(row_values) or set(row_values) != schema:
             raise ValueError("all observations must share one exact schema")
+        for name, value in row_values.items():
+            if isinstance(value, bool) or not isinstance(value, (int, float, str)):
+                raise TypeError(f"unsupported scalar for feature {name}")
+            kind = str if isinstance(value, str) else float
+            previous = feature_kinds.setdefault(name, kind)
+            if previous is not kind:
+                raise TypeError(f"feature {name} mixes numeric and categorical values")
 
 
 def propose_statistical(rows: Sequence[Observation]) -> tuple[Proposal, ...]:
@@ -182,7 +191,7 @@ def propose_relational(rows: Sequence[Observation]) -> tuple[Proposal, ...]:
                     p = _proposal("RELATIONAL",
                                   PredicateExpr(left, "DIFF_GE", delta, right), source_ids)
                     out[p.canonical_expression] = p
-            else:
+            elif all(isinstance(x, str) for x in (*lv, *rv)):
                 p = _proposal("RELATIONAL", PredicateExpr(left, "SAME", None, right), source_ids)
                 out[p.canonical_expression] = p
     return tuple(sorted(out.values(), key=lambda p: p.canonical_expression))
