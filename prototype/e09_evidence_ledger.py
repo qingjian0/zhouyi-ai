@@ -125,9 +125,9 @@ class EvidenceLedger:
             "repeated_same_label_inputs": len(repeated - contested),
             "source_evidence": source_evidence,
             "contested": [
-                {"inputs": list(key), "labels": sorted(labels, key=repr),
+                {"inputs": list(key), "labels": sorted(labels_by_input[key], key=repr),
                  "sample_ids": ids_by_input[key]}
-                for key, labels in sorted(contested.items(), key=lambda item: repr(item[0]))
+                for key in sorted(contested, key=repr)
             ],
         }
 
