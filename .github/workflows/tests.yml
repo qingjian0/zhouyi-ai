@@ -36,3 +36,5 @@ jobs:
         run: python -m prototype.e02_rule_ood --sweep --seeds 100 --start-seed 100 --json
       - name: Run E02-E multi-seed autonomous relation discovery
         run: python -m prototype.e02e_discovery --seeds 20 --start-seed 7 --json
+      - name: Run E02-F train-only nuisance falsification
+        run: python -m prototype.e02f_falsification --seeds 100 --start-seed 100
