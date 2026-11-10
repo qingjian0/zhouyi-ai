@@ -12,6 +12,16 @@ import json
 import random
 from dataclasses import dataclass
 
+def _wilson_interval(successes: int, trials: int, z: float = 1.96) -> list[float]:
+    if trials <= 0 or not 0 <= successes <= trials:
+        raise ValueError("invalid binomial counts")
+    p = successes / trials
+    denominator = 1 + z * z / trials
+    center = (p + z * z / (2 * trials)) / denominator
+    margin = z * ((p * (1 - p) / trials + z * z / (4 * trials * trials)) ** 0.5) / denominator
+    return [max(0.0, center - margin), min(1.0, center + margin)]
+
+
 from prototype.e02h_boolean_rules import (
     Candidate, Row, accuracy, admissible_target_tables, discover, pairwise_baseline,
 )
@@ -313,6 +323,20 @@ def run(*, seeds: int = 20, start_seed: int = 1200) -> dict:
                    for i in range(seeds)]
         for scenario in scenarios
     }
+    wilson_counts = {
+        "stable_no_reconfiguration": sum(all(w["action"] != "RECONFIGURE" for w in e["windows"]) for e in results["stable"]),
+        "stable_final_structure_correct": sum(e["final_relation"] == {"members": e["windows"][-1]["target_for_audit_only"], "truth_table": e["windows"][-1]["target_table_for_audit_only"]} for e in results["stable"]),
+        "member_add_reconfigured": sum(any(w["action"] == "RECONFIGURE" for w in e["windows"]) for e in results["member_add"]),
+        "member_add_final_structure_correct": sum(e["final_relation"] == {"members": e["windows"][-1]["target_for_audit_only"], "truth_table": e["windows"][-1]["target_table_for_audit_only"]} for e in results["member_add"]),
+        "member_remove_reconfigured": sum(any(w["action"] == "RECONFIGURE" for w in e["windows"]) for e in results["member_remove"]),
+        "member_remove_final_structure_correct": sum(e["final_relation"] == {"members": e["windows"][-1]["target_for_audit_only"], "truth_table": e["windows"][-1]["target_table_for_audit_only"]} for e in results["member_remove"]),
+        "rule_change_reconfigured": sum(any(w["action"] == "RECONFIGURE" for w in e["windows"]) for e in results["rule_change"]),
+        "rule_change_final_structure_correct": sum(e["final_relation"] == {"members": e["windows"][-1]["target_for_audit_only"], "truth_table": e["windows"][-1]["target_table_for_audit_only"]} for e in results["rule_change"]),
+        "transient_change_no_reconfiguration": sum(all(w["action"] != "RECONFIGURE" for w in e["windows"]) for e in results["transient_rule_change"]),
+        "transient_final_structure_correct": sum(e["final_relation"] == {"members": e["windows"][-1]["target_for_audit_only"], "truth_table": e["windows"][-1]["target_table_for_audit_only"]} for e in results["transient_rule_change"]),
+        "disappearance_retired": sum(any(w["action"] == "RETIRE" for w in e["windows"]) for e in results["disappear"]),
+        "disappearance_finally_absent": sum(e["final_relation"] is None for e in results["disappear"]),
+    }
     return {
         "task": "E02I_evidence_gated_relation_evolution",
         "seeds_per_scenario": seeds,
@@ -397,6 +421,10 @@ def run(*, seeds: int = 20, start_seed: int = 1200) -> dict:
                 w["split_ids_disjoint"] for episodes in results.values()
                 for e in episodes for w in e["windows"]
             ),
+        },
+        "wilson95": {
+            name: _wilson_interval(count, seeds)
+            for name, count in wilson_counts.items()
         },
         "episodes": results,
         "limitations": [
