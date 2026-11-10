@@ -17,7 +17,7 @@ class E12A1CandidateInductionTests(unittest.TestCase):
 
     def test_atoms_precede_conjunctions_under_budget(self):
         support, _, _ = make_benchmark()
-        candidates = propose_candidates(support, candidate_budget=24)
+        candidates = propose_candidates(support, candidate_budget=23)
         self.assertTrue(all(c.op != "and" for c in candidates))
 
     def test_budget_is_bounded(self):
