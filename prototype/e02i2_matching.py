@@ -182,7 +182,7 @@ def match_candidates(
             elif method == MatchingMethod.JACCARD:
                 # Deliberately semantic-blind weak baseline.
                 score = _jaccard(candidate.members, version.members)
-            elif method == MatchingMethod.ROLE_ALIGNED:
+            elif method in {MatchingMethod.ROLE_ALIGNED, MatchingMethod.HUNGARIAN}:
                 # A changed rule may be MODIFY or a new identity. A single
                 # snapshot cannot distinguish them, so matching must abstain;
                 # I2-C event adjudication may use temporal evidence later.
