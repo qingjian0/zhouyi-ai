@@ -18,3 +18,5 @@ jobs:
         run: python -m unittest discover -s tests -v
       - name: Run E01 demonstration
         run: python -m prototype.e01_sparse_composition --json
+      - name: Run E01-B five-seed evaluation
+        run: python -m prototype.e01_multiseed --seeds 5 --start-seed 7 --json
