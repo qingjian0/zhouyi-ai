@@ -162,6 +162,23 @@ class SharedEvidenceProtocolTests(unittest.TestCase):
             for store in stores:
                 store.close()
 
+
+    def test_duplicate_event_id_is_rejected_without_sequence_gap(self):
+        self.store.append_event(
+            episode_id="ep1", event_id="stable-event", event_type="observation",
+            idempotency_key="first-key", payload={"observation_id": "o1"},
+        )
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.store.append_event(
+                episode_id="ep1", event_id="stable-event", event_type="observation",
+                idempotency_key="second-key", payload={"observation_id": "o2"},
+            )
+        receipt = self.store.append_event(
+            episode_id="ep1", event_id="next-event", event_type="observation",
+            idempotency_key="next-key", payload={"observation_id": "o2"},
+        )
+        self.assertEqual(receipt.sequence_no, 2)
+
     def test_stale_sequence_rejected(self):
         self.commit()
         with self.assertRaises(SequenceConflict):
