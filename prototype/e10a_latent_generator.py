@@ -189,9 +189,18 @@ def _validate_episode(episode: Episode) -> None:
     if len(symbol_to_template) != len(episode.templates):
         raise ValueError("relation symbols must identify distinct templates")
     truth_by_id = {row.observation_id: row for row in episode.instances}
-    source_group_ids = [row.source_group_id for row in episode.instances]
-    if any(not isinstance(value, str) or not value for value in source_group_ids):
-        raise ValueError("source group IDs must be non-empty strings")
+    source_groups: dict[str, list[InstanceTruth]] = {}
+    for row in episode.instances:
+        if not isinstance(row.source_group_id, str) or not row.source_group_id:
+            raise ValueError("source group IDs must be non-empty strings")
+        source_groups.setdefault(row.source_group_id, []).append(row)
+    for source_group_id, rows in source_groups.items():
+        if len({row.template_id for row in rows}) != 1:
+            raise ValueError("source group cannot span multiple templates")
+        if sum(row.valid for row in rows) != 1:
+            raise ValueError("each source group must contain exactly one positive observation")
+        if not any(not row.valid for row in rows):
+            raise ValueError("each source group must contain negative evidence")
     template_by_id = {row.template_id: row for row in episode.templates}
     for obs in episode.observations:
         if not set(obs.participants) <= object_id_set:
