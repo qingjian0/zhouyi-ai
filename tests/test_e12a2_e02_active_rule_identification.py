@@ -1,12 +1,17 @@
 import unittest
 
 from prototype.e12a2_e02_active_rule_identification import (
-    QUERIES, RULES, consistent_rules, predict, run_episode,
-    select_information_gain, select_oracle,
+    QUERIES, RULES, consistent_rules, initial_query_for_seed,
+    predict, run_episode, select_information_gain, select_oracle,
 )
 
 
 class ActiveRuleIdentificationTests(unittest.TestCase):
+    def test_initial_support_query_is_seeded_without_target_input(self):
+        query = initial_query_for_seed(123)
+        self.assertIn(query, QUERIES)
+        self.assertEqual(query, initial_query_for_seed(123))
+
     def test_target_rule_is_not_needed_for_candidate_reconstruction(self):
         evidence = (((0, 0), 1), ((1, 0), 2))
         hypotheses = consistent_rules(evidence)
