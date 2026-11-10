@@ -1,4 +1,4 @@
-# Shared Evidence Protocol Reference v0.1
+# Shared Evidence Protocol Reference v0.2
 
 Status: experimental reference implementation on an isolated research branch. It is not yet integrated into E09/E10, not a production event store, and not a security boundary.
 
@@ -14,7 +14,7 @@ Use Python's standard-library SQLite as the first durable local store:
 - `journal_mode=WAL` and `synchronous=FULL` establish a local durability baseline.
 - An idempotency table binds an episode-scoped key to the event fingerprint and original receipt.
 - The fingerprint covers event type, payload schema, canonical payload, actor role, causation references, and integrity metadata. Same key/same envelope returns the original receipt; same key/different envelope raises `IdempotencyConflict`.
-- A prediction commit requires a prior observation event. Unique partial indexes enforce one observation ID, one prediction per observation, one prediction ID, one reveal per prediction, and one structure-version ID within an episode.
+- A prediction commit requires a prior observation event. Unique partial indexes enforce one observation ID, one prediction per observation per learner track, one prediction ID, one reveal per prediction, and one structure-version ID within an episode.
 - Structure versions require existing parent versions and already revealed support evidence.
 - Revision events require already revealed trigger evidence and known before/after structure versions.
 - Replay returns the append order; reopening the database reconstructs the same event sequence and digests.
@@ -50,6 +50,7 @@ receipt = store.commit_prediction(
         "prediction_id": "prediction-1",
         "observation_id": "observation-1",
         "model_version": "model-v0",
+        "learner_track": "e09",
         "decision_status": "PREDICT",
         "prediction": "candidate-A",
     },
@@ -67,27 +68,42 @@ store.close()
 
 ## Conformance coverage
 
-The unit tests cover:
+The 20 unit tests cover:
 
 1. prediction commit requires a prior observation; reveal cannot precede a committed prediction;
-2. identical retry returns the original receipt;
-3. conflicting retry is rejected;
+2. identical idempotent retry returns the original receipt;
+3. conflicting idempotent retry is rejected;
 4. idempotency fingerprint includes event type/schema;
 5. idempotency fingerprint includes actor role;
-6. one prediction per observation;
-7. prediction IDs are unique within an episode;
-8. stale expected sequence rejection;
-9. one reveal per prediction;
-10. revision evidence must already be revealed;
-11. structure parent must already exist;
-12. restart/replay preserves sequence, event IDs, and digests;
-13. returned structure snapshots are detached data.
+6. evidence reveal cannot cross learner tracks;
+7. empty learner-track values are rejected;
+8. one prediction per observation per learner track;
+9. independent tracks may commit against the same observation;
+10. prediction IDs are unique within an episode;
+11. v0.1 prediction records replay under a legacy track without changing their original digest;
+12. old index definitions are migrated to legacy-aware uniqueness;
+13. runtime journal mode avoids the known pre-3.51.3 WAL-reset bug;
+14. concurrent independent SQLite connections serialize writes without losing sequence numbers;
+15. duplicate event IDs roll back without consuming sequence numbers;
+16. stale expected sequence is rejected;
+17. one reveal per prediction;
+18. revision evidence and structure-version references must exist;
+19. structure parent references must exist;
+20. replay is deterministic after close/reopen and structure snapshots are detached.
 
 Run:
 
 ```bash
 python -m unittest tests.test_shared_evidence_protocol -v
 ```
+
+## v0.2 correction: multi-track prediction semantics
+
+The v0.1 uniqueness constraint accidentally allowed only one prediction commit for an observation across the entire episode. That conflicts with the shared-ledger design: E09 and E10 must be able to independently commit predictions against the same observation without overwriting or suppressing each other.
+
+The v0.2 contract therefore requires a non-empty `learner_track` on every prediction commit and enforces uniqueness on `(episode_id, observation_id, learner_track)`. Each track may commit once per observation; independent tracks may commit separately. Evidence reveal events must also carry the same `learner_track` as the prediction they reveal, preventing an adapter from revealing another track's prediction by mistake. The store still does not decide whether a track may emit multiple candidate predictions—those belong inside the track's committed candidate set or a future explicitly versioned proposal event.
+
+The initializer drops both the v0.1 global uniqueness index and the earlier v0.2 per-track index, then creates a legacy-aware per-track index using `COALESCE`; this also upgrades databases already opened by the first v0.2 build. Missing historical track values are treated as `legacy`. Replay performs a read-time v0.1 upcast for prediction/reveal payloads by exposing `learner_track="legacy"`; it does not rewrite the stored event bytes or original digest. A v0.1 prediction can therefore receive a post-upgrade reveal under the `legacy` track. This is a narrowly scoped compatibility shim, not a general schema registry/upcaster framework.
 
 ## Explicit limitations
 
@@ -98,7 +114,7 @@ python -m unittest tests.test_shared_evidence_protocol -v
 - No hash chain or external tamper-evident anchoring.
 - No event compaction, snapshot checkpointing, retention/deletion policy, or privacy model.
 - No measured latency/memory telemetry. Caller-provided cost fields are not accepted as measured facts by this store.
-- No E09/E10 adapter and no learner implementation.
+- No E09/E10 adapter and no learner implementation. The v0.2 track key is a protocol namespace, not authentication: callers can claim any track name until an external authorization boundary is added.
 
 ## Next acceptance gate
 

@@ -14,7 +14,8 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterable
 
-PROTOCOL_VERSION = "0.1"
+PROTOCOL_VERSION = "0.2"
+LEGACY_LEARNER_TRACK = "legacy"
 EVENT_TYPES = {"observation", "prediction_commit", "evidence_reveal", "structure_version", "revision"}
 
 
@@ -64,7 +65,12 @@ class SQLiteEvidenceStore:
         self._lock = threading.RLock()
         self._db = sqlite3.connect(self.path, isolation_level=None, check_same_thread=False)
         self._db.row_factory = sqlite3.Row
-        self._db.execute("PRAGMA journal_mode=WAL")
+        # SQLite's WAL-reset corruption bug is fixed in 3.51.3. Use rollback
+        # journaling on older runtimes instead of silently relying on an
+        # affected WAL implementation under multi-connection writes.
+        requested_journal = "WAL" if sqlite3.sqlite_version_info >= (3, 51, 3) else "DELETE"
+        mode_row = self._db.execute(f"PRAGMA journal_mode={requested_journal}").fetchone()
+        self.journal_mode = str(mode_row[0]).upper()
         self._db.execute("PRAGMA synchronous=FULL")
         self._db.execute("PRAGMA foreign_keys=ON")
         self._db.executescript("""
@@ -97,8 +103,11 @@ class SQLiteEvidenceStore:
         CREATE UNIQUE INDEX IF NOT EXISTS one_observation_id
           ON events(episode_id, json_extract(payload_json, '$.observation_id'))
           WHERE event_type='observation';
-        CREATE UNIQUE INDEX IF NOT EXISTS one_prediction_per_observation
-          ON events(episode_id, json_extract(payload_json, '$.observation_id'))
+        DROP INDEX IF EXISTS one_prediction_per_observation;
+        DROP INDEX IF EXISTS one_prediction_per_observation_track;
+        CREATE UNIQUE INDEX IF NOT EXISTS one_prediction_per_observation_track_v2
+          ON events(episode_id, json_extract(payload_json, '$.observation_id'),
+                    COALESCE(json_extract(payload_json, '$.learner_track'), 'legacy'))
           WHERE event_type='prediction_commit';
         CREATE UNIQUE INDEX IF NOT EXISTS one_prediction_id
           ON events(episode_id, json_extract(payload_json, '$.prediction_id'))
@@ -120,9 +129,11 @@ class SQLiteEvidenceStore:
             if not payload.get("observation_id"):
                 raise ProtocolError("observation requires observation_id")
         elif event_type == "prediction_commit":
-            required = {"prediction_id", "observation_id", "model_version", "decision_status"}
+            required = {"prediction_id", "observation_id", "model_version", "learner_track", "decision_status"}
             if not required.issubset(payload):
                 raise ProtocolError(f"prediction_commit missing fields: {sorted(required - payload.keys())}")
+            if not isinstance(payload["learner_track"], str) or not payload["learner_track"].strip():
+                raise ProtocolError("prediction_commit learner_track must be a non-empty string")
             if payload["decision_status"] not in {
                 "PREDICT", "ABSTAIN_AMBIGUOUS", "ABSTAIN_INCONSISTENT", "ABSTAIN_BUDGET"
             }:
@@ -135,15 +146,18 @@ class SQLiteEvidenceStore:
             if observation is None:
                 raise MissingReference("prediction commit requires a prior observation event")
         elif event_type == "evidence_reveal":
-            if not {"prediction_id", "target_or_feedback"}.issubset(payload):
-                raise ProtocolError("evidence_reveal requires prediction_id and target_or_feedback")
+            if not {"prediction_id", "learner_track", "target_or_feedback"}.issubset(payload):
+                raise ProtocolError("evidence_reveal requires prediction_id, learner_track and target_or_feedback")
+            if not isinstance(payload["learner_track"], str) or not payload["learner_track"].strip():
+                raise ProtocolError("evidence_reveal learner_track must be a non-empty string")
             commit = self._db.execute(
                 "SELECT 1 FROM events WHERE episode_id=? AND event_type='prediction_commit' "
-                "AND json_extract(payload_json, '$.prediction_id')=?",
-                (episode_id, payload["prediction_id"]),
+                "AND json_extract(payload_json, '$.prediction_id')=? "
+                "AND COALESCE(json_extract(payload_json, '$.learner_track'), 'legacy')=?",
+                (episode_id, payload["prediction_id"], payload["learner_track"]),
             ).fetchone()
             if commit is None:
-                raise MissingReference("reveal requires a previously committed prediction")
+                raise MissingReference("reveal requires a previously committed prediction from the same learner_track")
         elif event_type == "structure_version":
             required = {"structure_id", "version_id", "kind", "definition", "parent_version_ids", "support_evidence_ids"}
             if not required.issubset(payload):
@@ -264,7 +278,12 @@ class SQLiteEvidenceStore:
         result = []
         for row in rows:
             item = dict(row)
-            item["payload"] = json.loads(item.pop("payload_json"))
+            payload = json.loads(item.pop("payload_json"))
+            # v0.1 had a single implicit learner track. Preserve its immutable
+            # bytes/digest while exposing it as the explicit legacy namespace.
+            if item["protocol_version"] == "0.1" and item["event_type"] in {"prediction_commit", "evidence_reveal"}:
+                payload.setdefault("learner_track", LEGACY_LEARNER_TRACK)
+            item["payload"] = payload
             item["causation_refs"] = json.loads(item.pop("causation_refs_json"))
             item["integrity_metadata"] = json.loads(item.pop("integrity_metadata_json"))
             result.append(item)
