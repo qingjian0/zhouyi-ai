@@ -56,6 +56,22 @@ class E02I2CHiddenEventBenchmarkTests(unittest.TestCase):
         self.assertGreater(result["policies"]["similarity_only"]["false_create"], 0)
         self.assertEqual(result["policies"]["evidence_gated"]["false_create"], 0)
 
+    def test_benchmark_evidence_ids_are_unique_across_episodes(self):
+        from prototype.e02i2c_hidden_event_benchmark import _build_episodes
+        episodes = _build_episodes(seeds=5, start_seed=600, split="gate")
+        evidence_ids = [
+            packet.evidence_id
+            for episode in episodes
+            for packet in episode.observation.evidence
+        ]
+        sample_ids = [
+            packet.sample_id
+            for episode in episodes
+            for packet in episode.observation.evidence
+        ]
+        self.assertEqual(len(evidence_ids), len(set(evidence_ids)))
+        self.assertEqual(len(sample_ids), len(set(sample_ids)))
+
     def test_train_and_gate_sample_namespaces_are_disjoint(self):
         train = [
             build_episode(event, 1000 + seed, split="train")
