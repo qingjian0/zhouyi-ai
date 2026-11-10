@@ -1,7 +1,7 @@
 # E12-A3-M0 Implementation Record
 
 Date: 2026-11-11  
-Status: first executable baseline; unit tests and CI pending at time of writing  
+Status: executable baseline; full repository CI passed on the benchmark commit; subsequent scalar-validation hardening is undergoing a fresh CI run  
 Branch: research/e12a3-proposer-competition-2026-11-11
 
 ## Delivered
@@ -52,3 +52,9 @@ The test suite checks deterministic proposals, relational candidate generation, 
 6. Only after generic baselines are stable, add Yijing-inspired proposal priors and capacity-matched controls.
 
 No performance claim is made in this record.
+
+## Validation update
+
+Full repository GitHub Actions workflow passed on commit `08bed36bc844998fee28f8d7bbd5b634e0be657d`. This included the repository-wide unit-test step, E12-A3 unit tests, the A3 smoke test, benchmark tests, the 20-seed equal-proposal-slot benchmark, and all existing E01/E02 workflow steps.
+
+After that successful run, additional strict validation was added for boolean labels, non-finite numeric values, and numeric predicate thresholds. The latest commits require a fresh full CI confirmation before being called green.
