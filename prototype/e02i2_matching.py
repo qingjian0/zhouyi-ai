@@ -38,6 +38,8 @@ class RelationCandidate:
             raise ValueError("candidate needs one role per member")
         if any(not x.strip() for x in (*self.members, *self.roles)):
             raise ValueError("candidate members and roles must be non-empty")
+        if not self.operator.strip() or not self.rule_signature.strip() or not self.context_signature.strip():
+            raise ValueError("candidate operator, rule and context signatures must be non-empty")
 
 
 @dataclass(frozen=True)
@@ -157,8 +159,12 @@ def match_candidates(
     identities must contain only the current version of each eligible,
     non-terminal identity. The resolver never reads hidden identity labels.
     """
+    if not isinstance(method, MatchingMethod):
+        raise ValueError("method must be a MatchingMethod value")
     if not 0.0 <= min_score <= 1.0 or not 0.0 <= min_margin <= 1.0:
         raise ValueError("score and margin thresholds must be in [0, 1]")
+    if any(identity_id != version.identity_id for identity_id, version in identities.items()):
+        raise ValueError("identity map keys must match version identity IDs")
     if len({c.candidate_id for c in candidates}) != len(candidates):
         raise ValueError("candidate IDs must be unique")
     original_order = tuple(candidate.candidate_id for candidate in candidates)
