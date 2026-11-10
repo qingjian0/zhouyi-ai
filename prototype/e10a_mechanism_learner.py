@@ -12,7 +12,6 @@ class CandidateMechanism:
     relation_symbol: str
     feature_key: str
     role_values: tuple[str, ...]
-    context_key: str
     required_contexts: tuple[tuple[str, str], ...]
 
     def predict(self, row: dict[str, Any], objects: dict[str, dict[str, str]]) -> bool:
