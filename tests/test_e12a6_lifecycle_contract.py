@@ -157,6 +157,19 @@ class E12A6LifecycleContractTests(unittest.TestCase):
         self.assertEqual(ledger.candidates[(old.candidate_id, 2)].parent_refs,
                          ("rel:greater-than@1",))
 
+    def test_ledger_collections_are_read_only_views(self):
+        ledger = LifecycleLedger()
+        item = candidate()
+        ledger.add_candidate(item)
+        ledger.add_evidence(evidence("e1", SplitRole.TRAIN))
+        with self.assertRaises(TypeError):
+            ledger.candidates[(item.candidate_id, 1)] = item
+        with self.assertRaises(TypeError):
+            ledger.evidence["e2"] = evidence("e2", SplitRole.TRAIN)
+        with self.assertRaises(AttributeError):
+            ledger.actions.append(Action("forged", ActionType.MEASURE))
+        self.assertEqual(len(ledger.actions), 0)
+
     def test_duplicate_evidence_and_actions_are_rejected(self):
         ledger = LifecycleLedger()
         ledger.add_evidence(evidence("e1", SplitRole.TRAIN))
