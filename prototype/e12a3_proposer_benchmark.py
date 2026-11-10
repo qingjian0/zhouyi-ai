@@ -64,12 +64,22 @@ def _choose_on_gate(candidates: Sequence[Proposal],
 
 
 def _budgeted_family_pools(support: Sequence[Observation], seed: int) -> dict[str, tuple[Proposal, ...]]:
-    return {
+    raw = {
         "STAT": propose_statistical(support),
         "RELATIONAL": propose_relational(support),
         "RANDOM": propose_random(support, seed=seed + 100_003, count=160),
         "EXHAUSTIVE": propose_exhaustive(support, limit=512),
     }
+    # A seeded permutation prevents lexicographic-prefix bias while remaining
+    # exactly reproducible for every (world seed, proposer family) pair.
+    offsets = {"STAT": 11, "RELATIONAL": 23, "RANDOM": 37, "EXHAUSTIVE": 53}
+    shuffled = {}
+    for family, proposals in raw.items():
+        family_rng = random.Random(seed * 1_000_003 + offsets[family])
+        items = list(proposals)
+        family_rng.shuffle(items)
+        shuffled[family] = tuple(items)
+    return shuffled
 
 
 def run_episode(seed: int, task: str, budget: int = 32) -> dict[str, Any]:
