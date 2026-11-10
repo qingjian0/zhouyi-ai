@@ -91,6 +91,8 @@ class E02I2MatchingTests(unittest.TestCase):
         self.assertEqual(by_id_forward, by_id_reverse)
         self.assertEqual(by_id_forward["a-exact"], "r1")
         self.assertIsNone(by_id_forward["b-partial"])
+        partial_decision = next(d for d in forward if d.candidate_id == "b-partial")
+        self.assertIn("assigned to higher-priority candidates", partial_decision.reason)
 
     def test_hungarian_tie_breaking_is_input_order_invariant(self):
         a = RelationCandidate("a-candidate", ("a", "b"), ("source", "target"), "AND", "a&b", "lab")
@@ -108,6 +110,7 @@ class E02I2MatchingTests(unittest.TestCase):
         result = match_candidates((candidate,), {}, method=MatchingMethod.HUNGARIAN)
         self.assertTrue(result[0].abstained)
         self.assertIsNone(result[0].identity_id)
+        self.assertEqual(result[0].reason, "no historical identities are available")
 
     def test_duplicate_candidate_ids_are_rejected(self):
         c1 = RelationCandidate("same", ("a", "b"), ("source", "target"), "AND", "a&b")
