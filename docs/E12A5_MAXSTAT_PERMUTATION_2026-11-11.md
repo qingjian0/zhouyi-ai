@@ -14,11 +14,7 @@ A5-1 在全部数值特征对和阈值中搜索最高 balanced accuracy。若只
 
 `r_i = 1[\hat y_i \ne y_i]`
 
-候选族 `H` 包含所有满足两侧最小支持度的：
-
-- numeric feature pair `(f_j,f_k)`
-- 相邻唯一绝对差值之间的阈值
-- `HIGH_ERROR` / `LOW_ERROR` 两种方向
+候选族 `H` 包含所有满足两侧最小支持度的 numeric feature pair、相邻唯一绝对差值之间的阈值，以及 `HIGH_ERROR` / `LOW_ERROR` 两种方向。
 
 观测统计量：
 
@@ -32,7 +28,7 @@ A5-1 在全部数值特征对和阈值中搜索最高 balanced accuracy。若只
 
 `p_global = (1 + count(T_b >= T_obs)) / (B + 1)`
 
-每个已报告候选的 single-step maxT-adjusted p 值也使用同一组 `T_b`，比较其候选分数与全扫描 null maximum。这样控制的是整个已搜索候选族的 family-wise error，而不是未校正的单候选错误率。
+每个已报告候选的 single-step maxT-adjusted p 值也使用同一组 `T_b`，比较其候选分数与全扫描 null maximum。
 
 ## 实现约束
 
@@ -48,7 +44,9 @@ A5-1 在全部数值特征对和阈值中搜索最高 balanced accuracy。若只
 
 **置换有效性依赖残差标签的可交换性（exchangeability）。** 对 IID 或合理随机化的 OOF 样本，普通标签置换可能成立；对时间序列、在线 prequential stream、同一实体重复观测、组内相关样本，直接打乱单条残差通常无效。此时需要按时间块、实体簇或任务组置换，并在设计中保留依赖结构。当前实现只提供 row-wise permutation，不能宣称适用于所有 prequential 数据。
 
-本检验只控制当前固定候选族、固定阈值策略、固定数据集上的 family-wise selection error。它不证明候选关系具有因果性，也不保证跨数据分布稳定。若候选生成策略、特征筛选或参数在看到 Gate/Test 后调整，仍会引入额外选择偏差。
+全局 maxT p 值检验的是“当前固定候选族中不存在任何残差关联”的 complete/global null。单步 maxT-adjusted candidate p 值在 complete null 下提供扫描校正；若要宣称任意部分零假设下的 strong FWER 控制，还需要 subset-pivotality 等额外条件或更保守的校正方案。因此结果字段不把显著性直接命名为“已证明强 FWER 控制”。
+
+本检验不证明候选关系具有因果性，也不保证跨数据分布稳定。若候选生成策略、特征筛选或参数在看到 Gate/Test 后调整，仍会引入额外选择偏差。
 
 ## 复杂度与预算
 
