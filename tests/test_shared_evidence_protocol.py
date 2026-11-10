@@ -62,6 +62,16 @@ class SharedEvidenceProtocolTests(unittest.TestCase):
                 idempotency_key="k1",
             )
 
+    def test_idempotency_fingerprint_includes_actor_role(self):
+        self.commit()
+        with self.assertRaises(IdempotencyConflict):
+            self.store.commit_prediction(
+                episode_id="ep1", event_id="pc-other", idempotency_key="k1",
+                actor_role="evaluator",
+                payload={"prediction_id": "p1", "observation_id": "o1",
+                         "model_version": "m0", "decision_status": "PREDICT", "prediction": "A"},
+            )
+
     def test_one_prediction_per_observation(self):
         self.commit()
         with self.assertRaises(sqlite3.IntegrityError):
