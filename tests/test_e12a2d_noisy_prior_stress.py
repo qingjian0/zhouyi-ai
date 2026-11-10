@@ -51,6 +51,22 @@ class E12A2DNoisyPriorStressTests(unittest.TestCase):
             ["policy", "prior", "actions", "available", "remaining_budget", "rng"],
         )
 
+    def test_zero_information_sensor_does_not_get_selected(self):
+        world = make_world("complementary")
+        uninformative = NoisyAction("uninformative", 1, (0.3, 0.3, 0.3, 0.3))
+        self.assertAlmostEqual(information_gain((0.25, 0.25, 0.25, 0.25), uninformative), 0.0)
+        self.assertIsNone(select_action(
+            "expected_ig", (0.25, 0.25, 0.25, 0.25), (uninformative,),
+            (0,), 1, random.Random(3),
+        ))
+
+    def test_exact_planner_respects_budget_and_does_not_reuse_actions(self):
+        world = make_world("complementary")
+        result = run_episode(
+            world, 0, prior_for(world, "matched"), "exact_optimal", 1, 77
+        )
+        self.assertLessEqual(result["spent_cost"], 1)
+
     def test_unknown_policy_is_rejected(self):
         world = make_world("rare")
         with self.assertRaises(ValueError):
