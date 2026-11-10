@@ -102,7 +102,7 @@ def run_episode(*, seed: int, nuisance: str, train_n: int = 512,
                 gate_n: int = 512, test_n: int = 512,
                 label_noise: float = 0.02,
                 nuisance_noise: float = 0.0,
-                min_gain: float = 0.05) -> dict:
+                min_gain: float = 0.05, min_gate_accuracy: float = 0.75) -> dict:
     target_rng = random.Random(seed * 17 + 3)
     target = tuple(sorted(target_rng.sample(range(8), 3)))
     train = make_split(seed=seed * 1009 + 1, count=train_n, target=target,
@@ -125,7 +125,7 @@ def run_episode(*, seed: int, nuisance: str, train_n: int = 512,
     created = False
     rejection = None
     manager = HyperedgeLifecycle(min_support=3, min_gain=min_gain, max_edges=8)
-    if gain >= min_gain:
+    if gate_acc >= min_gate_accuracy and gain >= min_gain:
         try:
             manager.create(EdgeProposal(
                 edge_id=f"e02f-{seed}",
@@ -139,7 +139,7 @@ def run_episode(*, seed: int, nuisance: str, train_n: int = 512,
         except LifecycleError as exc:
             rejection = str(exc)
     else:
-        rejection = "independent gate gain below creation threshold"
+        rejection = "independent gate accuracy or gain below creation threshold"
 
     return {
         "seed": seed, "condition": nuisance,
@@ -168,7 +168,7 @@ def run(*, seeds: int = 100, start_seed: int = 100,
         conditions[condition] = {
             "episodes": rows,
             "target_recovery_rate": sum(r["target_recovered"] for r in rows) / seeds,
-            "false_or_true_create_rate": sum(r["created"] for r in rows) / seeds,
+            "create_rate": sum(r["created"] for r in rows) / seeds,
             "mean_gate_accuracy": sum(r["gate_accuracy"] for r in rows) / seeds,
             "mean_test_accuracy": sum(r["test_accuracy"] for r in rows) / seeds,
             "mean_pairwise_gate_accuracy": sum(
@@ -181,7 +181,7 @@ def run(*, seeds: int = 100, start_seed: int = 100,
         "settings": {
             "train_n": train_n, "gate_n": gate_n, "test_n": test_n,
             "label_noise": label_noise, "nuisance_noise": nuisance_noise,
-            "candidate_orders": "1..4", "min_gain": 0.05,
+            "candidate_orders": "1..4", "min_gain": 0.05, "min_gate_accuracy": 0.75,
         },
         "conditions": conditions,
         "interpretation": (
