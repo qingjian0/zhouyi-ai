@@ -279,6 +279,43 @@ def adjudicate_event(
         return _abstain(identity, "suspended identity lacks sufficient reactivation or retirement evidence",
                         candidate_signature)
 
+    # A current support packet and an absence packet in the same window
+    # are contradictory observations. Do not let either polarity win by order.
+    support_windows = {item.window for item in all_supporting}
+    absence_windows = {item.window for item in absences}
+    if support_windows.intersection(absence_windows):
+        return _abstain(
+            identity,
+            "support and absence coexist in the same observation window",
+            candidate_signature,
+            refs((*all_supporting, *absences)),
+        )
+
+    # A sufficiently observed consecutive absence tail can suspend an active
+    # identity even when older windows still contain support. Historical KEEP
+    # evidence must not mask a newer sustained disappearance.
+    consecutive_absence_windows = 0
+    expected_previous: int | None = None
+    for window in sorted(sufficient_windows, reverse=True):
+        if expected_previous is not None and window != expected_previous:
+            break
+        if window in absence_windows:
+            consecutive_absence_windows += 1
+            expected_previous = window - 1
+        else:
+            break
+    absence_samples = {
+        item.sample_id for item in absences
+        if item.window in absence_windows
+    }
+    if (consecutive_absence_windows >= required_windows
+            and len(absence_samples) >= required_windows):
+        return EventDecision(
+            EventType.SUSPEND, identity.identity_id, identity.version_id,
+            identity.signature, refs(absences),
+            "consecutive sufficiently observed absence windows",
+        )
+
     # Active identity: competing support for the current and a changed
     # signature is ambiguous. Never let one stale KEEP observation mask a
     # separately supported structural change.
@@ -317,34 +354,6 @@ def adjudicate_event(
                 signature, refs(changed_support),
                 "version-linked continuity supports the same structural change across windows",
             )
-
-    # Absence is only meaningful when the corresponding observation opportunity
-    # was sufficient. Require a consecutive tail; a gap breaks the sequence.
-    absence_windows = {
-        item.window for item in absences
-        if item.window in sufficient_windows
-    }
-    consecutive = 0
-    expected_previous: int | None = None
-    for window in sorted(sufficient_windows, reverse=True):
-        if expected_previous is not None and window != expected_previous:
-            break
-        if window in absence_windows:
-            consecutive += 1
-            expected_previous = window - 1
-        else:
-            break
-    absence_samples = {
-        item.sample_id for item in absences
-        if item.window in absence_windows
-    }
-    if (consecutive >= required_windows
-            and len(absence_samples) >= required_windows):
-        return EventDecision(
-            EventType.SUSPEND, identity.identity_id, identity.version_id,
-            identity.signature, refs(absences),
-            "consecutive sufficiently observed absence windows",
-        )
 
     if contradictions:
         return _abstain(identity, "contradiction is not absence and does not establish a replacement event",
