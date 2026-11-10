@@ -14,7 +14,7 @@ from typing import Any
 
 SCHEMA_VERSION = "e10a-prequential-ledger-v1"
 DECISIONS = {"PREDICT", "ABSTAIN_AMBIGUOUS", "ABSTAIN_INCONSISTENT", "ABSTAIN_BUDGET"}
-REVISION_OPERATIONS = {"create", "keep", "modify", "split", "merge", "suspend", "retire", "abstain"}
+REVISION_OPERATIONS = {"create", "keep", "modify", "expand", "split", "merge", "suspend", "retire", "abstain"}
 
 
 def _string(value: Any, field: str) -> str:
