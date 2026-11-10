@@ -60,6 +60,8 @@
 - [E09-D0 证据账本到超边生命周期桥接](docs/E09D0_LIFECYCLE_BRIDGE.md)
 - [E09-D0 桥接代码](prototype/e09_lifecycle_bridge.py)
 - [E09-D1 环境条件关系发现基准](docs/E09D1_CONTEXT_DISCOVERY.md)
+- [E09-D2 未知环境迁移与适应基准](docs/E09D2_CONTEXT_TRANSFER.md)
+- [E09-D2 基准代码](prototype/e09_context_transfer.py)
 - [E09-D1 基准代码](prototype/e09_context_discovery.py)
 - [研究风险与证伪条件](docs/RISKS_AND_FALSIFICATION.md)
 - [开发路线图](ROADMAP.md)
