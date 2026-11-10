@@ -125,13 +125,25 @@ def induce(support: Iterable[Example], gate: Iterable[Example],
     all_atoms = tuple(sorted({
         candidate for candidate in candidates if candidate.op != "and"
     }))
-    scored = []
+    # Collapse candidates with identical predictions on Support + Gate.
+    # This prevents syntactic duplicates from being mistaken for distinct
+    # explanations (for example, equivalent integer thresholds).
+    equivalence_classes = {}
     for candidate in candidates:
+        signature = tuple(
+            evaluate(candidate, row.values, all_atoms)
+            for row in support_rows + gate_rows
+        )
         train_score = _accuracy(candidate, support_rows, all_atoms)
         gate_score = _accuracy(candidate, gate_rows, all_atoms)
         complexity = 1 if candidate.op != "and" else 2
-        scored.append((gate_score, train_score, -complexity, candidate))
+        rank = (complexity, candidate.op, candidate.args)
+        current = equivalence_classes.get(signature)
+        item = (gate_score, train_score, -complexity, candidate, rank)
+        if current is None or rank < current[4]:
+            equivalence_classes[signature] = item
 
+    scored = tuple(equivalence_classes.values())
     best_key = max(item[:3] for item in scored)
     winners = [item[3] for item in scored if item[:3] == best_key]
     if len(winners) != 1:
@@ -140,18 +152,22 @@ def induce(support: Iterable[Example], gate: Iterable[Example],
             "selected": None,
             "equivalent_best": [item.expression for item in winners],
             "candidate_count": len(candidates),
+            "behavioral_class_count": len(equivalence_classes),
             "budget": candidate_budget,
         }
     selected = winners[0]
     return {
-        "status": "IDENTIFIABLE",
+        "status": "CANDIDATE_SELECTED",
         "selected": selected.expression,
         "selected_op": selected.op,
         "support_accuracy": best_key[1],
         "gate_accuracy": best_key[0],
         "candidate_count": len(candidates),
+        "behavioral_class_count": len(equivalence_classes),
         "budget": candidate_budget,
     }
+
+
 
 
 def make_benchmark() -> tuple[tuple[Example, ...], tuple[Example, ...],
