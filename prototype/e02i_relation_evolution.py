@@ -14,9 +14,32 @@ import random
 from dataclasses import dataclass
 
 from prototype.e02h_boolean_rules import (
-    Row, accuracy, admissible_target_tables, discover, make_rows,
-    pairwise_baseline,
+    Row, accuracy, admissible_target_tables, discover, pairwise_baseline,
 )
+
+
+def _make_window_rows(*, seed: int, count: int, target: tuple[int, ...],
+                      truth_table: int, noise: float = 0.02,
+                      width: int = 8) -> list[Row]:
+    if count < 4 or not 2 <= len(target) <= 3 or len(set(target)) != len(target):
+        raise ValueError("invalid sample count or target")
+    if any(i < 0 or i >= width for i in target):
+        raise ValueError("target member outside feature width")
+    if not 0 <= truth_table < (1 << (1 << len(target))) or not 0 <= noise < 0.5:
+        raise ValueError("invalid truth table or noise")
+    rng = random.Random(seed)
+    rows = []
+    for i in range(count):
+        values = tuple(rng.choice((-1, 1)) for _ in range(width))
+        state = 0
+        for position, member in enumerate(target):
+            if values[member] == 1:
+                state |= 1 << (len(target) - position - 1)
+        label = 1 if (truth_table >> state) & 1 else -1
+        if rng.random() < noise:
+            label *= -1
+        rows.append(Row(f"{seed}:{i}", values, label))
+    return rows
 
 
 @dataclass(frozen=True)
@@ -169,12 +192,12 @@ def run_episode(*, seed: int, scenario: str, windows: int = 5,
             snapshot = Snapshot(winner.members, winner.truth_table, gate_acc, pair_acc)
         else:
             members, truth = target
-            train = make_rows(seed=seed * 1000003 + window * 101 + 1,
-                              count=train_n, target_members=members,
-                              target_table=truth, noise=noise)
-            gate = make_rows(seed=seed * 1000003 + window * 101 + 2,
-                             count=gate_n, target_members=members,
-                             target_table=truth, noise=noise)
+            train = _make_window_rows(seed=seed * 1000003 + window * 101 + 1,
+                                      count=train_n, target=members,
+                                      truth_table=truth, noise=noise)
+            gate = _make_window_rows(seed=seed * 1000003 + window * 101 + 2,
+                                     count=gate_n, target=members,
+                                     truth_table=truth, noise=noise)
             winner = discover(train)
             snapshot = Snapshot(winner.members, winner.truth_table,
                                 accuracy(gate, winner),
