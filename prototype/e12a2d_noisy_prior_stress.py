@@ -257,18 +257,25 @@ def run_benchmark(episodes: int = 100, budget: int = 3, start_seed: int = 2026) 
     rows = []
     for family_index, family in enumerate(families):
         world = make_world(family)
-        for arm_index, arm in enumerate(PRIOR_ARMS):
-            learner_prior = prior_for(world, arm)
-            results = {policy: [] for policy in POLICIES}
-            for episode in range(episodes):
-                seed = start_seed + family_index * 100000 + arm_index * 10000 + episode
-                target = _sample_target(world.true_prior, random.Random(seed))
-                for policy_index, policy in enumerate(POLICIES):
-                    results[policy].append(run_episode(
-                        world, target, learner_prior, policy, budget,
-                        seed + policy_index * 7919,
+        results = {
+            (arm, policy): []
+            for arm in PRIOR_ARMS
+            for policy in POLICIES
+        }
+        for episode in range(episodes):
+            # The same target and action-specific sensor random streams are
+            # shared across every prior/policy arm for paired comparisons.
+            seed = start_seed + family_index * 100000 + episode
+            target = _sample_target(world.true_prior, random.Random(seed))
+            for arm in PRIOR_ARMS:
+                learner_prior = prior_for(world, arm)
+                for policy in POLICIES:
+                    results[(arm, policy)].append(run_episode(
+                        world, target, learner_prior, policy, budget, seed,
                     ))
-            for policy, items in results.items():
+        for arm in PRIOR_ARMS:
+            for policy in POLICIES:
+                items = results[(arm, policy)]
                 count = len(items)
                 rows.append({
                     "family": family,
