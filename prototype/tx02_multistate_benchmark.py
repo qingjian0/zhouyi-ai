@@ -31,6 +31,7 @@ class Episode:
     # serialized into the learner-visible episode payload.
     hidden_rule: tuple[int, int, int]
     visible_symbols: tuple[int, ...]
+    symbol_mapping: str
 
 
 def _validate_cardinality(k: int) -> None:
@@ -49,6 +50,7 @@ def make_episode(
     seed: int,
     support_size: int,
     query_count: int = 1,
+    symbol_mapping: str = "permuted",
 ) -> Episode:
     """Create one episode with disjoint support and query input pairs.
 
@@ -62,10 +64,12 @@ def make_episode(
     if type(query_count) is not int or not 1 <= query_count <= total - support_size:
         raise ValueError("query_count must fit among pairs not used by support")
 
+    if symbol_mapping not in ("canonical", "permuted"):
+        raise ValueError("symbol_mapping must be 'canonical' or 'permuted'")
     rng = random.Random(seed)
     k = cardinality
     alpha, beta, delta = (rng.randrange(k) for _ in range(3))
-    visible = _permutation(k, rng)
+    visible = tuple(range(k)) if symbol_mapping == "canonical" else _permutation(k, rng)
 
     pairs = [(a, b) for a in range(k) for b in range(k)]
     rng.shuffle(pairs)
@@ -94,6 +98,7 @@ def make_episode(
         targets=tuple(targets),
         hidden_rule=(alpha, beta, delta),
         visible_symbols=visible,
+        symbol_mapping=symbol_mapping,
     )
 
 
@@ -101,6 +106,7 @@ def episode_to_dict(episode: Episode) -> dict[str, Any]:
     """Return only learner-visible information; never leak hidden rule fields."""
     return {
         "cardinality": episode.cardinality,
+        "symbol_mapping": episode.symbol_mapping,
         "support": [[x.a, x.b, x.c] for x in episode.support],
         "queries": [list(x) for x in episode.queries],
         "candidates": [list(x) for x in episode.candidates],
@@ -115,6 +121,7 @@ def make_benchmark(
     support_size: int = 2,
     query_count: int = 2,
     seed: int = 20261111,
+    symbol_mappings: tuple[str, ...] = ("canonical", "permuted"),
 ) -> dict[str, Any]:
     if episodes_per_cardinality < 1:
         raise ValueError("episodes_per_cardinality must be >= 1")
@@ -122,11 +129,12 @@ def make_benchmark(
     episodes = []
     for k in cardinalities:
         _validate_cardinality(k)
-        for _ in range(episodes_per_cardinality):
-            episode_seed = rng.randrange(0, 2**63)
-            episodes.append(episode_to_dict(
-                make_episode(k, episode_seed, support_size, query_count)
-            ))
+        for mapping in symbol_mappings:
+            for _ in range(episodes_per_cardinality):
+                episode_seed = rng.randrange(0, 2**63)
+                episodes.append(episode_to_dict(
+                    make_episode(k, episode_seed, support_size, query_count, mapping)
+                ))
     return {
         "protocol": "TX-02A",
         "seed": seed,
@@ -134,6 +142,7 @@ def make_benchmark(
         "support_size": support_size,
         "query_count": query_count,
         "cardinalities": list(cardinalities),
+        "symbol_mappings": list(symbol_mappings),
         "episode_count": len(episodes),
         "episodes": episodes,
         "limitations": [
