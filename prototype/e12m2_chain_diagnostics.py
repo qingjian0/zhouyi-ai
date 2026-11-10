@@ -48,8 +48,10 @@ def _initial_positive_ess(values: Sequence[float]) -> float:
         covariance = sum(
             centered[index] * centered[index - lag]
             for index in range(lag, count)
-        ) / (count - lag)
-        correlations.append(covariance / (denominator / count))
+        )
+        # Biased autocovariance normalization keeps the finite-sample ACF
+        # bounded more reliably at long lags than dividing by (n - lag).
+        correlations.append(covariance / denominator)
 
     positive_sum = 0.0
     for index in range(0, len(correlations), 2):
