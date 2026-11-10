@@ -67,6 +67,18 @@ class E12A3ContextRouterTests(unittest.TestCase):
         self.assertEqual(set(first), {"STAT", "RELATIONAL", "RANDOM"})
         self.assertTrue(all(0.0 <= value <= 1.0 for value in first.values()))
 
+    def test_context_descriptor_aggregation_is_bounded_and_ordered(self):
+        support, _, _, _ = make_four_way_world(49, "PARITY")
+        proposal, context = split_support_context(support, 49)
+        pools = _make_pools(proposal, 49)
+        probes = _balanced_probe_candidates(pools)
+        top3 = _context_descriptors(probes, context, aggregation="TOP3_MEAN")
+        top2 = _context_descriptors(probes, context, aggregation="TOP2_MEAN")
+        maximum = _context_descriptors(probes, context, aggregation="MAX")
+        for family in ("STAT", "RELATIONAL", "RANDOM"):
+            self.assertGreaterEqual(maximum[family], top2[family])
+            self.assertGreaterEqual(top2[family], top3[family])
+
     def test_context_router_conserves_budget_and_is_reproducible(self):
         support, _, _, _ = make_four_way_world(45, "THRESHOLD")
         proposal, context = split_support_context(support, 45)
