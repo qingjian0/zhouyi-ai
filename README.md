@@ -44,10 +44,14 @@
 - [E12-A0 可辨识性基线协议](docs/E12A0_IDENTIFIABILITY_BASELINE.md)
 - [E12-A1 类型化谓词生成基线](docs/E12A1_TYPED_PREDICATE_INDUCTION.md)
 - [E12-A1.1 证据溯源与候选谱系](docs/E12A1P_EVIDENCE_PROVENANCE.md)
-- [E12-A2 主动观测选择研究协议与实现](docs/E12A2_ACTIVE_MEASUREMENT_SELECTION.md)\n- [E12-A2-B 主动测量策略对照基准](docs/E12A2B_POLICY_BENCHMARK.md)
+- [E12-A2 主动观测选择研究协议与实现](docs/E12A2_ACTIVE_MEASUREMENT_SELECTION.md)
+- [E12-A2-B 主动测量策略对照基准](docs/E12A2B_POLICY_BENCHMARK.md)
+- [E12-A2-D 噪声观测与先验错配压力测试](docs/E12A2D_NOISY_PRIOR_STRESS.md)
 - [E12-A1 类型化谓词原型](prototype/e12a1_typed_predicate_induction.py)
 - [E12-A1.1 证据溯源原型](prototype/e12a1p_evidence_provenance.py)
-- [E12-A2 主动观测选择器](prototype/e12a2_active_measurement.py)\n- [E12-A2-B 策略对照实验](prototype/e12a2b_policy_benchmark.py)
+- [E12-A2 主动观测选择器](prototype/e12a2_active_measurement.py)
+- [E12-A2-B 策略对照实验](prototype/e12a2b_policy_benchmark.py)
+- [E12-A2-D 噪声先验压力实验](prototype/e12a2d_noisy_prior_stress.py)
 - [E02-A 结果审计与下一阶段协议](docs/E02A_NEXT_RESEARCH_2026-11-10.md)
 - [E02-B 三元有限域关系诊断协议](docs/E02B_TERNARY_PROTOCOL.md)
 - [E02-B 学习器对照原型](prototype/e02_ternary_learners.py)
@@ -70,7 +74,8 @@
 python -m unittest discover -s tests -v
 python -m prototype.e01_sparse_composition
 python -m prototype.e01_learned_ranker --json
-python -m prototype.e12a2_active_measurement --json\npython -m prototype.e12a2b_policy_benchmark --seeds 20 --budget 4 --json
+python -m prototype.e12a2_active_measurement --json
+python -m prototype.e12a2b_policy_benchmark --seeds 20 --budget 4 --json
 ```
 
 ## 研究状态标记
