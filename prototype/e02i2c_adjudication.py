@@ -231,21 +231,32 @@ def adjudicate_event(
         return _abstain(identity, "terminal identities cannot transition", candidate_signature)
 
     if identity.status == "SUSPENDED":
+        same_support = tuple(
+            item for item in all_supporting if item.candidate_signature == identity.signature
+        )
+        changed_candidates = tuple(
+            item for item in all_supporting if item.candidate_signature != identity.signature
+        )
+        if same_support and changed_candidates:
+            return _abstain(
+                identity,
+                "competing support for suspended current and changed signatures requires review",
+                candidate_signature,
+                refs((*same_support, *changed_candidates)),
+            )
         changed_support = tuple(
-            item for item in supporting
-            if item.candidate_signature != identity.signature
-            and item.source_version_id == identity.version_id
+            item for item in changed_candidates
+            if item.source_version_id == identity.version_id
         )
         if (len(distinct_windows(changed_support)) >= required_windows
-                and len({item.sample_id for item in changed_support}) >= required_windows):
+                and len({item.sample_id for item in changed_support}) >= required_windows
+                and len({item.candidate_signature for item in changed_support}) == 1):
+            signature = changed_support[0].candidate_signature
             return EventDecision(
                 EventType.REACTIVATE_MODIFY, identity.identity_id, identity.version_id,
-                candidate_signature, refs(changed_support),
+                signature, refs(changed_support),
                 "fresh support and version-linked continuity across multiple windows",
             )
-        same_support = tuple(
-            item for item in supporting if item.candidate_signature == identity.signature
-        )
         if (len(distinct_windows(same_support)) >= required_windows
                 and len({item.sample_id for item in same_support}) >= required_windows):
             return EventDecision(
