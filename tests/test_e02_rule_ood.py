@@ -46,6 +46,8 @@ class E02RuleOODTests(unittest.TestCase):
     def test_run_reports_coverage_and_accuracy(self):
         result = run(seed=17, support_size=6)
         self.assertEqual(result["episodes"], 27)
+        self.assertEqual(result["exact_lookup_baseline_coverage"], 0.0)
+        self.assertAlmostEqual(result["uniform_random_expected_accuracy"], 1 / 3)
         self.assertGreaterEqual(result["identification_coverage"], 0.0)
         self.assertLessEqual(result["identification_coverage"], 1.0)
         self.assertGreaterEqual(result["accuracy_on_all_episodes"], 0.0)
