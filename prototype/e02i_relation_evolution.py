@@ -87,7 +87,8 @@ class RelationEvolution:
         # newly proposed structures. Absolute accuracy alone is insufficient
         # for a 3-member relation when a simpler pairwise explanation catches up.
         current_is_valid = (
-            current_gate_accuracy is not None
+            self.current is not None
+            and current_gate_accuracy is not None
             and current_gate_accuracy >= 0.75
             and (
                 len(self.current.members) == 2
