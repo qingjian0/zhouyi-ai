@@ -64,3 +64,9 @@ After that successful run, additional strict validation was added for boolean la
 A subsequent implementation added syntactic deduplication across STAT, RELATIONAL, and RANDOM while preserving all contributing proposer IDs in `supporting_families`. The full repository workflow passed on commit `1b22906652faf4c3279c5744a3617b6732b12997` (run `42871279195`).
 
 The follow-up benchmark is recorded in `E12A3_M0_1_DEDUP_RESULTS_2026-11-11.md`. Portfolio coverage fell to 17.5%, confirming that deduplication must be coupled to an allocation policy that handles shared candidates without arbitrary family ownership.
+
+## M1 allocator-core update
+
+A stateful UCB1 allocator core is now available in `prototype/e12a3_adaptive_allocator.py`, with unit tests in `tests/test_e12a3_adaptive_allocator.py`. The A3-specific unit-test and benchmark steps passed in GitHub Actions run `42872397534`.
+
+The allocator enforces an exploration floor, deterministic tie-breaking, budget conservation, and normalized finite rewards in [0, 1]. It is not yet connected to candidate generation or a four-way Support/Gate-Dev/Gate-Final/Locked-Test benchmark; no adaptive-allocation performance claim is made.
