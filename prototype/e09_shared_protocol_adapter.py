@@ -9,9 +9,7 @@ from __future__ import annotations
 import json
 from typing import Any, Sequence
 
-from prototype.shared_evidence_protocol import (
-    SQLiteEvidenceStore, canonical_json, digest_payload,
-)
+from prototype.shared_evidence_protocol import SQLiteEvidenceStore, digest_payload
 from prototype.e09_prequential import PrequentialRunner, PrequentialError
 
 
@@ -35,6 +33,7 @@ class E09SharedProtocolAdapter:
         self.episode_id = episode_id
         self.learner_track = learner_track
         self._failed = False
+        self._committed_predictions: set[str] = set()
         self._reveals: dict[str, str] = {}
         self._version_id = f"e09-v{runner.model_version}"
         if self.store.replay_episode(self.episode_id):
@@ -88,8 +87,8 @@ class E09SharedProtocolAdapter:
         try:
             input_values = tuple(inputs)
             input_digest = digest_payload({"inputs": self._jsonable(input_values)})
-            commit = self.runner.predict_and_commit(observation_id, input_values)
             observation_event_id = f"{self.episode_id}:observation:{observation_id}"
+            # The durable observation is sequenced before the learner predicts.
             self.store.append_event(
                 episode_id=self.episode_id,
                 event_id=observation_event_id,
@@ -99,9 +98,10 @@ class E09SharedProtocolAdapter:
                 payload={
                     "observation_id": observation_id,
                     "payload_ref": input_digest,
-                    "payload_schema": "e09-categorical-input-v1",
+                    "feature_schema_version": "e09-categorical-input-v1",
                 },
             )
+            commit = self.runner.predict_and_commit(observation_id, input_values)
             prediction_payload = {
                 "prediction_id": commit.prediction_id,
                 "observation_id": observation_id,
@@ -117,21 +117,23 @@ class E09SharedProtocolAdapter:
                     "step": commit.step,
                 },
             }
+            prediction_event_id = f"{self.episode_id}:prediction:{commit.prediction_id}"
             self.store.commit_prediction(
                 episode_id=self.episode_id,
-                event_id=f"{self.episode_id}:prediction:{commit.prediction_id}",
-                idempotency_key=f"{self.episode_id}:prediction:{commit.prediction_id}",
+                event_id=prediction_event_id,
+                idempotency_key=prediction_event_id,
                 actor_role="learner",
                 causation_refs=[observation_event_id],
                 payload=prediction_payload,
             )
+            self._committed_predictions.add(commit.prediction_id)
             return {
                 "prediction_id": commit.prediction_id,
                 "observation_id": observation_id,
                 "prediction": commit.prediction,
                 "decision_status": prediction_payload["decision_status"],
                 "model_version": commit.model_version,
-                "event_id": f"{self.episode_id}:prediction:{commit.prediction_id}",
+                "event_id": prediction_event_id,
             }
         except Exception as exc:
             self._failed = True
@@ -142,6 +144,10 @@ class E09SharedProtocolAdapter:
     def reveal(self, prediction_id: str, label: Any, *,
                source: str = "feedback", source_id: str = "") -> str:
         self._assert_healthy()
+        if prediction_id not in self._committed_predictions:
+            raise PrequentialError("reveal requires a prediction committed by this adapter")
+        if prediction_id in self._reveals:
+            raise PrequentialError("prediction already has a durable reveal")
         try:
             reveal_id = f"reveal-{prediction_id}"
             event_id = f"{self.episode_id}:reveal:{reveal_id}"
@@ -156,10 +162,10 @@ class E09SharedProtocolAdapter:
                     "learner_track": self.learner_track,
                     "target_or_feedback": self._jsonable(label),
                     "reveal_source": source,
-                    "source_ref": source_id,
                 },
             )
-            # Durable reveal precedes learner-side evidence append.
+            # Source IDs remain in E09's provenance ledger, not learner-facing
+            # protocol payloads; the protocol has no evaluator-only field ACL.
             self.runner.reveal(
                 prediction_id, label, source=source, source_id=source_id
             )
@@ -173,6 +179,8 @@ class E09SharedProtocolAdapter:
 
     def revise(self, prediction_id: str) -> dict[str, Any]:
         self._assert_healthy()
+        if prediction_id not in self._reveals:
+            raise PrequentialError("revision requires a prior durable evidence reveal")
         try:
             reveal_event_id = self._reveals[prediction_id]
             before_version = self._version_id
