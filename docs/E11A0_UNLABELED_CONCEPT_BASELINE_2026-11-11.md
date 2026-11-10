@@ -26,14 +26,14 @@ The baseline enumerates attribute conjunctions of order 1 through `max_order` an
 
 Evaluation reports, for each hidden concept, the best query-set F1 among proposed candidates. This is a diagnostic oracle matching metric: it is useful for checking whether a candidate exists, but it is not an operational mechanism for assigning discovered candidate identities to latent concepts. The mean across planted concepts is reported.
 
-## Required controls in this increment
+## Evaluation correction\n\nA candidate extension that overlaps multiple latent concepts cannot be counted as discovering all of them. Syntactically different candidates with identical held-out extensions are collapsed before matching, preventing duplicate patterns from inflating concept count. The one-to-one score complements rather than replaces the optimistic best-match diagnostic.\n\n## Required controls in this increment
 
 - Object-identity-disjoint learner/query split.
 - Opaque-symbol renaming invariance.
 - Input-order invariance.
 - Explicit learner API that receives no truth labels.
 - Parameter validation and reproducible seeded generation.
-- Per-concept scores, not only an aggregate.
+- Per-concept optimistic diagnostic and one-to-one matched scores, not only an aggregate.\n- Candidate precision, concept recall, and unmatched candidate-extension counts.
 
 ## Known limitations / threats
 
