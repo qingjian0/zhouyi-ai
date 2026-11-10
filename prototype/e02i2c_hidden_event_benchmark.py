@@ -285,11 +285,19 @@ def run_benchmark(*, seeds: int = 20, start_seed: int = 1000,
         raise ValueError("seeds must be positive and start_seed non-negative")
     if split not in {"train", "gate"}:
         raise ValueError("locked Test is deliberately unavailable in the development runner")
-    episodes = [
-        build_episode(event, start_seed + offset, split=split)
-        for offset in range(seeds)
-        for event in SUPPORTED_EVENTS
-    ]
+    episodes: list[Episode] = []
+    for offset in range(seeds):
+        # Allocate globally unique per-episode seeds, then shuffle their
+        # assignment so the seed namespace does not identify the event class.
+        episode_seeds = list(range(
+            start_seed + offset * len(SUPPORTED_EVENTS),
+            start_seed + (offset + 1) * len(SUPPORTED_EVENTS),
+        ))
+        random.Random(f"{split}:{start_seed}:{offset}").shuffle(episode_seeds)
+        episodes.extend(
+            build_episode(event, episode_seed, split=split)
+            for event, episode_seed in zip(SUPPORTED_EVENTS, episode_seeds)
+        )
     results = {}
     for name, policy in POLICIES.items():
         rows = [(episode.truth, policy(episode.observation)) for episode in episodes]
