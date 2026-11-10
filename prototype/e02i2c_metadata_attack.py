@@ -276,7 +276,8 @@ class ShallowCategoricalTree:
             for value in values:
                 left_indices = [i for i, row in enumerate(rows)
                                 if row.get(feature, "<missing>") == value]
-                right_indices = [i for i in range(len(rows)) if i not in set(left_indices)]
+                left_set = set(left_indices)
+                right_indices = [i for i in range(len(rows)) if i not in left_set]
                 if not left_indices or not right_indices:
                     continue
                 left_labels = [labels[i] for i in left_indices]
@@ -350,7 +351,15 @@ def _seed_block(episode_id: str, start_seed: int) -> int:
     return (seed - start_seed) // len(SUPPORTED_EVENTS)
 
 
-def _bootstrap_lift(
+def _percentile_interval(values: list[float]) -> list[float]:
+    ordered = sorted(values)
+    return [
+        round(ordered[int(0.025 * (len(ordered) - 1))], 4),
+        round(ordered[int(0.975 * (len(ordered) - 1))], 4),
+    ]
+
+
+def _bootstrap_metrics(
     truth: list[str], predictions: list[str], majority_predictions: list[str],
     blocks: list[int], *, samples: int, seed: int,
 ) -> dict:
@@ -359,21 +368,22 @@ def _bootstrap_lift(
         grouped[block].append(index)
     block_ids = sorted(grouped)
     rng = random.Random(seed)
-    lifts = []
+    attack_f1, attack_accuracy, baseline_f1, lifts = [], [], [], []
     for _ in range(samples):
         selected = [rng.choice(block_ids) for _ in block_ids]
         indices = [index for block in selected for index in grouped[block]]
-        attack = _metrics([truth[i] for i in indices],
-                          [predictions[i] for i in indices])["macro_f1"]
-        baseline = _metrics([truth[i] for i in indices],
-                            [majority_predictions[i] for i in indices])["macro_f1"]
-        lifts.append(attack - baseline)
-    lifts.sort()
+        truth_sample = [truth[i] for i in indices]
+        attack = _metrics(truth_sample, [predictions[i] for i in indices])
+        baseline = _metrics(truth_sample, [majority_predictions[i] for i in indices])
+        attack_f1.append(attack["macro_f1"])
+        attack_accuracy.append(attack["accuracy"])
+        baseline_f1.append(baseline["macro_f1"])
+        lifts.append(attack["macro_f1"] - baseline["macro_f1"])
     return {
-        "lift_ci_95": [
-            round(lifts[int(0.025 * (len(lifts) - 1))], 4),
-            round(lifts[int(0.975 * (len(lifts) - 1))], 4),
-        ],
+        "macro_f1_ci_95": _percentile_interval(attack_f1),
+        "accuracy_ci_95": _percentile_interval(attack_accuracy),
+        "majority_macro_f1_ci_95": _percentile_interval(baseline_f1),
+        "macro_f1_lift_ci_95": _percentile_interval(lifts),
         "bootstrap_samples": samples,
         "resampling_unit": "seed_block",
     }
@@ -423,10 +433,25 @@ def run_metadata_attack(
         tier_results = {}
         for name, predictions in attackers.items():
             tier_results[name] = _metrics(gate_labels, predictions)
+            tier_results[name]["per_seed_block"] = {
+                str(block): _metrics(
+                    [gate_labels[i] for i, value in enumerate(blocks) if value == block],
+                    [predictions[i] for i, value in enumerate(blocks) if value == block],
+                )
+                for block in sorted(set(blocks))
+            }
+            interval = _bootstrap_metrics(
+                gate_labels, predictions, majority_predictions, blocks,
+                samples=bootstrap_samples, seed=20261110,
+            )
+            tier_results[name]["seed_block_bootstrap"] = interval
             if name != "majority":
-                tier_results[name]["macro_f1_lift_ci"] = _bootstrap_lift(
-                    gate_labels, predictions, majority_predictions, blocks,
-                    samples=bootstrap_samples, seed=20261110,
+                lift = tier_results[name]["macro_f1"] - tier_results["majority"]["macro_f1"]
+                tier_results[name]["majority_macro_f1_lift"] = round(lift, 4)
+                tier_results[name]["leakage_alarm"] = (
+                    tier == "M0"
+                    and lift >= 0.05
+                    and interval["macro_f1_lift_ci_95"][0] > 0.0
                 )
         results[tier] = tier_results
     return {
