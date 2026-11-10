@@ -25,6 +25,12 @@ class ResidualRecord:
     label: int
     a3_prediction: int
 
+    def value(self, name: str) -> float:
+        for key, value in self.values:
+            if key == name:
+                return value
+        raise KeyError(name)
+
 
 @dataclass(frozen=True)
 class ResidualView:
