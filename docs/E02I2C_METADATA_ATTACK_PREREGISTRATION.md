@@ -34,7 +34,7 @@ Forbidden:
 ### M1 — Operational/provenance metadata
 
 Includes M0 plus:
-- split and environment labels;
+- environment labels;
 - evidence count, sample count, distinct-window count and per-window record counts;
 - window gaps, ordering and presentation-order features;
 - expected/observed sample counts, coverage and missing-reason category;
@@ -48,6 +48,8 @@ Excludes:
 - generator event or seed.
 
 **Interpretation:** high M1 performance indicates that episode construction or sampling schedules encode event classes in operational structure. This is benchmark-template leakage even if no identifier contains an event string.
+
+**Partition metadata exclusion:** the Train/Gate/Test split marker is evaluator protocol metadata, not an observable feature. It may be used by the evaluator to route examples, but must be stripped before feature extraction. Environment remains available because environment is part of the observed operating context; report it separately and note that the current development generator uses only one environment value.
 
 ### M2 — Context-shape metadata
 
@@ -112,7 +114,7 @@ For M0, pre-register a practical leakage alarm when Gate macro-F1 exceeds the ma
 
 Do not claim metadata isolation if:
 - Train/Gate seed or sample namespaces overlap;
-- any attacker receives Episode.truth, episode ID, generator seed or event-bearing path;
+- any attacker receives Episode.truth, episode ID, generator seed, event-bearing path, or the Train/Gate/Test split marker as a predictive feature;
 - feature construction uses Gate labels or Gate-derived vocabulary;
 - ID replacement changes adjudicator decisions;
 - a result is reported without per-class metrics and uncertainty;
