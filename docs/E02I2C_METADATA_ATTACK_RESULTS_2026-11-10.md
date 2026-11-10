@@ -89,3 +89,29 @@ The control is consistent with the attackers learning correlations from the unpe
 - M0's alarm combines token-format features with identifier cardinality.
 
 A post-hoc diagnostic now separates M0 token-format features from cardinality features and uses a fresh Gate seed range (20000–20239). It is explicitly exploratory and must not replace the preregistered M0 result. Its result will be recorded separately after its own CI run.
+
+
+## 7. Fresh-Gate M0 source ablation (completed)
+
+**Run:** GitHub Actions `42846824166`  
+**Code head:** `7f62a0d4fc19aea1a5ed6d92b7ef8c512fce8819`  
+**Train:** 240 episodes, seeds 1000–1239  
+**Fresh Gate:** 240 episodes, seeds 20000–20239  
+**Bootstrap:** 1000 seed-block resamples
+
+| M0 feature subset | Attacker | Accuracy | Macro-F1 | Lift over majority | 95% CI for lift |
+|---|---|---:|---:|---:|---:|
+| Format only | Categorical NB | 0.1250 | 0.0278 | 0.0000 | [0.0000, 0.0000] |
+| Format only | Depth-3 tree | 0.1250 | 0.0278 | 0.0000 | [0.0000, 0.0000] |
+| Cardinality only | Categorical NB | 0.2500 | 0.1345 | 0.1068 | [0.1011, 0.1134] |
+| Cardinality only | Depth-3 tree | 0.2500 | 0.1345 | 0.1068 | [0.1011, 0.1134] |
+
+The format-only attackers fall exactly to the majority baseline. The cardinality-only attackers reproduce and slightly strengthen the preregistered M0 alarm on an independent Gate range. This supports the diagnosis that the M0 signal is a record-count/cardinality side channel, not opaque-token formatting.
+
+The cardinality-only feature set still contains several correlated count/duplicate indicators. It does not yet prove that `id.evidence_count` alone is the only causal feature. A follow-up micro-ablation now compares evidence-count-only against all remaining cardinality fields.
+
+## 8. Additional feature-family ablation (pending CI)
+
+The next diagnostic splits M1/M2 into identifier (`id.*`), operational/provenance (`op.*`), and context-shape (`ctx.*`) feature families. It also measures leave-one-family-out variants on a fresh Gate range (30000–30239). This is post-hoc diagnostic work; it does not alter the preregistered M0/M1/M2 results.
+
+The same run further splits M0 cardinality into evidence-count-only and all-other-cardinality fields. The new diagnostic is exploratory and must be reported separately from the preregistered attack.
