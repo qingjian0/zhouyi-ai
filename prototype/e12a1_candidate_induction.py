@@ -201,14 +201,13 @@ def run_demo() -> dict:
     result = induce(support, gate)
     # Test labels are consumed only here, after candidate selection is frozen.
     if result["selected"] is not None:
+        candidates = propose_candidates(support, candidate_budget=512)
+        atoms = tuple(candidate for candidate in candidates
+                      if candidate.op != "and")
         selected = next(
-            candidate for candidate in propose_candidates(support, candidate_budget=512)
-            if render_expression(candidate, tuple(sorted(\n                item for item in propose_candidates(support, candidate_budget=512)\n                if item.op != "and"\n            ))) == result["selected"]
+            candidate for candidate in candidates
+            if render_expression(candidate, atoms) == result["selected"]
         )
-        atoms = tuple(sorted({
-            candidate for candidate in propose_candidates(support, candidate_budget=512)
-            if candidate.op != "and"
-        }))
         test_accuracy = _accuracy(selected, locked_test, atoms)
     else:
         test_accuracy = None
