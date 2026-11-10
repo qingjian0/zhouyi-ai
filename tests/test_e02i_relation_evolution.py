@@ -52,9 +52,21 @@ class E02IRelationEvolutionTests(unittest.TestCase):
     def test_gate_controls_decisions_but_independent_test_split_is_audit_only(self):
         result = run_episode(seed=83, scenario="stable")
         self.assertTrue(all(w["split_ids_disjoint"] for w in result["windows"]))
-        self.assertTrue(all("test_accuracy" in w for w in result["windows"]))
+        self.assertTrue(all("candidate_test_accuracy" in w for w in result["windows"]))
+        self.assertTrue(all("persistent_test_accuracy" in w for w in result["windows"]))
         self.assertTrue(all("pairwise_test_accuracy" in w for w in result["windows"]))
         self.assertTrue(all(w["action"] == "KEEP" for w in result["windows"][1:]))
+        self.assertTrue(all(w["persistent_test_accuracy"] is not None
+                            for w in result["windows"]))
+
+
+    def test_pending_candidate_is_not_scored_as_persistent_relation(self):
+        result = run_episode(seed=47, scenario="member_add")
+        pending = next(w for w in result["windows"] if w["action"] == "HOLD_PENDING")
+        self.assertNotEqual(pending["candidate_members"], pending["persistent_members"])
+        self.assertIsNotNone(pending["persistent_test_accuracy"])
+        changed = next(w for w in result["windows"] if w["action"] == "RECONFIGURE")
+        self.assertEqual(changed["candidate_members"], changed["persistent_members"])
 
     def test_disappearing_relation_is_retired_after_two_failed_windows(self):
         result = run_episode(seed=53, scenario="disappear")
