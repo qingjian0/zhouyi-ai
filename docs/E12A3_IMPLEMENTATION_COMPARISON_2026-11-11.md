@@ -27,7 +27,7 @@ They should not be treated as duplicate implementations. They solve different su
 | Lifecycle | not yet implemented | lifecycle transition records |
 | Train/Gate | exact Train then Gate consistency | Support screening then Gate ranking |
 | Locked Test | absent from learner API | evaluator-side one-time Test scoring in benchmark |
-| Current validation | 93 repository unit tests and focused A3-M0 smoke passed in CI run #369; later full workflow pending | multi-proposer unit tests, smoke and 20-seed benchmark steps passed in CI run #374; later repository steps pending |
+| Current validation | 93 repository unit tests and focused A3-M0 smoke passed in CI run #369; later full workflow pending | multi-proposer unit tests, smoke, 20-seed benchmark, and the complete repository workflow passed in CI run #374 |
 
 ## 3. Important distinction
 
