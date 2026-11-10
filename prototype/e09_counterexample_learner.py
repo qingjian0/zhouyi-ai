@@ -1,12 +1,8 @@
-"""E09-B: counterexample-driven rule-structure induction without gradients.
+"""E09-B: counterexample-driven rule induction without gradient updates.
 
-The learner searches a declared finite conjunction DSL. It is intentionally
-small and auditable: each clause is a partial assignment (a conjunction of
-categorical literals) associated with one label. A clause is admissible only
-when it covers enough positive observations and no observed counterexample.
-Uncovered or conflicting inputs are rejected rather than guessed.
-
-This is a symbolic prototype, not evidence of open-ended rule invention.
+The learner searches a declared finite DSL of conjunctions over categorical
+variables. Unsupported or conflicting predictions are rejected. This is a
+bounded symbolic learner, not a claim of open-ended autonomous discovery.
 """
 from __future__ import annotations
 
@@ -28,7 +24,7 @@ class Example:
 
 
 class RuleLearningError(ValueError):
-    """Raised when examples or the declared DSL are invalid."""
+    """Invalid evidence or search-space configuration."""
 
 
 @dataclass(frozen=True)
@@ -42,18 +38,18 @@ class Clause:
         return sum(value is not None for value in self.pattern)
 
     def matches(self, inputs: tuple[Value, ...]) -> bool:
-        return all(expected is None or expected == actual
-                   for expected, actual in zip(self.pattern, inputs))
+        return all(want is None or want == got
+                   for want, got in zip(self.pattern, inputs))
 
 
 class CounterexampleRuleLearner:
-    """Greedy minimum-description conjunction cover with explicit abstention."""
+    """Greedy cover learner; a new counterexample invalidates unsafe clauses."""
 
     def __init__(self, domains: Sequence[Sequence[Value]], *,
                  min_support: int = 2, max_candidates: int = 100_000) -> None:
-        self.domains = tuple(tuple(dict.fromkeys(domain)) for domain in domains)
-        if not self.domains or any(not domain for domain in self.domains):
-            raise RuleLearningError("every input variable needs a non-empty domain")
+        self.domains = tuple(tuple(dict.fromkeys(d)) for d in domains)
+        if not self.domains or any(not d for d in self.domains):
+            raise RuleLearningError("every variable needs a non-empty domain")
         if min_support < 1 or max_candidates < 1:
             raise RuleLearningError("support and candidate budgets must be positive")
         self.min_support = min_support
@@ -65,74 +61,63 @@ class CounterexampleRuleLearner:
         rows = tuple(examples)
         if not rows:
             raise RuleLearningError("training examples must not be empty")
+        seen = set()
         for row in rows:
             if len(row.inputs) != len(self.domains):
                 raise RuleLearningError("input arity does not match declared domains")
-            if any(value not in domain
-                   for value, domain in zip(row.inputs, self.domains)):
+            if any(v not in d for v, d in zip(row.inputs, self.domains)):
                 raise RuleLearningError("input value is outside its declared domain")
-        if len({row.inputs for row in rows}) != len(rows):
-            raise RuleLearningError("duplicate input assignments are not allowed")
+            if row.inputs in seen:
+                raise RuleLearningError("duplicate input assignments are not allowed")
+            seen.add(row.inputs)
         return rows
 
     def fit(self, examples: Iterable[Example]) -> "CounterexampleRuleLearner":
         rows = self._validate(examples)
-        candidate_count = 1
+        space_size = 1
         for domain in self.domains:
-            candidate_count *= len(domain) + 1  # None denotes an omitted literal.
-        if candidate_count > self.max_candidates:
+            space_size *= len(domain) + 1
+        if space_size > self.max_candidates:
             raise RuleLearningError(
-                f"candidate budget exceeded: {candidate_count} > {self.max_candidates}"
+                f"candidate budget exceeded: {space_size} > {self.max_candidates}"
             )
-
         patterns = tuple(itertools.product(
             *((None, *domain) for domain in self.domains)
         ))
-        labels = sorted({row.label for row in rows}, key=repr)
+        labels = sorted({r.label for r in rows}, key=repr)
         selected: list[Clause] = []
         viable_count = 0
-        uncovered_by_label: dict[str, int] = {}
+        uncovered_by_label = {}
 
         for label in labels:
             positive = {i for i, row in enumerate(rows) if row.label == label}
             negative = {i for i, row in enumerate(rows) if row.label != label}
-            candidates: list[tuple[Pattern, frozenset[int]]] = []
+            candidates = []
             for pattern in patterns:
-                covered = frozenset(
-                    i for i in positive
-                    if all(expected is None or expected == actual
-                           for expected, actual in zip(pattern, rows[i].inputs))
-                )
+                def matches(index: int) -> bool:
+                    return all(want is None or want == got
+                               for want, got in zip(pattern, rows[index].inputs))
+                covered = frozenset(i for i in positive if matches(i))
                 if len(covered) < self.min_support:
                     continue
-                if any(all(expected is None or expected == actual
-                           for expected, actual in zip(pattern, rows[i].inputs))
-                       for i in negative):
+                if any(matches(i) for i in negative):
                     continue
                 candidates.append((pattern, covered))
             viable_count += len(candidates)
-
             uncovered = set(positive)
             while uncovered:
-                choices = [
-                    (pattern, covered & uncovered)
-                    for pattern, covered in candidates
-                    if covered & uncovered
-                ]
+                choices = [(p, covered & uncovered) for p, covered in candidates
+                           if covered & uncovered]
                 if not choices:
                     break
-                # Prefer maximum new coverage, then shorter descriptions,
-                # then a stable representation for reproducible tie-breaking.
-                pattern, newly_covered = min(
+                pattern, new = min(
                     choices,
-                    key=lambda item: (
-                        -len(item[1]),
-                        sum(value is not None for value in item[0]),
-                        repr(item[0]),
-                    ),
+                    key=lambda item: (-len(item[1]),
+                                      sum(v is not None for v in item[0]),
+                                      repr(item[0])),
                 )
-                selected.append(Clause(pattern, label, len(newly_covered)))
-                uncovered.difference_update(newly_covered)
+                selected.append(Clause(pattern, label, len(new)))
+                uncovered.difference_update(new)
             uncovered_by_label[repr(label)] = len(uncovered)
 
         self.clauses = tuple(selected)
@@ -153,39 +138,33 @@ class CounterexampleRuleLearner:
         values = tuple(inputs)
         if len(values) != len(self.domains):
             raise RuleLearningError("input arity does not match declared domains")
-        if any(value not in domain
-               for value, domain in zip(values, self.domains)):
+        if any(v not in d for v, d in zip(values, self.domains)):
             return None
-        matches = {clause.label for clause in self.clauses
-                   if clause.matches(values)}
-        return next(iter(matches)) if len(matches) == 1 else None
-
-    def predict_many(self, inputs: Iterable[Sequence[Value]]) -> list[Label | None]:
-        return [self.predict(values) for values in inputs]
+        labels = {c.label for c in self.clauses if c.matches(values)}
+        return next(iter(labels)) if len(labels) == 1 else None
 
     def snapshot(self) -> dict:
         return {
             "clauses": [
-                {"pattern": list(clause.pattern), "label": clause.label,
-                 "support_count": clause.support_count,
-                 "literal_count": clause.literal_count}
-                for clause in self.clauses
+                {"pattern": list(c.pattern), "label": c.label,
+                 "support_count": c.support_count,
+                 "literal_count": c.literal_count}
+                for c in self.clauses
             ],
             "report": dict(self.report),
         }
 
 
 def _demo_dataset() -> tuple[list[Example], list[Example]]:
-    # Hidden target is a disjunction of two conjunctions; no coefficients or
-    # target-rule identifier are passed to the learner.
+    # Hidden target: (a == 1 AND c == 2) OR (a == 2 AND b == 0).
+    # The learner receives only labeled examples, not this expression.
     all_rows = list(itertools.product(range(3), repeat=3))
     def target(a: int, b: int, c: int) -> int:
-        return int((a == b and c == 2) or (a == 2 and b == 0))
+        return int((a == 1 and c == 2) or (a == 2 and b == 0))
     labeled = [Example(row, target(*row)) for row in all_rows]
-    train = [row for row in labeled if row.inputs not in {
-        (0, 0, 2), (1, 1, 2), (2, 0, 0), (2, 0, 1)
-    }]
-    test = [row for row in labeled if row not in train]
+    heldout_inputs = {(1, 0, 2), (2, 0, 0), (0, 0, 0), (0, 1, 1)}
+    train = [row for row in labeled if row.inputs not in heldout_inputs]
+    test = [row for row in labeled if row.inputs in heldout_inputs]
     return train, test
 
 
@@ -194,23 +173,21 @@ def run_demo() -> dict:
     learner = CounterexampleRuleLearner((range(3), range(3), range(3)),
                                         min_support=2).fit(train)
     predictions = [learner.predict(row.inputs) for row in test]
-    known = [(pred, row.label) for pred, row in zip(predictions, test)
-             if pred is not None]
+    known = [(p, row.label) for p, row in zip(predictions, test) if p is not None]
     return {
         "task": "hidden_disjunction_of_conjunctions",
         "train_examples": len(train),
         "heldout_examples": len(test),
         "heldout_coverage": len(known) / len(test),
         "heldout_accuracy_when_predicted": (
-            sum(pred == gold for pred, gold in known) / len(known)
-            if known else None
+            sum(p == gold for p, gold in known) / len(known) if known else None
         ),
         "heldout_abstentions": len(test) - len(known),
         "learner": learner.snapshot(),
         "limitations": [
             "The conjunction DSL and variable domains are declared in advance.",
-            "The hidden target is a synthetic finite task, not natural-language discovery.",
-            "The greedy cover is not guaranteed to find a globally minimal rule set.",
+            "This is a synthetic finite task, not natural-language discovery.",
+            "Greedy cover is not guaranteed to find a globally minimal rule set.",
             "Unseen overlaps and unsupported inputs are rejected."
         ],
     }
