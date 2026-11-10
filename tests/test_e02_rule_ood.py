@@ -1,7 +1,7 @@
 import unittest
 
 from prototype.e02_rule_ood import (
-    RULES, Episode, consistent_rules, infer, make_episodes, run, target_c,
+    RULES, Episode, consistent_rules, infer, make_episodes, run, run_support_sweep, target_c,
 )
 
 
@@ -33,6 +33,13 @@ class E02RuleOODTests(unittest.TestCase):
         for n in (0, 9):
             with self.assertRaises(ValueError):
                 make_episodes(1, n)
+
+    def test_support_sweep_reports_all_support_sizes(self):
+        result = run_support_sweep(seeds=2, start_seed=7)
+        rows = result["support_sweep"]
+        self.assertEqual([r["support_size"] for r in rows], list(range(1, 9)))
+        self.assertEqual(rows[-1]["identification_coverage_mean"], 1.0)
+        self.assertGreaterEqual(rows[0]["identification_coverage_mean"], 0.0)
 
     def test_run_reports_coverage_and_accuracy(self):
         result = run(seed=17, support_size=6)
