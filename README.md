@@ -51,6 +51,8 @@
 - [E01-B 五种子结果报告](docs/E01B_RESULTS_2026-11-10.md)
 - [E01-C 组合 OOD 结果报告](docs/E01C_RESULTS_2026-11-10.md)
 - [E09 非梯度式自主学习机制研究协议](docs/E09_NON_GRADIENT_LEARNING.md)
+- [E09-B 反例驱动结构学习器原型](docs/E09B_COUNTEREXAMPLE_LEARNER.md)
+- [E09-B 学习器代码](prototype/e09_counterexample_learner.py)
 - [研究风险与证伪条件](docs/RISKS_AND_FALSIFICATION.md)
 - [开发路线图](ROADMAP.md)
 - [原型代码](prototype/)
@@ -61,6 +63,7 @@
 
 ```bash
 python -m unittest discover -s tests -v
+python -m prototype.e09_counterexample_learner --json
 python -m prototype.e01_sparse_composition
 python -m prototype.e01_learned_ranker --json
 ```
