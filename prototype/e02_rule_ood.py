@@ -100,13 +100,48 @@ def run(seed: int = 17, support_size: int = 6) -> dict:
     }
 
 
+def run_support_sweep(seeds: int = 20, start_seed: int = 7) -> dict:
+    if seeds < 1:
+        raise ValueError("seeds must be positive")
+    rows = []
+    for support_size in range(1, len(QUERIES)):
+        runs = [run(seed=start_seed + offset, support_size=support_size)
+                for offset in range(seeds)]
+        rows.append({
+            "support_size": support_size,
+            "identification_coverage_mean": sum(
+                r["identification_coverage"] for r in runs) / seeds,
+            "all_episode_accuracy_mean": sum(
+                r["accuracy_on_all_episodes"] for r in runs) / seeds,
+            "identified_accuracy_mean": sum(
+                r["accuracy_when_identified"] or 0.0 for r in runs) / seeds,
+            "mean_consistent_hypotheses": sum(
+                r["mean_consistent_hypotheses"] for r in runs) / seeds,
+            "seeds": seeds,
+        })
+    return {
+        "task": "Z3_affine_rule_family_support_sweep",
+        "hypothesis_class_size": len(RULES),
+        "seed_start": start_seed,
+        "support_sweep": rows,
+        "interpretation": (
+            "Coverage is the fraction of episodes where all support-consistent "
+            "hypotheses agree on the held-out query. It is not neural-model accuracy."
+        ),
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", type=int, default=17)
     parser.add_argument("--support-size", type=int, default=6)
+    parser.add_argument("--sweep", action="store_true")
+    parser.add_argument("--seeds", type=int, default=20)
+    parser.add_argument("--start-seed", type=int, default=7)
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
-    result = run(args.seed, args.support_size)
+    result = (run_support_sweep(args.seeds, args.start_seed) if args.sweep
+              else run(args.seed, args.support_size))
     print(json.dumps(result, indent=2) if args.json else result)
 
 
