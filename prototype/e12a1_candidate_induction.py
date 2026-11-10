@@ -105,6 +105,15 @@ def propose_candidates(support: Iterable[Example],
     return ordered[:candidate_budget]
 
 
+def render_expression(candidate: Candidate,
+                      atoms: tuple[Candidate, ...]) -> str:
+    """Render a candidate with readable nested atom expressions."""
+    if candidate.op == "and":
+        left, right = (atoms[index] for index in candidate.args)
+        return f"({left.expression}) AND ({right.expression})"
+    return candidate.expression
+
+
 def _accuracy(candidate: Candidate, examples: tuple[Example, ...],
               atoms: tuple[Candidate, ...]) -> float:
     if not examples:
@@ -158,7 +167,7 @@ def induce(support: Iterable[Example], gate: Iterable[Example],
     selected = winners[0]
     return {
         "status": "CANDIDATE_SELECTED",
-        "selected": selected.expression,
+        "selected": render_expression(selected, all_atoms),
         "selected_op": selected.op,
         "support_accuracy": best_key[1],
         "gate_accuracy": best_key[0],
@@ -194,7 +203,7 @@ def run_demo() -> dict:
     if result["selected"] is not None:
         selected = next(
             candidate for candidate in propose_candidates(support, candidate_budget=512)
-            if candidate.expression == result["selected"]
+            if render_expression(candidate, tuple(sorted(\n                item for item in propose_candidates(support, candidate_budget=512)\n                if item.op != "and"\n            ))) == result["selected"]
         )
         atoms = tuple(sorted({
             candidate for candidate in propose_candidates(support, candidate_budget=512)
