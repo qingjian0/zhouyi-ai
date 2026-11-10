@@ -1,4 +1,4 @@
-# Shared Evidence Protocol Reference v0.1
+# Shared Evidence Protocol Reference v0.2
 
 Status: experimental reference implementation on an isolated research branch. It is not yet integrated into E09/E10, not a production event store, and not a security boundary.
 
@@ -14,7 +14,7 @@ Use Python's standard-library SQLite as the first durable local store:
 - `journal_mode=WAL` and `synchronous=FULL` establish a local durability baseline.
 - An idempotency table binds an episode-scoped key to the event fingerprint and original receipt.
 - The fingerprint covers event type, payload schema, canonical payload, actor role, causation references, and integrity metadata. Same key/same envelope returns the original receipt; same key/different envelope raises `IdempotencyConflict`.
-- A prediction commit requires a prior observation event. Unique partial indexes enforce one observation ID, one prediction per observation, one prediction ID, one reveal per prediction, and one structure-version ID within an episode.
+- A prediction commit requires a prior observation event. Unique partial indexes enforce one observation ID, one prediction per observation per learner track, one prediction ID, one reveal per prediction, and one structure-version ID within an episode.
 - Structure versions require existing parent versions and already revealed support evidence.
 - Revision events require already revealed trigger evidence and known before/after structure versions.
 - Replay returns the append order; reopening the database reconstructs the same event sequence and digests.
@@ -50,6 +50,7 @@ receipt = store.commit_prediction(
         "prediction_id": "prediction-1",
         "observation_id": "observation-1",
         "model_version": "model-v0",
+        "learner_track": "e09",
         "decision_status": "PREDICT",
         "prediction": "candidate-A",
     },
@@ -74,7 +75,7 @@ The unit tests cover:
 3. conflicting retry is rejected;
 4. idempotency fingerprint includes event type/schema;
 5. idempotency fingerprint includes actor role;
-6. one prediction per observation;
+6. one prediction per observation per learner track;
 7. prediction IDs are unique within an episode;
 8. stale expected sequence rejection;
 9. one reveal per prediction;
@@ -89,6 +90,14 @@ Run:
 python -m unittest tests.test_shared_evidence_protocol -v
 ```
 
+## v0.2 correction: multi-track prediction semantics
+
+The v0.1 uniqueness constraint accidentally allowed only one prediction commit for an observation across the entire episode. That conflicts with the shared-ledger design: E09 and E10 must be able to independently commit predictions against the same observation without overwriting or suppressing each other.
+
+The v0.2 contract therefore requires a non-empty `learner_track` on every prediction commit and enforces uniqueness on `(episode_id, observation_id, learner_track)`. Each track may commit once per observation; independent tracks may commit separately. The store still does not decide whether a track may emit multiple candidate predictions—those belong inside the track's committed candidate set or a future explicitly versioned proposal event.
+
+The initializer drops the old v0.1 partial index and creates the per-track index, so an existing local database receives this narrow index migration on open. The persisted `protocol_version` remains a storage-envelope version; the broader schema registry/upcaster system is still not implemented.
+
 ## Explicit limitations
 
 - Single-process reference API. SQLite coordinates local database writers, but this wrapper's thread lock and connection model are not a multi-host protocol.
@@ -98,7 +107,7 @@ python -m unittest tests.test_shared_evidence_protocol -v
 - No hash chain or external tamper-evident anchoring.
 - No event compaction, snapshot checkpointing, retention/deletion policy, or privacy model.
 - No measured latency/memory telemetry. Caller-provided cost fields are not accepted as measured facts by this store.
-- No E09/E10 adapter and no learner implementation.
+- No E09/E10 adapter and no learner implementation. The v0.2 track key is a protocol namespace, not authentication: callers can claim any track name until an external authorization boundary is added.
 
 ## Next acceptance gate
 
