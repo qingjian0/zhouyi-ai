@@ -293,7 +293,6 @@ class RelationLineageLedger:
                 rule_signature=item["rule_signature"],
                 context_signature=item.get("context_signature", "global"),
                 window=window, evidence_refs=tuple(item.get("evidence_refs", ())),
-                _emit_event=False,
             )
         created = []
         for item in children:
@@ -303,6 +302,7 @@ class RelationLineageLedger:
                 operator=item["operator"], rule_signature=item["rule_signature"],
                 context_signature=item.get("context_signature", "global"),
                 window=window, evidence_refs=tuple(item.get("evidence_refs", ())),
+                _emit_event=False,
             )
             created.append(child)
         self.identities[parent_id] = replace(parent, status=IdentityStatus.SPLIT)
