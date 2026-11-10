@@ -48,17 +48,20 @@ def run(seed: int = 17, noise_rate: float = 0.0,
         max_candidates: int = 100_000) -> dict:
     if not 0.0 <= noise_rate <= 1.0:
         raise ValueError("noise_rate must be between 0 and 1")
-    rng = random.Random(seed)
+    split_rng = random.Random(seed)
+    noise_rng = random.Random(seed + 1)
+    train_distractor_rng = random.Random(seed + 2)
+    test_distractor_rng = random.Random(seed + 3)
     assignments = list(itertools.product(BASE_DOMAIN, repeat=3))
-    rng.shuffle(assignments)
+    split_rng.shuffle(assignments)
     split = int(len(assignments) * 2 / 3)
     train_assignments, test_assignments = assignments[:split], assignments[split:]
 
     train = []
     for a, b, c in train_assignments:
         gold = target(a, b, c)
-        observed = 1 - gold if rng.random() < noise_rate else gold
-        z = gold if shortcut_enabled else rng.randrange(2)
+        observed = 1 - gold if noise_rng.random() < noise_rate else gold
+        z = gold if shortcut_enabled else train_distractor_rng.randrange(2)
         train.append(Example((a, b, c, z), observed))
 
     learner = CounterexampleRuleLearner(
@@ -76,7 +79,7 @@ def run(seed: int = 17, noise_rate: float = 0.0,
     shortcut_agreements = 0
     for a, b, c in test_assignments:
         gold = target(a, b, c)
-        z = rng.randrange(2)
+        z = test_distractor_rng.randrange(2)
         prediction = learner.predict((a, b, c, z)) if fit_error is None else None
         evaluated.append((prediction, gold))
         if prediction is not None:
