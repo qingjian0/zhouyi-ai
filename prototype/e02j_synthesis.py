@@ -8,7 +8,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from itertools import product
-from typing import Callable, Iterable, Sequence
+from numbers import Integral
+from typing import Callable, Sequence
 
 
 @dataclass(frozen=True)
@@ -16,6 +17,17 @@ class Expr:
     op: str
     args: tuple["Expr", ...] = ()
     value: int | None = None
+
+    def __post_init__(self) -> None:
+        if self.op not in {"var", "const", "add", "sub", "mul"}:
+            raise ValueError(f"unsupported expression operator: {self.op}")
+        if self.op in {"var", "const"}:
+            if self.args or isinstance(self.value, bool) or not isinstance(self.value, Integral):
+                raise ValueError("variable and constant nodes require one integer value and no children")
+            if self.op == "var" and self.value < 0:
+                raise ValueError("variable index must be non-negative")
+        elif len(self.args) != 2 or self.value is not None:
+            raise ValueError("binary operator nodes require exactly two children and no value")
 
     def render(self) -> str:
         if self.op == "var":
@@ -28,37 +40,41 @@ class Expr:
 
 
 def variable(index: int) -> Expr:
-    if index < 0:
-        raise ValueError("variable index must be non-negative")
-    return Expr("var", value=index)
+    if isinstance(index, bool) or not isinstance(index, Integral) or index < 0:
+        raise ValueError("variable index must be a non-negative integer")
+    return Expr("var", value=int(index))
 
 
 def constant(value: int, modulus: int) -> Expr:
-    if modulus < 2:
-        raise ValueError("modulus must be >= 2")
-    return Expr("const", value=value % modulus)
+    if isinstance(modulus, bool) or not isinstance(modulus, Integral) or modulus < 2:
+        raise ValueError("modulus must be an integer >= 2")
+    if isinstance(value, bool) or not isinstance(value, Integral):
+        raise ValueError("constant value must be an integer")
+    return Expr("const", value=int(value) % int(modulus))
 
 
 def evaluate(expr: Expr, inputs: Sequence[int], modulus: int) -> int:
-    if modulus < 2:
-        raise ValueError("modulus must be >= 2")
+    if isinstance(modulus, bool) or not isinstance(modulus, Integral) or modulus < 2:
+        raise ValueError("modulus must be an integer >= 2")
+    if any(isinstance(value, bool) or not isinstance(value, Integral) for value in inputs):
+        raise ValueError("input values must be integers")
     if expr.op == "var":
         assert expr.value is not None
         if expr.value >= len(inputs):
             raise ValueError("expression references an unavailable input")
-        return int(inputs[expr.value]) % modulus
+        return int(inputs[expr.value]) % int(modulus)
     if expr.op == "const":
         assert expr.value is not None
-        return expr.value % modulus
+        return int(expr.value) % int(modulus)
     if expr.op not in {"add", "sub", "mul"} or len(expr.args) != 2:
         raise ValueError(f"unsupported or malformed operator: {expr.op}")
     left = evaluate(expr.args[0], inputs, modulus)
     right = evaluate(expr.args[1], inputs, modulus)
     if expr.op == "add":
-        return (left + right) % modulus
+        return (left + right) % int(modulus)
     if expr.op == "sub":
-        return (left - right) % modulus
-    return (left * right) % modulus
+        return (left - right) % int(modulus)
+    return (left * right) % int(modulus)
 
 
 def _depth(expr: Expr) -> int:
@@ -92,11 +108,15 @@ def enumerate_programs(
     The optional domain is used only to remove semantically equivalent ASTs;
     it supplies no target labels or hidden-rule information.
     """
-    if modulus < 2 or max_depth < 0:
-        raise ValueError("modulus must be >= 2 and max_depth must be >= 0")
+    if isinstance(modulus, bool) or not isinstance(modulus, Integral) or modulus < 2:
+        raise ValueError("modulus must be an integer >= 2")
+    if isinstance(max_depth, bool) or not isinstance(max_depth, Integral) or max_depth < 0:
+        raise ValueError("max_depth must be a non-negative integer")
     indices = tuple(variable_indices)
-    if not indices or len(set(indices)) != len(indices) or min(indices) < 0:
-        raise ValueError("variable_indices must be unique non-negative indices")
+    if (not indices or any(isinstance(i, bool) or not isinstance(i, Integral) or i < 0 for i in indices)
+            or len(set(indices)) != len(indices)):
+        raise ValueError("variable_indices must be unique non-negative integers")
+    indices = tuple(int(i) for i in indices)
     if domain is None:
         domain = tuple(product(range(modulus), repeat=len(indices)))
         # Domain rows are role-ordered; map each role to its original position.
@@ -206,8 +226,10 @@ def cegis(
 def ternary_domain(variable_indices: Sequence[int]) -> tuple[tuple[int, ...], ...]:
     """Full evaluator domain for selected ternary roles, expanded to input positions."""
     indices = tuple(variable_indices)
-    if not indices or len(set(indices)) != len(indices) or min(indices) < 0:
-        raise ValueError("variable_indices must be unique non-negative indices")
+    if (not indices or any(isinstance(i, bool) or not isinstance(i, Integral) or i < 0 for i in indices)
+            or len(set(indices)) != len(indices)):
+        raise ValueError("variable_indices must be unique non-negative integers")
+    indices = tuple(int(i) for i in indices)
     width = max(indices) + 1
     rows = []
     for role_values in product(range(3), repeat=len(indices)):
