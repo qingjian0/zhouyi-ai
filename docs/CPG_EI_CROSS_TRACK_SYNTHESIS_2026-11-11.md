@@ -484,3 +484,170 @@ Before implementing another new learner, reconcile PR #53 with the existing E09 
 5. run exact focused tests and CI only after the adapter exists.
 
 This is now the project's highest-leverage engineering task. The next model-level innovation should wait until the evidence protocol is trustworthy and shared.
+
+
+### 14. Third-round audit: PR #53 compatibility against E09 and E10-A implementations
+
+Audit date: 2026-11-11. Method: read-only source and test inspection across the independent E09 and E10-A research branches. This is a static audit; no tests were executed in this audit.
+
+#### 14.1 Branch and scope clarification
+
+PR #53 is still a draft design-only change. Its head branch contains the shared contract document and the repository baseline, but it does not contain the E09 prequential implementation or E10-A ledger implementation. Those implementations live on separate research branches:
+
+- E09 prequential runner: `research/e09-prequential-runner-2026-11-11`
+- E09 incremental learner arm: `research/e09-incremental-conjunction-index-2026-11-11`
+- E10-A prequential ledger: `research/e10a-prequential-ledger-prototype-2026-11-11`
+- E10-A phase-gated runner: `research/e10a-phase-gated-runner-2026-11-11`
+
+Therefore PR #53 cannot be treated as an integration commit or as evidence that its contract is enforced by either implementation.
+
+#### 14.2 Compatibility matrix
+
+Legend: **E** = enforced by inspected implementation; **P** = partial or narrower semantics; **D** = documented only; **M** = missing in inspected implementation.
+
+| Contract invariant / capability | E09-B runner + ledger | E10-A ledger | Shared contract target |
+|---|---|---|---|
+| Prediction commit precedes reveal | E, in runner memory | E, event order | E |
+| Reveal references a prior commit | E | E | E |
+| One reveal per prediction | E | E | E |
+| One commit per observation | E, runner checks observation IDs | P, duplicate commits for one observation are possible before reveal | E |
+| Immutable prediction history | P, separate in-memory dictionary, not in evidence ledger | E, append-only event list in memory | E |
+| Stable event ID and monotonic sequence | P, generated prediction/reveal IDs and runner step | E, per-episode generated IDs and step | E |
+| Global event envelope (actor, causation, schema, integrity metadata) | M | P, schema version only; lacks actor, causation refs, per-event payload schema and integrity metadata | E |
+| Identical event replay is idempotent | P, evidence records only; runner commands are not replay-idempotent | M, duplicate IDs are rejected rather than accepted as identical replay | E |
+| Same ID with different content is rejected | E for evidence sample IDs | E for prediction/reveal/revision IDs | E |
+| Conflicting labels are quarantined from fitting | E | M | Track-specific adapter policy |
+| Structure versions with immutable parent/child lineage | M, model snapshots are not a structure registry | M, before/after version IDs are references only | E |
+| Revision may cite only already revealed evidence | E, reveal required before revise | E, unknown/unrevealed reveal IDs rejected | E |
+| Durable persistence acknowledged before reveal | M | M | E |
+| Deterministic restart and replay | M | M | E |
+| Evaluator/learner process isolation | M | M; explicitly documented as not a security boundary | E |
+| Payload canary against evaluator-only truth | M | M | E |
+| Actual update latency and peak memory | M | M; caller-supplied cost dictionary only | E |
+| Historical scan / replay work counted | P, training row and candidate evaluation counters only | M | E |
+
+Important distinction: a monotonic in-memory step counter is not durable ordering. A snapshot hash is not a hash chain, an event signature, or proof of source authenticity. Caller-supplied cost metadata is not measured resource usage.
+
+#### 14.3 Implementation-specific findings
+
+**E09-B**
+
+Inspected files:
+- `prototype/e09_evidence_ledger.py`
+- `prototype/e09_prequential.py`
+- `tests/test_e09_evidence_ledger.py`
+- `tests/test_e09_prequential.py`
+
+The evidence ledger has useful properties: immutable sample IDs, idempotent identical evidence append, conflicting sample-ID rejection, conservative quarantine of contradictory labels for the same input, same-label deduplication for fitting, source-ID counts, and atomic validation of batch extension.
+
+The prequential runner wraps the learner with predict/commit/reveal/revise. However:
+- Prediction commits, reveals, and revisions live in runner-owned in-memory collections, not in a single durable event store.
+- Reveal appends the training evidence to the evidence ledger, but prediction and revision history remain separate structures.
+- Revision mode is explicitly `BATCH_REFIT`; it calls the existing full-data `fit()`.
+- Candidate-evaluation and training-row counts are not latency, memory, or historical-scan measurements.
+- No restart/replay mechanism or evaluator process boundary is implemented.
+- The runner increments its step before evidence append completes; a rejected append can leave a step gap. The adapter should make state transition and event append atomic from the caller's perspective.
+
+**E10-A**
+
+Inspected files:
+- `prototype/e10a_prequential_ledger.py`
+- `tests/test_e10a_prequential_ledger.py`
+- `docs/E10A_PREQUENTIAL_LEDGER_PROTOTYPE_2026-11-11.md`
+
+The ledger has a cleaner unified in-memory event list, detached snapshots, canonical snapshot hashing, unique event IDs within an episode, prediction-before-reveal checks, one reveal per observation, explicit abstention states, and rejection of revisions that cite unrevealed evidence.
+
+However:
+- Two commits for the same observation can be created before that observation is revealed; the shared contract should require one canonical prediction commit per observation unless a named multi-candidate protocol explicitly allows otherwise.
+- Duplicate IDs are rejected even if the event payload is byte-identical; this is not idempotent replay.
+- Event IDs are generated locally and scoped by episode; no cross-episode namespace or externally supplied idempotency key is defined.
+- The snapshot hash covers the event list but there is no per-event hash chain, durable store, signature, or restart recovery.
+- The ledger holds both prediction and revealed target in one object. It is explicitly a trusted-runner state machine, not evaluator/learner isolation.
+- Revision events refer to version ID strings, but no registry verifies that versions exist, that parent links are valid, or that a split/merge creates immutable lineage records.
+- Resource-cost dictionaries are accepted from callers; the ledger does not measure actual cost.
+
+#### 14.4 Minimal compatibility adapter: contract, not another learner
+
+Do not replace either learner or merge the two ledgers directly. Introduce a protocol adapter with the following narrow surface:
+
+- `append_observation(observation_envelope) -> event_receipt`
+- `commit_prediction(prediction_commit, idempotency_key) -> durable_receipt`
+- `reveal_evidence(reveal, commit_receipt) -> event_receipt`
+- `append_revision(revision_event) -> event_receipt`
+- `replay_episode(episode_id, from_sequence) -> ordered_events`
+- `snapshot_structure(episode_id, structure_version_id) -> immutable_structure_record`
+
+Adapter rules:
+
+1. Validate a versioned envelope before touching the event store.
+2. Make the idempotency key stable across retries. Same key plus same canonical payload returns the original receipt; same key plus different payload is an integrity error.
+3. Persist and acknowledge the prediction commit before evaluator reveal is permitted.
+4. Keep evaluator-only target and source provenance out of learner-facing serialization.
+5. Enforce one prediction commit per observation by default. Any multi-hypothesis or multi-view exception must use a distinct protocol mode and explicit parent observation reference.
+6. Keep protocol events generic. Put E09 rule AST, E10 relation/operator AST, and E11 concept AST in versioned, track-specific payload schemas.
+7. Record StructureVersion creation as its own event. Validate parent versions, support/counterexample evidence references, and split/merge lineage.
+8. Use a transactional append or compare-and-append sequence check so concurrent writers cannot create duplicate sequence numbers.
+9. Treat payload digests as mutation-detection metadata only. Authentication requires a separately specified trust/key boundary.
+10. Separate measured telemetry from declared budget: record wall-clock duration, peak memory, candidate evaluations, evidence rows scanned, bytes read/written, and replay work with measurement provenance.
+
+#### 14.5 Migration strategy
+
+**M0 — freeze semantics**
+- Define canonical envelope and payload schemas.
+- Define ID namespaces, idempotency, sequence scope, and error behavior.
+- Add compatibility fixtures for existing E09 and E10 snapshots.
+
+**M1 — protocol conformance tests**
+- Commit-before-reveal and durable acknowledgement.
+- Duplicate retry with identical payload.
+- Duplicate retry with conflicting payload.
+- Concurrent append / stale sequence rejection.
+- One commit per observation.
+- No future evidence references in revisions.
+- Structure parent/child lineage and split/merge invariants.
+- Deterministic replay from a clean process.
+- Evaluator-only truth mutation leaves learner payload bytes unchanged.
+
+**M2 — E09 adapter**
+- Wrap current E09 ledger without changing the learner's rule grammar.
+- Preserve `BATCH_REFIT` as a named baseline.
+- Integrate the separate incremental candidate-maintenance arm only as a distinct strategy.
+- Add restart/replay and actual cost instrumentation.
+
+**M3 — E10-A adapter**
+- Reuse the protocol adapter, not the E09 learner representation.
+- Integrate the phase-gated A-O runner and strict A-S source-instance split.
+- Move evaluator truth and source provenance behind a separate process/service boundary.
+- Add versioned relation/operator structures.
+
+**M4 — cross-track acceptance**
+- Run the same conformance suite against both adapters.
+- Compare behavior and compute under frozen, batch-refit, replay, and incremental arms.
+- Do not merge until both adapters pass the protocol suite and their own track-specific split/evaluator controls.
+
+#### 14.6 Research implications: incremental is a hypothesis, not a default objective
+
+The literature reinforces a caution relevant to E09. The 2025 survey/update on supervised learning from data streams distinguishes instance-incremental from batch-incremental updates and argues that online updates should be justified against traditional alternatives, including replay and retraining. The 2025 ICML work on retraining decisions frames update choice as a trade-off under limited evidence, unknown drift, and retraining cost. A 2026 empirical preprint comparing refresh policies likewise emphasizes update mode, budget, and deployment latency rather than assuming a reactive policy is automatically superior.
+
+Implication for Zhouyi-AI: the acceptance target is not "incremental beats batch in every setting". It is a pre-registered operating-region map showing when incremental maintenance, periodic replay, or batch refit gives the best structure quality under the same total measured budget.
+
+References:
+- Supervised Learning from Data Streams: An Overview and Update (2025): https://doi.org/10.1145/3737279
+- When to retrain a machine learning model (ICML 2025): https://proceedings.mlr.press/v267/regol25a.html
+- When to Retrain: An Empirical Study of Retraining Policies for Streaming ML Under Concept Drift, Budget, and Latency Constraints (2026 preprint): https://arxiv.org/abs/2608.19488
+- Online Event Processing (Communications of the ACM, 2019): https://www.cl.cam.ac.uk/~arb33/papers/KleppmannBeresfordSvingen-OnlineEventProcessing-CACM2019.pdf
+
+#### 14.7 Decision and next gate
+
+Decision: PR #53 is a useful protocol design contract, but it is not yet an implementation specification detailed enough to serve as a conformance target without the additions above.
+
+The next engineering step should be a small, independent protocol-conformance package and adapter tests, not another learner and not a third ledger implementation. Keep PR #53 draft until the envelope, idempotency, durable commit, replay, and structure-lineage semantics are made precise. Keep all learner-specific candidate representations separate.
+
+Status after this audit:
+- Static source audit: completed.
+- Compatibility matrix: documented here.
+- Adapter implementation: not started.
+- Protocol conformance tests: not started.
+- Tests/CI: not run in this audit.
+- Main branch: unchanged.
+- PR #53: unchanged and unmerged.
