@@ -26,6 +26,7 @@ class E10ALatentGeneratorTests(unittest.TestCase):
         view = episode.learner_view()
         self.assertNotIn("templates", view)
         self.assertNotIn("instances", view)
+        self.assertNotIn("source_group_id", repr(view))
         self.assertNotIn("role_objects", repr(view))
         self.assertNotIn("template_id", repr(view))
         self.assertNotIn("feature_key", repr(view))
