@@ -22,8 +22,8 @@ python -m prototype.e12m2_m2_calibration --seeds 10 --permutations 39 --swaps-pe
 ```
 
 The program emits null and planted candidate-specific p-values, max-statistic
-p-values, rejection/detection rates, applied injections, pair-count gains, and
-mean swap acceptance rate.
+p-values, rejection/detection rates with 95% Wilson score intervals,
+applied injections, pair-count gains, and mean swap acceptance rate.
 
 ## Interpretation
 
