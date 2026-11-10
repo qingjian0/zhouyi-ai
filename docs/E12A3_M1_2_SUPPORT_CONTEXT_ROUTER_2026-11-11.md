@@ -31,10 +31,10 @@ Gate-Dev, Gate-Final, and Locked Test retain their existing roles.
 For each proposer family f:
 1. Generate its candidate pool from Proposal-Support only.
 2. Evaluate each candidate on Context-Support.
-3. Compute a robust family descriptor, initially the mean of the top three candidate accuracies.
+3. Reserve the first four proposals from each family as the shared exploration/context-probe batch (12 proposal slots total). Compute the family descriptor as the mean of the top three accuracies among those four proposals. All compared methods pay this same 12-evaluation context-probe cost; only the context router uses the descriptor.
 4. Record candidate count, unique candidate count, and score dispersion as diagnostics.
 
-The initial router uses only this Support-derived descriptor. It does not receive Gate-Dev labels.
+The initial router uses only this Support-derived descriptor. It does not receive Gate-Dev labels. The first four context-probe proposals per family are also the mandatory exploration batch, so context measurement is included in—not added on top of—the global proposal budget.
 
 This is a supervised task descriptor computed from training evidence. It may overfit the 16-row Context-Support subset, so it must be tested on independent world seeds and an additional held-out task family.
 
@@ -42,7 +42,7 @@ This is a supervised task descriptor computed from training evidence. It may ove
 
 - Give every family one exploration batch (four slots).
 - Allocate remaining batches to the family with the highest Context-Support top-three mean.
-- Use deterministic family-ID tie-breaking.
+- Use deterministic family-ID tie-breaking. With a 31-slot budget, the first 12 slots are the shared probes; the remaining 19 slots follow the highest-scoring family.
 - Respect the exact global proposal-slot budget.
 - Deduplicate candidate expressions in the final registry while retaining all proposer provenance.
 - Count duplicate emissions as proposal slots; evaluate each unique expression once on Gate-Final.
