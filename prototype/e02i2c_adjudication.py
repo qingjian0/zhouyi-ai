@@ -240,7 +240,8 @@ def adjudicate_event(
         same_support = tuple(
             item for item in supporting if item.candidate_signature == identity.signature
         )
-        if same_support and len({item.sample_id for item in same_support}) >= 1:
+        if (len(distinct_windows(same_support)) >= required_windows
+                and len({item.sample_id for item in same_support}) >= required_windows):
             return EventDecision(
                 EventType.REACTIVATE, identity.identity_id, identity.version_id,
                 identity.signature, refs(same_support),
