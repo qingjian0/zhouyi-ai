@@ -18,7 +18,7 @@ class SharedEvidenceProtocolTests(unittest.TestCase):
         self.store.close()
         self.tmp.cleanup()
 
-    def commit(self, obs="o1", event="pc1", key="k1"):
+    def commit(self, obs="o1", event="pc1", key="k1", learner_track="e09"):
         self.store.append_event(
             episode_id="ep1", event_id=f"obs-{obs}", event_type="observation",
             idempotency_key=f"obs-key-{obs}", payload={"observation_id": obs, "payload_ref": f"{obs}-payload"},
@@ -26,7 +26,7 @@ class SharedEvidenceProtocolTests(unittest.TestCase):
         return self.store.commit_prediction(
             episode_id="ep1", event_id=event, idempotency_key=key,
             payload={"prediction_id": "p1", "observation_id": obs,
-                     "model_version": "m0", "decision_status": "PREDICT", "prediction": "A"},
+                     "model_version": "m0", "learner_track": learner_track, "decision_status": "PREDICT", "prediction": "A"},
         )
 
     def reveal(self, event="r1", key="rk1", prediction="p1"):
@@ -39,7 +39,7 @@ class SharedEvidenceProtocolTests(unittest.TestCase):
         with self.assertRaises(MissingReference):
             self.store.commit_prediction(
                 episode_id="ep1", event_id="pc-before-observation", idempotency_key="k-before-observation",
-                payload={"prediction_id": "p-before", "observation_id": "o1", "model_version": "m0", "decision_status": "PREDICT"},
+                payload={"prediction_id": "p-before", "observation_id": "o1", "model_version": "m0", "learner_track": "e09", "decision_status": "PREDICT"},
             )
         self.store.append_event(
             episode_id="ep1", event_id="obs-o1", event_type="observation",
@@ -49,7 +49,7 @@ class SharedEvidenceProtocolTests(unittest.TestCase):
             self.reveal()
         self.store.commit_prediction(
             episode_id="ep1", event_id="pc1", idempotency_key="k1",
-            payload={"prediction_id": "p1", "observation_id": "o1", "model_version": "m0", "decision_status": "PREDICT"},
+            payload={"prediction_id": "p1", "observation_id": "o1", "model_version": "m0", "learner_track": "e09", "decision_status": "PREDICT"},
         )
         self.assertEqual(self.reveal().sequence_no, 3)
 
@@ -65,7 +65,7 @@ class SharedEvidenceProtocolTests(unittest.TestCase):
             self.store.commit_prediction(
                 episode_id="ep1", event_id="pc2", idempotency_key="k1",
                 payload={"prediction_id": "p2", "observation_id": "o2",
-                         "model_version": "m0", "decision_status": "PREDICT"},
+                         "model_version": "m0", "learner_track": "e09", "decision_status": "PREDICT"},
             )
 
     def test_idempotency_fingerprint_includes_event_type(self):
@@ -74,7 +74,7 @@ class SharedEvidenceProtocolTests(unittest.TestCase):
             self.store.append_event(
                 episode_id="ep1", event_id="other", event_type="observation",
                 payload={"prediction_id": "p1", "observation_id": "o1",
-                         "model_version": "m0", "decision_status": "PREDICT", "prediction": "A"},
+                         "model_version": "m0", "learner_track": "e09", "decision_status": "PREDICT", "prediction": "A"},
                 idempotency_key="k1",
             )
 
@@ -85,17 +85,28 @@ class SharedEvidenceProtocolTests(unittest.TestCase):
                 episode_id="ep1", event_id="pc-other", idempotency_key="k1",
                 actor_role="evaluator",
                 payload={"prediction_id": "p1", "observation_id": "o1",
-                         "model_version": "m0", "decision_status": "PREDICT", "prediction": "A"},
+                         "model_version": "m0", "learner_track": "e09", "decision_status": "PREDICT", "prediction": "A"},
             )
 
-    def test_one_prediction_per_observation(self):
+    def test_one_prediction_per_observation_per_track(self):
         self.commit()
         with self.assertRaises(sqlite3.IntegrityError):
             self.store.commit_prediction(
                 episode_id="ep1", event_id="pc2", idempotency_key="k2",
                 payload={"prediction_id": "p2", "observation_id": "o1",
-                         "model_version": "m0", "decision_status": "PREDICT"},
+                         "model_version": "m0", "learner_track": "e09", "decision_status": "PREDICT"},
             )
+
+
+    def test_independent_tracks_can_commit_for_same_observation(self):
+        self.commit()
+        receipt = self.store.commit_prediction(
+            episode_id="ep1", event_id="pc-e10", idempotency_key="k-e10",
+            payload={"prediction_id": "p-e10", "observation_id": "o1",
+                     "model_version": "m0", "learner_track": "e10",
+                     "decision_status": "PREDICT", "prediction": "B"},
+        )
+        self.assertEqual(receipt.sequence_no, 3)
 
     def test_prediction_id_is_unique_within_episode(self):
         self.commit()
@@ -106,7 +117,7 @@ class SharedEvidenceProtocolTests(unittest.TestCase):
         with self.assertRaises(sqlite3.IntegrityError):
             self.store.commit_prediction(
                 episode_id="ep1", event_id="pc2", idempotency_key="k2",
-                payload={"prediction_id": "p1", "observation_id": "o2", "model_version": "m0", "decision_status": "PREDICT"},
+                payload={"prediction_id": "p1", "observation_id": "o2", "model_version": "m0", "learner_track": "e09", "decision_status": "PREDICT"},
             )
 
     def test_stale_sequence_rejected(self):
