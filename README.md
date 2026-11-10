@@ -7,9 +7,9 @@
 
 ## 项目状态
 
-- 当前阶段：M1 数学理论定稿与 M2 最小原型准备
+- 当前阶段：E02-I 关系生命周期实验已完成 100 种子合成验证；E02-K 自适应证据控制器进入原型阶段
 - 理论版本：CPG-EI v0.3（研究草案）
-- 代码状态：E01 组合选择基线原型正在建立；尚无规模化模型或性能结论
+- 代码状态：已有 E01/E02 多阶段原型与合成实验；尚无规模化模型或真实任务性能结论
 - 验证原则：所有架构主张均须通过可复现实验、消融和公平对照验证
 
 ## 核心研究问题
@@ -31,6 +31,10 @@
 - 组合搜索采用稀疏候选与预算约束，避免组合爆炸。
 
 ## 文档导航
+
+- [E02-I 关系结构演化与 100 种子结果](docs/E02I_RELATION_EVOLUTION.md)
+- [E02-K 自适应关系生命周期证据协议](docs/E02K_ADAPTIVE_EVIDENCE.md)
+- [E02-K 自适应证据控制器原型](prototype/e02k_adaptive_evidence.py)
 
 - [研究总纲与问题定义](docs/RESEARCH_CHARTER.md)
 - [数学理论 v0.3](docs/THEORY_v0.3.md)
@@ -86,4 +90,4 @@ Evidence-gated relation structure evolution prototype and reproducible experimen
 E02-I six-scenario lifecycle validation is executed by the repository test workflow.
 
 
-E02-I distinguishes candidate quality from persistent relation quality.
+E02-I distinguishes candidate quality from persistent relation quality. E02-K is a separate controller prototype; it is not yet integrated into the discovery pipeline.
