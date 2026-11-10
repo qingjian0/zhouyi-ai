@@ -68,7 +68,7 @@ store.close()
 
 ## Conformance coverage
 
-The unit tests cover:
+The 19 unit tests cover:
 
 1. prediction commit requires a prior observation; reveal cannot precede a committed prediction;
 2. identical idempotent retry returns the original receipt;
