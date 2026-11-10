@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from enum import Enum
 import hashlib
 import json
+import math
 import random
 from typing import Any, Iterable, Mapping, Sequence
 
@@ -48,10 +49,16 @@ class PredicateExpr:
         if op == "EQ":
             return int(left == self.value)
         if op == "GE":
-            return int(left >= self.value)  # type: ignore[operator]
+            if isinstance(left, bool) or not isinstance(left, (int, float)):
+                raise TypeError("GE requires a numeric feature")
+            if isinstance(self.value, bool) or not isinstance(self.value, (int, float)):
+                raise TypeError("GE requires a numeric threshold")
+            return int(left >= self.value)
         if op == "PARITY":
             if isinstance(left, bool) or not isinstance(left, int):
                 raise TypeError("PARITY requires an integer feature")
+            if isinstance(self.value, bool) or self.value not in (0, 1):
+                raise TypeError("PARITY threshold must be 0 or 1")
             return int(left % 2 == self.value)
         if op == "SAME":
             if self.other_feature is None or self.other_feature not in values:
@@ -61,9 +68,13 @@ class PredicateExpr:
             if self.other_feature is None or self.other_feature not in values:
                 raise KeyError(self.other_feature)
             right = values[self.other_feature]
-            if isinstance(left, str) or isinstance(right, str):
+            if (isinstance(left, bool) or isinstance(right, bool)
+                    or not isinstance(left, (int, float))
+                    or not isinstance(right, (int, float))):
                 raise TypeError("DIFF_GE requires numeric features")
-            return int(left - right >= self.value)  # type: ignore[operator]
+            if isinstance(self.value, bool) or not isinstance(self.value, (int, float)):
+                raise TypeError("DIFF_GE requires a numeric threshold")
+            return int(left - right >= self.value)
         raise ValueError(f"unsupported operator: {op}")
 
 
@@ -137,14 +148,16 @@ def validate_observations(rows: Sequence[Observation]) -> None:
         raise ValueError("feature names must be non-empty and unique")
     feature_kinds: dict[str, type] = {}
     for row in rows:
-        if row.label not in (0, 1):
-            raise ValueError("labels must be binary")
+        if isinstance(row.label, bool) or row.label not in (0, 1):
+            raise ValueError("labels must be integer 0 or 1")
         row_values = dict(row.values)
         if len(row.values) != len(row_values) or set(row_values) != schema:
             raise ValueError("all observations must share one exact schema")
         for name, value in row_values.items():
             if isinstance(value, bool) or not isinstance(value, (int, float, str)):
                 raise TypeError(f"unsupported scalar for feature {name}")
+            if isinstance(value, float) and not math.isfinite(value):
+                raise ValueError(f"feature {name} must be finite")
             kind = str if isinstance(value, str) else float
             previous = feature_kinds.setdefault(name, kind)
             if previous is not kind:
