@@ -43,6 +43,10 @@ class PrimitiveExpansionLearner:
         self._base = E10AMechanismLearner(support_payload)
         self._objects = self._base._objects
         self._evidence = list(self._base._evidence)
+        self._seen_observation_ids = {
+            item["row"]["observation_id"] for item in self._evidence
+            if item["row"].get("observation_id") is not None
+        }
         self._candidates = set(self._base._candidates)
         self._proposal_budget = proposal_budget
         self._max_context_terms = max_context_terms
@@ -170,9 +174,15 @@ class PrimitiveExpansionLearner:
         self._base._validate_row(row)
         if not isinstance(target, bool):
             raise ValueError("revealed target must be boolean")
+        observation_id = row.get("observation_id")
+        if not isinstance(observation_id, str) or not observation_id:
+            raise ValueError("revealed observation requires a non-empty observation_id")
+        if observation_id in self._seen_observation_ids:
+            raise ValueError("observation has already been revised")
         before = self.candidate_hash
         old_candidates = set(self._candidates)
         self._evidence.append({"row": self._base._public(row), "target": target})
+        self._seen_observation_ids.add(observation_id)
         proposed, attempted, exceeded = self._propose()
         self._last_proposal_count = attempted
         self._budget_exceeded = exceeded
