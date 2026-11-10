@@ -228,6 +228,18 @@ class E02I2CContractsTests(unittest.TestCase):
             {"same-2", "changed-3", "changed-4"},
         )
 
+    def test_suspended_support_and_absence_same_window_abstain(self):
+        decision = adjudicate_event(active("SUSPENDED"), (opp(2), opp(3)), (
+            packet("support", 2, EvidencePolarity.SUPPORTS, "a&b", source="v1"),
+            packet("absence", 2, EvidencePolarity.ABSENCE, signature=None, source="v1"),
+            packet("support-3", 3, EvidencePolarity.SUPPORTS, "a&b", source="v1"),
+        ))
+        self.assertEqual(decision.event, EventType.ABSTAIN)
+        self.assertEqual(
+            set(decision.evidence_refs),
+            {"support", "absence", "support-3"},
+        )
+
     def test_suspended_identity_reactivates_only_with_repeated_fresh_support(self):
         decision = adjudicate_event(active("SUSPENDED"), (opp(2), opp(3)), (
             packet("fresh-2", 2, EvidencePolarity.SUPPORTS, "a&b", source="v1"),
