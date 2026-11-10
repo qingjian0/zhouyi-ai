@@ -249,3 +249,79 @@ Suggested independent implementation sequence:
 7. Only then connect E11 concept candidates and E10 analogy/operator candidates to the shared coordinator.
 
 This is the shortest path to making the project's autonomy claims scientifically testable. It is intentionally conservative: improve the trustworthiness of the learning loop before increasing the expressive power of its hypothesis language.
+
+
+---
+
+## 11. 2026-11-11 update: E10-A / E12 evidence changes
+
+This addendum records the newer open-PR evidence inspected after the initial cross-track synthesis. It does not retroactively change the status of earlier branches or imply that open PRs are integrated.
+
+### 11.1 E12-A3: adaptive proposal allocation has a negative first result
+
+PR #68 reports a matched 31-proposal-slot comparison over 40 episodes (20 seeds × 2 task families):
+
+| Method | Mean Locked-Test accuracy |
+|---|---:|
+| EQUAL | 91.72% |
+| ROUND_ROBIN | 91.72% |
+| UCB1 adaptive, mean batch reward | 90.47% |
+| BOUNDED_ENUM | 90.08% |
+
+The UCB1-minus-EQUAL contrast is -1.25 percentage points, with a paired 95% t interval of [-2.94, +0.44] pp. Five reward ablations also failed to exceed the fixed-allocation controls. This is evidence against the current context-free adaptive allocator, not evidence against all adaptive allocation.
+
+The proposed M1.2 Support-context router is a better next test because it asks whether task-local evidence can identify a specialist proposer. It must be compared against equal allocation with identical context-probe and proposal-slot costs. Its Gate-Final and Locked-Test partitions must remain inaccessible to routing.
+
+### 11.2 E12-A2: active measurement is more mature, but remains finite-world
+
+PR #62 reports successful workflow runs for exact finite-world measurement selection and a noisy-prior stress benchmark. The expanded noisy-prior sweep reports 13,500 episodes and 120 paired prior-vs-uniform contrasts. The key caution is that an anti-aligned prior can worsen proper scores and increase confident errors; a uniform contamination floor can mitigate some harm but is task-dependent.
+
+The engineering implication is important: Yixiang priors should be treated as defeasible proposal distributions, not as privileged truth. The learner must preserve a uniform/no-prior arm, expose prior provenance, and allow evidence to overturn the prior. These experiments use finite synthetic worlds and do not yet establish a benefit from a Yijing prior.
+
+### 11.3 E12-M2: motif discovery is a candidate generator, not semantic discovery
+
+PR #84 adds bounded discrete motif mining, a degree-preserving conditional null, max-statistic correction, and synthetic calibration. The branch explicitly distinguishes a statistical co-occurrence motif from a semantic primitive. Latest Wilson-interval assertions and the dedicated CI smoke step were added after the last reported passing run, so the exact latest head is not yet CI-verified.
+
+Before treating M2 as a reliable primitive proposer, require:
+- calibrated type-I error under the exact full search procedure;
+- power curves across planted effect sizes and sample sizes;
+- null robustness under heterogeneous row degrees and dependence;
+- runtime, memory, and permutation-chain diagnostics;
+- independent-world transfer and comparison with simpler frequency/association baselines.
+
+### 11.4 E10-A: richer feature composition increases the need for provenance and isolation
+
+PR #83 adds bounded prequential primitive expansion over visible relation symbols and supplied attribute keys. PR #89 adds conjunctive object-feature composition where single attributes alias roles but feature pairs can distinguish them. Both remain finite symbolic search over generator-supplied features; neither learns raw sensory encoders or open-world semantics.
+
+PR #89's eight-seed benchmark and random-proposal comparison remain future work, and its tests are authored without a claimed pass. PR #90 is a validation-only mirror and must not be merged. The earlier P0 requirements remain binding: source-instance provenance at generation time, object-disjoint evaluation where claimed, and evaluator/learner process isolation.
+
+### 11.5 E12-A5: residual diagnosis and operator expansion need statistical and temporal controls
+
+PR #87 diagnoses numeric feature pairs from prequential or out-of-fold residuals; PR #88 applies a full-scan max-statistic permutation correction. PR #82 consumes the diagnosed pairs to expand a bounded operator family. These form a useful candidate loop:
+
+`predict → residual → diagnose → propose operator → independent Gate → locked evaluation`
+
+However, maxT's global-null interpretation is not automatically strong FWER control under arbitrary partial nulls. Exchangeability is also not guaranteed for temporal, clustered, or repeated-entity streams. Block/cluster permutation and provenance-enforced prequential integration remain required. This is association diagnosis, not causal attribution.
+
+## 12. Revised execution order
+
+1. **Finish evidence integrity first:** E10-A source-instance split and evaluator isolation; shared immutable evidence/provenance contract across E09/E10/E11/E12.
+2. **Close the E12-A3 negative-result loop:** inspect M1.2 Support-context router under equal total cost. Do not keep tuning UCB1 against the same Gate-Final/Locked-Test data.
+3. **Integrate E12-A2 only as a defeasible observation policy:** compare uniform, learned, Yixiang-prior, and contaminated-prior arms on identical sensor streams and report calibration as well as accuracy.
+4. **Harden E12-M2 statistics:** complete calibration and power analysis before allowing motif candidates to enter the semantic concept pool.
+5. **Connect E12-A5 to the prequential ledger:** ensure residual provenance is machine-enforced, then add block/cluster permutation for dependent observations.
+6. **Run one small end-to-end benchmark only after contracts stabilize:** parallel proposers (feature, relation, motif, operator, Yixiang transform) share a fixed compute budget; coordinator selects on Gate-Dev; Gate-Final freezes the structure; Locked Test evaluates once.
+7. **Measure the user's core non-autoregressive claim directly:** compare sparse non-contiguous candidate composition and parallel path aggregation against serial greedy, fixed-local, random, and exact-small-space controls at matched compute. Keep the language model only as an external parser/decoder control, and report its contribution separately.
+
+### 12.1 Updated minimum acceptance record
+
+Every integrated episode must log:
+- immutable observation and evidence IDs, source-instance and object-group IDs;
+- candidate generator family, candidate expression, parent lineage, and prior version;
+- proposal count, unique evaluations, CPU time/FLOPs proxy, memory, and wall-clock time;
+- Support / Gate-Dev / Gate-Final / Locked-Test provenance;
+- prediction made before reveal, abstention, reveal event, append event, and revision diff;
+- ambiguity, inconsistency, budget exhaustion, counterexamples, and all failed seeds;
+- separate predictive accuracy, structural recovery, calibration, transfer, and compute metrics.
+
+No aggregate accuracy alone is sufficient to claim concept induction or architectural superiority.
