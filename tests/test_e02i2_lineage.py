@@ -114,6 +114,7 @@ class E02I2LineageLedgerTests(unittest.TestCase):
         self.assertEqual(len(children), 2)
         self.assertEqual(ledger.identities["r1"].status, IdentityStatus.SPLIT)
         self.assertEqual(len(ledger.lineage_edges), 2)
+        self.assertEqual([e.kind for e in ledger.events], ["CREATE", "SPLIT"])
         self.assertTrue(all(e.kind == LineageKind.SPLIT_FROM
                             for e in ledger.lineage_edges))
         ledger.assert_consistent()
@@ -132,6 +133,7 @@ class E02I2LineageLedgerTests(unittest.TestCase):
         self.assertEqual(ledger.identities["r1"].status, IdentityStatus.MERGED)
         self.assertEqual(ledger.identities["r2"].status, IdentityStatus.MERGED)
         self.assertEqual(ledger.lineage_edges[0].source_identity_ids, ("r1", "r2"))
+        self.assertEqual([e.kind for e in ledger.events], ["CREATE", "CREATE", "MERGE"])
         ledger.assert_consistent()
 
     def test_replace_creates_new_identity_without_reusing_old_identity(self):
@@ -147,6 +149,7 @@ class E02I2LineageLedgerTests(unittest.TestCase):
         self.assertEqual(new.identity_id, "r2")
         self.assertEqual(ledger.lineage_edges[0].kind, LineageKind.REPLACED_BY)
         self.assertEqual(new.version_ids, ("r2v1",))
+        self.assertEqual([e.kind for e in ledger.events], ["CREATE", "REPLACE"])
         ledger.assert_consistent()
 
     def test_terminal_identity_cannot_be_reactivated_or_modified(self):
