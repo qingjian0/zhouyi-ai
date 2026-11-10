@@ -20,6 +20,10 @@ jobs:
         run: python -m unittest tests.test_e12a3_multi_proposer -v
       - name: Run E12-A3 multi-proposer smoke test
         run: python -m prototype.e12a3_multi_proposer
+      - name: Run E12-A3 benchmark tests
+        run: python -m unittest tests.test_e12a3_proposer_benchmark -v
+      - name: Run E12-A3 20-seed equal-budget benchmark
+        run: python -m prototype.e12a3_proposer_benchmark --seeds 20 --start-seed 1 --budget 64 --json
       - name: Run E01 demonstration
         run: python -m prototype.e01_sparse_composition --json
       - name: Run E01-B five-seed evaluation
