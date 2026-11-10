@@ -1,10 +1,9 @@
 """E12-A4: bounded counterexample-triggered parameterized operator expansion.
 
+A3 residual diagnosis supplies feature pairs; Train proposes thresholds; Gate validates.
 This is a finite meta-operator family, not unrestricted primitive invention.
-Candidates are proposed from Train only and independently filtered by Gate.
 """
 from __future__ import annotations
-
 from dataclasses import dataclass
 import math
 from typing import Literal
@@ -32,6 +31,15 @@ class Observation:
 
 
 @dataclass(frozen=True)
+class LearnerView:
+    schema: tuple[FeatureSpec, ...]
+    train: tuple[Observation, ...]
+    gate: tuple[Observation, ...]
+    # Pairs implicated by A3's residual/counterexample diagnosis.
+    counterexample_pairs: tuple[tuple[str, str], ...]
+
+
+@dataclass(frozen=True)
 class OperatorCandidate:
     operator_id: str
     family: str
@@ -45,16 +53,8 @@ class OperatorCandidate:
         return int(abs(left_value - right_value) > self.threshold)
 
 
-@dataclass(frozen=True)
-class LearnerView:
-    schema: tuple[FeatureSpec, ...]
-    train: tuple[Observation, ...]
-    gate: tuple[Observation, ...]
-
-
 def _finite_number(value: object) -> bool:
-    return (isinstance(value, (int, float)) and not isinstance(value, bool)
-            and math.isfinite(value))
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
 
 
 def validate_view(view: LearnerView) -> None:
@@ -66,27 +66,29 @@ def validate_view(view: LearnerView) -> None:
     if not view.train or not view.gate:
         raise ValueError("Train and Gate must both be non-empty")
     for split_name, examples in (("Train", view.train), ("Gate", view.gate)):
-        ids = [example.evidence_id for example in examples]
-        if any(not isinstance(item, str) or not item for item in ids):
-            raise ValueError(f"{split_name} evidence IDs must be non-empty strings")
-        if len(ids) != len(set(ids)):
-            raise ValueError(f"{split_name} evidence IDs must be unique")
+        ids = [item.evidence_id for item in examples]
+        if any(not isinstance(item, str) or not item for item in ids) or len(ids) != len(set(ids)):
+            raise ValueError(f"{split_name} evidence IDs must be unique and non-empty")
         for example in examples:
             if example.label not in (0, 1):
                 raise ValueError("labels must be binary")
             if len(example.values) != len(names) or {key for key, _ in example.values} != set(names):
                 raise ValueError("each observation must contain exactly the schema features")
-            for name, value in example.values:
-                if not _finite_number(value):
-                    raise TypeError(f"{name} must be a finite numeric value")
-    train_ids = {item.evidence_id for item in view.train}
-    gate_ids = {item.evidence_id for item in view.gate}
-    if train_ids & gate_ids:
+            if any(not _finite_number(value) for _, value in example.values):
+                raise TypeError("all feature values must be finite numeric values")
+    if {item.evidence_id for item in view.train} & {item.evidence_id for item in view.gate}:
         raise ValueError("Train/Gate evidence IDs must be disjoint")
+    if not view.counterexample_pairs:
+        raise ValueError("at least one A3-counterexample feature pair is required")
+    canonical = [tuple(sorted(pair)) for pair in view.counterexample_pairs]
+    if any(len(pair) != 2 or pair[0] == pair[1] or
+           pair[0] not in names or pair[1] not in names for pair in canonical):
+        raise ValueError("counterexample pairs must name two distinct schema features")
+    if len(canonical) != len(set(canonical)):
+        raise ValueError("counterexample pairs must be unique")
 
 
 def _thresholds(values: list[float]) -> tuple[tuple[float, float, float], ...]:
-    """Return (threshold, lower_support_value, upper_support_value) gaps."""
     unique = sorted(set(values))
     result = []
     for lower, upper in zip(unique, unique[1:]):
@@ -97,41 +99,36 @@ def _thresholds(values: list[float]) -> tuple[tuple[float, float, float], ...]:
 
 
 def propose_operators(view: LearnerView) -> tuple[OperatorCandidate, ...]:
-    """Propose parameterized abs-difference operators from Train only."""
+    """Propose ABS_DIFF_GT thresholds from Train, only for A3-flagged pairs."""
     validate_view(view)
+    schema = {item.name: item for item in view.schema}
     result = []
-    for i, left in enumerate(view.schema):
-        for right in view.schema[i + 1:]:
-            distances = [abs(example.value(left.name) - example.value(right.name))
-                         for example in view.train]
-            for threshold, lower, upper in _thresholds(distances):
-                below_ids = sorted(example.evidence_id for example in view.train
-                                   if abs(example.value(left.name) - example.value(right.name)) == lower)
-                above_ids = sorted(example.evidence_id for example in view.train
-                                   if abs(example.value(left.name) - example.value(right.name)) == upper)
-                evidence_ids = tuple(sorted(set(below_ids + above_ids)))
-                token = format(threshold, ".17g")
-                operator_id = f"op:abs-diff-gt:{left.name}:{right.name}:{token}"
-                result.append(OperatorCandidate(
-                    operator_id=operator_id,
-                    family="ABS_DIFF_GT",
-                    left=left.name,
-                    right=right.name,
-                    threshold=threshold,
-                    parent_primitives=("A3:numeric:pair", "META:threshold-separation"),
-                    source_evidence_ids=evidence_ids,
-                ))
+    for left_name, right_name in sorted(tuple(sorted(pair)) for pair in view.counterexample_pairs):
+        left, right = schema[left_name], schema[right_name]
+        distances = [abs(item.value(left.name) - item.value(right.name)) for item in view.train]
+        for threshold, lower, upper in _thresholds(distances):
+            low_ids = [item.evidence_id for item in view.train
+                       if abs(item.value(left.name) - item.value(right.name)) == lower]
+            high_ids = [item.evidence_id for item in view.train
+                        if abs(item.value(left.name) - item.value(right.name)) == upper]
+            evidence_ids = tuple(sorted(set(low_ids + high_ids)))
+            token = format(threshold, ".17g")
+            result.append(OperatorCandidate(
+                operator_id=f"op:abs-diff-gt:{left.name}:{right.name}:{token}",
+                family="ABS_DIFF_GT", left=left.name, right=right.name,
+                threshold=threshold,
+                parent_primitives=("A3:numeric:pair", "META:threshold-separation"),
+                source_evidence_ids=evidence_ids,
+            ))
     return tuple(sorted(result, key=lambda item: item.operator_id))
 
 
 def _consistent(candidate: OperatorCandidate, examples: tuple[Observation, ...]) -> bool:
-    return all(candidate.evaluate(example.value(candidate.left),
-                                  example.value(candidate.right)) == example.label
-               for example in examples)
+    return all(candidate.evaluate(item.value(candidate.left), item.value(candidate.right)) == item.label
+               for item in examples)
 
 
 def infer(view: LearnerView, candidate_budget: int | None = None) -> dict:
-    """Train-only proposal + Gate validation with explicit abstention."""
     candidates = propose_operators(view)
     if candidate_budget is not None:
         if isinstance(candidate_budget, bool) or not isinstance(candidate_budget, int):
@@ -149,23 +146,19 @@ def infer(view: LearnerView, candidate_budget: int | None = None) -> dict:
         status, selected = "AMBIGUOUS", None
     else:
         status, selected = "INCONSISTENT", None
-    return {
-        "status": status,
-        "candidate_count": len(candidates),
-        "evaluated_count": len(evaluated),
-        "train_consistent_count": len(train_ok),
-        "gate_consistent_count": len(gate_ok),
-        "candidates": gate_ok,
-        "selected": selected,
-        "provenance": None if selected is None else {
-            "operator_id": selected.operator_id,
-            "family": selected.family,
-            "parent_primitives": selected.parent_primitives,
-            "source_evidence_ids": selected.source_evidence_ids,
-            "validation_evidence_ids": tuple(sorted(item.evidence_id for item in view.gate)),
-            "revision": "E12-A4-r0",
-        },
+    provenance = None if selected is None else {
+        "operator_id": selected.operator_id,
+        "family": selected.family,
+        "parent_primitives": selected.parent_primitives,
+        "source_evidence_ids": selected.source_evidence_ids,
+        "validation_evidence_ids": tuple(sorted(item.evidence_id for item in view.gate)),
+        "counterexample_pairs": tuple(sorted(tuple(sorted(pair)) for pair in view.counterexample_pairs)),
+        "revision": "E12-A4-r0",
     }
+    return {"status": status, "candidate_count": len(candidates),
+            "evaluated_count": len(evaluated), "train_consistent_count": len(train_ok),
+            "gate_consistent_count": len(gate_ok), "candidates": gate_ok,
+            "selected": selected, "provenance": provenance}
 
 
 def demo_view() -> LearnerView:
@@ -177,8 +170,6 @@ def demo_view() -> LearnerView:
         Observation("tr-04", (("x", 1), ("y", 6)), 1),
         Observation("tr-05", (("x", 5), ("y", 7)), 0),
     )
-    gate = (
-        Observation("ga-01", (("x", 0), ("y", 5)), 1),
-        Observation("ga-02", (("x", 3), ("y", 4)), 0),
-    )
-    return LearnerView(schema, train, gate)
+    gate = (Observation("ga-01", (("x", 0), ("y", 5)), 1),
+            Observation("ga-02", (("x", 3), ("y", 4)), 0))
+    return LearnerView(schema, train, gate, (("x", "y"),))
