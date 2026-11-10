@@ -73,6 +73,8 @@ class HyperedgeLifecycle:
             raise LifecycleError("each member must have one non-empty role")
         if len(set(p.support_ids)) < self.min_support:
             raise LifecycleError("insufficient independent support ids")
+        if set(p.support_ids) & set(p.counterexample_ids):
+            raise LifecycleError("support and counterexample evidence must be disjoint")
         if p.validation_gain < self.min_gain:
             raise LifecycleError("held-out validation gain is below threshold")
         if p.cost < 0:
@@ -111,6 +113,8 @@ class HyperedgeLifecycle:
         old = self.edges[edge_id]
         support = self._unique((*old.support_ids, *support_ids))
         counter = self._unique((*old.counterexample_ids, *counterexample_ids))
+        if set(support) & set(counter):
+            raise LifecycleError("support and counterexample evidence must be disjoint")
         stale = old.stale_windows + 1 if validation_gain < self.min_gain else 0
         updated = Hyperedge(
             edge_id=old.edge_id, members=old.members, roles=old.roles,
@@ -153,6 +157,9 @@ class HyperedgeLifecycle:
         members = self._unique((*a.members, *b.members))
         merged_roles = tuple(role_by_member[member] for member in members)
         support = self._unique((*a.support_ids, *b.support_ids))
+        counterexamples = self._unique((*a.counterexample_ids, *b.counterexample_ids))
+        if set(support) & set(counterexamples):
+            raise LifecycleError("merged support conflicts with counterexample evidence")
         if len(support) < self.min_support:
             raise LifecycleError("merged edge has insufficient support")
         if len(self.edges) - 1 > self.max_edges:
@@ -160,8 +167,7 @@ class HyperedgeLifecycle:
         merged = Hyperedge(
             edge_id=new_edge_id, members=members, roles=merged_roles,
             relation_type=a.relation_type, support_ids=support,
-            counterexample_ids=self._unique((*a.counterexample_ids,
-                                              *b.counterexample_ids)),
+            counterexample_ids=counterexamples,
             validation_gains=(measured_validation_gain,),
             cost=a.cost + b.cost, age_windows=1, stale_windows=0,
             version=max(a.version, b.version) + 1,
@@ -190,6 +196,10 @@ class HyperedgeLifecycle:
         flattened = [m for child in children for m in child.members]
         if len(flattened) != len(set(flattened)) or set(flattened) != set(parent.members):
             raise LifecycleError("children must partition parent members exactly")
+        parent_roles = dict(zip(parent.members, parent.roles))
+        if any(parent_roles[member] != role
+               for child in children for member, role in zip(child.members, child.roles)):
+            raise LifecycleError("children must preserve parent member roles")
         built = []
         for child in children:
             self._validate_proposal(child)
