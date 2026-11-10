@@ -1,7 +1,7 @@
 # E12-A3-M1 Adaptive Budget Allocation
 
 Date: 2026-11-11  
-Status: design protocol; initial cross-family syntax deduplication is implemented and CI-validated; adaptive allocator and four-way split remain pending  
+Status: design protocol; cross-family syntax deduplication and a stateful UCB1 allocator core are implemented; end-to-end adaptive benchmark and four-way split remain pending  
 Motivation: E12-A3-M0 exact-budget result shows equal-share round-robin underperforms the best specialist on the current two-task synthetic benchmark.
 
 ## 1. Research question
@@ -64,7 +64,7 @@ Novelty is measured against the existing candidate registry, not by string dista
 - new relation type;
 - new held-out task-family transfer evidence.
 
-Reward for proposer family i is the incremental improvement in the best portfolio utility after its batch, not its absolute best score. This avoids giving a family repeated credit for rediscovering the current best candidate.
+Reward for proposer family i is the incremental improvement in the best portfolio utility after its batch, not its absolute best score. This avoids giving a family repeated credit for rediscovering the current best candidate. Before UCB1 update, transform the incremental utility through a preregistered bounded mapping into [0, 1]; standard UCB1 assumes bounded rewards. Do not silently clip or rescale after inspecting Gate-Final or Locked Test.
 
 ## 6. Allocator candidates
 
