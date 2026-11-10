@@ -37,7 +37,7 @@ def make_four_way_world(
 ) -> tuple[tuple[Observation, ...], tuple[Observation, ...],
            tuple[Observation, ...], tuple[Observation, ...]]:
     """Generate disjoint Support/Gate-Dev/Gate-Final/Locked-Test partitions."""
-    if task not in ("THRESHOLD", "PAIRWISE_DIFFERENCE"):
+    if task not in ("THRESHOLD", "PAIRWISE_DIFFERENCE", "PARITY"):
         raise ValueError("unsupported task")
     rng = random.Random(seed)
     rows = []
@@ -45,7 +45,12 @@ def make_four_way_world(
         x = rng.randrange(10)
         y = rng.randrange(10)
         z = max(0, min(9, x + rng.choice((-2, -1, 0, 1, 2))))
-        label = int(x >= 6) if task == "THRESHOLD" else int(x - y >= 3)
+        if task == "THRESHOLD":
+            label = int(x >= 6)
+        elif task == "PAIRWISE_DIFFERENCE":
+            label = int(x - y >= 3)
+        else:
+            label = int(x % 2 == 0)
         rows.append(Observation(
             f"{task.lower()}-{seed}-{i:03d}",
             (("x", x), ("y", y), ("z", z)),
