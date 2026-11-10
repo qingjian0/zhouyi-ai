@@ -12,9 +12,8 @@ from prototype.e12a3_adaptive_benchmark import (
     _score_locked_test,
     _select_on_gate_final,
     make_four_way_world,
-    run_episode,
+    run_episode as run_baseline_episode,
 )
-from prototype.e12a3_multi_proposer import Proposal
 
 
 REWARD_MODES = ("MEAN", "MAX", "TOP2_MEAN", "DELTA_BEST", "MEAN_NOVELTY")
@@ -73,7 +72,7 @@ def _clustered_difference(
 def run_episode(seed: int, task: str, budget: int = 31) -> dict[str, Any]:
     support, gate_dev, gate_final, locked_test = make_four_way_world(seed, task)
     # run_episode supplies fixed controls and the current MEAN reward baseline.
-    baseline = run_episode.__globals__["run_episode"](seed, task, budget)
+    baseline = run_baseline_episode(seed, task, budget)
     methods = {
         name: baseline["methods"][name]
         for name in ("STAT", "RELATIONAL", "RANDOM", "BOUNDED_ENUM",
