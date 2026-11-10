@@ -50,9 +50,9 @@ The global coordinator allocates a single total budget across both levels. Compo
 
 The current composition branch's CI run reported an AttributeError in candidate ordering: `_candidate_order` accesses `.depth` on a base A1 Predicate, but Predicate exposes `.complexity` and has no `.depth` property.
 
-The fix should make candidate depth explicit for both variants, e.g. depth 0 for a Predicate and Expr.depth for an expression. Then rerun the complete repository test suite, not only the new test file.
+The branch owner fixed candidate ordering by treating an A1 Predicate as a depth-zero leaf and reading .depth only from Expr. The subsequent full repository CI run passed on commit `d888c3ec9a7ad37d949646f6f7a1ae26e3b30c2e`.
 
-This is a review finding, not a patch to that branch. The composition branch remains separate pending its own repair and validation.
+This is a review finding and validation record, not a patch to that branch. The composition branch remains separate so the proposal portfolio and composition induction can be evaluated independently before integration.
 
 ## 4. Proposal portfolio validation status
 
