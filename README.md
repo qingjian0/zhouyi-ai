@@ -48,6 +48,7 @@
 - [E12-A1 类型化谓词原型](prototype/e12a1_typed_predicate_induction.py)
 - [E12-A2-M 主动观测选择器](prototype/e12a2_active_measurement_selector.py)
 - [E12-A2-M 单元测试](tests/test_e12a2_active_measurement_selector.py)
+- [E12-A3 易象先验主动观测对照预注册](docs/E12A3_YIXIANG_ACTIVE_PRIOR_PREREGISTRATION_2026-11-11.md)
 - [E02 动态超图实验设计](docs/E02_DYNAMIC_HYPERGRAPH.md)
 - [E02-A 结果审计与下一阶段协议](docs/E02A_NEXT_RESEARCH_2026-11-10.md)
 - [E02-B 三元有限域关系诊断协议](docs/E02B_TERNARY_PROTOCOL.md)
