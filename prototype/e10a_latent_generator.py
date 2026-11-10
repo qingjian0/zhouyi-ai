@@ -277,8 +277,14 @@ def generate_episode(seed: int, *, object_count: int = 18,
                       if latent_attributes[object_id][feature_key] == value]
             buckets.append(bucket)
 
-        for _ in range(instances_per_template):
-            role_objects = tuple(rng.choice(bucket) for bucket in buckets)
+        role_pools = [
+            rng.sample(bucket, k=min(instances_per_template, len(bucket)))
+            for bucket in buckets
+        ]
+        for instance_index in range(instances_per_template):
+            role_objects = tuple(
+                pool[instance_index % len(pool)] for pool in role_pools
+            )
             if len(set(role_objects)) != arity:
                 raise ValueError("generator produced duplicate role objects")
 
