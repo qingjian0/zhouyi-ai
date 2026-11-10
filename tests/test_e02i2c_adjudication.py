@@ -161,6 +161,23 @@ class E02I2CContractsTests(unittest.TestCase):
         ))
         self.assertEqual(decision.event, EventType.SUSPEND)
 
+    def test_old_absence_sample_cannot_validate_reused_recent_absence_tail(self):
+        decision = adjudicate_event(active(), (opp(0), opp(1), opp(2), opp(3)), (
+            packet("old", 0, EvidencePolarity.ABSENCE, signature=None, sample="old-sample"),
+            packet("tail-2", 2, EvidencePolarity.ABSENCE, signature=None, sample="reused-tail"),
+            packet("tail-3", 3, EvidencePolarity.ABSENCE, signature=None, sample="reused-tail"),
+        ))
+        self.assertEqual(decision.event, EventType.ABSTAIN)
+
+    def test_suspension_references_only_qualifying_absence_tail(self):
+        decision = adjudicate_event(active(), (opp(0), opp(1), opp(2)), (
+            packet("old-absence", 0, EvidencePolarity.ABSENCE, signature=None),
+            packet("tail-1", 1, EvidencePolarity.ABSENCE, signature=None),
+            packet("tail-2", 2, EvidencePolarity.ABSENCE, signature=None),
+        ))
+        self.assertEqual(decision.event, EventType.SUSPEND)
+        self.assertEqual(set(decision.evidence_refs), {"tail-1", "tail-2"})
+
     def test_reused_sample_cannot_suspend_across_two_windows(self):
         decision = adjudicate_event(active(), (opp(0), opp(1)), (
             packet("a0", 0, EvidencePolarity.ABSENCE, signature=None, sample="same-sample"),
