@@ -140,7 +140,30 @@ def generate_relation_candidates(
                     raw.append(RelationCandidate(
                         f"{operator}:{left}:{right}:{direction}:{threshold:.12g}",
                         operator, (left, right), threshold, direction))
-    raw = sorted(raw, key=lambda c: c.relation_id)[:max_candidates]
+    # Apply a deterministic round-robin cap across operator families. A plain
+    # lexical slice would let high-cardinality operators consume the entire
+    # budget and silently exclude later operators (notably product relations).
+    by_operator: dict[str, list[RelationCandidate]] = {}
+    for candidate in raw:
+        by_operator.setdefault(candidate.operator, []).append(candidate)
+    for candidates in by_operator.values():
+        candidates.sort(key=lambda c: c.relation_id)
+    selected: list[RelationCandidate] = []
+    operators = sorted(by_operator)
+    cursor = 0
+    while len(selected) < max_candidates:
+        added = False
+        for operator in operators:
+            candidates = by_operator[operator]
+            if cursor < len(candidates):
+                selected.append(candidates[cursor])
+                added = True
+                if len(selected) >= max_candidates:
+                    break
+        if not added:
+            break
+        cursor += 1
+    raw = selected
     scores = []
     for candidate in raw:
         pred = [_predict_relation(row, candidate) for row in rows]
