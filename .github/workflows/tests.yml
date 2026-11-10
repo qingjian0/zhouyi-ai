@@ -27,7 +27,13 @@ jobs:
       - name: Run E12-A3 adaptive benchmark tests
         run: python -m unittest tests.test_e12a3_adaptive_benchmark -v
       - name: Run E12-A3 four-way adaptive benchmark
-        run: python -m prototype.e12a3_adaptive_benchmark --seeds 20 --start-seed 1 --budget 31 --json
+        run: python -m prototype.e12a3_adaptive_benchmark --seeds 20 --start-seed 1 --budget 31 --json > /tmp/e12a3-m1-four-way.json
+      - name: Upload E12-A3 four-way benchmark artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: e12a3-m1-four-way-benchmark
+          path: /tmp/e12a3-m1-four-way.json
+          if-no-files-found: error
       - name: Run E12-A3 20-seed equal-budget benchmark
         run: python -m prototype.e12a3_proposer_benchmark --seeds 20 --start-seed 1 --budget 31 --json
       - name: Run E01 demonstration
