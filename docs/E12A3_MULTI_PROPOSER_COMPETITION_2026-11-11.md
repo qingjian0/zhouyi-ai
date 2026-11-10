@@ -36,7 +36,7 @@ Start with small transparent generators, each with a stable family ID and versio
 - CONTRASTIVE: predicates separating positive examples from hard negatives.
 - COMPOSITIONAL: typed AND/OR/NOT compositions of already proposed primitives.
 - RANDOM: grammar-valid random proposals as an exploration baseline.
-- EXHAUSTIVE: bounded DSL enumeration as a search baseline, not a presumed winner.
+- EXHAUSTIVE: bounded DSL enumeration as a separate search-control baseline, not a member of the adaptive portfolio; it may overlap the STAT/RELATIONAL grammar and must not receive a second allocation inside that portfolio.
 
 Do not give one family a richer schema or more evidence than another. Every proposal records proposer family/version, canonical expression and grammar version, input/output types and domain, source observation IDs, proposal and execution costs, parent candidate IDs, and parameter uncertainty.
 
