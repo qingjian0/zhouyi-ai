@@ -28,3 +28,5 @@ jobs:
         run: python -m prototype.e02_ternary --examples 900 --seed 7
       - name: Run E02-B pairwise vs third-order learners
         run: python -m prototype.e02_ternary_learners --seeds 5 --start-seed 7 --json
+      - name: Run E02-C hyperedge lifecycle tests
+        run: python -m unittest tests.test_e02_edge_lifecycle -v
