@@ -77,7 +77,17 @@ The CI sweep used 5 seeds per family, budget 4, and 8 exhaustive targets per wor
 | Cost-normalized IG | 0.5250 | 0.5189 | 2.8083 |
 | Exact optimal | 0.8583 | 0.1563 | 3.5750 |
 
-This is one small synthetic sweep, not a general performance claim. The pooled summary hides interactions between policy and world family; `family_summary` was added so future runs can report those interactions directly. The two-step lookahead policy was added after this snapshot and has not yet been measured in this run. The Run #360 full workflow completed successfully.
+This is one small synthetic sweep, not a general performance claim. The pooled summary hides interactions between policy and world family; `family_summary` was added so future runs can report those interactions directly. The two-step lookahead policy was added after this snapshot and has not yet been measured in this run.
+
+Family-level identification rates from the same CI JSON:
+
+| World family | Random | Fixed | Max disagreement | Expected IG | Cost-normalized IG | Exact optimal |
+|---|---:|---:|---:|---:|---:|---:|
+| Balanced | 47.5% | 40.0% | 80.0% | 80.0% | 85.0% | 90.0% |
+| Skewed | 60.0% | 57.5% | 67.5% | 67.5% | 67.5% | 67.5% |
+| Redundant | 30.0% | 5.0% | 100.0% | 100.0% | 5.0% | 100.0% |
+
+In the redundant family, Expected IG and max disagreement select the expensive direct-identification action and identify every target within budget. Cost-normalized IG instead spends budget on cheaper partial measurements and identifies only 5% of targets. In the balanced family, cost-normalized IG is competitive and reaches 85%; in the skewed family, all informed strategies tie. Thus, cost normalization is not uniformly good or bad: it interacts strongly with the structure of the available action set. This is the main reason the benchmark now reports per-family outcomes rather than only pooled averages. The Run #360 full workflow completed successfully.
 
 ## Next steps
 
