@@ -46,6 +46,7 @@
 - [E12-A2 实现审查与验证门槛](docs/E12A2_IMPLEMENTATION_AUDIT_2026-11-11.md)
 - [E12-A2-M 选择器实现记录](docs/E12A2_M_IMPLEMENTATION_2026-11-11.md)
 - [E12-A3 稀疏组合原语自主归纳协议](docs/E12A3_COMPOSITIONAL_PRIMITIVE_INDUCTION.md)
+- [E12 组合泛化与神经符号相关工作](docs/RELATED_WORK_E12_COMPOSITIONALITY_2026-11-11.md)
 - [E12-A1 类型化谓词原型](prototype/e12a1_typed_predicate_induction.py)
 - [E12-A2-M 主动观测选择器](prototype/e12a2_active_measurement_selector.py)
 - [E12-A2-M 单元测试](tests/test_e12a2_active_measurement_selector.py)
