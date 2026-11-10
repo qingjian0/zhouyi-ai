@@ -73,20 +73,23 @@ The 20 unit tests cover:
 1. prediction commit requires a prior observation; reveal cannot precede a committed prediction;
 2. identical idempotent retry returns the original receipt;
 3. conflicting idempotent retry is rejected;
-4. idempotency fingerprint includes event type/schema and actor role;
-5. one observation ID and prediction ID are unique within an episode;
-6. one prediction per observation per learner track;
-7. independent E09/E10-style tracks may commit against the same observation;
-8. evidence reveal cannot cross learner tracks;
-9. v0.1 prediction records replay under a legacy track without changing their original digest, and the legacy-aware index is rebuilt on upgrade;
-10. runtime journal mode avoids the known pre-3.51.3 WAL-reset bug;\n11. concurrent independent SQLite connections serialize writes without losing sequence numbers;
-11. duplicate event IDs roll back without consuming sequence numbers;
-12. stale expected sequence is rejected;
-13. one reveal per prediction;
-14. revision evidence and structure-version references must exist;
-15. structure parent references must exist;
-16. replay is deterministic after close/reopen;
-17. structure snapshots are detached from stored state.
+4. idempotency fingerprint includes event type/schema;
+5. idempotency fingerprint includes actor role;
+6. evidence reveal cannot cross learner tracks;
+7. empty learner-track values are rejected;
+8. one prediction per observation per learner track;
+9. independent tracks may commit against the same observation;
+10. prediction IDs are unique within an episode;
+11. v0.1 prediction records replay under a legacy track without changing their original digest;
+12. old index definitions are migrated to legacy-aware uniqueness;
+13. runtime journal mode avoids the known pre-3.51.3 WAL-reset bug;
+14. concurrent independent SQLite connections serialize writes without losing sequence numbers;
+15. duplicate event IDs roll back without consuming sequence numbers;
+16. stale expected sequence is rejected;
+17. one reveal per prediction;
+18. revision evidence and structure-version references must exist;
+19. structure parent references must exist;
+20. replay is deterministic after close/reopen and structure snapshots are detached.
 
 Run:
 
