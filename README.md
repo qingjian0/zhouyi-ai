@@ -37,6 +37,7 @@
 - [架构设计](docs/ARCHITECTURE.md)
 - [易象模块：可检验化设计](docs/YIXIANG_MODULE.md)
 - [相关工作与文献](docs/RELATED_WORK.md)
+- [2026-11-10 研究增量报告](docs/RESEARCH_FINDINGS_2026-11-10.md)
 - [实验计划与验收标准](docs/EXPERIMENTS.md)
 - [研究风险与证伪条件](docs/RISKS_AND_FALSIFICATION.md)
 - [开发路线图](ROADMAP.md)
@@ -49,6 +50,7 @@
 ```bash
 python -m unittest discover -s tests -v
 python -m prototype.e01_sparse_composition
+python -m prototype.e01_learned_ranker --json
 ```
 
 ## 研究状态标记
