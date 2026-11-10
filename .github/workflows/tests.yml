@@ -52,3 +52,15 @@ jobs:
         run: python -m unittest tests.test_e02i2_hidden_identity -v
       - name: Run E02-I2 hidden identity benchmark (30 seeds)
         run: python -m prototype.e02i2_hidden_identity --seeds 30 --start-seed 7000
+
+  e02i2-hidden-identity:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run E02-I2 hidden identity benchmark tests
+        run: python -m unittest tests.test_e02i2_hidden_identity -v
+      - name: Run E02-I2 hidden identity benchmark (30 seeds)
+        run: python -m prototype.e02i2_hidden_identity --seeds 30 --start-seed 7000
