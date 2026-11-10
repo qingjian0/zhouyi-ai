@@ -77,8 +77,8 @@ def generate_episode(scenario: str, seed: int) -> HiddenIdentityEpisode:
         candidates = (_candidate(cid, (b, a), ("target", "source"), "a&b"),)
         truth = {cid: "hist-A"}
     elif scenario == "member_drift":
-        history = {"hist-A": _version("hist-A", (a, b, c), ("source", "bridge", "target"), "a&b&c")}
-        candidates = (_candidate(cid, (a, b, e), ("source", "bridge", "target"), "a&b&e"),)
+        history = {"hist-A": _version("hist-A", (a, b, c), ("source", "bridge", "target"), "ordered-chain")}
+        candidates = (_candidate(cid, (a, b, e), ("source", "bridge", "target"), "ordered-chain"),)
         truth = {cid: "hist-A"}
     elif scenario == "same_members_new_semantics":
         # The candidate is a new identity despite exact member overlap.
