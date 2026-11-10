@@ -63,7 +63,9 @@ def degree_preserving_swaps(
         return rows, accepted
 
     for _ in range(swaps):
-        (r1, i1), (r2, i2) = rng.sample(edges, 2)
+        index1, index2 = rng.sample(range(len(edges)), 2)
+        r1, i1 = edges[index1]
+        r2, i2 = edges[index2]
         if r1 == r2 or i1 == i2:
             continue
         if i2 in rows[r1] or i1 in rows[r2]:
@@ -72,7 +74,10 @@ def degree_preserving_swaps(
         rows[r2].remove(i2)
         rows[r1].add(i2)
         rows[r2].add(i1)
-        edges = _edge_list(rows)
+        # Keep the incidence-edge index synchronized in O(1); rebuilding it
+        # after each accepted move would make long chains unnecessarily costly.
+        edges[index1] = (r1, i2)
+        edges[index2] = (r2, i1)
         accepted += 1
     return rows, accepted
 
