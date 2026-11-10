@@ -47,6 +47,7 @@
 - [E12-A3 多提议器原语发现与预算竞争](docs/E12A3_MULTI_PROPOSER_COMPETITION_2026-11-11.md)\n- [E12-A3-M0 首个可运行原型记录](docs/E12A3_M0_IMPLEMENTATION_2026-11-11.md)\n- [E12-A3 多提议器原型](prototype/e12a3_multi_proposer.py)
 - [E12-A3 公平预算基准](prototype/e12a3_proposer_benchmark.py)
 - [E12-A3-M0 基准实验结果](docs/E12A3_M0_BENCHMARK_RESULTS_2026-11-11.md)
+- [E12-A3-M0.1 跨提议器去重实验](docs/E12A3_M0_1_DEDUP_RESULTS_2026-11-11.md)
 - [E12-A3-M1 自适应预算分配研究](docs/E12A3_M1_ADAPTIVE_BUDGET_ALLOCATION_2026-11-11.md)
 - [E12-A3 原语提议与稀疏组合整合审查](docs/E12A3_PORTFOLIO_COMPOSITION_INTEGRATION_2026-11-11.md)\n- [E12-A3 基准测试](tests/test_e12a3_proposer_benchmark.py)\n- [E12-A3 多提议器单元测试](tests/test_e12a3_multi_proposer.py)
 - [E12-A2-M 选择器实现记录](docs/E12A2_M_IMPLEMENTATION_2026-11-11.md)
