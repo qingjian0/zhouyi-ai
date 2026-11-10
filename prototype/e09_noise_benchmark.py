@@ -58,9 +58,13 @@ def run(seed: int = 17, noise_rate: float = 0.0,
     train_assignments, test_assignments = assignments[:split], assignments[split:]
 
     train = []
+    noise_flipped_assignments = []
     for a, b, c in train_assignments:
         gold = target(a, b, c)
-        observed = 1 - gold if noise_rng.random() < noise_rate else gold
+        flipped = noise_rng.random() < noise_rate
+        observed = 1 - gold if flipped else gold
+        if flipped:
+            noise_flipped_assignments.append((a, b, c))
         z = gold if shortcut_enabled else train_distractor_rng.randrange(2)
         train.append(Example((a, b, c, z), observed))
 
@@ -110,6 +114,13 @@ def run(seed: int = 17, noise_rate: float = 0.0,
         "seed": seed,
         "noise_rate": noise_rate,
         "shortcut_enabled": shortcut_enabled,
+        "split_audit": {
+            "train_assignments": [list(row) for row in train_assignments],
+            "test_assignments": [list(row) for row in test_assignments],
+            "noise_flipped_assignments": [
+                list(row) for row in noise_flipped_assignments
+            ],
+        },
         "result": result.as_dict(),
         "learner_snapshot": learner.snapshot(),
         "limitations": [
