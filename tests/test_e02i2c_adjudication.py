@@ -34,6 +34,12 @@ class E02I2CContractsTests(unittest.TestCase):
         self.assertFalse({"true_identity_id", "true_event", "latent_identity",
                           "generator_transition"}.intersection(names))
 
+    def test_locked_test_evidence_cannot_enter_adjudicator(self):
+        with self.assertRaisesRegex(ValueError, "locked Test evidence"):
+            adjudicate_event(None, (opp(0),), (
+                packet("locked", 0, EvidencePolarity.SUPPORTS, "x", split="test"),
+            ))
+
     def test_duplicate_evidence_ids_and_orphan_evidence_rejected(self):
         with self.assertRaises(ValueError):
             adjudicate_event(None, (opp(0), opp(1)), (
