@@ -13,7 +13,7 @@ class CandidateMechanism:
     feature_key: str
     role_values: tuple[str, ...]
     context_key: str
-    required_context: str
+    required_contexts: tuple[tuple[str, str], ...]
 
     def predict(self, row: dict[str, Any], objects: dict[str, dict[str, str]]) -> bool:
         if row.get("relation_symbol") != self.relation_symbol:
@@ -25,10 +25,11 @@ class CandidateMechanism:
             values = sorted(objects[x][self.feature_key] for x in ids)
         except KeyError:
             return False
-        return values == list(self.role_values) and dict(row.get("context", [])).get(self.context_key) == self.required_context
+        context = dict(row.get("context", []))
+        return values == list(self.role_values) and all(context.get(key) == value for key, value in self.required_contexts)
 
     def as_dict(self) -> dict[str, Any]:
-        return {"relation_symbol": self.relation_symbol, "feature_key": self.feature_key, "role_values": list(self.role_values), "context_key": self.context_key, "required_context": self.required_context}
+        return {"relation_symbol": self.relation_symbol, "feature_key": self.feature_key, "role_values": list(self.role_values), "required_contexts": [list(pair) for pair in self.required_contexts]}
 
 class E10AMechanismLearner:
     """Exact finite candidate-set learner; no evaluator truth or mechanism hash is accepted."""
@@ -100,9 +101,12 @@ class E10AMechanismLearner:
                 if len(set(first)) != arity: continue
                 role_values = tuple(sorted(first))
                 if any(tuple(sorted(self._objects[oid].get(feature, "") for oid in row["participants"])) != role_values for row in positives): continue
-                for context_key, context_value in contexts:
-                    c = CandidateMechanism(relation, feature, role_values, context_key, context_value)
-                    if all(c.predict(row, self._objects) for row in positives) and all(not c.predict(row, self._objects) for row in negatives): candidates.add(c)
+                # Treat the common context as a conjunction, not as unrelated
+                # alternative single-key rules. Negative Support rows test each
+                # conjunct independently.
+                required_contexts = tuple(sorted(contexts))
+                c = CandidateMechanism(relation, feature, role_values, required_contexts)
+                if all(c.predict(row, self._objects) for row in positives) and all(not c.predict(row, self._objects) for row in negatives): candidates.add(c)
         return candidates
 
     @property
