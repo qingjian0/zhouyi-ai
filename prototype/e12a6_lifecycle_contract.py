@@ -46,6 +46,7 @@ class ActionType(str, Enum):
     SPECIALIZE = "specialize"
     RETIRE = "retire"
     REQUEST_REVALIDATION = "request_revalidation"
+    REGISTER_REVISION = "register_revision"
     REVALIDATE = "revalidate"
     MEASURE = "measure"
     COMPOSE = "compose"
@@ -166,6 +167,8 @@ _TRANSITIONS = {
     ActionType.REQUEST_REVALIDATION: {
         (CandidateState.REVISED, CandidateState.REVALIDATION_PENDING),
         (CandidateState.SPECIALIZED, CandidateState.REVALIDATION_PENDING)},
+    ActionType.REGISTER_REVISION: {
+        (CandidateState.OBSERVED, CandidateState.REVALIDATION_PENDING)},
     ActionType.REVALIDATE: {
         (CandidateState.REVALIDATION_PENDING, CandidateState.GATE_VALIDATED)},
 }
@@ -294,10 +297,17 @@ class LifecycleLedger:
             proposal_cost=proposal_cost,
             parent_refs=(f"{candidate_id}@{version}",),
             evidence_ids=evidence_ids,
-            state=CandidateState.REVALIDATION_PENDING,
+            state=CandidateState.OBSERVED,
         )
-        key = (revision.candidate_id, revision.version)
-        if key in self.candidates:
-            raise ValueError(f"duplicate candidate version: {key}")
-        self._candidates[key] = revision
-        return revision
+        self.add_candidate(revision)
+        self.apply(Action(
+            action_id=f"{candidate_id}@{version + 1}:register-revision",
+            action_type=ActionType.REGISTER_REVISION,
+            candidate_id=candidate_id,
+            candidate_version=version + 1,
+            evidence_ids=evidence_ids,
+            from_state=CandidateState.OBSERVED,
+            to_state=CandidateState.REVALIDATION_PENDING,
+            note=f"semantic revision of {candidate_id}@{version}",
+        ))
+        return self.candidates[(candidate_id, version + 1)]
