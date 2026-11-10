@@ -246,7 +246,8 @@ def adjudicate_event(
                 identity.signature, refs(same_support),
                 "fresh confirming evidence for the suspended version",
             )
-        if len(distinct_windows(contradictions)) >= required_windows:
+        if (len(distinct_windows(contradictions)) >= required_windows
+                and len({item.sample_id for item in contradictions}) >= required_windows):
             return EventDecision(
                 EventType.RETIRE, identity.identity_id, identity.version_id,
                 candidate_signature, refs(contradictions),
@@ -298,7 +299,12 @@ def adjudicate_event(
             expected_previous = window - 1
         else:
             break
-    if consecutive >= required_windows:
+    absence_samples = {
+        item.sample_id for item in absences
+        if item.window in absence_windows
+    }
+    if (consecutive >= required_windows
+            and len(absence_samples) >= required_windows):
         return EventDecision(
             EventType.SUSPEND, identity.identity_id, identity.version_id,
             identity.signature, refs(absences),
