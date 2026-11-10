@@ -11,11 +11,14 @@ class Probe:
     # outcome -> (hypothesis_id -> P(outcome | hypothesis, action))
     likelihoods: Mapping[str, Mapping[str, float]]
 
+def _finite_number(value: object) -> bool:
+    return isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value)
+
 def _validate_priors(priors: Mapping[str, float]) -> dict[str, float]:
     if not priors or any(not isinstance(k, str) or not k for k in priors):
         raise ValueError("priors need non-empty hypothesis IDs")
     values = dict(priors)
-    if any(not math.isfinite(v) or v < 0 for v in values.values()):
+    if any(not _finite_number(v) or v < 0 for v in values.values()):
         raise ValueError("prior weights must be finite and non-negative")
     total = sum(values.values())
     if not math.isfinite(total) or total <= 0:
@@ -25,7 +28,7 @@ def _validate_priors(priors: Mapping[str, float]) -> dict[str, float]:
 def _validate_probe(probe: Probe, hypothesis_ids: set[str]) -> dict[str, dict[str, float]]:
     if not isinstance(probe.action_id, str) or not probe.action_id:
         raise ValueError("action_id must be a non-empty string")
-    if not math.isfinite(probe.cost) or probe.cost <= 0:
+    if not _finite_number(probe.cost) or probe.cost <= 0:
         raise ValueError("probe cost must be positive and finite")
     if not probe.likelihoods:
         raise ValueError("probe must declare at least one outcome")
@@ -35,7 +38,7 @@ def _validate_probe(probe: Probe, hypothesis_ids: set[str]) -> dict[str, dict[st
             raise ValueError("each outcome must define every candidate hypothesis")
         clean = {}
         for hypothesis, probability in row.items():
-            if not math.isfinite(probability) or probability < 0 or probability > 1:
+            if not _finite_number(probability) or probability < 0 or probability > 1:
                 raise ValueError("likelihoods must be finite probabilities")
             clean[hypothesis] = probability
         table[outcome] = clean
@@ -78,9 +81,9 @@ def select_probe(priors: Mapping[str, float], probes: Sequence[Probe],
                  remaining_budget: float, *, tie_tolerance: float = 1e-12) -> dict:
     """Select max IG/cost among affordable probes, or explicitly abstain."""
     prior = _validate_priors(priors)
-    if not math.isfinite(remaining_budget) or remaining_budget < 0:
+    if not _finite_number(remaining_budget) or remaining_budget < 0:
         raise ValueError("remaining_budget must be finite and non-negative")
-    if not math.isfinite(tie_tolerance) or tie_tolerance < 0:
+    if not _finite_number(tie_tolerance) or tie_tolerance < 0:
         raise ValueError("tie_tolerance must be finite and non-negative")
     ids = [p.action_id for p in probes]
     if len(ids) != len(set(ids)):
