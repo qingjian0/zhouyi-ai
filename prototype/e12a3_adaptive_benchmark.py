@@ -18,7 +18,6 @@ from prototype.e12a3_multi_proposer import (
     Proposal,
     allocate_equal_budget,
     allocate_round_robin,
-    deduplicate_proposal_pools,
     propose_exhaustive,
     propose_random,
     propose_relational,
@@ -113,10 +112,8 @@ def _adaptive_allocate(
     if budget < 1 or batch_size < 1:
         raise ValueError("budget and batch_size must be positive")
     pools = _make_pools(support, seed)
-    pools, _ = deduplicate_proposal_pools({
-        family: pools[family] for family in ADAPTIVE_FAMILIES
-    })
-    # Preserve deterministic family order and use only unique expression queues.
+    # Keep each family's raw queue. Shared expressions are deduplicated in the
+    # candidate registry after emission, not assigned to a lexical owner arm.
     queues = {
         family: list(pools.get(family, ()))
         for family in ADAPTIVE_FAMILIES
@@ -140,6 +137,8 @@ def _adaptive_allocate(
         _, requested = pending
         batch = _take_batch(queues[family], offsets[family], requested)
         offsets[family] += len(batch)
+        if batch and len(batch) != requested:
+            raise RuntimeError(f"{family} pool cannot fill its requested batch")
         # The proposer invocation is budgeted by requested slots. If a pool is
         # exhausted, the unused slots are not silently reassigned.
         if not batch:
@@ -206,12 +205,11 @@ def _adaptive_allocate(
 def _select_on_gate_final(
     candidates: Sequence[Proposal],
     gate_final: Sequence[Observation],
-    locked_test: Sequence[Observation],
 ) -> dict[str, Any]:
-    """Select once on Gate-Final, then score the selected candidate on Test."""
+    """Select once on Gate-Final; this function cannot inspect Locked Test."""
     if not candidates:
-        return {"selected": None, "gate_final_accuracy": None,
-                "locked_test_accuracy": None, "candidate_count": 0}
+        return {"selected_proposal": None, "gate_final_accuracy": None,
+                "candidate_count": 0}
     ranked = sorted(
         candidates,
         key=lambda p: (
@@ -222,28 +220,36 @@ def _select_on_gate_final(
     )
     selected = ranked[0]
     return {
+        "selected_proposal": selected,
         "selected": selected.canonical_expression,
         "selected_family": selected.family,
         "selected_families": list(
             selected.supporting_families or (selected.family,)
         ),
         "gate_final_accuracy": _accuracy(selected, gate_final),
-        "locked_test_accuracy": _accuracy(selected, locked_test),
         "candidate_count": len(candidates),
     }
 
 
+def _score_locked_test(
+    selection: dict[str, Any],
+    locked_test: Sequence[Observation],
+) -> float | None:
+    """Score only the already-frozen Gate-Final selection."""
+    selected = selection["selected_proposal"]
+    return _accuracy(selected, locked_test) if selected is not None else None
+
+
 def _fixed_select(
     proposals: Sequence[Proposal],
-    gate_dev: Sequence[Observation],
     gate_final: Sequence[Observation],
     locked_test: Sequence[Observation],
     budget: int,
 ) -> dict[str, Any]:
     selected = tuple(proposals[:budget])
-    # Fixed methods do not use Gate-Dev for allocation, but we still count the
-    # unique candidate evaluations made available to their adaptive counterpart.
-    result = _select_on_gate_final(selected, gate_final, locked_test)
+    result = _select_on_gate_final(selected, gate_final)
+    result["locked_test_accuracy"] = _score_locked_test(result, locked_test)
+    result.pop("selected_proposal", None)
     result["proposal_slots_used"] = len(selected)
     result["gate_dev_unique_evaluations"] = 0
     result["trace"] = []
@@ -257,7 +263,7 @@ def run_episode(seed: int, task: str, budget: int = 31) -> dict[str, Any]:
 
     for family in ("STAT", "RELATIONAL", "RANDOM", "BOUNDED_ENUM"):
         methods[family] = _fixed_select(
-            pools[family], gate_dev, gate_final, locked_test, budget
+            pools[family], gate_final, locked_test, budget
         )
 
     equal = allocate_equal_budget(ADAPTIVE_FAMILIES, budget).as_dict()
@@ -265,20 +271,24 @@ def run_episode(seed: int, task: str, budget: int = 31) -> dict[str, Any]:
     for family in ADAPTIVE_FAMILIES:
         equal_candidates.extend(pools[family][:equal[family]])
     methods["EQUAL"] = _fixed_select(
-        equal_candidates, gate_dev, gate_final, locked_test, budget
+        equal_candidates, gate_final, locked_test, budget
     )
 
     rr_candidates = allocate_round_robin(
         {family: pools[family] for family in ADAPTIVE_FAMILIES}, budget
     )
     methods["ROUND_ROBIN"] = _fixed_select(
-        rr_candidates, gate_dev, gate_final, locked_test, budget
+        rr_candidates, gate_final, locked_test, budget
     )
 
     adaptive = _adaptive_allocate(support, gate_dev, seed, budget)
     adaptive_result = _select_on_gate_final(
-        adaptive["candidates"], gate_final, locked_test
+        adaptive["candidates"], gate_final
     )
+    adaptive_result["locked_test_accuracy"] = _score_locked_test(
+        adaptive_result, locked_test
+    )
+    adaptive_result.pop("selected_proposal", None)
     adaptive_result.update({
         "proposal_slots_used": adaptive["proposal_slots_used"],
         "gate_dev_unique_evaluations": adaptive["gate_dev_unique_evaluations"],
