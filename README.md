@@ -76,3 +76,8 @@ python -m prototype.e01_learned_ranker --json
 ## 许可与引用
 
 本仓库初始阶段采用 MIT License。若后续引入外部数据集、论文代码或古籍数字化文本，须逐项核查其许可证、来源和引用要求。研究引用见 [RELATED_WORK.md](docs/RELATED_WORK.md)。
+
+
+## E02-I
+
+Evidence-gated relation structure evolution prototype and reproducible experiment: `docs/E02I_RELATION_EVOLUTION.md`.
