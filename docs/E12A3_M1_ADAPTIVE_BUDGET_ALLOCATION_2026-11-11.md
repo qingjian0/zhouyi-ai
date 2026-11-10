@@ -1,7 +1,7 @@
 # E12-A3-M1 Adaptive Budget Allocation
 
 Date: 2026-11-11  
-Status: four-way adaptive benchmark prototype and tests are implemented; full CI validation is running; CPU-cost matching, broader task matrix, and process isolation remain pending  
+Status: four-way adaptive benchmark and tests are implemented; E12-specific CI steps passed in run 42874202373; initial 40-episode results are recorded; full legacy workflow, CPU-cost matching, broader task matrix, and process isolation remain pending  
 Motivation: E12-A3-M0 exact-budget result shows equal-share round-robin underperforms the best specialist on the current two-task synthetic benchmark.
 
 ## 1. Research question
@@ -194,7 +194,19 @@ This is an allocator primitive, not an end-to-end adaptive learning result. It d
 7. Run the expanded task matrix over independent world seeds.
 8. Only after the generic adaptive allocator is validated, introduce Yijing-inspired priors as proposal-distribution variants.
 
-## 13. Conclusion
+## 13. First four-way benchmark result
+
+The first 20-seed × 2-task experiment is recorded in `E12A3_M1_FOUR_WAY_RESULTS_2026-11-11.md`.
+
+At 31 proposal slots per method:
+- EQUAL and ROUND_ROBIN both reached 91.72% mean Locked-Test accuracy.
+- UCB1_ADAPTIVE reached 90.47%.
+- BOUNDED_ENUM reached 90.08%.
+- The UCB1 minus EQUAL paired seed-clustered difference was -1.25 percentage points, with a 95% t interval of [-2.94, +0.44] pp.
+
+This is not evidence that UCB1 improves over fixed allocation. The confidence interval includes zero, and the point estimate favors the simpler fixed methods. The current mean-batch-accuracy reward and context-free allocator are not yet adequate.
+
+## 14. Conclusion
 
 The E12-A3-M0 result shows that proposer diversity alone is insufficient. The next meaningful research problem is resource allocation under task uncertainty, duplicate candidates, and unequal proposer specialization.
 
