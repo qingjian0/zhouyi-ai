@@ -91,7 +91,7 @@ def run_episode(seed: int, *, train_n: int = 1024, gate_n: int = 512,
     for head, (members, table) in enumerate(zip(targets, tables)):
         # Identical feature vectors across heads make shared-feature coordination
         # meaningful; head labels differ by target relation.
-        base = seed * 100000 + head * 1000
+        base = seed * 100000
         trains.append(make_rows(seed=base + 1, count=train_n,
                                 target_members=members, target_table=table, noise=noise))
         gates.append(make_rows(seed=base + 2, count=gate_n,
