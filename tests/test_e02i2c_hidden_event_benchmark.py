@@ -114,6 +114,18 @@ class E02I2CHiddenEventBenchmarkTests(unittest.TestCase):
                     self.assertNotIn("conflict-positive", metadata)
                     self.assertNotIn("undersampled", metadata)
 
+    def test_provenance_ids_are_not_reproducible_from_low_entropy_seed(self):
+        first = build_episode(EventType.MODIFY, 4242, split="gate")
+        second = build_episode(EventType.MODIFY, 4242, split="gate")
+        first_ids = {
+            packet.evidence_id for packet in first.observation.evidence
+        }
+        second_ids = {
+            packet.evidence_id for packet in second.observation.evidence
+        }
+        self.assertFalse(first_ids.intersection(second_ids))
+        self.assertEqual(_adjudicator(first.observation), _adjudicator(second.observation))
+
     def test_random_bijective_provenance_renaming_preserves_semantic_decision(self):
         episode = build_episode(EventType.MODIFY, 31337, split="gate")
         renamed = []
