@@ -27,7 +27,7 @@ class E12A1CandidateInductionTests(unittest.TestCase):
     def test_induction_uses_support_and_gate_only(self):
         support, gate, _locked_test = make_benchmark()
         result = induce(support, gate)
-        self.assertEqual(result["status"], "IDENTIFIABLE")
+        self.assertEqual(result["status"], "CANDIDATE_SELECTED")
         self.assertIsNotNone(result["selected"])
         self.assertEqual(result["support_accuracy"], 1.0)
         self.assertEqual(result["gate_accuracy"], 1.0)
@@ -42,7 +42,7 @@ class E12A1CandidateInductionTests(unittest.TestCase):
 
     def test_demo_scores_locked_test_after_selection(self):
         result = run_demo()
-        self.assertEqual(result["learner_result"]["status"], "IDENTIFIABLE")
+        self.assertEqual(result["learner_result"]["status"], "CANDIDATE_SELECTED")
         self.assertIsNotNone(result["locked_test_accuracy"])
         self.assertEqual(result["locked_test_accuracy"], 1.0)
 
