@@ -41,6 +41,33 @@ The exact planner is not given the hidden target or the environment's private pr
 
 The benchmark uses paired target draws and common action-specific sensor random streams across every prior and policy arm within each family/episode. If two arms select the same action at the same episode, they receive the same sampled sensor outcome. It reports paired metric deltas (matched-minus-uniform and anti-aligned-minus-uniform) with normal-approximation 95% confidence intervals. Bootstrap intervals and larger independent world families remain future work.
 
+## CI result snapshot (Run #42873835303, 2026-11-11)
+
+The full workflow passed on the branch head tested by Run #42873835303. The A2-D step used 100 episodes per family/prior/policy cell, budget 3, three noisy world families, three prior arms, and five policies (4,500 episodes total).
+
+Expected-IG policy results:
+
+| World family | Learner prior | Accuracy | Brier ↓ | Log loss ↓ | Overconfident-wrong rate ↓ |
+|---|---|---:|---:|---:|---:|
+| Complementary | Matched | 85% | 0.2453 | 0.5049 | 4% |
+| Complementary | Uniform | 84% | 0.2841 | 0.5900 | 0% |
+| Complementary | Anti-aligned | 85% | 0.3603 | 0.7723 | 11% |
+| Rare | Matched | 85% | 0.2221 | 0.4379 | 2% |
+| Rare | Uniform | 79% | 0.2643 | 0.5108 | 1% |
+| Rare | Anti-aligned | 83% | 0.3519 | 0.7746 | 4% |
+| Redundant | Matched | 84% | 0.2799 | 0.5752 | 0% |
+| Redundant | Uniform | 78% | 0.3692 | 0.6941 | 0% |
+| Redundant | Anti-aligned | 78% | 0.3861 | 0.7514 | 0% |
+
+Paired anti-aligned-minus-uniform contrasts for Expected IG:
+- Complementary: overconfident-wrong rate +11 percentage points; normal-approximation 95% CI [+4.8, +17.2] points.
+- Rare: log loss +0.264; normal-approximation 95% CI [+0.024, +0.504].
+- Redundant: the corresponding intervals include zero for the reported metrics.
+
+Matched-minus-uniform contrasts did not establish a reliable accuracy or proper-score improvement at this sample size; the confidence intervals include zero. In the complementary family, the matched prior also increased the overconfident-wrong rate by 4 points (95% normal-approximation CI [+0.14, +7.86] points), despite lower average Brier/log loss. This is a reminder that a prior can improve aggregate scores while still creating more confident errors in a subset of episodes.
+
+These are exploratory finite-synthetic results. The intervals are paired normal approximations, not bootstrap intervals; there is no multiple-comparison correction, and each family uses a fixed likelihood table rather than independently sampled world structures. Do not treat these results as evidence for any Yijing prior. Their current value is methodological: a future structured prior must beat the uniform and generic controls while passing confident-error and distribution-shift guardrails.
+
 ## Interpretation safeguards
 
 1. A matched prior is not automatically better on finite samples; stochastic sensor outcomes can still produce errors.
