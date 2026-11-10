@@ -77,14 +77,16 @@ The unit tests cover:
 5. one observation ID and prediction ID are unique within an episode;
 6. one prediction per observation per learner track;
 7. independent E09/E10-style tracks may commit against the same observation;
-8. evidence reveal cannot cross learner tracks;\n9. v0.1 prediction records replay under a legacy track without changing their original digest;
-9. concurrent independent SQLite connections serialize writes without losing sequence numbers;
-10. stale expected sequence is rejected;
-11. one reveal per prediction;
-12. revision evidence and structure-version references must exist;
-13. structure parent references must exist;
-14. replay is deterministic after close/reopen;
-15. structure snapshots are detached from stored state.
+8. evidence reveal cannot cross learner tracks;
+9. v0.1 prediction records replay under a legacy track without changing their original digest;
+10. concurrent independent SQLite connections serialize writes without losing sequence numbers;
+11. duplicate event IDs roll back without consuming sequence numbers;
+12. stale expected sequence is rejected;
+13. one reveal per prediction;
+14. revision evidence and structure-version references must exist;
+15. structure parent references must exist;
+16. replay is deterministic after close/reopen;
+17. structure snapshots are detached from stored state.
 
 Run:
 
