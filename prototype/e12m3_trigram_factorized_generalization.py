@@ -230,7 +230,26 @@ def evaluate_episode(episode: Episode, *, max_candidates: int = FAMILY_SIZE) -> 
         "lookup_coverage": lookup_covered / total,
         "lookup_selective_accuracy": lookup_correct / lookup_covered if lookup_covered else None,
         "lookup_strict_accuracy": lookup_correct / total,
+        "test_count": total,
+        "factorized_correct": correct,
+        "factorized_covered": covered,
+        "lookup_correct": lookup_correct,
+        "lookup_covered": lookup_covered,
     }
+
+
+def _wilson_interval(successes: int, trials: int) -> list[float] | None:
+    if trials <= 0:
+        return None
+    z = 1.959963984540054
+    p = successes / trials
+    denominator = 1.0 + (z * z / trials)
+    center = (p + (z * z / (2.0 * trials))) / denominator
+    margin = (
+        z * ((p * (1.0 - p) / trials) + (z * z / (4.0 * trials * trials))) ** 0.5
+        / denominator
+    )
+    return [center - margin, center + margin]
 
 
 def run_benchmark(*, seeds: int = 100, seed_start: int = 1) -> dict[str, object]:
@@ -246,16 +265,28 @@ def run_benchmark(*, seeds: int = 100, seed_start: int = 1) -> dict[str, object]
     summary = {}
     for family in TASK_FAMILIES:
         rows = [row for row in episodes if row["family"] == family]
+        test_count = sum(int(row["test_count"]) for row in rows)
+        factorized_covered = sum(int(row["factorized_covered"]) for row in rows)
+        factorized_correct = sum(int(row["factorized_correct"]) for row in rows)
+        lookup_covered = sum(int(row["lookup_covered"]) for row in rows)
+        lookup_correct = sum(int(row["lookup_correct"]) for row in rows)
         summary[family] = {
             "episodes": len(rows),
+            "test_examples": test_count,
             "identifiable_rate": sum(row["status"] == "IDENTIFIABLE_WITHIN_AFFINE_GF2" for row in rows) / len(rows),
             "ambiguous_rate": sum(row["status"] == "AMBIGUOUS" for row in rows) / len(rows),
             "inconsistent_rate": sum(row["status"] == "INCONSISTENT" for row in rows) / len(rows),
-            "factorized_coverage": sum(float(row["factorized_coverage"]) for row in rows) / len(rows),
-            "factorized_strict_accuracy": sum(float(row["factorized_strict_accuracy"]) for row in rows) / len(rows),
-            "lookup_coverage": sum(float(row["lookup_coverage"]) for row in rows) / len(rows),
-            "lookup_strict_accuracy": sum(float(row["lookup_strict_accuracy"]) for row in rows) / len(rows),
+            "factorized_coverage": factorized_covered / test_count,
+            "factorized_coverage_95ci": _wilson_interval(factorized_covered, test_count),
+            "factorized_selective_accuracy": factorized_correct / factorized_covered if factorized_covered else None,
+            "factorized_selective_accuracy_95ci": _wilson_interval(factorized_correct, factorized_covered),
+            "factorized_strict_accuracy": factorized_correct / test_count,
+            "factorized_strict_accuracy_95ci": _wilson_interval(factorized_correct, test_count),
+            "lookup_coverage": lookup_covered / test_count,
+            "lookup_selective_accuracy": lookup_correct / lookup_covered if lookup_covered else None,
+            "lookup_strict_accuracy": lookup_correct / test_count,
             "mean_survivors": sum(int(row["survivor_count"]) for row in rows) / len(rows),
+            "candidate_evaluations": FAMILY_SIZE * len(rows),
         }
     return {
         "benchmark": "E12-M3 trigram-factorized affine generalization",
