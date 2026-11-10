@@ -51,6 +51,11 @@ class E02I2CHiddenEventBenchmarkTests(unittest.TestCase):
             self.assertIn("selective_risk", metrics)
             self.assertIn("false_create", metrics)
 
+    def test_benchmark_counts_false_create_and_evidence_gate_avoids_it(self):
+        result = run_benchmark(seeds=8, start_seed=1000, split="train")
+        self.assertGreater(result["policies"]["similarity_only"]["false_create"], 0)
+        self.assertEqual(result["policies"]["evidence_gated"]["false_create"], 0)
+
     def test_train_and_gate_sample_namespaces_are_disjoint(self):
         train = [
             build_episode(event, 1000 + seed, split="train")
