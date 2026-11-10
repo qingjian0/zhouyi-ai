@@ -240,21 +240,48 @@ def run(*, seeds: int = 20, start_seed: int = 1200) -> dict:
             "stable_no_reconfiguration": sum(
                 all(w["action"] != "RECONFIGURE" for w in e["windows"])
                 for e in results["stable"]) / seeds,
+            "stable_final_structure_correct": sum(
+                e["final_relation"] == {
+                    "members": e["windows"][-1]["target_for_audit_only"],
+                    "truth_table": e["windows"][-1]["target_table_for_audit_only"],
+                } for e in results["stable"]) / seeds,
             "member_add_reconfigured": sum(
                 any(w["action"] == "RECONFIGURE" for w in e["windows"])
                 for e in results["member_add"]) / seeds,
+            "member_add_final_structure_correct": sum(
+                e["final_relation"] == {
+                    "members": e["windows"][-1]["target_for_audit_only"],
+                    "truth_table": e["windows"][-1]["target_table_for_audit_only"],
+                } for e in results["member_add"]) / seeds,
             "member_remove_reconfigured": sum(
                 any(w["action"] == "RECONFIGURE" for w in e["windows"])
                 for e in results["member_remove"]) / seeds,
+            "member_remove_final_structure_correct": sum(
+                e["final_relation"] == {
+                    "members": e["windows"][-1]["target_for_audit_only"],
+                    "truth_table": e["windows"][-1]["target_table_for_audit_only"],
+                } for e in results["member_remove"]) / seeds,
             "rule_change_reconfigured": sum(
                 any(w["action"] == "RECONFIGURE" for w in e["windows"])
                 for e in results["rule_change"]) / seeds,
+            "rule_change_final_structure_correct": sum(
+                e["final_relation"] == {
+                    "members": e["windows"][-1]["target_for_audit_only"],
+                    "truth_table": e["windows"][-1]["target_table_for_audit_only"],
+                } for e in results["rule_change"]) / seeds,
             "transient_change_no_reconfiguration": sum(
                 all(w["action"] != "RECONFIGURE" for w in e["windows"])
                 for e in results["transient_rule_change"]) / seeds,
+            "transient_final_structure_correct": sum(
+                e["final_relation"] == {
+                    "members": e["windows"][-1]["target_for_audit_only"],
+                    "truth_table": e["windows"][-1]["target_table_for_audit_only"],
+                } for e in results["transient_rule_change"]) / seeds,
             "disappearance_retired": sum(
                 any(w["action"] == "RETIRE" for w in e["windows"])
                 for e in results["disappear"]) / seeds,
+            "disappearance_finally_absent": sum(
+                e["final_relation"] is None for e in results["disappear"]) / seeds,
         },
         "episodes": results,
         "limitations": [
