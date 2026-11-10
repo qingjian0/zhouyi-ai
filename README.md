@@ -7,10 +7,10 @@
 
 ## 项目状态
 
-- 当前研究阶段：E02-I 关系生命周期与证据门控验证；E02-J 关系表达语言扩展处于方案设计阶段
+- 当前研究阶段：E02-I 七场景关系生命周期验证已完成；E02-I2 关系身份与谱系进入设计审查
 - 理论版本：CPG-EI v0.3（研究草案，尚待进一步数学审查）
-- 已有实验：E02-F/G 有限定合成任务的正式结果；E02-H 在 30 个种子上完成成员与真值表恢复
-- 当前验证：E02-I 六场景、多种子实验正在完善；不得将单元测试通过等同于完整实验验收
+- 已有实验：E02-F/G 有限定合成任务结果；E02-H 在 30 个种子上完成成员与真值表恢复；E02-I 在 7 场景 × 20 seeds 下完成 140 个 episode
+- 当前验证：E02-I 全流程 CI 成功，160 个无关系窗口 false CREATE 为 0；结果仅适用于当前有限合成协议
 - 尚未实现：开放世界关系发现、因果发现、规模化模型及完整 E03 并行组合引擎
 - 验证原则：所有架构主张均须通过可复现实验、消融和公平对照验证
 
@@ -54,6 +54,9 @@
 - [E01-C 组合 OOD 结果报告](docs/E01C_RESULTS_2026-11-10.md)
 - [研究风险与证伪条件](docs/RISKS_AND_FALSIFICATION.md)
 - [开发路线图](ROADMAP.md)
+- [E02-I 关系演化协议](docs/E02I_RELATION_EVOLUTION.md)
+- [E02-I 完整 CI 结果（2026-11-10）](docs/E02I_CI_RESULTS_2026-11-10.md)
+- [E02-I2 关系身份与谱系设计](docs/E02I2_RELATION_IDENTITY_LINEAGE.md)
 - [原型代码](prototype/)
 
 ## 快速开始（当前原型）
@@ -85,7 +88,7 @@ python -m prototype.e01_learned_ranker --json
 Evidence-gated relation structure evolution prototype and reproducible experiment: `docs/E02I_RELATION_EVOLUTION.md`.
 
 
-E02-I six-scenario lifecycle validation is executed by the repository test workflow.
+E02-I seven-scenario lifecycle validation completed successfully in GitHub Actions run 42821097953.
 
 
 E02-I distinguishes candidate quality from persistent relation quality.
