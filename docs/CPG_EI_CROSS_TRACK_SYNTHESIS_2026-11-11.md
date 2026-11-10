@@ -1002,7 +1002,7 @@ The first PR run exposed four failures in the imported E09 baseline/tests, not i
 1. `EvidenceLedger.adjudication()` built `contested` as a set, then incorrectly called `.items()` on it. This caused three ledger test errors. The implementation now iterates the set and looks up labels in `labels_by_input`.
 2. An incremental prequential test expected a conflicted query to become unclassifiable. That expectation was too strong: removing the conflicted row still leaves two independent bootstrap positives supporting the broad rule. The test now asserts that the conflict is quarantined while the remaining support continues to predict `yes`.
 
-On the corrected PR head `56073a63e38ad579d2cf0fd87afc72c1246ff26b`, all 109 unit tests passed. The wider repository workflow was still running at the time of this note; do not describe the full CI as passed until all experiment steps complete.
+On the corrected PR head `56073a63e38ad579d2cf0fd87afc72c1246ff26b`, all 109 unit tests passed. The complete configured GitHub Actions workflow subsequently finished successfully: Run #42892825395 (https://github.com/qingjian0/zhouyi-ai/actions/runs/42892825395). This validates the exact PR head at that point; it is not a performance result.
 
 ### 18.3 Integration limits
 
