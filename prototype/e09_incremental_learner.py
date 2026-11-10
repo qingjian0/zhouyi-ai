@@ -38,7 +38,7 @@ class IncrementalConjunctionLearner:
         self.min_support = min_support
         self._labels_by_input: dict[tuple[Value, ...], set[Label]] = {}
         self._total: dict[Pattern, int] = {}
-        self._by_label: dict[tuple[Pattern, Label], int] = {}
+        self._by_label: dict[Pattern, dict[Label, int]] = {}
         self._updates = 0
         self._touched = 0
         self._retractions = 0
@@ -65,7 +65,8 @@ class IncrementalConjunctionLearner:
         for pattern_tuple in self._matching_patterns(values):
             pattern = tuple(pattern_tuple)
             total = self._total.get(pattern, 0) + delta
-            by_label = self._by_label.get((pattern, label), 0) + delta
+            label_counts = self._by_label.setdefault(pattern, {})
+            by_label = label_counts.get(label, 0) + delta
             if total < 0 or by_label < 0:
                 raise IncrementalLearningError("internal evidence count underflow")
             if total:
@@ -73,9 +74,11 @@ class IncrementalConjunctionLearner:
             else:
                 self._total.pop(pattern, None)
             if by_label:
-                self._by_label[(pattern, label)] = by_label
+                label_counts[label] = by_label
             else:
-                self._by_label.pop((pattern, label), None)
+                label_counts.pop(label, None)
+            if not label_counts:
+                self._by_label.pop(pattern, None)
             self._touched += 1
 
     def observe(self, inputs: Sequence[Value], label: Label) -> str:
@@ -105,8 +108,8 @@ class IncrementalConjunctionLearner:
             total = self._total.get(pattern, 0)
             if total < self.min_support:
                 continue
-            for (candidate, label), count in self._by_label.items():
-                if candidate == pattern and count == total:
+            for label, count in self._by_label.get(pattern, {}).items():
+                if count == total:
                     labels.add(label)
         return next(iter(labels)) if len(labels) == 1 else None
 
@@ -142,11 +145,10 @@ class IncrementalConjunctionLearner:
                     "total": total,
                     "labels": [
                         {"label": label, "count": count}
-                        for (candidate, label), count in sorted(
-                            self._by_label.items(),
-                            key=lambda item: (repr(item[0][0]), repr(item[0][1]))
+                        for label, count in sorted(
+                            self._by_label.get(pattern, {}).items(),
+                            key=lambda item: repr(item[0])
                         )
-                        if candidate == pattern
                     ],
                 }
                 for pattern, total in sorted(
