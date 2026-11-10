@@ -162,12 +162,12 @@ def make_benchmark() -> tuple[tuple[Example, ...], tuple[Example, ...],
         for a, b in itertools.product(range(4), repeat=2)
     ]
     # Keep corners for Gate; hold out a diagonal slice for Locked Test.
+    gate_points = {(0, 0), (3, 3), (1, 3), (3, 1)}
+    test_points = {(0, 3), (3, 0), (2, 2)}
     support = tuple(row for row in rows
-                    if row.values not in {(0, 0), (3, 3), (1, 3), (3, 1)})
-    gate = tuple(row for row in rows
-                 if row.values in {(0, 0), (3, 3), (1, 3), (3, 1)})
-    locked_test = tuple(row for row in rows
-                        if row.values in {(0, 3), (3, 0), (2, 2)})
+                    if row.values not in gate_points | test_points)
+    gate = tuple(row for row in rows if row.values in gate_points)
+    locked_test = tuple(row for row in rows if row.values in test_points)
     return support, gate, locked_test
 
 
