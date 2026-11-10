@@ -71,8 +71,28 @@ class E02JSynthesisTests(unittest.TestCase):
             evaluate(Expr("divide", (variable(0), variable(2))), (1, 0, 2), 3)
 
     def test_invalid_role_indices_are_rejected(self):
-        with self.assertRaises(ValueError):
-            enumerate_programs((0, 0, 2))
+        for roles in ((0, 0, 2), (0, 1.5), (0, True)):
+            with self.subTest(roles=roles):
+                with self.assertRaises(ValueError):
+                    enumerate_programs(roles)
+
+    def test_ast_rejects_invalid_node_shapes_and_values(self):
+        invalid_nodes = (
+            lambda: Expr("var", value=True),
+            lambda: Expr("const", value=1.5),
+            lambda: Expr("add", (variable(0),)),
+            lambda: Expr("mul", (variable(0), variable(1)), value=2),
+        )
+        for make_node in invalid_nodes:
+            with self.subTest(make_node=make_node):
+                with self.assertRaises(ValueError):
+                    make_node()
+
+    def test_evaluator_rejects_non_integer_inputs(self):
+        for value in (0.5, "1", True):
+            with self.subTest(value=value):
+                with self.assertRaises(ValueError):
+                    evaluate(variable(0), (value,), 3)
 
 
 if __name__ == "__main__":
