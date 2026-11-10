@@ -22,7 +22,8 @@ class HyperedgeLifecycleTests(unittest.TestCase):
     def test_create_rejects_conflicting_evidence_sets(self):
         manager = HyperedgeLifecycle()
         with self.assertRaises(LifecycleError):
-            manager.create(proposal("e", support=("s1", "s2", "s3")))
+            manager.create(proposal("e", support=("s1", "s2", "s3"),
+                                    counter=("s1",)))
 
     def test_create_and_audit_event(self):
         manager = HyperedgeLifecycle()
