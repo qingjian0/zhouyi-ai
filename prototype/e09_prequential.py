@@ -176,7 +176,7 @@ class PrequentialRunner:
             after_snapshot=after,
             operation=self.REVISION_MODE,
             training_example_count=report.get("training_examples", 0),
-            candidate_evaluations=(\n                report.get("candidate_patterns_evaluated", 0) - before_cost\n            ),
+            candidate_evaluations=report.get("candidate_patterns_evaluated", 0) - before_cost,
             step=self.step,
         )
         self._revisions.append(event)
