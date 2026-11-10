@@ -2,7 +2,7 @@ import unittest
 
 from prototype.yinfu_dynamic_cognition import (
     Transition, detect_change_point, enumerate_paths,
-    generate_relation_candidates, learn_contextual_reversal,
+    generate_relation_candidates, learn_contextual_reversal, run_synthetic_benchmark,
 )
 
 
@@ -31,6 +31,33 @@ class YinfuDynamicCognitionTests(unittest.TestCase):
         self.assertTrue(candidates)
         self.assertGreaterEqual(candidates[0].balanced_accuracy, 0.75)
         self.assertTrue(any(s.candidate.operator == "product" for s in candidates))
+
+    def test_yf08_candidate_budget_preserves_operator_families(self):
+        import random
+        rng = random.Random(7)
+        rows = [{"x": rng.uniform(-2, 2), "y": rng.uniform(-2, 2)}
+                for _ in range(120)]
+        labels = [int(row["x"] * row["y"] > 0.8) for row in rows]
+        candidates = generate_relation_candidates(
+            rows, labels, max_features=2, max_candidates=64)
+        operators = {item.candidate.operator for item in candidates}
+        self.assertIn("feature", operators)
+        self.assertIn("difference", operators)
+        self.assertIn("product", operators)
+
+    def test_unified_synthetic_benchmark_is_reproducible(self):
+        first = run_synthetic_benchmark(seeds=1, start_seed=23)
+        second = run_synthetic_benchmark(seeds=1, start_seed=23)
+        self.assertEqual(first, second)
+        self.assertEqual(len(first["results"]), 1)
+        self.assertIn("YF07", first["results"][0])
+        self.assertIn("YF08", first["results"][0])
+        self.assertIn("YF09", first["results"][0])
+        self.assertIn("YF10", first["results"][0])
+
+    def test_unified_synthetic_benchmark_rejects_zero_seeds(self):
+        with self.assertRaises(ValueError):
+            run_synthetic_benchmark(seeds=0)
 
     def test_yf08_rejects_one_class_support(self):
         with self.assertRaises(ValueError):
