@@ -19,7 +19,9 @@ class E12A3ProposerBenchmarkTests(unittest.TestCase):
 
     def test_proposer_pool_receives_support_only(self):
         support, gate, test = _make_world(3, "PAIRWISE_DIFFERENCE")
-        self.assertTrue(_budgeted_family_pools(support, 3))
+        first = _budgeted_family_pools(support, 3)
+        second = _budgeted_family_pools(support, 3)
+        self.assertEqual(first, second)
         self.assertEqual(
             list(inspect.signature(_budgeted_family_pools).parameters),
             ["support", "seed"],
