@@ -21,6 +21,22 @@ class E10ALatentGeneratorTests(unittest.TestCase):
             self.assertGreaterEqual(sum(row["valid"] for row in matching), 2)
             self.assertTrue(any(not row["valid"] for row in matching))
 
+    def test_source_group_provenance_is_evaluator_only_and_complete(self):
+        episode = generate_episode(112, instances_per_template=5)
+        learner = episode.learner_view()
+        audit = episode.audit_view()
+        self.assertNotIn("source_group_id", repr(learner))
+        source_ids = [row["source_group_id"] for row in audit["instances"]]
+        self.assertTrue(all(source_ids))
+        self.assertEqual(len(set(source_ids)), 2 * 5)
+        by_source = {}
+        for row in audit["instances"]:
+            by_source.setdefault(row["source_group_id"], []).append(row)
+        self.assertTrue(all(any(row["valid"] for row in rows)
+                            for rows in by_source.values()))
+        self.assertTrue(all(any(not row["valid"] for row in rows)
+                            for rows in by_source.values()))
+
     def test_learner_view_does_not_expose_latent_role_or_template_truth(self):
         episode = generate_episode(102)
         view = episode.learner_view()
