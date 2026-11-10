@@ -14,6 +14,7 @@ from typing import Any, Iterable
 
 from prototype.e12a1_typed_predicate_induction import (
     Example,
+    FeatureSpec,
     LearnerView,
     Predicate,
     demo_view,
@@ -119,6 +120,8 @@ def generate_candidates(
     def add(candidate: Candidate) -> None:
         if candidate.complexity <= max_nodes:
             candidates.setdefault(canonical_key(candidate), candidate)
+        if len(candidates) > max_candidates:
+            raise OverflowError("candidate generation exceeded max_candidates")
 
     for primitive in base:
         add(primitive)
@@ -225,10 +228,7 @@ def candidate_to_dict(candidate: Candidate) -> dict[str, Any]:
 
 def demo_view() -> LearnerView:
     # A,C,E form the target. B and D are independent distractors.
-    schema = tuple(
-        __import__("prototype.e12a1_typed_predicate_induction", fromlist=["FeatureSpec"]).FeatureSpec(name, "numeric")
-        for name in ("a", "b", "c", "d", "e")
-    )
+    schema = tuple(FeatureSpec(name, "numeric") for name in ("a", "b", "c", "d", "e"))
     rows = (
         (0, 0, 0, 1, 0),
         (1, 1, 1, 0, 1),
