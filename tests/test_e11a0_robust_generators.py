@@ -80,6 +80,29 @@ class E11A0RobustGeneratorTests(unittest.TestCase):
         self.assertEqual({o.environment for o in episode.learner_objects}, {"env-0"})
         self.assertEqual({o.environment for o in episode.query_objects}, {"env-1"})
 
+    def test_variable_concept_count_is_hidden_from_learner_view(self):
+        small = make_robust_episode(
+            12, mode="variable-concept-count", objects_per_split=60
+        )
+        large = make_robust_episode(
+            15, mode="variable-concept-count", objects_per_split=60
+        )
+        self.assertEqual(len(small.hidden_schemas), 2)
+        self.assertEqual(len(large.hidden_schemas), 5)
+        self.assertTrue(all(
+            2 <= len(schema) <= 4
+            for schema in large.hidden_schemas.values()
+        ))
+        self.assertTrue(all(
+            not hasattr(obj, "concepts") and not hasattr(obj, "membership")
+            for obj in small.learner_objects + small.query_objects
+        ))
+        self.assertTrue({
+            obj.object_id for obj in small.learner_objects
+        }.isdisjoint({
+            obj.object_id for obj in small.query_objects
+        }))
+
     def test_invalid_configuration_rejected(self):
         with self.assertRaises(ValueError):
             make_robust_episode(mode="unknown")
