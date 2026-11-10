@@ -47,7 +47,7 @@ class E12A3ContextRouterTests(unittest.TestCase):
     def test_context_router_api_excludes_gate_and_test_data(self):
         self.assertEqual(
             list(inspect.signature(_context_route_allocate).parameters),
-            ["proposal_support", "context_support", "seed", "budget", "batch_size"],
+            ["pools", "descriptors", "budget", "batch_size"],
         )
 
     def test_context_descriptors_are_bounded_and_deterministic(self):
@@ -63,8 +63,10 @@ class E12A3ContextRouterTests(unittest.TestCase):
     def test_context_router_conserves_budget_and_is_reproducible(self):
         support, _, _, _ = make_four_way_world(45, "THRESHOLD")
         proposal, context = split_support_context(support, 45)
-        first = _context_route_allocate(proposal, context, 45, budget=23)
-        second = _context_route_allocate(proposal, context, 45, budget=23)
+        pools = _make_pools(proposal, 45)
+        descriptors = _context_descriptors(pools, context)
+        first = _context_route_allocate(pools, descriptors, budget=23)
+        second = _context_route_allocate(pools, descriptors, budget=23)
         self.assertEqual(first["trace"], second["trace"])
         self.assertEqual(first["allocations"], second["allocations"])
         self.assertEqual(first["proposal_slots_used"], 23)
@@ -76,7 +78,11 @@ class E12A3ContextRouterTests(unittest.TestCase):
         support, _, _, _ = make_four_way_world(46, "THRESHOLD")
         proposal, context = split_support_context(support, 46)
         with self.assertRaises(ValueError):
-            _context_route_allocate(proposal, context, 46, budget=11)
+            _context_route_allocate(
+                _make_pools(proposal, 46),
+                _context_descriptors(_make_pools(proposal, 46), context),
+                budget=11,
+            )
 
     def test_three_task_benchmark_has_exact_budgets(self):
         episode = run_episode(47, "PARITY", budget=20)
