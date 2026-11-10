@@ -156,6 +156,8 @@ class E12A6LifecycleContractTests(unittest.TestCase):
                          CandidateState.REVISED)
         self.assertEqual(ledger.candidates[(old.candidate_id, 2)].parent_refs,
                          ("rel:greater-than@1",))
+        self.assertEqual(ledger.actions[-1].action_type, ActionType.REGISTER_REVISION)
+        self.assertEqual(ledger.actions[-1].to_state, CandidateState.REVALIDATION_PENDING)
 
     def test_ledger_collections_are_read_only_views(self):
         ledger = LifecycleLedger()
