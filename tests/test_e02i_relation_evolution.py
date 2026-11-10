@@ -1,11 +1,22 @@
 import unittest
 
 from prototype.e02i_relation_evolution import (
-    RelationEvolution, Snapshot, run_episode,
+    RelationEvolution, Snapshot, _wilson_interval, run_episode,
 )
 
 
 class E02IRelationEvolutionTests(unittest.TestCase):
+
+    def test_wilson_interval_for_all_successes_is_not_degenerate(self):
+        lower, upper = _wilson_interval(20, 20)
+        self.assertAlmostEqual(lower, 0.83887, places=4)
+        self.assertEqual(upper, 1.0)
+
+    def test_wilson_interval_for_no_successes_is_bounded(self):
+        lower, upper = _wilson_interval(0, 20)
+        self.assertEqual(lower, 0.0)
+        self.assertAlmostEqual(upper, 0.16113, places=4)
+
     def test_requires_repeated_confirmation_before_reconfiguration(self):
         state = RelationEvolution(confirm_windows=2)
         a = Snapshot((0, 1, 2), 173, 0.98, 0.70)
