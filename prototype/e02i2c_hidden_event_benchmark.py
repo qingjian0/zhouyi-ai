@@ -29,13 +29,22 @@ from prototype.e02i2c_adjudication import (
 
 
 @dataclass(frozen=True)
-class Episode:
-    episode_id: str
-    truth: EventType
+class ObservationView:
+    """Only the observable inputs available to an event policy."""
+
     identity: IdentitySnapshot | None
     candidate_signature: str | None
     opportunities: tuple[ObservationOpportunity, ...]
     evidence: tuple[EvidencePacket, ...]
+
+
+@dataclass(frozen=True)
+class Episode:
+    """Evaluator-owned wrapper; truth is not part of ObservationView."""
+
+    episode_id: str
+    truth: EventType
+    observation: ObservationView
 
 
 SUPPORTED_EVENTS = (
@@ -157,14 +166,16 @@ def build_episode(event: EventType, seed: int, *, split: str) -> Episode:
     return Episode(
         episode_id=f"{split}-{event.value}-{seed}",
         truth=event,
-        identity=identity,
-        candidate_signature=candidate,
-        opportunities=opportunities,
-        evidence=evidence,
+        observation=ObservationView(
+            identity=identity,
+            candidate_signature=candidate,
+            opportunities=opportunities,
+            evidence=evidence,
+        ),
     )
 
 
-def _similarity_only(episode: Episode) -> EventType:
+def _similarity_only(episode: ObservationView) -> EventType:
     """Intentionally weak baseline: force a decision from one-step similarity."""
     identity = episode.identity
     support = [x for x in episode.evidence if x.polarity == EvidencePolarity.SUPPORTS]
@@ -187,7 +198,7 @@ def _similarity_only(episode: Episode) -> EventType:
     return EventType.ABSTAIN
 
 
-def _single_window(episode: Episode) -> EventType:
+def _single_window(episode: ObservationView) -> EventType:
     """Weak recency baseline: decide from the latest window only."""
     latest = max((x.window for x in episode.evidence), default=-1)
     observed = [x for x in episode.evidence if x.window == latest]
@@ -208,7 +219,7 @@ def _single_window(episode: Episode) -> EventType:
     return EventType.ABSTAIN
 
 
-def _adjudicator(episode: Episode) -> EventType:
+def _adjudicator(episode: ObservationView) -> EventType:
     return adjudicate_event(
         episode.identity,
         episode.opportunities,
@@ -271,7 +282,7 @@ def run_benchmark(*, seeds: int = 20, start_seed: int = 1000,
     ]
     results = {}
     for name, policy in POLICIES.items():
-        rows = [(episode.truth, policy(episode)) for episode in episodes]
+        rows = [(episode.truth, policy(episode.observation)) for episode in episodes]
         results[name] = _metrics(rows)
     return {
         "benchmark": "E02-I2-C-hidden-event-development",
