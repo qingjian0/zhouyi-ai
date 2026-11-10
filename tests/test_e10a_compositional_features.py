@@ -58,6 +58,7 @@ class CompositionalFeatureTests(unittest.TestCase):
         revision = learner.revise(rows[0], labels[0])
         self.assertEqual(revision["operation"], "expand")
         self.assertEqual(revision["status"], "PROVISIONAL")
+        self.assertEqual(revision["candidate_count"], 2)  # Support relation + new relation
         # A single positive is not sufficient for a prediction.
         self.assertEqual(learner.predict(rows[2])["decision_status"], "ABSTAIN_AMBIGUOUS")
 
