@@ -112,13 +112,19 @@ def build_episode(event: EventType, seed: int, *, split: str) -> Episode:
                          for w in (0, 1))
     elif event == EventType.ABSTAIN:
         candidate = "a^b"
-        mode = seed % 3
+        mode = seed % 4
         if mode == 0:
+            # No prior identity and only one support window: abstention is not CREATE.
+            identity = None
+            opportunities = (_opportunity(0),)
+            evidence = (_packet(seed, "unconfirmed-new", 0, EvidencePolarity.SUPPORTS,
+                                candidate, source=None, split=split),)
+        elif mode == 1:
             # One changed-rule window with no identity-continuity proof.
             opportunities = (_opportunity(0),)
             evidence = (_packet(seed, "ambiguous", 0, EvidencePolarity.SUPPORTS,
                                 candidate, source="unlinked-version", split=split),)
-        elif mode == 1:
+        elif mode == 2:
             # Two nominal windows, but neither had sufficient sampling opportunity.
             opportunities = (
                 _opportunity(0, coverage=0.1, observed=1, reason=MissingReason.NO_EXPOSURE),
