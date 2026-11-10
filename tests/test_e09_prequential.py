@@ -52,7 +52,7 @@ class E09PrequentialRunnerTests(unittest.TestCase):
         self.assertEqual(event.operation, "BATCH_REFIT")
         self.assertEqual(event.before_model_version, 1)
         self.assertEqual(event.after_model_version, 2)
-        self.assertEqual(runner.learner.predict((0, 0, 2)), "no")
+        self.assertIsNone(runner.learner.predict((0, 0, 2)))
 
     def test_one_reveal_cannot_trigger_multiple_revisions(self):
         runner = self.make_runner()
