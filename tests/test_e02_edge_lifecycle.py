@@ -41,6 +41,33 @@ class HyperedgeLifecycleTests(unittest.TestCase):
         self.assertIs(manager.edges["e"], original)
         self.assertEqual(len(manager.audit_log()), 1)
 
+    def test_merge_split_and_configuration_reject_non_finite_metrics(self):
+        with self.assertRaises(ValueError):
+            HyperedgeLifecycle(min_gain=float("nan"))
+        manager = HyperedgeLifecycle()
+        manager.create(proposal("a"))
+        manager.create(proposal("b", members=("a", "b", "d")))
+        with self.assertRaises(LifecycleError):
+            manager.merge("a", "b", new_edge_id="m",
+                          measured_validation_gain=float("nan"))
+        self.assertIn("a", manager.edges)
+        self.assertIn("b", manager.edges)
+
+        split_manager = HyperedgeLifecycle()
+        split_manager.create(proposal(
+            "parent", members=("a", "b", "c", "d"),
+            roles=("w", "x", "y", "z"),
+        ))
+        children = (
+            proposal("left", members=("a", "b"), roles=("w", "x")),
+            proposal("right", members=("c", "d"), roles=("y", "z"),
+                     support=("s4", "s5", "s6")),
+        )
+        with self.assertRaises(LifecycleError):
+            split_manager.split("parent", children,
+                                measured_total_validation_gain=float("inf"))
+        self.assertIn("parent", split_manager.edges)
+
     def test_create_rejects_conflicting_evidence_sets(self):
         manager = HyperedgeLifecycle()
         with self.assertRaises(LifecycleError):
