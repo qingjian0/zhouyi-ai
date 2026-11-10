@@ -61,6 +61,7 @@
 - [E12-A3-M1.2 Support 上下文路由实验结果](docs/E12A3_M1_2_CONTEXT_ROUTER_RESULTS_2026-11-11.md)
 - [E12-A3-M1.2b 语法分层上下文探针协议](docs/E12A3_M1_2B_GRAMMAR_STRATIFIED_PROBES_2026-11-11.md)
 - [E12-A3-M1.2b 语法分层探针实验结果](docs/E12A3_M1_2B_STRATIFIED_PROBE_RESULTS_2026-11-11.md)
+- [E12-A3-M1.2c 上下文描述符聚合消融协议](docs/E12A3_M1_2C_CONTEXT_DESCRIPTOR_ABLATION_2026-11-11.md)
 - [E12-A3 原语提议与稀疏组合整合审查](docs/E12A3_PORTFOLIO_COMPOSITION_INTEGRATION_2026-11-11.md)\n- [E12-A3 基准测试](tests/test_e12a3_proposer_benchmark.py)\n- [E12-A3 多提议器单元测试](tests/test_e12a3_multi_proposer.py)
 - [E12-A2-M 选择器实现记录](docs/E12A2_M_IMPLEMENTATION_2026-11-11.md)
 - [E12-A1 类型化谓词原型](prototype/e12a1_typed_predicate_induction.py)
