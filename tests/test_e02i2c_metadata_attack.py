@@ -9,6 +9,8 @@ from prototype.e02i2c_metadata_attack import (
     extract_features,
     run_metadata_attack,
     _bootstrap_metrics,
+    _m0_ablation_features,
+    run_m0_ablation,
 )
 
 
@@ -114,6 +116,20 @@ class E02I2CMetadataAttackTests(unittest.TestCase):
             extract_features(original, "M0"),
             extract_features(renamed, "M0"),
         )
+
+    def test_m0_ablation_separates_token_format_from_cardinality(self):
+        observation = build_episode(EventType.KEEP, 1010, split="train").observation
+        full = extract_features(observation, "M0")
+        format_only = _m0_ablation_features(full, "format_only")
+        cardinality_only = _m0_ablation_features(full, "cardinality_only")
+        self.assertIn("id.evidence_lengths", format_only)
+        self.assertNotIn("id.evidence_count", format_only)
+        self.assertIn("id.evidence_count", cardinality_only)
+        self.assertNotIn("id.evidence_lengths", cardinality_only)
+
+    def test_m0_ablation_requires_fresh_thirty_block_gate(self):
+        with self.assertRaises(ValueError):
+            run_m0_ablation(seeds=29, bootstrap_samples=100)
 
     def test_unknown_tier_is_rejected(self):
         episode = build_episode(EventType.KEEP, 1010, split="train")
