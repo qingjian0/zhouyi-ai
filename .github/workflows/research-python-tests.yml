@@ -25,3 +25,5 @@ jobs:
           python-version: "3.12"
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
+      - name: Run YF-07 to YF-10 seeded smoke benchmark
+        run: python -c 'import json; from prototype.yinfu_dynamic_cognition import run_synthetic_benchmark; print(json.dumps(run_synthetic_benchmark(seeds=5, start_seed=100), indent=2))'
