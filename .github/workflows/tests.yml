@@ -2,7 +2,7 @@ name: tests
 
 on:
   push:
-    branches: [main]
+    branches: [main, research/e02i-ci-runner]
   pull_request:
     branches: [main, research/e02e-autonomous-discovery, research/e02f-falsification, research/e02g-multienvironment-stability, research/e02i-relation-evolution, research/e02h-baseline]
 
