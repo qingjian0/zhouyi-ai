@@ -330,11 +330,9 @@ def run_benchmark(seeds: int = 20, budget: int = 4, start_seed: int = 100) -> di
                         seed * 1009 + policy_index * 97 + target_index,
                     ))
 
-    summary = []
-    for policy in POLICIES:
-        rows = [item for item in all_results if item.policy == policy]
+    def summarize(rows: list[EpisodeResult], policy: str) -> dict:
         count = len(rows)
-        summary.append({
+        return {
             "policy": policy,
             "episodes": count,
             "identification_rate": sum(item.identified for item in rows) / count,
@@ -346,7 +344,23 @@ def run_benchmark(seeds: int = 20, budget: int = 4, start_seed: int = 100) -> di
             ) / count,
             "mean_cost_spent": sum(item.spent_cost for item in rows) / count,
             "mean_measurements": sum(item.measurements for item in rows) / count,
-        })
+        }
+
+    summary = [
+        summarize([item for item in all_results if item.policy == policy], policy)
+        for policy in POLICIES
+    ]
+    family_summary = {
+        family: [
+            summarize(
+                [item for item in all_results
+                 if item.family_id.startswith(family + "_") and item.policy == policy],
+                policy,
+            )
+            for policy in POLICIES
+        ]
+        for family in families
+    }
 
     return {
         "benchmark": "E12-A2-B finite-world active measurement",
@@ -357,6 +371,7 @@ def run_benchmark(seeds: int = 20, budget: int = 4, start_seed: int = 100) -> di
         "policies": list(POLICIES),
         "episode_count": len(all_results),
         "summary": summary,
+        "family_summary": family_summary,
         "protocol": {
             "target_selection": "uniform over the 8 hypotheses; exhaustive per world",
             "learner_visibility": "current version space, public action outcomes/costs, remaining budget",
