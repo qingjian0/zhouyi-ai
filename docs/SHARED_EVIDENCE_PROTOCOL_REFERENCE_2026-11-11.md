@@ -77,7 +77,7 @@ The unit tests cover:
 5. one observation ID and prediction ID are unique within an episode;
 6. one prediction per observation per learner track;
 7. independent E09/E10-style tracks may commit against the same observation;
-8. evidence reveal cannot cross learner tracks;
+8. evidence reveal cannot cross learner tracks;\n9. v0.1 prediction records replay under a legacy track without changing their original digest;
 9. concurrent independent SQLite connections serialize writes without losing sequence numbers;
 10. stale expected sequence is rejected;
 11. one reveal per prediction;
@@ -98,7 +98,7 @@ The v0.1 uniqueness constraint accidentally allowed only one prediction commit f
 
 The v0.2 contract therefore requires a non-empty `learner_track` on every prediction commit and enforces uniqueness on `(episode_id, observation_id, learner_track)`. Each track may commit once per observation; independent tracks may commit separately. Evidence reveal events must also carry the same `learner_track` as the prediction they reveal, preventing an adapter from revealing another track's prediction by mistake. The store still does not decide whether a track may emit multiple candidate predictions—those belong inside the track's committed candidate set or a future explicitly versioned proposal event.
 
-The initializer drops the old v0.1 partial index and creates the per-track index, so an existing local database receives this narrow index migration on open. The persisted `protocol_version` remains a storage-envelope version; the broader schema registry/upcaster system is still not implemented.
+The initializer drops the old v0.1 partial index and creates the per-track index, treating missing historical track values as `legacy`. Replay performs a read-time v0.1 upcast for prediction/reveal payloads by exposing `learner_track="legacy"`; it does not rewrite the stored event bytes or original digest. A v0.1 prediction can therefore receive a post-upgrade reveal under the `legacy` track. This is a narrowly scoped compatibility shim, not a general schema registry/upcaster framework.
 
 ## Explicit limitations
 
