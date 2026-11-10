@@ -63,6 +63,9 @@ class ConceptReviser:
         self._nodes: dict[str, _Concept] = {self._root_id: _Concept(self._root_id, None)}
         self._evidence: dict[str, dict[str, Any]] = {}
         self._entity_observations: dict[str, str] = {}
+        # Evidence that cannot traverse the current partition remains pending;
+        # a later merge may make it routable without discarding its label.
+        self._pending_observations: set[str] = set()
         self._events: list[dict[str, Any]] = []
         self._step = 0
 
@@ -76,6 +79,29 @@ class ConceptReviser:
             if value is None or value not in node.children:
                 return None
             current = node.children[value]
+
+    def _route_pending(self) -> int:
+        """Re-route retained evidence after structural changes."""
+        routed = 0
+        for observation_id in sorted(tuple(self._pending_observations)):
+            evidence = self._evidence[observation_id]
+            leaf = self._leaf_for(evidence["features"])
+            if leaf is None:
+                continue
+            self._nodes[leaf].members.append(observation_id)
+            parent_id = self._nodes[leaf].parent_id
+            while parent_id is not None:
+                parent = self._nodes[parent_id]
+                parent.members.append(observation_id)
+                parent_id = parent.parent_id
+            self._pending_observations.remove(observation_id)
+            routed += 1
+        if routed:
+            self._record("reroute_pending", {
+                "routed_count": routed,
+                "pending_count": len(self._pending_observations),
+            })
+        return routed
 
     def _ancestor_split_keys(self, concept_id: str) -> set[str]:
         keys: set[str] = set()
@@ -231,6 +257,7 @@ class ConceptReviser:
         self._entity_observations[entity_id] = observation_id
         leaf = self._leaf_for(copied)
         if leaf is None:
+            self._pending_observations.add(observation_id)
             self._record("unassigned", {
                 "observation_id": observation_id,
                 "entity_id": entity_id,
@@ -253,6 +280,9 @@ class ConceptReviser:
         for node in list(self._nodes.values()):
             if node.split_key is None and node.members:
                 self._try_split(node)
+        # A merge may remove a previously blocking split key. Revisit retained
+        # observations only after all structural edits for this evidence step.
+        self._route_pending()
         return self.snapshot()
 
     def predict_concept(self, features: dict[str, str]) -> dict[str, Any]:
@@ -295,4 +325,6 @@ class ConceptReviser:
             "active_concepts": self._active_partition(),
             "events": [dict(event) for event in self._events],
             "evidence_count": len(self._evidence),
+            "pending_count": len(self._pending_observations),
+            "pending_observation_ids": sorted(self._pending_observations),
         }
