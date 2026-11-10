@@ -165,13 +165,13 @@ def build_support_query_task(
             key = (row["relation_symbol"], source_group_id)
         groups[key].append(row)
 
-    by_relation: dict[str, list[tuple[str, tuple[str, ...]]]] = defaultdict(list)
+    by_relation: dict[str, list[tuple[str, Any]]] = defaultdict(list)
     for key in groups:
         by_relation[key[0]].append(key)
 
     rng = random.Random(seed)
-    support_keys: set[tuple[str, tuple[str, ...]]] = set()
-    query_keys: set[tuple[str, tuple[str, ...]]] = set()
+    support_keys: set[tuple[str, Any]] = set()
+    query_keys: set[tuple[str, Any]] = set()
     for relation_symbol, keys in sorted(by_relation.items()):
         if len(keys) < 3:
             raise ValueError(
