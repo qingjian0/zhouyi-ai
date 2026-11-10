@@ -161,6 +161,15 @@ class PrequentialLedger:
         self._revision_ids.add(revision_id)
         return event
 
+    def committed_prediction_for_observation(self, observation_id: str) -> dict[str, Any] | None:
+        """Return the prior commit for an observation, without exposing reveal data."""
+        observation_id = _string(observation_id, "observation_id")
+        for event in self._events:
+            if (event["event_type"] == "PredictionCommit"
+                    and event["observation_id"] == observation_id):
+                return copy.deepcopy(event)
+        return None
+
     def snapshot(self) -> dict[str, Any]:
         """Return a detached immutable-by-convention ledger snapshot."""
         events = copy.deepcopy(self._events)
