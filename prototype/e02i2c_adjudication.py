@@ -306,11 +306,15 @@ def adjudicate_event(
             expected_previous = window - 1
         else:
             break
-    # Independence must be established inside the qualifying consecutive
-    # tail. Older, disconnected samples cannot make a reused tail sample look
-    # independent, and must not be cited as evidence for this suspension.
+    # Use the newest required_windows only. Older absences may belong to
+    # the same uninterrupted streak, but must not inflate the evidence packet
+    # set for this decision or contribute samples to the independence check.
+    if consecutive_absence_windows >= required_windows:
+        newest_tail = set(sorted(absence_tail_windows, reverse=True)[:required_windows])
+    else:
+        newest_tail = absence_tail_windows
     absence_tail = tuple(
-        item for item in absences if item.window in absence_tail_windows
+        item for item in absences if item.window in newest_tail
     )
     absence_tail_samples = {item.sample_id for item in absence_tail}
     if (consecutive_absence_windows >= required_windows
