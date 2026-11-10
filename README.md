@@ -40,6 +40,7 @@
 - [2026-11-10 研究增量报告](docs/RESEARCH_FINDINGS_2026-11-10.md)
 - [实验计划与验收标准](docs/EXPERIMENTS.md)
 - [E02 动态超图实验设计](docs/E02_DYNAMIC_HYPERGRAPH.md)
+- [E02-A 结果审计与下一阶段协议](docs/E02A_NEXT_RESEARCH_2026-11-10.md)
 - [E01-B 五种子结果报告](docs/E01B_RESULTS_2026-11-10.md)
 - [E01-C 组合 OOD 结果报告](docs/E01C_RESULTS_2026-11-10.md)
 - [研究风险与证伪条件](docs/RISKS_AND_FALSIFICATION.md)
