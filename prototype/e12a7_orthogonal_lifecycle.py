@@ -94,8 +94,17 @@ class LifecycleEvent:
                 raise ValueError(f"{name} must be a non-empty string")
         if not isinstance(self.kind, EventKind):
             raise TypeError("kind must be an EventKind")
-        if self.scope_id is not None and not self.scope_id.strip():
-            raise ValueError("scope_id cannot be blank")
+        if self.scope_id is not None:
+            if not isinstance(self.scope_id, str) or not self.scope_id.strip():
+                raise ValueError("scope_id must be a non-empty string when provided")
+        if self.workflow_from is not None and not isinstance(self.workflow_from, WorkflowStage):
+            raise TypeError("workflow_from must be a WorkflowStage")
+        if self.workflow_to is not None and not isinstance(self.workflow_to, WorkflowStage):
+            raise TypeError("workflow_to must be a WorkflowStage")
+        if self.epistemic_status is not None and not isinstance(self.epistemic_status, EpistemicStatus):
+            raise TypeError("epistemic_status must be an EpistemicStatus")
+        if self.scope_status is not None and not isinstance(self.scope_status, ScopeStatus):
+            raise TypeError("scope_status must be a ScopeStatus")
         if len(set(self.evidence_ids)) != len(self.evidence_ids):
             raise ValueError("evidence_ids must be unique")
         if any(not isinstance(x, str) or not x.strip() for x in self.evidence_ids):
