@@ -415,6 +415,26 @@ def run_metadata_attack(
     gate_episodes = _build_episodes(
         seeds=seeds, start_seed=gate_start_seed, split="gate"
     )
+    train_sample_ids = {
+        packet.sample_id for episode in train_episodes
+        for packet in episode.observation.evidence
+    }
+    gate_sample_ids = {
+        packet.sample_id for episode in gate_episodes
+        for packet in episode.observation.evidence
+    }
+    train_evidence_ids = {
+        packet.evidence_id for episode in train_episodes
+        for packet in episode.observation.evidence
+    }
+    gate_evidence_ids = {
+        packet.evidence_id for episode in gate_episodes
+        for packet in episode.observation.evidence
+    }
+    if train_sample_ids.intersection(gate_sample_ids):
+        raise RuntimeError("Train and Gate sample namespaces overlap")
+    if train_evidence_ids.intersection(gate_evidence_ids):
+        raise RuntimeError("Train and Gate evidence namespaces overlap")
     train_labels = [episode.truth.value for episode in train_episodes]
     gate_labels = [episode.truth.value for episode in gate_episodes]
     results = {}
@@ -486,7 +506,21 @@ def run_metadata_attack(
         "train_seed_range": [train_start_seed, train_end - 1],
         "gate_seed_range": [gate_start_seed, gate_end - 1],
         "split_marker_used_as_feature": False,
+        "absolute_window_labels_used": False,
         "evaluator_truth_is_attacker_input": False,
+        "train_gate_sample_namespaces_disjoint": True,
+        "train_gate_evidence_namespaces_disjoint": True,
+        "feature_allowlists": {
+            tier: sorted(extract_features(train_episodes[0].observation, tier))
+            for tier in ("M0", "M1", "M2")
+        },
+        "feature_denylists": [
+            "Episode.truth", "Episode.episode_id", "generator seed",
+            "Train/Gate/Test split marker", "absolute window index",
+            "EvidencePacket.polarity", "literal candidate signature",
+            "IdentitySnapshot.identity_id", "IdentitySnapshot.version_id",
+            "IdentitySnapshot.signature",
+        ],
         "evidence_aware_reference": _metrics(gate_labels, evidence_aware_predictions),
         "tiers": results,
         "interpretation": (
