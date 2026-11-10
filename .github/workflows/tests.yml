@@ -1,5 +1,5 @@
 name: tests
-# C-F validation includes seed-block bootstrap, environment strata, and randomized event-seed assignment.
+# C-F validation includes balanced opportunity/evidence metadata, bootstrap intervals, and per-environment slices.
 
 on:
   push:
