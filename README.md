@@ -7,7 +7,7 @@
 
 ## 项目状态
 
-- 当前研究阶段：E02-I 七场景关系生命周期验证已完成；E02-I2 关系身份与谱系进入设计审查
+- 当前研究阶段：E02-I 七场景关系生命周期验证已完成；E02-I2-A 身份谱系账本已实现，I2-B 确定性匹配基线进入测试
 - 理论版本：CPG-EI v0.3（研究草案，尚待进一步数学审查）
 - 已有实验：E02-F/G 有限定合成任务结果；E02-H 在 30 个种子上完成成员与真值表恢复；E02-I 在 7 场景 × 20 seeds 下完成 140 个 episode
 - 当前验证：E02-I 全流程 CI 成功，160 个无关系窗口 false CREATE 为 0；结果仅适用于当前有限合成协议
@@ -59,6 +59,8 @@
 - [E02-I2 关系身份与谱系设计](docs/E02I2_RELATION_IDENTITY_LINEAGE.md)
 - [E02-I2 身份谱系账本原型](prototype/e02i2_lineage.py)
 - [E02-I2 身份谱系账本测试](tests/test_e02i2_lineage.py)
+- [E02-I2 身份匹配基线原型](prototype/e02i2_matching.py)
+- [E02-I2 身份匹配基线测试](tests/test_e02i2_matching.py)
 - [原型代码](prototype/)
 
 ## 快速开始（当前原型）
