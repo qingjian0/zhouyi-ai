@@ -3,6 +3,7 @@
 Date: 2026-11-11  
 GitHub Actions run: `42875957898`  
 Artifact: `e12a3-m1-2-context-router` (artifact ID `13791751890`)  
+CI: workflow run `42875957898` — full repository workflow passed  
 Protocol: 20 seeds × 3 task families = 60 episodes; 31 proposal slots per method.
 
 ## 1. Compared probe strategies
