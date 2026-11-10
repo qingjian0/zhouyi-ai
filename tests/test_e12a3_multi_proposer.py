@@ -76,6 +76,9 @@ class E12A3MultiProposerTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             validate_observations((Observation("x", (("a", 1),), 0),
                                    Observation("y", (("b", 2),), 1)))
+        with self.assertRaises(TypeError):
+            validate_observations((Observation("x", (("a", 1),), 0),
+                                   Observation("y", (("a", "one"),), 1)))
 
     def test_expression_type_errors_are_explicit(self):
         with self.assertRaises(TypeError):
