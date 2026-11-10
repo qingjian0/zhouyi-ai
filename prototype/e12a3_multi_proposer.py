@@ -280,8 +280,9 @@ def allocate_round_robin(proposals: Mapping[str, Sequence[Proposal]],
     if total_budget < 0:
         raise ValueError("total_budget must be non-negative")
     families = sorted(proposals)
-    queues = {name: list(sorted(proposals[name], key=lambda p: p.canonical_expression))
-              for name in families}
+    # Preserve caller-supplied deterministic order. Benchmark callers may
+    # provide a seeded shuffle to avoid lexical-prefix selection bias.
+    queues = {name: list(proposals[name]) for name in families}
     selected: list[Proposal] = []
     while len(selected) < total_budget:
         progressed = False
