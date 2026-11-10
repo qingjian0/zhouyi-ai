@@ -164,9 +164,14 @@ class HyperedgeLifecycle:
             raise LifecycleError("cannot merge incompatible relation types or roles")
         if self._jaccard(a.members, b.members) < self.merge_jaccard:
             raise LifecycleError("member overlap is below merge threshold")
+        if measured_validation_gain < self.min_gain:
+            raise LifecycleError("merged edge validation gain is below threshold")
         if measured_validation_gain < max(a.validation_gains[-1],
                                            b.validation_gains[-1]) - self.split_gain_margin:
             raise LifecycleError("merged edge fails validation non-regression gate")
+        merged_cost = a.cost + b.cost
+        if not self._is_finite_number(merged_cost):
+            raise LifecycleError("merged edge cost must be finite")
         role_by_member = dict(zip(a.members, a.roles))
         for member, role in zip(b.members, b.roles):
             if member in role_by_member and role_by_member[member] != role:
@@ -187,7 +192,7 @@ class HyperedgeLifecycle:
             relation_type=a.relation_type, support_ids=support,
             counterexample_ids=counterexamples,
             validation_gains=(measured_validation_gain,),
-            cost=a.cost + b.cost, age_windows=1, stale_windows=0,
+            cost=merged_cost, age_windows=1, stale_windows=0,
             version=max(a.version, b.version) + 1,
         )
         self._commit({"op": "MERGE", "parents": [edge_a, edge_b],
