@@ -1,5 +1,5 @@
 name: tests
-# C-F prototype validation remains isolated; diagnostics include full semantic provenance.
+# C-F prototype validation remains isolated; diagnostics retain the semantic sampling envelope.
 
 on:
   push:
