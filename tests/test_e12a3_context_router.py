@@ -70,6 +70,7 @@ class E12A3ContextRouterTests(unittest.TestCase):
         self.assertEqual(first["proposal_slots_used"], 23)
         self.assertEqual(sum(first["allocations"].values()), 23)
         self.assertEqual(sum(event["slots"] for event in first["trace"]), 23)
+        self.assertEqual(first["context_probe_evaluations"], 12)
 
     def test_router_requires_exploration_budget(self):
         support, _, _, _ = make_four_way_world(46, "THRESHOLD")
@@ -84,6 +85,10 @@ class E12A3ContextRouterTests(unittest.TestCase):
             result["proposal_slots_used"] == 20
             for result in episode["methods"].values()
         ))
+        self.assertEqual(
+            {result["context_probe_evaluations"] for result in episode["methods"].values()},
+            {12},
+        )
         result = run_benchmark(seeds=2, start_seed=48, budget=20)
         self.assertEqual(result["episode_count"], 6)
         self.assertIn("PARITY", result["task_metrics"])
