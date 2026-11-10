@@ -33,6 +33,14 @@ class E12A2DNoisyPriorStressTests(unittest.TestCase):
         self.assertAlmostEqual(sum(prior_for(world, "matched")), 1.0)
         self.assertNotEqual(prior_for(world, "matched"), prior_for(world, "uniform"))
         self.assertNotEqual(prior_for(world, "matched"), prior_for(world, "anti_aligned"))
+        self.assertEqual(
+            prior_for(world, "matched_mix_50"),
+            tuple(0.5 * a + 0.5 * b for a, b in zip(prior_for(world, "matched"), prior_for(world, "uniform"))),
+        )
+        self.assertEqual(
+            prior_for(world, "anti_mix_25"),
+            tuple(0.25 * a + 0.75 * b for a, b in zip(prior_for(world, "anti_aligned"), prior_for(world, "uniform"))),
+        )
 
     def test_episode_reports_calibration_and_confident_error_metrics(self):
         world = make_world("rare")
@@ -126,7 +134,11 @@ class E12A2DNoisyPriorStressTests(unittest.TestCase):
         result = run_benchmark(episodes=2, budget=2, start_seed=5)
         self.assertEqual(len(result["rows"]), 3 * 3 * len(POLICIES))
         self.assertTrue(all(row["episodes"] == 2 for row in result["rows"]))
-        self.assertEqual(len(result["paired_prior_contrasts"]), 3 * len(POLICIES) * 2)
+        from prototype.e12a2d_noisy_prior_stress import PRIOR_ARMS
+        self.assertEqual(
+            len(result["paired_prior_contrasts"]),
+            3 * len(POLICIES) * (len(PRIOR_ARMS) - 1),
+        )
         for contrast in result["paired_prior_contrasts"]:
             self.assertLessEqual(contrast["brier"]["ci95_low"], contrast["brier"]["ci95_high"])
 
