@@ -63,6 +63,15 @@ class RelationalPrimitiveTests(unittest.TestCase):
             (Example((("n",2),("s","b")),1),))
         self.assertEqual(propose_relations(view), ())
 
+    def test_non_finite_numeric_values_are_rejected(self):
+        for value in (float("nan"), float("inf"), float("-inf")):
+            view = LearnerView(
+                (FeatureSpec("a","numeric"), FeatureSpec("b","numeric")),
+                (Example((("a",value),("b",2)),1),),
+                (Example((("a",1),("b",2)),0),))
+            with self.assertRaises(TypeError):
+                propose_relations(view)
+
     def test_boolean_is_not_numeric(self):
         view = LearnerView(
             (FeatureSpec("a","numeric"), FeatureSpec("b","numeric")),
@@ -70,6 +79,14 @@ class RelationalPrimitiveTests(unittest.TestCase):
             (Example((("a",1),("b",2)),0),))
         with self.assertRaises(TypeError):
             propose_relations(view)
+
+    def test_boolean_candidate_budget_is_rejected(self):
+        view = LearnerView(
+            (FeatureSpec("a","numeric"), FeatureSpec("b","numeric")),
+            (Example((("a",1),("b",2)),1),),
+            (Example((("a",2),("b",1)),0),))
+        with self.assertRaises(TypeError):
+            infer(view, candidate_budget=True)
 
     def test_ambiguous_relation_family_abstains(self):
         view = LearnerView(
