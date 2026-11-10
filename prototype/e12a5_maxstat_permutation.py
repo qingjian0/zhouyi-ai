@@ -11,7 +11,7 @@ import math
 import random
 
 from prototype.e12a5_residual_pair_diagnosis import (
-    ResidualRecord, ResidualView, diagnose_pairs, validate_view,
+    ResidualView, diagnose_pairs, validate_view,
 )
 
 
@@ -32,7 +32,7 @@ def _valid_split_count(view: ResidualView, min_side_support: int) -> int:
                           for row in view.records)
                 high = len(view.records) - low
                 if min(low, high) >= min_side_support:
-                    count += 2  # HIGH_ERROR and LOW_ERROR
+                    count += 2
     return count
 
 
@@ -124,7 +124,7 @@ def maxstat_permutation_test(
         "polarity": item.polarity,
         "balanced_accuracy": item.balanced_accuracy,
         "maxT_adjusted_p_value": adjusted_p(item.balanced_accuracy),
-        "family_wise_significant": adjusted_p(item.balanced_accuracy) <= alpha,
+        "maxT_adjusted_significant_at_alpha": adjusted_p(item.balanced_accuracy) <= alpha,
         "evidence_ids": item.evidence_ids,
     } for item in observed["diagnoses"])
 
@@ -134,7 +134,7 @@ def maxstat_permutation_test(
         "prediction_mode": view.prediction_mode,
         "model_version": view.model_version,
         "record_count": len(view.records),
-        "residual_count": len(residuals) and sum(residuals),
+        "residual_count": sum(residuals),
         "candidate_pair_count": observed["candidate_pair_count"],
         "per_threshold_polarity_evaluations": per_scan_evaluations,
         "required_candidate_evaluations": required,
@@ -144,7 +144,7 @@ def maxstat_permutation_test(
         "alpha": float(alpha),
         "observed_max_statistic": observed_max,
         "global_maxT_adjusted_p_value": observed_p,
-        "global_family_wise_significant": observed_p <= alpha,
+        "global_null_rejected_at_alpha": observed_p <= alpha,
         "null_maxima": tuple(null_maxima),
         "diagnoses": diagnoses,
     }
