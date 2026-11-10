@@ -107,6 +107,20 @@ class E02I2CContractsTests(unittest.TestCase):
         ))
         self.assertEqual(decision.event, EventType.SUSPEND)
 
+    def test_reused_sample_cannot_suspend_across_two_windows(self):
+        decision = adjudicate_event(active(), (opp(0), opp(1)), (
+            packet("a0", 0, EvidencePolarity.ABSENCE, signature=None, sample="same-sample"),
+            packet("a1", 1, EvidencePolarity.ABSENCE, signature=None, sample="same-sample"),
+        ))
+        self.assertEqual(decision.event, EventType.ABSTAIN)
+
+    def test_reused_sample_cannot_retire_across_two_windows(self):
+        decision = adjudicate_event(active("SUSPENDED"), (opp(2), opp(3)), (
+            packet("c2", 2, EvidencePolarity.CONTRADICTS, signature=None, sample="same-sample"),
+            packet("c3", 3, EvidencePolarity.CONTRADICTS, signature=None, sample="same-sample"),
+        ))
+        self.assertEqual(decision.event, EventType.ABSTAIN)
+
     def test_insufficient_window_breaks_absence_streak(self):
         decision = adjudicate_event(active(), (
             opp(0), opp(1, observed=0, coverage=0.0, reason=MissingReason.NO_EXPOSURE), opp(2),
