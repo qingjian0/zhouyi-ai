@@ -41,7 +41,10 @@ class IncrementalPrequentialRunnerTests(unittest.TestCase):
         event = runner.revise(second.prediction_id)
         self.assertEqual(event.candidate_evaluations, 8)
         self.assertEqual(runner.learner.report["contested_inputs"], 1)
-        self.assertIsNone(runner.learner.predict((0, 0, 2)))
+        # The conflicting row is quarantined and its earlier contribution is
+        # retracted. The two independent bootstrap positives still support
+        # the broad rule, so this query remains classifiable as "yes".
+        self.assertEqual(runner.learner.predict((0, 0, 2)), "yes")
 
     def test_incremental_mode_rejects_batch_learner(self):
         from prototype.e09_counterexample_learner import CounterexampleRuleLearner
