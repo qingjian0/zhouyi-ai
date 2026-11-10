@@ -435,7 +435,7 @@ def run(*, seeds: int = 20, start_seed: int = 1200) -> dict:
         "episodes": results,
         "limitations": [
             "Synthetic binary Boolean rules with a bounded 2-3 feature truth-table grammar.",
-            "Six predeclared change scenarios; not open-world structure evolution.",
+            "Seven predeclared scenarios, including a never-present null-world negative control; not open-world structure evolution.",
             "Gate controls state transitions; an independent test split evaluates each window after decisions and never feeds back.",
             "The hidden target is used only for post-hoc exact-structure scoring; test accuracy is not a proof of causal or open-world validity.",
             "A fixed two-window confirmation policy; no learned transition policy.",
