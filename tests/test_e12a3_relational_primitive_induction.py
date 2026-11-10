@@ -74,10 +74,12 @@ class RelationalPrimitiveTests(unittest.TestCase):
     def test_ambiguous_relation_family_abstains(self):
         view = LearnerView(
             (FeatureSpec("a","numeric"), FeatureSpec("b","numeric")),
-            (Example((("a",1),("b",3)),1), Example((("a",4),("b",2)),0)),
-            (Example((("a",2),("b",5)),1), Example((("a",7),("b",6)),0)))
-        # Two examples alone leave parity and order predicates underconstrained.
-        self.assertIn(infer(view)["status"], {"AMBIGUOUS", "IDENTIFIABLE_WITHIN_RELATIONAL_GRAMMAR"})
+            (Example((("a",2),("b",2)),1), Example((("a",4),("b",4)),1)),
+            (Example((("a",7),("b",7)),1),))
+        result = infer(view)
+        self.assertEqual(result["status"], "AMBIGUOUS")
+        self.assertIsNone(result["selected"])
+        self.assertEqual(result["gate_consistent_count"], 2)
 
 if __name__ == "__main__":
     unittest.main()
