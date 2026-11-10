@@ -24,3 +24,5 @@ jobs:
         run: python -m prototype.e01_ood_multiseed --seeds 5 --start-seed 7 --json
       - name: Run E02-A higher-order synergy evaluation
         run: python -m prototype.e02_higher_order --seeds 5 --start-seed 7 --json
+      - name: Run E02-B ternary relation generator audit
+        run: python -m prototype.e02_ternary --examples 900 --seed 7
