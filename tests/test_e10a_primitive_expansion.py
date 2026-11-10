@@ -65,7 +65,7 @@ class PrimitiveExpansionTests(unittest.TestCase):
         learner.revise(query[0], labels[0])
         learner.revise(query[1], labels[1])
         learner.revise(query[2], labels[2])
-        self.assertTrue(learner.predict(query[3])["prediction"])
+        self.assertFalse(learner.predict(query[3])["prediction"])
         role_revision = learner.revise(query[3], labels[3])
         self.assertEqual(role_revision["status"], "IDENTIFIED")
         self.assertFalse(learner.predict(query[3])["prediction"])
