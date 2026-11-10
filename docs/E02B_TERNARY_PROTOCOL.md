@@ -22,6 +22,16 @@ E02-A 使用二元 parity。E02-B 改用三值变量与模 3 加法关系，检�
 
 每个 block 的正例/负例比为 1:2。样本数必须为 9 的正整数倍。seed 控制块内查询顺序与候选顺序，不改变数学规则。
 
+## 学习器对照（新增原型）
+
+`prototype/e02_ternary_learners.py` 实现两个同数据、同优化器、同训练轮数的候选排序模型：
+
+- Pairwise categorical：三个角色的一阶 one-hot 与 AB/AC/BC 三组二阶 one-hot，共 36 个参数。
+- Static third-order categorical：在上述特征上增加 ABC 三元 one-hot，共 63 个参数。
+- Validation gate：仅根据独立验证集准确率决定是否采用三元模型，门槛为提升超过 0.01；测试集不参与选择。
+
+默认每个 seed 使用 900/180/180 条 train/validation/test 样本，350 epochs；每个集合大小是 9 的倍数，查询和候选顺序分别随机化。报告参数量，明确当前模型容量不匹配，因此不能把差异纯粹归因于阶数。CI 运行五个 data seeds。
+
 ## 当前实现边界
 
 当前阶段只实现并自动验证数据生成器及边际审计；**尚未实现学习器对照，也没有准确率结果**。不能把此阶段称为模型实验成功。
