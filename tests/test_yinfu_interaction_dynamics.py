@@ -6,8 +6,8 @@ from prototype.yinfu_interaction_dynamics import (
 class YinfuInteractionDynamicsTests(unittest.TestCase):
     def test_context_can_reverse_edge_polarity(self):
         graph = InteractionGraph(("a", "b"), (InteractionEdge("a", "b", 0.2, -0.5),))
-        low = dict(step(graph, {"a": 1.0, "b": 0.0}, context=0.0).edge_effects)
-        high = dict(step(graph, {"a": 1.0, "b": 0.0}, context=1.0).edge_effects)
+        low = {(source, target): effect for source, target, effect in step(graph, {"a": 1.0, "b": 0.0}, context=0.0).edge_effects}
+        high = {(source, target): effect for source, target, effect in step(graph, {"a": 1.0, "b": 0.0}, context=1.0).edge_effects}
         self.assertGreater(low[("a", "b")], 0)
         self.assertLess(high[("a", "b")], 0)
 
