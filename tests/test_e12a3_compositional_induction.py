@@ -69,11 +69,11 @@ class E12A3CompositionTests(unittest.TestCase):
             train=(
                 Example((("x", 0), ("z", 0)), 0),
                 Example((("x", 1), ("z", 1)), 1),
-                Example((("x", 2), ("z", 2)), 1),
+                Example((("x", 0), ("z", 0)), 0),
             ),
             gate=(
-                Example((("x", 3), ("z", 3)), 1),
-                Example((("x", 4), ("z", 4)), 1),
+                Example((("x", 1), ("z", 1)), 1),
+                Example((("x", 0), ("z", 0)), 0),
             ),
         )
         result = infer_compositions(view, max_depth=1, candidate_budget=5000)
