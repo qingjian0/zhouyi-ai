@@ -257,10 +257,22 @@ def adjudicate_event(
         return _abstain(identity, "suspended identity lacks sufficient reactivation or retirement evidence",
                         candidate_signature)
 
-    # Active identity: same-signature support is a KEEP, not a new identity.
+    # Active identity: competing support for the current and a changed
+    # signature is ambiguous. Never let one stale KEEP observation mask a
+    # separately supported structural change.
     same_support = tuple(
         item for item in supporting if item.candidate_signature == identity.signature
     )
+    changed_candidates = tuple(
+        item for item in supporting if item.candidate_signature != identity.signature
+    )
+    if same_support and changed_candidates:
+        return _abstain(
+            identity,
+            "competing support for current and changed signatures requires review",
+            candidate_signature,
+            refs((*same_support, *changed_candidates)),
+        )
     if same_support:
         return EventDecision(
             EventType.KEEP, identity.identity_id, identity.version_id,
@@ -269,9 +281,8 @@ def adjudicate_event(
         )
 
     changed_support = tuple(
-        item for item in supporting
-        if item.candidate_signature != identity.signature
-        and item.source_version_id == identity.version_id
+        item for item in changed_candidates
+        if item.source_version_id == identity.version_id
     )
     if (len(distinct_windows(changed_support)) >= required_windows
             and len({item.sample_id for item in changed_support}) >= required_windows):
