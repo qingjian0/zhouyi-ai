@@ -95,6 +95,21 @@ def _pair_count(rows: Sequence[set[str]], pair: tuple[str, str]) -> int:
     return sum(a in row and b in row for row in rows)
 
 
+def _wilson_interval(successes: int, total: int, z: float = 1.96) -> list[float]:
+    """95% Wilson score interval for a binomial proportion."""
+    if total < 1:
+        return [0.0, 1.0]
+    proportion = successes / total
+    denominator = 1.0 + z * z / total
+    center = (proportion + z * z / (2.0 * total)) / denominator
+    radius = (
+        z
+        * (proportion * (1.0 - proportion) / total + z * z / (4.0 * total * total)) ** 0.5
+        / denominator
+    )
+    return [max(0.0, center - radius), min(1.0, center + radius)]
+
+
 def run_calibration(
     *,
     seeds: int = 10,
@@ -141,21 +156,30 @@ def run_calibration(
             _pair_count(planted_data, pair) - _pair_count(null_data, pair)
         )
 
+    null_candidate_rejections = sum(p <= alpha for p in null_p)
+    null_max_rejections = sum(p <= alpha for p in null_max_p)
+    planted_candidate_detections = sum(p <= alpha for p in planted_p)
+    planted_max_detections = sum(p <= alpha for p in planted_max_p)
+
     return {
         "seeds": seeds,
         "permutations_per_condition": permutations,
         "alpha": alpha,
         "pair": list(pair),
         "null": {
-            "candidate_rejection_rate": mean(p <= alpha for p in null_p),
-            "max_statistic_rejection_rate": mean(p <= alpha for p in null_max_p),
+            "candidate_rejection_rate": null_candidate_rejections / seeds,
+            "candidate_rejection_rate_wilson_95": _wilson_interval(null_candidate_rejections, seeds),
+            "max_statistic_rejection_rate": null_max_rejections / seeds,
+            "max_statistic_rejection_rate_wilson_95": _wilson_interval(null_max_rejections, seeds),
             "mean_candidate_p": mean(null_p),
             "p_values": null_p,
             "max_statistic_p_values": null_max_p,
         },
         "planted": {
-            "candidate_detection_rate": mean(p <= alpha for p in planted_p),
-            "max_statistic_detection_rate": mean(p <= alpha for p in planted_max_p),
+            "candidate_detection_rate": planted_candidate_detections / seeds,
+            "candidate_detection_rate_wilson_95": _wilson_interval(planted_candidate_detections, seeds),
+            "max_statistic_detection_rate": planted_max_detections / seeds,
+            "max_statistic_detection_rate_wilson_95": _wilson_interval(planted_max_detections, seeds),
             "mean_candidate_p": mean(planted_p),
             "p_values": planted_p,
             "max_statistic_p_values": planted_max_p,
