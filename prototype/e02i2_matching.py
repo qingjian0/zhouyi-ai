@@ -212,10 +212,21 @@ def match_candidates(
     decisions = []
     for candidate, row, column in zip(candidates, score_rows, assigned):
         best = row[column] if 0 <= column < len(identity_ids) else 0.0
-        if not identity_ids or column < 0 or best < min_score:
+        if not identity_ids:
+            reason = "no historical identities are available"
+        elif column < 0:
+            reason = (
+                "all eligible identities were assigned to higher-priority candidates"
+                if max(row, default=0.0) >= min_score
+                else "no eligible identity reaches min_score"
+            )
+        elif best < min_score:
+            reason = "assigned identity does not reach min_score"
+        else:
+            reason = ""
+        if reason:
             decisions.append(MatchDecision(
-                candidate.candidate_id, None, best, method, True,
-                "no eligible identity reaches min_score",
+                candidate.candidate_id, None, best, method, True, reason,
             ))
             continue
         alternatives = [score for idx, score in enumerate(row) if idx != column]
