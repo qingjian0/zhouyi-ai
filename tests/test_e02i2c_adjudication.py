@@ -164,6 +164,18 @@ class E02I2CContractsTests(unittest.TestCase):
         ))
         self.assertEqual(decision.event, EventType.ABSTAIN)
 
+    def test_suspended_competing_signatures_abstain_with_both_provenances(self):
+        decision = adjudicate_event(active("SUSPENDED"), (opp(2), opp(3), opp(4)), (
+            packet("same-2", 2, EvidencePolarity.SUPPORTS, "a&b", source="v1"),
+            packet("changed-3", 3, EvidencePolarity.SUPPORTS, "a^b", source="v1"),
+            packet("changed-4", 4, EvidencePolarity.SUPPORTS, "a^b", source="v1"),
+        ), candidate_signature="a^b")
+        self.assertEqual(decision.event, EventType.ABSTAIN)
+        self.assertEqual(
+            set(decision.evidence_refs),
+            {"same-2", "changed-3", "changed-4"},
+        )
+
     def test_suspended_identity_reactivates_only_with_repeated_fresh_support(self):
         decision = adjudicate_event(active("SUSPENDED"), (opp(2), opp(3)), (
             packet("fresh-2", 2, EvidencePolarity.SUPPORTS, "a&b", source="v1"),
