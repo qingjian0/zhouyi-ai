@@ -19,7 +19,13 @@ class E12A3MultiProposerTests(unittest.TestCase):
         self.assertTrue(all(p.source_observation_ids == ("o1", "o2", "o3", "o4") for p in a))
 
     def test_relational_proposer_discovers_numeric_and_categorical_relations(self):
-        proposals = propose_relational(demo_rows())
+        rows = tuple(
+            Observation(row.observation_id,
+                        row.values + (("season", "winter" if i < 2 else "summer"),),
+                        row.label)
+            for i, row in enumerate(demo_rows())
+        )
+        proposals = propose_relational(rows)
         operators = {p.expression.operator for p in proposals}
         self.assertIn("DIFF_GE", operators)
         self.assertIn("SAME", operators)
