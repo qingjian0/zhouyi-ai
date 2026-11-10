@@ -32,8 +32,8 @@ class E12M2ExactStateAuditTests(unittest.TestCase):
 
     def test_infeasible_margins_return_empty_state_space(self):
         report = audit_small_state_space(
-            row_degrees=(2, 2),
-            item_degrees={"a": 1, "b": 1},
+            row_degrees=(2, 2, 0),
+            item_degrees={"a": 3, "b": 1, "c": 0},
         )
         self.assertEqual(report["state_count"], 0)
         self.assertFalse(report["stationary_uniformity_supported"])
