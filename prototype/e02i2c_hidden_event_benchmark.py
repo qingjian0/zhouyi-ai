@@ -11,7 +11,7 @@ the decision rules and thresholds are frozen.
 from __future__ import annotations
 
 import argparse
-import hashlib
+import secrets
 import json
 import random
 from dataclasses import dataclass
@@ -72,9 +72,11 @@ def _packet(seed: int, event: str, window: int, polarity: EvidencePolarity,
             signature: str | None, *, source: str = "v1",
             split: str, ordinal: int = 0) -> EvidencePacket:
     """Create opaque provenance IDs; event labels never enter observable IDs."""
-    del event  # Event truth is evaluator-side and must not shape observable metadata.
-    material = f"{split}|{seed}|{window}|{ordinal}".encode("utf-8")
-    token = hashlib.blake2b(material, digest_size=12).hexdigest()
+    # IDs must not be a reversible digest of low-entropy seed/window inputs.
+    # Random tokens keep provenance opaque; benchmark metrics remain deterministic
+    # because adjudication never depends on the token values.
+    del event, seed, ordinal
+    token = secrets.token_hex(16)
     return EvidencePacket(
         evidence_id=f"ev-{token}",
         sample_id=f"sample-{token}",
