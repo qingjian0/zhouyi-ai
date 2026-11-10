@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import itertools
 from collections import Counter, deque
-from math import comb
 from typing import Sequence
 
 
