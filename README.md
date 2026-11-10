@@ -57,6 +57,8 @@
 - [E09-B2 证据账本代码](prototype/e09_evidence_ledger.py)
 - [E09-C 噪声与误导性特征基准](docs/E09C_NOISE_BENCHMARK.md)
 - [E09-C 基准代码](prototype/e09_noise_benchmark.py)
+- [E09-D0 证据账本到超边生命周期桥接](docs/E09D0_LIFECYCLE_BRIDGE.md)
+- [E09-D0 桥接代码](prototype/e09_lifecycle_bridge.py)
 - [研究风险与证伪条件](docs/RISKS_AND_FALSIFICATION.md)
 - [开发路线图](ROADMAP.md)
 - [原型代码](prototype/)
