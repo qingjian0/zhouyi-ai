@@ -37,6 +37,26 @@ def evidence(eid, role, *, commit=1, reveal=2):
     )
 
 
+def promote_to_gate_validated(ledger, candidate_id):
+    ledger.add_evidence(evidence("train-" + candidate_id, SplitRole.TRAIN))
+    ledger.add_evidence(evidence("final-" + candidate_id, SplitRole.GATE_FINAL))
+    ledger.apply(Action("propose-" + candidate_id, ActionType.PROPOSE, candidate_id, 1,
+                        from_state=CandidateState.OBSERVED,
+                        to_state=CandidateState.PROPOSED))
+    ledger.apply(Action("discriminate-" + candidate_id,
+                        ActionType.REQUEST_DISCRIMINATION, candidate_id, 1,
+                        from_state=CandidateState.PROPOSED,
+                        to_state=CandidateState.DISCRIMINATION_PENDING))
+    ledger.apply(Action("train-" + candidate_id, ActionType.TRAIN_SUPPORT,
+                        candidate_id, 1, evidence_ids=("train-" + candidate_id,),
+                        from_state=CandidateState.DISCRIMINATION_PENDING,
+                        to_state=CandidateState.TRAIN_SUPPORTED))
+    ledger.apply(Action("gate-" + candidate_id, ActionType.GATE_VALIDATE,
+                        candidate_id, 1, evidence_ids=("final-" + candidate_id,),
+                        from_state=CandidateState.TRAIN_SUPPORTED,
+                        to_state=CandidateState.GATE_VALIDATED))
+
+
 class E12A6LifecycleContractTests(unittest.TestCase):
     def test_candidate_identity_is_versioned_and_immutable(self):
         item = candidate()
@@ -96,6 +116,7 @@ class E12A6LifecycleContractTests(unittest.TestCase):
     def test_challenge_requires_locked_or_post_deploy_evidence(self):
         ledger = LifecycleLedger()
         ledger.add_candidate(candidate())
+        promote_to_gate_validated(ledger, "rel:greater-than")
         ledger.add_evidence(evidence("dev", SplitRole.GATE_DEV))
         with self.assertRaises(ValueError):
             ledger.apply(Action("challenge", ActionType.CHALLENGE,
@@ -107,10 +128,8 @@ class E12A6LifecycleContractTests(unittest.TestCase):
         ledger = LifecycleLedger()
         old = candidate()
         ledger.add_candidate(old)
+        promote_to_gate_validated(ledger, old.candidate_id)
         ledger.add_evidence(evidence("counter", SplitRole.LOCKED_TEST))
-        ledger.apply(Action("propose", ActionType.PROPOSE, old.candidate_id, 1,
-                            from_state=CandidateState.OBSERVED,
-                            to_state=CandidateState.PROPOSED))
         ledger.apply(Action("challenge", ActionType.CHALLENGE, old.candidate_id, 1,
                             evidence_ids=("counter",),
                             from_state=CandidateState.GATE_VALIDATED,
