@@ -14,6 +14,7 @@ from prototype.e09_counterexample_learner import (
     CounterexampleRuleLearner, Example,
 )
 from prototype.e09_evidence_ledger import EvidenceLedger, EvidenceError
+from prototype.e09_incremental_learner import IncrementalConjunctionLearner
 
 Value = Hashable
 Label = Hashable
@@ -157,7 +158,7 @@ class PrequentialRunner:
             after_snapshot=after,
             operation=self.REVISION_MODE,
             training_example_count=report.get("training_examples", 0),
-            candidate_evaluations=report.get("candidate_patterns_evaluated", 0),
+            candidate_evaluations=(\n                report.get("candidate_patterns_evaluated", 0) - before_cost\n            ),
             step=self.step,
         )
         self._revisions.append(event)
