@@ -10,6 +10,15 @@ from collections.abc import Mapping
 from typing import Any
 
 
+def _finite_real(value: object, name: str) -> float:
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise TypeError(f"{name} must be an int or float, not bool")
+    number = float(value)
+    if not math.isfinite(number):
+        raise ValueError(f"{name} must be finite")
+    return number
+
+
 def _entropy(weights: Mapping[str, float]) -> float:
     return -sum(p * math.log2(p) for p in weights.values() if p > 0.0)
 
@@ -104,12 +113,15 @@ def select_measurement(
     predictions[action][hypothesis][outcome] = P(outcome | hypothesis, action)
     """
     prior = _normalize_weights(weights)
-    if not math.isfinite(float(remaining_budget)) or remaining_budget < 0:
-        raise ValueError("remaining_budget must be finite and non-negative")
-    if not math.isfinite(float(epsilon)) or epsilon <= 0:
-        raise ValueError("epsilon must be finite and positive")
-    if not math.isfinite(float(tie_tolerance)) or tie_tolerance < 0:
-        raise ValueError("tie_tolerance must be finite and non-negative")
+    remaining_budget = _finite_real(remaining_budget, "remaining_budget")
+    epsilon = _finite_real(epsilon, "epsilon")
+    tie_tolerance = _finite_real(tie_tolerance, "tie_tolerance")
+    if remaining_budget < 0:
+        raise ValueError("remaining_budget must be non-negative")
+    if epsilon <= 0:
+        raise ValueError("epsilon must be positive")
+    if tie_tolerance < 0:
+        raise ValueError("tie_tolerance must be non-negative")
     if not predictions or set(predictions) != set(costs):
         return {"status": "INVALID_ACTION_SET", "selected_action": None, "evaluated": []}
 
@@ -119,8 +131,8 @@ def select_measurement(
         if isinstance(cost, bool) or not isinstance(cost, (int, float)):
             raise TypeError("action costs must be numeric")
         cost = float(cost)
-        if not math.isfinite(cost) or cost < 0:
-            raise ValueError("action costs must be finite and non-negative")
+        if not math.isfinite(cost) or cost <= 0:
+            raise ValueError("action costs must be finite and strictly positive")
         normalized_costs[action_id] = cost
 
     feasible = [
