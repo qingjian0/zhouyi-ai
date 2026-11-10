@@ -76,6 +76,7 @@ python -m prototype.e01_sparse_composition
 python -m prototype.e01_learned_ranker --json
 python -m prototype.e12a2_active_measurement --json
 python -m prototype.e12a2b_policy_benchmark --seeds 20 --budget 4 --json
+python -m prototype.e12a2d_noisy_prior_stress --episodes 100 --budget 3 --json
 ```
 
 ## 研究状态标记
