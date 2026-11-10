@@ -74,7 +74,9 @@ class Candidate:
         _nonempty(self.canonical_expression, "canonical_expression")
         _nonempty(self.proposer_family, "proposer_family")
         _nonempty(self.operator, "operator")
-        if isinstance(self.version, bool) or self.version < 1:
+        if not isinstance(self.state, CandidateState):
+            raise TypeError("state must be a CandidateState")
+        if isinstance(self.version, bool) or not isinstance(self.version, int) or self.version < 1:
             raise ValueError("version must be a positive integer")
         if not self.input_types or any(not item for item in self.input_types):
             raise ValueError("input_types must contain non-empty types")
@@ -104,6 +106,8 @@ class Evidence:
         for name in ("evidence_id", "episode_id", "world_family",
                      "observation_id", "outcome", "model_version"):
             _nonempty(getattr(self, name), name)
+        if not isinstance(self.split_role, SplitRole):
+            raise TypeError("split_role must be a SplitRole")
         _nonnegative(self.measurement_cost, "measurement_cost")
         commit, reveal = self.prediction_commit_step, self.label_visibility_step
         if (commit is None) != (reveal is None):
@@ -129,6 +133,8 @@ class Action:
 
     def __post_init__(self) -> None:
         _nonempty(self.action_id, "action_id")
+        if not isinstance(self.action_type, ActionType):
+            raise TypeError("action_type must be an ActionType")
         _nonnegative(self.cost, "cost")
         if (self.candidate_id is None) != (self.candidate_version is None):
             raise ValueError("candidate_id and candidate_version must be set together")
@@ -215,8 +221,12 @@ class LifecycleLedger:
                 current = self.candidates[key]
                 if current.state is not action.from_state:
                     raise ValueError("stale or invalid candidate state transition")
-                if action.to_state is CandidateState.GATE_VALIDATED:
-                    roles = {self.evidence[item].split_role for item in action.evidence_ids}
+                roles = {self.evidence[item].split_role for item in action.evidence_ids}
+                if action.to_state is CandidateState.TRAIN_SUPPORTED:
+                    if SplitRole.TRAIN not in roles:
+                        raise ValueError("TRAIN evidence is required for support")
+                if action.to_state in (CandidateState.GATE_VALIDATED,
+                                       CandidateState.GATE_VALIDATED):
                     if SplitRole.GATE_FINAL not in roles:
                         raise ValueError("GATE_FINAL evidence is required for validation")
                 if action.to_state is CandidateState.CHALLENGED:
@@ -249,8 +259,8 @@ class LifecycleLedger:
         """Create a new semantic version; never overwrite the challenged version."""
         parent_key = (candidate_id, version)
         parent = self.candidates.get(parent_key)
-        if parent is None or parent.state is not CandidateState.CHALLENGED:
-            raise ValueError("only a challenged candidate can be revised")
+        if parent is None or parent.state is not CandidateState.REVISED:
+            raise ValueError("candidate must have an explicit REVISE action before versioning")
         if any(item not in self.evidence for item in evidence_ids):
             raise ValueError("revision references unknown evidence")
         revision = Candidate(
