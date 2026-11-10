@@ -170,3 +170,32 @@ E12-A1 主实验先不使用易象先验，避免候选生成、学习算法和�
 7. 运行泄漏、可辨识性和 OOD 测试后，再开展多种子实验。
 
 **结论：** E12-A0 已经为“知道自己不知道”建立了一个很小的程序检查。E12-A1 的真正挑战，是让系统从观测提出新谓词，并用独立证据决定是否接受，同时能主动寻找区分证据。只有完成这一步，项目才开始触及原始基元归纳。
+
+
+## 12. E12-A0 follow-up implementation audit (2026-11-11)
+
+A follow-up code change adds explicit per-episode reporting and candidate-budget accounting to `prototype/e12a_identifiability.py`.
+
+### Implemented in the work branch
+
+- `infer()` now reports `evaluated_candidates` and `remaining_candidates`.
+- A partial candidate search returns `BUDGET_EXHAUSTED`; it cannot claim IDENTIFIABLE or INCONSISTENT while unchecked candidates remain.
+- Negative candidate budgets raise `ValueError`; zero budget is an explicit exhaustion.
+- `run_suite()` now emits per-episode records with family, seed, pre-probe status, candidate set, and search counts.
+- Intervention-pending episodes additionally report post-probe status and whether the probe recovered the evaluator's hidden candidate. Evaluator truth is not copied into episode report records.
+- CLI accepts `--candidate-budget`.
+
+### Regression coverage added
+
+- zero, partial, and complete candidate budgets;
+- explicit evaluated/remaining counts;
+- per-episode output count and absence of evaluator-truth fields;
+- suite-wide behavior under a deliberately insufficient candidate budget.
+
+### Important limitation
+
+This is still a finite two-candidate enumerator. Candidate accounting makes the budget semantics auditable; it does not make the search adaptive or learned. Per-episode output is not a substitute for an external evaluator process. The current probe remains environment-scheduled rather than learner-selected.
+
+### Verification status
+
+The code and tests have been committed to the work branch. No GitHub Actions run was returned for these commits, and no local execution result is claimed here. The next acceptance step is to execute the exact unit-test command and JSON suite on this branch, inspect the resulting per-episode records, then proceed to the E12-A1 process-isolated protocol.
