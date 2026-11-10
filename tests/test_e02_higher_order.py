@@ -13,6 +13,17 @@ class E02HigherOrderTests(unittest.TestCase):
             self.assertEqual(ex.candidates[ex.target][0]*ex.candidates[ex.target][1]*ex.candidates[ex.target][2],1)
             for i,x in enumerate(ex.candidates):
                 if i!=ex.target: self.assertEqual(x[0]*x[1]*x[2],-1)
+
+    def test_first_and_second_order_marginals_are_balanced(self):
+        from prototype.e02_higher_order import features
+        data = make_dataset(40, 23)
+        positive = [features(ex.candidates[ex.target], 2) for ex in data]
+        negative = [features(x, 2) for ex in data for i, x in enumerate(ex.candidates)
+                    if i != ex.target]
+        for j in range(1, 7):
+            self.assertAlmostEqual(sum(x[j] for x in positive), 0.0)
+            self.assertAlmostEqual(sum(x[j] for x in negative), 0.0)
+
     def test_metrics_bounded(self):
         r=run_seed(7,200,60,80)
         for k in ("pairwise_test_accuracy","static_order3_test_accuracy","dynamic_test_accuracy"):
