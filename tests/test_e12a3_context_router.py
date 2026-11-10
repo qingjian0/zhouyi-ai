@@ -4,8 +4,10 @@ import unittest
 from prototype.e12a3_adaptive_benchmark import make_four_way_world, _make_pools
 from prototype.e12a3_context_router import (
     METHODS,
+    _balanced_probe_candidates,
     _context_descriptors,
     _context_route_allocate,
+    _random_probe_candidates,
     run_benchmark,
     run_episode,
     split_support_context,
@@ -42,20 +44,25 @@ class E12A3ContextRouterTests(unittest.TestCase):
         self.assertTrue(any(
             p.expression.operator == "PARITY" for p in pools["STAT"]
         ))
+        stratified = _balanced_probe_candidates(pools, batch_size=4)
+        self.assertIn("PARITY", {
+            p.expression.operator for p in stratified["STAT"]
+        })
         self.assertEqual({r.label for r in context}, {0, 1})
 
     def test_context_router_api_excludes_gate_and_test_data(self):
         self.assertEqual(
             list(inspect.signature(_context_route_allocate).parameters),
-            ["pools", "descriptors", "budget", "batch_size"],
+            ["pools", "descriptors", "probes", "budget", "batch_size", "probe_strategy"],
         )
 
     def test_context_descriptors_are_bounded_and_deterministic(self):
         support, _, _, _ = make_four_way_world(44, "PAIRWISE_DIFFERENCE")
         proposal, context = split_support_context(support, 44)
         pools = _make_pools(proposal, 44)
-        first = _context_descriptors(pools, context)
-        second = _context_descriptors(pools, context)
+        probes = _random_probe_candidates(pools)
+        first = _context_descriptors(probes, context)
+        second = _context_descriptors(probes, context)
         self.assertEqual(first, second)
         self.assertEqual(set(first), {"STAT", "RELATIONAL", "RANDOM"})
         self.assertTrue(all(0.0 <= value <= 1.0 for value in first.values()))
@@ -64,9 +71,10 @@ class E12A3ContextRouterTests(unittest.TestCase):
         support, _, _, _ = make_four_way_world(45, "THRESHOLD")
         proposal, context = split_support_context(support, 45)
         pools = _make_pools(proposal, 45)
-        descriptors = _context_descriptors(pools, context)
-        first = _context_route_allocate(pools, descriptors, budget=23)
-        second = _context_route_allocate(pools, descriptors, budget=23)
+        probes = _random_probe_candidates(pools)
+        descriptors = _context_descriptors(probes, context)
+        first = _context_route_allocate(pools, descriptors, probes, budget=23)
+        second = _context_route_allocate(pools, descriptors, probes, budget=23)
         self.assertEqual(first["trace"], second["trace"])
         self.assertEqual(first["allocations"], second["allocations"])
         self.assertEqual(first["proposal_slots_used"], 23)
@@ -80,7 +88,10 @@ class E12A3ContextRouterTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             _context_route_allocate(
                 _make_pools(proposal, 46),
-                _context_descriptors(_make_pools(proposal, 46), context),
+                _context_descriptors(
+                    _random_probe_candidates(_make_pools(proposal, 46)), context
+                ),
+                _random_probe_candidates(_make_pools(proposal, 46)),
                 budget=11,
             )
 
