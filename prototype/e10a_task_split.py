@@ -216,10 +216,6 @@ def build_support_query_task(
         f'{row["relation_symbol"]}:{str(row["outcome"]).lower()}'
         for row in support_rows
     )
-    query_label_counts = Counter(
-        f'{row["relation_symbol"]}:{str(truth_by_id[row["observation_id"]]["valid"]).lower()}'
-        for row in query_rows
-    )
     manifest = {
         "schema_version": TASK_SCHEMA_VERSION,
         "episode_id": learner_view["episode_id"],
@@ -234,7 +230,6 @@ def build_support_query_task(
         "grouping": "relation_symbol+unordered_participant_set",
         "selection_policy": "label_blind_uniform_group_shuffle_v1",
         "support_label_counts": dict(sorted(support_label_counts.items())),
-        "query_label_counts_evaluator_only": dict(sorted(query_label_counts.items())),
     }
     return {
         "support": {
