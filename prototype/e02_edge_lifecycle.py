@@ -7,6 +7,7 @@ validation measurements supplied by an evaluator.
 from __future__ import annotations
 
 from dataclasses import asdict, dataclass
+from math import isfinite
 from typing import Iterable
 
 
@@ -50,6 +51,10 @@ class HyperedgeLifecycle:
             raise ValueError("support, patience, and edge budget must be positive")
         if not 0.0 <= merge_jaccard <= 1.0:
             raise ValueError("merge_jaccard must be in [0, 1]")
+        if not self._is_finite_number(min_gain) or min_gain < 0:
+            raise ValueError("min_gain must be finite and non-negative")
+        if not self._is_finite_number(split_gain_margin) or split_gain_margin < 0:
+            raise ValueError("split_gain_margin must be finite and non-negative")
         self.min_support = min_support
         self.min_gain = min_gain
         self.prune_patience = prune_patience
@@ -59,6 +64,13 @@ class HyperedgeLifecycle:
         self.edges: dict[str, Hyperedge] = {}
         self.events: list[dict] = []
         self._undo: list[dict[str, Hyperedge]] = []
+
+    @staticmethod
+    def _is_finite_number(value: object) -> bool:
+        try:
+            return isfinite(value)
+        except (TypeError, ValueError):
+            return False
 
     @staticmethod
     def _unique(values: Iterable[str]) -> tuple[str, ...]:
@@ -75,10 +87,12 @@ class HyperedgeLifecycle:
             raise LifecycleError("insufficient independent support ids")
         if set(p.support_ids) & set(p.counterexample_ids):
             raise LifecycleError("support and counterexample evidence must be disjoint")
+        if not self._is_finite_number(p.validation_gain):
+            raise LifecycleError("validation gain must be finite")
         if p.validation_gain < self.min_gain:
             raise LifecycleError("held-out validation gain is below threshold")
-        if p.cost < 0:
-            raise LifecycleError("cost cannot be negative")
+        if not self._is_finite_number(p.cost) or p.cost < 0:
+            raise LifecycleError("cost must be finite and non-negative")
 
     def _commit(self, event: dict) -> None:
         self._undo.append(dict(self.edges))
@@ -108,8 +122,10 @@ class HyperedgeLifecycle:
                 cost: float) -> Hyperedge:
         if edge_id not in self.edges:
             raise LifecycleError("unknown edge_id")
-        if cost < 0:
-            raise LifecycleError("cost cannot be negative")
+        if not self._is_finite_number(validation_gain):
+            raise LifecycleError("validation gain must be finite")
+        if not self._is_finite_number(cost) or cost < 0:
+            raise LifecycleError("cost must be finite and non-negative")
         old = self.edges[edge_id]
         support = self._unique((*old.support_ids, *support_ids))
         counter = self._unique((*old.counterexample_ids, *counterexample_ids))
@@ -137,6 +153,8 @@ class HyperedgeLifecycle:
 
     def merge(self, edge_a: str, edge_b: str, *, new_edge_id: str,
               measured_validation_gain: float) -> Hyperedge:
+        if not self._is_finite_number(measured_validation_gain):
+            raise LifecycleError("merged validation gain must be finite")
         if edge_a == edge_b or edge_a not in self.edges or edge_b not in self.edges:
             raise LifecycleError("merge requires two distinct existing edges")
         if new_edge_id in self.edges:
@@ -182,6 +200,8 @@ class HyperedgeLifecycle:
 
     def split(self, edge_id: str, children: tuple[EdgeProposal, ...], *,
               measured_total_validation_gain: float) -> tuple[Hyperedge, ...]:
+        if not self._is_finite_number(measured_total_validation_gain):
+            raise LifecycleError("split validation gain must be finite")
         if edge_id not in self.edges:
             raise LifecycleError("unknown parent edge")
         parent = self.edges[edge_id]
