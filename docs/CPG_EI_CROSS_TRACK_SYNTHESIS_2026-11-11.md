@@ -981,3 +981,47 @@ References:
 7. Expand schema upcasters beyond the narrowly scoped v0.1-to-legacy-track compatibility shim and test real historical database fixtures, including v0.1 prediction/reveal sequences.
 
 No adapter integration or continual-learning claim is made in this checkpoint.
+
+## 18. E09 shared-protocol adapter: first durable learner integration (2026-11-11)
+
+### 18.1 What changed
+
+A separate mainline-validation draft, PR #107, now integrates the existing E09-B prequential runner and its two update arms with the shared SQLite evidence protocol v0.2:
+
+- `BATCH_REFIT` remains the full-history refit control.
+- `INCREMENTAL_INDEX` remains the local `2^d`-pattern counter-update arm.
+- The adapter identifies E09 as learner track `e09`; it does not import E10 hypothesis or AST types.
+- The persisted causal sequence is: `initial_structure -> observation -> prediction_commit -> evidence_reveal -> structure_version -> revision`.
+- Each revision creates a new structure version with a parent pointer and the reveal event as support evidence.
+- The protocol event log stores an opaque digest of the observation inputs; source IDs remain in E09's provenance ledger and are not copied into the learner-facing event payload.
+
+### 18.2 What the first CI run taught us
+
+The first PR run exposed four failures in the imported E09 baseline/tests, not in the new adapter's three integration tests:
+
+1. `EvidenceLedger.adjudication()` built `contested` as a set, then incorrectly called `.items()` on it. This caused three ledger test errors. The implementation now iterates the set and looks up labels in `labels_by_input`.
+2. An incremental prequential test expected a conflicted query to become unclassifiable. That expectation was too strong: removing the conflicted row still leaves two independent bootstrap positives supporting the broad rule. The test now asserts that the conflict is quarantined while the remaining support continues to predict `yes`.
+
+On the corrected PR head `56073a63e38ad579d2cf0fd87afc72c1246ff26b`, all 109 unit tests passed. The wider repository workflow was still running at the time of this note; do not describe the full CI as passed until all experiment steps complete.
+
+### 18.3 Integration limits
+
+This is a durable event-log integration, not a complete production adapter:
+
+- The E09 runner remains in memory. The adapter fails closed after partial persistence/learner failures; it does not claim atomic two-phase commit or restart recovery.
+- A live episode must be fresh. Event replay is available for audit, but reconstructing a live E09 learner from persisted events is not implemented.
+- Bootstrap is represented by an initial structure snapshot digest and training-example count. Bootstrap examples are pre-episode training evidence, not post-prediction reveal events; full bootstrap data lineage is still missing.
+- `candidate_set_hash` currently hashes the learner snapshot, not an independently enumerated complete proposal set.
+- Candidate-evaluation counts are algorithmic counters, not wall-clock, CPU, or peak-memory measurements.
+- The adapter is a trusted in-process runner. Evaluator truth and learner state are not yet separated into OS processes or protected by an authenticated IPC boundary.
+
+### 18.4 Next research gates
+
+1. Complete exact-head full CI and retain the run URL.
+2. Add crash-injection tests around observation, prediction commit, reveal, structure-version, and revision boundaries.
+3. Define bootstrap evidence as an explicit protocol phase with replayable references, without pretending bootstrap rows were prequential predictions.
+4. Build E10 adapter separately around its own relation/analogy representation; share only event semantics and conformance tests.
+5. Add evaluator/learner subprocess isolation and a hidden-truth noninterference canary.
+6. Benchmark `BATCH_REFIT` versus `INCREMENTAL_INDEX` on identical prequential streams and equal budgets. Report predictive score, abstention, update operations, wall time, memory, and structure coverage separately.
+
+No claim of E09 superiority, cross-track transfer, secure process isolation, or a novel general-purpose AI architecture follows from this integration.
