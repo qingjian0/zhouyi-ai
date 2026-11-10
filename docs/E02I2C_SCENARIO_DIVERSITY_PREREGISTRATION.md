@@ -143,3 +143,17 @@ A failure is useful: it identifies which event distinctions depend on generator-
 4. Validate invariance and anti-shortcut checks before running attackers.
 5. Run Train A+B and Gate C once; publish complete reports.
 6. Only after review, preregister a separate locked-Test stage.
+
+
+## 11. Evidence motivating this protocol
+
+E02-I2-C-E's completed finite-template metadata audit found:
+
+- M0 format-only attackers fell to majority baseline (Macro-F1 0.0278).
+- M0 evidence-count-only attackers retained Macro-F1 0.1345 (lift 0.1068; 95% seed-block CI [0.1011, 0.1134]).
+- M0 cardinality fields other than evidence count fell to baseline.
+- M1 operational-only attackers reached Macro-F1 0.3002 (NB) and 0.3957 (depth-3 tree).
+- M2 context-only attackers reached Macro-F1 0.5729.
+- M2 without operational metadata still reached Macro-F1 0.7667; M2 without identifier metadata reached 0.7642.
+
+These results identify three different problems: evidence-count leakage, operational-template leakage, and strong context-shape/event association. C-F therefore must vary operational schedules and provenance cardinality across event classes where semantically valid, and must report identity-state and candidate-shape signals separately. It must not merely randomize token strings or increase the seed count.
