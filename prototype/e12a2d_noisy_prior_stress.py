@@ -48,21 +48,29 @@ def _normalize(weights: tuple[float, ...]) -> tuple[float, ...]:
 
 def _validate(world: NoisyWorld, prior: tuple[float, ...]) -> None:
     n = len(world.hypothesis_ids)
-    if n < 2 or len(set(world.hypothesis_ids)) != n or any(not x for x in world.hypothesis_ids):
+    if n < 2 or len(set(world.hypothesis_ids)) != n or any(
+        not isinstance(x, str) or not x for x in world.hypothesis_ids
+    ):
         raise ValueError("hypothesis IDs must be unique and non-empty")
     for weights in (world.true_prior, prior):
-        if len(weights) != n or any(not math.isfinite(x) or x < 0 for x in weights):
+        if len(weights) != n or any(
+            isinstance(x, bool) or not isinstance(x, (int, float))
+            or not math.isfinite(x) or x < 0 for x in weights
+        ):
             raise ValueError("prior weights must be finite, non-negative and aligned")
         if not math.isclose(sum(weights), 1.0, rel_tol=0, abs_tol=1e-9):
             raise ValueError("prior weights must sum to one")
     ids = [a.action_id for a in world.actions]
-    if not ids or len(ids) != len(set(ids)) or any(not x for x in ids):
+    if not ids or len(ids) != len(set(ids)) or any(
+        not isinstance(x, str) or not x for x in ids
+    ):
         raise ValueError("action IDs must be unique and non-empty")
     for action in world.actions:
         if isinstance(action.cost, bool) or not isinstance(action.cost, int) or action.cost < 1:
             raise ValueError("action costs must be positive integers")
         if len(action.p_one) != n or any(
-            not math.isfinite(p) or p <= 0 or p >= 1 for p in action.p_one
+            isinstance(p, bool) or not isinstance(p, (int, float))
+            or not math.isfinite(p) or p <= 0 or p >= 1 for p in action.p_one
         ):
             raise ValueError("each sensor probability must be strictly between zero and one")
 
