@@ -43,6 +43,27 @@ class E12A2DNoisyPriorStressTests(unittest.TestCase):
         self.assertGreaterEqual(result["brier"], 0.0)
         self.assertGreaterEqual(result["log_loss"], 0.0)
 
+    def test_exact_dynamic_programming_is_no_worse_than_one_step_on_its_model(self):
+        from prototype.e12a2d_noisy_prior_stress import (
+            _entropy, _exact_value, _outcome_probability, _posterior,
+        )
+        world = make_world("complementary")
+        prior = prior_for(world, "matched")
+        actions = world.actions
+        exact_value, selected = _exact_value(
+            prior, actions, tuple(range(len(actions))), 3
+        )
+        one_step_values = []
+        for action in actions:
+            if action.cost <= 3:
+                one_step_values.append(sum(
+                    _outcome_probability(prior, action, outcome)
+                    * _entropy(_posterior(prior, action, outcome))
+                    for outcome in (0, 1)
+                ))
+        self.assertIsNotNone(selected)
+        self.assertLessEqual(exact_value, min(one_step_values) + 1e-12)
+
     def test_policy_api_does_not_accept_hidden_target(self):
         import inspect
         from prototype.e12a2d_noisy_prior_stress import select_action
