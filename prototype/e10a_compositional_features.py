@@ -192,7 +192,10 @@ class CompositionalFeatureLearner:
         relations = {candidate.relation_symbol for candidate in self._candidates}
         if any(relation not in self._contrastive_relations for relation in relations):
             return "PROVISIONAL"
-        return "IDENTIFIED" if len(self._candidates) == 1 else "AMBIGUOUS"
+        per_relation: dict[str, int] = {}
+        for candidate in self._candidates:
+            per_relation[candidate.relation_symbol] = per_relation.get(candidate.relation_symbol, 0) + 1
+        return "IDENTIFIED" if all(count == 1 for count in per_relation.values()) else "AMBIGUOUS"
 
     def predict(self, row: dict[str, Any]) -> dict[str, Any]:
         self._base._validate_row(row)
@@ -228,6 +231,7 @@ class CompositionalFeatureLearner:
         if observation_id in self._seen_observation_ids:
             raise ValueError("observation has already been revised")
         before = self.candidate_hash
+        old_candidates = set(self._candidates)
         self._evidence.append({"row": self._base._public(row), "target": target})
         self._seen_observation_ids.add(observation_id)
         candidates, attempted, exceeded = self._propose()
@@ -239,8 +243,8 @@ class CompositionalFeatureLearner:
         self._version += 1
         operation = (
             "abstain" if exceeded else
-            "expand" if self._candidates - set() and before != self.candidate_hash else
-            "modify" if before != self.candidate_hash else "keep"
+            "expand" if self._candidates - old_candidates else
+            "modify" if old_candidates - self._candidates else "keep"
         )
         return {
             "operation": operation,
