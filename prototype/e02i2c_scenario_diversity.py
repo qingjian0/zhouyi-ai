@@ -91,8 +91,10 @@ def _independent_view(event: EventType, seed: int, family: str, split: str) -> O
     else:
         raise ValueError(f"unsupported event {event}")
     opportunities, packets = [], []
-    # One environment stratum per episode supports non-overlapping per-env metrics.
-    environment = rng.choice(envs)
+    # Environment selection uses an independent stream so event-specific
+    # control-flow cannot shift environment assignments.
+    env_rng = random.Random(f"environment:{family}:{seed}")
+    environment = env_rng.choice(envs)
     for w in windows:
         expected = rng.randint(lo, hi)
         insufficient = event == EventType.ABSTAIN and seed % 4 == 2
@@ -188,6 +190,23 @@ def _namespace_check(train: list[Episode], gate: list[Episode]) -> dict:
     }
 
 
+def _build_family_episodes(family: str, split: str, start_seed: int,
+                            seeds: int, family_offset: int) -> list[Episode]:
+    episodes = []
+    for block in range(seeds):
+        block_seeds = list(range(
+            start_seed + family_offset + block * 100,
+            start_seed + family_offset + block * 100 + len(SUPPORTED_EVENTS),
+        ))
+        assignment_rng = random.Random(f"event-seed-assignment:{family}:{block}:{start_seed}")
+        assignment_rng.shuffle(block_seeds)
+        episodes.extend(
+            generate_episode(event, seed, family=family, split=split)
+            for event, seed in zip(SUPPORTED_EVENTS, block_seeds)
+        )
+    return episodes
+
+
 def _bootstrap_intervals(truths: list[str], predictions: list[str],
                           block_ids: list[int], *, replicates: int,
                           seed: int) -> dict:
@@ -238,18 +257,11 @@ def run_scenario_diversity(*, seeds: int = 30, train_start_seed: int = 1000,
         raise ValueError("C-F development evaluation requires at least 30 seed blocks per event")
     if bootstrap_samples < 100:
         raise ValueError("at least 100 bootstrap replicates are required")
-    train = [
-        generate_episode(event, train_start_seed + block * 100 + index,
-                         family=family, split="train")
-        for family in ("A", "B") for block in range(seeds)
-        for index, event in enumerate(SUPPORTED_EVENTS)
-    ]
-    gate = [
-        generate_episode(event, gate_start_seed + block * 100 + index,
-                         family="C", split="gate")
-        for block in range(seeds)
-        for index, event in enumerate(SUPPORTED_EVENTS)
-    ]
+    train = (
+        _build_family_episodes("A", "train", train_start_seed, seeds, 0)
+        + _build_family_episodes("B", "train", train_start_seed, seeds, 1_000_000)
+    )
+    gate = _build_family_episodes("C", "gate", gate_start_seed, seeds, 2_000_000)
     gate_blocks = [block for block in range(seeds) for _ in SUPPORTED_EVENTS]
     namespace = _namespace_check(train, gate)
     if not namespace["sample_disjoint"] or not namespace["evidence_disjoint"]:
