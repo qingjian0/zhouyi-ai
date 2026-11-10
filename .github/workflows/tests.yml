@@ -2,7 +2,7 @@ name: tests
 
 on:
   push:
-    branches: [main, research/e12a3-proposer-competition-2026-11-11]
+    branches: [main, research/e12a3-proposer-competition-2026-11-11, research/e12a3-m1-ucb-allocator-2026-11-11]
   pull_request:
     branches: [main]
 
@@ -16,6 +16,10 @@ jobs:
           python-version: "3.11"
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
+      - name: Run E12-A3-M1 adaptive allocator unit tests
+        run: python -m unittest tests.test_e12a3_adaptive_allocator -v
+      - name: Run E12-A3-M1 adaptive allocator smoke test
+        run: python -m prototype.e12a3_adaptive_allocator
       - name: Run E12-A3 multi-proposer unit tests
         run: python -m unittest tests.test_e12a3_multi_proposer -v
       - name: Run E12-A3 multi-proposer smoke test
