@@ -72,9 +72,22 @@ class E02KAdaptiveEvidenceTests(unittest.TestCase):
         state.observe(EvidenceObservation(OLD), window=0)
         state.observe(EvidenceObservation(None, current_invalid_evidence=100), window=1)
         self.assertEqual(
-            state.observe(EvidenceObservation(OLD), window=2), "KEEP"
+            state.observe(EvidenceObservation(OLD, current_invalid_evidence=-100), window=2), "KEEP"
         )
         self.assertEqual(state.invalid_score, 0.0)
+
+
+    def test_same_candidate_signature_does_not_hide_sustained_health_failure(self):
+        state = AdaptiveEvidenceController()
+        state.observe(EvidenceObservation(OLD), window=0)
+        bad_same = EvidenceObservation(OLD, current_invalid_evidence=100)
+        self.assertEqual(state.observe(bad_same, window=1), "DEGRADE")
+        self.assertEqual(state.observe(bad_same, window=2), "RETIRE")
+        self.assertIsNone(state.current_signature)
+
+    def test_non_finite_health_evidence_is_rejected(self):
+        with self.assertRaises(ValueError):
+            EvidenceObservation(OLD, current_invalid_evidence=float("nan"))
 
     def test_resurrection_after_retirement_requires_confirmation(self):
         state = AdaptiveEvidenceController()
