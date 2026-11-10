@@ -40,7 +40,7 @@
 ## 运行
 
 ```bash
-python -m unittest tests.test_e09_context_discovery -v
+python -m unittest discover -s tests -p 'test_e09_context_discovery.py' -v
 python -m prototype.e09_context_discovery --sweep --seeds 5 --json
 ```
 
