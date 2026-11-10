@@ -60,6 +60,16 @@ jobs:
         run: python -m prototype.e02i2c_hidden_event_benchmark --seeds 20 --start-seed 1000 --split train
       - name: Run E02-I2-C hidden event development benchmark (gate)
         run: python -m prototype.e02i2c_hidden_event_benchmark --seeds 20 --start-seed 2000 --split gate
+      - name: Run E02-I2-C-E metadata attacker unit tests
+        run: python -m unittest tests.test_e02i2c_metadata_attack -v
+      - name: Run E02-I2-C-E metadata-only leakage attack (30 seed blocks)
+        run: python -m prototype.e02i2c_metadata_attack --seeds 30 --train-start-seed 1000 --gate-start-seed 10000 --bootstrap-samples 1000 > e02i2c_metadata_attack.json
+      - name: Upload E02-I2-C-E metadata attack report
+        uses: actions/upload-artifact@v4
+        with:
+          name: e02i2c-metadata-attack-report
+          path: e02i2c_metadata_attack.json
+          if-no-files-found: error
 
   e02i2-hidden-identity:
     runs-on: ubuntu-latest
