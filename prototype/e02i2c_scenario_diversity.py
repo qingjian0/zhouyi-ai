@@ -67,15 +67,15 @@ def _family_a(view: ObservationView, rng: random.Random) -> ObservationView:
 def _family_b(view: ObservationView, rng: random.Random) -> ObservationView:
     # Resampling family: alternate opaque provenance serialization and
     # independent observation grouping. The semantic windows remain intact.
-    opportunities = tuple(
-        replace(
-            item,
-            expected_samples=item.expected_samples + rng.randrange(1, 8),
-            observed_samples=item.observed_samples + rng.randrange(1, 4),
-            coverage=min(1.0, max(0.8, item.coverage + rng.uniform(-0.05, 0.05))),
-        )
-        for item in view.opportunities
-    )
+    varied = []
+    for item in view.opportunities:
+        expected = item.expected_samples + rng.randrange(1, 8)
+        observed = min(expected, max(1, item.observed_samples + rng.randrange(1, 4)))
+        varied.append(replace(
+            item, expected_samples=expected, observed_samples=observed,
+            coverage=observed / expected, missing_reason=None,
+        ))
+    opportunities = tuple(varied)
     packets = [_opaque_packet(p, window=p.window, environment=p.environment, ordinal=i)
                for i, p in enumerate(view.evidence)]
     rng.shuffle(packets)
@@ -119,15 +119,23 @@ def _family_c(event: EventType, view: ObservationView,
     # Environmental Gate family: environment shifts, coverage variation,
     # source-independent provenance and optional extra independent evidence.
     environment = rng.choice(ENVIRONMENTS)
-    opportunities = [
-        replace(
-            item, environment=environment,
-            expected_samples=max(item.expected_samples, 12 + rng.randrange(0, 12)),
-            observed_samples=max(1, int(max(item.expected_samples, 12) * rng.uniform(0.82, 1.0))),
-            coverage=rng.uniform(0.82, 1.0), missing_reason=None,
-        )
-        for item in view.opportunities
-    ]
+    undersampled_abstain = (
+        event == EventType.ABSTAIN
+        and bool(view.opportunities)
+        and all(item.coverage < 0.5 for item in view.opportunities)
+    )
+    opportunities = []
+    for item in view.opportunities:
+        if undersampled_abstain:
+            opportunities.append(replace(item, environment=environment))
+            continue
+        expected = max(item.expected_samples, 12 + rng.randrange(0, 12))
+        observed = max(1, int(expected * rng.uniform(0.82, 1.0)))
+        opportunities.append(replace(
+            item, environment=environment, expected_samples=expected,
+            observed_samples=observed, coverage=observed / expected,
+            missing_reason=None,
+        ))
     packets = [
         replace(p, environment=environment)
         for p in view.evidence
