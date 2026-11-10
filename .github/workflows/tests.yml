@@ -44,3 +44,7 @@ jobs:
         run: python -m prototype.e02h_boolean_rules --seeds 30 --start-seed 900
       - name: Run E02-I evidence-gated relation evolution
         run: python -m prototype.e02i_relation_evolution --seeds 20 --start-seed 1200
+      - name: Run E02-I2 identity lineage ledger tests
+        run: python -m unittest tests.test_e02i2_lineage -v
+      - name: Run E02-I2 identity matching baseline tests
+        run: python -m unittest tests.test_e02i2_matching -v
