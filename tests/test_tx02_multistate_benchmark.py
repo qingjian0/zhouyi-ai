@@ -15,7 +15,7 @@ class TX02EpisodeGeneratorTests(unittest.TestCase):
         self.assertEqual(len(result["episodes"]), 12)
 
     def test_deterministic_for_same_seed(self):
-        first = make_episode(3, seed=9, support_size=3, query_count=2)
+        first = make_episode(3, seed=9, support_size=min(3, k*k - 2), query_count=2)
         second = make_episode(3, seed=9, support_size=3, query_count=2)
         self.assertEqual(first, second)
 
