@@ -118,6 +118,19 @@ class E02I2MatchingTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             match_candidates((c1, c2), self.old, method=MatchingMethod.EXACT)
 
+    def test_candidate_requires_nonempty_semantic_signatures(self):
+        with self.assertRaises(ValueError):
+            RelationCandidate("c1", ("a", "b"), ("source", "target"), "", "a&b")
+        with self.assertRaises(ValueError):
+            RelationCandidate("c2", ("a", "b"), ("source", "target"), "AND", "")
+
+    def test_identity_mapping_and_method_types_are_validated(self):
+        candidate = RelationCandidate("c1", ("a", "b"), ("source", "target"), "AND", "a&b")
+        with self.assertRaises(ValueError):
+            match_candidates((candidate,), {"wrong-key": self.old["r1"]}, method=MatchingMethod.EXACT)
+        with self.assertRaises(ValueError):
+            match_candidates((candidate,), self.old, method="exact")
+
     def test_thresholds_are_validated(self):
         candidate = RelationCandidate("c1", ("a", "b"), ("source", "target"), "AND", "a&b")
         with self.assertRaises(ValueError):
