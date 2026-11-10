@@ -8,7 +8,7 @@ from prototype.e12m2_permutation_benchmark import (
 
 
 def degrees(rows):
-    row_degrees = sorted(len(row) for row in rows)
+    row_degrees = [len(row) for row in rows]
     item_degrees = Counter(item for row in rows for item in row)
     return row_degrees, item_degrees
 
@@ -21,6 +21,7 @@ class E12M2PermutationTests(unittest.TestCase):
         ]
         randomized, accepted = degree_preserving_swaps(rows, swaps=500, seed=19)
         self.assertGreater(accepted, 0)
+        self.assertNotEqual(rows, randomized)
         self.assertEqual(degrees(rows), degrees(randomized))
         self.assertEqual(len(randomized), len(rows))
 
