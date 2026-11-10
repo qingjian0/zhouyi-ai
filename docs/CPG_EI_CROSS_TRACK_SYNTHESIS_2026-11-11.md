@@ -964,7 +964,7 @@ PR #99 workflow run #580 completed successfully at commit `3c36f2d76373597a12d78
 
 ### 17.3 SQLite concurrency interpretation
 
-The concurrent-connection test is consistent with SQLite's documented transaction model: separate connections see committed transactions, writes are serialized, and `BEGIN IMMEDIATE` reserves the write transaction up front. WAL permits readers and writers to proceed concurrently, but it still permits only one writer at a time and requires processes to share a host. The official documentation also notes that WAL introduces a checkpoint operation and that long-running readers can delay checkpoint progress.
+The concurrent-connection test is consistent with SQLite's documented transaction model: separate connections see committed transactions, writes are serialized, and `BEGIN IMMEDIATE` reserves the write transaction up front. WAL permits readers and writers to proceed concurrently, but it still permits only one writer at a time and requires processes to share a host. The official documentation also notes that WAL introduces a checkpoint operation and that long-running readers can delay checkpoint progress. A further review of SQLite's current WAL documentation identified the WAL-reset corruption bug affecting older SQLite releases under concurrent connection writes/checkpoints; SQLite states that the fix is in 3.51.3. The protocol now enables WAL only when the linked runtime is at least 3.51.3 and falls back to rollback journaling on older runtimes. This runtime gate is a precaution; the exact SQLite library version used by the earlier CI run was not recorded.
 
 References:
 - SQLite Isolation: https://www.sqlite.org/isolation.html
