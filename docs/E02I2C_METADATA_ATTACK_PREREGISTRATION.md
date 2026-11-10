@@ -36,7 +36,7 @@ Forbidden:
 Includes M0 plus:
 - environment labels;
 - evidence count, sample count, distinct-window count and per-window record counts;
-- window gaps, ordering and presentation-order features;
+- relative window gaps, ordering and presentation-order features (absolute window indices are excluded);
 - expected/observed sample counts, coverage and missing-reason category;
 - whether source-version provenance is present, but not its literal semantic value;
 - sample reuse, duplicate rate and evidence-to-sample cardinality.
@@ -114,6 +114,7 @@ For M0, pre-register a practical leakage alarm when Gate macro-F1 exceeds the ma
 
 Do not claim metadata isolation if:
 - Train/Gate seed or sample namespaces overlap;
+- absolute window indices or Train/Gate/Test split markers are exposed as predictive features;
 - any attacker receives Episode.truth, episode ID, generator seed, event-bearing path, or the Train/Gate/Test split marker as a predictive feature;
 - feature construction uses Gate labels or Gate-derived vocabulary;
 - ID replacement changes adjudicator decisions;
