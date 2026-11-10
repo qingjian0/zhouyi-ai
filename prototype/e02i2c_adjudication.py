@@ -126,13 +126,14 @@ class EventDecision:
 
 
 def _abstain(identity: IdentitySnapshot | None, reason: str,
-             candidate_signature: str | None = None) -> EventDecision:
+             candidate_signature: str | None = None,
+             evidence_refs: tuple[str, ...] = ()) -> EventDecision:
     return EventDecision(
         EventType.ABSTAIN,
         identity.identity_id if identity else None,
         identity.version_id if identity else None,
         candidate_signature,
-        (),
+        evidence_refs,
         reason,
         True,
     )
@@ -201,6 +202,14 @@ def adjudicate_event(
         item for item in eligible if item.polarity == EvidencePolarity.ABSENCE
     )
 
+    if supporting and contradictions:
+        conflict_refs = tuple(sorted({item.evidence_id for item in (*supporting, *contradictions)}))
+        return _abstain(
+            identity,
+            "conflicting support and contradiction evidence must be reviewed, not averaged",
+            candidate_signature,
+            conflict_refs,
+        )
     if identity is None:
         windows = distinct_windows(supporting)
         samples = {item.sample_id for item in supporting}
