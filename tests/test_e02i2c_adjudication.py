@@ -99,11 +99,12 @@ class E02I2CContractsTests(unittest.TestCase):
 
     def test_single_old_support_does_not_mask_multiwindow_change(self):
         decision = adjudicate_event(active(), (opp(0), opp(1), opp(2)), (
-            packet("old", 0, EvidencePolarity.SUPPORTS, "a&b", source="v1"),
-            packet("new-1", 1, EvidencePolarity.SUPPORTS, "a^b", source="v1"),
-            packet("new-2", 2, EvidencePolarity.SUPPORTS, "a^b", source="v1"),
+            packet("old-1", 0, EvidencePolarity.SUPPORTS, "a&b", source="v1"),
+            packet("old-2", 1, EvidencePolarity.SUPPORTS, "a&b", source="v1"),
+            packet("new", 2, EvidencePolarity.SUPPORTS, "a^b", source="v1"),
         ), candidate_signature="a^b")
         self.assertEqual(decision.event, EventType.ABSTAIN)
+        self.assertEqual(set(decision.evidence_refs), {"old-1", "old-2", "new"})
 
     def test_unlinked_changed_rule_does_not_modify(self):
         decision = adjudicate_event(active(), (opp(0), opp(1)), (
