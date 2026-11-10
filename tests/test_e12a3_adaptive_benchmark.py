@@ -106,6 +106,14 @@ class E12A3AdaptiveBenchmarkTests(unittest.TestCase):
             item["proposal_slots_used"] == 20
             for item in episode["methods"].values()
         ))
+        self.assertTrue(all(
+            item["gate_final_unique_evaluations"] == item["candidate_count"]
+            for item in episode["methods"].values()
+        ))
+        self.assertTrue(all(
+            item["gate_final_unique_evaluations"] <= 20
+            for item in episode["methods"].values()
+        ))
         result = run_benchmark(seeds=2, start_seed=5, budget=20)
         self.assertEqual(result["episode_count"], 4)
         self.assertIn("UCB1 rewards are non-stationary", " ".join(result["limitations"]))
