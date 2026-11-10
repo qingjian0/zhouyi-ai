@@ -131,6 +131,32 @@ class E10ATaskSplitTests(unittest.TestCase):
                 learner, evaluator, seed=97, grouping_policy="source_group"
             )
 
+    def test_source_group_manifest_declares_actual_sampling_unit(self):
+        _, learner, evaluator = self._views(712)
+        task = build_support_query_task(
+            learner, evaluator, seed=98, grouping_policy="source_group"
+        )
+        manifest = task["manifest"]
+        self.assertEqual(manifest["grouping_policy"], "source_group")
+        self.assertEqual(
+            manifest["sampling_unit"],
+            "relation_symbol+evaluator_source_group_id",
+        )
+
+    def test_source_group_cannot_span_relations_or_templates(self):
+        _, learner, evaluator = self._views(713)
+        corrupted = copy.deepcopy(evaluator)
+        first = corrupted["instances"][0]
+        second = next(
+            row for row in corrupted["instances"]
+            if row["template_id"] != first["template_id"]
+        )
+        second["source_group_id"] = first["source_group_id"]
+        with self.assertRaisesRegex(ValueError, "source group spans"):
+            build_support_query_task(
+                learner, corrupted, seed=99, grouping_policy="source_group"
+            )
+
     def test_query_assignment_is_invariant_to_hidden_label_mutation(self):
         _, learner, evaluator = self._views(704)
         changed_learner = copy.deepcopy(learner)
