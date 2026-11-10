@@ -91,3 +91,18 @@ Required comparisons:
 ## Promotion gate
 
 Do not merge this research slice into main or make it a default architecture component until: full repository CI passes on the exact head; independent review checks leakage and budget accounting; multi-seed held-out generator results beat capacity-matched controls; and the gains survive shuffled/permuted and out-of-grammar tests.
+
+
+## Compact seeded capability benchmark
+
+The prototype now exposes `run_synthetic_benchmark(seeds=5, start_seed=100)` in the same module. This keeps the benchmark implementation alongside the primitives and avoids a separate executable artifact.
+
+The runner returns raw per-seed metrics for four narrowly scoped tests:
+
+- YF-07: abrupt mean-shift detection rate, localization error, and null-series false-alarm rate.
+- YF-08: select the top relation candidate using support rows only, then evaluate balanced accuracy on separately generated test rows. The generating product operator is part of the declared grammar, so this is grammar recovery, not open-ended discovery.
+- YF-09: reversal detection on a positive condition, plus same-sign and zero-effect negative controls.
+- YF-10: greedy path regret against exhaustive enumeration on the same finite graph and budget.
+
+The runner is deterministic for a fixed seed. Unit tests check repeatability and verify that candidate-budget truncation retains feature, difference, and product operator families. It is a smoke benchmark, not a substitute for disjoint generator-family evaluation, statistical confidence intervals, intervention-based causal tests, or equal-compute planning comparisons.
+
