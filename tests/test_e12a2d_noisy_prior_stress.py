@@ -100,6 +100,18 @@ class E12A2DNoisyPriorStressTests(unittest.TestCase):
         self.assertEqual(actions[first].action_id, tuple(reversed(actions))[second].action_id)
         self.assertEqual(actions[first].action_id, "a_sensor")
 
+    def test_boolean_prior_and_sensor_probabilities_are_rejected(self):
+        from prototype.e12a2d_noisy_prior_stress import _validate
+        world = make_world("rare")
+        with self.assertRaises(ValueError):
+            _validate(world, (True, 0.0, 0.0, 0.0))
+        invalid = type(world)(
+            world.family, world.hypothesis_ids, world.true_prior,
+            (NoisyAction("bad_sensor", 1, (True, 0.2, 0.3, 0.4)),),
+        )
+        with self.assertRaises(ValueError):
+            _validate(invalid, prior_for(world, "matched"))
+
     def test_invalid_target_index_is_rejected(self):
         world = make_world("rare")
         with self.assertRaises(ValueError):
