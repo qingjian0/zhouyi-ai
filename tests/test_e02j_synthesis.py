@@ -54,6 +54,18 @@ class E02JSynthesisTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             synthesize([], [])
 
+    def test_zero_query_budget_does_not_call_oracle(self):
+        calls = []
+        result = cegis(
+            [((0, 0, 0), 0)],
+            [Expr("const", value=0)],
+            lambda candidate: calls.append(candidate),
+            query_budget=0,
+        )
+        self.assertEqual(calls, [])
+        self.assertEqual(result.status, "budget_exhausted")
+        self.assertEqual(result.counterexamples, 0)
+
     def test_unsupported_operator_is_rejected(self):
         with self.assertRaises(ValueError):
             evaluate(Expr("divide", (variable(0), variable(2))), (1, 0, 2), 3)
