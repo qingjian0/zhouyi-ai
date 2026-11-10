@@ -39,6 +39,16 @@ class E12M2ChainDiagnosticsTests(unittest.TestCase):
             self.assertGreaterEqual(report["ess_initial_positive"], 1.0)
             self.assertLessEqual(report["ess_initial_positive"], 12.0)
 
+    def test_zero_thinning_produces_constant_trace_without_attempts(self):
+        result = diagnose_permutation_chains(
+            self.rows, ("a", "b"), chains=1, samples_per_chain=5,
+            burn_in_swaps_per_edge=0, thinning_swaps_per_edge=0, seed=8,
+        )
+        report = result["chain_reports"][0]
+        self.assertEqual(report["attempted_swaps"], 0)
+        self.assertEqual(report["acceptance_rate"], 0.0)
+        self.assertEqual(len(set(report["trace"])), 1)
+
     def test_constant_trace_has_full_ess_and_zero_autocorrelation(self):
         self.assertEqual(_initial_positive_ess([2.0] * 10), 10.0)
         self.assertEqual(_lag1_autocorrelation([2.0] * 10), 0.0)
