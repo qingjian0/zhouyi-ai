@@ -94,7 +94,16 @@ class RelationEvolution:
                 else snapshot.gate_accuracy
             )
         current_is_valid = (
-            current_gate_accuracy is not None and current_gate_accuracy >= 0.75
+            self.current is not None
+            and current_gate_accuracy is not None
+            and current_gate_accuracy >= 0.75
+            and (
+                len(self.current.members) == 2
+                or (
+                    snapshot is not None
+                    and current_gate_accuracy - snapshot.pairwise_accuracy >= 0.05
+                )
+            )
         )
 
         if self.current is None:
@@ -204,6 +213,8 @@ def _targets(scenario: str, base2: tuple[int, ...], expanded3: tuple[int, ...],
         return expanded3, (table3 ^ 255 if window == 2 else table3)
     if scenario == "disappear":
         return (expanded3, table3) if window < 2 else None
+    if scenario == "never_present":
+        return None
     raise ValueError("unknown scenario")
 
 def run_episode(*, seed: int, scenario: str, windows: int = 5,
@@ -317,7 +328,7 @@ def run_episode(*, seed: int, scenario: str, windows: int = 5,
 
 def run(*, seeds: int = 20, start_seed: int = 1200) -> dict:
     scenarios = ("stable", "member_add", "member_remove", "rule_change",
-                 "transient_rule_change", "disappear")
+                 "transient_rule_change", "disappear", "never_present")
     results = {
         scenario: [run_episode(seed=start_seed + i, scenario=scenario)
                    for i in range(seeds)]
@@ -386,6 +397,18 @@ def run(*, seeds: int = 20, start_seed: int = 1200) -> dict:
                 for e in results["disappear"]) / seeds,
             "disappearance_finally_absent": sum(
                 e["final_relation"] is None for e in results["disappear"]) / seeds,
+            "never_present_no_false_create": sum(
+                not any(w["action"] == "CREATE" for w in e["windows"])
+                for e in results["never_present"]) / seeds,
+            "never_present_finally_absent": sum(
+                e["final_relation"] is None for e in results["never_present"]) / seeds,
+            "null_window_false_create_rate": (
+                sum(w["action"] == "CREATE" for episodes in results.values()
+                    for e in episodes for w in e["windows"]
+                    if w["target_for_audit_only"] is None)
+                / sum(w["target_for_audit_only"] is None for episodes in results.values()
+                      for e in episodes for w in e["windows"])
+            ),
             "mean_candidate_test_accuracy_by_scenario": {
                 scenario: sum(w["candidate_test_accuracy"] for e in episodes for w in e["windows"]) / (seeds * 5)
                 for scenario, episodes in results.items()
@@ -426,10 +449,14 @@ def run(*, seeds: int = 20, start_seed: int = 1200) -> dict:
             name: _wilson_interval(count, seeds)
             for name, count in wilson_counts.items()
         },
+        "wilson95": {
+            name: _wilson_interval(count, seeds)
+            for name, count in wilson_counts.items()
+        },
         "episodes": results,
         "limitations": [
             "Synthetic binary Boolean rules with a bounded 2-3 feature truth-table grammar.",
-            "Six predeclared change scenarios; not open-world structure evolution.",
+            "Seven predeclared change scenarios including a never-present negative control; not open-world structure evolution.",
             "Gate controls state transitions; an independent test split evaluates each window after decisions and never feeds back.",
             "The hidden target is used only for post-hoc exact-structure scoring; test accuracy is not a proof of causal or open-world validity.",
             "A fixed two-window confirmation policy; no learned transition policy.",
