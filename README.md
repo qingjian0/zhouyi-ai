@@ -60,7 +60,7 @@
 - [E02-I2 身份谱系账本原型](prototype/e02i2_lineage.py)
 - [E02-I2 身份谱系账本测试](tests/test_e02i2_lineage.py)
 - [E02-I2 身份匹配基线原型](prototype/e02i2_matching.py)
-- [E02-I2 身份匹配基线测试](tests/test_e02i2_matching.py)
+- [E02-I2 身份匹配基线测试](tests/test_e02i2_matching.py)\n- [E02-I2-E 隐藏身份基准](docs/E02I2_HIDDEN_IDENTITY_BENCHMARK.md)\n- [E02-I2-E 隐藏身份基准原型](prototype/e02i2_hidden_identity.py)
 - [原型代码](prototype/)
 
 ## 快速开始（当前原型）
