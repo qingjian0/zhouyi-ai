@@ -72,7 +72,7 @@ def _budgeted_family_pools(support: Sequence[Observation], seed: int) -> dict[st
     }
 
 
-def run_episode(seed: int, task: str, budget: int = 64) -> dict[str, Any]:
+def run_episode(seed: int, task: str, budget: int = 32) -> dict[str, Any]:
     support, gate, test = _make_world(seed, task)
     pools = _budgeted_family_pools(support, seed)
     methods: dict[str, tuple[Proposal, ...]] = {}
@@ -96,7 +96,7 @@ def run_episode(seed: int, task: str, budget: int = 64) -> dict[str, Any]:
 
 
 def run_benchmark(seeds: int = 20, start_seed: int = 1,
-                  budget: int = 64) -> dict[str, Any]:
+                  budget: int = 32) -> dict[str, Any]:
     if seeds < 1 or budget < 1:
         raise ValueError("seeds and budget must be positive")
     episodes = [
@@ -142,7 +142,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--seeds", type=int, default=20)
     parser.add_argument("--start-seed", type=int, default=1)
-    parser.add_argument("--budget", type=int, default=64)
+    parser.add_argument("--budget", type=int, default=32)
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
     result = run_benchmark(args.seeds, args.start_seed, args.budget)
