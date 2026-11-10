@@ -4,7 +4,7 @@ on:
   push:
     branches: [main, research/e02i-ci-runner, research/e02i-persistent-evidence, research/e02i2-relation-lineage, research/e02i2-hidden-identity-benchmark, research/e02i2c-event-adjudication, research/e02i2c-hidden-event-benchmark, research/e02i2c-integrity-hardening]
   pull_request:
-    branches: [main, research/e02e-autonomous-discovery, research/e02f-falsification, research/e02g-multienvironment-stability, research/e02i-relation-evolution, research/e02h-baseline, research/e02i-persistent-evidence, research/e02i2-relation-lineage]
+    branches: [main, research/e02e-autonomous-discovery, research/e02f-falsification, research/e02g-multienvironment-stability, research/e02i-relation-evolution, research/e02h-baseline, research/e02i-persistent-evidence, research/e02i2-relation-lineage, research/e02i2c-hidden-event-benchmark]
 
 jobs:
   unit-tests:
