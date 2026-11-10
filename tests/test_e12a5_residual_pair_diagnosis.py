@@ -44,6 +44,30 @@ class ResidualPairDiagnosisTests(unittest.TestCase):
             diagnose_pairs(ResidualView(view.schema, view.records,
                                         "in_sample", view.model_version))
 
+    def test_out_of_fold_predictions_are_accepted(self):
+        view = self.view()
+        result = diagnose_pairs(ResidualView(view.schema, view.records,
+                                             "out_of_fold", view.model_version))
+        self.assertEqual(result["prediction_mode"], "out_of_fold")
+
+    def test_overflowed_pair_distance_is_rejected(self):
+        schema = (FeatureSpec("x"), FeatureSpec("y"))
+        records = (
+            ResidualRecord("huge", (("x", 1e308), ("y", -1e308)), 1, 0),
+            ResidualRecord("zero", (("x", 0.0), ("y", 0.0)), 0, 0),
+        )
+        with self.assertRaises(ValueError):
+            diagnose_pairs(ResidualView(schema, records, "prequential", "v1"),
+                           min_side_support=1)
+
+    def test_boolean_labels_are_rejected(self):
+        view = self.view()
+        bad = ResidualRecord("bool", view.records[0].values, True, 0)
+        records = (bad,) + view.records[1:]
+        with self.assertRaises(ValueError):
+            diagnose_pairs(ResidualView(view.schema, records,
+                                        "prequential", view.model_version))
+
     def test_requires_both_residual_classes(self):
         view = self.view()
         all_correct = tuple(ResidualRecord(item.evidence_id, item.values,
