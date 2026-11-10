@@ -16,7 +16,7 @@ class E02I2CHiddenEventBenchmarkTests(unittest.TestCase):
         for event in SUPPORTED_EVENTS:
             with self.subTest(event=event.value):
                 episode = build_episode(event, 101, split="gate")
-                self.assertEqual(_adjudicator(episode), event)
+                self.assertEqual(_adjudicator(episode.observation), event)
 
     def test_evaluator_truth_is_not_an_evidence_packet_field(self):
         names = {field.name for field in fields(EvidencePacket)}
@@ -25,10 +25,16 @@ class E02I2CHiddenEventBenchmarkTests(unittest.TestCase):
             "latent_identity", "generator_transition",
         }.intersection(names))
 
+    def test_observation_view_has_no_evaluator_truth_field(self):
+        episode = build_episode(EventType.CREATE, 77, split="gate")
+        view_names = {field.name for field in fields(type(episode.observation))}
+        self.assertFalse({"truth", "true_event", "true_identity_id",
+                          "latent_identity", "generator_transition"}.intersection(view_names))
+
     def test_episode_truth_is_separate_from_adjudicator_arguments(self):
         episode = build_episode(EventType.MODIFY, 202, split="train")
         # The adjudicator wrapper passes only observable contracts, never Episode.truth.
-        decision = _adjudicator(episode)
+        decision = _adjudicator(episode.observation)
         self.assertEqual(decision, EventType.MODIFY)
         self.assertEqual(episode.truth, EventType.MODIFY)
 
@@ -54,15 +60,15 @@ class E02I2CHiddenEventBenchmarkTests(unittest.TestCase):
             build_episode(event, 2000 + seed, split="gate")
             for seed in range(4) for event in SUPPORTED_EVENTS
         ]
-        train_samples = {packet.sample_id for episode in train for packet in episode.evidence}
-        gate_samples = {packet.sample_id for episode in gate for packet in episode.evidence}
+        train_samples = {packet.sample_id for episode in train for packet in episode.observation.evidence}
+        gate_samples = {packet.sample_id for episode in gate for packet in episode.observation.evidence}
         self.assertFalse(train_samples.intersection(gate_samples))
-        self.assertTrue(all(packet.split == "train" for episode in train for packet in episode.evidence))
-        self.assertTrue(all(packet.split == "gate" for episode in gate for packet in episode.evidence))
+        self.assertTrue(all(packet.split == "train" for episode in train for packet in episode.observation.evidence))
+        self.assertTrue(all(packet.split == "gate" for episode in gate for packet in episode.observation.evidence))
 
     def test_abstain_class_covers_three_distinct_failure_modes(self):
         modes = [build_episode(EventType.ABSTAIN, seed, split="gate") for seed in (0, 1, 2)]
-        self.assertEqual([_adjudicator(episode) for episode in modes],
+        self.assertEqual([_adjudicator(episode.observation) for episode in modes],
                          [EventType.ABSTAIN] * 3)
         self.assertEqual(len({tuple(packet.polarity for packet in episode.evidence)
                               for episode in modes}), 3)
@@ -73,8 +79,8 @@ class E02I2CHiddenEventBenchmarkTests(unittest.TestCase):
 
     def test_similarity_only_baseline_exposes_false_create_on_ambiguous_case(self):
         episode = build_episode(EventType.ABSTAIN, 303, split="gate")
-        self.assertEqual(_similarity_only(episode), EventType.MODIFY)
-        self.assertEqual(_adjudicator(episode), EventType.ABSTAIN)
+        self.assertEqual(_similarity_only(episode.observation), EventType.MODIFY)
+        self.assertEqual(_adjudicator(episode.observation), EventType.ABSTAIN)
 
 
 if __name__ == "__main__":
