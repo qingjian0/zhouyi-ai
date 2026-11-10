@@ -120,6 +120,30 @@ class E12A2BPolicyBenchmarkTests(unittest.TestCase):
             self.assertEqual(len(rows), len(POLICIES))
             self.assertTrue(all(row["episodes"] == 8 for row in rows))
 
+    def test_two_step_lookahead_preserves_budget_for_complementary_measurement(self):
+        actions = (
+            WorldAction("a_first", 1, ("0", "0", "1", "1")),
+            WorldAction("c_complement", 1, ("0", "1", "0", "1")),
+            WorldAction("b_expensive", 2, ("a", "b", "c", "c")),
+        )
+        greedy = select_policy_action(
+            "expected_ig", actions, (0, 1, 2, 3), (0, 1, 2), 2,
+            __import__("random").Random(1),
+        )
+        lookahead = select_policy_action(
+            "lookahead_2", actions, (0, 1, 2, 3), (0, 1, 2), 2,
+            __import__("random").Random(1),
+        )
+        self.assertEqual(actions[greedy].action_id, "b_expensive")
+        self.assertEqual(actions[lookahead].action_id, "a_first")
+        world = WorldFamily("complementary", ("h0", "h1", "h2", "h3"), actions)
+        rows = [
+            run_episode(world, target, "lookahead_2", budget=2, seed=target)
+            for target in range(4)
+        ]
+        self.assertTrue(all(row.identified for row in rows))
+        self.assertEqual(sum(row.residual_entropy_bits for row in rows), 0.0)
+
     def test_unknown_policy_is_rejected(self):
         with self.assertRaises(ValueError):
             select_policy_action(
