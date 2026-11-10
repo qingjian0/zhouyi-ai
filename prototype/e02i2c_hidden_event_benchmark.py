@@ -104,9 +104,29 @@ def build_episode(event: EventType, seed: int, *, split: str) -> Episode:
                          for w in (0, 1))
     elif event == EventType.ABSTAIN:
         candidate = "a^b"
-        opportunities = (_opportunity(0),)
-        evidence = (_packet(seed, "ambiguous", 0, EvidencePolarity.SUPPORTS,
-                            candidate, source="unlinked-version", split=split),)
+        mode = seed % 3
+        if mode == 0:
+            # One changed-rule window with no identity-continuity proof.
+            opportunities = (_opportunity(0),)
+            evidence = (_packet(seed, "ambiguous", 0, EvidencePolarity.SUPPORTS,
+                                candidate, source="unlinked-version", split=split),)
+        elif mode == 1:
+            # Two nominal windows, but neither had sufficient sampling opportunity.
+            opportunities = (
+                _opportunity(0, coverage=0.1, observed=1, reason=MissingReason.NO_EXPOSURE),
+                _opportunity(1, coverage=0.1, observed=1, reason=MissingReason.NO_EXPOSURE),
+            )
+            evidence = tuple(_packet(seed, "undersampled", w, EvidencePolarity.ABSENCE,
+                                     None, split=split) for w in (0, 1))
+        else:
+            # Simultaneous positive and negative observations must not be averaged.
+            opportunities = (_opportunity(0),)
+            evidence = (
+                _packet(seed, "conflict-positive", 0, EvidencePolarity.SUPPORTS,
+                        candidate, source="v1", split=split),
+                _packet(seed, "conflict-negative", 0, EvidencePolarity.CONTRADICTS,
+                        None, source="v1", split=split),
+            )
     elif event == EventType.SUSPEND:
         opportunities = (_opportunity(0), _opportunity(1))
         evidence = tuple(_packet(seed, "absence", w, EvidencePolarity.ABSENCE,
