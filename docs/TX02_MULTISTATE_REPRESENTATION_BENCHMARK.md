@@ -112,3 +112,11 @@ c=(\alpha a+\beta b+\delta)\bmod K
 - TX-02E：测试未知 K、非均匀状态划分、噪声和规则类外泛化。
 
 TX-02A 通过只表示数据协议可用，不表示任何表示更优。每个阶段独立报告结果。
+
+## 当前工程验收记录
+
+- GitHub Actions workflow：Research Python Tests，run #49。
+- 验收 commit：`7cd72ffb56f2c8712e6d5b8c5aea9397989ce2cc`。
+- 结果：147 tests passed，完整单元测试套件成功。
+- 早期 run #36 暴露了两个测试夹具问题；修复后 run #49 全量通过。
+- 该 CI 结果只验证代码与测试，不是表示学习效果或研究假设的实验结果。
