@@ -142,6 +142,33 @@ class SharedEvidenceProtocolTests(unittest.TestCase):
             )
 
 
+
+    def test_v01_prediction_is_upcast_to_legacy_track_after_reopen(self):
+        import json
+
+        self.commit(learner_track="e09")
+        row = self.store._db.execute(
+            "SELECT sequence_no, payload_json FROM events WHERE episode_id='ep1' AND event_type='prediction_commit'"
+        ).fetchone()
+        old_payload = json.loads(row["payload_json"])
+        old_payload.pop("learner_track")
+        self.store._db.execute(
+            "UPDATE events SET protocol_version='0.1', payload_json=? WHERE episode_id='ep1' AND sequence_no=?",
+            (json.dumps(old_payload, sort_keys=True, separators=(",", ":")), row["sequence_no"]),
+        )
+        self.store.close()
+        self.store = SQLiteEvidenceStore(self.db)
+
+        replayed = self.store.replay_episode("ep1")
+        prediction = next(item for item in replayed if item["event_type"] == "prediction_commit")
+        self.assertEqual(prediction["payload"]["learner_track"], "legacy")
+
+        receipt = self.store.reveal_evidence(
+            episode_id="ep1", event_id="legacy-reveal", idempotency_key="legacy-reveal",
+            payload={"prediction_id": "p1", "learner_track": "legacy", "target_or_feedback": "A"},
+        )
+        self.assertEqual(receipt.sequence_no, 3)
+
     def test_independent_connections_serialize_concurrent_writers(self):
         import concurrent.futures
 
