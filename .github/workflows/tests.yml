@@ -4,7 +4,7 @@ on:
   push:
     branches: [main, research/e02i-ci-runner, research/e02i-persistent-evidence]
   pull_request:
-    branches: [main, research/e02e-autonomous-discovery, research/e02f-falsification, research/e02g-multienvironment-stability, research/e02i-relation-evolution, research/e02h-baseline]
+    branches: [main, research/e02e-autonomous-discovery, research/e02f-falsification, research/e02g-multienvironment-stability, research/e02i-relation-evolution, research/e02h-baseline, research/e02i-persistent-evidence]
 
 jobs:
   unit-tests:
@@ -44,3 +44,6 @@ jobs:
         run: python -m prototype.e02h_boolean_rules --seeds 30 --start-seed 900
       - name: Run E02-I evidence-gated relation evolution
         run: python -m prototype.e02i_relation_evolution --seeds 20 --start-seed 1200
+      - name: Run E02-I2 identity lineage ledger tests
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'research/e02i2-relation-lineage'
+        run: python -m unittest tests.test_e02i2_lineage -v
