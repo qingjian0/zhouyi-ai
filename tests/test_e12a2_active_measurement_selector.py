@@ -85,6 +85,26 @@ class ActiveMeasurementSelectorTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             expected_information_gain(self.weights, bad)
 
+    def test_boolean_and_string_budget_parameters_are_rejected(self):
+        common = (self.weights, {"split": self.split}, {"split": 1.0})
+        for invalid in (True, "1"):
+            with self.subTest(remaining_budget=invalid):
+                with self.assertRaises((TypeError, ValueError)):
+                    select_measurement(*common, invalid)
+        for keyword, invalid in (("epsilon", True), ("epsilon", "1e-9"),
+                                 ("tie_tolerance", False), ("tie_tolerance", "0")):
+            with self.subTest(parameter=keyword, value=invalid):
+                with self.assertRaises((TypeError, ValueError)):
+                    select_measurement(*common, 1.0, **{keyword: invalid})
+
+    def test_zero_and_boolean_action_costs_are_rejected(self):
+        for cost in (0, 0.0, True):
+            with self.subTest(cost=cost):
+                with self.assertRaises((TypeError, ValueError)):
+                    select_measurement(
+                        self.weights, {"split": self.split}, {"split": cost}, 1.0
+                    )
+
 
 if __name__ == "__main__":
     unittest.main()
