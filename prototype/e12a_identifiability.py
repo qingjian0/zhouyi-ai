@@ -1,15 +1,14 @@
 """E12-A0: tiny identifiability and leakage baseline.
 
-This is a transparent finite-grammar protocol check, not a learned model.
-The learner receives only a LearnerView. EvaluatorTruth is kept in a
-separate object and is used only by the environment/evaluator.
+Transparent finite-grammar protocol check, not a learned model.
+The learner receives only LearnerView; evaluator truth is environment-side.
 """
 from __future__ import annotations
 
 import argparse
 import json
 import random
-from dataclasses import asdict, dataclass, replace
+from dataclasses import dataclass, replace
 from typing import Literal
 
 PrimitiveId = Literal["ge2", "eq2"]
@@ -66,48 +65,64 @@ def make_episode(family: str, seed: int = 7) -> tuple[LearnerView, EvaluatorTrut
         for value in support_values
     )
     if family == "inconsistent":
-        # Add a contradictory duplicate observation at a point where both
-        # candidate predicates return zero. The evaluator truth remains private.
         observations += (Observation(1, 1),)
 
-    view = LearnerView(observations, probes)
-    truth = EvaluatorTruth(f"{family}-{seed}", target, domain)
-    return view, truth
-
-
-def consistent_primitives(view: LearnerView) -> tuple[PrimitiveId, ...]:
-    matches = []
-    for primitive_id in PRIMITIVES:
-        if all(
-            evaluate_primitive(primitive_id, obs.value) == obs.label
-            for obs in view.observations
-        ):
-            matches.append(primitive_id)
-    return tuple(matches)
+    return (
+        LearnerView(observations, probes),
+        EvaluatorTruth(f"{family}-{seed}", target, domain),
+    )
 
 
 def infer(view: LearnerView, candidate_budget: int | None = None) -> dict:
-    """Infer only from learner-visible observations; never accepts evaluator truth."""
-    if candidate_budget is not None and candidate_budget < len(PRIMITIVES):
+    """Infer from learner-visible observations with explicit budget accounting."""
+    if candidate_budget is not None and candidate_budget < 0:
+        raise ValueError("candidate_budget cannot be negative")
+
+    checked = []
+    exhausted = False
+    for primitive_id in PRIMITIVES:
+        if candidate_budget is not None and len(checked) >= candidate_budget:
+            exhausted = True
+            break
+        checked.append(primitive_id)
+
+    # An incomplete search cannot establish uniqueness or inconsistency.
+    if exhausted:
         return {
             "status": "BUDGET_EXHAUSTED",
             "candidates": (),
             "selected": None,
+            "evaluated_candidates": len(checked),
+            "remaining_candidates": len(PRIMITIVES) - len(checked),
         }
-    candidates = consistent_primitives(view)
+
+    candidates = tuple(
+        primitive_id for primitive_id in checked
+        if all(
+            evaluate_primitive(primitive_id, obs.value) == obs.label
+            for obs in view.observations
+        )
+    )
     if len(candidates) == 1:
         status, selected = "IDENTIFIABLE", candidates[0]
     elif len(candidates) > 1:
         status, selected = "AMBIGUOUS", None
     else:
         status, selected = "INCONSISTENT", None
-    return {"status": status, "candidates": candidates, "selected": selected}
+
+    return {
+        "status": status,
+        "candidates": candidates,
+        "selected": selected,
+        "evaluated_candidates": len(checked),
+        "remaining_candidates": 0,
+    }
 
 
 def apply_probe(
     view: LearnerView, truth: EvaluatorTruth, value: int
 ) -> LearnerView:
-    """Environment-side action. Truth is not passed to the learner's infer()."""
+    """Environment-side action; truth is not passed to infer()."""
     if value not in view.allowed_probe_values:
         raise ValueError("probe is not permitted by this learner view")
     if value not in truth.domain_values:
@@ -124,41 +139,69 @@ def apply_probe(
     )
 
 
-def run_suite(seeds: int = 20, start_seed: int = 7) -> dict:
+def run_suite(
+    seeds: int = 20,
+    start_seed: int = 7,
+    candidate_budget: int | None = None,
+) -> dict:
     if seeds <= 0:
         raise ValueError("seeds must be positive")
-    families = ("identifiable", "ambiguous", "intervention_pending",
-                "unobservable", "inconsistent")
+
+    families = (
+        "identifiable", "ambiguous", "intervention_pending",
+        "unobservable", "inconsistent",
+    )
     counts = {family: {} for family in families}
     probe_recovery = 0
     probe_total = 0
+    episodes = []
 
     for family in families:
         for seed in range(start_seed, start_seed + seeds):
             view, truth = make_episode(family, seed)
-            result = infer(view)
+            result = infer(view, candidate_budget=candidate_budget)
             counts[family][result["status"]] = (
                 counts[family].get(result["status"], 0) + 1
             )
+            episode = {
+                "family": family,
+                "seed": seed,
+                "status_before_probe": result["status"],
+                "candidates_before_probe": list(result["candidates"]),
+                "evaluated_candidates": result["evaluated_candidates"],
+                "remaining_candidates": result["remaining_candidates"],
+            }
+
             if family == "intervention_pending":
                 probe_total += 1
                 updated = apply_probe(view, truth, 3)
-                after = infer(updated)
-                probe_recovery += int(
+                after = infer(updated, candidate_budget=candidate_budget)
+                recovered = (
                     after["status"] == "IDENTIFIABLE"
                     and after["selected"] == truth.primitive_id
                 )
+                probe_recovery += int(recovered)
+                episode.update({
+                    "status_after_probe": after["status"],
+                    "candidates_after_probe": list(after["candidates"]),
+                    "probe_recovered": recovered,
+                    "probe_evaluated_candidates": after["evaluated_candidates"],
+                    "probe_remaining_candidates": after["remaining_candidates"],
+                })
+            episodes.append(episode)
 
     return {
         "experiment": "E12-A0-identifiability-and-leakage-baseline",
         "seeds": seeds,
         "start_seed": start_seed,
+        "candidate_budget": candidate_budget,
         "grammar": list(PRIMITIVES),
         "status_counts": counts,
         "intervention_probe_recovery": (
             probe_recovery / probe_total if probe_total else None
         ),
         "intervention_probe_episodes": probe_total,
+        "episodes": episodes,
         "scope": (
             "Finite synthetic two-predicate grammar only. This is a protocol "
             "sanity check, not open-world primitive induction or causal discovery."
@@ -170,9 +213,12 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--seeds", type=int, default=20)
     parser.add_argument("--start-seed", type=int, default=7)
+    parser.add_argument("--candidate-budget", type=int, default=None)
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
-    result = run_suite(args.seeds, args.start_seed)
+    result = run_suite(
+        args.seeds, args.start_seed, args.candidate_budget
+    )
     print(json.dumps(result, ensure_ascii=False, indent=2) if args.json else result)
 
 
