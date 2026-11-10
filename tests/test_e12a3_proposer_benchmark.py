@@ -36,7 +36,7 @@ class E12A3ProposerBenchmarkTests(unittest.TestCase):
         result = run_episode(5, "THRESHOLD", budget=16)
         self.assertEqual(set(result["methods"]), set(FAMILIES))
         self.assertTrue(all(
-            item["candidate_budget_used"] <= 16
+            item["candidate_budget_used"] == 16
             for item in result["methods"].values()
         ))
 
