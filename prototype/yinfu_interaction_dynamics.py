@@ -114,19 +114,15 @@ def triadic_resource_demo(horizon: int = 8) -> dict:
     baseline = {"environment": 1.0, "resource": 0.8, "agent": 0.2}
     intervention = dict(baseline)
     intervention["agent"] += 0.35
-    baseline_agent = baseline["agent"]
-    intervention_agent = intervention["agent"]
-    baseline_resource = baseline["resource"]
-    intervention_resource = intervention["resource"]
-    first_base = step(graph, baseline, context=0.0).states
-    first_act = step(graph, intervention, context=0.0).states
+    first_base = step(graph, baseline, context=0.0, damping=0.5).states
+    first_act = step(graph, intervention, context=0.0, damping=0.5).states
     first_base_map, first_act_map = dict(first_base), dict(first_act)
     short_delta = first_act_map["agent"] - first_base_map["agent"]
 
     base_state, act_state = dict(baseline), dict(intervention)
     for _ in range(horizon):
-        base_state = dict(step(graph, base_state, context=0.0).states)
-        act_state = dict(step(graph, act_state, context=0.0).states)
+        base_state = dict(step(graph, base_state, context=0.0, damping=0.5).states)
+        act_state = dict(step(graph, act_state, context=0.0, damping=0.5).states)
     # Score long-run agent viability jointly with retained resource.
     base_score = base_state["agent"] + 0.5 * base_state["resource"]
     act_score = act_state["agent"] + 0.5 * act_state["resource"]
