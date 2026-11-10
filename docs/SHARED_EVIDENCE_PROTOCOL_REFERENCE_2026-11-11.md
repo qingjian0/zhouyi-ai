@@ -66,13 +66,14 @@ The unit tests cover:
 2. identical retry returns the original receipt;
 3. conflicting retry is rejected;
 4. idempotency fingerprint includes event type/schema;
-5. one prediction per observation;
-6. stale expected sequence rejection;
-7. one reveal per prediction;
-8. revision evidence must already be revealed;
-9. structure parent must already exist;
-10. restart/replay preserves sequence, event IDs, and digests;
-11. returned structure snapshots are detached data.
+5. idempotency fingerprint includes actor role;
+6. one prediction per observation;
+7. stale expected sequence rejection;
+8. one reveal per prediction;
+9. revision evidence must already be revealed;
+10. structure parent must already exist;
+11. restart/replay preserves sequence, event IDs, and digests;
+12. returned structure snapshots are detached data.
 
 Run:
 
