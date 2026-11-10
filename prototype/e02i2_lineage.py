@@ -251,6 +251,55 @@ class RelationLineageLedger:
                      (identity.version_ids[-1],), evidence_refs)
         return updated
 
+    def reactivate_and_modify(self, identity_id: str, *, version_id: str,
+                              members: tuple[str, ...], roles: tuple[str, ...],
+                              operator: str, rule_signature: str,
+                              context_signature: str = "global", window: int,
+                              evidence_refs: tuple[str, ...]) -> RelationVersion:
+        """Atomically reactivate a suspended identity with a changed version.
+
+        All validation is completed before any ledger collection is mutated.
+        The operation emits one composite event, so observers never see an
+        intermediate ACTIVE state with the stale version as a completed event.
+        """
+        self._check_window(window)
+        identity = self.identities.get(identity_id)
+        if identity is None or identity.status != IdentityStatus.SUSPENDED:
+            raise LineageError("only a suspended identity can be reactivated")
+        if not evidence_refs:
+            raise LineageError("reactivation requires fresh confirming evidence")
+        previous_id = identity.version_ids[-1]
+        previous = self.versions[previous_id]
+        new_signature = (tuple(members), tuple(roles), operator,
+                         rule_signature, context_signature)
+        old_signature = (previous.members, previous.roles, previous.operator,
+                         previous.rule_signature, previous.context_signature)
+        if new_signature == old_signature:
+            raise LineageError("REACTIVATE+MODIFY requires a structural change")
+
+        # Constructing the immutable version performs all structural and ID
+        # validation before the ledger is changed.
+        version = self._version(
+            identity_id=identity_id, version_id=version_id,
+            version_index=len(identity.version_ids) + 1,
+            members=tuple(members), roles=tuple(roles), operator=operator,
+            rule_signature=rule_signature, context_signature=context_signature,
+            window=window, evidence_refs=evidence_refs,
+        )
+
+        self.versions[version_id] = version
+        self.identities[identity_id] = replace(
+            identity, status=IdentityStatus.ACTIVE, last_active_window=window,
+            version_ids=(*identity.version_ids, version_id),
+        )
+        self.version_transitions.append(VersionTransition(
+            "REACTIVATED_AND_MODIFIED", identity_id, previous_id, version_id,
+            window, evidence_refs,
+        ))
+        self._record("REACTIVATE_MODIFY", window, (identity_id,),
+                     (previous_id, version_id), evidence_refs)
+        return version
+
     def retire(self, identity_id: str, *, window: int,
                evidence_refs: tuple[str, ...] = ()) -> RelationIdentity:
         self._check_window(window)
