@@ -206,7 +206,15 @@ At 31 proposal slots per method:
 
 This is not evidence that UCB1 improves over fixed allocation. The confidence interval includes zero, and the point estimate favors the simpler fixed methods. The current mean-batch-accuracy reward and context-free allocator are not yet adequate.
 
-## 14. Conclusion
+## 14. Reward-function ablation follow-up
+
+Five Gate-Dev reward definitions were compared in a 20-seed × 2-task run. None exceeded EQUAL or ROUND_ROBIN. Their aggregate Locked-Test accuracies ranged from 89.45% to 90.55%, against 91.72% for both fixed baselines. Paired seed-clustered confidence intervals included zero for every adaptive-vs-equal comparison.
+
+Detailed results: `E12A3_M1_1_REWARD_ABLATION_RESULTS_2026-11-11.md`.
+
+The current evidence points away from further context-free reward tuning and toward task-conditioned allocation. The next control should be a transparent Support-derived task-structure router, followed by a contextual bandit comparison on held-out task families.
+
+## 15. Conclusion
 
 The E12-A3-M0 result shows that proposer diversity alone is insufficient. The next meaningful research problem is resource allocation under task uncertainty, duplicate candidates, and unequal proposer specialization.
 
