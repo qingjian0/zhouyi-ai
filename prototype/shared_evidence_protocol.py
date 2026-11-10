@@ -65,7 +65,12 @@ class SQLiteEvidenceStore:
         self._lock = threading.RLock()
         self._db = sqlite3.connect(self.path, isolation_level=None, check_same_thread=False)
         self._db.row_factory = sqlite3.Row
-        self._db.execute("PRAGMA journal_mode=WAL")
+        # SQLite's WAL-reset corruption bug is fixed in 3.51.3. Use rollback
+        # journaling on older runtimes instead of silently relying on an
+        # affected WAL implementation under multi-connection writes.
+        requested_journal = "WAL" if sqlite3.sqlite_version_info >= (3, 51, 3) else "DELETE"
+        mode_row = self._db.execute(f"PRAGMA journal_mode={requested_journal}").fetchone()
+        self.journal_mode = str(mode_row[0]).upper()
         self._db.execute("PRAGMA synchronous=FULL")
         self._db.execute("PRAGMA foreign_keys=ON")
         self._db.executescript("""
