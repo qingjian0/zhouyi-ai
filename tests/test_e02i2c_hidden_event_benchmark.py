@@ -45,6 +45,28 @@ class E02I2CHiddenEventBenchmarkTests(unittest.TestCase):
             self.assertIn("selective_risk", metrics)
             self.assertIn("false_create", metrics)
 
+    def test_train_and_gate_sample_namespaces_are_disjoint(self):
+        train = [
+            build_episode(event, 1000 + seed, split="train")
+            for seed in range(4) for event in SUPPORTED_EVENTS
+        ]
+        gate = [
+            build_episode(event, 2000 + seed, split="gate")
+            for seed in range(4) for event in SUPPORTED_EVENTS
+        ]
+        train_samples = {packet.sample_id for episode in train for packet in episode.evidence}
+        gate_samples = {packet.sample_id for episode in gate for packet in episode.evidence}
+        self.assertFalse(train_samples.intersection(gate_samples))
+        self.assertTrue(all(packet.split == "train" for episode in train for packet in episode.evidence))
+        self.assertTrue(all(packet.split == "gate" for episode in gate for packet in episode.evidence))
+
+    def test_abstain_class_covers_three_distinct_failure_modes(self):
+        modes = [build_episode(EventType.ABSTAIN, seed, split="gate") for seed in (0, 1, 2)]
+        self.assertEqual([_adjudicator(episode) for episode in modes],
+                         [EventType.ABSTAIN] * 3)
+        self.assertEqual(len({tuple(packet.polarity for packet in episode.evidence)
+                              for episode in modes}), 3)
+
     def test_locked_test_is_not_available_during_development(self):
         with self.assertRaisesRegex(ValueError, "locked Test"):
             run_benchmark(seeds=1, split="test")
