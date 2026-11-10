@@ -188,10 +188,16 @@ def adjudicate_event(
     def refs(items: Iterable[EvidencePacket]) -> tuple[str, ...]:
         return tuple(sorted({item.evidence_id for item in items}))
 
-    supporting = tuple(
+    # Keep the complete support set for identity-level competition checks.
+    # Candidate filtering is appropriate for a proposed CREATE, but must not
+    # erase evidence that still supports the currently active signature.
+    all_supporting = tuple(
         item for item in eligible
         if item.polarity == EvidencePolarity.SUPPORTS
-        and (candidate_signature is None or item.candidate_signature == candidate_signature)
+    )
+    supporting = tuple(
+        item for item in all_supporting
+        if candidate_signature is None or item.candidate_signature == candidate_signature
     )
     contradictions = tuple(
         item for item in eligible if item.polarity == EvidencePolarity.CONTRADICTS
@@ -261,10 +267,10 @@ def adjudicate_event(
     # signature is ambiguous. Never let one stale KEEP observation mask a
     # separately supported structural change.
     same_support = tuple(
-        item for item in supporting if item.candidate_signature == identity.signature
+        item for item in all_supporting if item.candidate_signature == identity.signature
     )
     changed_candidates = tuple(
-        item for item in supporting if item.candidate_signature != identity.signature
+        item for item in all_supporting if item.candidate_signature != identity.signature
     )
     if same_support and changed_candidates:
         return _abstain(
