@@ -20,6 +20,10 @@ Prior arms:
 1. `matched`: learner prior equals the environment's true prior.
 2. `uniform`: neutral prior.
 3. `anti_aligned`: reversed true-prior weights as a deliberate stress condition.
+4. `matched_mix_25/50/75`: 25%, 50%, or 75% matched-prior mass mixed with a uniform floor.
+5. `anti_mix_25/50/75`: the same contamination sweep applied to the anti-aligned prior.
+
+The mixture rule is (q_\alpha(h)=\alpha q_{source}(h)+(1-\alpha)U(h)). It tests whether a uniform contamination floor reduces the harm of a misspecified structural prior.
 
 Policies:
 - `random`
@@ -39,7 +43,7 @@ The exact planner is not given the hidden target or the environment's private pr
 - Mean posterior entropy and MAP confidence.
 - Mean acquisition cost.
 
-The benchmark uses paired target draws and common action-specific sensor random streams across every prior and policy arm within each family/episode. If two arms select the same action at the same episode, they receive the same sampled sensor outcome. It reports paired metric deltas (matched-minus-uniform and anti-aligned-minus-uniform) with normal-approximation 95% confidence intervals. Bootstrap intervals and larger independent world families remain future work.
+The benchmark uses paired target draws and common action-specific sensor random streams across every prior and policy arm within each family/episode. If two arms select the same action at the same episode, they receive the same sampled sensor outcome. It reports paired metric deltas for every non-uniform prior arm against uniform, with normal-approximation 95% confidence intervals. Bootstrap intervals and larger independent world families remain future work.
 
 ## CI result snapshot (Run #42873835303, 2026-11-11)
 
