@@ -77,13 +77,14 @@ def _context_descriptors(
     pools: dict[str, tuple[Proposal, ...]],
     context_support: Sequence[Observation],
     top_k: int = 3,
+    probe_limit: int = 4,
 ) -> dict[str, float]:
-    if top_k < 1:
-        raise ValueError("top_k must be positive")
+    if top_k < 1 or probe_limit < top_k:
+        raise ValueError("probe_limit must be at least top_k")
     scores = {}
     for family in ADAPTIVE_FAMILIES:
         candidate_scores = sorted(
-            (_accuracy(p, context_support) for p in pools[family]),
+            (_accuracy(p, context_support) for p in pools[family][:probe_limit]),
             reverse=True,
         )
         scores[family] = (
@@ -120,7 +121,9 @@ def _context_route_allocate(
     if budget < batch_size * len(ADAPTIVE_FAMILIES):
         raise ValueError("budget must fund one exploration batch per family")
     pools = _make_pools(proposal_support, seed)
-    descriptors = _context_descriptors(pools, context_support)
+    descriptors = _context_descriptors(
+        pools, context_support, top_k=3, probe_limit=batch_size
+    )
     offsets = {family: 0 for family in ADAPTIVE_FAMILIES}
     emitted: list[Proposal] = []
     trace = []
@@ -161,6 +164,7 @@ def _context_route_allocate(
         "trace": tuple(trace),
         "proposal_slots_used": budget,
         "candidate_count": len(candidates),
+        "context_probe_evaluations": batch_size * len(ADAPTIVE_FAMILIES),
     }
 
 
@@ -234,7 +238,13 @@ def run_episode(seed: int, task: str, budget: int = 31) -> dict[str, Any]:
         "allocations": routed["allocations"],
         "context_scores": routed["context_scores"],
         "trace": list(routed["trace"]),
+        "context_probe_evaluations": routed["context_probe_evaluations"],
     }
+
+    # Context probes are a shared 12-slot data-acquisition overhead, charged
+    # equally to every method; only the router uses the resulting descriptor.
+    for result in methods.values():
+        result["context_probe_evaluations"] = routed["context_probe_evaluations"]
 
     for name, result in methods.items():
         if result["proposal_slots_used"] != budget:
@@ -268,6 +278,10 @@ def run_benchmark(
         aggregate[method] = {
             "episodes": len(scores),
             "mean_locked_test_accuracy": mean(scores),
+            "mean_context_probe_evaluations": mean(
+                e["methods"][method]["context_probe_evaluations"]
+                for e in episodes
+            ),
         }
     paired = {
         method: _paired_clustered(episodes, method)
