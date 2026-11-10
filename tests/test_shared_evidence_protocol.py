@@ -35,6 +35,13 @@ class SharedEvidenceProtocolTests(unittest.TestCase):
             payload={"prediction_id": prediction, "learner_track": "e09", "target_or_feedback": "A"},
         )
 
+
+    def test_journal_mode_avoids_known_pre_3513_wal_bug(self):
+        if sqlite3.sqlite_version_info < (3, 51, 3):
+            self.assertEqual(self.store.journal_mode, "DELETE")
+        else:
+            self.assertEqual(self.store.journal_mode, "WAL")
+
     def test_prediction_requires_prior_observation_and_commit_precedes_reveal(self):
         with self.assertRaises(MissingReference):
             self.store.commit_prediction(
