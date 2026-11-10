@@ -32,7 +32,11 @@ class NoisyWorld:
 
 
 POLICIES = ("random", "fixed", "expected_ig", "cost_normalized_ig", "exact_optimal")
-PRIOR_ARMS = ("matched", "uniform", "anti_aligned")
+PRIOR_ARMS = (
+    "matched", "uniform", "anti_aligned",
+    "matched_mix_25", "matched_mix_50", "matched_mix_75",
+    "anti_mix_25", "anti_mix_50", "anti_mix_75",
+)
 
 
 def _entropy(weights: tuple[float, ...]) -> float:
@@ -255,12 +259,22 @@ def make_world(family: str) -> NoisyWorld:
 
 
 def prior_for(world: NoisyWorld, arm: str) -> tuple[float, ...]:
+    uniform = tuple(1.0 / len(world.hypothesis_ids) for _ in world.hypothesis_ids)
+    if arm == "uniform":
+        return uniform
     if arm == "matched":
         return world.true_prior
-    if arm == "uniform":
-        return tuple(1.0 / len(world.hypothesis_ids) for _ in world.hypothesis_ids)
     if arm == "anti_aligned":
         return tuple(reversed(world.true_prior))
+    if arm.startswith("matched_mix_") or arm.startswith("anti_mix_"):
+        source = world.true_prior if arm.startswith("matched_mix_") else tuple(reversed(world.true_prior))
+        try:
+            alpha = int(arm.rsplit("_", 1)[1]) / 100.0
+        except ValueError as exc:
+            raise ValueError("mixture prior arm must end in a percentage") from exc
+        if not 0.0 < alpha < 1.0:
+            raise ValueError("mixture weight must be between zero and one")
+        return tuple(alpha * p + (1.0 - alpha) * u for p, u in zip(source, uniform))
     raise ValueError("unknown prior arm")
 
 
@@ -321,7 +335,7 @@ def run_benchmark(episodes: int = 100, budget: int = 3, start_seed: int = 2026) 
                 })
         for policy in POLICIES:
             uniform = results[("uniform", policy)]
-            for arm in ("matched", "anti_aligned"):
+            for arm in (item for item in PRIOR_ARMS if item != "uniform"):
                 paired_arm = results[(arm, policy)]
                 contrasts.append({
                     "family": family,
