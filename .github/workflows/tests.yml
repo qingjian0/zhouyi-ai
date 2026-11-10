@@ -36,3 +36,5 @@ jobs:
         run: python -m prototype.e02_rule_ood --sweep --seeds 100 --start-seed 100 --json
       - name: Run E12-A2-B active measurement policy benchmark
         run: python -m prototype.e12a2b_policy_benchmark --seeds 5 --budget 4 --start-seed 100 --json
+      - name: Run E12-A2-D noisy measurement and prior stress benchmark
+        run: python -m prototype.e12a2d_noisy_prior_stress --episodes 100 --budget 3 --start-seed 2026 --json
