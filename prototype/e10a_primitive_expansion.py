@@ -77,7 +77,10 @@ class PrimitiveExpansionLearner:
         relations = {c.relation_symbol for c in self._candidates}
         if any(r not in self._contrastive_relations for r in relations):
             return "PROVISIONAL"
-        return "IDENTIFIED" if len(self._candidates) == 1 else "AMBIGUOUS"
+        per_relation: dict[str, int] = {}
+        for candidate in self._candidates:
+            per_relation[candidate.relation_symbol] = per_relation.get(candidate.relation_symbol, 0) + 1
+        return "IDENTIFIED" if all(count == 1 for count in per_relation.values()) else "AMBIGUOUS"
 
     @property
     def candidate_hash(self) -> str:
