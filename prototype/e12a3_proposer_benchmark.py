@@ -88,7 +88,10 @@ def run_episode(seed: int, task: str, budget: int = 32) -> dict[str, Any]:
     methods: dict[str, tuple[Proposal, ...]] = {}
     for family, proposals in pools.items():
         methods[family] = tuple(proposals[:budget])
-    methods["PORTFOLIO"] = allocate_round_robin(pools, budget)
+    # EXHAUSTIVE is a control baseline, not a portfolio member: it enumerates
+    # the STAT/RELATIONAL grammar and would double-count their search budget.
+    portfolio_families = {name: pools[name] for name in ("STAT", "RELATIONAL", "RANDOM")}
+    methods["PORTFOLIO"] = allocate_round_robin(portfolio_families, budget)
 
     results = {}
     for method, candidates in methods.items():
