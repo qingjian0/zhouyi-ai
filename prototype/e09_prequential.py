@@ -62,8 +62,15 @@ class PrequentialRunner:
 
     REVISION_MODE = "BATCH_REFIT"
 
-    def __init__(self, learner: CounterexampleRuleLearner,
-                 ledger: EvidenceLedger | None = None) -> None:
+    def __init__(self, learner, ledger: EvidenceLedger | None = None, *,
+                 revision_mode: str = "BATCH_REFIT") -> None:
+        if revision_mode not in {"BATCH_REFIT", "INCREMENTAL_INDEX"}:
+            raise PrequentialError("unsupported revision mode")
+        if revision_mode == "INCREMENTAL_INDEX" and not isinstance(
+            learner, IncrementalConjunctionLearner
+        ):
+            raise PrequentialError("INCREMENTAL_INDEX requires IncrementalConjunctionLearner")
+        self.REVISION_MODE = revision_mode
         self.learner = learner
         self.ledger = ledger or EvidenceLedger()
         self.model_version = 0
@@ -80,7 +87,11 @@ class PrequentialRunner:
             raise PrequentialError("bootstrap requires at least one record")
         for sample_id, example in records:
             self.ledger.append(sample_id, example, source="bootstrap")
-        self.ledger.fit(self.learner)
+        if self.REVISION_MODE == "BATCH_REFIT":
+            self.ledger.fit(self.learner)
+        else:
+            for example in self.ledger.training_examples():
+                self.learner.observe(example.inputs, example.label)
         self.model_version = 1
         self.step += 1
 
@@ -143,8 +154,15 @@ class PrequentialRunner:
             raise PrequentialError("this reveal already triggered a revision")
         before = json.dumps(self.learner.snapshot(), sort_keys=True, default=repr)
         before_version = self.model_version
-        # Explicit baseline: this recomputes from all uncontested ledger rows.
-        self.ledger.fit(self.learner)
+        before_cost = self.learner.report.get("candidate_patterns_evaluated", 0)
+        if self.REVISION_MODE == "BATCH_REFIT":
+            # Baseline: recompute from all uncontested historical evidence.
+            self.ledger.fit(self.learner)
+        else:
+            commit = self._predictions[prediction_id]
+            # Apply only this newly revealed input; conflicts retract its prior
+            # contribution inside the incremental learner.
+            self.learner.observe(commit.inputs, reveal.label)
         self.model_version += 1
         self.step += 1
         after = json.dumps(self.learner.snapshot(), sort_keys=True, default=repr)
