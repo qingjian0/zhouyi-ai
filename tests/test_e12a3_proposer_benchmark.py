@@ -41,6 +41,8 @@ class E12A3ProposerBenchmarkTests(unittest.TestCase):
             item["candidate_budget_used"] == 16
             for item in result["methods"].values()
         ))
+        selected_family = result["methods"]["PORTFOLIO"]["selected_family"]
+        self.assertIn(selected_family, (None, "STAT", "RELATIONAL", "RANDOM"))
 
     def test_benchmark_is_reproducible_and_reports_limitations(self):
         a = run_benchmark(seeds=2, start_seed=9, budget=16)
