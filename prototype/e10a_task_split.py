@@ -212,6 +212,15 @@ def build_support_query_task(
     if support_ids & query_ids or support_ids | query_ids != source_ids:
         raise AssertionError("support/query observation partition is not exact")
 
+    support_group_sizes = Counter(
+        len(groups[key]) for key in support_keys
+    )
+    query_group_sizes = Counter(
+        len(groups[key]) for key in query_keys
+    )
+    def group_size_histogram(counts: Counter) -> dict[str, int]:
+        return {str(size): counts[size] for size in sorted(counts)}
+
     support_label_counts = Counter(
         f'{row["relation_symbol"]}:{str(row["outcome"]).lower()}'
         for row in support_rows
@@ -229,6 +238,10 @@ def build_support_query_task(
         "query_observation_ids_hash": _canonical_hash(sorted(query_ids)),
         "grouping": "relation_symbol+unordered_participant_set",
         "selection_policy": "label_blind_uniform_group_shuffle_v1",
+        "sampling_unit": "relation_symbol+unordered_participant_set",
+        "sampling_weighting": "uniform_group_selection; observation inclusion varies with group size",
+        "support_group_size_histogram": group_size_histogram(support_group_sizes),
+        "query_group_size_histogram": group_size_histogram(query_group_sizes),
         "support_label_counts": dict(sorted(support_label_counts.items())),
     }
     return {
