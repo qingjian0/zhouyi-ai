@@ -71,7 +71,6 @@ def run(seed: int = 31, min_support: int = 2,
             ledger.append(
                 f"train-e{env}-{a}{b}{c}",
                 Example((a, b, c), target(a, b, c, env)),
-                source_id=f"environment-{env}",
             )
     blind_train = ledger.training_examples()
     blind = CounterexampleRuleLearner(
@@ -136,7 +135,6 @@ def run(seed: int = 31, min_support: int = 2,
             "The hidden rule family is synthetic and finite.",
             "Both environments are represented in training; this tests context-conditioned identification, not zero-shot discovery of a never-seen environment.",
             "Context-blind contradictory inputs are quarantined, so abstention is an intended safe behavior.",
-            "source_id labels environment provenance but does not authenticate independent observers.",
             "No gradient updates are used by either learner.",
         ],
     }
