@@ -63,6 +63,27 @@ class OrthogonalLifecycleTests(unittest.TestCase):
         self.assertEqual(ledger.snapshot("primitive:delta", 1, "world-B")["invocation_policy"],
                          InvocationPolicy.ABSTAIN.value)
 
+    def test_challenge_in_one_scope_does_not_globally_disable_another(self):
+        ledger = ready_ledger()
+        ref = "primitive:delta@1"
+        ledger.append(event(7, "reuse", ref, EventKind.WORKFLOW_TRANSITION,
+                            workflow_from=WorkflowStage.GATE_VALIDATED,
+                            workflow_to=WorkflowStage.REUSED))
+        ledger.append(event(8, "challenge-b", ref, EventKind.WORKFLOW_TRANSITION,
+                            scope_id="world-B",
+                            workflow_from=WorkflowStage.REUSED,
+                            workflow_to=WorkflowStage.CHALLENGED))
+        ledger.append(event(9, "support-b", ref, EventKind.EPISTEMIC_ASSESSMENT,
+                            scope_id="world-B",
+                            epistemic_status=EpistemicStatus.REFUTED_IN_SCOPE,
+                            evidence_ids=("counterexample-B",)))
+        ledger.append(event(10, "scope-b", ref, EventKind.SCOPE_ASSESSMENT,
+                            scope_id="world-B", scope_status=ScopeStatus.IN_SCOPE_SUPPORTED))
+        self.assertEqual(ledger.snapshot("primitive:delta", 1, "world-A")["invocation_policy"],
+                         InvocationPolicy.ALLOW_WITH_WARNING.value)
+        self.assertEqual(ledger.snapshot("primitive:delta", 1, "world-B")["invocation_policy"],
+                         InvocationPolicy.ABSTAIN.value)
+
     def test_gate_validation_alone_does_not_allow_invocation(self):
         ledger = OrthogonalLifecycleLedger()
         ledger.register(CandidateVersion("p", 1, "a AND b", "dsl-v1"))
