@@ -23,7 +23,7 @@ from prototype.e12a1_typed_predicate_induction import (
 )
 
 
-COMMUTATIVE = {"AND", "OR", "XOR"}
+COMMUTATIVE = {"AND", "OR", "XOR", "ALL_OF", "ANY_OF"}
 UNARY = {"NOT"}
 BINARY = {"AND", "OR", "XOR"}
 NARY = {"ALL_OF", "ANY_OF"}
@@ -95,7 +95,7 @@ def generate_candidates(
     *,
     max_arity: int = 4,
     max_depth: int = 2,
-    max_nodes: int = 9,
+    max_nodes: int = 15,
     max_candidates: int = 20_000,
 ) -> tuple[Candidate, ...]:
     """Generate a bounded, deterministic set of sparse typed-primitive DAGs.
