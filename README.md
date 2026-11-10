@@ -9,7 +9,7 @@
 
 - 当前阶段：M1 数学理论定稿与 M2 最小原型准备
 - 理论版本：CPG-EI v0.3（研究草案）
-- 代码状态：E01 组合选择基线原型正在建立；E12-A0/A1 有限原型已建立；E12-A2-M 有限假设主动测量选择器已提交待测试与基准验证；E12-A3 组合原语归纳协议已建立
+- 代码状态：E01 组合选择基线原型正在建立；E12-A0/A1 有限原型已建立；E12-A2-M 有限假设主动测量选择器已提交待测试与基准验证；E12-A3 组合原语归纳协议已建立；E12-A3-M0 有限组合引擎首版已提交，测试待执行
 - 尚无规模化模型或性能优势结论
 - 验证原则：所有架构主张均须通过可复现实验、消融和公平对照验证
 
@@ -46,6 +46,9 @@
 - [E12-A2 实现审查与验证门槛](docs/E12A2_IMPLEMENTATION_AUDIT_2026-11-11.md)
 - [E12-A2-M 选择器实现记录](docs/E12A2_M_IMPLEMENTATION_2026-11-11.md)
 - [E12-A3 稀疏组合原语自主归纳协议](docs/E12A3_COMPOSITIONAL_PRIMITIVE_INDUCTION.md)
+- [E12-A3-M0 组合引擎实现记录](docs/E12A3_M0_IMPLEMENTATION_2026-11-11.md)
+- [E12-A3-M0 组合引擎原型](prototype/e12a3_compositional_induction.py)
+- [E12-A3-M0 单元测试](tests/test_e12a3_compositional_induction.py)
 - [E12 组合泛化与神经符号相关工作](docs/RELATED_WORK_E12_COMPOSITIONALITY_2026-11-11.md)
 - [E12-A1 类型化谓词原型](prototype/e12a1_typed_predicate_induction.py)
 - [E12-A2-M 主动观测选择器](prototype/e12a2_active_measurement_selector.py)
@@ -69,6 +72,7 @@ python -m unittest discover -s tests -v
 python -m prototype.e01_sparse_composition
 python -m prototype.e01_learned_ranker --json
 python -m prototype.e12a2_active_measurement_selector
+python -m prototype.e12a3_compositional_induction
 ```
 
 ## 研究状态标记
