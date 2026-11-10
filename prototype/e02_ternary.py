@@ -63,6 +63,8 @@ def pair_marginal_counts(data: list[Example]) -> dict[str, dict[tuple[int, int],
 
 def assert_pairwise_balanced(data: list[Example]) -> None:
     """Raise AssertionError unless every role-pair cell is class-balanced."""
+    if not data:
+        raise AssertionError("dataset must not be empty")
     counts = pair_marginal_counts(data)
     positive, negative = counts["positive"], counts["negative"]
     if set(positive) != set(negative):
