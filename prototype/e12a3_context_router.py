@@ -111,19 +111,16 @@ def _unique_registry(proposals: Sequence[Proposal]) -> tuple[Proposal, ...]:
 
 
 def _context_route_allocate(
-    proposal_support: Sequence[Observation],
-    context_support: Sequence[Observation],
-    seed: int,
+    pools: dict[str, tuple[Proposal, ...]],
+    descriptors: dict[str, float],
     budget: int = 31,
     batch_size: int = 4,
 ) -> dict[str, Any]:
-    """Route by a held-out Support context; no Gate-Dev/Final/Test input."""
+    """Route from precomputed Support context; no Gate/Test input."""
     if budget < batch_size * len(ADAPTIVE_FAMILIES):
         raise ValueError("budget must fund one exploration batch per family")
-    pools = _make_pools(proposal_support, seed)
-    descriptors = _context_descriptors(
-        pools, context_support, top_k=3, probe_limit=batch_size
-    )
+    if set(descriptors) != set(ADAPTIVE_FAMILIES):
+        raise ValueError("context descriptors must cover every proposer family")
     offsets = {family: 0 for family in ADAPTIVE_FAMILIES}
     emitted: list[Proposal] = []
     trace = []
@@ -195,6 +192,11 @@ def run_episode(seed: int, task: str, budget: int = 31) -> dict[str, Any]:
     support, gate_dev, gate_final, locked_test = make_four_way_world(seed, task)
     proposal_support, context_support = split_support_context(support, seed)
     pools = _make_pools(proposal_support, seed)
+    # One shared, capacity-matched context probe: first four candidates per
+    # family, exactly 12 Support-context evaluations for every policy run.
+    context_scores = _context_descriptors(
+        pools, context_support, top_k=3, probe_limit=4
+    )
     methods: dict[str, dict[str, Any]] = {}
 
     for family in ("STAT", "RELATIONAL", "RANDOM", "BOUNDED_ENUM"):
@@ -227,7 +229,7 @@ def run_episode(seed: int, task: str, budget: int = 31) -> dict[str, Any]:
     }
 
     routed = _context_route_allocate(
-        proposal_support, context_support, seed, budget
+        pools, context_scores, budget
     )
     route_selection = _select_on_gate_final(routed["candidates"], gate_final)
     methods["SUPPORT_CONTEXT_ROUTER"] = {
