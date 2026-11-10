@@ -13,7 +13,7 @@ def _episode(seed=9101):
         ("blue", "rough"),
     ]
     for role, (color, texture) in enumerate(roles):
-        for n in range(2):
+        for n in range(3):
             objects.append({
                 "object_id": f"cf-{seed}-role-{role}-{n}",
                 "attributes": [
@@ -42,10 +42,11 @@ def _episode(seed=9101):
         row(f"cf-{seed}-q-pos-1", [f"cf-{seed}-role-0-0", f"cf-{seed}-role-1-0", f"cf-{seed}-role-2-0"]),
         row(f"cf-{seed}-q-neg-context", [f"cf-{seed}-role-0-0", f"cf-{seed}-role-1-0", f"cf-{seed}-role-2-0"], permission="denied"),
         row(f"cf-{seed}-q-pos-2", [f"cf-{seed}-role-0-1", f"cf-{seed}-role-1-1", f"cf-{seed}-role-2-1"]),
-        row(f"cf-{seed}-q-neg-role", [f"cf-{seed}-role-0-1", f"cf-{seed}-role-1-1", f"cf-{seed}-duplicate-a"]),
-        row(f"cf-{seed}-q-neg-phase", [f"cf-{seed}-role-0-1", f"cf-{seed}-role-1-1", f"cf-{seed}-role-2-1"], phase="inactive"),
+        row(f"cf-{seed}-q-pos-3", [f"cf-{seed}-role-0-2", f"cf-{seed}-role-1-2", f"cf-{seed}-role-2-2"]),
+        row(f"cf-{seed}-q-neg-role", [f"cf-{seed}-role-0-2", f"cf-{seed}-role-1-2", f"cf-{seed}-duplicate-a"]),
+        row(f"cf-{seed}-q-neg-phase", [f"cf-{seed}-role-0-2", f"cf-{seed}-role-1-2", f"cf-{seed}-role-2-2"], phase="inactive"),
     ]
-    return support, objects, q, [True, False, True, False, False]
+    return support, objects, q, [True, False, True, True, False, False]
 
 
 class CompositionalFeatureTests(unittest.TestCase):
@@ -63,7 +64,10 @@ class CompositionalFeatureTests(unittest.TestCase):
         self.assertEqual(learner.predict(rows[2])["decision_status"], "ABSTAIN_AMBIGUOUS")
 
         learner.revise(rows[1], labels[1])
-        decision = learner.predict(rows[2])
+        # The second positive removes a spurious feature that only fits one instance.
+        learner.revise(rows[2], labels[2])
+        self.assertEqual(learner.status, "IDENTIFIED")
+        decision = learner.predict(rows[3])
         self.assertEqual(decision["decision_status"], "PREDICT")
         self.assertTrue(decision["prediction"])
 
@@ -78,12 +82,13 @@ class CompositionalFeatureTests(unittest.TestCase):
         learner.add_query_objects(objects)
         learner.revise(rows[0], labels[0])
         learner.revise(rows[1], labels[1])
-        self.assertFalse(learner.predict(rows[3])["prediction"])
+        self.assertFalse(learner.predict(rows[4])["prediction"])
         learner.revise(rows[2], labels[2])
-        role = learner.revise(rows[3], labels[3])
+        learner.revise(rows[3], labels[3])
+        role = learner.revise(rows[4], labels[4])
         self.assertEqual(role["status"], "IDENTIFIED")
-        self.assertFalse(learner.predict(rows[3])["prediction"])
-        phase = learner.revise(rows[4], labels[4])
+        self.assertFalse(learner.predict(rows[4])["prediction"])
+        phase = learner.revise(rows[5], labels[5])
         self.assertEqual(phase["status"], "IDENTIFIED")
         self.assertFalse(learner.predict(rows[4])["prediction"])
 
