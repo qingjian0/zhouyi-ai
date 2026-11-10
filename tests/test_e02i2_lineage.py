@@ -152,6 +152,51 @@ class E02I2LineageLedgerTests(unittest.TestCase):
         self.assertEqual([e.kind for e in ledger.events], ["CREATE", "REPLACE"])
         ledger.assert_consistent()
 
+    def test_reactivate_and_modify_is_one_atomic_ledger_event(self):
+        ledger = RelationLineageLedger()
+        create(ledger)
+        ledger.suspend("r1", window=1)
+        version = ledger.reactivate_and_modify(
+            "r1", version_id="r1v2", members=("a", "c"),
+            roles=("source", "target"), operator="AND",
+            rule_signature="a&c", context_signature="lab",
+            window=2, evidence_refs=("fresh-change-proof",),
+        )
+        self.assertEqual(version.version_index, 2)
+        self.assertEqual(ledger.identities["r1"].status, IdentityStatus.ACTIVE)
+        self.assertEqual(ledger.identities["r1"].version_ids, ("r1v1", "r1v2"))
+        self.assertEqual([event.kind for event in ledger.events],
+                         ["CREATE", "SUSPEND", "REACTIVATE_MODIFY"])
+        self.assertEqual(ledger.version_transitions[-1].kind,
+                         "REACTIVATED_AND_MODIFIED")
+        ledger.assert_consistent()
+
+    def test_reactivate_and_modify_validation_failure_has_no_partial_write(self):
+        ledger = RelationLineageLedger()
+        create(ledger)
+        ledger.suspend("r1", window=1)
+        before_events = tuple(ledger.events)
+        before_identity = ledger.identities["r1"]
+        with self.assertRaises(LineageError):
+            ledger.reactivate_and_modify(
+                "r1", version_id="r1v2", members=("a", "b"),
+                roles=("source", "target"), operator="AND",
+                rule_signature="a&b", context_signature="lab",
+                window=2, evidence_refs=("fresh-but-no-change",),
+            )
+        self.assertEqual(tuple(ledger.events), before_events)
+        self.assertEqual(ledger.identities["r1"], before_identity)
+        self.assertNotIn("r1v2", ledger.versions)
+        with self.assertRaises(LineageError):
+            ledger.reactivate_and_modify(
+                "r1", version_id="r1v2", members=("a", "c"),
+                roles=("source", "target"), operator="AND",
+                rule_signature="a&c", context_signature="lab",
+                window=2, evidence_refs=(),
+            )
+        self.assertEqual(tuple(ledger.events), before_events)
+        self.assertEqual(ledger.identities["r1"], before_identity)
+
     def test_terminal_identity_cannot_be_reactivated_or_modified(self):
         ledger = RelationLineageLedger()
         create(ledger)
