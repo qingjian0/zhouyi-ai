@@ -274,6 +274,7 @@ def run_benchmark(episodes: int = 100, budget: int = 3, start_seed: int = 2026) 
         raise ValueError("episodes must be positive and budget non-negative")
     families = ("complementary", "rare", "redundant")
     rows = []
+    contrasts = []
     for family_index, family in enumerate(families):
         world = make_world(family)
         results = {
@@ -282,8 +283,8 @@ def run_benchmark(episodes: int = 100, budget: int = 3, start_seed: int = 2026) 
             for policy in POLICIES
         }
         for episode in range(episodes):
-            # The same target and action-specific sensor random streams are
-            # shared across every prior/policy arm for paired comparisons.
+            # Common random numbers pair target and action-specific sensor
+            # outcomes across all prior and policy arms.
             seed = start_seed + family_index * 100000 + episode
             target = _sample_target(world.true_prior, random.Random(seed))
             for arm in PRIOR_ARMS:
@@ -310,32 +311,19 @@ def run_benchmark(episodes: int = 100, budget: int = 3, start_seed: int = 2026) 
                     "mean_map_confidence": sum(x["map_confidence"] for x in items) / count,
                     "mean_cost": sum(x["spent_cost"] for x in items) / count,
                 })
-    contrasts = []
-    for family in families:
         for policy in POLICIES:
-            # Reconstruct paired episodes for uncertainty estimates.
-            world = make_world(family)
-            family_index = families.index(family)
-            paired = {
-                arm: [] for arm in PRIOR_ARMS
-            }
-            for episode in range(episodes):
-                seed = start_seed + family_index * 100000 + episode
-                target = _sample_target(world.true_prior, random.Random(seed))
-                for arm in PRIOR_ARMS:
-                    paired[arm].append(run_episode(
-                        world, target, prior_for(world, arm), policy, budget, seed
-                    ))
+            uniform = results[("uniform", policy)]
             for arm in ("matched", "anti_aligned"):
+                paired_arm = results[(arm, policy)]
                 contrasts.append({
                     "family": family,
                     "policy": policy,
                     "comparison": f"{arm}_minus_uniform",
-                    "accuracy": _paired_delta(paired[arm], paired["uniform"], "correct"),
-                    "brier": _paired_delta(paired[arm], paired["uniform"], "brier"),
-                    "log_loss": _paired_delta(paired[arm], paired["uniform"], "log_loss"),
+                    "accuracy": _paired_delta(paired_arm, uniform, "correct"),
+                    "brier": _paired_delta(paired_arm, uniform, "brier"),
+                    "log_loss": _paired_delta(paired_arm, uniform, "log_loss"),
                     "overconfident_wrong": _paired_delta(
-                        paired[arm], paired["uniform"], "overconfident_wrong"
+                        paired_arm, uniform, "overconfident_wrong"
                     ),
                 })
 
@@ -352,17 +340,17 @@ def run_benchmark(episodes: int = 100, budget: int = 3, start_seed: int = 2026) 
             "target_distribution": "environment-private true prior per world family",
             "learner_visibility": "learner prior arm, public noisy likelihoods, costs, remaining budget",
             "observation_model": "binary stochastic sensors; each action can be used once",
-            "paired_targets": "all policy arms share the same target draw within each family/prior cell",
+            "paired_targets": "all prior and policy arms share target draws and action-specific sensor random streams within each family/episode",
+            "intervals": "paired normal-approximation 95% confidence intervals for prior-arm metric differences",
             "metrics": "accuracy, Brier, log loss, posterior entropy, overconfident-wrong rate, cost",
         },
         "limitations": [
             "Small synthetic finite hypothesis spaces only.",
             "Likelihood tables are supplied; sensor-model learning is not evaluated.",
-            "Monte Carlo target and observation sampling; confidence intervals are not yet included.",
+            "Monte Carlo target and observation sampling; current intervals are normal approximations, not bootstrap intervals.",
             "No Yijing-specific prior is used; the arms are matched, uniform and anti-aligned generic controls.",
         ],
     }
-
 
 def main() -> None:
     parser = argparse.ArgumentParser()
