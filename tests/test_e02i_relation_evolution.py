@@ -48,6 +48,25 @@ class E02IRelationEvolutionTests(unittest.TestCase):
         self.assertEqual(state.current_status, "ACTIVE")
         self.assertEqual(state.current.signature, new.signature)
 
+    def test_persistent_higher_order_relation_degrades_when_pairwise_baseline_catches_up(self):
+        state = RelationEvolution(retire_windows=2)
+        good = Snapshot((0, 1, 2), 173, 0.98, 0.70, 0.98)
+        weak_current = Snapshot((0, 1, 3), 173, 0.52, 0.76, 0.78)
+        self.assertEqual(state.observe(good, window=0), "CREATE")
+        self.assertEqual(state.observe(weak_current, window=1), "DEGRADE")
+        self.assertEqual(state.current_status, "DEGRADED")
+        self.assertIsNotNone(state.current)
+        self.assertEqual(state.observe(weak_current, window=2), "RETIRE")
+        self.assertIsNone(state.current)
+
+    def test_two_member_relation_uses_absolute_gate_threshold(self):
+        state = RelationEvolution()
+        good = Snapshot((0, 1), 9, 0.98, 0.70, 0.98)
+        pairwise = Snapshot((0, 2), 9, 0.52, 0.76, 0.78)
+        self.assertEqual(state.observe(good, window=0), "CREATE")
+        self.assertEqual(state.observe(pairwise, window=1), "KEEP")
+        self.assertEqual(state.current_status, "ACTIVE")
+
     def test_stable_relation_is_not_reconfigured(self):
         result = run_episode(seed=31, scenario="stable")
         self.assertEqual(result["windows"][0]["action"], "CREATE")
