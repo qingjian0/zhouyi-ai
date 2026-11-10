@@ -39,6 +39,19 @@ class HiddenIdentityBenchmarkTests(unittest.TestCase):
         self.assertFalse(jaccard.abstained)
         self.assertEqual(jaccard.identity_id, "hist-A")
 
+    def test_role_aligned_and_hungarian_abstain_on_new_semantics(self):
+        episode = generate_episode("same_members_new_semantics", 7002)
+        for method in (MatchingMethod.ROLE_ALIGNED, MatchingMethod.HUNGARIAN):
+            decision = match_candidates(
+                episode.candidates, dict(episode.history), method=method,
+            )[0]
+            self.assertTrue(decision.abstained, method.value)
+        weak = match_candidates(
+            episode.candidates, dict(episode.history),
+            method=MatchingMethod.JACCARD,
+        )[0]
+        self.assertEqual(weak.identity_id, "hist-A")
+
     def test_indistinguishable_identities_require_abstention(self):
         episode = generate_episode("indistinguishable", 7003)
         for method in MatchingMethod:
