@@ -45,6 +45,12 @@ class ActiveMeasurementTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             select_probe(self.priors, [p], 1.0)
 
+    def test_boolean_probability_and_cost_are_rejected(self):
+        with self.assertRaises(ValueError):
+            select_probe(self.priors, [Probe("bool-cost", True, {"x":{"H0":1.0,"H1":1.0}})], 1.0)
+        with self.assertRaises(ValueError):
+            select_probe(self.priors, [Probe("bool-prob", 1.0, {"x":{"H0":True,"H1":1.0}})], 1.0)
+
     def test_probe_order_does_not_change_selection(self):
         a = Probe("alpha", 1.0, {"x":{"H0":1.0,"H1":0.0},"y":{"H0":0.0,"H1":1.0}})
         b = Probe("beta", 2.0, {"x":{"H0":0.7,"H1":0.3},"y":{"H0":0.3,"H1":0.7}})
