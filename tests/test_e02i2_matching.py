@@ -98,7 +98,7 @@ class E02I2MatchingTests(unittest.TestCase):
 
     def test_greedy_matching_is_independent_of_candidate_input_order(self):
         exact = RelationCandidate("a-exact", ("a", "b"), ("source", "target"), "AND", "a&b", "lab")
-        partial = RelationCandidate("b-partial", ("a", "b", "e"), ("source", "target", "extra"), "AND", "other", "lab")
+        partial = RelationCandidate("b-partial", ("a", "b", "e"), ("source", "target", "extra"), "AND", "a&b", "lab")
         kwargs = dict(method=MatchingMethod.ROLE_ALIGNED, min_score=0.3, min_margin=0.01)
         forward = match_candidates((partial, exact), {"r1": self.old["r1"]}, **kwargs)
         reverse = match_candidates((exact, partial), {"r1": self.old["r1"]}, **kwargs)
