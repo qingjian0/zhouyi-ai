@@ -1,7 +1,7 @@
 import unittest
 
 from prototype.e11a0_robust_generators import (
-    SCHEMAS, make_robust_episode,
+    PRIVATE_SCHEMAS, SHARED_SCHEMAS, make_robust_episode,
 )
 
 
@@ -35,7 +35,7 @@ class E11A0RobustGeneratorTests(unittest.TestCase):
         ]
         self.assertTrue(member_objects)
         self.assertTrue(any(
-            not SCHEMAS["concept-a"].issubset(obj.attributes)
+            not PRIVATE_SCHEMAS["concept-a"].issubset(obj.attributes)
             for obj in member_objects
         ))
         self.assertTrue(any(
@@ -50,7 +50,7 @@ class E11A0RobustGeneratorTests(unittest.TestCase):
             5, mode="shared-attribute", objects_per_split=60
         )
         self.assertEqual(
-            SCHEMAS["concept-a"] & SCHEMAS["concept-b"],
+            SHARED_SCHEMAS["concept-a"] & SHARED_SCHEMAS["concept-b"],
             frozenset({"shared-00"}),
         )
         self.assertTrue(all(
