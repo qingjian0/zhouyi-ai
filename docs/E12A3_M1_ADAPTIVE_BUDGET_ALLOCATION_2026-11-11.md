@@ -1,7 +1,7 @@
 # E12-A3-M1 Adaptive Budget Allocation
 
 Date: 2026-11-11  
-Status: design protocol; cross-family syntax deduplication and a stateful UCB1 allocator core are implemented; A3 unit tests pass; end-to-end adaptive benchmark and four-way split remain pending  
+Status: four-way adaptive benchmark prototype and tests are implemented; full CI validation is running; CPU-cost matching, broader task matrix, and process isolation remain pending  
 Motivation: E12-A3-M0 exact-budget result shows equal-share round-robin underperforms the best specialist on the current two-task synthetic benchmark.
 
 ## 1. Research question
@@ -64,7 +64,7 @@ Novelty is measured against the existing candidate registry, not by string dista
 - new relation type;
 - new held-out task-family transfer evidence.
 
-Reward for proposer family i is the incremental improvement in the best portfolio utility after its batch, not its absolute best score. This avoids giving a family repeated credit for rediscovering the current best candidate. Before UCB1 update, transform the incremental utility through a preregistered bounded mapping into [0, 1]; standard UCB1 assumes bounded rewards. Do not silently clip or rescale after inspecting Gate-Final or Locked Test.
+Initial M1 prototype reward for family i is the mean Gate-Dev accuracy of newly evaluated unique candidates in its emitted batch; a duplicate-only batch receives zero. The reward is already in [0, 1]. Candidate count is not added to reward. This is a deliberately simple first reward, not the final utility function. Because proposer pools are finite and sampled without replacement, reward distributions are non-stationary; UCB1 is treated as a finite-budget heuristic here, not as a setting with classical stationary-bandit regret guarantees. Later experiments must compare discounted/sliding-window UCB, Thompson-style models, and fixed allocation under identical budgets.
 
 ## 6. Allocator candidates
 
@@ -148,6 +148,24 @@ A composition candidate must charge:
 Do not allow the composition engine to receive an effectively free pool of A1 primitives while other proposers pay for discovery. Compare primitive-only, composition-only, and combined portfolios with the same global budget.
 
 ## 11. Initial allocator implementation
+
+The stateful UCB1 core is implemented in `prototype/e12a3_adaptive_allocator.py`. A four-way adaptive benchmark is implemented in `prototype/e12a3_adaptive_benchmark.py`.
+
+The benchmark uses disjoint Support / Gate-Dev / Gate-Final / Locked-Test partitions:
+- proposal generators receive Support only;
+- the adaptive allocator receives Support and Gate-Dev only;
+- Gate-Final is used once to select among the frozen candidate registry;
+- Locked Test is scored only after the Gate-Final selection is fixed.
+
+Cross-family duplicate expressions retain all proposer provenance in one candidate registry. A repeated expression still consumes a proposal slot because the proposer spent computation emitting it, but it is evaluated on Gate-Dev only once and does not earn duplicate novelty reward.
+
+The adaptive allocator logs family, requested/emitted slots, new unique candidates, bounded reward, and remaining budget. Its allocation function has no Gate-Final or Locked-Test parameter. Selection and Locked-Test scoring are separate functions.
+
+This implementation establishes API-level data-flow separation and mutation-invariance tests; it is not process-isolated and must not be described as a hard security boundary.
+
+The UCB1 core tests cover exploration-floor ordering, reward-sensitive choice, deterministic ties, budget conservation including a final partial batch, invalid reward handling, and event traces. Adaptive benchmark tests cover four-way split disjointness, API boundaries, deterministic allocation, exact proposal budget, and separate Gate-Final/Test stages.
+
+## 12. Next implementation sequence
 
 The first stateful UCB1 core is implemented in `prototype/e12a3_adaptive_allocator.py`.
 
