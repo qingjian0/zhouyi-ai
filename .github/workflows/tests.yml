@@ -1,5 +1,5 @@
 name: tests
-# C-F prototype validation is intentionally kept on its own research branch.
+# C-F prototype validation remains isolated; diagnostics include full semantic provenance.
 
 on:
   push:
