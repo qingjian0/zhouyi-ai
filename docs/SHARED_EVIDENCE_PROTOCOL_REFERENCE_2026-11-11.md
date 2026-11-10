@@ -68,7 +68,7 @@ store.close()
 
 ## Conformance coverage
 
-The 19 unit tests cover:
+The 20 unit tests cover:
 
 1. prediction commit requires a prior observation; reveal cannot precede a committed prediction;
 2. identical idempotent retry returns the original receipt;
@@ -79,7 +79,7 @@ The 19 unit tests cover:
 7. independent E09/E10-style tracks may commit against the same observation;
 8. evidence reveal cannot cross learner tracks;
 9. v0.1 prediction records replay under a legacy track without changing their original digest, and the legacy-aware index is rebuilt on upgrade;
-10. concurrent independent SQLite connections serialize writes without losing sequence numbers;
+10. runtime journal mode avoids the known pre-3.51.3 WAL-reset bug;\n11. concurrent independent SQLite connections serialize writes without losing sequence numbers;
 11. duplicate event IDs roll back without consuming sequence numbers;
 12. stale expected sequence is rejected;
 13. one reveal per prediction;
