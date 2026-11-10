@@ -52,9 +52,7 @@
 - [YF-07～YF-10 自主察机、动态类象、关系反转与多路径推演](docs/YF07_YF10_DYNAMIC_COGNITION.md)
 - [YF-01 动态观测策略原型](prototype/yinfu_active_observation.py)
 - [YF-03 三元反馈与关系反转原型](prototype/yinfu_interaction_dynamics.py)
-- [YF-07～YF-10 动态机变认知原型](prototype/yinfu_dynamic_cognition.py)
-- [YF-07～YF-10 统一合成能力基准](prototype/yinfu_dynamic_cognition_benchmark.py)
-- [YF-07～YF-10 基准实验协议](docs/YF07_YF10_BENCHMARK.md)
+- [YF-07～YF-10 动态机变认知原型与统一合成基准](prototype/yinfu_dynamic_cognition.py)
 - [E02-D 未见规则族归纳基准](prototype/e02_rule_ood.py)
 - [E02-D 实验协议](docs/E02D_RULE_FAMILY_OOD.md)
 - [研究风险与证伪条件](docs/RISKS_AND_FALSIFICATION.md)
@@ -72,7 +70,7 @@ python -m prototype.e12a2_active_measurement --json
 python -m prototype.yinfu_active_observation
 python -m prototype.yinfu_interaction_dynamics --horizon 8
 python -m prototype.yinfu_dynamic_cognition
-python -m prototype.yinfu_dynamic_cognition_benchmark --seeds 20 --start-seed 100 --json
+python -c 'import json; from prototype.yinfu_dynamic_cognition import run_synthetic_benchmark; print(json.dumps(run_synthetic_benchmark(seeds=5), indent=2))'
 ```
 
 ## 研究状态标记
