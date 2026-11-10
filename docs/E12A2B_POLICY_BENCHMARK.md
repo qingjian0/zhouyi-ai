@@ -32,7 +32,8 @@ Seeds vary the assignments of hypotheses to outcome classes. The same world and 
 3. max_disagreement: maximize pairwise outcome disagreement (Gini impurity).
 4. expected_ig: maximize expected posterior entropy reduction in bits.
 5. cost_normalized_ig: maximize expected information gain divided by measurement cost.
-6. exact_optimal: finite-horizon dynamic programming minimizing expected terminal posterior entropy under the same action set and budget.
+6. lookahead_2: two-step receding-horizon planning; it chooses the first action minimizing expected terminal entropy after the best affordable second action, without access to the hidden target.
+7. exact_optimal: finite-horizon dynamic programming minimizing expected terminal posterior entropy under the same action set and budget.
 
 For deterministic measurements, expected information gain equals the entropy of the predicted outcome distribution. Gini disagreement is a distinct objective and can rank multi-outcome partitions differently.
 
@@ -43,7 +44,7 @@ For deterministic measurements, expected information gain equals the entropy of 
 - Mean posterior MAP confidence: reciprocal of the surviving version-space size under the uniform prior.
 - Mean cost and number of measurements.
 
-The exact-optimal policy is an oracle only over the declared finite hypothesis/action space. It is a reference bound, not a deployable general-purpose learner.
+The two-step policy is a bounded planning baseline: it can preserve budget for complementary measurements but can miss plans requiring three or more steps. The exact-optimal policy is an oracle only over the declared finite hypothesis/action space. It is a reference bound, not a deployable general-purpose learner.
 
 ## Running
 
@@ -76,11 +77,12 @@ The CI sweep used 5 seeds per family, budget 4, and 8 exhaustive targets per wor
 | Cost-normalized IG | 0.5250 | 0.5189 | 2.8083 |
 | Exact optimal | 0.8583 | 0.1563 | 3.5750 |
 
-This is one small synthetic sweep, not a general performance claim. The pooled summary hides interactions between policy and world family; `family_summary` was added so future runs can report those interactions directly. The Run #360 full workflow completed successfully.
+This is one small synthetic sweep, not a general performance claim. The pooled summary hides interactions between policy and world family; `family_summary` was added so future runs can report those interactions directly. The two-step lookahead policy was added after this snapshot and has not yet been measured in this run. The Run #360 full workflow completed successfully.
 
 ## Next steps
 
 1. Run the full seed sweep and record exact JSON output and commit SHA.
-2. Add noisy observation channels and prior-misspecification stress tests.
-3. Add held-out compositional action families and capacity-matched symbolic partition priors.
-4. Only then compare Yin/Yang, four-image, trigram, hexagram, or five-phase structured priors against random and permuted controls.
+2. Compare one-step greedy, cost-normalized greedy, two-step lookahead, and exact finite-horizon planning on the same worlds; add three-step lookahead only if the runtime/quality trade-off is justified.
+3. Add noisy observation channels and prior-misspecification stress tests.
+4. Add held-out compositional action families and capacity-matched symbolic partition priors.
+5. Only then compare Yin/Yang, four-image, trigram, hexagram, or five-phase structured priors against random and permuted controls.
