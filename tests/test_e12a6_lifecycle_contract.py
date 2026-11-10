@@ -134,6 +134,10 @@ class E12A6LifecycleContractTests(unittest.TestCase):
                             evidence_ids=("counter",),
                             from_state=CandidateState.GATE_VALIDATED,
                             to_state=CandidateState.CHALLENGED))
+        ledger.apply(Action("revise", ActionType.REVISE, old.candidate_id, 1,
+                            evidence_ids=("counter",),
+                            from_state=CandidateState.CHALLENGED,
+                            to_state=CandidateState.REVISED))
         new = ledger.create_revision(
             old.candidate_id, 1,
             canonical_expression="x - y > threshold",
