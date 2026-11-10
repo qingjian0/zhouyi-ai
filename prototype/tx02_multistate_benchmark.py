@@ -112,7 +112,7 @@ def episode_to_dict(episode: Episode) -> dict[str, Any]:
 def make_benchmark(
     cardinalities: tuple[int, ...] = (2, 3, 4, 5),
     episodes_per_cardinality: int = 20,
-    support_size: int = 4,
+    support_size: int = 2,
     query_count: int = 2,
     seed: int = 20261111,
 ) -> dict[str, Any]:
@@ -149,7 +149,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", type=int, default=20261111)
     parser.add_argument("--episodes-per-cardinality", type=int, default=20)
-    parser.add_argument("--support-size", type=int, default=4)
+    parser.add_argument("--support-size", type=int, default=2)
     parser.add_argument("--query-count", type=int, default=2)
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
