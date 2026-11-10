@@ -885,3 +885,60 @@ Prequential evaluation is naturally aligned with stream learning: predict first,
 5. Define the E10 adapter mapping without importing E09 rule semantics.
 6. Run the same protocol conformance suite against both adapters.
 7. Only then benchmark frozen, batch-refit, periodic replay, and incremental strategies at equal measured compute.
+
+
+## 16. Multi-track integration audit and protocol v0.2 correction (2026-11-11)
+
+### 16.1 Cross-track contract audit
+
+The current E09 and E10 implementations expose different internal state models and should remain behind independent adapters.
+
+| Concern | E09-B0.2 | E10-A compositional feature learner | Shared protocol implication |
+|---|---|---|---|
+| Prediction API | `predict_and_commit(observation_id, inputs)` | `predict(row)` returns decision, prediction, candidate hash, model version | Adapter creates a common immutable prediction commit; E10 candidate set hash is preserved as metadata |
+| Reveal API | `reveal(prediction_id, label, source, source_id)` | `revise(row, target)` combines evidence reveal and learner update | E10 adapter must split reveal persistence from revision execution; do not call revise before durable reveal |
+| Revision | `revise(prediction_id)` runs full `EvidenceLedger.fit()` | `revise(row, target)` regenerates bounded candidates from accumulated evidence | E09 is explicitly BATCH_REFIT; E10 is bounded proposal regeneration. Neither is a shared generic incremental learner |
+| Persistence | In-memory prediction maps and in-memory EvidenceLedger | In-memory evidence/candidate state | Both need adapters and replay/reconstruction; neither is durable through the shared SQLite store yet |
+| Provenance | `source` / `source_id` labels; not authenticated identity | observation IDs and row payloads; evaluator co-resident | Evaluator/learner isolation and provenance controls remain separate required gates |
+
+### 16.2 Blocking defect found in v0.1
+
+The v0.1 store imposed one prediction per observation for the entire episode. That is incompatible with the shared-ledger requirement that multiple learners evaluate the same observation independently. It would let the first adapter suppress the second adapter's commit.
+
+PR #99 corrects this by requiring `learner_track` and enforcing one commit per `(episode_id, observation_id, learner_track)`. It also updates the persisted protocol envelope version to `0.2`, drops the old v0.1 uniqueness index during initialization, and adds an E09/E10 coexistence regression test.
+
+- PR #99: https://github.com/qingjian0/zhouyi-ai/pull/99
+- PR #94 reference implementation: https://github.com/qingjian0/zhouyi-ai/pull/94
+- PR #94 CI run #573: success (commit `a678fac029a686d9a08299d900694de75cd9fae6`)
+- PR #99 CI: pending at the time of this audit; do not report as passing until the latest head SHA has a successful check.
+
+### 16.3 Storage semantics and boundaries
+
+SQLite WAL is a suitable local reference substrate, not a distributed event broker. SQLite documents that WAL readers and writers can proceed concurrently but there is only one writer at a time; all processes must be on the same host, and WAL is not supported over a network filesystem. The WAL file is part of persistent database state and must be preserved with the database. See https://www.sqlite.org/wal.html and https://www.sqlite.org/isolation.html.
+
+The implementation's `BEGIN IMMEDIATE`, WAL, and `synchronous=FULL` are appropriate for a local reference store. They do not establish multi-host consensus, authenticated source provenance, evaluator isolation, or a durable external audit anchor. A clean close/reopen replay test is not crash-injection testing.
+
+### 16.4 Adapter acceptance contract
+
+Before either adapter is called integrated, both must pass the same conformance tests:
+
+1. Same observation can receive independent E09 and E10 prediction commits.
+2. Each prediction commit records `learner_track`, model version, decision status, candidate-set hash when available, and measured-cost fields only when actually measured.
+3. Reveal is a separate durable event and must reference a committed prediction from the same track.
+4. Revision is a separate event after reveal; E09's batch-refit operation remains explicitly named `BATCH_REFIT`.
+5. Replay reconstructs the learner-visible state and model/structure lineage without reading evaluator-only fields.
+6. A failed adapter revision cannot rewrite the prediction or erase the already committed reveal.
+7. Repeated calls are idempotent, while conflicting retries are rejected.
+
+E10's current `revise(row, target)` API couples reveal and revision; its adapter must therefore stage and commit the reveal before invoking the learner update, and record revision failure as a distinct outcome. E09's `reveal()` and `revise()` already have separate calls, but both still mutate process-local structures.
+
+### 16.5 Revised next work
+
+P0: finish PR #99 and test its migration behavior.  
+P1: define the adapter-facing typed DTOs and conformance suite without importing either learner's AST into the protocol package.  
+P2: build E09 adapter first, preserving BATCH_REFIT as the explicit baseline.  
+P3: build E10 adapter with separate reveal/revise transactions and candidate-set hash preservation.  
+P4: implement process-isolated evaluator/learner canaries before any locked-test experiment.  
+P5: add crash injection, schema upcasters, measured cost telemetry, and equal-compute comparisons.
+
+No result in this section establishes continual learning, a new neural architecture, or a benefit from Zhouyi-inspired priors.
