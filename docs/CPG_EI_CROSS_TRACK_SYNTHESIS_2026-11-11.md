@@ -818,3 +818,70 @@ Status after this audit:
 - Tests/CI: not run in this audit.
 - Main branch: unchanged.
 - PR #53: unchanged and unmerged.
+
+
+### 15. Fourth-round implementation checkpoint: executable shared evidence protocol
+
+Date: 2026-11-11. This section records the first executable reference slice derived from PR #53 and the E09/E10 compatibility audit.
+
+#### 15.1 Deliverable
+
+A separate draft implementation is proposed in PR #94:
+
+- Branch: `research/shared-evidence-protocol-ci-2026-11-11`
+- PR: https://github.com/qingjian0/zhouyi-ai/pull/94
+- Module: `prototype/shared_evidence_protocol.py`
+- Tests: `tests/test_shared_evidence_protocol.py`
+- Design/limitations: `docs/SHARED_EVIDENCE_PROTOCOL_REFERENCE_2026-11-11.md`
+
+The reference uses Python standard-library SQLite with WAL and FULL synchronous mode. It is deliberately a local, single-process reference implementation, not a distributed event broker.
+
+#### 15.2 Enforced invariants in v0.1
+
+- Observation event must precede prediction commit.
+- Prediction commit must precede evidence reveal.
+- One observation ID, prediction ID, prediction per observation, and reveal per prediction within an episode.
+- Idempotency is bound to event type, payload schema, canonical payload, actor role, causation references, and integrity metadata.
+- Identical retry returns the original receipt; conflicting retry is rejected.
+- Episode sequence allocation and event append occur in one SQLite transaction; stale expected sequence is rejected.
+- Structure version IDs are unique; parent versions and support evidence must already exist.
+- Revision trigger evidence and before/after structure versions must already exist.
+- Reopening the database preserves replay sequence, event IDs, and event fingerprints.
+
+The implementation does not yet provide evaluator/learner process isolation, source authentication, schema upcasters, hash-chain anchoring, crash-injection coverage, measured cost telemetry, or E09/E10 adapters. Those are explicit acceptance gates, not implied capabilities.
+
+#### 15.3 Validation status
+
+- Local Python unit tests: 13/13 passed.
+- GitHub Actions run #573 on PR #94: the `Run unit tests` step completed successfully under the repository's Python 3.11 workflow.
+- The remaining E01/E02 experiment steps were still running at this checkpoint; full workflow conclusion is therefore not yet recorded here.
+- PR #94 remains Draft and unmerged.
+- Main branch is unchanged.
+
+#### 15.4 Architecture interpretation
+
+This reference should be treated as a protocol conformance oracle for adapters, not as a new cognitive learner. It validates temporal admissibility and lineage references; it does not decide which candidate structure is true, useful, causal, or generalizable.
+
+The distinction is important for E13:
+- **Protocol plane:** what evidence was visible, in what order, and which transitions are legal.
+- **Hypothesis plane:** E09 rules, E10 relations/operators, E11 concepts, and later Yixiang-inspired proposal structures.
+- **Evaluation plane:** hidden truth, source/world split provenance, scoring, and locked-test access.
+- **Learning plane:** candidate generation, selection, revision, replay, and resource allocation.
+
+Only the protocol plane is partially executable in this slice. The other planes remain separate workstreams.
+
+#### 15.5 Research basis and design caution
+
+Event sourcing can provide an auditable append-only history and reconstructable state, but it adds real costs in schema evolution, concurrency, ordering, idempotency, and snapshot management. It should be used only where historical reconstruction and causal evidence lineage justify those costs. See Microsoft's Event Sourcing pattern guidance: https://learn.microsoft.com/en-us/azure/architecture/patterns/event-sourcing
+
+Prequential evaluation is naturally aligned with stream learning: predict first, then reveal/train. However, autonomous continual learning must also address non-IID streams, concept drift, stability/plasticity, and forgetting; a ledger alone does not solve those learning problems. See the IJCAI survey on Online Streaming Continual Learning: https://ijcai.org/proceedings/2023/743
+
+#### 15.6 Next engineering gate
+
+1. Add deterministic schema upcasters and compatibility fixtures.
+2. Add concurrent-writer and process-restart/crash-injection tests.
+3. Add evaluator/learner process boundary with payload mutation canaries.
+4. Define the exact E09 adapter mapping without changing its learner AST.
+5. Define the E10 adapter mapping without importing E09 rule semantics.
+6. Run the same protocol conformance suite against both adapters.
+7. Only then benchmark frozen, batch-refit, periodic replay, and incremental strategies at equal measured compute.
