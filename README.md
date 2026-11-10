@@ -53,6 +53,7 @@
 - [研究风险与证伪条件](docs/RISKS_AND_FALSIFICATION.md)
 - [开发路线图](ROADMAP.md)
 - [E12-A1 候选基元提议器原型](docs/E12A1_CANDIDATE_INDUCTION_PROTOTYPE_2026-11-11.md)
+- [E12 相关研究与差距分析](docs/E12_RELATED_WORK_GAP_ANALYSIS_2026-11-11.md)
 - [E12-A1 候选提议器代码](prototype/e12a1_candidate_induction.py)
 - [原型代码](prototype/)
 
