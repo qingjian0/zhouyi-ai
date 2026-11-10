@@ -48,10 +48,12 @@
 - [E12-A2-B 主动测量策略对照基准](docs/E12A2B_POLICY_BENCHMARK.md)
 - [E12-A2-D 噪声观测与先验错配压力测试](docs/E12A2D_NOISY_PRIOR_STRESS.md)
 - [YF-01 阴符经启发的动态观测实验](docs/YINFU_DYNAMIC_OBSERVATION.md)
+- [YF-02～YF-06 竞争解释、三元交互与反转研究协议](docs/YF02_YF06_RESEARCH_PROTOCOL.md)
 - [E12-A1 类型化谓词原型](prototype/e12a1_typed_predicate_induction.py)
 - [E12-A1.1 证据溯源原型](prototype/e12a1p_evidence_provenance.py)
 - [E12-A2 主动观测选择器](prototype/e12a2_active_measurement.py)
 - [YF-01 动态观测策略原型](prototype/yinfu_active_observation.py)
+- [YF-03 三元反馈与关系反转原型](prototype/yinfu_interaction_dynamics.py)
 - [E12-A2-B 策略对照实验](prototype/e12a2b_policy_benchmark.py)
 - [E12-A2-D 噪声先验压力实验](prototype/e12a2d_noisy_prior_stress.py)
 - [E02-A 结果审计与下一阶段协议](docs/E02A_NEXT_RESEARCH_2026-11-10.md)
@@ -80,6 +82,7 @@ python -m prototype.e12a2_active_measurement --json
 python -m prototype.e12a2b_policy_benchmark --seeds 20 --budget 4 --json
 python -m prototype.e12a2d_noisy_prior_stress --episodes 100 --budget 3 --json
 python -m prototype.yinfu_active_observation
+python -m prototype.yinfu_interaction_dynamics --horizon 8
 ```
 
 ## 研究状态标记
