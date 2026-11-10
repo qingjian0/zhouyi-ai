@@ -38,3 +38,10 @@ E02-B 的学习器只在同一固定模 3 规则及相同有限查询空间内�
 `python -m prototype.e02_rule_ood --seed 17 --support-size 6 --json`
 
 `python -m unittest tests.test_e02_rule_ood -v`
+
+
+## 支持样本量扫描
+
+`--sweep` 对支持样本数 1 到 8、多个随机种子进行扫描，报告识别覆盖率、全 episode 准确率、可识别子集准确率和平均一致假设数量。不同支持样本量使用同一 seed 的随机排列前缀，因此支持集嵌套，可检查增加证据是否缩小假设空间。
+
+运行：`python -m prototype.e02_rule_ood --sweep --seeds 20 --start-seed 7 --json`。
