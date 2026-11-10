@@ -170,3 +170,27 @@ This is not automatically an invalid semantic shortcut: identity status and cand
 5. The next valid step is scenario-family diversity with semantic feasibility constraints, not more random seeds on the same templates.
 
 These results are finite-template diagnostics only. They do not demonstrate open-world generalization, autonomous relation discovery, or causal inference.
+
+
+## 11. M2 context subfamily ablation
+
+**Run:** GitHub Actions `42850426001`  
+**Code head:** `c52bc62a77fb4818cbdc6a613bff230878d93563`  
+**Fresh Gate:** seeds 30000–30239  
+**Bootstrap:** 1000 seed-block resamples  
+**Workflow:** success; unit-test and hidden-identity jobs passed.
+
+| Context subset | Attacker | Accuracy | Macro-F1 | Lift | 95% CI for lift |
+|---|---|---:|---:|---:|---:|
+| Identity state only | NB / depth-3 tree | 0.3750 | 0.2232 | 0.1954 | [0.1903, 0.2018] |
+| Candidate shape only | NB | 0.3750 | 0.2500 | 0.2222 | [0.2222, 0.2222] |
+| Candidate shape only | Depth-3 tree | 0.2500 | 0.1042 | 0.0764 | [0.0764, 0.0764] |
+| Both context subfamilies | NB / depth-3 tree | 0.6667 | 0.5729 | 0.5451 | [0.5128, 0.5722] |
+| M2 without identity state | NB | 0.6875 | 0.6184 | 0.5906 | [0.5615, 0.6160] |
+| M2 without candidate shape | NB | 0.5625 | 0.4612 | 0.4334 | [0.4044, 0.4572] |
+
+The identity-state-only and candidate-shape-only scores are both materially above majority, but neither reaches the combined context-only result. Their combination provides substantially more predictive information than either alone in this finite template family. Removing candidate shape from full M2 causes a larger drop than removing identity state, although both are informative.
+
+This is evidence of context-feature interaction and template association, not proof that either context field is illegitimate. The adjudicator is allowed to use identity status and candidate signature in conjunction with evidence semantics; the metadata-only attacker is not allowed to read evidence polarity or literal candidate binding.
+
+The result reinforces the need for C-F matched scenario families: vary candidate syntax independently of the underlying relation semantics, vary identity snapshots where semantically valid, and retain explicit evidence-semantic controls. Do not simply delete these fields from the adjudicator.
