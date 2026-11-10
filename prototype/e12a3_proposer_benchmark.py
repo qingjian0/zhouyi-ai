@@ -16,6 +16,7 @@ from prototype.e12a3_multi_proposer import (
     Observation,
     Proposal,
     allocate_round_robin,
+    deduplicate_proposal_pools,
     propose_exhaustive,
     propose_random,
     propose_relational,
@@ -90,8 +91,11 @@ def run_episode(seed: int, task: str, budget: int = 31) -> dict[str, Any]:
         methods[family] = tuple(proposals[:budget])
     # BOUNDED_ENUM is a control baseline, not a portfolio member: it enumerates
     # the STAT/RELATIONAL grammar and would double-count their search budget.
-    portfolio_families = {name: pools[name] for name in ("STAT", "RELATIONAL", "RANDOM")}
+    raw_portfolio = {name: pools[name] for name in ("STAT", "RELATIONAL", "RANDOM")}
+    portfolio_families, provenance = deduplicate_proposal_pools(raw_portfolio)
     methods["PORTFOLIO"] = allocate_round_robin(portfolio_families, budget)
+    portfolio_unique_count = sum(len(items) for items in portfolio_families.values())
+    portfolio_raw_count = sum(len(items) for items in raw_portfolio.values())
     underfilled = {name: len(candidates) for name, candidates in methods.items()
                    if len(candidates) != budget}
     if underfilled:
@@ -105,11 +109,16 @@ def run_episode(seed: int, task: str, budget: int = 31) -> dict[str, Any]:
             "candidate_budget_used": len(candidates),
             "support_consistent_count": screened_count,
             "selected_family": selected.family if selected else None,
+            "selected_families": list(selected.supporting_families or (selected.family,)) if selected else [],
             "gate_accuracy": gate_accuracy,
             "locked_test_accuracy": test_accuracy,
             "abstained": selected is None,
         }
-    return {"seed": seed, "task": task, "budget": budget, "methods": results}
+    return {
+        "seed": seed, "task": task, "budget": budget, "methods": results,
+        "portfolio_unique_candidate_count": portfolio_unique_count,
+        "portfolio_duplicate_expression_count": portfolio_raw_count - portfolio_unique_count,
+    }
 
 
 def run_benchmark(seeds: int = 20, start_seed: int = 1,
