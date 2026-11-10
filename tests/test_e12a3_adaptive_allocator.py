@@ -102,14 +102,16 @@ class E12A3AdaptiveAllocatorTests(unittest.TestCase):
 
     def test_reward_trace_is_append_ordered_and_auditable(self):
         result = replay_ucb1(
-            {"A": (0.2, 0.4, 0.6), "B": (0.8, 0.7, 0.9)},
+            {"A": (0.2, 0.4, 0.6, 0.5, 0.3, 0.7),
+             "B": (0.8, 0.7, 0.9, 0.6, 0.85, 0.75)},
             total_budget=6,
         )
         trace = result["trace"]
         self.assertEqual([item["step"] for item in trace], list(range(1, 7)))
         self.assertEqual(len({item["evidence_id"] for item in trace}), 6)
         expected_reward = sum(
-            {"A": (0.2, 0.4, 0.6), "B": (0.8, 0.7, 0.9)}[family][index]
+            {"A": (0.2, 0.4, 0.6, 0.5, 0.3, 0.7),
+             "B": (0.8, 0.7, 0.9, 0.6, 0.85, 0.75)}[family][index]
             for family, count in result["allocations"].items()
             for index in range(count)
         )
