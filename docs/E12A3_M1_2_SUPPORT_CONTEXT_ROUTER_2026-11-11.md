@@ -1,7 +1,7 @@
 # E12-A3-M1.2 Support-Context Task Router
 
 Date: 2026-11-11  
-Status: research protocol; implementation pending  
+Status: initial router implemented and 20-seed × 3-task benchmark completed; aggregate result did not beat equal allocation; grammar-stratified probe correction is next  
 Motivation: M1 and M1.1 show that context-free UCB1 reward variants do not beat equal allocation, while the best proposer changes across task families.
 
 ## 1. Research question
@@ -89,7 +89,15 @@ The context router is promising only if:
 - A single static context router is not a contextual bandit with learned uncertainty.
 - No Yijing-inspired prior is used in this experiment.
 
-## 9. Next stage
+## 9. Initial result and diagnosis
+
+The initial random four-candidate context probe completed 60 episodes. The Support-context router reached 77.19% mean Locked-Test accuracy versus 77.60% for EQUAL. Its task-specific performance was uneven: it improved on Threshold and PARITY but lost on Pairwise Difference.
+
+The Support-context descriptor failed to identify STAT as the PARITY specialist. The likely cause is that a random four-proposal probe missed the rare PARITY operator and its top-three mean diluted the signal.
+
+Full results: `E12A3_M1_2_CONTEXT_ROUTER_RESULTS_2026-11-11.md`.
+
+## 10. Next stage
 
 If the Support-context router is promising, compare:
 - top-three mean routing;
