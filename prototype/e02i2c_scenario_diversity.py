@@ -141,7 +141,8 @@ def _family_c(event: EventType, view: ObservationView,
             opportunities.append(replace(item, environment=environment))
             continue
         expected = max(item.expected_samples, 12 + rng.randrange(0, 12))
-        observed = max(1, int(expected * rng.uniform(0.82, 1.0)))
+        minimum_sufficient = (expected * 8 + 9) // 10
+        observed = max(minimum_sufficient, int(expected * rng.uniform(0.82, 1.0)))
         opportunities.append(replace(
             item, environment=environment, expected_samples=expected,
             observed_samples=observed, coverage=observed / expected,
