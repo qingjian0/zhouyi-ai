@@ -39,7 +39,7 @@ def _independent_view(event: EventType, seed: int, family: str, split: str) -> O
         changed = sig("x")
     identity_id, version_id = secrets.token_hex(8), secrets.token_hex(8)
     if family == "A":
-        first, lo, hi = rng.randint(0, 80), 8, 18
+        first, lo, hi = rng.randint(10, 80), 8, 18
         envs = ("temporal-stable", "temporal-seasonal", "temporal-bursty")
     elif family == "B":
         first, lo, hi = rng.randint(10, 300), 18, 40
@@ -95,13 +95,12 @@ def _independent_view(event: EventType, seed: int, family: str, split: str) -> O
     # control-flow cannot shift environment assignments.
     env_rng = random.Random(f"environment:{family}:{seed}")
     environment = env_rng.choice(envs)
+    undersampled_subtype = event == EventType.ABSTAIN and seed % 4 == 2
     for w in windows:
         expected = rng.randint(lo, hi)
-        insufficient = event == EventType.ABSTAIN and seed % 4 == 2
-        if insufficient:
+        if undersampled_subtype:
             observed = rng.randint(0, 1)
-            coverage = observed / expected
-            reason = MissingReason.NO_EXPOSURE
+            coverage, reason = observed / expected, MissingReason.NO_EXPOSURE
         else:
             coverage = rng.uniform(0.84, 1.0)
             observed = min(expected, max((expected * 8 + 9) // 10, int(expected * coverage)))
@@ -109,17 +108,34 @@ def _independent_view(event: EventType, seed: int, family: str, split: str) -> O
         opportunities.append(ObservationOpportunity(
             window=w, environment=environment, expected_samples=expected,
             observed_samples=observed, coverage=coverage, missing_reason=reason))
+    # Equalize observable opportunity count and relative schedule across event
+    # classes. Added windows carry no evidence; one is sufficiently sampled
+    # and the remainder are explicit no-exposure opportunities. For SUSPEND,
+    # these precede the consecutive absence tail and cannot interrupt it.
+    extra_windows = [first - offset for offset in range(1, 5 - len(windows))]
+    for index, window in enumerate(extra_windows):
+        expected = rng.randint(lo, hi)
+        if index == 0:
+            observed = max((expected * 8 + 9) // 10, int(expected * 0.9))
+            opportunities.append(ObservationOpportunity(
+                window=window, environment=environment, expected_samples=expected,
+                observed_samples=observed, coverage=observed / expected,
+                missing_reason=None))
+        else:
+            observed = 0
+            opportunities.append(ObservationOpportunity(
+                window=window, environment=environment, expected_samples=expected,
+                observed_samples=observed, coverage=0.0,
+                missing_reason=MissingReason.NO_EXPOSURE))
     env_by_window = {o.window: environment for o in opportunities}
-    for w, polarity, signature, source in specs:
-        # Add independent same-polarity observations at a variable rate. These
-        # increase evidence volume without manufacturing new windows or
-        # changing the event's semantic confirmation rule.
-        extra_count = (
-            rng.randint(0, 3) if family == "C"
-            else rng.randint(0, 2) if family == "B"
-            else rng.randint(0, 1)
-        )
-        for _ in range(1 + extra_count):
+    # Evidence volume is sampled from the same distribution for every event.
+    # Repeated same-polarity samples stay inside already-valid semantic windows.
+    target_count = rng.randint(3, 8)
+    allocation = [1] * len(specs)
+    for _ in range(target_count - len(specs)):
+        allocation[rng.randrange(len(allocation))] += 1
+    for (w, polarity, signature, source), count in zip(specs, allocation):
+        for _ in range(count):
             token = secrets.token_hex(16)
             packets.append(EvidencePacket(
                 evidence_id="evidence-" + token, sample_id="sample-" + token,
