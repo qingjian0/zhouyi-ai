@@ -48,6 +48,15 @@ class E02IRelationEvolutionTests(unittest.TestCase):
         self.assertNotIn("RECONFIGURE", actions)
         self.assertEqual(actions[-1], "KEEP")
 
+
+    def test_gate_controls_decisions_but_independent_test_split_is_audit_only(self):
+        result = run_episode(seed=83, scenario="stable", train_n=256,
+                             gate_n=128, test_n=128)
+        self.assertTrue(all(w["split_ids_disjoint"] for w in result["windows"]))
+        self.assertTrue(all("test_accuracy" in w for w in result["windows"]))
+        self.assertTrue(all("pairwise_test_accuracy" in w for w in result["windows"]))
+        self.assertTrue(all(w["action"] == "KEEP" for w in result["windows"][1:]))
+
     def test_disappearing_relation_is_retired_after_two_failed_windows(self):
         result = run_episode(seed=53, scenario="disappear")
         actions = [w["action"] for w in result["windows"]]
