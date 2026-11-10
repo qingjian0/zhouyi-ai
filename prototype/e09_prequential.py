@@ -171,10 +171,10 @@ class PrequentialRunner:
                 scored.append(commit.prediction == reveal.label)
         return {
             "prediction_commits": len(self._predictions),
-            "revealed_observations": len(self.reveals),
+            "revealed_observations": len(self._reveals),
             "coverage": (
                 sum(p.prediction is not None for p in self._predictions.values())
-                / len(self.predictions) if self.predictions else None
+                / len(self._predictions) if self._predictions else None
             ),
             "accuracy_when_predicted": (
                 sum(scored) / len(scored) if scored else None
