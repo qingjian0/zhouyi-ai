@@ -82,7 +82,7 @@ def _budgeted_family_pools(support: Sequence[Observation], seed: int) -> dict[st
     return shuffled
 
 
-def run_episode(seed: int, task: str, budget: int = 32) -> dict[str, Any]:
+def run_episode(seed: int, task: str, budget: int = 31) -> dict[str, Any]:
     support, gate, test = _make_world(seed, task)
     pools = _budgeted_family_pools(support, seed)
     methods: dict[str, tuple[Proposal, ...]] = {}
@@ -92,6 +92,10 @@ def run_episode(seed: int, task: str, budget: int = 32) -> dict[str, Any]:
     # the STAT/RELATIONAL grammar and would double-count their search budget.
     portfolio_families = {name: pools[name] for name in ("STAT", "RELATIONAL", "RANDOM")}
     methods["PORTFOLIO"] = allocate_round_robin(portfolio_families, budget)
+    underfilled = {name: len(candidates) for name, candidates in methods.items()
+                   if len(candidates) != budget}
+    if underfilled:
+        raise ValueError(f"candidate pools did not consume the exact budget: {underfilled}")
 
     results = {}
     for method, candidates in methods.items():
@@ -109,7 +113,7 @@ def run_episode(seed: int, task: str, budget: int = 32) -> dict[str, Any]:
 
 
 def run_benchmark(seeds: int = 20, start_seed: int = 1,
-                  budget: int = 32) -> dict[str, Any]:
+                  budget: int = 31) -> dict[str, Any]:
     if seeds < 1 or budget < 1:
         raise ValueError("seeds and budget must be positive")
     episodes = [
@@ -155,7 +159,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--seeds", type=int, default=20)
     parser.add_argument("--start-seed", type=int, default=1)
-    parser.add_argument("--budget", type=int, default=32)
+    parser.add_argument("--budget", type=int, default=31)
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
     result = run_benchmark(args.seeds, args.start_seed, args.budget)
