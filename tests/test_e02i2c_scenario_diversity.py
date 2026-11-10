@@ -2,7 +2,7 @@ import unittest
 
 from prototype.e02i2c_hidden_event_benchmark import EventType, SUPPORTED_EVENTS
 from prototype.e02i2c_scenario_diversity import (
-    FAMILIES, generate_episode, run_scenario_diversity, _decision,
+    FAMILIES, generate_episode, run_scenario_diversity, _decision, _build_family_episodes,
 )
 
 
