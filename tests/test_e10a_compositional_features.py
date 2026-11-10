@@ -1,3 +1,4 @@
+import random
 import unittest
 
 from prototype.e10a_structural_ood import build_structural_ood_task
@@ -7,11 +8,14 @@ from prototype.e10a_compositional_features import CompositionalFeatureLearner
 def _episode(seed=9101):
     support, _, _ = build_structural_ood_task(seed)
     objects = []
-    roles = [
+    role_combinations = [
         ("red", "rough"),
         ("red", "smooth"),
         ("blue", "rough"),
+        ("blue", "smooth"),
     ]
+    random.Random(seed).shuffle(role_combinations)
+    roles = role_combinations[:3]
     for role, (color, texture) in enumerate(roles):
         for n in range(3):
             objects.append({
@@ -26,7 +30,7 @@ def _episode(seed=9101):
     objects.append({
         "object_id": f"cf-{seed}-duplicate-a",
         "attributes": [
-            ["color", "red"], ["texture", "rough"], ["irrelevant", "noise-0"],
+            ["color", roles[0][0]], ["texture", roles[0][1]], ["irrelevant", "noise-0"],
         ],
     })
 
@@ -100,6 +104,33 @@ class CompositionalFeatureTests(unittest.TestCase):
         self.assertTrue(result["budget_exceeded"])
         self.assertEqual(result["operation"], "abstain")
         self.assertEqual(learner.predict(rows[0])["decision_status"], "ABSTAIN_BUDGET")
+
+
+    def test_eight_seed_prequential_generalization_under_role_code_permutations(self):
+        predicted = 0
+        correct = 0
+        abstained = 0
+        for seed in range(9101, 9109):
+            support, objects, rows, labels = _episode(seed)
+            learner = CompositionalFeatureLearner(support, max_feature_terms=2)
+            learner.add_query_objects(objects)
+            for index in (0, 1, 2):
+                decision = learner.predict(rows[index])
+                if decision["decision_status"] == "PREDICT":
+                    predicted += 1
+                    correct += int(decision["prediction"] is labels[index])
+                else:
+                    abstained += 1
+                learner.revise(rows[index], labels[index])
+            for index in (3, 4, 5):
+                decision = learner.predict(rows[index])
+                self.assertEqual(decision["decision_status"], "PREDICT")
+                predicted += 1
+                correct += int(decision["prediction"] is labels[index])
+                learner.revise(rows[index], labels[index])
+        self.assertEqual(predicted, 48)
+        self.assertEqual(correct, 48)
+        self.assertEqual(abstained, 24)
 
     def test_duplicate_reveal_is_rejected(self):
         support, objects, rows, labels = _episode()
