@@ -47,6 +47,7 @@ class Snapshot:
     truth_table: int
     gate_accuracy: float
     pairwise_accuracy: float
+    current_gate_accuracy: float | None = None
 
     @property
     def accepted(self) -> bool:
@@ -66,6 +67,7 @@ class RelationEvolution:
         self.confirm_windows = confirm_windows
         self.retire_windows = retire_windows
         self.current: Snapshot | None = None
+        self.current_status = "ABSENT"
         self.pending_signature: tuple[tuple[int, ...], int] | None = None
         self.pending_count = 0
         self.invalid_count = 0
@@ -73,39 +75,53 @@ class RelationEvolution:
         self.events: list[dict] = []
 
     def observe(self, snapshot: Snapshot | None, *, window: int) -> str:
-        if snapshot is None or not snapshot.accepted:
-            self.pending_signature = None
-            self.pending_count = 0
-            self.invalid_count += 1
-            if self.current is None:
-                action = "NO_RELATION"
-            elif self.invalid_count >= self.retire_windows:
-                old = self.current.signature
-                self.current = None
-                self.version += 1
-                action = "RETIRE"
-                self.events.append({"window": window, "action": action,
-                                    "from": old, "version": self.version})
-                self.invalid_count = 0
-                return action
-            else:
-                action = "DEGRADE"
-            self.events.append({"window": window, "action": action,
-                                "invalid_streak": self.invalid_count})
-            return action
+        candidate_accepted = snapshot is not None and snapshot.accepted
+        current_gate_accuracy = None
+        if snapshot is not None:
+            current_gate_accuracy = (
+                snapshot.current_gate_accuracy
+                if snapshot.current_gate_accuracy is not None
+                else snapshot.gate_accuracy
+            )
+        current_is_valid = (
+            current_gate_accuracy is not None and current_gate_accuracy >= 0.75
+        )
 
-        self.invalid_count = 0
         if self.current is None:
+            if not candidate_accepted:
+                self.pending_signature = None
+                self.pending_count = 0
+                self.current_status = "ABSENT"
+                action = "NO_RELATION"
+                self.events.append({"window": window, "action": action,
+                                    "current_status": self.current_status})
+                return action
             self.current = snapshot
+            self.current_status = "ACTIVE"
+            self.invalid_count = 0
             self.version += 1
             self.pending_signature = None
             self.pending_count = 0
             action = "CREATE"
-        elif snapshot.signature == self.current.signature:
+            self.events.append({"window": window, "action": action,
+                                "version": self.version,
+                                "current_status": self.current_status})
+            return action
+
+        if current_is_valid:
+            self.invalid_count = 0
+            self.current_status = "ACTIVE"
+        else:
+            self.invalid_count += 1
+            self.current_status = "DEGRADED"
+
+        if candidate_accepted and snapshot.signature == self.current.signature:
             self.pending_signature = None
             self.pending_count = 0
+            self.invalid_count = 0
+            self.current_status = "ACTIVE"
             action = "KEEP"
-        else:
+        elif candidate_accepted:
             if snapshot.signature == self.pending_signature:
                 self.pending_count += 1
             else:
@@ -117,14 +133,39 @@ class RelationEvolution:
                 self.version += 1
                 self.pending_signature = None
                 self.pending_count = 0
+                self.invalid_count = 0
+                self.current_status = "ACTIVE"
                 action = "RECONFIGURE"
                 self.events.append({"window": window, "action": action,
                                     "from": old, "to": snapshot.signature,
-                                    "version": self.version})
+                                    "version": self.version,
+                                    "current_status": self.current_status})
                 return action
             action = "HOLD_PENDING"
+        else:
+            self.pending_signature = None
+            self.pending_count = 0
+            if current_is_valid:
+                action = "KEEP"
+            elif self.invalid_count >= self.retire_windows:
+                old = self.current.signature
+                self.current = None
+                self.current_status = "ABSENT"
+                self.version += 1
+                self.invalid_count = 0
+                action = "RETIRE"
+                self.events.append({"window": window, "action": action,
+                                    "from": old, "version": self.version,
+                                    "current_status": self.current_status})
+                return action
+            else:
+                action = "DEGRADE"
+
         self.events.append({"window": window, "action": action,
-                            "version": self.version})
+                            "version": self.version,
+                            "current_status": self.current_status,
+                            "current_gate_accuracy": current_gate_accuracy,
+                            "invalid_streak": self.invalid_count})
         return action
 
 
@@ -213,6 +254,15 @@ def run_episode(*, seed: int, scenario: str, windows: int = 5,
             snapshot = Snapshot(winner.members, winner.truth_table,
                                 accuracy(gate, winner),
                                 pairwise_baseline(train, gate))
+        if controller.current is not None:
+            current_candidate = Candidate(
+                controller.current.members, controller.current.truth_table, 0.0
+            )
+            snapshot = Snapshot(
+                snapshot.members, snapshot.truth_table,
+                snapshot.gate_accuracy, snapshot.pairwise_accuracy,
+                accuracy(gate, current_candidate),
+            )
         action = controller.observe(snapshot, window=window)
         persistent_candidate = (
             Candidate(controller.current.members, controller.current.truth_table, 0.0)
@@ -239,6 +289,7 @@ def run_episode(*, seed: int, scenario: str, windows: int = 5,
             ),
             "split_ids_disjoint": (len({r.sample_id for r in train} | {r.sample_id for r in gate} | {r.sample_id for r in test}) == len(train) + len(gate) + len(test)),
             "accepted": snapshot.accepted,
+            "current_status": controller.current_status,
             "target_for_audit_only": list(target[0]) if target else None,
             "target_table_for_audit_only": target[1] if target else None,
         })
