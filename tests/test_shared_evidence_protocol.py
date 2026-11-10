@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 
 from prototype.shared_evidence_protocol import (
-    IdempotencyConflict, MissingReference, SequenceConflict, SQLiteEvidenceStore,
+    IdempotencyConflict, MissingReference, SequenceConflict, SQLiteEvidenceStore, digest_payload,
 )
 
 
@@ -153,8 +153,12 @@ class SharedEvidenceProtocolTests(unittest.TestCase):
         old_payload = json.loads(row["payload_json"])
         old_payload.pop("learner_track")
         self.store._db.execute(
-            "UPDATE events SET protocol_version='0.1', payload_json=? WHERE episode_id='ep1' AND sequence_no=?",
-            (json.dumps(old_payload, sort_keys=True, separators=(",", ":")), row["sequence_no"]),
+            "UPDATE events SET protocol_version='0.1', payload_json=?, payload_digest=? WHERE episode_id='ep1' AND sequence_no=?",
+            (json.dumps(old_payload, sort_keys=True, separators=(",", ":")), digest_payload({
+                "event_type": "prediction_commit", "payload_schema": "prediction_commit@1",
+                "payload": old_payload, "actor_role": "runner", "causation_refs": [],
+                "integrity_metadata": {},
+            }), row["sequence_no"]),
         )
         self.store.close()
         self.store = SQLiteEvidenceStore(self.db)
@@ -162,6 +166,11 @@ class SharedEvidenceProtocolTests(unittest.TestCase):
         replayed = self.store.replay_episode("ep1")
         prediction = next(item for item in replayed if item["event_type"] == "prediction_commit")
         self.assertEqual(prediction["payload"]["learner_track"], "legacy")
+        self.assertEqual(prediction["payload_digest"], digest_payload({
+            "event_type": "prediction_commit", "payload_schema": "prediction_commit@1",
+            "payload": {k: v for k, v in prediction["payload"].items() if k != "learner_track"},
+            "actor_role": "runner", "causation_refs": [], "integrity_metadata": {},
+        }))
 
         receipt = self.store.reveal_evidence(
             episode_id="ep1", event_id="legacy-reveal", idempotency_key="legacy-reveal",
