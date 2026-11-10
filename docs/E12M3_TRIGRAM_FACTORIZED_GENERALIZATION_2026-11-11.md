@@ -67,7 +67,8 @@ Report by task family:
 - selective accuracy on covered Test cases;
 - strict accuracy, counting abstentions as incorrect;
 - lookup coverage and strict accuracy;
-- exact candidate evaluations (1,344 per complete search).
+- exact candidate evaluations (1,344 per complete search);
+- pooled per-example coverage and accuracy, with 95% Wilson score intervals for coverage, selective accuracy, and strict accuracy.
 
 Coverage and selective accuracy must be reported together. A model cannot appear accurate merely by abstaining on difficult cases.
 
@@ -78,6 +79,8 @@ The structural-bias hypothesis is weakened if the factorized grammar does not ge
 The positive control is intentionally generated from the tested grammar. Success establishes implementation correctness and a narrow inductive-bias capability, not superiority on natural data. The negative controls are finite synthetic families, not an exhaustive test of out-of-distribution robustness.
 
 ## 7. Run
+
+The benchmark defaults to 100 paired seeds per task family (300 episodes, 600 locked-Test examples). Confidence intervals are Wilson score intervals over pooled Test examples; they are descriptive intervals for this finite synthetic generator, not evidence of external validity.
 
 ```bash
 python -m unittest tests.test_e12m3_trigram_factorized_generalization -v
