@@ -43,3 +43,8 @@ Compare under identical episode streams and compute budgets:
 4. frozen representation / no feature expansion.
 
 Vary latent role signatures, nuisance attributes, missing attributes, context changes, observation noise, and held-out object instances across seeds. Report prequential accuracy, coverage, abstention, candidate complexity, proposal count, budget exhaustion, and wall-clock cost. Zhouyi-derived structural biases must be a separate ablation arm, not embedded in the base learner.
+
+
+## Multi-seed capability regression
+
+The focused suite now evaluates eight Support seeds and independently permutes the three role-code assignments over the four possible color/texture pairs. The intended prequential trace is 48/48 correct covered predictions after the learner has accumulated enough contrastive evidence, with 24 abstentions before identification. This is a deterministic controlled capability regression, not a broad statistical claim: the relation rule and feature grammar remain fixed, and the Query pattern family is intentionally narrow.
