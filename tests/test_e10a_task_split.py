@@ -36,6 +36,33 @@ class E10ATaskSplitTests(unittest.TestCase):
         query = {key(row) for row in task["query"]["observations"]}
         self.assertFalse(support & query)
 
+    def test_source_instance_variants_never_cross_partitions(self):
+        _, learner, evaluator = self._views(709)
+        task = build_support_query_task(learner, evaluator, seed=91)
+        partition_by_id = {
+            row["observation_id"]: "support"
+            for row in task["support"]["observations"]
+        }
+        partition_by_id.update({
+            row["observation_id"]: "query"
+            for row in task["query"]["observations"]
+        })
+        source_partitions = {}
+        for truth in evaluator["instances"]:
+            source_partitions.setdefault(truth["source_group_id"], set()).add(
+                partition_by_id[truth["observation_id"]]
+            )
+        self.assertTrue(source_partitions)
+        self.assertTrue(all(len(partitions) == 1
+                            for partitions in source_partitions.values()))
+
+    def test_source_group_is_not_exposed_to_learner_views(self):
+        _, learner, evaluator = self._views(710)
+        task = build_support_query_task(learner, evaluator, seed=92)
+        self.assertNotIn("source_group_id", repr(task["support"]))
+        self.assertNotIn("source_group_id", repr(task["query"]))
+        self.assertNotIn("source_group_id", repr(task["evaluator_truth"]))
+
     def test_split_is_deterministic_and_manifest_is_auditable(self):
         _, learner, evaluator = self._views(702)
         left = build_support_query_task(learner, evaluator, seed=77)
