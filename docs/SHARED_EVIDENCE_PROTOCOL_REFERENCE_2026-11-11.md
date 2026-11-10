@@ -13,8 +13,8 @@ Use Python's standard-library SQLite as the first durable local store:
 - `BEGIN IMMEDIATE` serializes local writers and makes sequence allocation plus event append transactional.
 - `journal_mode=WAL` and `synchronous=FULL` establish a local durability baseline.
 - An idempotency table binds an episode-scoped key to the event fingerprint and original receipt.
-- The fingerprint covers event type, payload schema, and canonical payload. Same key/same content returns the original receipt; same key/different content raises `IdempotencyConflict`.
-- A unique partial index enforces one prediction commit per observation and one reveal per prediction within an episode.
+- The fingerprint covers event type, payload schema, canonical payload, actor role, causation references, and integrity metadata. Same key/same envelope returns the original receipt; same key/different envelope raises `IdempotencyConflict`.
+- Unique partial indexes enforce one prediction commit per observation, one reveal per prediction, and one structure-version ID within an episode.
 - Structure versions require existing parent versions and already revealed support evidence.
 - Revision events require already revealed trigger evidence and known before/after structure versions.
 - Replay returns the append order; reopening the database reconstructs the same event sequence and digests.
