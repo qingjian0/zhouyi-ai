@@ -26,6 +26,28 @@ class E02IRelationEvolutionTests(unittest.TestCase):
         self.assertEqual(state.observe(bad, window=2), "RETIRE")
         self.assertIsNone(state.current)
 
+
+    def test_rejected_candidate_does_not_degrade_a_healthy_persistent_relation(self):
+        state = RelationEvolution()
+        good = Snapshot((0, 1, 2), 173, 0.98, 0.70, 0.98)
+        rejected = Snapshot((0, 1, 3), 173, 0.52, 0.50, 0.97)
+        self.assertEqual(state.observe(good, window=0), "CREATE")
+        self.assertEqual(state.observe(rejected, window=1), "KEEP")
+        self.assertEqual(state.current_status, "ACTIVE")
+        self.assertEqual(state.invalid_count, 0)
+
+    def test_candidate_can_be_pending_while_persistent_relation_degrades(self):
+        state = RelationEvolution(confirm_windows=2)
+        old = Snapshot((0, 1, 2), 173, 0.98, 0.70, 0.98)
+        new = Snapshot((0, 1, 3), 173, 0.97, 0.68, 0.52)
+        self.assertEqual(state.observe(old, window=0), "CREATE")
+        self.assertEqual(state.observe(new, window=1), "HOLD_PENDING")
+        self.assertEqual(state.current_status, "DEGRADED")
+        self.assertEqual(state.current.signature, old.signature)
+        self.assertEqual(state.observe(new, window=2), "RECONFIGURE")
+        self.assertEqual(state.current_status, "ACTIVE")
+        self.assertEqual(state.current.signature, new.signature)
+
     def test_stable_relation_is_not_reconfigured(self):
         result = run_episode(seed=31, scenario="stable")
         self.assertEqual(result["windows"][0]["action"], "CREATE")
