@@ -24,6 +24,10 @@ jobs:
         run: python -m unittest tests.test_e12a3_proposer_benchmark -v
       - name: Run E12-A3 adaptive allocator tests
         run: python -m unittest tests.test_e12a3_adaptive_allocator -v
+      - name: Run E12-A3 adaptive benchmark tests
+        run: python -m unittest tests.test_e12a3_adaptive_benchmark -v
+      - name: Run E12-A3 four-way adaptive benchmark
+        run: python -m prototype.e12a3_adaptive_benchmark --seeds 20 --start-seed 1 --budget 31 --json
       - name: Run E12-A3 20-seed equal-budget benchmark
         run: python -m prototype.e12a3_proposer_benchmark --seeds 20 --start-seed 1 --budget 31 --json
       - name: Run E01 demonstration
