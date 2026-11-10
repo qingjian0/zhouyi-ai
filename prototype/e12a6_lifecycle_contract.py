@@ -8,6 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass, replace
 from enum import Enum
 import math
+from types import MappingProxyType
 from typing import Optional
 
 
@@ -185,11 +186,28 @@ def _nonnegative(value: float, name: str, *, allow_zero: bool = True) -> None:
 class LifecycleLedger:
     """In-memory append-only ledger with explicit, versioned candidate identity."""
 
+    __slots__ = ("_candidates", "_evidence", "_actions", "_action_ids")
+
     def __init__(self) -> None:
-        self.candidates: dict[tuple[str, int], Candidate] = {}
-        self.evidence: dict[str, Evidence] = {}
-        self.actions: list[Action] = []
+        self._candidates: dict[tuple[str, int], Candidate] = {}
+        self._evidence: dict[str, Evidence] = {}
+        self._actions: list[Action] = []
         self._action_ids: set[str] = set()
+
+    @property
+    def candidates(self):
+        """Read-only snapshot view; candidate values are frozen dataclasses."""
+        return MappingProxyType(self._candidates)
+
+    @property
+    def evidence(self):
+        """Read-only evidence index; evidence values are frozen dataclasses."""
+        return MappingProxyType(self._evidence)
+
+    @property
+    def actions(self) -> tuple[Action, ...]:
+        """Immutable view of the append-only action sequence."""
+        return tuple(self._actions)
 
     def add_candidate(self, candidate: Candidate) -> None:
         key = (candidate.candidate_id, candidate.version)
@@ -197,12 +215,12 @@ class LifecycleLedger:
             raise ValueError(f"duplicate candidate version: {key}")
         if candidate.state is not CandidateState.OBSERVED:
             raise ValueError("new candidates must enter the ledger as OBSERVED")
-        self.candidates[key] = candidate
+        self._candidates[key] = candidate
 
     def add_evidence(self, evidence: Evidence) -> None:
         if evidence.evidence_id in self.evidence:
             raise ValueError(f"duplicate evidence_id: {evidence.evidence_id}")
-        self.evidence[evidence.evidence_id] = evidence
+        self._evidence[evidence.evidence_id] = evidence
 
     def apply(self, action: Action) -> None:
         if action.action_id in self._action_ids:
@@ -232,12 +250,12 @@ class LifecycleLedger:
                     roles = {self.evidence[item].split_role for item in action.evidence_ids}
                     if not roles.intersection({SplitRole.LOCKED_TEST, SplitRole.POST_DEPLOY}):
                         raise ValueError("challenge requires LOCKED_TEST or POST_DEPLOY evidence")
-                self.candidates[key] = replace(current, state=action.to_state)
+                self._candidates[key] = replace(current, state=action.to_state)
             elif action.action_type in _TRANSITIONS:
                 raise ValueError("lifecycle action requires an explicit state transition")
         elif action.from_state is not None:
             raise ValueError("state transitions require a candidate reference")
-        self.actions.append(action)
+        self._actions.append(action)
         self._action_ids.add(action.action_id)
 
     def create_revision(
@@ -281,5 +299,5 @@ class LifecycleLedger:
         key = (revision.candidate_id, revision.version)
         if key in self.candidates:
             raise ValueError(f"duplicate candidate version: {key}")
-        self.candidates[key] = revision
+        self._candidates[key] = revision
         return revision
