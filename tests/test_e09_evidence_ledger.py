@@ -35,6 +35,21 @@ class E09EvidenceLedgerTests(unittest.TestCase):
         self.assertEqual(ledger.adjudication()["repeated_same_label_inputs"], 1)
         self.assertEqual(len(ledger.training_examples()), 1)
 
+    def test_appended_counterexample_invalidates_previous_generalization(self):
+        ledger = EvidenceLedger()
+        ledger.append("s1", Example((0, 0, 0), "yes"))
+        ledger.append("s2", Example((0, 1, 0), "yes"))
+        ledger.append("s3", Example((1, 0, 0), "no"))
+        ledger.append("s4", Example((1, 1, 0), "no"))
+        learner = CounterexampleRuleLearner(
+            ((0, 1), (0, 1), (0, 1, 2)), min_support=2
+        )
+        ledger.fit(learner)
+        self.assertEqual(learner.predict((0, 0, 2)), "yes")
+        ledger.append("s5", Example((0, 0, 2), "no"), source="new_observation")
+        ledger.fit(learner)
+        self.assertIsNone(learner.predict((0, 0, 2)))
+
     def test_ledger_fits_existing_non_gradient_learner(self):
         ledger = EvidenceLedger()
         ledger.append("s1", Example((0, 0), "A"))
