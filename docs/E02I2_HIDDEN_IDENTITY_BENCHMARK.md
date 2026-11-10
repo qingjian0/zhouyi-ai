@@ -33,7 +33,7 @@
 - Role-aligned similarity
 - Hungarian one-to-one assignment
 
-Jaccard 在“同成员、不同规则”场景中的错误匹配是预期的负面基线结果，不是推荐行为。
+Jaccard 在“同成员、不同规则”场景中的错误匹配是预期的负面基线结果，不是推荐行为。第一轮实验发现 Role-Aligned / Hungarian 也会因成员、角色和上下文分数抵消规则变化而误合并。修正后，这两种语义感知方法对规则签名不一致采取保守 ABSTAIN；规则变化究竟是原身份 MODIFY 还是新身份 CREATE，留给 I2-C 使用跨窗口证据裁决，不能由单窗口匹配器猜测。
 
 ## 指标
 
@@ -56,3 +56,10 @@ CI 使用 30 seeds/场景作为回归运行；正式研究结果应使用预注�
 - 当前候选生成器是 oracle-controlled，不能把身份匹配结果外推为关系发现能力。
 - 需要后续 I2-C 增加事件裁决基准，I2-D 单独评估谱系边与证据 provenance。
 - 如果修改匹配器或阈值，应使用新的种子范围和独立锁定测试集重新评估。
+
+
+## 第一轮实验后的算法修正
+
+首轮 30 seeds/场景显示，Role-Aligned 和 Hungarian 在 same-members/different-semantics 场景均发生 30/30 次错误合并。原因是固定加权相似度允许成员、角色和上下文分数抵消规则签名差异。
+
+因此 I2-B 的语义感知匹配路径加入硬门控：规则签名不一致时不建立身份连续性匹配，返回 ABSTAIN。Jaccard 保留语义盲点，作为负面对照。该门控不等于断言关系已 CREATE；它只表示单窗口证据不足以支持身份连续性。I2-C 需要结合时间连续性、环境和独立证据判断 MODIFY 或 CREATE。
