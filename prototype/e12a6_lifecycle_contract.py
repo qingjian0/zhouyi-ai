@@ -225,8 +225,7 @@ class LifecycleLedger:
                 if action.to_state is CandidateState.TRAIN_SUPPORTED:
                     if SplitRole.TRAIN not in roles:
                         raise ValueError("TRAIN evidence is required for support")
-                if action.to_state in (CandidateState.GATE_VALIDATED,
-                                       CandidateState.GATE_VALIDATED):
+                if action.to_state is CandidateState.GATE_VALIDATED:
                     if SplitRole.GATE_FINAL not in roles:
                         raise ValueError("GATE_FINAL evidence is required for validation")
                 if action.to_state is CandidateState.CHALLENGED:
