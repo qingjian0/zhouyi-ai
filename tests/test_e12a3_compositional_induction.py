@@ -76,7 +76,7 @@ class E12A3CompositionTests(unittest.TestCase):
                 Example((("x", 0), ("z", 0)), 0),
             ),
         )
-        result = infer_compositions(view, max_depth=1, candidate_budget=5000)
+        result = infer_compositions(view, max_arity=2, max_depth=1, candidate_budget=5000)
         self.assertEqual(result["status"], "AMBIGUOUS")
         self.assertIsNone(result["selected"])
         self.assertGreater(result["gate_consistent_count"], 1)
