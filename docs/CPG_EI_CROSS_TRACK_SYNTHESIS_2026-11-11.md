@@ -942,3 +942,42 @@ P4: implement process-isolated evaluator/learner canaries before any locked-test
 P5: add crash injection, schema upcasters, measured cost telemetry, and equal-compute comparisons.
 
 No result in this section establishes continual learning, a new neural architecture, or a benefit from Zhouyi-inspired priors.
+
+
+## 17. Track-bound evidence reveal and multi-connection write validation (2026-11-11)
+
+### 17.1 New invariants added on the PR #99 branch
+
+The multi-track correction exposed a second class of integration error: even when predictions are namespaced by learner track, an adapter could accidentally reveal a prediction using the wrong track identity. The protocol now requires `learner_track` on `evidence_reveal` and verifies that the referenced prediction commit belongs to the same track.
+
+New regression coverage:
+- Cross-track reveal attempt (E09 prediction revealed as E10) is rejected as a missing same-track reference.
+- Empty/whitespace learner-track values are rejected.
+- Six independent SQLite connections concurrently append distinct observations to one episode; committed sequence numbers must be exactly 1..6 and replay must contain all six events.
+- Duplicate event ID with a different idempotency key is rejected; the failed transaction must not consume a sequence number.
+
+These tests strengthen local single-host concurrency and lineage guarantees. They do not establish multi-host consensus, authenticated learner identity, crash/power-loss test coverage, or evaluator isolation.
+
+### 17.2 CI status must be reported against the exact head
+
+PR #99 workflow run #580 completed successfully at commit `3c36f2d76373597a12d78f15713e12c47bfe92fb`. Subsequent protocol, test, and documentation commits advanced the PR head to `b932c9c14418af7fc4fa8a406c78f8e5305a5885`. The available run therefore does not validate the latest head. Report the run as a successful earlier checkpoint, not as proof that the current PR head passes.
+
+### 17.3 SQLite concurrency interpretation
+
+The concurrent-connection test is consistent with SQLite's documented transaction model: separate connections see committed transactions, writes are serialized, and `BEGIN IMMEDIATE` reserves the write transaction up front. WAL permits readers and writers to proceed concurrently, but it still permits only one writer at a time and requires processes to share a host. The official documentation also notes that WAL introduces a checkpoint operation and that long-running readers can delay checkpoint progress.
+
+References:
+- SQLite Isolation: https://www.sqlite.org/isolation.html
+- SQLite Write-Ahead Logging: https://www.sqlite.org/wal.html
+
+### 17.4 Remaining acceptance gates
+
+1. Run the complete CI suite against the exact latest PR #99 head.
+2. Add deterministic crash-injection tests (process termination at transaction boundaries), distinct from graceful close/reopen.
+3. Define versioned typed adapter DTOs and a shared conformance suite.
+4. Implement E09 adapter with explicit `BATCH_REFIT` outcome.
+5. Implement E10 adapter with durable reveal before revision and preserve candidate-set hashes.
+6. Add evaluator/learner process isolation with hidden-truth noninterference canaries.
+7. Add schema upcasters and a migration test from v0.1 databases containing already committed prediction events; the current index replacement alone does not solve old v0.1 prediction payloads that lack `learner_track`.
+
+No adapter integration or continual-learning claim is made in this checkpoint.
