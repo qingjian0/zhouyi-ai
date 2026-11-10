@@ -145,16 +145,20 @@ class HyperedgeLifecycle:
         if measured_validation_gain < max(a.validation_gains[-1],
                                            b.validation_gains[-1]) - self.split_gain_margin:
             raise LifecycleError("merged edge fails validation non-regression gate")
+        role_by_member = dict(zip(a.members, a.roles))
+        for member, role in zip(b.members, b.roles):
+            if member in role_by_member and role_by_member[member] != role:
+                raise LifecycleError("overlapping members have conflicting roles")
+            role_by_member[member] = role
         members = self._unique((*a.members, *b.members))
-        if len(members) != len(a.roles):
-            raise LifecycleError("role mapping is ambiguous after member union")
+        merged_roles = tuple(role_by_member[member] for member in members)
         support = self._unique((*a.support_ids, *b.support_ids))
         if len(support) < self.min_support:
             raise LifecycleError("merged edge has insufficient support")
         if len(self.edges) - 1 > self.max_edges:
             raise LifecycleError("edge budget exceeded")
         merged = Hyperedge(
-            edge_id=new_edge_id, members=members, roles=a.roles,
+            edge_id=new_edge_id, members=members, roles=merged_roles,
             relation_type=a.relation_type, support_ids=support,
             counterexample_ids=self._unique((*a.counterexample_ids,
                                               *b.counterexample_ids)),
