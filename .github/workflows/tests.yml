@@ -1,4 +1,5 @@
 name: tests
+# C-F prototype validation is intentionally kept on its own research branch.
 
 on:
   push:
