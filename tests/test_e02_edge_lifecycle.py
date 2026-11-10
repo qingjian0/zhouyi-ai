@@ -19,6 +19,11 @@ class HyperedgeLifecycleTests(unittest.TestCase):
         with self.assertRaises(LifecycleError):
             manager.create(proposal("e", gain=0.0))
 
+    def test_create_rejects_conflicting_evidence_sets(self):
+        manager = HyperedgeLifecycle()
+        with self.assertRaises(LifecycleError):
+            manager.create(proposal("e", support=("s1", "s2", "s3")))
+
     def test_create_and_audit_event(self):
         manager = HyperedgeLifecycle()
         edge = manager.create(proposal("e"))
@@ -57,6 +62,19 @@ class HyperedgeLifecycleTests(unittest.TestCase):
                                measured_total_validation_gain=0.15)
         self.assertEqual({e.edge_id for e in result}, {"left", "right"})
         self.assertNotIn("parent", manager.edges)
+
+    def test_split_rejects_role_relabeling(self):
+        manager = HyperedgeLifecycle()
+        manager.create(proposal("parent", members=("a", "b", "c", "d"),
+                                roles=("w", "x", "y", "z")))
+        children = (
+            proposal("left", members=("a", "b"), roles=("wrong", "x")),
+            proposal("right", members=("c", "d"), roles=("y", "z"),
+                     support=("s4", "s5", "s6")),
+        )
+        with self.assertRaises(LifecycleError):
+            manager.split("parent", children,
+                          measured_total_validation_gain=0.2)
 
     def test_split_rejects_incomplete_partition(self):
         manager = HyperedgeLifecycle()
