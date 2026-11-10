@@ -77,17 +77,17 @@ class CounterexampleRuleLearner:
         space_size = 1
         for domain in self.domains:
             space_size *= len(domain) + 1
-        patterns = tuple(itertools.product(
-            *((None, *domain) for domain in self.domains)
-        ))
         labels = sorted({r.label for r in rows}, key=repr)
-        total_evaluations = len(patterns) * len(labels)
+        total_evaluations = space_size * len(labels)
         if total_evaluations > self.max_candidates:
             raise RuleLearningError(
                 "candidate evaluation budget exceeded: "
                 f"{total_evaluations} > {self.max_candidates} "
-                f"({len(patterns)} patterns x {len(labels)} labels)"
+                f"({space_size} patterns x {len(labels)} labels)"
             )
+        patterns = tuple(itertools.product(
+            *((None, *domain) for domain in self.domains)
+        ))
         selected: list[Clause] = []
         viable_count = 0
         uncovered_by_label = {}
