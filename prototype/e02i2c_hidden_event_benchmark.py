@@ -279,16 +279,10 @@ def _metrics(rows: list[tuple[EventType, EventType]]) -> dict:
     }
 
 
-def run_benchmark(*, seeds: int = 20, start_seed: int = 1000,
-                  split: str = "train") -> dict:
-    if seeds < 1 or start_seed < 0:
-        raise ValueError("seeds must be positive and start_seed non-negative")
-    if split not in {"train", "gate"}:
-        raise ValueError("locked Test is deliberately unavailable in the development runner")
+def _build_episodes(*, seeds: int, start_seed: int, split: str) -> list[Episode]:
+    """Build episodes with globally unique, event-unlinked seed assignments."""
     episodes: list[Episode] = []
     for offset in range(seeds):
-        # Allocate globally unique per-episode seeds, then shuffle their
-        # assignment so the seed namespace does not identify the event class.
         episode_seeds = list(range(
             start_seed + offset * len(SUPPORTED_EVENTS),
             start_seed + (offset + 1) * len(SUPPORTED_EVENTS),
@@ -298,6 +292,16 @@ def run_benchmark(*, seeds: int = 20, start_seed: int = 1000,
             build_episode(event, episode_seed, split=split)
             for event, episode_seed in zip(SUPPORTED_EVENTS, episode_seeds)
         )
+    return episodes
+
+
+def run_benchmark(*, seeds: int = 20, start_seed: int = 1000,
+                  split: str = "train") -> dict:
+    if seeds < 1 or start_seed < 0:
+        raise ValueError("seeds must be positive and start_seed non-negative")
+    if split not in {"train", "gate"}:
+        raise ValueError("locked Test is deliberately unavailable in the development runner")
+    episodes = _build_episodes(seeds=seeds, start_seed=start_seed, split=split)
     results = {}
     for name, policy in POLICIES.items():
         rows = [(episode.truth, policy(episode.observation)) for episode in episodes]
