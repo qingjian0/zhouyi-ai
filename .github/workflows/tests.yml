@@ -1,5 +1,5 @@
 name: tests
-# C-F validation includes independent generators and variable same-window evidence volume.
+# C-F validation includes seed-block bootstrap intervals and per-environment metrics.
 
 on:
   push:
