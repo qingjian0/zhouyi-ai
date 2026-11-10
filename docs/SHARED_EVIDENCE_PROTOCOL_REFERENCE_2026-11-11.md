@@ -14,7 +14,7 @@ Use Python's standard-library SQLite as the first durable local store:
 - `journal_mode=WAL` and `synchronous=FULL` establish a local durability baseline.
 - An idempotency table binds an episode-scoped key to the event fingerprint and original receipt.
 - The fingerprint covers event type, payload schema, canonical payload, actor role, causation references, and integrity metadata. Same key/same envelope returns the original receipt; same key/different envelope raises `IdempotencyConflict`.
-- Unique partial indexes enforce one prediction commit per observation, one reveal per prediction, and one structure-version ID within an episode.
+- A prediction commit requires a prior observation event. Unique partial indexes enforce one observation ID, one prediction per observation, one prediction ID, one reveal per prediction, and one structure-version ID within an episode.
 - Structure versions require existing parent versions and already revealed support evidence.
 - Revision events require already revealed trigger evidence and known before/after structure versions.
 - Replay returns the append order; reopening the database reconstructs the same event sequence and digests.
@@ -35,6 +35,13 @@ The payload digest is a mutation-detection fingerprint, **not** a signature, aut
 from prototype.shared_evidence_protocol import SQLiteEvidenceStore
 
 store = SQLiteEvidenceStore("research-events.sqlite3")
+store.append_event(
+    episode_id="episode-1",
+    event_id="observation-event-1",
+    event_type="observation",
+    idempotency_key="observation-request-1",
+    payload={"observation_id": "observation-1", "payload_ref": "visible-observation"},
+)
 receipt = store.commit_prediction(
     episode_id="episode-1",
     event_id="prediction-event-1",
@@ -68,12 +75,13 @@ The unit tests cover:
 4. idempotency fingerprint includes event type/schema;
 5. idempotency fingerprint includes actor role;
 6. one prediction per observation;
-7. stale expected sequence rejection;
-8. one reveal per prediction;
-9. revision evidence must already be revealed;
-10. structure parent must already exist;
-11. restart/replay preserves sequence, event IDs, and digests;
-12. returned structure snapshots are detached data.
+7. prediction IDs are unique within an episode;
+8. stale expected sequence rejection;
+9. one reveal per prediction;
+10. revision evidence must already be revealed;
+11. structure parent must already exist;
+12. restart/replay preserves sequence, event IDs, and digests;
+13. returned structure snapshots are detached data.
 
 Run:
 
