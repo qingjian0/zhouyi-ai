@@ -8,8 +8,9 @@
 - Runtime bottom-up AST generation up to a configurable depth.
 - Semantic deduplication over a declared input domain, with shortest-expression retention.
 - Shortest consistent program selection from observed input/output examples.
-- Counterexample-guided iterative synthesis (CEGIS), with one counterexample returned per oracle call and an explicit query budget.
+- Counterexample-guided iterative synthesis (CEGIS), with one counterexample returned per oracle call and an exact oracle-call budget.
 - Non-contiguous role indices, including a representative `(0, 2, 5)` selection.
+- Current grammar is deliberately narrow: modular integer variables/constants with `add`, `sub`, and `mul`; the default development modulus is 3. This is a first executable slice of Level A, not the full primitive interface proposed in the preregistration.
 
 ## Scope boundary
 
