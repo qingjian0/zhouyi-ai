@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main, research/e02e-autonomous-discovery]
+    branches: [main, research/e02e-autonomous-discovery, research/e02f-falsification]
 
 jobs:
   unit-tests:
@@ -38,3 +38,5 @@ jobs:
         run: python -m prototype.e02e_discovery --seeds 20 --start-seed 7 --json
       - name: Run E02-F train-only nuisance falsification
         run: python -m prototype.e02f_falsification --seeds 100 --start-seed 100
+      - name: Run E02-G multi-environment stability classification
+        run: python -m prototype.e02g_multienvironment --seeds 50 --start-seed 700 --repeats 5
