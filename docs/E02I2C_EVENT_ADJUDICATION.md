@@ -54,7 +54,7 @@ I2-A 建立身份/版本/谱系账本；I2-B 提供确定性候选匹配；I2-E 
 
 建议确定性基线的保守规则：
 - 单个合格窗口缺失：不改变身份状态，只记录 observation miss。
-- 连续两个有充分采样机会的窗口没有确认：允许 SUSPEND。
+- 连续两个有充分采样机会的窗口没有确认，且反例样本 ID 独立：允许 SUSPEND。
 - SUSPENDED 后至少两个独立反例窗口持续否定旧关系，才允许 RETIRE。
 - REACTIVATE 必须有新证据；若恢复时结构不同，恢复与 MODIFY 应作为一个原子事务。
 - 以上窗口数是待 Gate 校准的初始协议参数，不是自然定律；锁定 Test 前固定。
@@ -132,7 +132,7 @@ SPLIT / MERGE 不由一对一 Hungarian 结果推断。它们需要独立的谱�
 - 支持与反例同时出现时强制 ABSTAIN，并将冲突证据引用保留在裁决结果中，不做置信度平均。
 - `IdentitySnapshot`：裁决器只接收当前身份状态与版本摘要，不读取生成器转换计划。
 - 确定性 `adjudicate_event`：支持 CREATE、KEEP、MODIFY、ABSTAIN、SUSPEND、REACTIVATE、REACTIVATE_MODIFY、RETIRE 的保守提案。
-- CREATE/MODIFY 需要跨多个独立窗口和样本的支持；SUSPEND 需要连续且充分观测的 ABSENCE；采样不足会打断缺失连续段；CONTRADICTION 不等同于 ABSENCE；RETIRE 仅对已暂停身份开放并要求重复反例。
+- CREATE/MODIFY 需要跨多个独立窗口和样本的支持；SUSPEND 需要连续且充分观测的 ABSENCE，且跨窗口样本 ID 独立；采样不足会打断缺失连续段；CONTRADICTION 不等同于 ABSENCE；RETIRE 仅对已暂停身份开放并要求跨窗口、跨样本的重复反例。
 - 18 项专项单测覆盖核心边界；另有 2 项账本原子事务测试；完整 CI 尚待结果确认。
 
 仍未实现：
