@@ -42,7 +42,18 @@
 | Planning/Search | 多路径搜索和验证 | 语义组合结构与证据协调的联合贡献 |
 | I-Ching inspired NN | 符号结构/储备池组织 | 可学习、可拒绝的易象先验是否提升迁移 |
 
-## 6. 待补全的文献工作
+## 6. 组合泛化与神经符号系统
+
+- Danial Kamali, Elham J. Barezi, Parisa Kordjamshidi, [*NeSyCoCo: A Neuro-Symbolic Concept Composer for Compositional Generalization*](https://doi.org/10.1609/aaai.v39i4.32439)（AAAI 2025）。通过符号概念与可微神经计算进行软组合，在 ReaSCAN、CLEVR-CoGenT、CLEVR-SYN 上评估。
+- Giacomo Camposampiero et al., [*Scalable Evaluation and Neural Models for Compositional Generalization*](https://proceedings.neurips.cc/paper_files/paper/2025/hash/0ae7b78781ced49b2b0b542b30154a1c-Abstract-Conference.html)（NeurIPS 2025）。研究组合泛化评估协议和视觉模型。
+- Florian Redhardt, Yassir Akram, Simon Schug, [*Scaling can lead to compositional generalization*](https://proceedings.neurips.cc/paper_files/paper/2025/hash/5047b64366bc0dbf5047de85f1e0c7be-Abstract-Conference.html)（NeurIPS 2025）。表明足够的数据规模与任务覆盖也可能使标准神经网络获得组合泛化。
+- Mahnoor Shahid, Hannes Rothe, [*AGEL-Comp: A Neuro-Symbolic Framework for Compositional Generalization in Interactive Agents*](https://arxiv.org/abs/2604.26522)（2026 预印本）。采用动态因果程序超图、ILP 反馈规则归纳和神经定理证明器验证候选子目标。
+- [*Dynamic hypergraph structure learning for spatio-temporal time series forecasting*](https://doi.org/10.1016/j.neucom.2026.133014)（Neurocomputing，2026）。数据驱动的动态超图结构学习与动态路由。
+- [*Neuro-symbolic NLP: taxonomy, assessment, and directions*](https://doi.org/10.3389/frai.2026.1797587)（Frontiers in Artificial Intelligence，2026）。从神经-符号集成方式出发梳理组合泛化、推理与验证。
+
+**对本项目的影响：** 组合泛化不是神经网络无法实现的能力；动态超图、概念组合和反馈规则学习也已有近邻。CPG-EI 必须采用 IID/OOD 明确拆分、预算匹配和模块消融，证明动态结构演化、证据治理及可检验易象先验的独立价值。详细差异定位见 [本轮研究增量报告](RESEARCH_FINDINGS_2026-11-10.md)。
+
+## 7. 待补全的文献工作
 
 - 对每篇论文补齐 DOI/arXiv/出版社链接、作者、版本与代码仓库。
 - 阅读方法章节，记录训练目标、参数规模、计算成本和基准。
