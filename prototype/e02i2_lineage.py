@@ -196,10 +196,17 @@ class RelationLineageLedger:
         self._check_window(window)
         identity = self._active(identity_id)
         previous_id = identity.version_ids[-1]
+        previous = self.versions[previous_id]
+        new_signature = (tuple(members), tuple(roles), operator,
+                         rule_signature, context_signature)
+        old_signature = (previous.members, previous.roles, previous.operator,
+                         previous.rule_signature, previous.context_signature)
+        if new_signature == old_signature:
+            raise LineageError("MODIFY requires a structural change; use KEEP")
         version = self._version(
             identity_id=identity_id, version_id=version_id,
             version_index=len(identity.version_ids) + 1,
-            members=members, roles=roles, operator=operator,
+            members=tuple(members), roles=tuple(roles), operator=operator,
             rule_signature=rule_signature, context_signature=context_signature,
             window=window, evidence_refs=evidence_refs,
         )
@@ -263,8 +270,28 @@ class RelationLineageLedger:
         if len(children) < 2:
             raise LineageError("split requires at least two child identities")
         child_ids = [item.get("identity_id") for item in children]
-        if len(set(child_ids)) != len(child_ids) or parent_id in child_ids:
-            raise LineageError("split child IDs must be unique and differ from parent")
+        version_ids = [item.get("version_id") for item in children]
+        if (any(not isinstance(x, str) or not x.strip() for x in child_ids)
+                or len(set(child_ids)) != len(child_ids)
+                or parent_id in child_ids
+                or any(x in self.identities for x in child_ids)):
+            raise LineageError("split child identity IDs must be new, unique and non-empty")
+        if (any(not isinstance(x, str) or not x.strip() for x in version_ids)
+                or len(set(version_ids)) != len(version_ids)
+                or any(x in self.versions for x in version_ids)):
+            raise LineageError("split child version IDs must be new, unique and non-empty")
+
+        # Preflight every child before mutating the ledger: a malformed later
+        # child must not leave an earlier child partially committed.
+        for item in children:
+            self._version(
+                identity_id=item["identity_id"], version_id=item["version_id"],
+                version_index=1, members=tuple(item["members"]),
+                roles=tuple(item["roles"]), operator=item["operator"],
+                rule_signature=item["rule_signature"],
+                context_signature=item.get("context_signature", "global"),
+                window=window, evidence_refs=tuple(item.get("evidence_refs", ())),
+            )
         created = []
         for item in children:
             child = self.create(
