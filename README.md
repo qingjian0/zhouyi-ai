@@ -89,7 +89,7 @@ python -m prototype.e12a2d_noisy_prior_stress --episodes 100 --budget 3 --json
 python -m prototype.yinfu_active_observation
 python -m prototype.yinfu_interaction_dynamics --horizon 8
 python -m prototype.taixuan_ternary_encoding
-python -m prototype.tx02_multistate_benchmark --episodes-per-cardinality 20 --support-size 4 --query-count 2
+python -m prototype.tx02_multistate_benchmark --episodes-per-cardinality 20 --support-size 2 --query-count 2
 ```
 
 ## 研究状态标记
