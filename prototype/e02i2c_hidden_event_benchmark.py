@@ -11,6 +11,7 @@ the decision rules and thresholds are frozen.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import random
 from dataclasses import dataclass
@@ -69,17 +70,21 @@ def _opportunity(window: int, *, coverage: float = 1.0,
 
 def _packet(seed: int, event: str, window: int, polarity: EvidencePolarity,
             signature: str | None, *, source: str = "v1",
-            split: str) -> EvidencePacket:
+            split: str, ordinal: int = 0) -> EvidencePacket:
+    """Create opaque provenance IDs; event labels never enter observable IDs."""
+    del event  # Event truth is evaluator-side and must not shape observable metadata.
+    material = f"{split}|{seed}|{window}|{ordinal}".encode("utf-8")
+    token = hashlib.blake2b(material, digest_size=12).hexdigest()
     return EvidencePacket(
-        evidence_id=f"{event}-{seed}-w{window}",
-        sample_id=f"sample-{seed}-{event}-{window}",
+        evidence_id=f"ev-{token}",
+        sample_id=f"sample-{token}",
         window=window,
         environment="env-a",
         split=split,
         polarity=polarity,
         source_version_id=source,
         candidate_signature=signature,
-        raw_observation_ref=f"synthetic://{event}/{seed}/{window}",
+        raw_observation_ref=f"synthetic://observation/{token}",
     )
 
 
@@ -137,9 +142,9 @@ def build_episode(event: EventType, seed: int, *, split: str) -> Episode:
             opportunities = (_opportunity(0),)
             evidence = (
                 _packet(seed, "conflict-positive", 0, EvidencePolarity.SUPPORTS,
-                        candidate, source="v1", split=split),
+                        candidate, source="v1", split=split, ordinal=0),
                 _packet(seed, "conflict-negative", 0, EvidencePolarity.CONTRADICTS,
-                        None, source="v1", split=split),
+                        None, source="v1", split=split, ordinal=1),
             )
     elif event == EventType.SUSPEND:
         opportunities = (_opportunity(0), _opportunity(1))
