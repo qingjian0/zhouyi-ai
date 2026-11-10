@@ -28,7 +28,7 @@ class Snapshot:
 
     @property
     def accepted(self) -> bool:
-        return self.gate_accuracy >= 0.75 and self.gate_accuracy - self.pairwise_accuracy >= 0.05
+        return self.gate_accuracy >= 0.75 and (len(self.members) == 2 or self.gate_accuracy - self.pairwise_accuracy >= 0.05)
 
     @property
     def signature(self) -> tuple[tuple[int, ...], int]:
@@ -106,21 +106,30 @@ class RelationEvolution:
         return action
 
 
-def _targets(scenario: str, base: tuple[int, ...], table: int,
-             tables: tuple[int, ...], window: int) -> tuple[tuple[int, ...], int] | None:
-    if scenario == "stable":
-        return base, table
-    if scenario == "member_add":
-        return (base, table) if window < 2 else (tuple(sorted((*base, 7))), table)
-    if scenario == "member_remove":
-        expanded = tuple(sorted((*base, 7)))
-        return (expanded, table) if window < 2 else (base, table)
-    if scenario == "rule_change":
-        return base, (table if window < 2 else table ^ 255)
-    if scenario == "disappear":
-        return (base, table) if window < 2 else None
-    raise ValueError("unknown scenario")
+def _two_input_slice(table: int) -> int:
+    # Restrict the 3-input table to the third input being zero.
+    return sum(((table >> (state * 2)) & 1) << state for state in range(4))
 
+
+def _two_inputs_essential(table: int) -> bool:
+    return all(any(((table >> state) & 1) != ((table >> (state ^ (1 << bit))) & 1)
+                   for state in range(4) if not (state & (1 << bit)))
+               for bit in (0, 1))
+
+
+def _targets(scenario: str, base2: tuple[int, ...], expanded3: tuple[int, ...],
+             table3: int, table2: int, window: int) -> tuple[tuple[int, ...], int] | None:
+    if scenario == "stable":
+        return expanded3, table3
+    if scenario == "member_add":
+        return (base2, table2) if window < 2 else (expanded3, table3)
+    if scenario == "member_remove":
+        return (expanded3, table3) if window < 2 else (base2, table2)
+    if scenario == "rule_change":
+        return expanded3, (table3 if window < 2 else table3 ^ 255)
+    if scenario == "disappear":
+        return (expanded3, table3) if window < 2 else None
+    raise ValueError("unknown scenario")
 
 def run_episode(*, seed: int, scenario: str, windows: int = 5,
                 train_n: int = 1024, gate_n: int = 512,
@@ -128,15 +137,16 @@ def run_episode(*, seed: int, scenario: str, windows: int = 5,
     if windows < 4:
         raise ValueError("at least four windows are required")
     rng = random.Random(seed * 7919 + 41)
-    base = tuple(sorted(rng.sample(range(6), 2)))
-    tables = admissible_target_tables()
-    # Use a 3-input rule initially so member-add/remove has a genuine 2<->3 transition.
-    base = tuple(sorted((*base, 6)))
-    table = rng.choice(tables)
+    base2 = tuple(sorted(rng.sample(range(6), 2)))
+    expanded3 = tuple(sorted((*base2, 6)))
+    tables = tuple(t for t in admissible_target_tables()
+                   if _two_inputs_essential(_two_input_slice(t)))
+    table3 = rng.choice(tables)
+    table2 = _two_input_slice(table3)
     controller = RelationEvolution()
     rows = []
     for window in range(windows):
-        target = _targets(scenario, base, table, tables, window)
+        target = _targets(scenario, base2, expanded3, table3, table2, window)
         if target is None:
             # Null relation: independent random labels, not a hidden "inactive" flag.
             train = []
