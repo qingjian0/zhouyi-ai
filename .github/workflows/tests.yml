@@ -34,7 +34,9 @@ jobs:
         run: python -m prototype.e02_ternary_learners --seeds 5 --start-seed 7 --json
       - name: Run E02-C hyperedge lifecycle tests
         run: python -m unittest tests.test_e02_edge_lifecycle -v
-      - name: Run E12-A7 orthogonal lifecycle tests\n        run: python -m unittest tests.test_e12a7_orthogonal_lifecycle -v\n      - name: Run E12-A6 x E02-D lifecycle runner
+      - name: Run E12-A7 orthogonal lifecycle tests
+        run: python -m unittest tests.test_e12a7_orthogonal_lifecycle -v
+      - name: Run E12-A6 x E02-D lifecycle runner
         run: python -m prototype.e12a6_e02_lifecycle_runner --seed 17 --support-size 6 --json
       - name: Run E12-A6 x E02-D lifecycle tests
         run: python -m unittest tests.test_e12a6_e02_lifecycle_runner -v
