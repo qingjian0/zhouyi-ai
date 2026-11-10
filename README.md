@@ -46,6 +46,7 @@
 - [E12-A2 实现审查与验证门槛](docs/E12A2_IMPLEMENTATION_AUDIT_2026-11-11.md)
 - [E12-A2-M 选择器实现记录](docs/E12A2_M_IMPLEMENTATION_2026-11-11.md)
 - [E12-A3 稀疏组合原语自主归纳协议](docs/E12A3_COMPOSITIONAL_PRIMITIVE_INDUCTION.md)
+- [E12-A3 初步 20 种子基准结果审计](docs/E12A3_PRELIMINARY_BENCHMARK_AUDIT_2026-11-11.md)
 - [E12-A3 双实现比较与统一接口设计](docs/E12A3_IMPLEMENTATION_COMPARISON_2026-11-11.md)
 - [E12-A3-M0 组合引擎实现记录](docs/E12A3_M0_IMPLEMENTATION_2026-11-11.md)
 - [E12-A3-M0 组合引擎原型](prototype/e12a3_compositional_induction.py)
