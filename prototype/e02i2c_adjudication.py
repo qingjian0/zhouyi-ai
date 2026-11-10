@@ -188,10 +188,16 @@ def adjudicate_event(
     def refs(items: Iterable[EvidencePacket]) -> tuple[str, ...]:
         return tuple(sorted({item.evidence_id for item in items}))
 
-    supporting = tuple(
+    # Keep the complete support set for identity-level competition checks.
+    # Candidate filtering is appropriate for a proposed CREATE, but must not
+    # erase evidence that still supports the currently active signature.
+    all_supporting = tuple(
         item for item in eligible
         if item.polarity == EvidencePolarity.SUPPORTS
-        and (candidate_signature is None or item.candidate_signature == candidate_signature)
+    )
+    supporting = tuple(
+        item for item in all_supporting
+        if candidate_signature is None or item.candidate_signature == candidate_signature
     )
     contradictions = tuple(
         item for item in eligible if item.polarity == EvidencePolarity.CONTRADICTS
@@ -200,14 +206,30 @@ def adjudicate_event(
         item for item in eligible if item.polarity == EvidencePolarity.ABSENCE
     )
 
-    if supporting and contradictions:
-        conflict_refs = tuple(sorted({item.evidence_id for item in (*supporting, *contradictions)}))
+    # Contradiction checks must use every eligible support packet, not only
+    # the caller-selected candidate. Otherwise filtering can hide a current
+    # identity's positive evidence and incorrectly permit KEEP.
+    if all_supporting and contradictions:
+        conflict_refs = tuple(sorted({item.evidence_id for item in (*all_supporting, *contradictions)}))
         return _abstain(
             identity,
             "conflicting support and contradiction evidence must be reviewed, not averaged",
             candidate_signature,
             conflict_refs,
         )
+    # A support packet and an absence packet in the same window conflict
+    # regardless of whether the identity is active, suspended, or absent.
+    # This check must precede status-specific reactivation/creation paths.
+    support_windows = {item.window for item in all_supporting}
+    absence_windows = {item.window for item in absences}
+    if support_windows.intersection(absence_windows):
+        return _abstain(
+            identity,
+            "support and absence coexist in the same observation window",
+            candidate_signature,
+            refs((*all_supporting, *absences)),
+        )
+
     if identity is None:
         windows = distinct_windows(supporting)
         samples = {item.sample_id for item in supporting}
@@ -225,21 +247,34 @@ def adjudicate_event(
         return _abstain(identity, "terminal identities cannot transition", candidate_signature)
 
     if identity.status == "SUSPENDED":
-        changed_support = tuple(
-            item for item in supporting
-            if item.candidate_signature != identity.signature
-            and item.source_version_id == identity.version_id
+        same_support = tuple(
+            item for item in all_supporting if item.candidate_signature == identity.signature
         )
+        changed_candidates = tuple(
+            item for item in all_supporting if item.candidate_signature != identity.signature
+        )
+        if same_support and changed_candidates:
+            return _abstain(
+                identity,
+                "competing support for suspended current and changed signatures requires review",
+                candidate_signature,
+                refs((*same_support, *changed_candidates)),
+            )
+        changed_support = tuple(
+            item for item in changed_candidates
+            if item.source_version_id == identity.version_id
+        )
+        changed_signatures = {item.candidate_signature for item in changed_support}
         if (len(distinct_windows(changed_support)) >= required_windows
-                and len({item.sample_id for item in changed_support}) >= required_windows):
+                and len({item.sample_id for item in changed_support}) >= required_windows
+                and len(changed_signatures) == 1
+                and (candidate_signature is None or changed_signatures == {candidate_signature})):
+            signature = changed_support[0].candidate_signature
             return EventDecision(
                 EventType.REACTIVATE_MODIFY, identity.identity_id, identity.version_id,
-                candidate_signature, refs(changed_support),
+                signature, refs(changed_support),
                 "fresh support and version-linked continuity across multiple windows",
             )
-        same_support = tuple(
-            item for item in supporting if item.candidate_signature == identity.signature
-        )
         if (len(distinct_windows(same_support)) >= required_windows
                 and len({item.sample_id for item in same_support}) >= required_windows):
             return EventDecision(
@@ -257,10 +292,56 @@ def adjudicate_event(
         return _abstain(identity, "suspended identity lacks sufficient reactivation or retirement evidence",
                         candidate_signature)
 
-    # Active identity: same-signature support is a KEEP, not a new identity.
-    same_support = tuple(
-        item for item in supporting if item.candidate_signature == identity.signature
+    # A sufficiently observed consecutive absence tail can suspend an active
+    # identity even when older windows still contain support. Historical KEEP
+    # evidence must not mask a newer sustained disappearance.
+    consecutive_absence_windows = 0
+    expected_previous: int | None = None
+    absence_tail_windows: set[int] = set()
+    for window in sorted(sufficient_windows, reverse=True):
+        if expected_previous is not None and window != expected_previous:
+            break
+        if window in absence_windows:
+            consecutive_absence_windows += 1
+            absence_tail_windows.add(window)
+            expected_previous = window - 1
+        else:
+            break
+    # Use the newest required_windows only. Older absences may belong to
+    # the same uninterrupted streak, but must not inflate the evidence packet
+    # set for this decision or contribute samples to the independence check.
+    if consecutive_absence_windows >= required_windows:
+        newest_tail = set(sorted(absence_tail_windows, reverse=True)[:required_windows])
+    else:
+        newest_tail = absence_tail_windows
+    absence_tail = tuple(
+        item for item in absences if item.window in newest_tail
     )
+    absence_tail_samples = {item.sample_id for item in absence_tail}
+    if (consecutive_absence_windows >= required_windows
+            and len(absence_tail_samples) >= required_windows):
+        return EventDecision(
+            EventType.SUSPEND, identity.identity_id, identity.version_id,
+            identity.signature, refs(absence_tail),
+            "consecutive sufficiently observed absence windows with independent samples",
+        )
+
+    # Active identity: competing support for the current and a changed
+    # signature is ambiguous. Never let one stale KEEP observation mask a
+    # separately supported structural change.
+    same_support = tuple(
+        item for item in all_supporting if item.candidate_signature == identity.signature
+    )
+    changed_candidates = tuple(
+        item for item in all_supporting if item.candidate_signature != identity.signature
+    )
+    if same_support and changed_candidates:
+        return _abstain(
+            identity,
+            "competing support for current and changed signatures requires review",
+            candidate_signature,
+            refs((*same_support, *changed_candidates)),
+        )
     if same_support:
         return EventDecision(
             EventType.KEEP, identity.identity_id, identity.version_id,
@@ -269,48 +350,20 @@ def adjudicate_event(
         )
 
     changed_support = tuple(
-        item for item in supporting
-        if item.candidate_signature != identity.signature
-        and item.source_version_id == identity.version_id
+        item for item in changed_candidates
+        if item.source_version_id == identity.version_id
     )
     if (len(distinct_windows(changed_support)) >= required_windows
             and len({item.sample_id for item in changed_support}) >= required_windows):
         signatures = {item.candidate_signature for item in changed_support}
-        if len(signatures) == 1:
+        if (len(signatures) == 1
+                and (candidate_signature is None or signatures == {candidate_signature})):
             signature = next(iter(signatures))
             return EventDecision(
                 EventType.MODIFY, identity.identity_id, identity.version_id,
                 signature, refs(changed_support),
                 "version-linked continuity supports the same structural change across windows",
             )
-
-    # Absence is only meaningful when the corresponding observation opportunity
-    # was sufficient. Require a consecutive tail; a gap breaks the sequence.
-    absence_windows = {
-        item.window for item in absences
-        if item.window in sufficient_windows
-    }
-    consecutive = 0
-    expected_previous: int | None = None
-    for window in sorted(sufficient_windows, reverse=True):
-        if expected_previous is not None and window != expected_previous:
-            break
-        if window in absence_windows:
-            consecutive += 1
-            expected_previous = window - 1
-        else:
-            break
-    absence_samples = {
-        item.sample_id for item in absences
-        if item.window in absence_windows
-    }
-    if (consecutive >= required_windows
-            and len(absence_samples) >= required_windows):
-        return EventDecision(
-            EventType.SUSPEND, identity.identity_id, identity.version_id,
-            identity.signature, refs(absences),
-            "consecutive sufficiently observed absence windows",
-        )
 
     if contradictions:
         return _abstain(identity, "contradiction is not absence and does not establish a replacement event",

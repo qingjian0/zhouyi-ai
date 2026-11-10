@@ -11,6 +11,7 @@ the decision rules and thresholds are frozen.
 from __future__ import annotations
 
 import argparse
+import secrets
 import json
 import random
 from dataclasses import dataclass
@@ -69,17 +70,23 @@ def _opportunity(window: int, *, coverage: float = 1.0,
 
 def _packet(seed: int, event: str, window: int, polarity: EvidencePolarity,
             signature: str | None, *, source: str = "v1",
-            split: str) -> EvidencePacket:
+            split: str, ordinal: int = 0) -> EvidencePacket:
+    """Create opaque provenance IDs; event labels never enter observable IDs."""
+    # IDs must not be a reversible digest of low-entropy seed/window inputs.
+    # Random tokens keep provenance opaque; benchmark metrics remain deterministic
+    # because adjudication never depends on the token values.
+    del event, seed, ordinal
+    token = secrets.token_hex(16)
     return EvidencePacket(
-        evidence_id=f"{event}-{seed}-w{window}",
-        sample_id=f"sample-{seed}-{event}-{window}",
+        evidence_id=f"ev-{token}",
+        sample_id=f"sample-{token}",
         window=window,
         environment="env-a",
         split=split,
         polarity=polarity,
         source_version_id=source,
         candidate_signature=signature,
-        raw_observation_ref=f"synthetic://{event}/{seed}/{window}",
+        raw_observation_ref=f"synthetic://observation/{token}",
     )
 
 
@@ -137,9 +144,9 @@ def build_episode(event: EventType, seed: int, *, split: str) -> Episode:
             opportunities = (_opportunity(0),)
             evidence = (
                 _packet(seed, "conflict-positive", 0, EvidencePolarity.SUPPORTS,
-                        candidate, source="v1", split=split),
+                        candidate, source="v1", split=split, ordinal=0),
                 _packet(seed, "conflict-negative", 0, EvidencePolarity.CONTRADICTS,
-                        None, source="v1", split=split),
+                        None, source="v1", split=split, ordinal=1),
             )
     elif event == EventType.SUSPEND:
         opportunities = (_opportunity(0), _opportunity(1))
@@ -274,17 +281,43 @@ def _metrics(rows: list[tuple[EventType, EventType]]) -> dict:
     }
 
 
+def _build_episodes(*, seeds: int, start_seed: int, split: str) -> list[Episode]:
+    """Build episodes with globally unique, event-unlinked seed assignments."""
+    episodes: list[Episode] = []
+    for offset in range(seeds):
+        episode_seeds = list(range(
+            start_seed + offset * len(SUPPORTED_EVENTS),
+            start_seed + (offset + 1) * len(SUPPORTED_EVENTS),
+        ))
+        rng = random.Random(f"{split}:{start_seed}:{offset}")
+        rng.shuffle(episode_seeds)
+        # Ensure the four ABSTAIN sub-modes are represented across ordinary
+        # multi-seed runs. Seeds remain evaluator-side; observable provenance
+        # identifiers are independently randomized and do not encode them.
+        abstain_seed = start_seed + offset * len(SUPPORTED_EVENTS)
+        desired_residue = (start_seed + offset) % 4
+        abstain_seed += (desired_residue - abstain_seed) % 4
+        if abstain_seed not in episode_seeds:
+            raise AssertionError("stratified ABSTAIN seed escaped its episode block")
+        abstain_index = SUPPORTED_EVENTS.index(EventType.ABSTAIN)
+        episode_seeds[abstain_index], episode_seeds[episode_seeds.index(abstain_seed)] = (
+            episode_seeds[episode_seeds.index(abstain_seed)],
+            episode_seeds[abstain_index],
+        )
+        episodes.extend(
+            build_episode(event, episode_seed, split=split)
+            for event, episode_seed in zip(SUPPORTED_EVENTS, episode_seeds)
+        )
+    return episodes
+
+
 def run_benchmark(*, seeds: int = 20, start_seed: int = 1000,
                   split: str = "train") -> dict:
     if seeds < 1 or start_seed < 0:
         raise ValueError("seeds must be positive and start_seed non-negative")
     if split not in {"train", "gate"}:
         raise ValueError("locked Test is deliberately unavailable in the development runner")
-    episodes = [
-        build_episode(event, start_seed + offset, split=split)
-        for offset in range(seeds)
-        for event in SUPPORTED_EVENTS
-    ]
+    episodes = _build_episodes(seeds=seeds, start_seed=start_seed, split=split)
     results = {}
     for name, policy in POLICIES.items():
         rows = [(episode.truth, policy(episode.observation)) for episode in episodes]

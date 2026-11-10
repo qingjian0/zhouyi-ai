@@ -87,6 +87,43 @@ class E02I2CContractsTests(unittest.TestCase):
         self.assertEqual(decision.event, EventType.MODIFY)
         self.assertEqual(set(decision.evidence_refs), {"e0", "e1"})
 
+    def test_competing_current_and_changed_support_abstains_with_both_provenances(self):
+        decision = adjudicate_event(active(), (opp(0), opp(1), opp(2)), (
+            packet("old", 0, EvidencePolarity.SUPPORTS, "a&b", source="v1"),
+            packet("new-1", 1, EvidencePolarity.SUPPORTS, "a^b", source="v1"),
+            packet("new-2", 2, EvidencePolarity.SUPPORTS, "a^b", source="v1"),
+        ), candidate_signature="a^b")
+        self.assertEqual(decision.event, EventType.ABSTAIN)
+        self.assertIn("competing support", decision.reason)
+        self.assertEqual(set(decision.evidence_refs), {"old", "new-1", "new-2"})
+
+    def test_single_old_support_does_not_mask_multiwindow_change(self):
+        decision = adjudicate_event(active(), (opp(0), opp(1), opp(2)), (
+            packet("old-1", 0, EvidencePolarity.SUPPORTS, "a&b", source="v1"),
+            packet("old-2", 1, EvidencePolarity.SUPPORTS, "a&b", source="v1"),
+            packet("new", 2, EvidencePolarity.SUPPORTS, "a^b", source="v1"),
+        ), candidate_signature="a^b")
+        self.assertEqual(decision.event, EventType.ABSTAIN)
+        self.assertEqual(set(decision.evidence_refs), {"old-1", "old-2", "new"})
+
+    def test_change_evidence_for_another_candidate_does_not_modify_selected_candidate(self):
+        decision = adjudicate_event(active(), (opp(0), opp(1)), (
+            packet("other-0", 0, EvidencePolarity.SUPPORTS, "a|b", source="v1"),
+            packet("other-1", 1, EvidencePolarity.SUPPORTS, "a|b", source="v1"),
+        ), candidate_signature="a^b")
+        self.assertEqual(decision.event, EventType.ABSTAIN)
+
+    def test_candidate_filter_cannot_hide_current_support_from_contradiction(self):
+        decision = adjudicate_event(active(), (opp(0),), (
+            packet("current-positive", 0, EvidencePolarity.SUPPORTS, "a&b", source="v1"),
+            packet("contradiction", 0, EvidencePolarity.CONTRADICTS, signature=None, source="v1"),
+        ), candidate_signature="a^b")
+        self.assertEqual(decision.event, EventType.ABSTAIN)
+        self.assertEqual(
+            set(decision.evidence_refs),
+            {"current-positive", "contradiction"},
+        )
+
     def test_unlinked_changed_rule_does_not_modify(self):
         decision = adjudicate_event(active(), (opp(0), opp(1)), (
             packet("e0", 0, EvidencePolarity.SUPPORTS, "a^b", source="other"),
@@ -100,12 +137,46 @@ class E02I2CContractsTests(unittest.TestCase):
         ))
         self.assertEqual(decision.event, EventType.ABSTAIN)
 
+    def test_recent_absence_streak_supersedes_older_keep_support(self):
+        decision = adjudicate_event(active(), (opp(0), opp(1), opp(2)), (
+            packet("old-support", 0, EvidencePolarity.SUPPORTS, "a&b"),
+            packet("absence-1", 1, EvidencePolarity.ABSENCE, signature=None),
+            packet("absence-2", 2, EvidencePolarity.ABSENCE, signature=None),
+        ))
+        self.assertEqual(decision.event, EventType.SUSPEND)
+        self.assertEqual(set(decision.evidence_refs), {"absence-1", "absence-2"})
+
+    def test_support_and_absence_in_same_window_abstain(self):
+        decision = adjudicate_event(active(), (opp(0),), (
+            packet("support", 0, EvidencePolarity.SUPPORTS, "a&b"),
+            packet("absence", 0, EvidencePolarity.ABSENCE, signature=None),
+        ))
+        self.assertEqual(decision.event, EventType.ABSTAIN)
+        self.assertEqual(set(decision.evidence_refs), {"support", "absence"})
+
     def test_two_consecutive_sufficient_absence_windows_suspend(self):
         decision = adjudicate_event(active(), (opp(0), opp(1)), (
             packet("a0", 0, EvidencePolarity.ABSENCE, signature=None),
             packet("a1", 1, EvidencePolarity.ABSENCE, signature=None),
         ))
         self.assertEqual(decision.event, EventType.SUSPEND)
+
+    def test_old_absence_sample_cannot_validate_reused_recent_absence_tail(self):
+        decision = adjudicate_event(active(), (opp(0), opp(1), opp(2), opp(3)), (
+            packet("old", 0, EvidencePolarity.ABSENCE, signature=None, sample="old-sample"),
+            packet("tail-2", 2, EvidencePolarity.ABSENCE, signature=None, sample="reused-tail"),
+            packet("tail-3", 3, EvidencePolarity.ABSENCE, signature=None, sample="reused-tail"),
+        ))
+        self.assertEqual(decision.event, EventType.ABSTAIN)
+
+    def test_suspension_references_only_qualifying_absence_tail(self):
+        decision = adjudicate_event(active(), (opp(0), opp(1), opp(2)), (
+            packet("old-absence", 0, EvidencePolarity.ABSENCE, signature=None),
+            packet("tail-1", 1, EvidencePolarity.ABSENCE, signature=None),
+            packet("tail-2", 2, EvidencePolarity.ABSENCE, signature=None),
+        ))
+        self.assertEqual(decision.event, EventType.SUSPEND)
+        self.assertEqual(set(decision.evidence_refs), {"tail-1", "tail-2"})
 
     def test_reused_sample_cannot_suspend_across_two_windows(self):
         decision = adjudicate_event(active(), (opp(0), opp(1)), (
@@ -144,6 +215,30 @@ class E02I2CContractsTests(unittest.TestCase):
             packet("c1", 1, EvidencePolarity.CONTRADICTS, signature=None),
         ))
         self.assertEqual(decision.event, EventType.ABSTAIN)
+
+    def test_suspended_competing_signatures_abstain_with_both_provenances(self):
+        decision = adjudicate_event(active("SUSPENDED"), (opp(2), opp(3), opp(4)), (
+            packet("same-2", 2, EvidencePolarity.SUPPORTS, "a&b", source="v1"),
+            packet("changed-3", 3, EvidencePolarity.SUPPORTS, "a^b", source="v1"),
+            packet("changed-4", 4, EvidencePolarity.SUPPORTS, "a^b", source="v1"),
+        ), candidate_signature="a^b")
+        self.assertEqual(decision.event, EventType.ABSTAIN)
+        self.assertEqual(
+            set(decision.evidence_refs),
+            {"same-2", "changed-3", "changed-4"},
+        )
+
+    def test_suspended_support_and_absence_same_window_abstain(self):
+        decision = adjudicate_event(active("SUSPENDED"), (opp(2), opp(3)), (
+            packet("support", 2, EvidencePolarity.SUPPORTS, "a&b", source="v1"),
+            packet("absence", 2, EvidencePolarity.ABSENCE, signature=None, source="v1"),
+            packet("support-3", 3, EvidencePolarity.SUPPORTS, "a&b", source="v1"),
+        ))
+        self.assertEqual(decision.event, EventType.ABSTAIN)
+        self.assertEqual(
+            set(decision.evidence_refs),
+            {"support", "absence", "support-3"},
+        )
 
     def test_suspended_identity_reactivates_only_with_repeated_fresh_support(self):
         decision = adjudicate_event(active("SUSPENDED"), (opp(2), opp(3)), (

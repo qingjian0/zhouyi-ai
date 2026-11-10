@@ -1,5 +1,5 @@
 import unittest
-from dataclasses import fields
+from dataclasses import fields, replace
 
 from prototype.e02i2c_adjudication import EvidencePacket, EvidencePolarity, EventType
 from prototype.e02i2c_hidden_event_benchmark import (
@@ -56,6 +56,22 @@ class E02I2CHiddenEventBenchmarkTests(unittest.TestCase):
         self.assertGreater(result["policies"]["similarity_only"]["false_create"], 0)
         self.assertEqual(result["policies"]["evidence_gated"]["false_create"], 0)
 
+    def test_benchmark_evidence_ids_are_unique_across_episodes(self):
+        from prototype.e02i2c_hidden_event_benchmark import _build_episodes
+        episodes = _build_episodes(seeds=5, start_seed=600, split="gate")
+        evidence_ids = [
+            packet.evidence_id
+            for episode in episodes
+            for packet in episode.observation.evidence
+        ]
+        sample_ids = [
+            packet.sample_id
+            for episode in episodes
+            for packet in episode.observation.evidence
+        ]
+        self.assertEqual(len(evidence_ids), len(set(evidence_ids)))
+        self.assertEqual(len(sample_ids), len(set(sample_ids)))
+
     def test_train_and_gate_sample_namespaces_are_disjoint(self):
         train = [
             build_episode(event, 1000 + seed, split="train")
@@ -82,6 +98,47 @@ class E02I2CHiddenEventBenchmarkTests(unittest.TestCase):
             {packet.polarity for packet in modes[3].observation.evidence},
             {EvidencePolarity.SUPPORTS, EvidencePolarity.CONTRADICTS},
         )
+
+    def test_observable_provenance_ids_do_not_encode_event_labels(self):
+        forbidden = tuple(event.value.lower() for event in SUPPORTED_EVENTS)
+        for seed in range(40):
+            for event in SUPPORTED_EVENTS:
+                episode = build_episode(event, 10000 + seed, split="gate")
+                for packet in episode.observation.evidence:
+                    metadata = " ".join((
+                        packet.evidence_id, packet.sample_id,
+                        packet.raw_observation_ref,
+                    )).lower()
+                    self.assertFalse(any(label in metadata for label in forbidden))
+                    self.assertNotIn("unconfirmed-new", metadata)
+                    self.assertNotIn("conflict-positive", metadata)
+                    self.assertNotIn("undersampled", metadata)
+
+    def test_provenance_ids_are_not_reproducible_from_low_entropy_seed(self):
+        first = build_episode(EventType.MODIFY, 4242, split="gate")
+        second = build_episode(EventType.MODIFY, 4242, split="gate")
+        first_ids = {
+            packet.evidence_id for packet in first.observation.evidence
+        }
+        second_ids = {
+            packet.evidence_id for packet in second.observation.evidence
+        }
+        self.assertFalse(first_ids.intersection(second_ids))
+        self.assertEqual(_adjudicator(first.observation), _adjudicator(second.observation))
+
+    def test_random_bijective_provenance_renaming_preserves_semantic_decision(self):
+        episode = build_episode(EventType.MODIFY, 31337, split="gate")
+        renamed = []
+        for index, packet in enumerate(episode.observation.evidence):
+            renamed.append(replace(
+                packet,
+                evidence_id=f"opaque-e-{index}-x",
+                sample_id=f"opaque-s-{index}-y",
+                raw_observation_ref=f"opaque://{index}/z",
+            ))
+        original = _adjudicator(episode.observation)
+        transformed = replace(episode.observation, evidence=tuple(renamed))
+        self.assertEqual(_adjudicator(transformed), original)
 
     def test_locked_test_is_not_available_during_development(self):
         with self.assertRaisesRegex(ValueError, "locked Test"):
