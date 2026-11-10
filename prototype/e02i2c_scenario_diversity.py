@@ -264,7 +264,28 @@ def run_scenario_diversity(*, seeds: int = 30, train_start_seed: int = 1000,
         raise RuntimeError("Train/Gate provenance namespace collision")
     semantic_failures = [
         {"episode": ep.episode_id, "truth": ep.truth.value,
-         "decision": _decision(ep.observation).value}
+         "decision": adjudicate_event(
+             ep.observation.identity, ep.observation.opportunities,
+             ep.observation.evidence,
+             candidate_signature=ep.observation.candidate_signature,
+         ).event.value,
+         "reason": adjudicate_event(
+             ep.observation.identity, ep.observation.opportunities,
+             ep.observation.evidence,
+             candidate_signature=ep.observation.candidate_signature,
+         ).reason,
+         "opportunities": [
+             {"window": x.window, "coverage": x.coverage,
+              "observed": x.observed_samples, "expected": x.expected_samples}
+             for x in ep.observation.opportunities
+         ],
+         "evidence": [
+             {"window": x.window, "polarity": x.polarity.value,
+              "source_version": x.source_version_id,
+              "candidate": x.candidate_signature,
+              "sample": x.sample_id}
+             for x in ep.observation.evidence
+         ]}
         for ep in train + gate if _decision(ep.observation) != ep.truth
     ]
     if semantic_failures:
