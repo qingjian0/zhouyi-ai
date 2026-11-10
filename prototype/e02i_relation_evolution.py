@@ -8,7 +8,6 @@ failure before retiring it. Hidden schedules are generator/audit-only.
 from __future__ import annotations
 
 import argparse
-import itertools
 import json
 import random
 from dataclasses import dataclass
@@ -150,6 +149,8 @@ def _targets(scenario: str, base2: tuple[int, ...], expanded3: tuple[int, ...],
         return (expanded3, table3) if window < 2 else (base2, table2)
     if scenario == "rule_change":
         return expanded3, (table3 if window < 2 else table3 ^ 255)
+    if scenario == "transient_rule_change":
+        return expanded3, (table3 ^ 255 if window == 2 else table3)
     if scenario == "disappear":
         return (expanded3, table3) if window < 2 else None
     raise ValueError("unknown scenario")
@@ -225,7 +226,8 @@ def run_episode(*, seed: int, scenario: str, windows: int = 5,
 
 
 def run(*, seeds: int = 20, start_seed: int = 1200) -> dict:
-    scenarios = ("stable", "member_add", "member_remove", "rule_change", "disappear")
+    scenarios = ("stable", "member_add", "member_remove", "rule_change",
+                 "transient_rule_change", "disappear")
     results = {
         scenario: [run_episode(seed=start_seed + i, scenario=scenario)
                    for i in range(seeds)]
@@ -247,6 +249,9 @@ def run(*, seeds: int = 20, start_seed: int = 1200) -> dict:
             "rule_change_reconfigured": sum(
                 any(w["action"] == "RECONFIGURE" for w in e["windows"])
                 for e in results["rule_change"]) / seeds,
+            "transient_change_no_reconfiguration": sum(
+                all(w["action"] != "RECONFIGURE" for w in e["windows"])
+                for e in results["transient_rule_change"]) / seeds,
             "disappearance_retired": sum(
                 any(w["action"] == "RETIRE" for w in e["windows"])
                 for e in results["disappear"]) / seeds,
