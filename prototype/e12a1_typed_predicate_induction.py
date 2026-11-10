@@ -52,16 +52,22 @@ class Predicate:
             if self.operator == "EQ": return int(value == self._numeric_threshold())
             if self.operator == "PARITY":
                 if not isinstance(value, int): raise TypeError("PARITY requires integers")
-                return int(value % 2 == int(self.threshold))
+                if self.threshold not in (0, 1): raise TypeError("PARITY threshold must be 0 or 1")
+                return int(value % 2 == self.threshold)
         elif self.input_kind == "categorical":
             if self.operator != "EQ": raise TypeError("categorical predicates support EQ only")
             if not isinstance(value, str): raise TypeError(f"{self.feature} requires categorical string")
+            if not isinstance(self.threshold, str): raise TypeError("categorical EQ requires string threshold")
             return int(value == self.threshold)
         raise ValueError(f"unsupported predicate: {self}")
 
 def validate_view(view: LearnerView) -> None:
     names = [spec.name for spec in view.schema]
+    if any(not name for name in names): raise ValueError("feature names must be non-empty")
     if len(names) != len(set(names)): raise ValueError("feature names must be unique")
+    for spec in view.schema:
+        if spec.kind not in ("numeric", "categorical"):
+            raise ValueError(f"unsupported feature kind: {spec.kind}")
     if not view.train or not view.gate: raise ValueError("Train and Gate must be non-empty")
     for example in (*view.train, *view.gate):
         if example.label not in (0, 1): raise ValueError("labels must be binary")
@@ -88,7 +94,7 @@ def propose_predicates(view: LearnerView) -> tuple[Predicate, ...]:
                     candidates.add(Predicate(spec.name, "numeric", op, mid))
             for value in nums:
                 candidates.add(Predicate(spec.name, "numeric", "EQ", value))
-            if all(isinstance(v, int) for v in nums):
+            if nums and all(isinstance(v, int) for v in nums):
                 candidates.add(Predicate(spec.name, "numeric", "PARITY", 0))
                 candidates.add(Predicate(spec.name, "numeric", "PARITY", 1))
         else:
@@ -105,11 +111,12 @@ def infer(view: LearnerView, candidate_budget: int | None = None) -> dict:
     if candidate_budget is not None and candidate_budget < 0:
         raise ValueError("candidate_budget must be non-negative")
     evaluated = candidates if candidate_budget is None else candidates[:candidate_budget]
-    if len(evaluated) < len(candidates):
-        return {"status":"BUDGET_EXHAUSTED", "candidate_count":len(candidates),
-                "evaluated_count":len(evaluated), "candidates":(), "selected":None}
     train_ok = tuple(p for p in evaluated if _matches(p, view.train))
     gate_ok = tuple(p for p in train_ok if _matches(p, view.gate))
+    if len(evaluated) < len(candidates):
+        return {"status":"BUDGET_EXHAUSTED", "candidate_count":len(candidates),
+                "evaluated_count":len(evaluated), "train_consistent_count":len(train_ok),
+                "gate_consistent_count":len(gate_ok), "candidates":gate_ok, "selected":None}
     if len(gate_ok) == 1: status, selected = "IDENTIFIABLE", gate_ok[0]
     elif len(gate_ok) > 1: status, selected = "AMBIGUOUS", None
     else: status, selected = "INCONSISTENT", None
