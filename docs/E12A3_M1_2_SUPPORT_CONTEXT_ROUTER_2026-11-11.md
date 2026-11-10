@@ -1,7 +1,7 @@
 # E12-A3-M1.2 Support-Context Task Router
 
 Date: 2026-11-11  
-Status: initial router implemented and 20-seed × 3-task benchmark completed; aggregate result did not beat equal allocation; grammar-stratified probe correction is next  
+Status: random and grammar-stratified probe variants implemented and benchmarked; neither beat equal allocation; descriptor aggregation ablation is next  
 Motivation: M1 and M1.1 show that context-free UCB1 reward variants do not beat equal allocation, while the best proposer changes across task families.
 
 ## 1. Research question
@@ -97,7 +97,15 @@ The Support-context descriptor failed to identify STAT as the PARITY specialist.
 
 Full results: `E12A3_M1_2_CONTEXT_ROUTER_RESULTS_2026-11-11.md`.
 
-## 10. Next stage
+## 10. Grammar-stratified follow-up
+
+The four-proposal grammar-stratified probe improved PARITY accuracy by 2.19 pp relative to the random probe, but aggregate accuracy improved by only 0.26 pp and remained below EQUAL. The paired 95% interval for stratified minus random included zero.
+
+Detailed results: `E12A3_M1_2B_STRATIFIED_PROBE_RESULTS_2026-11-11.md`.
+
+The remaining issue may be descriptor aggregation: top-three mean can dilute one highly informative candidate. The next controlled test compares top-three mean, top-two mean, and maximum accuracy using the same four proposals and exact same budget.
+
+## 11. Next stage
 
 If the Support-context router is promising, compare:
 - top-three mean routing;
