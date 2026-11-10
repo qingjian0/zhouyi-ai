@@ -111,8 +111,6 @@ class PrequentialLedger:
             raise ValueError("reveal_id already exists")
         if prediction_id not in self._commits:
             raise ValueError("reveal requires a prior committed prediction")
-        if prediction_id in self._revealed_by_observation.values():
-            raise ValueError("prediction has already been revealed")
         commit = self._commits[prediction_id]
         observation_id = commit["observation_id"]
         if observation_id in self._revealed_by_observation:
