@@ -108,8 +108,14 @@ class E12A3AdaptiveAllocatorTests(unittest.TestCase):
         trace = result["trace"]
         self.assertEqual([item["step"] for item in trace], list(range(1, 7)))
         self.assertEqual(len({item["evidence_id"] for item in trace}), 6)
-        self.assertEqual(sum(item["reward"] for item in trace),
-                         sum(item["reward"] for item in trace))
+        expected_reward = sum(
+            {"A": (0.2, 0.4, 0.6), "B": (0.8, 0.7, 0.9)}[family][index]
+            for family, count in result["allocations"].items()
+            for index in range(count)
+        )
+        self.assertAlmostEqual(
+            sum(item["reward"] for item in trace), expected_reward
+        )
 
 
 if __name__ == "__main__":
