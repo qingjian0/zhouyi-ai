@@ -133,7 +133,7 @@ SPLIT / MERGE 不由一对一 Hungarian 结果推断。它们需要独立的谱�
 - `IdentitySnapshot`：裁决器只接收当前身份状态与版本摘要，不读取生成器转换计划。
 - 确定性 `adjudicate_event`：支持 CREATE、KEEP、MODIFY、ABSTAIN、SUSPEND、REACTIVATE（至少两个独立窗口/样本）、REACTIVATE_MODIFY、RETIRE 的保守提案。
 - CREATE/MODIFY 需要跨多个独立窗口和样本的支持；SUSPEND 需要连续且充分观测的 ABSENCE，且跨窗口样本 ID 独立；采样不足会打断缺失连续段；CONTRADICTION 不等同于 ABSENCE；RETIRE 仅对已暂停身份开放并要求跨窗口、跨样本的重复反例。
-- 18 项专项单测覆盖核心边界；另有 2 项账本原子事务测试；完整 CI 尚待结果确认。
+- 21 项专项单测覆盖核心边界；另有 2 项账本原子事务测试；完整 CI 尚待结果确认。
 
 仍未实现：
 - REPLACE、SPLIT、MERGE 的自动事件推断与多身份图证据。
