@@ -94,8 +94,14 @@ class SQLiteEvidenceStore:
             FOREIGN KEY (episode_id, sequence_no)
               REFERENCES events(episode_id, sequence_no)
         );
+        CREATE UNIQUE INDEX IF NOT EXISTS one_observation_id
+          ON events(episode_id, json_extract(payload_json, '$.observation_id'))
+          WHERE event_type='observation';
         CREATE UNIQUE INDEX IF NOT EXISTS one_prediction_per_observation
           ON events(episode_id, json_extract(payload_json, '$.observation_id'))
+          WHERE event_type='prediction_commit';
+        CREATE UNIQUE INDEX IF NOT EXISTS one_prediction_id
+          ON events(episode_id, json_extract(payload_json, '$.prediction_id'))
           WHERE event_type='prediction_commit';
         CREATE UNIQUE INDEX IF NOT EXISTS one_reveal_per_prediction
           ON events(episode_id, json_extract(payload_json, '$.prediction_id'))
@@ -110,7 +116,10 @@ class SQLiteEvidenceStore:
             self._db.close()
 
     def _validate_semantics(self, episode_id: str, event_type: str, payload: dict[str, Any]) -> None:
-        if event_type == "prediction_commit":
+        if event_type == "observation":
+            if not payload.get("observation_id"):
+                raise ProtocolError("observation requires observation_id")
+        elif event_type == "prediction_commit":
             required = {"prediction_id", "observation_id", "model_version", "decision_status"}
             if not required.issubset(payload):
                 raise ProtocolError(f"prediction_commit missing fields: {sorted(required - payload.keys())}")
@@ -118,6 +127,13 @@ class SQLiteEvidenceStore:
                 "PREDICT", "ABSTAIN_AMBIGUOUS", "ABSTAIN_INCONSISTENT", "ABSTAIN_BUDGET"
             }:
                 raise ProtocolError("invalid prediction decision_status")
+            observation = self._db.execute(
+                "SELECT 1 FROM events WHERE episode_id=? AND event_type='observation' "
+                "AND json_extract(payload_json, '$.observation_id')=?",
+                (episode_id, payload["observation_id"]),
+            ).fetchone()
+            if observation is None:
+                raise MissingReference("prediction commit requires a prior observation event")
         elif event_type == "evidence_reveal":
             if not {"prediction_id", "target_or_feedback"}.issubset(payload):
                 raise ProtocolError("evidence_reveal requires prediction_id and target_or_feedback")
