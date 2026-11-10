@@ -58,3 +58,9 @@ No performance claim is made in this record.
 Full repository GitHub Actions workflow passed on commit `08bed36bc844998fee28f8d7bbd5b634e0be657d`. This included the repository-wide unit-test step, E12-A3 unit tests, the A3 smoke test, benchmark tests, the 20-seed equal-proposal-slot benchmark, and all existing E01/E02 workflow steps.
 
 After that successful run, additional strict validation was added for boolean labels, non-finite numeric values, and numeric predicate thresholds. The latest commits require a fresh full CI confirmation before being called green.
+
+## Cross-family deduplication follow-up
+
+A subsequent implementation added syntactic deduplication across STAT, RELATIONAL, and RANDOM while preserving all contributing proposer IDs in `supporting_families`. The full repository workflow passed on commit `1b22906652faf4c3279c5744a3617b6732b12997` (run `42871279195`).
+
+The follow-up benchmark is recorded in `E12A3_M0_1_DEDUP_RESULTS_2026-11-11.md`. Portfolio coverage fell to 17.5%, confirming that deduplication must be coupled to an allocation policy that handles shared candidates without arbitrary family ownership.
