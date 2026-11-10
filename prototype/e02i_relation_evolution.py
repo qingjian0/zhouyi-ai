@@ -13,7 +13,7 @@ import random
 from dataclasses import dataclass
 
 from prototype.e02h_boolean_rules import (
-    Row, accuracy, admissible_target_tables, discover, pairwise_baseline,
+    Candidate, Row, accuracy, admissible_target_tables, discover, pairwise_baseline,
 )
 
 
@@ -214,14 +214,29 @@ def run_episode(*, seed: int, scenario: str, windows: int = 5,
                                 accuracy(gate, winner),
                                 pairwise_baseline(train, gate))
         action = controller.observe(snapshot, window=window)
+        persistent_candidate = (
+            Candidate(controller.current.members, controller.current.truth_table, 0.0)
+            if controller.current is not None else None
+        )
+        persistent_test_acc = (
+            accuracy(test, persistent_candidate)
+            if persistent_candidate is not None else None
+        )
         rows.append({
             "window": window, "action": action,
             "candidate_members": list(snapshot.members),
             "candidate_truth_table": snapshot.truth_table,
             "gate_accuracy": snapshot.gate_accuracy,
             "pairwise_gate_accuracy": snapshot.pairwise_accuracy,
-            "test_accuracy": test_acc,
+            "candidate_test_accuracy": test_acc,
             "pairwise_test_accuracy": pair_test_acc,
+            "persistent_test_accuracy": persistent_test_acc,
+            "persistent_members": (
+                list(controller.current.members) if controller.current else None
+            ),
+            "persistent_truth_table": (
+                controller.current.truth_table if controller.current else None
+            ),
             "split_ids_disjoint": (len({r.sample_id for r in train} | {r.sample_id for r in gate} | {r.sample_id for r in test}) == len(train) + len(gate) + len(test)),
             "accepted": snapshot.accepted,
             "target_for_audit_only": list(target[0]) if target else None,
@@ -295,8 +310,24 @@ def run(*, seeds: int = 20, start_seed: int = 1200) -> dict:
                 for e in results["disappear"]) / seeds,
             "disappearance_finally_absent": sum(
                 e["final_relation"] is None for e in results["disappear"]) / seeds,
-            "mean_test_accuracy_by_scenario": {
-                scenario: sum(w["test_accuracy"] for e in episodes for w in e["windows"]) / (seeds * 5)
+            "mean_candidate_test_accuracy_by_scenario": {
+                scenario: sum(w["candidate_test_accuracy"] for e in episodes for w in e["windows"]) / (seeds * 5)
+                for scenario, episodes in results.items()
+            },
+            "mean_persistent_test_accuracy_by_scenario": {
+                scenario: (
+                    sum(w["persistent_test_accuracy"] for e in episodes for w in e["windows"]
+                        if w["persistent_test_accuracy"] is not None)
+                    / sum(1 for e in episodes for w in e["windows"]
+                          if w["persistent_test_accuracy"] is not None)
+                    if any(w["persistent_test_accuracy"] is not None
+                           for e in episodes for w in e["windows"]) else None
+                )
+                for scenario, episodes in results.items()
+            },
+            "persistent_relation_coverage_by_scenario": {
+                scenario: sum(w["persistent_test_accuracy"] is not None
+                              for e in episodes for w in e["windows"]) / (seeds * 5)
                 for scenario, episodes in results.items()
             },
             "mean_pairwise_test_accuracy_by_scenario": {
