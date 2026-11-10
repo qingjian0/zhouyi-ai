@@ -138,7 +138,6 @@ _ALLOWED_TRANSITIONS = {
     (WorkflowStage.GATE_VALIDATED, WorkflowStage.CHALLENGED),
     (WorkflowStage.REUSED, WorkflowStage.CHALLENGED),
     (WorkflowStage.CHALLENGED, WorkflowStage.REVISION_PENDING),
-    (WorkflowStage.REVISION_PENDING, WorkflowStage.PROPOSED),
     (WorkflowStage.CHALLENGED, WorkflowStage.RETIRED),
 }
 
