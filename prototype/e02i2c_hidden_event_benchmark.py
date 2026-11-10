@@ -292,8 +292,8 @@ def _build_episodes(*, seeds: int, start_seed: int, split: str) -> list[Episode]
         rng = random.Random(f"{split}:{start_seed}:{offset}")
         rng.shuffle(episode_seeds)
         # Ensure the four ABSTAIN sub-modes are represented across ordinary
-        # multi-seed runs. The chosen seed remains an opaque hashed provenance
-        # input; the event label is never embedded in an observable identifier.
+        # multi-seed runs. Seeds remain evaluator-side; observable provenance
+        # identifiers are independently randomized and do not encode them.
         abstain_seed = start_seed + offset * len(SUPPORTED_EVENTS)
         desired_residue = (start_seed + offset) % 4
         abstain_seed += (desired_residue - abstain_seed) % 4
