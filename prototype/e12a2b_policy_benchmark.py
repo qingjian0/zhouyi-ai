@@ -48,6 +48,7 @@ POLICIES = (
     "max_disagreement",
     "expected_ig",
     "cost_normalized_ig",
+    "lookahead_2",
     "exact_optimal",
 )
 
@@ -139,6 +140,54 @@ def _exact_optimal_action(
     return value(active, available, budget)[1]
 
 
+def _two_step_lookahead_action(
+    actions: tuple[WorldAction, ...],
+    active: tuple[int, ...],
+    available: tuple[int, ...],
+    budget: int,
+) -> int | None:
+    """Choose the first action minimizing expected entropy after up to 2 steps."""
+    feasible = tuple(i for i in available if actions[i].cost <= budget)
+    best_index: int | None = None
+    best_entropy = math.log2(len(active)) if active else 0.0
+    for first in feasible:
+        first_action = actions[first]
+        first_groups = _action_partition(first_action, active)
+        if len(first_groups) <= 1:
+            continue
+        remaining = tuple(i for i in available if i != first)
+        expected_terminal = 0.0
+        for group in first_groups.values():
+            probability = len(group) / len(active)
+            terminal_entropy = math.log2(len(group))
+            next_budget = budget - first_action.cost
+            for second in remaining:
+                second_action = actions[second]
+                if second_action.cost > next_budget:
+                    continue
+                second_groups = _action_partition(second_action, group)
+                if len(second_groups) <= 1:
+                    continue
+                after_second = sum(
+                    len(part) / len(group) * math.log2(len(part))
+                    for part in second_groups.values()
+                )
+                terminal_entropy = min(terminal_entropy, after_second)
+            expected_terminal += probability * terminal_entropy
+        if (
+            expected_terminal < best_entropy - 1e-12
+            or (
+                abs(expected_terminal - best_entropy) <= 1e-12
+                and best_index is not None
+                and (first_action.cost, first_action.action_id)
+                < (actions[best_index].cost, actions[best_index].action_id)
+            )
+        ):
+            best_entropy = expected_terminal
+            best_index = first
+    return best_index
+
+
 def select_policy_action(
     policy: str,
     actions: tuple[WorldAction, ...],
@@ -197,6 +246,10 @@ def select_policy_action(
         return min(
             (i for i, score in scored if abs(score - best) <= 1e-12),
             key=lambda i: (actions[i].cost, actions[i].action_id),
+        )
+    if policy == "lookahead_2":
+        return _two_step_lookahead_action(
+            actions, active, feasible, remaining_budget
         )
     if policy == "exact_optimal":
         return _exact_optimal_action(actions, active, feasible, remaining_budget)
