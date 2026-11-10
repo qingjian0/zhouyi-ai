@@ -42,6 +42,13 @@ class E09CounterexampleLearnerTests(unittest.TestCase):
         with self.assertRaises(RuleLearningError):
             learner.fit([Example((0,) * 6, 0), Example((1,) * 6, 1)])
 
+    def test_candidate_budget_counts_each_label_evaluation(self):
+        learner = CounterexampleRuleLearner(((0, 1),), max_candidates=5)
+        with self.assertRaises(RuleLearningError):
+            learner.fit([
+                Example((0,), "A"), Example((1,), "B"),
+            ])
+
     def test_rejects_invalid_and_duplicate_examples(self):
         learner = CounterexampleRuleLearner(((0, 1),))
         with self.assertRaises(RuleLearningError):
