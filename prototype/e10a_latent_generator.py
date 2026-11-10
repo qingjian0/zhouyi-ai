@@ -289,7 +289,9 @@ def generate_episode(seed: int, *, object_count: int = 18,
         for instance_index in range(instances_per_template):
             # All observations derived from this base role assignment share one
             # evaluator-only provenance key, including role-near-miss variants.
-            source_group_id = _opaque(rng, "src")
+            source_group_id = (
+                f"{episode_id}-src-{template_index:02d}-{instance_index:05d}"
+            )
             role_objects = tuple(
                 pool[instance_index % len(pool)] for pool in role_pools
             )
