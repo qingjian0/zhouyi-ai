@@ -50,13 +50,26 @@ class E02I2CScenarioDiversityTests(unittest.TestCase):
         self.assertFalse(hasattr(observation, "split"))
 
     def test_runner_enforces_train_gate_namespace_and_semantics(self):
-        result = run_scenario_diversity(seeds=30)
+        result = run_scenario_diversity(seeds=30, bootstrap_samples=100)
         self.assertTrue(result["namespace"]["sample_disjoint"])
         self.assertTrue(result["namespace"]["evidence_disjoint"])
         self.assertTrue(result["semantic_invariance"]["passed"])
         self.assertEqual(result["train_episodes"], 480)
         self.assertEqual(result["gate_episodes"], 240)
         self.assertFalse(result["limitations"] == [])
+        for tier in ("M0", "M1", "M2"):
+            for model in ("categorical_naive_bayes", "decision_tree_depth_3"):
+                metrics = result["metadata_attackers"][tier][model]
+                self.assertEqual(metrics["seed_block_bootstrap"]["replicates"], 100)
+                self.assertTrue(metrics["seed_block_bootstrap"]["macro_f1_95_ci"])
+                self.assertEqual(
+                    sum(row["episodes"] for row in metrics["per_environment"].values()),
+                    240,
+                )
+        self.assertEqual(
+            sum(row["episodes"] for row in result["evidence_aware_reference"]["per_environment"].values()),
+            240,
+        )
 
 
 if __name__ == "__main__":
