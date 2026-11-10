@@ -19,6 +19,28 @@ class HyperedgeLifecycleTests(unittest.TestCase):
         with self.assertRaises(LifecycleError):
             manager.create(proposal("e", gain=0.0))
 
+    def test_create_rejects_non_finite_gain_and_cost(self):
+        manager = HyperedgeLifecycle()
+        for gain in (float("nan"), float("inf"), float("-inf")):
+            with self.assertRaises(LifecycleError):
+                manager.create(proposal("edge-" + str(gain), gain=gain))
+        with self.assertRaises(LifecycleError):
+            manager.create(EdgeProposal(
+                "bad-cost", ("a", "b"), ("x", "y"), "constraint",
+                ("s1", "s2", "s3"), (), 0.1, float("nan"),
+            ))
+
+    def test_observe_rejects_non_finite_metrics_without_mutation(self):
+        manager = HyperedgeLifecycle()
+        manager.create(proposal("e"))
+        original = manager.edges["e"]
+        for gain in (float("nan"), float("inf")):
+            with self.assertRaises(LifecycleError):
+                manager.observe("e", support_ids=(), counterexample_ids=(),
+                                validation_gain=gain, cost=1.0)
+        self.assertIs(manager.edges["e"], original)
+        self.assertEqual(len(manager.audit_log()), 1)
+
     def test_create_rejects_conflicting_evidence_sets(self):
         manager = HyperedgeLifecycle()
         with self.assertRaises(LifecycleError):
