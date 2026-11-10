@@ -134,7 +134,8 @@ class E10AMechanismLearner:
         # Online candidate elimination: filter only on the newly revealed row.
         self._candidates = {
             candidate for candidate in self._candidates
-            if candidate.predict(row, self._objects) is target
+            if candidate.relation_symbol != row["relation_symbol"]
+            or candidate.predict(row, self._objects) is target
         }
         self._version += 1
         return {"operation": "keep" if before == self.candidate_hash else "modify", "before_candidate_hash": before, "after_candidate_hash": self.candidate_hash, "candidate_count": self.candidate_count, "status": self.status, "model_version": self.version_id}
