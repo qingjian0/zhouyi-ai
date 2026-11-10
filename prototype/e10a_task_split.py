@@ -120,9 +120,21 @@ def _validate_views(
 
     if set(observation_by_id) != set(truth_by_id):
         raise ValueError("learner/evaluator observation identity mismatch")
+    source_relation: dict[str, str] = {}
+    source_template: dict[str, str] = {}
     for oid, row in observation_by_id.items():
         if row["outcome"] is not truth_by_id[oid]["valid"]:
             raise ValueError(f"learner/evaluator label mismatch for {oid}")
+        truth = truth_by_id[oid]
+        source_id = truth["source_group_id"]
+        relation = row["relation_symbol"]
+        template_id = truth["template_id"]
+        previous_relation = source_relation.setdefault(source_id, relation)
+        previous_template = source_template.setdefault(source_id, template_id)
+        if previous_relation != relation:
+            raise ValueError("source group spans multiple relation symbols")
+        if previous_template != template_id:
+            raise ValueError("source group spans multiple templates")
 
     return observations, truth_by_id, object_id_set
 
@@ -254,7 +266,11 @@ def build_support_query_task(
         ),
         "grouping_policy": grouping_policy,
         "selection_policy": "label_blind_uniform_group_shuffle_v1",
-        "sampling_unit": "relation_symbol+unordered_participant_set",
+        "sampling_unit": (
+            "relation_symbol+unordered_participant_set"
+            if grouping_policy == "participant_set"
+            else "relation_symbol+evaluator_source_group_id"
+        ),
         "sampling_weighting": "uniform_group_selection; observation inclusion varies with group size",
         "support_group_size_histogram": group_size_histogram(support_group_sizes),
         "query_group_size_histogram": group_size_histogram(query_group_sizes),
