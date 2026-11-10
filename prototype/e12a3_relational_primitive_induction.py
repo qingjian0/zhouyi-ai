@@ -1,6 +1,7 @@
 """E12-A3: discover typed relations between observed feature pairs."""
 from __future__ import annotations
 from dataclasses import dataclass
+import math
 from typing import Literal
 
 Kind = Literal["numeric", "categorical"]
@@ -72,8 +73,9 @@ def validate_view(view: LearnerView) -> None:
         for spec in view.schema:
             value = ex.value(spec.name)
             if spec.kind == "numeric":
-                if isinstance(value, bool) or not isinstance(value, (int, float)):
-                    raise TypeError(f"{spec.name} must be numeric")
+                if (isinstance(value, bool) or not isinstance(value, (int, float))
+                    or not math.isfinite(value)):
+                    raise TypeError(f"{spec.name} must be a finite numeric value")
             elif not isinstance(value, str):
                 raise TypeError(f"{spec.name} must be categorical string")
 
@@ -104,8 +106,11 @@ def _matches(predicate: RelationalPredicate, examples: tuple[Example, ...]) -> b
 def infer(view: LearnerView, candidate_budget: int | None = None) -> dict:
     """Propose from Train, validate on Gate, and preserve ambiguity/abstention."""
     candidates = propose_relations(view)
-    if candidate_budget is not None and candidate_budget < 0:
-        raise ValueError("candidate_budget must be non-negative")
+    if candidate_budget is not None:
+        if isinstance(candidate_budget, bool) or not isinstance(candidate_budget, int):
+            raise TypeError("candidate_budget must be an integer")
+        if candidate_budget < 0:
+            raise ValueError("candidate_budget must be non-negative")
     evaluated = candidates if candidate_budget is None else candidates[:candidate_budget]
     train_ok = tuple(p for p in evaluated if _matches(p, view.train))
     gate_ok = tuple(p for p in train_ok if _matches(p, view.gate))
