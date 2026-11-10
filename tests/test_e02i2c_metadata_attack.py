@@ -11,6 +11,8 @@ from prototype.e02i2c_metadata_attack import (
     _bootstrap_metrics,
     _m0_ablation_features,
     run_m0_ablation,
+    _feature_families,
+    run_feature_family_ablation,
 )
 
 
@@ -130,6 +132,27 @@ class E02I2CMetadataAttackTests(unittest.TestCase):
     def test_m0_ablation_requires_fresh_thirty_block_gate(self):
         with self.assertRaises(ValueError):
             run_m0_ablation(seeds=29, bootstrap_samples=100)
+
+    def test_m0_subablation_isolates_evidence_count(self):
+        observation = build_episode(EventType.MODIFY, 1012, split="train").observation
+        full = extract_features(observation, "M0")
+        count_only = _m0_ablation_features(full, "evidence_count_only")
+        other_cardinality = _m0_ablation_features(
+            full, "cardinality_without_evidence_count"
+        )
+        self.assertEqual(set(count_only), {"id.evidence_count"})
+        self.assertNotIn("id.evidence_count", other_cardinality)
+        self.assertEqual(
+            set(count_only).intersection(other_cardinality), set()
+        )
+
+    def test_feature_family_ablation_rejects_invalid_family(self):
+        with self.assertRaises(ValueError):
+            _feature_families({"id.x": "1"}, {"truth"})
+
+    def test_feature_family_ablation_requires_fresh_gate(self):
+        with self.assertRaises(ValueError):
+            run_feature_family_ablation(seeds=29, bootstrap_samples=100)
 
     def test_unknown_tier_is_rejected(self):
         episode = build_episode(EventType.KEEP, 1010, split="train")
