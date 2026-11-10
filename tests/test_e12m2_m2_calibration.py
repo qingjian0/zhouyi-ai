@@ -36,6 +36,22 @@ class E12M2CalibrationTests(unittest.TestCase):
         self.assertEqual(len(first["null"]["p_values"]), 2)
         self.assertEqual(len(first["planted"]["p_values"]), 2)
         self.assertEqual(first["planted"]["observed_pair_count_gain"], [2, 2])
+        for key in (
+            "candidate_rejection_rate_wilson_95",
+            "max_statistic_rejection_rate_wilson_95",
+        ):
+            low, high = first["null"][key]
+            self.assertLessEqual(0.0, low)
+            self.assertLessEqual(low, high)
+            self.assertLessEqual(high, 1.0)
+        for key in (
+            "candidate_detection_rate_wilson_95",
+            "max_statistic_detection_rate_wilson_95",
+        ):
+            low, high = first["planted"][key]
+            self.assertLessEqual(0.0, low)
+            self.assertLessEqual(low, high)
+            self.assertLessEqual(high, 1.0)
 
     def test_invalid_configuration_is_rejected(self):
         with self.assertRaises(ValueError):
