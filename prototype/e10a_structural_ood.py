@@ -12,14 +12,16 @@ def _hash(value: object) -> str:
 
 def _pool(seed: int, phase: str, role_values: tuple[str, ...], feature: str,
           instances: int) -> tuple[list[dict], list[str]]:
+    seed_tag = hashlib.sha256(str(seed).encode()).hexdigest()[:8]
+    prefix = f"{phase}-{seed_tag}"
     rng = random.Random(int.from_bytes(hashlib.sha256(f"{seed}:{phase}".encode()).digest()[:8], "big"))
     objects, role_ids = [], []
     for index, value in enumerate(role_values):
         for n in range(instances):
-            oid = f"{phase}-role-{index}-{n}"
+            oid = f"{prefix}-role-{index}-{n}"
             objects.append({"object_id": oid, "attributes": [[feature, value]]})
             role_ids.append(oid)
-    nuisance = f"{phase}-nuisance"
+    nuisance = f"{prefix}-nuisance"
     objects.append({"object_id": nuisance, "attributes": [[feature, f"{phase}-other"]]})
     rng.shuffle(objects)
     return objects, role_ids + [nuisance]
@@ -27,7 +29,9 @@ def _pool(seed: int, phase: str, role_values: tuple[str, ...], feature: str,
 
 def build_structural_ood_task(seed: int, *, instances_per_role: int = 4) -> tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
     """Support teaches two context conjuncts separately; Query recombines them."""
-    if not isinstance(seed, int) or isinstance(seed, bool) or instances_per_role < 2:
+    if (not isinstance(seed, int) or isinstance(seed, bool)
+            or not isinstance(instances_per_role, int) or isinstance(instances_per_role, bool)
+            or instances_per_role < 2):
         raise ValueError("invalid seed or instances_per_role")
     feature, relation = "shape_class", "relates"
     roles = ("alpha", "beta", "gamma")
@@ -40,7 +44,8 @@ def build_structural_ood_task(seed: int, *, instances_per_role: int = 4) -> tupl
     def observations(ids: list[str], phase: str, support_mode: bool) -> tuple[list[dict], list[dict]]:
         by_role = []
         for role_index in range(len(roles)):
-            by_role.append([oid for oid in ids if oid.startswith(f"{phase}-role-{role_index}-")])
+            seed_tag = hashlib.sha256(str(seed).encode()).hexdigest()[:8]
+            by_role.append([oid for oid in ids if oid.startswith(f"{phase}-{seed_tag}-role-{role_index}-")])
         rows, truth = [], []
         serial = 0
         if support_mode:
@@ -62,7 +67,7 @@ def build_structural_ood_task(seed: int, *, instances_per_role: int = 4) -> tupl
             participants = []
             for value in role_spec:
                 if value == "other":
-                    participants.append(f"{phase}-nuisance")
+                    participants.append(f"{phase}-{hashlib.sha256(str(seed).encode()).hexdigest()[:8]}-nuisance")
                 else:
                     idx = roles.index(value)
                     participants.append(by_role[idx][serial % len(by_role[idx])])
