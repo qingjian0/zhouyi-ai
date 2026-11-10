@@ -65,6 +65,72 @@ class E10ATaskSplitTests(unittest.TestCase):
             manifest["query_observation_count"],
         )
 
+    def test_source_group_split_keeps_all_derived_observations_together(self):
+        _, learner, evaluator = self._views(709)
+        task = build_support_query_task(
+            learner, evaluator, seed=83, grouping_policy="source_group"
+        )
+        source_by_observation = {
+            row["observation_id"]: row["source_group_id"]
+            for row in evaluator["instances"]
+        }
+        support_ids = {
+            row["observation_id"] for row in task["support"]["observations"]
+        }
+        query_ids = {
+            row["observation_id"] for row in task["query"]["observations"]
+        }
+        partitions_by_source = {}
+        for observation_id, source_group_id in source_by_observation.items():
+            partition = "support" if observation_id in support_ids else "query"
+            partitions_by_source.setdefault(source_group_id, set()).add(partition)
+        self.assertTrue(all(len(partitions) == 1
+                            for partitions in partitions_by_source.values()))
+        self.assertEqual(task["manifest"]["grouping_policy"], "source_group")
+        self.assertEqual(
+            task["manifest"]["grouping"],
+            "relation_symbol+evaluator_source_group_id",
+        )
+        for row in task["support"]["observations"] + task["query"]["observations"]:
+            self.assertNotIn("source_group_id", row)
+        self.assertEqual(
+            sum(task["manifest"]["support_group_size_histogram"].values()),
+            task["manifest"]["support_group_count"],
+        )
+        self.assertEqual(
+            sum(task["manifest"]["query_group_size_histogram"].values()),
+            task["manifest"]["query_group_count"],
+        )
+
+    def test_source_group_assignment_ignores_evaluator_labels_and_metadata(self):
+        _, learner, evaluator = self._views(710)
+        changed_learner = copy.deepcopy(learner)
+        changed_evaluator = copy.deepcopy(evaluator)
+        for row in changed_learner["observations"]:
+            row["outcome"] = not row["outcome"]
+        for row in changed_evaluator["instances"]:
+            row["valid"] = not row["valid"]
+            row["violation"] = "mutated"
+            row["template_id"] = "opaque-mutated-template"
+        original = build_support_query_task(
+            learner, evaluator, seed=89, grouping_policy="source_group"
+        )
+        changed = build_support_query_task(
+            changed_learner, changed_evaluator, seed=89,
+            grouping_policy="source_group"
+        )
+        original_ids = [r["observation_id"] for r in original["query"]["observations"]]
+        changed_ids = [r["observation_id"] for r in changed["query"]["observations"]]
+        self.assertEqual(original_ids, changed_ids)
+
+    def test_source_group_policy_rejects_missing_provenance(self):
+        _, learner, evaluator = self._views(711)
+        del evaluator["instances"][0]["source_group_id"]
+        with self.assertRaisesRegex(ValueError, "source_group_id"):
+            build_support_query_task(
+                learner, evaluator, seed=97, grouping_policy="source_group"
+            )
+
     def test_query_assignment_is_invariant_to_hidden_label_mutation(self):
         _, learner, evaluator = self._views(704)
         changed_learner = copy.deepcopy(learner)
