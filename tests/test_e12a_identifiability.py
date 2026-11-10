@@ -1,5 +1,4 @@
 import unittest
-from dataclasses import replace
 
 from prototype.e12a_identifiability import (
     EvaluatorTruth,
@@ -47,13 +46,11 @@ class E12AIdentifiabilityTests(unittest.TestCase):
         self.assertEqual(infer(view)["status"], "INCONSISTENT")
 
     def test_truth_mutation_cannot_change_learner_result(self):
-        view, truth = make_episode("ambiguous", 13)
-        mutated_truth = replace(truth, primitive_id=(
-            "eq2" if truth.primitive_id == "ge2" else "ge2"
-        ))
-        self.assertEqual(infer(view), infer(view))
-        self.assertEqual(infer(view), infer(view))
-        self.assertNotEqual(truth.primitive_id, mutated_truth.primitive_id)
+        view_a, truth_a = make_episode("ambiguous", 13)
+        view_b, truth_b = make_episode("ambiguous", 14)
+        self.assertNotEqual(truth_a.primitive_id, truth_b.primitive_id)
+        self.assertEqual(view_a, view_b)
+        self.assertEqual(infer(view_a), infer(view_b))
 
     def test_budget_exhaustion_is_explicit(self):
         view, _ = make_episode("identifiable", 3)
