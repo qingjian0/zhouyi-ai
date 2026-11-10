@@ -87,7 +87,7 @@ def _leaf_features(candidate: Candidate) -> frozenset[str]:
 
 
 def _candidate_order(candidate: Candidate) -> tuple:
-    return (candidate.complexity, candidate.depth, repr(canonical_key(candidate)))
+    return (candidate.complexity, candidate.depth if isinstance(candidate, Expr) else 0, repr(canonical_key(candidate)))
 
 
 def generate_candidates(
