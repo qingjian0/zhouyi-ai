@@ -1,10 +1,11 @@
 name: tests
+# C-F validation includes balanced opportunity/evidence metadata, bootstrap intervals, and per-environment slices.
 
 on:
   push:
-    branches: [main, research/e02i-ci-runner, research/e02i-persistent-evidence, research/e02i2-relation-lineage, research/e02i2-hidden-identity-benchmark, research/e02i2c-event-adjudication, research/e02i2c-hidden-event-benchmark, research/e02i2c-integrity-hardening, research/e02i2c-metadata-attack]
+    branches: [main, research/e02i-ci-runner, research/e02i-persistent-evidence, research/e02i2-relation-lineage, research/e02i2-hidden-identity-benchmark, research/e02i2c-event-adjudication, research/e02i2c-hidden-event-benchmark, research/e02i2c-integrity-hardening, research/e02i2c-metadata-attack, research/e02i2c-scenario-diversity-impl]
   pull_request:
-    branches: [main, research/e02e-autonomous-discovery, research/e02f-falsification, research/e02g-multienvironment-stability, research/e02i-relation-evolution, research/e02h-baseline, research/e02i-persistent-evidence, research/e02i2-relation-lineage, research/e02i2c-hidden-event-benchmark, research/e02i2c-integrity-hardening]
+    branches: [main, research/e02e-autonomous-discovery, research/e02f-falsification, research/e02g-multienvironment-stability, research/e02i-relation-evolution, research/e02h-baseline, research/e02i-persistent-evidence, research/e02i2-relation-lineage, research/e02i2c-hidden-event-benchmark, research/e02i2c-integrity-hardening, research/e02i2c-scenario-diversity-impl]
 
 jobs:
   unit-tests:
@@ -64,6 +65,16 @@ jobs:
         run: python -m unittest tests.test_e02i2c_metadata_attack -v
       - name: Run E02-I2-C-E metadata-only leakage attack (30 seed blocks)
         run: python -m prototype.e02i2c_metadata_attack --seeds 30 --train-start-seed 1000 --gate-start-seed 10000 --bootstrap-samples 1000 > e02i2c_metadata_attack.json
+      - name: Run E02-I2-C-F scenario diversity tests
+        run: python -m unittest tests.test_e02i2c_scenario_diversity -v
+      - name: Run E02-I2-C-F scenario diversity prototype (30 seed blocks)
+        run: python -m prototype.e02i2c_scenario_diversity --seeds 30 > e02i2c_scenario_diversity.json
+      - name: Upload E02-I2-C-F scenario diversity report
+        uses: actions/upload-artifact@v4
+        with:
+          name: e02i2c-scenario-diversity-report
+          path: e02i2c_scenario_diversity.json
+          if-no-files-found: error
       - name: Upload E02-I2-C-E metadata attack report
         uses: actions/upload-artifact@v4
         with:
