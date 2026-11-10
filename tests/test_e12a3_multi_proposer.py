@@ -61,9 +61,9 @@ class E12A3MultiProposerTests(unittest.TestCase):
         stat = tuple(reversed(propose_statistical(rows)))
         relational = tuple(reversed(propose_relational(rows)))
         selected = allocate_round_robin({"STAT": stat, "RELATIONAL": relational}, 3)
-        self.assertEqual(selected[0], stat[0])
-        self.assertEqual(selected[1], relational[0])
-        self.assertEqual(selected[2], stat[1])
+        self.assertEqual(selected[0], relational[0])
+        self.assertEqual(selected[1], stat[0])
+        self.assertEqual(selected[2], relational[1])
 
     def test_empirical_equivalence_is_dataset_scoped(self):
         rows = demo_rows()
