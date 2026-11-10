@@ -147,9 +147,9 @@ def build_episode(event: EventType, seed: int, *, split: str) -> Episode:
                                  None, split=split) for w in (0, 1))
     elif event == EventType.REACTIVATE:
         identity = IdentitySnapshot("r1", "SUSPENDED", "v1", "a&b")
-        opportunities = (_opportunity(2),)
-        evidence = (_packet(seed, "reactivate", 2, EvidencePolarity.SUPPORTS,
-                            "a&b", source="v1", split=split),)
+        opportunities = (_opportunity(2), _opportunity(3))
+        evidence = tuple(_packet(seed, "reactivate", w, EvidencePolarity.SUPPORTS,
+                                 "a&b", source="v1", split=split) for w in (2, 3))
     elif event == EventType.REACTIVATE_MODIFY:
         identity = IdentitySnapshot("r1", "SUSPENDED", "v1", "a&b")
         candidate = "a|b"
