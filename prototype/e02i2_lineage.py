@@ -160,7 +160,8 @@ class RelationLineageLedger:
                members: tuple[str, ...], roles: tuple[str, ...],
                operator: str, rule_signature: str,
                context_signature: str = "global", window: int,
-               evidence_refs: tuple[str, ...] = ()) -> RelationIdentity:
+               evidence_refs: tuple[str, ...] = (),
+               _emit_event: bool = True) -> RelationIdentity:
         self._check_window(window)
         if not identity_id.strip() or identity_id in self.identities:
             raise LineageError("identity ID must be non-empty and unique")
@@ -175,7 +176,8 @@ class RelationLineageLedger:
         )
         self.versions[version_id] = version
         self.identities[identity_id] = identity
-        self._record("CREATE", window, (identity_id,), (version_id,), evidence_refs)
+        if _emit_event:
+            self._record("CREATE", window, (identity_id,), (version_id,), evidence_refs)
         return identity
 
     def keep(self, identity_id: str, *, window: int,
@@ -291,6 +293,7 @@ class RelationLineageLedger:
                 rule_signature=item["rule_signature"],
                 context_signature=item.get("context_signature", "global"),
                 window=window, evidence_refs=tuple(item.get("evidence_refs", ())),
+                _emit_event=False,
             )
         created = []
         for item in children:
@@ -326,7 +329,7 @@ class RelationLineageLedger:
             identity_id=identity_id, version_id=version_id, members=members,
             roles=roles, operator=operator, rule_signature=rule_signature,
             context_signature=context_signature, window=window,
-            evidence_refs=evidence_refs,
+            evidence_refs=evidence_refs, _emit_event=False,
         )
         for parent in parents:
             self.identities[parent.identity_id] = replace(
@@ -353,7 +356,7 @@ class RelationLineageLedger:
             identity_id=identity_id, version_id=version_id, members=members,
             roles=roles, operator=operator, rule_signature=rule_signature,
             context_signature=context_signature, window=window,
-            evidence_refs=evidence_refs,
+            evidence_refs=evidence_refs, _emit_event=False,
         )
         self.identities[old_identity_id] = replace(
             old, status=IdentityStatus.REPLACED
