@@ -36,7 +36,7 @@ Start with small transparent generators, each with a stable family ID and versio
 - CONTRASTIVE: predicates separating positive examples from hard negatives.
 - COMPOSITIONAL: typed AND/OR/NOT compositions of already proposed primitives.
 - RANDOM: grammar-valid random proposals as an exploration baseline.
-- EXHAUSTIVE: bounded DSL enumeration as a separate search-control baseline, not a member of the adaptive portfolio; it may overlap the STAT/RELATIONAL grammar and must not receive a second allocation inside that portfolio.
+- BOUNDED_ENUM: bounded enumeration over the finite DSL as a separate search-control baseline, not a member of the adaptive portfolio; it overlaps the STAT/RELATIONAL grammar and must not receive a second allocation inside that portfolio.
 
 Do not give one family a richer schema or more evidence than another. Every proposal records proposer family/version, canonical expression and grammar version, input/output types and domain, source observation IDs, proposal and execution costs, parent candidate IDs, and parameter uncertainty.
 
@@ -67,7 +67,7 @@ D. Successive halving / racing
 E. Pareto portfolio allocation using quality, novelty, complexity, and cost  
 F. Single best proposer  
 G. Random proposal allocation  
-H. Exhaustive DSL allocation
+H. Bounded DSL enumeration control
 
 To avoid early lock-in, adaptive policies reserve a preregistered exploration floor for every active family. Allocation updates may use Support and Gate only; Locked Test is never used for allocation.
 
