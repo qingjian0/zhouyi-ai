@@ -10,7 +10,18 @@ class E09NoiseBenchmarkTests(unittest.TestCase):
         self.assertEqual(metrics["train_size"] + metrics["test_size"], 27)
         self.assertEqual(metrics["train_size"], 18)
         self.assertEqual(metrics["test_size"], 9)
+        audit = result["split_audit"]
+        self.assertTrue(
+            set(map(tuple, audit["train_assignments"])).isdisjoint(
+                set(map(tuple, audit["test_assignments"]))
+            )
+        )
         self.assertEqual(result["learner_snapshot"]["report"]["gradient_updates"], 0)
+
+    def test_shortcut_arms_share_split_and_noise_realization(self):
+        shortcut = run(seed=19, noise_rate=0.2, shortcut_enabled=True)
+        control = run(seed=19, noise_rate=0.2, shortcut_enabled=False)
+        self.assertEqual(shortcut["split_audit"], control["split_audit"])
 
     def test_noise_sweep_is_reproducible_and_has_control_arm(self):
         first = run_sweep(seeds=2, start_seed=31)
