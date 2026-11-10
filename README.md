@@ -49,26 +49,14 @@
 - [E12-A2-D 噪声观测与先验错配压力测试](docs/E12A2D_NOISY_PRIOR_STRESS.md)
 - [YF-01 阴符经启发的动态观测实验](docs/YINFU_DYNAMIC_OBSERVATION.md)
 - [YF-02～YF-06 竞争解释、三元交互与反转研究协议](docs/YF02_YF06_RESEARCH_PROTOCOL.md)
-- [E12-A1 类型化谓词原型](prototype/e12a1_typed_predicate_induction.py)
-- [E12-A1.1 证据溯源原型](prototype/e12a1p_evidence_provenance.py)
-- [E12-A2 主动观测选择器](prototype/e12a2_active_measurement.py)
+- [YF-07～YF-10 自主察机、动态类象、关系反转与多路径推演](docs/YF07_YF10_DYNAMIC_COGNITION.md)
 - [YF-01 动态观测策略原型](prototype/yinfu_active_observation.py)
 - [YF-03 三元反馈与关系反转原型](prototype/yinfu_interaction_dynamics.py)
-- [E12-A2-B 策略对照实验](prototype/e12a2b_policy_benchmark.py)
-- [E12-A2-D 噪声先验压力实验](prototype/e12a2d_noisy_prior_stress.py)
-- [E02-A 结果审计与下一阶段协议](docs/E02A_NEXT_RESEARCH_2026-11-10.md)
-- [E02-B 三元有限域关系诊断协议](docs/E02B_TERNARY_PROTOCOL.md)
-- [E02-B 学习器对照原型](prototype/e02_ternary_learners.py)
-- [E02-C 超边生命周期原型](prototype/e02_edge_lifecycle.py)
-- [E02-B 三元有限域学习器对照结果](docs/E02B_RESULTS_2026-11-10.md)
+- [YF-07～YF-10 动态机变认知原型](prototype/yinfu_dynamic_cognition.py)
 - [E02-D 未见规则族归纳基准](prototype/e02_rule_ood.py)
 - [E02-D 实验协议](docs/E02D_RULE_FAMILY_OOD.md)
-- [E02-D 支持样本量扫描结果](docs/E02D_SUPPORT_SWEEP_RESULTS_2026-11-10.md)
-- [E01-B 五种子结果报告](docs/E01B_RESULTS_2026-11-10.md)
-- [E01-C 组合 OOD 结果报告](docs/E01C_RESULTS_2026-11-10.md)
 - [研究风险与证伪条件](docs/RISKS_AND_FALSIFICATION.md)
 - [开发路线图](ROADMAP.md)
-- [原型代码](prototype/)
 
 ## 快速开始（当前原型）
 
@@ -79,10 +67,9 @@ python -m unittest discover -s tests -v
 python -m prototype.e01_sparse_composition
 python -m prototype.e01_learned_ranker --json
 python -m prototype.e12a2_active_measurement --json
-python -m prototype.e12a2b_policy_benchmark --seeds 20 --budget 4 --json
-python -m prototype.e12a2d_noisy_prior_stress --episodes 100 --budget 3 --json
 python -m prototype.yinfu_active_observation
 python -m prototype.yinfu_interaction_dynamics --horizon 8
+python -m prototype.yinfu_dynamic_cognition
 ```
 
 ## 研究状态标记
