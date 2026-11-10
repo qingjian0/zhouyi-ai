@@ -47,6 +47,7 @@ class TemplateTruth:
 @dataclass(frozen=True)
 class InstanceTruth:
     observation_id: str
+    source_group_id: str
     template_id: str
     role_objects: tuple[str, ...]
     valid: bool
@@ -103,6 +104,7 @@ class Episode:
             "instances": [
                 {
                     "observation_id": row.observation_id,
+                    "source_group_id": row.source_group_id,
                     "template_id": row.template_id,
                     "role_objects": list(row.role_objects),
                     "valid": row.valid,
@@ -282,6 +284,9 @@ def generate_episode(seed: int, *, object_count: int = 18,
             for bucket in buckets
         ]
         for instance_index in range(instances_per_template):
+            # Evaluator-only provenance shared by the positive, context-negative,
+            # and every role-near-miss derived from this base instance.
+            source_group_id = f"{episode_id}-src-{template_id}-{instance_index}"
             role_objects = tuple(
                 pool[instance_index % len(pool)] for pool in role_pools
             )
@@ -324,6 +329,7 @@ def generate_episode(seed: int, *, object_count: int = 18,
                 ))
                 instances.append(InstanceTruth(
                     observation_id=observation_id,
+                    source_group_id=source_group_id,
                     template_id=template_id,
                     role_objects=tuple(candidate_roles),
                     valid=valid,
