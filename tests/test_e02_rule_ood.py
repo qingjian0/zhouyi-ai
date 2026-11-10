@@ -40,6 +40,8 @@ class E02RuleOODTests(unittest.TestCase):
         self.assertEqual([r["support_size"] for r in rows], list(range(1, 9)))
         self.assertEqual(rows[-1]["identification_coverage_mean"], 1.0)
         self.assertGreaterEqual(rows[0]["identification_coverage_mean"], 0.0)
+        self.assertIsNone(rows[0]["identified_accuracy_pooled"])
+        self.assertEqual(rows[-1]["identified_accuracy_pooled"], 1.0)
 
     def test_run_reports_coverage_and_accuracy(self):
         result = run(seed=17, support_size=6)
