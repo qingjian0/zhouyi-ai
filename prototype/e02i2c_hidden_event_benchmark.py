@@ -287,7 +287,21 @@ def _build_episodes(*, seeds: int, start_seed: int, split: str) -> list[Episode]
             start_seed + offset * len(SUPPORTED_EVENTS),
             start_seed + (offset + 1) * len(SUPPORTED_EVENTS),
         ))
-        random.Random(f"{split}:{start_seed}:{offset}").shuffle(episode_seeds)
+        rng = random.Random(f"{split}:{start_seed}:{offset}")
+        rng.shuffle(episode_seeds)
+        # Ensure the four ABSTAIN sub-modes are represented across ordinary
+        # multi-seed runs. The chosen seed remains an opaque hashed provenance
+        # input; the event label is never embedded in an observable identifier.
+        abstain_seed = start_seed + offset * len(SUPPORTED_EVENTS)
+        desired_residue = (start_seed + offset) % 4
+        abstain_seed += (desired_residue - abstain_seed) % 4
+        if abstain_seed not in episode_seeds:
+            raise AssertionError("stratified ABSTAIN seed escaped its episode block")
+        abstain_index = SUPPORTED_EVENTS.index(EventType.ABSTAIN)
+        episode_seeds[abstain_index], episode_seeds[episode_seeds.index(abstain_seed)] = (
+            episode_seeds[episode_seeds.index(abstain_seed)],
+            episode_seeds[abstain_index],
+        )
         episodes.extend(
             build_episode(event, episode_seed, split=split)
             for event, episode_seed in zip(SUPPORTED_EVENTS, episode_seeds)
