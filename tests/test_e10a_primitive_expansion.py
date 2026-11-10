@@ -123,6 +123,16 @@ class PrimitiveExpansionTests(unittest.TestCase):
         learner.revise(query[0], labels[0])
         self.assertEqual(learner.candidate_count, initial)
 
+    def test_duplicate_observation_reveal_is_rejected_without_mutation(self):
+        support, objects, query, labels = _novel_relation_episode()
+        learner = PrimitiveExpansionLearner(support)
+        learner.add_query_objects(objects)
+        learner.revise(query[0], labels[0])
+        before = learner.candidate_hash
+        with self.assertRaisesRegex(ValueError, "already been revised"):
+            learner.revise(query[0], labels[0])
+        self.assertEqual(learner.candidate_hash, before)
+
     def test_future_query_labels_are_not_part_of_learner_state(self):
         support, objects, query, labels = _novel_relation_episode()
         learner = PrimitiveExpansionLearner(support)
