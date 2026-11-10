@@ -414,7 +414,14 @@ def _m0_ablation_features(features: FeatureRow, mode: str) -> FeatureRow:
             key: value for key, value in features.items()
             if key in _M0_CARDINALITY_KEYS
         }
-    raise ValueError("M0 ablation mode must be format_only or cardinality_only")
+    if mode == "evidence_count_only":
+        return {"id.evidence_count": features["id.evidence_count"]}
+    if mode == "cardinality_without_evidence_count":
+        return {
+            key: value for key, value in features.items()
+            if key in _M0_CARDINALITY_KEYS and key != "id.evidence_count"
+        }
+    raise ValueError("unknown M0 ablation mode")
 
 
 def run_m0_ablation(
@@ -450,7 +457,10 @@ def run_m0_ablation(
         _seed_block(ep.episode_id, gate_start_seed) for ep in gate_episodes
     ]
     results = {}
-    for mode in ("format_only", "cardinality_only"):
+    for mode in (
+        "format_only", "cardinality_only", "evidence_count_only",
+        "cardinality_without_evidence_count",
+    ):
         train_rows = [
             _m0_ablation_features(extract_features(ep.observation, "M0"), mode)
             for ep in train_episodes
@@ -511,6 +521,102 @@ def run_m0_ablation(
         "results": results,
         "interpretation": (
             "Diagnostic ablation on a fresh Gate range; does not replace the preregistered M0 result."
+        ),
+    }
+
+
+def _feature_families(features: FeatureRow, families: set[str]) -> FeatureRow:
+    allowed = {"id", "op", "ctx"}
+    if not families or not families.issubset(allowed):
+        raise ValueError("feature families must be a non-empty subset of id/op/ctx")
+    return {
+        key: value for key, value in features.items()
+        if key.split(".", 1)[0] in families
+    }
+
+
+def run_feature_family_ablation(
+    *, seeds: int = 30, train_start_seed: int = 1000,
+    gate_start_seed: int = 30000, bootstrap_samples: int = 1000,
+) -> dict:
+    """Exploratory M1/M2 feature-family ablation on a fresh Gate range."""
+    if seeds < 30 or bootstrap_samples < 100:
+        raise ValueError("family ablation requires 30 seed blocks and 100 bootstrap samples")
+    train_end = train_start_seed + seeds * len(SUPPORTED_EVENTS)
+    gate_end = gate_start_seed + seeds * len(SUPPORTED_EVENTS)
+    if train_start_seed < 0 or gate_start_seed < 0 or not (
+        train_end <= gate_start_seed or gate_end <= train_start_seed
+    ):
+        raise ValueError("family ablation Train and fresh Gate ranges must be disjoint")
+    train_episodes = _build_episodes(
+        seeds=seeds, start_seed=train_start_seed, split="train"
+    )
+    gate_episodes = _build_episodes(
+        seeds=seeds, start_seed=gate_start_seed, split="gate"
+    )
+    train_labels = [ep.truth.value for ep in train_episodes]
+    gate_labels = [ep.truth.value for ep in gate_episodes]
+    majority_label = _majority(train_labels)
+    majority_predictions = [majority_label] * len(gate_labels)
+    blocks = [_seed_block(ep.episode_id, gate_start_seed) for ep in gate_episodes]
+    definitions = {
+        "M1_identifier_only": ("M1", {"id"}),
+        "M1_operational_only": ("M1", {"op"}),
+        "M1_without_identifier": ("M1", {"op"}),
+        "M1_without_operational": ("M1", {"id"}),
+        "M2_identifier_only": ("M2", {"id"}),
+        "M2_operational_only": ("M2", {"op"}),
+        "M2_context_only": ("M2", {"ctx"}),
+        "M2_without_identifier": ("M2", {"op", "ctx"}),
+        "M2_without_operational": ("M2", {"id", "ctx"}),
+        "M2_without_context": ("M2", {"id", "op"}),
+    }
+    results = {}
+    for name, (tier, families) in definitions.items():
+        train_rows = [
+            _feature_families(extract_features(ep.observation, tier), families)
+            for ep in train_episodes
+        ]
+        gate_rows = [
+            _feature_families(extract_features(ep.observation, tier), families)
+            for ep in gate_episodes
+        ]
+        predictions = {
+            "categorical_naive_bayes": CategoricalNaiveBayes().fit(
+                train_rows, train_labels
+            ).predict(gate_rows),
+            "decision_tree_depth_3": ShallowCategoricalTree(max_depth=3).fit(
+                train_rows, train_labels
+            ).predict(gate_rows),
+        }
+        results[name] = {
+            "tier": tier,
+            "feature_families": sorted(families),
+            "feature_names": sorted(train_rows[0]),
+            "attackers": {},
+        }
+        for attacker, predicted in predictions.items():
+            metrics = _metrics(gate_labels, predicted)
+            interval = _bootstrap_metrics(
+                gate_labels, predicted, majority_predictions, blocks,
+                samples=bootstrap_samples, seed=20261112,
+            )
+            metrics["seed_block_bootstrap"] = interval
+            metrics["majority_macro_f1_lift"] = round(
+                metrics["macro_f1"] - _metrics(gate_labels, majority_predictions)["macro_f1"],
+                4,
+            )
+            results[name]["attackers"][attacker] = metrics
+    return {
+        "status": "exploratory_post_hoc_feature_family_ablation",
+        "train_seed_range": [train_start_seed, train_end - 1],
+        "fresh_gate_seed_range": [gate_start_seed, gate_end - 1],
+        "seeds_per_event": seeds,
+        "train_episodes": len(train_episodes),
+        "gate_episodes": len(gate_episodes),
+        "results": results,
+        "interpretation": (
+            "Feature-family ablation on a fresh Gate range; does not replace preregistered M0/M1/M2 results."
         ),
     }
 
@@ -648,6 +754,12 @@ def run_metadata_attack(
             seeds=seeds,
             train_start_seed=train_start_seed,
             gate_start_seed=gate_start_seed + 10000,
+            bootstrap_samples=bootstrap_samples,
+        ),
+        "exploratory_feature_family_ablation": run_feature_family_ablation(
+            seeds=seeds,
+            train_start_seed=train_start_seed,
+            gate_start_seed=gate_start_seed + 20000,
             bootstrap_samples=bootstrap_samples,
         ),
         "interpretation": (
