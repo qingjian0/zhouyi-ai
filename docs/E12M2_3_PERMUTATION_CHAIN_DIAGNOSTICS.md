@@ -93,3 +93,27 @@ its results must not be generalized to arbitrary real incidence graphs. A
 future validation stage should include exact-enumerable small graphs, known
 stationary-frequency checks, and multiple graph families before treating the
 2-switch null as calibrated.
+
+
+## Exact finite-state kernel audit
+
+A separate exact audit enumerates all simple bipartite graphs for a supplied
+small degree sequence, builds the directed 2-switch transition graph, checks
+connectivity, and compares forward/reverse proposal multiplicities.
+
+```python
+from prototype.e12m2_exact_state_audit import audit_small_state_space
+
+print(audit_small_state_space(
+    row_degrees=(1, 1),
+    item_degrees={"a": 1, "b": 1},
+))
+```
+
+For the 2x2 example there are exactly two realizations; the 2-switch graph is
+connected and each direction has equal proposal multiplicity. This supports a
+uniform stationary distribution for that finite example when the proposal
+kernel includes its natural self-loop probability. It does not establish
+finite-time mixing, nor does one example prove connectivity for every degree
+sequence. The audit is deliberately state-capped because exhaustive
+enumeration grows combinatorially.
