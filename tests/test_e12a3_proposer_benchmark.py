@@ -28,6 +28,17 @@ class E12A3ProposerBenchmarkTests(unittest.TestCase):
         )
         self.assertTrue(gate and test)
 
+    def test_proposals_are_invariant_to_label_mutation(self):
+        support, _, _ = _make_world(17, "THRESHOLD")
+        flipped = tuple(
+            type(row)(row.observation_id, row.values, 1 - row.label)
+            for row in support
+        )
+        self.assertEqual(
+            _budgeted_family_pools(support, 17),
+            _budgeted_family_pools(flipped, 17),
+        )
+
     def test_gate_selector_has_no_locked_test_argument(self):
         self.assertEqual(
             list(inspect.signature(_choose_on_gate).parameters),
