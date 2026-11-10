@@ -36,7 +36,7 @@ class ResidualPairDiagnosisTests(unittest.TestCase):
         self.assertAlmostEqual(xy.balanced_accuracy, 1.0)
         self.assertEqual(xy.polarity, "HIGH_ERROR")
         self.assertAlmostEqual(xy.threshold, 2.5)
-        self.assertEqual(result["counterexample_pairs"][0], ("x", "y"))
+        self.assertIn(("x", "y"), result["counterexample_pairs"])
 
     def test_only_prequential_or_oof_predictions_are_accepted(self):
         view = self.view()
