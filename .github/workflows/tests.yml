@@ -34,3 +34,5 @@ jobs:
         run: python -m prototype.e02_rule_ood --seed 17 --support-size 6 --json
       - name: Run E02-D multi-seed support identifiability sweep
         run: python -m prototype.e02_rule_ood --sweep --seeds 100 --start-seed 100 --json
+      - name: Run E12-A2-B active measurement policy benchmark
+        run: python -m prototype.e12a2b_policy_benchmark --seeds 5 --budget 4 --start-seed 100 --json
