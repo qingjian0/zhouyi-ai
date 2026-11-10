@@ -146,6 +146,15 @@ class E02I2CMetadataAttackTests(unittest.TestCase):
             set(count_only).intersection(other_cardinality), set()
         )
 
+    def test_context_subfamilies_are_separated(self):
+        observation = build_episode(EventType.REACTIVATE, 1014, split="train").observation
+        full = extract_features(observation, "M2")
+        identity = _feature_families(full, {"ctx.identity"})
+        candidate = _feature_families(full, {"ctx.candidate"})
+        self.assertEqual(set(identity), {"ctx.identity_present", "ctx.identity_status"})
+        self.assertEqual(set(candidate), {"ctx.candidate_length", "ctx.candidate_shape"})
+        self.assertFalse(set(identity).intersection(candidate))
+
     def test_feature_family_ablation_rejects_invalid_family(self):
         with self.assertRaises(ValueError):
             _feature_families({"id.x": "1"}, {"truth"})
