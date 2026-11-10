@@ -58,7 +58,7 @@ class RevisionEvent:
 
 
 class PrequentialRunner:
-    """Enforces predict -> commit -> reveal -> append -> batch-refit."""
+    """Enforces predict -> commit -> reveal -> append -> selected revision arm."""
 
     REVISION_MODE = "BATCH_REFIT"
 
@@ -176,7 +176,7 @@ class PrequentialRunner:
             after_snapshot=after,
             operation=self.REVISION_MODE,
             training_example_count=report.get("training_examples", 0),
-            candidate_evaluations=report.get("candidate_patterns_evaluated", 0) - before_cost,
+            candidate_evaluations=(\n                report.get("candidate_patterns_evaluated", 0)\n                if self.REVISION_MODE == "BATCH_REFIT"\n                else report.get("candidate_patterns_evaluated", 0) - before_cost\n            ),
             step=self.step,
         )
         self._revisions.append(event)
