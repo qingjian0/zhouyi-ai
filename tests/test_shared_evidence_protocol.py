@@ -160,8 +160,20 @@ class SharedEvidenceProtocolTests(unittest.TestCase):
                 "integrity_metadata": {},
             }), row["sequence_no"]),
         )
+        self.store._db.executescript("""
+            DROP INDEX IF EXISTS one_prediction_per_observation_track_v2;
+            CREATE UNIQUE INDEX one_prediction_per_observation_track
+              ON events(episode_id, json_extract(payload_json, '$.observation_id'),
+                        json_extract(payload_json, '$.learner_track'))
+              WHERE event_type='prediction_commit';
+        """)
         self.store.close()
         self.store = SQLiteEvidenceStore(self.db)
+
+        migrated_index = self.store._db.execute(
+            "SELECT sql FROM sqlite_master WHERE type='index' AND name='one_prediction_per_observation_track_v2'"
+        ).fetchone()
+        self.assertIn("COALESCE", migrated_index["sql"].upper())
 
         replayed = self.store.replay_episode("ep1")
         prediction = next(item for item in replayed if item["event_type"] == "prediction_commit")
