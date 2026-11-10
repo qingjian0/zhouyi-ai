@@ -31,7 +31,7 @@ Run:
 python -m unittest tests.test_shared_evidence_protocol tests.test_e09_shared_protocol_adapter tests.test_e09_incremental_prequential tests.test_e09_prequential -v
 ```
 
-Tests authored cover both E09 update arms, durable prediction-before-reveal ordering, structure lineage, reveal support references, and recorded update-cost counters. No CI pass is claimed until a workflow runs on the exact branch head.
+Tests cover both E09 update arms, durable prediction-before-reveal ordering, structure lineage, reveal support references, and recorded update-cost counters. The full GitHub Actions workflow passed on code head `56073a63e38ad579d2cf0fd87afc72c1246ff26b` (Run #42892825395); all 109 unit tests and configured E01/E02 workflow steps succeeded. The later documentation-only update does not change executable code.
 
 ## Non-claims
 
