@@ -104,6 +104,8 @@ def _pair_best(view: ResidualView, left: str, right: str,
                min_side_support: int) -> PairDiagnosis | None:
     residual = [int(item.a3_prediction != item.label) for item in view.records]
     distances = [abs(item.value(left) - item.value(right)) for item in view.records]
+    if any(not math.isfinite(value) for value in distances):
+        raise ValueError("pairwise absolute differences must remain finite")
     unique = sorted(set(distances))
     best: PairDiagnosis | None = None
     for lower, upper in zip(unique, unique[1:]):
