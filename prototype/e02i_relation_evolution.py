@@ -157,9 +157,9 @@ def _targets(scenario: str, base2: tuple[int, ...], expanded3: tuple[int, ...],
 
 def run_episode(*, seed: int, scenario: str, windows: int = 5,
                 train_n: int = 1024, gate_n: int = 512,
-                noise: float = 0.02) -> dict:
-    if windows < 4:
-        raise ValueError("at least four windows are required")
+                test_n: int = 512, noise: float = 0.02) -> dict:
+    if windows < 4 or min(train_n, gate_n, test_n) < 4:
+        raise ValueError("at least four windows and four samples per split are required")
     rng = random.Random(seed * 7919 + 41)
     base2 = tuple(sorted(rng.sample(range(6), 2)))
     expanded3 = tuple(sorted((*base2, 6)))
@@ -175,7 +175,8 @@ def run_episode(*, seed: int, scenario: str, windows: int = 5,
             # Null relation: independent random labels, not a hidden "inactive" flag.
             train = []
             gate = []
-            for split, count in ((1, train_n), (2, gate_n)):
+            test = []
+            for split, count in ((1, train_n), (2, gate_n), (3, test_n)):
                 rr = random.Random(seed * 1000003 + window * 101 + split)
                 generated = []
                 for i in range(count):
@@ -184,12 +185,16 @@ def run_episode(*, seed: int, scenario: str, windows: int = 5,
                     generated.append(Row(f"{seed}:{window}:{split}:{i}", values, label))
                 if split == 1:
                     train = generated
-                else:
+                elif split == 2:
                     gate = generated
-            # A best candidate is still produced; only its independent gate decides.
+                else:
+                    test = generated
+            # Test split is evaluation-only and never affects the state transition.
             winner = discover(train)
             gate_acc = accuracy(gate, winner)
             pair_acc = pairwise_baseline(train, gate)
+            test_acc = accuracy(test, winner)
+            pair_test_acc = pairwise_baseline(train, test)
             snapshot = Snapshot(winner.members, winner.truth_table, gate_acc, pair_acc)
         else:
             members, truth = target
@@ -199,7 +204,12 @@ def run_episode(*, seed: int, scenario: str, windows: int = 5,
             gate = _make_window_rows(seed=seed * 1000003 + window * 101 + 2,
                                      count=gate_n, target=members,
                                      truth_table=truth, noise=noise)
+            test = _make_window_rows(seed=seed * 1000003 + window * 101 + 3,
+                                     count=test_n, target=members,
+                                     truth_table=truth, noise=noise)
             winner = discover(train)
+            test_acc = accuracy(test, winner)
+            pair_test_acc = pairwise_baseline(train, test)
             snapshot = Snapshot(winner.members, winner.truth_table,
                                 accuracy(gate, winner),
                                 pairwise_baseline(train, gate))
@@ -210,6 +220,9 @@ def run_episode(*, seed: int, scenario: str, windows: int = 5,
             "candidate_truth_table": snapshot.truth_table,
             "gate_accuracy": snapshot.gate_accuracy,
             "pairwise_gate_accuracy": snapshot.pairwise_accuracy,
+            "test_accuracy": test_acc,
+            "pairwise_test_accuracy": pair_test_acc,
+            "split_ids_disjoint": (len({r.sample_id for r in train} | {r.sample_id for r in gate} | {r.sample_id for r in test}) == len(train) + len(gate) + len(test)),
             "accepted": snapshot.accepted,
             "target_for_audit_only": list(target[0]) if target else None,
             "target_table_for_audit_only": target[1] if target else None,
@@ -282,11 +295,25 @@ def run(*, seeds: int = 20, start_seed: int = 1200) -> dict:
                 for e in results["disappear"]) / seeds,
             "disappearance_finally_absent": sum(
                 e["final_relation"] is None for e in results["disappear"]) / seeds,
+            "mean_test_accuracy_by_scenario": {
+                scenario: sum(w["test_accuracy"] for e in episodes for w in e["windows"]) / (seeds * 5)
+                for scenario, episodes in results.items()
+            },
+            "mean_pairwise_test_accuracy_by_scenario": {
+                scenario: sum(w["pairwise_test_accuracy"] for e in episodes for w in e["windows"]) / (seeds * 5)
+                for scenario, episodes in results.items()
+            },
+            "all_train_gate_test_splits_disjoint": all(
+                w["split_ids_disjoint"] for episodes in results.values()
+                for e in episodes for w in e["windows"]
+            ),
         },
         "episodes": results,
         "limitations": [
             "Synthetic binary Boolean rules with a bounded 2-3 feature truth-table grammar.",
-            "Five predeclared change scenarios; not open-world structure evolution.",
+            "Six predeclared change scenarios; not open-world structure evolution.",
+            "Gate controls state transitions; an independent test split evaluates each window after decisions and never feeds back.",
+            "The hidden target is used only for post-hoc exact-structure scoring; test accuracy is not a proof of causal or open-world validity.",
             "A fixed two-window confirmation policy; no learned transition policy.",
             "No causal or natural-language discovery claim.",
         ],
