@@ -64,6 +64,63 @@ class IncrementalConjunctionLearnerTests(unittest.TestCase):
         b = self.make_learner().snapshot()
         self.assertEqual(a, b)
 
+    def test_incremental_matches_full_recompute_reference_after_every_update(self):
+        from itertools import product
+
+        domains = ((0, 1), (0, 1), (0, 1))
+        learner = IncrementalConjunctionLearner(domains, min_support=2)
+        stream = [
+            ((0, 0, 0), "A"), ((0, 1, 0), "A"),
+            ((1, 0, 0), "B"), ((1, 1, 0), "B"),
+            ((0, 0, 1), "A"), ((0, 0, 1), "B"),
+            ((1, 1, 1), "B"), ((1, 1, 1), "B"),
+            ((0, 1, 1), "A"), ((1, 0, 1), "A"),
+        ]
+        seen = {}
+
+        def reference_predict(query):
+            clean = {
+                inputs: next(iter(labels))
+                for inputs, labels in seen.items() if len(labels) == 1
+            }
+            inferred = set()
+            for pattern in product(*((None, *domain) for domain in domains)):
+                matched = [
+                    label for inputs, label in clean.items()
+                    if all(want is None or want == got
+                           for want, got in zip(pattern, inputs))
+                ]
+                if len(matched) >= 2 and len(set(matched)) == 1:
+                    if all(want is None or want == got
+                           for want, got in zip(pattern, query)):
+                        inferred.add(matched[0])
+            return next(iter(inferred)) if len(inferred) == 1 else None
+
+        all_queries = tuple(product(*domains))
+        for inputs, label in stream:
+            learner.observe(inputs, label)
+            seen.setdefault(inputs, set()).add(label)
+            for query in all_queries:
+                self.assertEqual(
+                    learner.predict(query), reference_predict(query),
+                    msg=f"mismatch after observing {inputs!r} -> {label!r}, query={query!r}",
+                )
+
+    def test_reversing_input_order_preserves_final_predictions(self):
+        rows = [
+            ((0, 0, 0), "A"), ((0, 1, 0), "A"),
+            ((1, 0, 0), "B"), ((1, 1, 0), "B"),
+            ((0, 0, 1), "A"),
+        ]
+        forward = IncrementalConjunctionLearner(((0, 1),) * 3, min_support=2)
+        reverse = IncrementalConjunctionLearner(((0, 1),) * 3, min_support=2)
+        for inputs, label in rows:
+            forward.observe(inputs, label)
+        for inputs, label in reversed(rows):
+            reverse.observe(inputs, label)
+        for query in __import__("itertools").product(range(2), repeat=3):
+            self.assertEqual(forward.predict(query), reverse.predict(query))
+
 
 if __name__ == "__main__":
     unittest.main()
