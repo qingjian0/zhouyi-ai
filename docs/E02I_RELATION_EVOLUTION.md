@@ -19,7 +19,8 @@
 2. member_add：关系从二元成员增加为三元成员。
 3. member_remove：关系从三元成员减少为二元成员。
 4. rule_change：成员不变，规则真值表取反。
-5. transient_rule_change：规则仅在一个窗口反转，随后恢复原规则。\n6. disappear：关系信号消失，标签成为独立随机变量。
+5. transient_rule_change：规则仅在一个窗口反转，随后恢复原规则。
+6. disappear：关系信号消失，标签成为独立随机变量。
 
 ## 状态迁移
 
