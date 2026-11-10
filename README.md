@@ -50,6 +50,7 @@
 - [E02-D 支持样本量扫描结果](docs/E02D_SUPPORT_SWEEP_RESULTS_2026-11-10.md)
 - [E01-B 五种子结果报告](docs/E01B_RESULTS_2026-11-10.md)
 - [E01-C 组合 OOD 结果报告](docs/E01C_RESULTS_2026-11-10.md)
+- [E09 非梯度式自主学习机制研究协议](docs/E09_NON_GRADIENT_LEARNING.md)
 - [研究风险与证伪条件](docs/RISKS_AND_FALSIFICATION.md)
 - [开发路线图](ROADMAP.md)
 - [原型代码](prototype/)
