@@ -218,9 +218,8 @@ def build_support_query_task(
     query_group_sizes = Counter(
         len(groups[key]) for key in query_keys
     )
-    group_size_histogram = lambda counts: {
-        str(size): counts[size] for size in sorted(counts)
-    }
+    def group_size_histogram(counts: Counter) -> dict[str, int]:
+        return {str(size): counts[size] for size in sorted(counts)}
 
     support_label_counts = Counter(
         f'{row["relation_symbol"]}:{str(row["outcome"]).lower()}'
