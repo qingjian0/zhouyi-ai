@@ -1,7 +1,7 @@
 # E12-A3-M1.2c Context Descriptor Aggregation Ablation
 
 Date: 2026-11-11  
-Status: implementation and CI validation pending  
+Status: TOP3_MEAN, TOP2_MEAN, and MAX variants implemented and benchmarked; MAX is the best context-router point estimate but does not establish a reliable advantage over EQUAL  
 Motivation: M1.2b showed that grammar-stratified probes slightly improved PARITY but did not improve aggregate accuracy. The top-three mean may dilute a single highly informative candidate.
 
 ## 1. Research question
@@ -40,7 +40,15 @@ An aggregation rule is promising only if it improves aggregate Locked-Test accur
 
 No aggregation rule may inspect Gate-Dev, Gate-Final, or Locked-Test when constructing its context descriptor.
 
-## 6. Limitations
+## 6. Result
+
+MAX reached 78.49% mean Locked-Test accuracy and TOP2_MEAN reached 78.18%, compared with 77.60% for EQUAL. Their paired seed-clustered 95% intervals versus EQUAL both include zero. BOUNDED_ENUM remains best overall at 82.08%.
+
+Full results: `E12A3_M1_2C_DESCRIPTOR_AGGREGATION_RESULTS_2026-11-11.md`.
+
+The remaining weakness is task routing on Pairwise Difference. The next research step is a richer Support-derived descriptor that includes operator coverage, feature-role coverage, and top-candidate score gaps.
+
+## 7. Limitations
 
 - Context-Support remains small.
 - Accuracy is a coarse score and is not calibrated probability.
