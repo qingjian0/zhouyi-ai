@@ -62,7 +62,7 @@ store.close()
 
 The unit tests cover:
 
-1. reveal cannot precede a committed prediction;
+1. prediction commit requires a prior observation; reveal cannot precede a committed prediction;
 2. identical retry returns the original receipt;
 3. conflicting retry is rejected;
 4. idempotency fingerprint includes event type/schema;
