@@ -255,12 +255,21 @@ def _independent_view(event: EventType, seed: int, family: str, split: str) -> O
             observed_samples=observed, coverage=coverage, missing_reason=reason))
     env_by_window = {o.window: o.environment for o in opportunities}
     for w, polarity, signature, source in specs:
-        token = secrets.token_hex(16)
-        packets.append(EvidencePacket(
-            evidence_id="evidence-" + token, sample_id="sample-" + token,
-            window=w, environment=env_by_window[w], split=split, polarity=polarity,
-            source_version_id=source, candidate_signature=signature,
-            raw_observation_ref="observation://" + token))
+        # Add independent same-polarity observations at a variable rate. These
+        # increase evidence volume without manufacturing new windows or
+        # changing the event's semantic confirmation rule.
+        extra_count = (
+            rng.randint(0, 3) if family == "C"
+            else rng.randint(0, 2) if family == "B"
+            else rng.randint(0, 1)
+        )
+        for _ in range(1 + extra_count):
+            token = secrets.token_hex(16)
+            packets.append(EvidencePacket(
+                evidence_id="evidence-" + token, sample_id="sample-" + token,
+                window=w, environment=env_by_window[w], split=split, polarity=polarity,
+                source_version_id=source, candidate_signature=signature,
+                raw_observation_ref="observation://" + token))
     rng.shuffle(opportunities)
     rng.shuffle(packets)
     return ObservationView(identity, candidate, tuple(opportunities), tuple(packets))
