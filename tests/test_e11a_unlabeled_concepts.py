@@ -100,7 +100,57 @@ class E11AUnlabeledConceptTests(unittest.TestCase):
         self.assertEqual(result["candidate_count"], 2)
         self.assertEqual(result["unique_candidate_extension_count"], 1)
 
+    def test_query_unobservable_concepts_receive_no_match_credit(self):
+        query = (
+            ObjectView("q1", frozenset()),
+            ObjectView("q2", frozenset()),
+        )
+        episode = Episode(
+            learner_objects=(),
+            query_objects=query,
+            truth={"q1": frozenset(), "q2": frozenset()},
+            hidden_schemas={"A": frozenset({"a"}), "B": frozenset({"b"})},
+        )
+        result = evaluate(episode, (("never-present",),))
+        self.assertEqual(result["query_observable_concept_count"], 0)
+        self.assertEqual(result["query_unobservable_concept_count"], 2)
+        self.assertEqual(result["matched_candidate_count"], 0)
+        self.assertIsNone(result["one_to_one_concept_recall"])
+        self.assertEqual(result["one_to_one_candidate_precision"], 0.0)
+
+    def test_low_overlap_does_not_count_as_discovered_concept(self):
+        query = tuple(
+            ObjectView(f"q{i}", frozenset({"rare"}) if i == 0 else frozenset())
+            for i in range(10)
+        )
+        episode = Episode(
+            learner_objects=(),
+            query_objects=query,
+            truth={obj.object_id: frozenset({"A"}) for obj in query},
+            hidden_schemas={"A": frozenset({"a"}), "B": frozenset({"b"})},
+        )
+        result = evaluate(episode, (("rare",),))
+        self.assertEqual(result["matched_candidate_count"], 0)
+        self.assertEqual(result["one_to_one_concept_recall"], 0.0)
+        self.assertEqual(result["one_to_one_candidate_precision"], 0.0)
+
+    def test_zero_candidate_precision_is_undefined(self):
+        query = (ObjectView("q1", frozenset({"x"})),)
+        episode = Episode(
+            learner_objects=(),
+            query_objects=query,
+            truth={"q1": frozenset({"A"})},
+            hidden_schemas={"A": frozenset({"a"})},
+        )
+        result = evaluate(episode, ())
+        self.assertIsNone(result["one_to_one_candidate_precision"])
+        self.assertEqual(result["one_to_one_concept_recall"], 0.0)
+
     def test_invalid_parameters_fail_closed(self):
+        with self.assertRaises(ValueError):
+            evaluate(make_episode(3), (), min_match_f1=0.0)
+        with self.assertRaises(ValueError):
+            evaluate(make_episode(3), (), min_match_f1=1.1)
         episode = make_episode(3)
         for value in (0.0, 1.1):
             with self.assertRaises(ValueError):

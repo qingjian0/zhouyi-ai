@@ -75,3 +75,14 @@ python -m prototype.e11a_unlabeled_concepts --json --seed 17
 ```
 
 No test pass, CI pass, or autonomous concept-discovery claim is asserted here.
+
+
+## Matching metric safeguards (E11-A0.2)
+
+The one-to-one evaluator excludes hidden concepts with zero positive Query instances from positive matching. It reports these separately as `query_unobservable_concept_count`; they are not silently counted as discovered or silently removed from the total latent count.
+
+Candidate-to-concept matches must reach the explicit minimum Query F1 threshold (currently a provisional default of 0.50) before they contribute to matched counts. The threshold must be selected on development seeds and frozen before locked-seed evaluation; results should include threshold sensitivity rather than treating this default as a universal constant.
+
+When there are no unique candidate extensions, candidate precision is `null` (undefined), not 1.0. If no latent concept is observable in Query, concept recall and mean one-to-one Query F1 are also `null`. These conventions distinguish abstention and lack of observable evidence from successful discovery.
+
+The current DP still has a hard limit of 16 total evaluator concepts. Runtime, peak memory, and DP transition counts remain to be instrumented before making compute-efficiency claims.
