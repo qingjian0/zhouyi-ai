@@ -100,6 +100,9 @@ class SQLiteEvidenceStore:
         CREATE UNIQUE INDEX IF NOT EXISTS one_reveal_per_prediction
           ON events(episode_id, json_extract(payload_json, '$.prediction_id'))
           WHERE event_type='evidence_reveal';
+        CREATE UNIQUE INDEX IF NOT EXISTS one_structure_version_id
+          ON events(episode_id, json_extract(payload_json, '$.version_id'))
+          WHERE event_type='structure_version';
         """)
 
     def close(self) -> None:
@@ -183,7 +186,11 @@ class SQLiteEvidenceStore:
         if not actor_role or not payload_schema:
             raise ProtocolError("actor_role and payload_schema must be non-empty")
         # Include event type and schema in the idempotency fingerprint.
-        fingerprint = digest_payload({"event_type": event_type, "payload_schema": payload_schema, "payload": payload})
+        fingerprint = digest_payload({
+            "event_type": event_type, "payload_schema": payload_schema, "payload": payload,
+            "actor_role": actor_role, "causation_refs": json.loads(causation_refs_json),
+            "integrity_metadata": json.loads(integrity_metadata_json),
+        })
         with self._lock:
             self._db.execute("BEGIN IMMEDIATE")
             try:
