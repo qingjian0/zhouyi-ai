@@ -51,6 +51,21 @@ class IncrementalPrequentialRunnerTests(unittest.TestCase):
                 revision_mode="INCREMENTAL_INDEX",
             )
 
+    def test_bootstrap_preserves_conflicts_for_future_quarantine(self):
+        learner = IncrementalConjunctionLearner(((0, 1), (0, 1)), min_support=1)
+        runner = PrequentialRunner(learner, revision_mode="INCREMENTAL_INDEX")
+        runner.bootstrap([
+            ("seed-a", Example((0, 0), "A")),
+            ("seed-b", Example((0, 0), "B")),
+            ("seed-c", Example((1, 1), "B")),
+        ])
+        self.assertEqual(runner.learner.report["contested_inputs"], 1)
+        commit = runner.predict_and_commit("new-observation", (0, 0))
+        runner.reveal(commit.prediction_id, "A")
+        runner.revise(commit.prediction_id)
+        self.assertEqual(runner.learner.report["contested_inputs"], 1)
+        self.assertIsNone(runner.learner.predict((0, 0)))
+
 
 if __name__ == "__main__":
     unittest.main()
