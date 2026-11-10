@@ -139,15 +139,18 @@ class SQLiteEvidenceStore:
             if observation is None:
                 raise MissingReference("prediction commit requires a prior observation event")
         elif event_type == "evidence_reveal":
-            if not {"prediction_id", "target_or_feedback"}.issubset(payload):
-                raise ProtocolError("evidence_reveal requires prediction_id and target_or_feedback")
+            if not {"prediction_id", "learner_track", "target_or_feedback"}.issubset(payload):
+                raise ProtocolError("evidence_reveal requires prediction_id, learner_track and target_or_feedback")
+            if not isinstance(payload["learner_track"], str) or not payload["learner_track"].strip():
+                raise ProtocolError("evidence_reveal learner_track must be a non-empty string")
             commit = self._db.execute(
                 "SELECT 1 FROM events WHERE episode_id=? AND event_type='prediction_commit' "
-                "AND json_extract(payload_json, '$.prediction_id')=?",
-                (episode_id, payload["prediction_id"]),
+                "AND json_extract(payload_json, '$.prediction_id')=? "
+                "AND json_extract(payload_json, '$.learner_track')=?",
+                (episode_id, payload["prediction_id"], payload["learner_track"]),
             ).fetchone()
             if commit is None:
-                raise MissingReference("reveal requires a previously committed prediction")
+                raise MissingReference("reveal requires a previously committed prediction from the same learner_track")
         elif event_type == "structure_version":
             required = {"structure_id", "version_id", "kind", "definition", "parent_version_ids", "support_evidence_ids"}
             if not required.issubset(payload):
