@@ -54,6 +54,24 @@ class E02I2CMetadataAttackTests(unittest.TestCase):
             extract_features(counterfactual, "M1"),
         )
 
+    def test_m1_uses_relative_not_absolute_window_labels(self):
+        original = build_episode(EventType.REACTIVATE, 1021, split="train").observation
+        shifted = replace(
+            original,
+            opportunities=tuple(
+                replace(item, window=item.window + 50)
+                for item in original.opportunities
+            ),
+            evidence=tuple(
+                replace(item, window=item.window + 50)
+                for item in original.evidence
+            ),
+        )
+        self.assertEqual(
+            extract_features(original, "M1"),
+            extract_features(shifted, "M1"),
+        )
+
     def test_m2_uses_signature_shape_not_literal_signature(self):
         first = build_episode(EventType.MODIFY, 1010, split="train").observation
         second = replace(first, candidate_signature="x^y")
