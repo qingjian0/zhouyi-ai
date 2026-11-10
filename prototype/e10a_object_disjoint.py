@@ -123,7 +123,8 @@ def build_object_disjoint_task(
 
     # Sample the latent mechanism once. Its object pool is discarded; only the
     # evaluator mechanism specification is reused to construct fresh pools.
-    seed_episode = generate_episode(seed, instances_per_template=instances_per_template)
+    # Keep mechanism sampling independent of the requested pool size.
+    seed_episode = generate_episode(seed, instances_per_template=2)
     mechanisms = [
         {
             "template_id": row.template_id,
