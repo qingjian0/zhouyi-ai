@@ -39,7 +39,7 @@ class E11A0RobustGeneratorTests(unittest.TestCase):
             for obj in member_objects
         ))
         self.assertTrue(any(
-            any(attr.startswith("b-") or attr.startswith("c-")
+            any(attr.startswith("a-")
                 for attr in obj.attributes)
             and "concept-a" not in episode.truth[obj.object_id]
             for obj in episode.learner_objects
