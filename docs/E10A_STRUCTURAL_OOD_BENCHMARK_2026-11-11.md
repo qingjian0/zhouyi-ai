@@ -7,7 +7,7 @@ Test compositional generalization over context constraints, not merely object id
 ## Support construction
 
 Support contains:
-- one positive row with both required context values;
+- three positive rows with both required context values, using distinct object instances;
 - a negative row violating only the first context condition;
 - a negative row violating only the second condition;
 - a negative row violating both conditions.
