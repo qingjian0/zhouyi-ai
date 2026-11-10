@@ -44,6 +44,8 @@ c=(\alpha a+\beta b+\delta)\bmod K
 
 ## 4. 数据切分与防泄漏
 
+- **Canonical track**：保留规范符号编号，测试编码结构本身是否提供归纳偏置；这是先验对齐条件，必须与随机置换对照一起解读。
+- **Permuted track**：每个 episode 独立应用随机双射，测试系统是否能从支持样本适应符号重命名；此条件不应被误解为太玄三值天然有利。
 - Episode 级拆分：训练、验证、测试不得共享隐藏规则实例。
 - 规则系数拆分：测试集保留训练阶段未出现的系数组合。
 - 符号重映射：每个 episode 独立采样双射；另设固定映射和跨映射迁移测试。
@@ -102,7 +104,7 @@ c=(\alpha a+\beta b+\delta)\bmod K
 
 ## 9. 实施阶段
 
-- TX-02A：建立跨 K、随机符号置换、支持/查询隔离的数据生成器与单元测试（已提交）。
+- TX-02A：建立跨 K、规范/随机置换双条件、支持/查询隔离的数据生成器与单元测试（已提交）。
 - TX-02B-0：建立 BINARY / TERNARY / HYBRID / ONE_HOT / LEARNED_INIT / PERMUTED 的可逆状态码本及单元测试（已提交；LEARNED_INIT 只是随机初始化码本，不是已训练嵌入）。
 - TX-02B：实现统一接口的 BINARY / TERNARY / HYBRID / LEARNED / ONE_HOT 学习器。
 - TX-02C：完成容量与计算预算匹配、五种子以上的基线比较。
