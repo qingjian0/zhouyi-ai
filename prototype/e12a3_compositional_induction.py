@@ -251,10 +251,11 @@ def demo_view() -> LearnerView:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--budget", type=int, default=20_000)
-    parser.add_argument("--max-depth", type=int, default=2)
+    parser.add_argument("--budget", type=int, default=30_000)
+    parser.add_argument("--max-arity", type=int, default=3)
+    parser.add_argument("--max-depth", type=int, default=1)
     args = parser.parse_args()
-    result = infer_compositions(demo_view(), candidate_budget=args.budget, max_depth=args.max_depth)
+    result = infer_compositions(demo_view(), candidate_budget=args.budget, max_arity=args.max_arity, max_depth=args.max_depth)
     result["candidates"] = [candidate_to_dict(c) for c in result["candidates"]]
     if result["selected"] is not None:
         result["selected"] = candidate_to_dict(result["selected"])
