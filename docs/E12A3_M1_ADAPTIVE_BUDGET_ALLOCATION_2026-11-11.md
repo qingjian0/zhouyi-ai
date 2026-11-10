@@ -1,7 +1,7 @@
 # E12-A3-M1 Adaptive Budget Allocation
 
 Date: 2026-11-11  
-Status: design protocol; cross-family syntax deduplication and a stateful UCB1 allocator core are implemented; end-to-end adaptive benchmark and four-way split remain pending  
+Status: design protocol; cross-family syntax deduplication and a stateful UCB1 allocator core are implemented; A3 unit tests pass; end-to-end adaptive benchmark and four-way split remain pending  
 Motivation: E12-A3-M0 exact-budget result shows equal-share round-robin underperforms the best specialist on the current two-task synthetic benchmark.
 
 ## 1. Research question
@@ -147,7 +147,25 @@ A composition candidate must charge:
 
 Do not allow the composition engine to receive an effectively free pool of A1 primitives while other proposers pay for discovery. Compare primitive-only, composition-only, and combined portfolios with the same global budget.
 
-## 11. Next implementation sequence
+## 11. Initial allocator implementation
+
+The first stateful UCB1 core is implemented in `prototype/e12a3_adaptive_allocator.py`.
+
+It provides:
+- a fixed global proposal-slot budget;
+- batch-based allocation;
+- a per-family exploration floor;
+- UCB1 mean-reward plus confidence bonus;
+- deterministic family-ID tie-breaking;
+- finite normalized reward validation in [0, 1];
+- explicit pending-batch acknowledgement;
+- immutable allocation-event snapshots.
+
+Tests cover exploration-floor ordering, reward-sensitive choice, deterministic ties, budget conservation including a final partial batch, invalid reward handling, and event traces.
+
+This is an allocator primitive, not an end-to-end adaptive learning result. It does not itself inspect candidate pools, observations, Gate-Dev, Gate-Final, or Locked Test. The experiment harness must calculate a preregistered Gate-Dev reward and pass only that scalar to the allocator.
+
+## 12. Next implementation sequence
 
 1. Add cross-family canonical-expression deduplication with provenance retention.
 2. Implement four-way data roles and query accounting.
@@ -158,7 +176,7 @@ Do not allow the composition engine to receive an effectively free pool of A1 pr
 7. Run the expanded task matrix over independent world seeds.
 8. Only after the generic adaptive allocator is validated, introduce Yijing-inspired priors as proposal-distribution variants.
 
-## 12. Conclusion
+## 13. Conclusion
 
 The E12-A3-M0 result shows that proposer diversity alone is insufficient. The next meaningful research problem is resource allocation under task uncertainty, duplicate candidates, and unequal proposer specialization.
 
