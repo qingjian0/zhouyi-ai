@@ -49,6 +49,21 @@ class E10ATaskSplitTests(unittest.TestCase):
         self.assertGreater(manifest["query_group_count"], 0)
         self.assertIn("support_label_counts", manifest)
         self.assertNotIn("query_label_counts_evaluator_only", manifest)
+        self.assertEqual(
+            manifest["sampling_unit"],
+            "relation_symbol+unordered_participant_set",
+        )
+        self.assertIn("uniform_group_selection", manifest["sampling_weighting"])
+        self.assertEqual(
+            sum(int(size) * count for size, count in
+                manifest["support_group_size_histogram"].items()),
+            manifest["support_observation_count"],
+        )
+        self.assertEqual(
+            sum(int(size) * count for size, count in
+                manifest["query_group_size_histogram"].items()),
+            manifest["query_observation_count"],
+        )
 
     def test_query_assignment_is_invariant_to_hidden_label_mutation(self):
         _, learner, evaluator = self._views(704)
