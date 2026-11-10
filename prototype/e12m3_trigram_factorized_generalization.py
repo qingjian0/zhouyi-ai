@@ -159,7 +159,7 @@ def _affine_basis_subsets() -> tuple[tuple[int, ...], ...]:
 
 
 def _nonlinear_map(state: int) -> int:
-    b0, b1, b2 = (state >> i) & 1 for i in range(3)
+    b0, b1, b2 = ((state >> i) & 1 for i in range(3))
     return (b0 ^ (b1 & b2)) | (b1 << 1) | (b2 << 2)
 
 
