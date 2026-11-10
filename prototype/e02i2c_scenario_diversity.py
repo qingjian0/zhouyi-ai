@@ -70,10 +70,21 @@ def _family_b(view: ObservationView, rng: random.Random) -> ObservationView:
     varied = []
     for item in view.opportunities:
         expected = item.expected_samples + rng.randrange(1, 8)
-        observed = min(expected, max(1, item.observed_samples + rng.randrange(1, 4)))
+        if item.coverage < 0.5:
+            # Preserve insufficient-sampling ABSTAIN subtypes.
+            observed = min(expected, item.observed_samples)
+            reason = item.missing_reason
+        else:
+            # A resampling nuisance must not silently cross the adjudicator's
+            # sufficiency boundary.
+            minimum_sufficient = (expected * 8 + 9) // 10
+            observed = min(expected, max(
+                minimum_sufficient, item.observed_samples + rng.randrange(1, 4)
+            ))
+            reason = None
         varied.append(replace(
             item, expected_samples=expected, observed_samples=observed,
-            coverage=observed / expected, missing_reason=None,
+            coverage=observed / expected, missing_reason=reason,
         ))
     opportunities = tuple(varied)
     packets = [_opaque_packet(p, window=p.window, environment=p.environment, ordinal=i)
