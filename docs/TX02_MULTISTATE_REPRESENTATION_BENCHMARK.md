@@ -102,7 +102,8 @@ c=(\alpha a+\beta b+\delta)\bmod K
 
 ## 9. 实施阶段
 
-- TX-02A（本次）：建立跨 K、随机符号置换、支持/查询隔离的数据生成器与单元测试。
+- TX-02A：建立跨 K、随机符号置换、支持/查询隔离的数据生成器与单元测试（已提交）。
+- TX-02B-0：建立 BINARY / TERNARY / HYBRID / ONE_HOT / LEARNED_INIT / PERMUTED 的可逆状态码本及单元测试（已提交；LEARNED_INIT 只是随机初始化码本，不是已训练嵌入）。
 - TX-02B：实现统一接口的 BINARY / TERNARY / HYBRID / LEARNED / ONE_HOT 学习器。
 - TX-02C：完成容量与计算预算匹配、五种子以上的基线比较。
 - TX-02D：加入验证集门控与 DEFER_MORE_EVIDENCE 选择器。
