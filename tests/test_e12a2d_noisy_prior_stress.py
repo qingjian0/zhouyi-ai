@@ -67,6 +67,23 @@ class E12A2DNoisyPriorStressTests(unittest.TestCase):
         )
         self.assertLessEqual(result["spent_cost"], 1)
 
+    def test_exact_planner_tie_break_is_action_order_invariant(self):
+        world = make_world("complementary")
+        actions = (
+            NoisyAction("z_sensor", 1, (0.9, 0.9, 0.1, 0.1)),
+            NoisyAction("a_sensor", 1, (0.9, 0.9, 0.1, 0.1)),
+        )
+        prior = (0.25, 0.25, 0.25, 0.25)
+        first = select_action("exact_optimal", prior, actions, (0, 1), 1, random.Random(1))
+        second = select_action("exact_optimal", prior, tuple(reversed(actions)), (0, 1), 1, random.Random(1))
+        self.assertEqual(actions[first].action_id, tuple(reversed(actions))[second].action_id)
+        self.assertEqual(actions[first].action_id, "a_sensor")
+
+    def test_invalid_target_index_is_rejected(self):
+        world = make_world("rare")
+        with self.assertRaises(ValueError):
+            run_episode(world, 99, prior_for(world, "matched"), "expected_ig", 3, 19)
+
     def test_unknown_policy_is_rejected(self):
         world = make_world("rare")
         with self.assertRaises(ValueError):
