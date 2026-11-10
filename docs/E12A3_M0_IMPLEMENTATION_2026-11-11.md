@@ -1,7 +1,7 @@
 # E12-A3-M0 Implementation Record
 
 Date: 2026-11-11  
-Status: executable baseline; full repository CI passed on the benchmark commit; subsequent scalar-validation hardening is undergoing a fresh CI run  
+Status: executable baseline; full repository CI and the exact-budget 20-seed benchmark passed on commit `55cd2ca7fc4d72e729df83fc3003398c09295be1`  
 Branch: research/e12a3-proposer-competition-2026-11-11
 
 ## Delivered
@@ -14,7 +14,7 @@ The baseline contains four transparent proposal paths:
 1. STAT: typed threshold/equality/parity candidates for numeric features and equality candidates for categorical features.
 2. RELATIONAL: numeric pairwise difference thresholds and categorical equality relations.
 3. RANDOM: seeded grammar-valid exploration.
-4. EXHAUSTIVE: bounded enumeration over the current finite proposal grammar.
+4. BOUNDED_ENUM: bounded enumeration over the current finite proposal grammar, used as a separate control rather than a member of the portfolio.
 
 Shared infrastructure includes:
 - immutable observation, expression, proposal, signature, allocation, and lifecycle-event records;
