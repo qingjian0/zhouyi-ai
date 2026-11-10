@@ -92,7 +92,7 @@ def run_episode(seed: int, task: str, budget: int = 31) -> dict[str, Any]:
     # BOUNDED_ENUM is a control baseline, not a portfolio member: it enumerates
     # the STAT/RELATIONAL grammar and would double-count their search budget.
     raw_portfolio = {name: pools[name] for name in ("STAT", "RELATIONAL", "RANDOM")}
-    portfolio_families, provenance = deduplicate_proposal_pools(raw_portfolio)
+    portfolio_families, _provenance = deduplicate_proposal_pools(raw_portfolio)
     methods["PORTFOLIO"] = allocate_round_robin(portfolio_families, budget)
     portfolio_unique_count = sum(len(items) for items in portfolio_families.values())
     portfolio_raw_count = sum(len(items) for items in raw_portfolio.values())
