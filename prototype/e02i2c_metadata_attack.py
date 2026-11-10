@@ -107,9 +107,13 @@ def _add_operational_features(
     features["op.evidence_count"] = _bucket(len(packets))
     features["op.sample_count"] = _bucket(len({item.sample_id for item in packets}))
     features["op.window_count"] = _bucket(len(windows))
+    # Preserve relative order and spacing, not absolute window labels:
+    # an event-specific starting index is evaluator/template leakage.
+    relative_windows = [value - windows[0] for value in windows] if windows else []
     features["op.window_pattern"] = ",".join(
         str(value) for value in (
-            windows if len(windows) <= 5 else [windows[0], windows[-1]]
+            relative_windows if len(relative_windows) <= 5
+            else [relative_windows[0], relative_windows[-1]]
         )
     ) or "none"
     features["op.window_gaps"] = ",".join(
