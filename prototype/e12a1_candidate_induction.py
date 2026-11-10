@@ -53,7 +53,7 @@ def evaluate(candidate: Candidate, values: tuple[int, ...],
     if op == "gt":
         return int(values[args[0]] > values[args[1]])
     if op == "lt":
-        return int(values[args[0]] < values[1])
+        return int(values[args[0]] < values[args[1]])
     if op == "eq_pair":
         return int(values[args[0]] == values[args[1]])
     if op == "and":
@@ -63,7 +63,7 @@ def evaluate(candidate: Candidate, values: tuple[int, ...],
 
 
 def propose_candidates(support: Iterable[Example],
-                       candidate_budget: int = 256) -> tuple[Candidate, ...]:
+                       candidate_budget: int = 512) -> tuple[Candidate, ...]:
     """Propose a bounded DSL from Support values only; labels are not read."""
     rows = tuple(support)
     if not rows:
@@ -96,7 +96,12 @@ def propose_candidates(support: Iterable[Example],
     ):
         candidates.add(Candidate("and", (left_index, right_index)))
 
-    ordered = tuple(sorted(candidates))
+    conjunctions = tuple(sorted(
+        candidate for candidate in candidates if candidate.op == "and"
+    ))
+    # Keep the atomic vocabulary first so conjunction indices remain stable
+    # even when a strict candidate budget truncates the search.
+    ordered = ordered_atoms + conjunctions
     return ordered[:candidate_budget]
 
 
@@ -116,7 +121,6 @@ def induce(support: Iterable[Example], gate: Iterable[Example],
     """Return a candidate decision using Support + Gate, never Locked Test."""
     support_rows, gate_rows = tuple(support), tuple(gate)
     candidates = propose_candidates(support_rows, candidate_budget)
-    atoms = tuple(candidate for candidate in candidates if candidate.op != "and")
     # The atom indices used by AND are based on the full, sorted atomic list.
     all_atoms = tuple(sorted({
         candidate for candidate in candidates if candidate.op != "and"
@@ -173,11 +177,11 @@ def run_demo() -> dict:
     # Test labels are consumed only here, after candidate selection is frozen.
     if result["selected"] is not None:
         selected = next(
-            candidate for candidate in propose_candidates(support)
+            candidate for candidate in propose_candidates(support, candidate_budget=512)
             if candidate.expression == result["selected"]
         )
         atoms = tuple(sorted({
-            candidate for candidate in propose_candidates(support)
+            candidate for candidate in propose_candidates(support, candidate_budget=512)
             if candidate.op != "and"
         }))
         test_accuracy = _accuracy(selected, locked_test, atoms)
