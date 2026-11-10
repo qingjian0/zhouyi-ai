@@ -71,18 +71,20 @@ store.close()
 The unit tests cover:
 
 1. prediction commit requires a prior observation; reveal cannot precede a committed prediction;
-2. identical retry returns the original receipt;
-3. conflicting retry is rejected;
-4. idempotency fingerprint includes event type/schema;
-5. idempotency fingerprint includes actor role;
-6. one prediction per observation per learner track;\n7. independent E09/E10-style tracks may commit against the same observation;\n8. evidence reveal cannot cross learner tracks;\n9. concurrent independent SQLite connections serialize writes without losing sequence numbers;
-7. prediction IDs are unique within an episode;
-8. stale expected sequence rejection;
-9. one reveal per prediction;
-10. revision evidence must already be revealed;
-11. structure parent must already exist;
-12. restart/replay preserves sequence, event IDs, and digests;
-13. returned structure snapshots are detached data.
+2. identical idempotent retry returns the original receipt;
+3. conflicting idempotent retry is rejected;
+4. idempotency fingerprint includes event type/schema and actor role;
+5. one observation ID and prediction ID are unique within an episode;
+6. one prediction per observation per learner track;
+7. independent E09/E10-style tracks may commit against the same observation;
+8. evidence reveal cannot cross learner tracks;
+9. concurrent independent SQLite connections serialize writes without losing sequence numbers;
+10. stale expected sequence is rejected;
+11. one reveal per prediction;
+12. revision evidence and structure-version references must exist;
+13. structure parent references must exist;
+14. replay is deterministic after close/reopen;
+15. structure snapshots are detached from stored state.
 
 Run:
 
