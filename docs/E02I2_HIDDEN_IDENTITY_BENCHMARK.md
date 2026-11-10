@@ -63,3 +63,27 @@ CI 使用 30 seeds/场景作为回归运行；正式研究结果应使用预注�
 首轮 30 seeds/场景显示，Role-Aligned 和 Hungarian 在 same-members/different-semantics 场景均发生 30/30 次错误合并。原因是固定加权相似度允许成员、角色和上下文分数抵消规则签名差异。
 
 因此 I2-B 的语义感知匹配路径加入硬门控：规则签名不一致时不建立身份连续性匹配，返回 ABSTAIN。Jaccard 保留语义盲点，作为负面对照。该门控不等于断言关系已 CREATE；它只表示单窗口证据不足以支持身份连续性。I2-C 需要结合时间连续性、环境和独立证据判断 MODIFY 或 CREATE。
+
+
+## 30-seed CI 结果（修正后）
+
+- Workflow：[`42829636137`](https://github.com/qingjian0/zhouyi-ai/actions/runs/42829636137)
+- 专项 job：`e02i2-hidden-identity` success；隐藏身份单测与 30-seed 运行均成功。
+- 场景：7；每场景 30 seeds；共 210 个候选决策，另有 30 个 temporary-dropout episode。
+- 阈值：`min_score=0.70`、`min_margin=0.05`。
+
+| 方法 | Precision | Recall | F1 | False merge rate |
+|---|---:|---:|---:|---:|
+| Exact | 1.0000 | 0.6000 | 0.7500 | 0 |
+| Jaccard | 0.8000 | 0.6667 | 0.7273 | 0.1429 |
+| Role-Aligned（语义门控后） | 1.0000 | 1.0000 | 1.0000 | 0 |
+| Hungarian（语义门控后） | 1.0000 | 1.0000 | 1.0000 | 0 |
+
+关键分场景结果：
+- Role permutation：Role-Aligned / Hungarian 各 30/30 正确。
+- Member drift：Role-Aligned / Hungarian 各 30/30 正确。
+- Same members / different semantics：Jaccard 30/30 错误合并；Exact、Role-Aligned、Hungarian 均 30/30 不错误合并。
+- Indistinguishable：四种方法均 30/30 正确 ABSTAIN。
+- Temporary dropout：30/30 episode 没有候选输入；基准不将缺失计为 RETIRE 或匹配成功。
+
+**解释边界：** 这是受控合成候选上的身份解析结果，且 Role-Aligned 的规则签名硬门控是本轮新加入的确定性约束。F1=1.0 只说明该基准中已覆盖的可观测模式被正确处理，不代表开放世界身份学习。尤其不能从单窗口规则差异推断 CREATE；这仍需 I2-C 的跨窗口事件裁决。当前协议尚未加入独立 Train/Gate/locked Test 和置信区间，因此属于初步工程基准，不是最终泛化结论。
