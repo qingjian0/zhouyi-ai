@@ -19,6 +19,7 @@ from prototype.e02i2c_hidden_event_benchmark import (
     ObservationView,
     SUPPORTED_EVENTS,
     _build_episodes,
+    _adjudicator,
 )
 
 
@@ -453,7 +454,26 @@ def run_metadata_attack(
                     and lift >= 0.05
                     and interval["macro_f1_lift_ci_95"][0] > 0.0
                 )
+
+        # Negative control: shuffle Train labels independently of all features.
+        # A metadata attacker should lose its predictive signal under this
+        # permutation; Gate labels remain untouched and evaluator-only.
+        permuted_labels = list(train_labels)
+        random.Random(20261110).shuffle(permuted_labels)
+        tier_results["negative_control_train_label_permutation"] = {
+            "categorical_naive_bayes": _metrics(
+                gate_labels,
+                CategoricalNaiveBayes().fit(train_rows, permuted_labels).predict(gate_rows),
+            ),
+            "decision_tree_depth_3": _metrics(
+                gate_labels,
+                ShallowCategoricalTree(max_depth=3).fit(train_rows, permuted_labels).predict(gate_rows),
+            ),
+        }
         results[tier] = tier_results
+    evidence_aware_predictions = [
+        _adjudicator(ep.observation).value for ep in gate_episodes
+    ]
     return {
         "benchmark": "E02-I2-C-E-metadata-only-attack",
         "seeds_per_event": seeds,
@@ -463,6 +483,7 @@ def run_metadata_attack(
         "gate_seed_range": [gate_start_seed, gate_end - 1],
         "split_marker_used_as_feature": False,
         "evaluator_truth_is_attacker_input": False,
+        "evidence_aware_reference": _metrics(gate_labels, evidence_aware_predictions),
         "tiers": results,
         "interpretation": (
             "Finite-template leakage audit only; not an open-world generalization result."
