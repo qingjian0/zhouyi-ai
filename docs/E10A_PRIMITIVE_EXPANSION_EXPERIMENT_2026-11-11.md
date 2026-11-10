@@ -56,3 +56,8 @@ Report prequential accuracy, coverage, abstention rate, candidate count/trajecto
 - Candidate proposal uses accumulated revealed evidence (bounded batch proposal after each reveal), not gradient learning.
 - Evaluator and learner still share a trusted Python process in the existing runner. This is not a sandbox or security boundary.
 - Tests must be run by CI before any pass claim.
+
+
+## Deterministic regression sweep
+
+The focused test suite repeats the same hand-constructed novel-relation episode over eight Support-generator seeds. The acceptance target is 24/24 correct predictions among 24 covered Query observations, with 16 abstentions before contrastive evidence is available. This is a deterministic capability regression, not a statistical generalization claim: Query structures and labels are fixed by the test fixture, and only the unrelated Support seed varies. A real benchmark must vary latent mechanisms, feature distractors, role assignments, context combinations, noise, and hidden test instances independently.
