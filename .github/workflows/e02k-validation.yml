@@ -3,14 +3,20 @@ name: E02-K focused validation
 on:
   push:
     branches: [research/e02k-adaptive-evidence]
+  pull_request:
+    branches: [research/e02k-adaptive-evidence]
 
 jobs:
-  e02k-unit-tests:
+  e02k-controller:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Run E02-K adaptive evidence tests
+      - name: Run E02-K controller unit tests
         run: python -m unittest tests.test_e02k_adaptive_evidence -v
+      - name: Run complete unit test suite
+        run: python -m unittest discover -s tests -v
+      - name: Run E02-I 100-seed reference baseline
+        run: python -m prototype.e02i_relation_evolution --seeds 100 --start-seed 5000 --json
