@@ -325,3 +325,162 @@ Every integrated episode must log:
 - separate predictive accuracy, structural recovery, calibration, transfer, and compute metrics.
 
 No aggregate accuracy alone is sufficient to claim concept induction or architectural superiority.
+
+---
+
+## 13. Second-round repository audit: shared protocol versus duplicated prototypes
+
+Audit date: 2026-11-11. This is a static source audit of E09, E10-A, E03-A, E11-A0/A-B, and open PR #53. No new tests or benchmark runs are claimed.
+
+### 13.1 Current implementation facts
+
+**E09-B2 evidence ledger**
+- Append-only behavior is implemented in an in-memory ledger.
+- Stable sample IDs, idempotent replay, conflicting-label isolation, source-count metadata, and atomic batch validation are specified.
+- The ledger is not persistent, signed, concurrency-safe, or a trusted source-authentication mechanism.
+- Its research note says tests are authored but not yet run.
+
+**E09-B0.2 prequential runner**
+- A predict-and-commit, reveal, revise state machine is implemented.
+- Prediction records retain observation ID, model version, decision/abstention state, and step order.
+- Revision snapshots retain before/after structure and cost proxies.
+- The only revision strategy is BATCH_REFIT, which re-fits on all eligible historical evidence. This is a valid baseline, not an incremental learner.
+- Candidate-evaluation count and training-row count are not substitutes for measured latency, memory, or actual compute.
+
+**E10-A prequential ledger**
+- A separate in-memory ledger prototype enforces commit-before-reveal, one-time reveal, immutable prediction commits, evidence-bounded revisions, detached snapshots, monotonic steps, and fail-closed validation.
+- It has no integrated learner, evaluator process, persistent event store, structure-version registry, or benchmark runner.
+- Its design note explicitly states that a single ledger object is a trusted-runner state machine, not a security boundary.
+
+**E03-A parallel coordination**
+- The experiment has three output channels, each with an unknown non-affine three-variable Boolean relation.
+- Each channel considers 84 two-/three-feature subsets, retains up to eight candidates, and the coordinator enumerates at most 8^3 combinations under a shared feature budget of five.
+- The target relations deliberately include non-contiguous feature sets.
+- The coordinator is an explicit bounded optimizer over a researcher-specified candidate space. This does not yet show that the coordinator policy itself is learned.
+
+**E11-A0 and E11-A/B**
+- E11-A0 is a frequent-conjunction baseline over a generator that plants exactly three concepts, each a conjunction of three opaque attributes.
+- Its evaluator's best-match F1 is diagnostic and is not yet an operational candidate-to-concept assignment rule.
+- E11-A/B defines a richer concept schema with typed slots, predicates, role-sensitive relations, boundaries, invariants, context, and evidence; it remains a specification/preregistration draft without a learner implementation or benchmark result.
+
+### 13.2 Architectural decision: one protocol, multiple learners
+
+Do not merge E09's and E10-A's current ledger implementations as-is, and do not create one monolithic learner.
+
+Adopt a versioned shared event protocol with track-specific adapters:
+
+- Shared: observation envelope, prediction commit, reveal event, evidence reference, structure-version reference, revision event, provenance rules, and cost accounting.
+- E09 adapter: predicate/rule AST and counterexample repair.
+- E10 adapter: role-sensitive relation, analogy, and operator structures.
+- E11 adapter: concept schema, boundary, and typed hierarchy edges.
+- E02 adapter: relation identity, adjudication, and evidence sufficiency.
+- E03 coordinator: candidate-path scheduling and shared-budget arbitration.
+
+The protocol defines semantics and invariants, not one storage library, model family, or hypothesis grammar.
+
+### 13.3 Required event envelope
+
+Every event should have a deterministic envelope:
+
+- protocol_version
+- event_id
+- episode_id
+- sequence_no
+- event_type
+- actor_role
+- causation_refs
+- payload_schema
+- payload_digest
+- created_at
+- integrity_metadata
+
+The event body is typed by event class. Evaluator-only source IDs and labels must never appear in learner event serialization. A digest detects accidental mutation; it does not authenticate an actor unless backed by a trusted signature/key boundary.
+
+Required invariants:
+1. Event IDs are unique within the declared namespace.
+2. Sequence numbers are strictly increasing within an episode.
+3. A reveal references exactly one committed prediction.
+4. A revision references only evidence already revealed at its sequence number.
+5. An identical replay is idempotent; same ID with different content is a hard integrity error.
+6. Historical commits and revisions are never overwritten.
+7. A split/merge creates new immutable structure versions and explicit lineage.
+8. ABSTAIN is a valid decision, not a missing prediction.
+9. Event persistence acknowledgment occurs before the evaluator reveals the target.
+10. Recovery after process restart reproduces the same event order and model-version references.
+
+### 13.4 The next vertical slice: E09 first, E10-A second
+
+**Slice A — E09**
+- Preserve the current batch-refit runner as the immutable baseline.
+- Put the shared protocol adapter around it without changing its learning semantics.
+- Add a second, separately named incremental candidate-maintenance strategy.
+- Instrument actual per-update wall-clock time, peak memory, candidate evaluations, and historical evidence scanned.
+- Test restart/replay and event-log reconstruction.
+- Compare frozen, batch-refit, periodic replay, and incremental revision at equal cumulative compute.
+
+**Slice B — E10-A**
+- Reuse the protocol adapter, not E09's rule AST.
+- Run strict A-S source-instance and A-O object-disjoint tracks.
+- Put evaluator truth and source provenance in a separate process.
+- Verify learner payload bytes are invariant under mutation of evaluator-only truth.
+- Add structure-version lineage for relation and operator revisions.
+
+**Slice C — E11**
+- Feed concept proposals through the same event protocol.
+- Remove the planted fixed concept count as a learner-visible assumption.
+- Add nuisance-correlated and overlapping concepts, unknown concept counts, missing attributes, and relational/non-conjunctive concepts.
+- Replace evaluator best-match scoring with a frozen matching procedure plus assignment-free set metrics.
+- Test whether hierarchy edges add predictive/compositional value over a flat concept set at matched information and compute.
+
+### 13.5 Research update from external literature
+
+The 2026 ICML paper **INDUCTION: Finite-Structure Concept Synthesis in First-Order Logic** provides a useful benchmark-design reference. It separates full observation, contrastive induction, and existential completion; it also evaluates formula validity and complexity, and reports that compact formulas generalize better than bloated fits. CPG-EI should borrow the separation of structural validity from predictive fit, while extending it with prequential revision, evidence provenance, ambiguity, and non-contiguous composition.
+
+Reference: https://proceedings.mlr.press/v306/batzoglou26a.html
+
+The March 2026 systematic review **Continual learning: A systematic literature review** surveys continual-learning work from 2010–2025 and highlights the need to reason about forgetting mechanisms and learning settings rather than report one aggregate score. CPG-EI should distinguish task-incremental, class-incremental, domain/stream drift, and structural-concept revision; these are not interchangeable evaluation settings.
+
+Reference: https://www.sciencedirect.com/science/article/pii/S0893608025011074
+
+A 2025 PMLR paper, **Causality in Flux: Continual Adaptation of Causal Knowledge via Evidence Matching**, is a relevant conceptual comparator for evidence-conditioned knowledge revision. Its scope is causal-model adaptation, not proof that CPG-EI's symbolic event ledger provides causal discovery.
+
+Reference: https://proceedings.mlr.press/v268/seng25a.html
+
+### 13.6 New benchmark matrix
+
+| Dimension | Required levels |
+|---|---|
+| Observation stream | static / sequential / drift / noisy |
+| Concept structure | conjunction / relational / temporal / operator |
+| Composition | adjacent / non-contiguous / role-sensitive / multi-output |
+| Identifiability | identifiable / ambiguous / inconsistent |
+| Split | instance / source-group / object / world-family |
+| Learning mode | frozen / batch-refit / replay / incremental |
+| Search mode | greedy serial / independent parallel / shared-budget adaptive |
+| Yixiang prior | absent / fixed / learnable / randomized / deliberately wrong |
+| Feedback | immediate / delayed / partial / contradictory |
+| Budget | proposal slots / measured time / memory / total compute |
+
+Report prediction quality, structure recovery, calibration, abstention, revision quality, transfer, and compute separately. Do not collapse these into one headline score.
+
+### 13.7 New falsifiable hypotheses
+
+- H13-1 Protocol sufficiency: different learner tracks can use the same event semantics without sharing their hypothesis representations.
+- H13-2 Incremental benefit: incremental candidate maintenance can match or approach batch-refit quality with lower marginal update cost on at least one pre-registered stream family.
+- H13-3 Revision stability: evidence-gated revisions reduce unnecessary structure oscillation under transient noise without blocking adaptation to persistent drift.
+- H13-4 Concept utility: concepts selected by predictive compression improve held-out relational prediction over frequency-only patterns at matched search budget.
+- H13-5 Parallel value: parallel proposer coordination improves the best defensible held-out structure at equal total measured compute, not merely candidate count.
+- H13-6 Yixiang contribution: Yixiang-inspired priors provide reproducible sample-efficiency or transfer gains over parameter/compute-matched generic priors, while remaining rejectable under wrong-prior controls.
+
+Each hypothesis must be tested on independent world seeds, with locked tests used only after selection. Null results and failed episodes remain in the report.
+
+### 13.8 Immediate next action
+
+Before implementing another new learner, reconcile PR #53 with the existing E09 and E10-A ledger prototypes:
+1. compare every event invariant against both prototypes;
+2. mark which are already enforced, only documented, or absent;
+3. define a minimal compatibility adapter and migration test;
+4. avoid duplicating event storage or changing track-specific candidate schemas;
+5. run exact focused tests and CI only after the adapter exists.
+
+This is now the project's highest-leverage engineering task. The next model-level innovation should wait until the evidence protocol is trustworthy and shared.
