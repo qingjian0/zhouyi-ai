@@ -240,7 +240,7 @@ def propose_exhaustive(rows: Sequence[Observation], limit: int = 128) -> tuple[P
     candidates = list(propose_statistical(rows)) + list(propose_relational(rows))
     unique = {p.canonical_expression: p for p in candidates}
     ordered = sorted(unique.values(), key=lambda p: (p.family, p.canonical_expression))
-    return tuple(_proposal("EXHAUSTIVE", p.expression, p.source_observation_ids)
+    return tuple(_proposal("BOUNDED_ENUM", p.expression, p.source_observation_ids)
                  for p in ordered[:limit])
 
 
