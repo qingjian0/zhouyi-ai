@@ -266,3 +266,133 @@ def enumerate_paths(
     visit(start, (start,), 0.0, 0.0, 0)
     results.sort(key=lambda p: (-p.net_utility, p.total_cost, p.nodes))
     return tuple(results[:top_k])
+
+
+# ---------------------------------------------------------------------------
+# Unified synthetic capability benchmark (YF-07..10)
+# Kept in this module so the research branch can be updated without creating
+# files through the default-branch-only contents endpoint.
+# ---------------------------------------------------------------------------
+def run_synthetic_benchmark(*, seeds: int = 5, start_seed: int = 100) -> dict:
+    """Run compact seeded smoke experiments with explicit negative controls.
+
+    This is a synthetic capability smoke test, not a natural-world or causal
+    benchmark. Raw per-seed values are returned for auditability.
+    """
+    import random
+    import statistics
+
+    if seeds < 1:
+        raise ValueError("seeds must be positive")
+    per_seed = []
+    for seed in range(start_seed, start_seed + seeds):
+        rng = random.Random(seed)
+
+        # YF-07: unannounced mean shifts and independent null sequences.
+        detected, false_alarms, errors = 0, 0, []
+        for _ in range(12):
+            n = 60
+            split = rng.randint(20, 40)
+            shift = rng.choice((-1.0, 1.0)) * rng.uniform(1.5, 2.5)
+            series = [rng.gauss(0, 0.4) + (shift if i >= split else 0)
+                      for i in range(n)]
+            cp = detect_change_point(series, min_segment=8, min_effect=0.8)
+            if cp.detected and cp.index is not None:
+                detected += 1
+                errors.append(abs(cp.index - split))
+            null_series = [rng.gauss(0, 0.4) for _ in range(n)]
+            false_alarms += int(detect_change_point(
+                null_series, min_segment=8, min_effect=0.8).detected)
+
+        # YF-08: support-only candidate selection; independent test examples.
+        support = [{"x": rng.uniform(-2, 2), "y": rng.uniform(-2, 2)}
+                   for _ in range(100)]
+        support_labels = [int(row["x"] * row["y"] > 0.8) for row in support]
+        test = [{"x": rng.uniform(-2, 2), "y": rng.uniform(-2, 2)}
+                for _ in range(300)]
+        test_labels = [int(row["x"] * row["y"] > 0.8) for row in test]
+        candidates = generate_relation_candidates(
+            support, support_labels, max_features=2, max_candidates=128)
+        selected = candidates[0].candidate
+        test_predictions = [_predict_relation(row, selected) for row in test]
+        relation_test_score = _balanced_accuracy(test_labels, test_predictions)
+
+        # YF-09: reversal positive condition and same-sign/zero negative controls.
+        reversal_hits = same_sign_false = zero_false = 0
+        for _ in range(30):
+            for condition in ("reversal", "same", "zero"):
+                observations = []
+                for context in ("A", "B"):
+                    effect = (0.8 if context == "A" else -0.8) if condition == "reversal" else (
+                        0.8 if condition == "same" else 0.0)
+                    observations.extend(
+                        (context, effect + rng.gauss(0, 0.3)) for _ in range(12))
+                estimate = learn_contextual_reversal(
+                    observations, min_samples=8, min_effect=0.25)
+                if condition == "reversal":
+                    reversal_hits += int(estimate.reversed)
+                elif condition == "same":
+                    same_sign_false += int(estimate.reversed)
+                else:
+                    zero_false += int(estimate.reversed)
+
+        # YF-10: compare greedy local choice with finite-graph exhaustive oracle.
+        regret_values = []
+        for _ in range(20):
+            edges = []
+            for source, targets in (("s", ("a", "b", "c")),
+                                    ("a", ("t",)), ("b", ("t",)), ("c", ("t",))):
+                for target in targets:
+                    edges.append(Transition(source, target,
+                        rng.uniform(0.2, 4.0), rng.uniform(0.1, 0.8)))
+            oracle = enumerate_paths(edges, start="s", max_depth=2,
+                                     budget=1.5, top_k=1)
+            node, seen, utility, cost = "s", {"s"}, 0.0, 0.0
+            for _step in range(2):
+                feasible = [e for e in edges if e.source == node
+                            and e.target not in seen and cost + e.cost <= 1.5]
+                if not feasible:
+                    break
+                edge = max(feasible, key=lambda e: (e.utility-e.cost, -e.cost))
+                node, utility, cost = edge.target, utility+edge.utility, cost+edge.cost
+                seen.add(node)
+            greedy_net = utility-cost
+            regret_values.append(max(0.0, oracle[0].net_utility-greedy_net)
+                                  if oracle else 0.0)
+
+        per_seed.append({
+            "seed": seed,
+            "YF07": {
+                "detection_rate": detected / 12,
+                "mean_localization_error": statistics.mean(errors) if errors else None,
+                "null_false_alarm_rate": false_alarms / 12,
+            },
+            "YF08": {
+                "support_selected_test_balanced_accuracy": relation_test_score,
+                "selected_operator": selected.operator,
+                "support_rows": len(support),
+                "test_rows": len(test),
+            },
+            "YF09": {
+                "reversal_detection_rate": reversal_hits / 30,
+                "same_sign_false_reversal_rate": same_sign_false / 30,
+                "zero_effect_false_reversal_rate": zero_false / 30,
+            },
+            "YF10": {
+                "mean_greedy_regret_vs_finite_graph_oracle":
+                    statistics.mean(regret_values),
+            },
+        })
+    return {
+        "benchmark": "YF07_YF10_compact_synthetic_smoke_suite",
+        "seeds": seeds,
+        "start_seed": start_seed,
+        "results": per_seed,
+        "limitations": [
+            "Synthetic distributions only; not evidence of natural cognition or general intelligence.",
+            "YF07 covers abrupt mean shifts and null controls, not gradual drift or causal triggers.",
+            "YF08 target product relation is inside the candidate grammar; no open-world discovery claim.",
+            "YF09 uses supplied contexts and observational effect values; no causal identification.",
+            "YF10 uses known finite graphs and an oracle with the same graph; no learned world model.",
+        ],
+    }
