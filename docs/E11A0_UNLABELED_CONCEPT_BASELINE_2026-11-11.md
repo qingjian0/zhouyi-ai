@@ -24,9 +24,13 @@ This is an in-process benchmark boundary, not a security boundary. The evaluator
 
 The baseline enumerates attribute conjunctions of order 1 through `max_order` and retains those whose empirical learner support meets `min_support`. Predictions are candidate-presence indicators on held-out objects.
 
-Evaluation reports, for each hidden concept, the best query-set F1 among proposed candidates. This is a diagnostic oracle matching metric: it is useful for checking whether a candidate exists, but it is not an operational mechanism for assigning discovered candidate identities to latent concepts. The mean across planted concepts is reported.
+The original per-concept best query-set F1 is retained only as an optimistic oracle diagnostic: it permits the same candidate to match several hidden concepts. It is not a valid one-to-one concept-discovery score.\n\nThe evaluator additionally deduplicates candidate patterns by their query-set extension and computes an exact maximum-weight one-to-one matching between unique candidate extensions and hidden concepts. Dynamic programming maximizes total F1 while ensuring each candidate extension and each hidden concept is used at most once. It reports one-to-one mean F1, candidate precision, concept recall, matched/unmatched candidate counts, and selected matches. Exact matching is bounded to at most 16 evaluator concepts. This remains an evaluator-side metric, not a learner-side concept assignment mechanism.
 
-## Evaluation correction\n\nA candidate extension that overlaps multiple latent concepts cannot be counted as discovering all of them. Syntactically different candidates with identical held-out extensions are collapsed before matching, preventing duplicate patterns from inflating concept count. The one-to-one score complements rather than replaces the optimistic best-match diagnostic.\n\n## Required controls in this increment
+## Evaluation correction\n\nA candidate extension that overlaps multiple latent concepts cannot be counted as discovering all of them. Syntactically different candidates with identical held-out extensions are collapsed before matching, preventing duplicate patterns from inflating concept count. The one-to-one score complements rather than replaces the optimistic best-match diagnostic.\n\n## Evaluation correction
+
+A candidate extension that overlaps multiple latent concepts cannot be counted as discovering all of them. Syntactically different candidates with identical held-out extensions are collapsed before matching, preventing duplicate patterns from inflating concept count. The one-to-one score complements rather than replaces the optimistic best-match diagnostic.
+
+## Required controls in this increment
 
 - Object-identity-disjoint learner/query split.
 - Opaque-symbol renaming invariance.
