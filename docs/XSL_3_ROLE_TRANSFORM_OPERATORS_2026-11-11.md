@@ -27,6 +27,8 @@ For two output-to-input permutations (p) then (q), the composed mapping is (p[q[
 
 ## Test gates
 
+The GitHub Actions workflow is enabled for direct pushes to this research branch so the stacked prototype can be validated independently of the parent branch's pull-request event filters.
+
 - identity;
 - binary reversal;
 - ternary cyclic permutation;
