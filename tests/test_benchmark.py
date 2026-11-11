@@ -34,13 +34,17 @@ class SerialParallelBenchmarkTests(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(ValueError):
             await run_serial_parallel_benchmark(tasks, {"identity": handler}, repeats=0)
 
-    async def test_rejects_non_json_handler_output(self):
+    async def test_non_json_handler_output_is_reported_as_task_failure(self):
         async def handler(payload):
             return object()
 
         tasks = [TaskSpec("t0", "bad")]
-        with self.assertRaises((TypeError, ValueError)):
-            await run_serial_parallel_benchmark(tasks, {"bad": handler}, repeats=1)
+        report = await run_serial_parallel_benchmark(
+            tasks, {"bad": handler}, repeats=1
+        )
+        self.assertTrue(report["equivalent"])
+        self.assertFalse(report["all_succeeded"])
+        self.assertEqual(report["interpretation"], "task_failures_present")
 
 
 if __name__ == "__main__":
