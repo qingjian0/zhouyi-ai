@@ -51,6 +51,7 @@ def make_episode(
     support_size: int,
     query_count: int = 1,
     symbol_mapping: str = "permuted",
+    rule: tuple[int, int, int] | None = None,
 ) -> Episode:
     """Create one episode with disjoint support and query input pairs.
 
@@ -68,7 +69,13 @@ def make_episode(
         raise ValueError("symbol_mapping must be 'canonical' or 'permuted'")
     rng = random.Random(seed)
     k = cardinality
-    alpha, beta, delta = (rng.randrange(k) for _ in range(3))
+    if rule is None:
+        alpha, beta, delta = (rng.randrange(k) for _ in range(3))
+    else:
+        if (not isinstance(rule, tuple) or len(rule) != 3 or
+                any(type(value) is not int or not 0 <= value < k for value in rule)):
+            raise ValueError("rule must be a tuple of three integers in [0, K)")
+        alpha, beta, delta = rule
     visible = tuple(range(k)) if symbol_mapping == "canonical" else _permutation(k, rng)
 
     pairs = [(a, b) for a in range(k) for b in range(k)]
