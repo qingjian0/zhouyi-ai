@@ -15,6 +15,10 @@ from typing import Iterable
 
 from prototype.tx02_identifiability import audit_episode
 from prototype.tx02_learners import SetConditionedMLPLearner
+from prototype.tx02_compute import (
+    apply_abstention, choose_abstention_threshold, choose_hidden_size_for_compute_budget,
+    estimate_forward_macs, probability_metrics, risk_coverage_curve, select_representation,
+)
 from prototype.tx02_state_encoders import build_codebook
 from prototype.tx02_multistate_benchmark import episode_to_dict
 from prototype.tx02_splits import EvaluationEpisode, make_rule_disjoint_splits
@@ -107,10 +111,28 @@ def choose_hidden_size_for_budget(family: str, cardinality: int, target_paramete
     return hidden, count
 
 
+def _collect_probabilities(learner: SetConditionedMLPLearner,
+                            episodes: Iterable[EvaluationEpisode]) -> tuple[list[tuple[float, ...]], list[int]]:
+    probability_rows = []
+    targets = []
+    for episode in episodes:
+        for qi, target in enumerate(episode.targets):
+            probability_rows.append(learner.predict_proba(episode.inputs, qi))
+            targets.append(target)
+    return probability_rows, targets
+
+
 def run_condition(cardinality: int, support_size: int, seed: int,
                   episodes_per_rule: int, epochs: int, hidden_size: int,
                   parameter_matched: bool = True,
-                  parameter_budget: int | None = None) -> dict:
+                  parameter_budget: int | None = None,
+                  compute_matched: bool = False,
+                  forward_mac_budget: int | None = None,
+                  max_selective_risk: float = 0.20) -> dict:
+    if parameter_matched and compute_matched:
+        raise ValueError("choose either parameter matching or compute matching, not both")
+    if not 0.0 <= max_selective_risk <= 1.0:
+        raise ValueError("max_selective_risk must be in [0,1]")
     splits = make_rule_disjoint_splits(
         cardinality=cardinality,
         episodes_per_rule=episodes_per_rule,
@@ -125,12 +147,25 @@ def run_condition(cardinality: int, support_size: int, seed: int,
             model_parameter_count(family, cardinality, hidden_size, 6)
             for family in FAMILIES
         )
+    target_compute_budget = forward_mac_budget
+    if compute_matched and target_compute_budget is None:
+        target_compute_budget = max(
+            estimate_forward_macs(family, cardinality, hidden_size,
+                                  support_size, 2, cardinality, 6)
+            for family in FAMILIES
+        ) * 1
     family_results = {}
+    validation_selection_metrics = {}
     for family in FAMILIES:
         selected_hidden_size = hidden_size
         if parameter_matched:
             selected_hidden_size, _ = choose_hidden_size_for_budget(
                 family, cardinality, target_budget, embedding_dim=6
+            )
+        elif compute_matched:
+            selected_hidden_size, _ = choose_hidden_size_for_compute_budget(
+                family, cardinality, target_compute_budget,
+                support_size, 2, cardinality, 6
             )
         learner = SetConditionedMLPLearner(
             family=family, hidden_size=selected_hidden_size, embedding_dim=6, seed=seed
@@ -141,8 +176,53 @@ def run_condition(cardinality: int, support_size: int, seed: int,
             budget={"epochs": epochs}, seed=seed,
         )
         train_seconds = time.perf_counter() - started
-        predictions = [learner.predict(item.inputs) for item in splits.locked_test]
-        metrics = _metrics(predictions, splits.locked_test, cardinality)
+        validation_probs, validation_targets = _collect_probabilities(learner, splits.validation)
+        validation_metrics = probability_metrics(validation_probs, validation_targets)
+        validation_macs = estimate_forward_macs(
+            family, cardinality, selected_hidden_size, support_size, 2, cardinality, 6
+        )
+        validation_selection_metrics[family] = {
+            "accuracy": validation_metrics["accuracy"],
+            "nll": validation_metrics["nll"],
+            "forward_macs": validation_macs,
+            "parameter_count": fit.parameter_count,
+        }
+        abstention = choose_abstention_threshold(
+            validation_probs, validation_targets, max_selective_risk
+        )
+        test_probs, test_targets = _collect_probabilities(learner, splits.locked_test)
+        predictions = [tuple(max(range(len(row)), key=lambda i: row[i])
+                             for row in [test_probs[j:j+1][0]])
+                       for j in range(0, len(test_probs), 1)]
+        # Rebuild episode-shaped predictions for the existing audit helper.
+        cursor = 0
+        episode_predictions = []
+        for item in splits.locked_test:
+            count = len(item.targets)
+            episode_predictions.append(tuple(
+                max(range(len(test_probs[cursor + offset])),
+                    key=lambda i: test_probs[cursor + offset][i])
+                for offset in range(count)
+            ))
+            cursor += count
+        metrics = _metrics(episode_predictions, splits.locked_test, cardinality)
+        test_probability_metrics = probability_metrics(test_probs, test_targets)
+        deferred = apply_abstention(test_probs, abstention["threshold"])
+        accepted = [(decision, target) for decision, target in zip(deferred, test_targets)
+                    if decision is not None]
+        selective = {
+            "threshold_selected_on": "validation",
+            "threshold": abstention["threshold"],
+            "validation_coverage": abstention["coverage"],
+            "validation_selective_risk": abstention["selective_risk"],
+            "locked_test_coverage": len(accepted) / len(test_targets) if test_targets else 0.0,
+            "locked_test_selective_risk": (
+                sum(decision != target for decision, target in accepted) / len(accepted)
+                if accepted else None
+            ),
+            "locked_test_deferred_count": len(test_targets) - len(accepted),
+            "locked_test_risk_coverage_curve": list(risk_coverage_curve(test_probs, test_targets)),
+        }
         by_mapping = {}
         for mapping in ("canonical", "permuted"):
             selected = [(p, e) for p, e in zip(predictions, splits.locked_test)
@@ -157,16 +237,34 @@ def run_condition(cardinality: int, support_size: int, seed: int,
             "parameter_budget_delta": (
                 fit.parameter_count - target_budget if parameter_matched else None
             ),
+            "target_forward_mac_budget": target_compute_budget if compute_matched else None,
+            "forward_macs_per_episode": validation_macs,
+            "forward_macs_budget_delta": (
+                validation_macs - target_compute_budget if compute_matched else None
+            ),
+            "estimated_training_forward_macs": (
+                len(splits.train) * 2 * epochs * validation_macs
+            ),
             "train_seconds": train_seconds,
+            "validation_probability_metrics": validation_metrics,
+            "validation_abstention_calibration": abstention,
+            "locked_test_probability_metrics": test_probability_metrics,
+            "locked_test_selective_prediction": selective,
             "locked_test": metrics,
             "locked_test_by_mapping": by_mapping,
         }
+    adaptive_choice = select_representation(validation_selection_metrics)
+    adaptive_locked_test = family_results[adaptive_choice["selected_family"]]["locked_test"]
     return {
         "cardinality": cardinality,
         "support_size": support_size,
         "seed": seed,
         "parameter_matched": parameter_matched,
+        "compute_matched": compute_matched,
         "target_parameter_budget": target_budget if parameter_matched else None,
+        "target_forward_mac_budget": target_compute_budget if compute_matched else None,
+        "validation_representation_selection": adaptive_choice,
+        "adaptive_representation_locked_test": adaptive_locked_test,
         "split_metadata": splits.metadata,
         "rule_counts": {k: len(v) for k, v in splits.rule_families.items()},
         "episode_counts": {
@@ -195,7 +293,10 @@ def run_sweep(cardinalities: tuple[int, ...] = (3,), support_sizes: tuple[int, .
               seeds: tuple[int, ...] = (11, 29, 47), episodes_per_rule: int = 1,
               epochs: int = 5, hidden_size: int = 24,
               parameter_matched: bool = True,
-              parameter_budget: int | None = None) -> dict:
+              parameter_budget: int | None = None,
+              compute_matched: bool = False,
+              forward_mac_budget: int | None = None,
+              max_selective_risk: float = 0.20) -> dict:
     conditions = []
     for k in cardinalities:
         for support in support_sizes:
@@ -205,6 +306,7 @@ def run_sweep(cardinalities: tuple[int, ...] = (3,), support_sizes: tuple[int, .
                 run_condition(
                     k, support, seed, episodes_per_rule, epochs, hidden_size,
                     parameter_matched, parameter_budget,
+                    compute_matched, forward_mac_budget, max_selective_risk,
                 )
                 for seed in seeds
             ]
@@ -215,7 +317,7 @@ def run_sweep(cardinalities: tuple[int, ...] = (3,), support_sizes: tuple[int, .
                 "aggregate": aggregate_runs(runs),
             })
     return {
-        "protocol": "TX-02C",
+        "protocol": "TX-02D-1",
         "families": list(FAMILIES),
         "configuration": {
             "cardinalities": list(cardinalities),
@@ -226,13 +328,19 @@ def run_sweep(cardinalities: tuple[int, ...] = (3,), support_sizes: tuple[int, .
             "hidden_size": hidden_size,
             "parameter_matched": parameter_matched,
             "parameter_budget": parameter_budget,
+            "compute_matched": compute_matched,
+            "forward_mac_budget": forward_mac_budget,
+            "max_selective_risk": max_selective_risk,
         },
         "conditions": conditions,
         "interpretation_limits": [
             "Locked-test scores are descriptive for this finite affine rule generator only.",
             "Rule coefficients are disjoint across train, validation and locked-test.",
             "Posterior audit is exact only within the TX-02A affine hypothesis class and its stated uniform prior.",
-            "Parameter matching is approximate: each family chooses the largest hidden size under a shared parameter budget; parameter deltas are reported. This is not compute matching.",
+            "Parameter matching and forward-MAC matching are separate modes; neither is a complete FLOPs or wall-clock match.",
+            "Forward-MAC proxy excludes nonlinearities, pooling, softmax, memory traffic, Python overhead, backward pass and optimizer work.",
+            "Adaptive representation is selected using validation metrics only; locked-test evaluates the already selected family.",
+            "Selective-risk threshold is calibrated on validation only; locked-test risk-coverage is descriptive and never used for threshold selection.",
             "FIXED_RANDOM and LEARNED share the same embedding dimension and initialization distribution; only LEARNED updates the embedding table.",
             "Validation is reported but no hyperparameter search or test-driven model selection is performed.",
             "Results do not establish natural-language or general-intelligence capability.",
@@ -250,6 +358,9 @@ def main() -> None:
     parser.add_argument("--hidden-size", type=int, default=24)
     parser.add_argument("--no-parameter-match", action="store_true")
     parser.add_argument("--parameter-budget", type=int, default=None)
+    parser.add_argument("--compute-match", action="store_true")
+    parser.add_argument("--forward-mac-budget", type=int, default=None)
+    parser.add_argument("--max-selective-risk", type=float, default=0.20)
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
     result = run_sweep(
@@ -261,6 +372,9 @@ def main() -> None:
         args.hidden_size,
         not args.no_parameter_match,
         args.parameter_budget,
+        args.compute_match,
+        args.forward_mac_budget,
+        args.max_selective_risk,
     )
     print(json.dumps(result, ensure_ascii=False, indent=2) if args.json else {
         "protocol": result["protocol"],
