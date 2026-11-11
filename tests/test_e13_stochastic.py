@@ -128,3 +128,88 @@ class E13StochasticMechanismTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class E13StochasticCrossDomainMappingTests(unittest.TestCase):
+    def _systems(self, target_probability=Fraction(3, 4)):
+        source = ProbabilisticTransitionSystem("source", ("energy",), ("activate",), (
+            ProbabilisticTransitionRule("activate", (("energy", "low"),), (
+                ((("energy", "high"),), Fraction(3, 4)),
+                ((("energy", "low"),), Fraction(1, 4)),
+            )),
+        ))
+        target = ProbabilisticTransitionSystem("target", ("charge",), ("engage",), (
+            ProbabilisticTransitionRule("engage", (("charge", "empty"),), (
+                ((("charge", "full"),), target_probability),
+                ((("charge", "empty"),), 1 - target_probability),
+            )),
+        ))
+        mapping = StochasticKernelMap(
+            (("energy", "charge"),),
+            (("energy", "low", "empty"), ("energy", "high", "full")),
+            (("activate", "engage"),),
+        )
+        case = KernelValidationCase(
+            "heldout-1", (("energy", "low"),), "activate",
+            (("charge", "empty"),), "engage",
+        )
+        return source, target, mapping, case
+
+    def test_explicit_mapping_accepts_matching_kernel(self):
+        from prototype.e13_stochastic import (
+            KernelValidationCase, StochasticKernelMap,
+            validate_stochastic_kernel_mapping,
+        )
+        source, target, mapping, case = self._systems()
+        report = validate_stochastic_kernel_mapping(source, target, mapping, (case,))
+        self.assertEqual(report.status, "PASS_ON_SUPPLIED_CASES")
+        self.assertEqual(report.cases[0].total_variation_distance, Fraction(0))
+
+    def test_similar_support_but_different_probabilities_is_mismatch(self):
+        from prototype.e13_stochastic import (
+            KernelValidationCase, StochasticKernelMap,
+            validate_stochastic_kernel_mapping,
+        )
+        source, target, mapping, case = self._systems(Fraction(1, 2))
+        report = validate_stochastic_kernel_mapping(source, target, mapping, (case,))
+        self.assertEqual(report.status, "MISMATCH")
+        self.assertEqual(report.cases[0].total_variation_distance, Fraction(1, 4))
+
+    def test_incomplete_variable_mapping_rejected(self):
+        from prototype.e13_stochastic import StochasticKernelMap, validate_stochastic_kernel_mapping
+        source, target, mapping, case = self._systems()
+        bad = StochasticKernelMap((), mapping.source_to_target_values,
+                                  mapping.source_to_target_actions)
+        with self.assertRaisesRegex(StochasticContractError, "VARIABLE_MAP_MUST_BE_COMPLETE_BIJECTION"):
+            validate_stochastic_kernel_mapping(source, target, bad, (case,))
+
+    def test_missing_target_support_is_unknown_not_pass(self):
+        from prototype.e13_stochastic import (
+            KernelValidationCase, StochasticKernelMap,
+            validate_stochastic_kernel_mapping,
+        )
+        source, target, mapping, case = self._systems()
+        target_without_row = ProbabilisticTransitionSystem(
+            "target-empty", ("charge",), ("engage",), ()
+        )
+        report = validate_stochastic_kernel_mapping(
+            source, target_without_row, mapping, (case,)
+        )
+        self.assertEqual(report.status, "INCOMPLETE")
+        self.assertEqual(report.cases[0].status, "UNKNOWN_MISSING_SUPPORT_OR_VALUE_MAP")
+
+    def test_action_alignment_mismatch_is_unknown(self):
+        from prototype.e13_stochastic import (
+            KernelValidationCase, StochasticKernelMap,
+            validate_stochastic_kernel_mapping,
+        )
+        source, target, mapping, case = self._systems()
+        misaligned = KernelValidationCase(
+            "bad-alignment", case.source_state, case.source_action,
+            case.target_state, "wrong-action"
+        )
+        report = validate_stochastic_kernel_mapping(
+            source, target, mapping, (misaligned,)
+        )
+        self.assertEqual(report.status, "INCOMPLETE")
+        self.assertEqual(report.cases[0].status, "UNKNOWN_MAPPING_OR_CASE_ALIGNMENT")
