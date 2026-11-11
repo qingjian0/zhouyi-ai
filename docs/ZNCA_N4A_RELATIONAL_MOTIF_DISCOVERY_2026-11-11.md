@@ -38,7 +38,7 @@ N4-A 的问题是：不同领域中，是否反复出现具有相同抽象角色
 
 sum(C(n, k), k=2..min(max_nodes,n))
 
-每个子集规范化需要最多 max_nodes! 次角色顺序比较。通过 max_nodes、max_subsets_per_case 和 max_candidates 三个预算显式限制最坏开销。预算耗尽会在结果中报告，并丢弃该案例的全部部分枚举结果，不得把部分枚举伪装成完整发现。
+每个子集规范化需要最多 max_nodes! 次角色顺序比较。通过 max_nodes、max_subsets_per_case 和 max_candidates 三个预算显式限制最坏开销。结果分别报告案例枚举预算耗尽数与候选截断数；案例预算耗尽会丢弃该案例的全部部分枚举结果，不得把部分枚举伪装成完整发现。
 
 ## 证据纪律
 
