@@ -22,6 +22,13 @@
 - 当前已打通可信单进程参考闭环：SROK 预测 → E09 durable commit → SUPPORT reveal → batch refit → 版本事件持久化；LOCKED_TEST 不进入学习更新。
 - P1 仍未完成：ZPCM/工作集的认知记忆投影、CSG-GCR 全局协调接入、进程级 evaluator/learner 隔离、崩溃恢复与事务 outbox 尚未完成。
 - N0.10 当前训练数据有 unary 捷径，不能宣称三阶/高阶能力已验证；先完成 pairwise-preserving 高阶必要性基准。
+- PR #202 已合入本 E09 集成分支：增加 digest-verified observation payload vault、SROK/E09 learner checkpoint、可信单进程 episode resume；这补齐了单进程崩溃恢复切片，但不等于 evaluator/learner 进程隔离或事务 outbox 已完成。
+- ZPCM 已有 E09 生命周期投影与通用检索标签脱敏；内部 learner snapshot / ledger checkpoint 不进入通用记忆包。尚需验证重放一致性、投影重建、事务 outbox 与移动设备资源。
+- P1 当前剩余硬门槛：CSG-GCR 全局协调接入；evaluator/learner 独立进程与认证 IPC；原子提交/投递 outbox；故障注入和跨进程恢复。
+- P2 当前科学门槛：N0.10 现有 unary 任务捷径仍未被排除。E02 parity probe 证明特定三变量 parity 任务对线性 unary/pairwise 假设有表示必要性，但不是学习收敛或普遍高阶优势证明；仍需 pairwise-preserving candidate-set benchmark 与匹配预算 MLP/Set/Graph 对照。
+- YJ-01/YJ-04 易象算子研究保持独立研究分支；YJ-04 临时 CI PR 不代表正式集成或算子有效性。
+- E09 集成分支最新 head `8b0aa2a` 的 Actions run `43001802066` 于 2026-11-11 10:13 UTC 完成，全部步骤成功；PR #149 仍为 Draft 堆叠集成 PR，未进入 main。
+
 - 不立即启动大规模语言模型预训练。下一阶段仍以 P1 为主线。
 
 ## 执行纪律
