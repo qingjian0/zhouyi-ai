@@ -348,11 +348,12 @@ class SharedEvidenceProtocolTests(unittest.TestCase):
             idempotency_key="obs", protocol_version="0.3",
             payload={"observation_id": "o1", "query_id": "q1", "scope": "world/a", "split": "SUPPORT"},
         )
-        self.store.commit_prediction(
+        receipt = self.store.commit_prediction(
             episode_id="v03", event_id="commit", idempotency_key="commit",
             protocol_version="0.3",
             payload={"prediction_id": "p1", "observation_id": "o1", "query_id": "q1",
                      "scope": "world/a", "split": "SUPPORT", "model_version": "m1",
+                     "interop_commit_digest": "a" * 64,
                      "learner_track": "e09", "decision_status": "PREDICT"},
         )
         with self.assertRaises(ValueError):
@@ -361,7 +362,7 @@ class SharedEvidenceProtocolTests(unittest.TestCase):
                 protocol_version="0.3",
                 payload={"prediction_id": "p1", "query_id": "q1", "scope": "world/a",
                          "split": "SUPPORT", "commit_digest": "0" * 64,
-                         "event_digest": "a" * 64,
+                         "event_digest": receipt.payload_digest,
                          "learner_track": "e09", "target_or_feedback": "yes"},
             )
 
