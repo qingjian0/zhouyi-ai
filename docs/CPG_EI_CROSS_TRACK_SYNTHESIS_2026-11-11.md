@@ -1049,7 +1049,7 @@ PR #115: https://github.com/qingjian0/zhouyi-ai/pull/115 (Draft, layered on PR #
 
 ### 19.3 Validation status
 
-The PR #115 workflow Run #42941878146 has passed its unit-test step, including the new E10 adapter tests. The full workflow is still running through the repository's E01/E02 demonstrations and evaluation steps; do not call the full workflow passed until the run reaches completed/success.
+The full PR #115 workflow Run #42941878146 completed successfully on exact head `d7b70d6b0fcc95509e818fb533ec0ea3107e7954`: unit tests and all configured E01/E02 demonstrations and evaluation steps passed. This is CI validation, not a learning-performance result.
 
 ### 19.4 Explicit limits
 
