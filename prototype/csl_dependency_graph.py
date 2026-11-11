@@ -24,6 +24,12 @@ class DependencyRole(str, Enum):
 class DependencyScope(str, Enum):
     LOCAL="local"; SHARED="shared"
 
+class DependencyImpactPolicy(str, Enum):
+    """How a prerequisite change propagates through this dependency edge."""
+    BLOCKING="blocking"   # queue this consumer and continue propagation
+    REVIEW="review"       # queue this consumer, but stop propagation here
+    ADVISORY="advisory"   # retain stale-edge visibility without queueing
+
 @dataclass(frozen=True, order=True)
 class StructureRef:
     structure_id: str
@@ -51,10 +57,12 @@ class DependencyEdge:
     role: DependencyRole
     scope: DependencyScope = DependencyScope.LOCAL
     evidence_refs: tuple[str, ...] = ()
+    impact_policy: DependencyImpactPolicy = DependencyImpactPolicy.BLOCKING
     def __post_init__(self):
         if self.dependent == self.dependency: raise DependencyError("self-dependency is not allowed")
         if len(set(self.evidence_refs)) != len(self.evidence_refs): raise DependencyError("evidence_refs must be unique")
         if any(not item.strip() for item in self.evidence_refs): raise DependencyError("evidence_refs cannot be empty")
+        if not isinstance(self.impact_policy, DependencyImpactPolicy): raise DependencyError("impact_policy must be a DependencyImpactPolicy")
 
 @dataclass(frozen=True)
 class DependencyEvent:
@@ -109,7 +117,7 @@ class StructureDependencyGraph:
         key=(edge.dependent,edge.dependency,edge.role.value,edge.scope.value)
         if key in self._edges: raise DependencyError("duplicate dependency edge")
         if self._reachable(edge.dependency,edge.dependent): raise DependencyError("dependency would introduce a cycle")
-        self._append(event_id,"dependency_added",{"dependent":_ref_payload(edge.dependent),"dependency":_ref_payload(edge.dependency),"role":edge.role.value,"scope":edge.scope.value,"evidence_refs":list(edge.evidence_refs)})
+        self._append(event_id,"dependency_added",{"dependent":_ref_payload(edge.dependent),"dependency":_ref_payload(edge.dependency),"role":edge.role.value,"scope":edge.scope.value,"evidence_refs":list(edge.evidence_refs),"impact_policy":edge.impact_policy.value})
         self._edges[key]=edge
     def dependents_of(self,prerequisite,*,transitive=True):
         reverse={}
@@ -123,6 +131,32 @@ class StructureDependencyGraph:
         return tuple(found)
     def stale_dependencies(self):
         return tuple(e for e in self.edges if self._nodes[e.dependency].status is not StructureStatus.ACTIVE)
+    def _impact_candidates(self, prerequisite):
+        """Return policy-filtered dependents in deterministic BFS order."""
+        reverse={}
+        for edge in self._edges.values():
+            reverse.setdefault(edge.dependency,[]).append(edge)
+        for edges in reverse.values():
+            edges.sort(key=lambda e:(e.dependent,e.role.value,e.scope.value))
+        found=[]; queued=set(); expanded=set(); todo=deque([(prerequisite, True)])
+        while todo:
+            current, may_expand=todo.popleft()
+            if not may_expand or current in expanded:
+                continue
+            expanded.add(current)
+            for edge in reverse.get(current,()):
+                dependent=edge.dependent
+                policy=edge.impact_policy
+                if policy is DependencyImpactPolicy.ADVISORY:
+                    continue
+                if self._nodes[dependent].status not in {StructureStatus.ACTIVE,StructureStatus.PROVISIONAL}:
+                    continue
+                if dependent not in queued:
+                    queued.add(dependent); found.append(dependent)
+                if policy is DependencyImpactPolicy.BLOCKING:
+                    todo.append((dependent, True))
+        return tuple(found)
+
     def set_status(self,ref,status,*,event_id):
         if ref not in self._nodes: raise DependencyError("cannot change status of unknown structure version")
         if not isinstance(status,StructureStatus): raise DependencyError("status must be a StructureStatus")
@@ -131,15 +165,16 @@ class StructureDependencyGraph:
         self._append(event_id,"structure_status_changed",{"ref":_ref_payload(ref),"from_status":old.status.value,"to_status":status.value})
         self._nodes[ref]=StructureNode(ref,old.kind,status,old.shared)
         if status is not StructureStatus.ACTIVE:
-            for dependent in self.dependents_of(ref):
-                if self._nodes[dependent].status in {StructureStatus.ACTIVE,StructureStatus.PROVISIONAL} and dependent not in self._queue: self._queue.append(dependent)
+            for dependent in self._impact_candidates(ref):
+                if dependent not in self._queue:
+                    self._queue.append(dependent)
     def acknowledge_revalidation(self,ref,*,event_id):
         if ref not in self._queue: raise DependencyError("structure is not awaiting revalidation")
         self._append(event_id,"revalidation_acknowledged",{"ref":_ref_payload(ref)}); self._queue.remove(ref)
     def to_dict(self):
         return {"events":[{"event_id":e.event_id,"sequence":e.sequence,"event_type":e.event_type,"payload":e.payload} for e in self._events],
         "nodes":[{"ref":_ref_payload(n.ref),"kind":n.kind,"status":n.status.value,"shared":n.shared} for n in sorted(self._nodes.values(),key=lambda n:n.ref)],
-        "edges":[{"dependent":_ref_payload(e.dependent),"dependency":_ref_payload(e.dependency),"role":e.role.value,"scope":e.scope.value,"evidence_refs":list(e.evidence_refs)} for e in self.edges],
+        "edges":[{"dependent":_ref_payload(e.dependent),"dependency":_ref_payload(e.dependency),"role":e.role.value,"scope":e.scope.value,"evidence_refs":list(e.evidence_refs),"impact_policy":e.impact_policy.value} for e in self.edges],
         "revalidation_queue":[_ref_payload(r) for r in self.revalidation_queue]}
     @property
     def digest(self): return hashlib.sha256(_canonical(self.to_dict()).encode()).hexdigest()
@@ -153,12 +188,17 @@ class StructureDependencyGraph:
             if e.event_type=="structure_registered":
                 graph.register_structure(StructureNode(_ref_from(p["ref"]),p["kind"],StructureStatus(p["status"]),p["shared"]),event_id=e.event_id)
             elif e.event_type=="dependency_added":
-                graph.add_dependency(DependencyEdge(_ref_from(p["dependent"]),_ref_from(p["dependency"]),DependencyRole(p["role"]),DependencyScope(p["scope"]),tuple(p["evidence_refs"])),event_id=e.event_id)
+                graph.add_dependency(DependencyEdge(_ref_from(p["dependent"]),_ref_from(p["dependency"]),DependencyRole(p["role"]),DependencyScope(p["scope"]),tuple(p["evidence_refs"]),DependencyImpactPolicy(p.get("impact_policy","blocking"))),event_id=e.event_id)
             elif e.event_type=="structure_status_changed":
                 r=_ref_from(p["ref"])
                 if r not in graph._nodes or graph._nodes[r].status.value!=p["from_status"]: raise DependencyError("dependency status event has invalid from_status")
                 graph.set_status(r,StructureStatus(p["to_status"]),event_id=e.event_id)
             elif e.event_type=="revalidation_acknowledged": graph.acknowledge_revalidation(_ref_from(p["ref"]),event_id=e.event_id)
             else: raise DependencyError(f"unknown dependency event type: {e.event_type}")
-            if graph._events[-1].payload!=p: raise DependencyError("dependency event payload is not canonical")
+            expected=graph._events[-1].payload
+            if expected != p and not (
+                e.event_type=="dependency_added"
+                and {**p,"impact_policy":"blocking"}==expected
+            ):
+                raise DependencyError("dependency event payload is not canonical")
         return graph
