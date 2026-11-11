@@ -14,6 +14,9 @@ from typing import Mapping, Sequence
 from prototype.e12a7_multiworld import (
     MECHANISMS, Observation, SyntheticWorld, predict,
 )
+from prototype.e12a2_active_measurement_selector import (
+    select_measurement, update_weights,
+)
 
 
 @dataclass(frozen=True)
@@ -51,10 +54,6 @@ def _normalize(prior: Mapping[str, float]) -> dict[str, float]:
     if not math.isfinite(total) or total <= 0:
         raise ValueError("prior must have positive mass")
     return {key: value / total for key, value in prior.items()}
-
-
-def _entropy(weights: Mapping[str, float]) -> float:
-    return -sum(p * math.log2(p) for p in weights.values() if p > 0)
 
 
 def _predicted_outcome(hypothesis: str, action: ExperimentAction) -> int:
@@ -95,25 +94,6 @@ def likelihoods(
     return result
 
 
-def _expected_information_gain(
-    prior: Mapping[str, float],
-    action: ExperimentAction,
-    *,
-    noise_probability: float,
-) -> float:
-    prior = _normalize(prior)
-    table = likelihoods(prior, action, noise_probability=noise_probability)
-    prior_entropy = _entropy(prior)
-    expected_entropy = 0.0
-    for outcome in ("0", "1", "2"):
-        marginal = sum(prior[h] * table[h][outcome] for h in prior)
-        if marginal == 0:
-            continue
-        posterior = {h: prior[h] * table[h][outcome] / marginal for h in prior}
-        expected_entropy += marginal * _entropy(posterior)
-    return max(0.0, prior_entropy - expected_entropy)
-
-
 def select_action(
     prior: Mapping[str, float],
     actions: Sequence[ExperimentAction],
@@ -121,7 +101,7 @@ def select_action(
     *,
     noise_probability: float = 0.02,
 ) -> dict:
-    """Select the affordable action maximizing expected information gain/cost."""
+    """Adapt world-specific probes to the existing E12-A2 EIG selector."""
     prior = _normalize(prior)
     if (isinstance(remaining_budget, bool)
             or not isinstance(remaining_budget, (int, float))
@@ -135,39 +115,20 @@ def select_action(
                 or not isinstance(action.cost, (int, float))
                 or not math.isfinite(action.cost) or action.cost <= 0):
             raise ValueError("actions need IDs and positive finite costs")
-    scored = []
-    for action in actions:
-        if action.cost > remaining_budget:
-            continue
-        gain = _expected_information_gain(
+    predictions = {
+        action.action_id: likelihoods(
             prior, action, noise_probability=noise_probability
         )
-        scored.append((gain / action.cost, gain, action))
-    if not scored:
-        return {"status": "BUDGET_EXHAUSTED", "selected": None, "evaluated": []}
-    best = max(item[0] for item in scored)
-    if best <= 1e-12:
-        return {
-            "status": "NO_DISCRIMINATING_ACTION",
-            "selected": None,
-            "evaluated": [
-                {"action_id": a.action_id, "gain_bits": g, "utility": u}
-                for u, g, a in sorted(scored, key=lambda x: x[2].action_id)
-            ],
-        }
-    _, gain, selected = min(
-        (item for item in scored if best - item[0] <= 1e-12),
-        key=lambda item: (item[2].cost, item[2].action_id),
-    )
+        for action in actions
+    }
+    costs = {action.action_id: action.cost for action in actions}
+    selected = select_measurement(prior, predictions, costs, remaining_budget)
     return {
-        "status": "SELECTED",
-        "selected": selected.action_id,
-        "gain_bits": gain,
-        "utility": gain / selected.cost,
-        "evaluated": [
-            {"action_id": a.action_id, "gain_bits": g, "utility": u}
-            for u, g, a in sorted(scored, key=lambda x: x[2].action_id)
-        ],
+        "status": selected["status"],
+        "selected": selected.get("selected_action"),
+        "gain_bits": selected.get("expected_information_gain_bits"),
+        "utility": selected.get("utility"),
+        "evaluated": selected.get("evaluated", []),
     }
 
 
@@ -225,15 +186,13 @@ class PrequentialExperimentLedger:
         if isinstance(outcome, bool) or not isinstance(outcome, int) or outcome not in (0, 1, 2):
             raise ValueError("outcome must be 0, 1, 2, or None")
         commit = self.commits[action_id]
-        row = {h: probs[str(outcome)] for h, probs in commit["likelihoods"].items()}
-        unnormalized = {h: commit["prior"][h] * row[h] for h in commit["prior"]}
-        evidence_mass = sum(unnormalized.values())
-        if evidence_mass <= 0:
-            result = {"status": "INCONSISTENT", "posterior": None}
-        else:
-            self.posterior = {h: value / evidence_mass
-                              for h, value in unnormalized.items()}
+        try:
+            self.posterior = update_weights(
+                commit["prior"], commit["likelihoods"], str(outcome)
+            )
             result = {"status": "UPDATED", "posterior": dict(self.posterior)}
+        except ValueError:
+            result = {"status": "INCONSISTENT", "posterior": None}
         self.events.append({
             "phase": "REVEAL", "action_id": action_id,
             "outcome": outcome, **result,
