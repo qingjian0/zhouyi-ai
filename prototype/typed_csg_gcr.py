@@ -53,6 +53,7 @@ class TypedCoordinatedCandidate:
     unification: UnificationResult
     branch_merge: MergeResult | None = None
     branch_merge_authorization_ref: str | None = None
+    branch_merge_authorization_evidence_refs: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -248,6 +249,8 @@ class TypedCandidateCoordinator:
         if snapshots:
             if base_state is None or not isinstance(base_state, Mapping):
                 raise CoordinationError("branch snapshots require an explicit base_state mapping")
+            if any(not isinstance(key, str) or not key.strip() for key in base_state):
+                raise CoordinationError("base_state keys must be non-empty strings")
             try:
                 base_digest = canonical_hash(base_state)
             except ValueError as exc:
@@ -331,6 +334,7 @@ class TypedCandidateCoordinator:
                 raise CoordinationError("typed and coordinator evidence provenance diverged")
             branch_merge = None
             authorization_ref = None
+            authorization_evidence_refs: tuple[str, ...] = ()
             if snapshots:
                 branch_merge = merge_branch_deltas(
                     base_state, selected_branch_snapshots(tuple(row.proposal for row in selected))
@@ -340,8 +344,10 @@ class TypedCandidateCoordinator:
                     continue
                 if len({row.proposal.branch_id for row in selected}) > 1:
                     authorization_ref = branch_merge_authorization.authorization_ref
+                    authorization_evidence_refs = branch_merge_authorization.evidence_refs
             accepted.append(TypedCoordinatedCandidate(
-                candidate, result, branch_merge, authorization_ref
+                candidate, result, branch_merge, authorization_ref,
+                authorization_evidence_refs,
             ))
 
         accepted.sort(key=lambda item: (
