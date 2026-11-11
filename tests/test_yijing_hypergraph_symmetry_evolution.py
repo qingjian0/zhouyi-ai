@@ -15,10 +15,10 @@ S3 = (
 )
 
 
-def obs(evidence, step, group, *, context=(("phase", "steady"),), domain="toy"):
+def obs(evidence, step, group, *, context=(("phase", "steady"),), snapshot_context=(), domain="toy"):
     return ExactSlotGroupObservation(
         evidence, "joint", 3, ("a", "b", "c"), ("node", "node", "node"),
-        context, (), None, None, "UNORDERED", group, step, domain,
+        context, (), None, None, "UNORDERED", group, step, domain, snapshot_context,
     )
 
 
@@ -64,6 +64,14 @@ class SymmetryEvolutionTests(unittest.TestCase):
         self.assertEqual(len(report.events), 1)
         self.assertEqual(report.events[0].event_type, SymmetryEventType.CONTEXT_SHIFT)
         self.assertEqual(report.events[0].status, SymmetryEventStatus.UNCERTAIN)
+        self.assertTrue(report.events[0].context_changed)
+
+    def test_global_snapshot_context_shift_suppresses_structural_claim(self):
+        report = analyze_symmetry_evolution([
+            obs("s0", 0, S3, snapshot_context=(("environment", "A"),)),
+            obs("s1", 1, IDENTITY, snapshot_context=(("environment", "B"),)),
+        ])
+        self.assertEqual(report.events[0].event_type, SymmetryEventType.CONTEXT_SHIFT)
         self.assertTrue(report.events[0].context_changed)
 
     def test_domain_shift_is_not_misreported_as_symmetry_break(self):
