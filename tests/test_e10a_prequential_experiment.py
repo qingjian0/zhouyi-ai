@@ -81,14 +81,19 @@ class E10APrequentialExperimentTests(unittest.TestCase):
         current_objects = [
             object_map[object_id] for object_id in observation["participants"]
         ]
+        learner_support = {
+            key: support[key] for key in
+            ("schema_version", "phase", "objects", "observations")
+        }
+        self.assertNotIn("mechanism_hash", learner_support)
         visible = {
-            "support": support,
+            "support": learner_support,
             "observation": observation,
             "query_objects": current_objects,
         }
         # Evaluator truth is intentionally absent from the serialized IPC envelope.
         visible_after_truth_mutation = {
-            "support": support,
+            "support": learner_support,
             "observation": observation,
             "query_objects": current_objects,
         }
