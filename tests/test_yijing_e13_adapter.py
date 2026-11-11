@@ -132,6 +132,28 @@ class E13AdapterTests(unittest.TestCase):
         with self.assertRaises(RelationalMappingError):
             from_e13(E13Envelope(replace(graph, entities=entities), sample_state().context))
 
+    def test_unused_schema_is_rejected_as_unrepresentable(self):
+        graph = to_e13(sample_state()).graph
+        unused = RelationSchema(
+            relation_type="unused",
+            arity=2,
+            argument_types=("agent", "resource"),
+            role_semantics=RoleSemantics.ORDERED_NAMED,
+            role_names=("source", "target"),
+            symmetry="ASYMMETRIC",
+        )
+        with self.assertRaises(RelationalMappingError):
+            from_e13(E13Envelope(
+                replace(graph, schemas=graph.schemas + (unused,)),
+                sample_state().context,
+            ))
+
+    def test_duplicate_global_context_keys_are_rejected(self):
+        envelope = to_e13(sample_state())
+        duplicated = envelope.state_context + (("phase", "decline"),)
+        with self.assertRaises(RelationalMappingError):
+            from_e13(replace(envelope, state_context=tuple(sorted(duplicated))))
+
 
 if __name__ == "__main__":
     unittest.main()
