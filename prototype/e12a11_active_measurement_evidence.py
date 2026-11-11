@@ -182,8 +182,8 @@ class BudgetedMeasurementExecutor:
         valid = valid and "@" in request.candidate_ref
         valid = valid and math.isfinite(request.estimated_cost) and request.estimated_cost >= 0
         valid = valid and math.isfinite(request.max_cost) and request.max_cost >= 0
-        if not valid or request.protocol_id not in self.protocols or
-                (request.candidate_ref, request.scope_id) not in self.allowed:
+        if (not valid or request.protocol_id not in self.protocols or
+                (request.candidate_ref, request.scope_id) not in self.allowed):
             return self._receipt(request, MeasurementStatus.INVALID_INPUT, None, 0.0)
         if request.request_digest in self._used_requests:
             raise ValueError("measurement request already executed")
