@@ -88,7 +88,9 @@ class SROKE12A6AdapterTests(unittest.TestCase):
             )
 
     def test_missing_member_is_rejected(self):
-        bad = ComposedCandidate("supports", (("source", "missing"),), 0.5, ())
+        bad = ComposedCandidate(
+            "supports", (("source", "missing"), ("target", "b")), 0.5, ()
+        )
         with self.assertRaisesRegex(ValueError, "missing"):
             adapt_composed_candidate(
                 bad, self.nodes, scope="world/test", grammar_version="srok-v1"
