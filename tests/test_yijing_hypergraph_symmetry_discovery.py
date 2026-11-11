@@ -11,7 +11,7 @@ from prototype.yijing_hypergraph_symmetry_discovery import (
 )
 
 
-def make_observation(index, *, distinguished=False, names=("p", "q", "r")):
+def make_observation(index, *, distinguished_entity=None, names=("p", "q", "r")):
     ids = ("a", "b", "c", "d")
     entities = tuple(Entity(item, "node") for item in ids)
     target = Hyperedge(
@@ -20,10 +20,10 @@ def make_observation(index, *, distinguished=False, names=("p", "q", "r")):
         (f"target-evidence-{index}",),
     )
     edges = [target]
-    if distinguished:
+    if distinguished_entity is not None:
         edges.append(Hyperedge(
             f"context-{index}", "context_link",
-            (RoleBinding("from", "a"), RoleBinding("to", "d")),
+            (RoleBinding("from", distinguished_entity), RoleBinding("to", "d")),
             (f"context-evidence-{index}",),
         ))
     state = HypergraphState(
@@ -49,8 +49,8 @@ class RelationSymmetryDiscoveryTests(unittest.TestCase):
 
     def test_external_context_breaks_only_distinguished_slot_symmetry(self):
         report = discover_relation_symmetry(
-            (make_observation(0, distinguished=True),
-             make_observation(1, distinguished=True)),
+            (make_observation(0, distinguished_entity="a"),
+             make_observation(1, distinguished_entity="a")),
             "target", (RelationSymmetry("context_link", "ORDERED"),),
             min_support=2,
         )
@@ -59,6 +59,17 @@ class RelationSymmetryDiscoveryTests(unittest.TestCase):
         self.assertEqual(by_perm[(1, 0, 2)].status, "CONTRADICTED")
         self.assertEqual(by_perm[(0, 2, 1)].status, "STRUCTURALLY_COMPATIBLE")
         self.assertIn((1, 2), [item.positions for item in hypothesis.slot_equivalence_classes])
+
+    def test_disjoint_pair_support_does_not_create_transitive_false_equivalence(self):
+        report = discover_relation_symmetry(
+            (make_observation(0, distinguished_entity="c"),
+             make_observation(1, distinguished_entity="a")),
+            "target", (RelationSymmetry("context_link", "ORDERED"),),
+            min_support=1,
+        )
+        classes = [item.positions for item in report.hypotheses[0].slot_equivalence_classes]
+        self.assertIn((0, 1), classes)
+        self.assertNotIn((0, 1, 2), classes)
 
     def test_single_observation_does_not_confirm_min_support_two(self):
         report = discover_relation_symmetry(
@@ -76,12 +87,12 @@ class RelationSymmetryDiscoveryTests(unittest.TestCase):
 
     def test_role_names_and_entity_ids_do_not_change_permutation_status(self):
         left = discover_relation_symmetry(
-            (make_observation(0, distinguished=True),),
+            (make_observation(0, distinguished_entity="a"),),
             "target", (RelationSymmetry("context_link", "ORDERED"),),
             min_support=1,
         )
         right = discover_relation_symmetry(
-            (make_observation(2, distinguished=True, names=("x", "y", "z")),),
+            (make_observation(2, distinguished_entity="a", names=("x", "y", "z")),),
             "target", (RelationSymmetry("context_link", "ORDERED"),),
             min_support=1,
         )
@@ -92,7 +103,7 @@ class RelationSymmetryDiscoveryTests(unittest.TestCase):
     def test_missing_context_policy_fails_closed(self):
         with self.assertRaises(SymmetryDiscoveryError):
             discover_relation_symmetry(
-                (make_observation(0, distinguished=True),), "target", (), min_support=1
+                (make_observation(0, distinguished_entity="a"),), "target", (), min_support=1
             )
 
     def test_target_policy_cannot_leak_into_external_context(self):
