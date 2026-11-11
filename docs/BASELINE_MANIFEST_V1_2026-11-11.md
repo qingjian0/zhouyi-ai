@@ -94,3 +94,17 @@ The bridge filters completed bounded CSG-GCR candidate sets through the typed un
 | [#218](https://github.com/qingjian0/zhouyi-ai/pull/218) | #217 corrected head at `ecc20f3` | branch-delta stack at `fdda7a4` | Immutable parent references, typed append-only deltas, stale/read-write/write-write conflict checks, idempotent replay | Draft; runs 43028239730 and 43028627937 exposed fixture-version and stale-variable-name defects; both corrected, delta payloads made deeply immutable, and exact latest head `fdda7a4` is under workflow run 43028753187 |
 
 PR #218 is stacked on PR #217 and inherits the #208 dependency. Neither PR is independently mergeable to main as a complete architecture slice. The branch-delta kernel validates structural edit compatibility only; it does not own E09 evidence, E12-A6 lifecycle, or ZPCM persistence. Exact-head CI and review remain mandatory.
+
+
+## P1 integration stack audit refresh (2026-11-11 21:45 UTC+8)
+
+| PR | Exact head | Base | CI evidence | Status |
+|---|---|---|---|---|
+| [#208](https://github.com/qingjian0/zhouyi-ai/pull/208) | `5f886df80bd89f2bcefdaddaf6f62a33fdff3ab2` | E09 integration branch | Prior bounded-coordinator baseline | Draft |
+| [#217](https://github.com/qingjian0/zhouyi-ai/pull/217) | `ecc20f333629bb6cd199342d0deb847f3d5f1983` | #208 head | Workflow `43027843058` success | Draft; typed unifier bridge |
+| [#218](https://github.com/qingjian0/zhouyi-ai/pull/218) | `e433361931fc47f5f2819abc1597f8a8b601dfd9` | #217 head | Workflow `43030468165` success | Draft; branch delta with parent digest, provenance checks, deterministic conflict handling |
+| [#221](https://github.com/qingjian0/zhouyi-ai/pull/221) | `7e65c22f7a3a01782d59306ada3401899134392e` | #218 head | Workflow `43031651288` running at audit time; unit tests had started | Draft; monotonic typed partial pruning |
+
+PR #221 adds a bounded coordinator callback with an explicit monotonicity contract and a typed adapter that prunes only contradictions proven irreversible under extension. It intentionally retains final typed unification as the complete-set authority. The exhaustive subset monotonicity test and pruned/unpruned differential oracle are part of the new test suite.
+
+This stack remains layered: #221 -> #218 -> #217 -> #208. No PR in this chain has been merged to `main`; mergeability flags do not constitute integration approval. The E09 evidence commit/reveal, E12-A6 candidate lifecycle, and ZPCM durable event-history end-to-end wiring remain open integration work.
