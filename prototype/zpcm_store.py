@@ -165,6 +165,14 @@ class ZPCMStore:
         );
         INSERT OR IGNORE INTO projection_cursors(projection, last_seq)
             VALUES ('claims-v1', 0);
+        CREATE TRIGGER IF NOT EXISTS events_no_update
+            BEFORE UPDATE ON events BEGIN
+            SELECT RAISE(ABORT, 'event ledger is append-only');
+        END;
+        CREATE TRIGGER IF NOT EXISTS events_no_delete
+            BEFORE DELETE ON events BEGIN
+            SELECT RAISE(ABORT, 'event ledger is append-only');
+        END;
         """)
 
     @staticmethod
