@@ -195,6 +195,18 @@ class ExecutionChallengeStore:
         expires = _aware(challenge.expires_at, "challenge.expires_at")
         att_issued = _aware(attestation.issued_at, "attestation.issued_at")
         att_expires = _aware(attestation.expires_at, "attestation.expires_at")
+        bindings = (
+            (attestation.execution_id, challenge.execution_id, "execution_id"),
+            (attestation.manifest_digest, challenge.manifest_digest, "manifest_digest"),
+            (attestation.patch_digest, challenge.patch_digest, "patch_digest"),
+            (attestation.target_branch, challenge.target_branch, "target_branch"),
+            (attestation.runner_id, challenge.runner_id, "runner_id"),
+            (attestation.image_digest, challenge.image_digest, "image_digest"),
+            (attestation.challenge_nonce, challenge.nonce, "challenge_nonce"),
+        )
+        for actual, expected, name in bindings:
+            if actual != expected:
+                raise ValueError(f"attestation {name} does not match durable challenge")
         if current > expires:
             raise ValueError("execution challenge has expired")
         if att_issued < issued or att_issued > expires:
