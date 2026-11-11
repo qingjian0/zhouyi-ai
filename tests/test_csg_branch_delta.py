@@ -8,7 +8,7 @@ from prototype.csg_branch_delta import (
 
 class BranchDeltaTests(unittest.TestCase):
     def event(self, event_id, op, target, before, value, version=8, parent=None):
-        return BranchDelta(event_id, op, target, before, value, (), parent, version)
+        return BranchDelta(event_id, op, target, before, value, ("evidence:fixture",), parent, version)
 
     def snap(self, branch, events, reads=(), base=None):
         base = {} if base is None else base
@@ -45,6 +45,20 @@ class BranchDeltaTests(unittest.TestCase):
         returned = e.after_value
         returned["nested"]["value"] = 42
         self.assertEqual(e.after_value, {"nested": {"value": 1}})
+
+    def test_declared_parent_hash_must_match_supplied_state(self):
+        base = {"n": 1}
+        wrong_parent = {"n": 2}
+        e = self.event("a1", DeltaOperation.UPDATE_ATTRIBUTE, "n",
+                       canonical_hash(1), 3)
+        result = merge_branch_deltas(base, (self.snap("a", [e], base=wrong_parent),))
+        self.assertEqual(result.status, MergeStatus.STALE)
+
+    def test_delta_event_requires_provenance_reference(self):
+        e = BranchDelta("a1", DeltaOperation.ADD_NODE, "n", None, {},
+                        (), None, 8)
+        result = merge_branch_deltas({}, (self.snap("a", [e]),))
+        self.assertEqual(result.status, MergeStatus.REJECTED)
 
     def test_shared_parent_and_version_are_mandatory(self):
         a = self.snap("a", [])
