@@ -76,7 +76,8 @@ class DiscoveryResult:
     candidates: tuple[RelationCandidate, ...]
     cases_seen: int
     motifs_seen: int
-    motifs_over_budget: int
+    cases_over_budget: int
+    candidates_truncated: int
     rejected_low_support: int
     rejected_validation: int
 
@@ -270,7 +271,7 @@ def discover_relations(
     validation_base: dict[str, list[bool]] = defaultdict(list)
     aggregate: dict[tuple[str, str], dict] = {}
     motifs_seen = 0
-    over_budget = 0
+    cases_over_budget = 0
 
     for case in case_list:
         _validate_case(case)
@@ -282,7 +283,7 @@ def discover_relations(
         motifs, exceeded = _case_motifs(
             case, max_nodes=max_nodes, max_subsets=max_subsets_per_case
         )
-        over_budget += exceeded
+        cases_over_budget += exceeded
         motifs_seen += len(motifs)
         for signature, (ordered_ids, mapping_ambiguous) in motifs.items():
             key = (case.scope, signature)
@@ -350,10 +351,10 @@ def discover_relations(
         key=lambda item: (-item.validation_lift, -item.validation_precision,
                           -len(item.support_case_ids), item.candidate_id)
     )
-    if len(candidates) > max_candidates:
-        over_budget += len(candidates) - max_candidates
+    candidates_truncated = max(0, len(candidates) - max_candidates)
+    if candidates_truncated:
         candidates = candidates[:max_candidates]
     return DiscoveryResult(
-        tuple(candidates), len(case_list), motifs_seen, over_budget,
-        low_support, validation_rejected,
+        tuple(candidates), len(case_list), motifs_seen, cases_over_budget,
+        candidates_truncated, low_support, validation_rejected,
     )
