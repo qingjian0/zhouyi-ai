@@ -1040,10 +1040,21 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
                 idempotency_key="unknown-edge",payload={"dependent_version_id":"only-a@1",
                 "dependency_version_id":"missing@1","learner_track":"track-a","role":"uses",
                 "impact_policy":"blocking","evidence_refs":[]})
+        other = Candidate(candidate_id="only-b", version=1, canonical_expression="y",
+            proposer_family="test", supporting_families=("test",), input_types=("number",), operator="IDENTITY")
+        self.store.append_events(episode_id="ep", idempotency_key="candidate-b", events=[
+            {"event_id":"candidate-b","event_type":"structure_version","payload":{
+                "structure_id":"only-b","version_id":"only-b@1","kind":"candidate",
+                "definition":candidate_definition_payload(other),"parent_version_ids":[],"support_evidence_ids":[]}},
+            {"event_id":"candidate-b-propose","event_type":"lifecycle_action","payload":{
+                "action_id":"candidate-b-propose","action_type":"propose","candidate_id":"only-b","candidate_version":1,
+                "from_state":"observed","to_state":"proposed","evidence_refs":[],"cost":0.1,"note":"proposal",
+                "candidate_lineage_refs":[],"learner_track":"track-a"}},
+        ])
         with self.assertRaises(MissingReference):
             self.store.append_event(episode_id="ep",event_id="unbound-track",event_type="dependency_added",
                 idempotency_key="unbound-track",payload={"dependent_version_id":"only-a@1",
-                "dependency_version_id":"only-a@1","learner_track":"track-b","role":"uses",
+                "dependency_version_id":"only-b@1","learner_track":"track-b","role":"uses",
                 "impact_policy":"blocking","evidence_refs":[]})
         self.assertEqual(len(self.store.replay_episode("ep")), 3)
 
@@ -1097,7 +1108,7 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
                     "role":"composes","impact_policy":"blocking","evidence_refs":[]}},
                 {"event_id":f"{episode_id}-challenge-root","event_type":"lifecycle_action","payload":{
                     "action_id":f"{episode_id}-challenge-root","action_type":"challenge",
-                    "candidate_id=f"{episode_id}-root","candidate_version":1,
+                    "candidate_id":f"{episode_id}-root","candidate_version":1,
                     "from_state":"gate_validated","to_state":"challenged",
                     "evidence_refs":[{"kind":"revealed","id":f"{episode_id}-reveal-locked"}],
                     "cost":0.2,"note":"locked counterexample","candidate_lineage_refs":[],"learner_track":"track-a"}},
