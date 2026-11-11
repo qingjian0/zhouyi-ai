@@ -56,18 +56,22 @@ def evaluate_evidence(*, predicted_direction: str, evidence: Sequence[Mapping[st
     eligible = [row for row in rows if row["status"] != "excluded"]
     ood = [row for row in eligible if row["split"] == "ood"]
     controls = [row for row in eligible if row["control"] in {"shuffled", "random"}]
-    favorable_ood = any(row["status"] == "favorable" for row in ood)
+    favorable_ood_ids = {row["evidence_id"] for row in ood if row["status"] == "favorable"}
     adverse_ood = any(row["status"] == "adverse" for row in ood)
-    favorable_control = any(row["status"] == "favorable" for row in controls)
+    favorable_control_ids = {row["evidence_id"] for row in controls if row["status"] == "favorable"}
     adverse_control = any(row["status"] == "adverse" for row in controls)
-    verdict = "rejected" if adverse_ood or adverse_control else "supported" if favorable_ood and favorable_control else "inconclusive"
+    # Require two distinct evidence rows; one row cannot satisfy both gates.
+    independent_support = any(ood_id != control_id
+                              for ood_id in favorable_ood_ids
+                              for control_id in favorable_control_ids)
+    verdict = "rejected" if adverse_ood or adverse_control else "supported" if independent_support else "inconclusive"
     return {
         "schema_version": 1, "verdict": verdict,
-        "gates": {"ood_favorable": favorable_ood, "ood_adverse": adverse_ood, "control_favorable": favorable_control, "control_adverse": adverse_control, "has_eligible_ood": bool(ood), "has_eligible_control": bool(controls)},
+        "gates": {"ood_favorable": bool(favorable_ood_ids), "ood_adverse": adverse_ood, "control_favorable": bool(favorable_control_ids), "control_adverse": adverse_control, "independent_support_rows": independent_support, "has_eligible_ood": bool(ood), "has_eligible_control": bool(controls)},
         "evidence": rows,
         "limitations": [
             "Confidence intervals are accepted as supplied; this module does not calculate or validate their statistical method.",
-            "Support requires at least one favorable OOD comparison and one favorable shuffled/random-control comparison.",
+            "Support requires favorable OOD and favorable shuffled/random-control evidence from two distinct evidence rows.",
             "This rule gate is not a substitute for multiplicity correction, power analysis, or expert review.",
         ],
     }

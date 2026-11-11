@@ -2,7 +2,7 @@
 
 ## Purpose
 
-Turn per-task raw observations into auditable, paired evidence rows. This is
+Turn per-task, multi-dimension evaluation observations into auditable, paired evidence rows. This is
 separate from the serial/parallel benchmark: throughput measurements are not
 scientific outcome metrics.
 
@@ -17,13 +17,15 @@ with `task_manifest_from_specs(tasks)`, which extracts one record per task. This
 
 Each observation must provide:
 
-- `task_id`, `split` (`iid` or `ood`), `control`
+- unique `observation_id`, `task_id`, `split` (`iid` or `ood`), `control`
   (`none`, `shuffled`, `random`), `metric`, `metric_value`
 - `status`, `preregistered`, `parameter_count`, `compute_budget`
 - `split_source`, `control_family`
 
 The task identity fields are joined from the manifest, not trusted from the
-observation payload. Exactly one observation per task is accepted.
+observation payload. A task may emit multiple observations (for example IID
+and OOD evaluations, or distinct control families). Each observation ID must
+be unique, and each task/split/control tuple may appear only once per metric.
 
 ## Pairing and estimand
 
@@ -59,8 +61,9 @@ auditing.
 
 ## Output and archive
 
-The result contains `task_set_digest`, an input-observation digest, missing
-task IDs, exclusions, and `evidence_rows`. The result can be passed to
+The result contains `task_set_digest`, an input-observation digest, unique task
+and observation counts, missing task IDs, exclusions, and `evidence_rows`.
+Each evidence row carries both task IDs and observation IDs for provenance. The result can be passed to
 `archive_benchmark_report` as an immutable analysis report, with the matrix
 digest as the task-set digest. Preserve the original benchmark archive; store
 this analysis as a distinct run ID.

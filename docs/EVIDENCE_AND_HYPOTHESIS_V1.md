@@ -14,13 +14,13 @@ The evaluate_evidence function consumes independently analysed comparison rows. 
 
 - Invalid, non-preregistered, or below-minimum-seed rows are excluded.
 - A row is favorable only if its entire supplied confidence interval is on the predicted side of zero.
-- supported requires at least one favorable OOD row and one favorable shuffled/random-control row.
+- supported requires favorable OOD and favorable shuffled/random-control evidence from two distinct evidence rows; one row cannot satisfy both gates.
 - An adverse OOD or control row yields rejected.
 - All other cases are inconclusive.
 
 ## Scientific limits
 
-This module does not calculate confidence intervals, perform multiplicity correction, estimate statistical power, verify preregistration timestamps, or inspect raw per-seed observations. It trusts supplied analysis fields and is intentionally conservative. A verdict is a review gate, not a claim that a theory is true. IID-only improvement is insufficient. Yijing- or Taixuanjing-inspired priors must compete against shuffled and random controls with matched budgets.
+This module does not calculate confidence intervals, perform multiplicity correction, estimate statistical power, verify preregistration timestamps, or inspect raw per-seed observations. It trusts supplied analysis fields and is intentionally conservative. A verdict is a review gate, not a claim that a theory is true. Distinct evidence-row IDs are required for the OOD and control support gates to prevent double-counting. IID-only improvement is insufficient. Yijing- or Taixuanjing-inspired priors must compete against shuffled and random controls with matched budgets.
 
 ## Next integration gate
 

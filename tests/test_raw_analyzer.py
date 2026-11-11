@@ -16,6 +16,7 @@ class RawAnalyzerTests(unittest.TestCase):
                 self.manifest.append({"task_id": task_id, "track": "B2",
                                       "condition": condition, "seed": seed})
                 self.observations.append({
+                    "observation_id": f"obs-{condition}-{seed}-ood-shuffled",
                     "task_id": task_id, "split": "ood", "control": "shuffled",
                     "metric": "accuracy", "metric_value": value, "status": "succeeded",
                     "preregistered": True, "parameter_count": 1000,
@@ -73,9 +74,19 @@ class RawAnalyzerTests(unittest.TestCase):
         result = self.analyze(obs)
         self.assertEqual(result["evidence_rows"][0]["seeds"], 11)
 
-    def test_duplicate_task_observation_rejected(self):
-        with self.assertRaisesRegex(ValueError, "duplicate observation"):
-            self.analyze(self.observations + [self.observations[0]])
+    def test_same_task_can_emit_multiple_distinct_evaluation_observations(self):
+        extra = dict(self.observations[0], observation_id="obs-extra",
+                     split="iid", control="none", split_source="iid_validation_v1",
+                     control_family="none")
+        result = self.analyze(self.observations + [extra])
+        self.assertEqual(result["observation_count"], len(self.observations) + 1)
+        self.assertEqual(result["observed_task_count"], len(self.manifest))
+
+    def test_duplicate_observation_id_rejected(self):
+        duplicate = dict(self.observations[0])
+        duplicate["task_id"] = self.observations[1]["task_id"]
+        with self.assertRaisesRegex(ValueError, "duplicate observation_id"):
+            self.analyze(self.observations + [duplicate])
 
     def test_duplicate_manifest_id_rejected(self):
         with self.assertRaisesRegex(ValueError, "duplicate task ID"):

@@ -8,6 +8,13 @@ class EvidenceEvaluatorTests(unittest.TestCase):
     def test_requires_ood_and_control_support(self):
         result = evaluate_evidence(predicted_direction="positive", evidence=[row("ood", "ood", "none", .2, .1, .3), row("shuffle", "iid", "shuffled", .1, .02, .18)])
         self.assertEqual(result["verdict"], "supported")
+    def test_one_row_cannot_satisfy_both_support_gates(self):
+        result = evaluate_evidence(predicted_direction="positive", evidence=[
+            row("ood-shuffled", "ood", "shuffled", .2, .1, .3)
+        ])
+        self.assertEqual(result["verdict"], "inconclusive")
+        self.assertFalse(result["gates"]["independent_support_rows"])
+
     def test_iid_only_is_inconclusive(self):
         result = evaluate_evidence(predicted_direction="positive", evidence=[row("iid", "iid", "none", .2, .1, .3), row("shuffle", "iid", "shuffled", .1, .02, .18)])
         self.assertEqual(result["verdict"], "inconclusive")

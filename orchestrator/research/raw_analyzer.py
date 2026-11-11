@@ -1,7 +1,6 @@
 """Paired raw-observation analysis with auditable provenance and Student-t intervals.
 
-The analyzer accepts one observation per scheduled task and never infers missing
-results. It compares treatment and baseline on matched track/seed/split/control
+The analyzer accepts multiple uniquely identified evaluation observations per scheduled task and never infers missing results. It compares treatment and baseline on matched track/seed/split/control
 and resource-budget keys. Effects always retain the raw treatment-minus-baseline
 sign; metric_direction describes desirability, not a sign-flipping transform.
 """
@@ -146,7 +145,7 @@ def analyze_raw_observations(
 ) -> dict[str, Any]:
     """Create evidence rows from matched raw task observations.
 
-    Required observation keys: task_id, split, control, metric, metric_value,
+    Required observation keys: observation_id, task_id, split, control, metric, metric_value,
     status, preregistered, parameter_count, compute_budget, split_source,
     control_family. Track/condition/seed are read from the authoritative
     task_manifest generated from ExperimentMatrix.to_tasks().
@@ -184,9 +183,11 @@ def analyze_raw_observations(
     if not manifest:
         raise ValueError("task_manifest must not be empty")
 
-    seen: set[str] = set()
+    seen_observations: set[str] = set()
+    seen_task_ids: set[str] = set()
+    seen_task_dimensions: set[tuple[str, str, str]] = set()
     joined: dict[tuple[Any, ...], dict[str, Any]] = {}
-    required = {"task_id", "split", "control", "metric", "metric_value", "status",
+    required = {"observation_id", "task_id", "split", "control", "metric", "metric_value", "status",
                 "preregistered", "parameter_count", "compute_budget", "split_source",
                 "control_family"}
     excluded: list[dict[str, str]] = []
@@ -194,17 +195,25 @@ def analyze_raw_observations(
         if not isinstance(raw, Mapping) or not required <= raw.keys():
             raise ValueError(f"observations[{index}] is missing required fields")
         task_id = raw["task_id"]
+        observation_id = raw["observation_id"]
         if not isinstance(task_id, str) or task_id not in manifest:
             raise ValueError(f"observations[{index}] references unknown task_id")
-        if task_id in seen:
-            raise ValueError(f"duplicate observation for task_id: {task_id}")
-        seen.add(task_id)
+        if not isinstance(observation_id, str) or not observation_id.strip():
+            raise ValueError(f"observations[{index}].observation_id must be non-empty")
+        if observation_id in seen_observations:
+            raise ValueError(f"duplicate observation_id: {observation_id}")
+        seen_observations.add(observation_id)
+        seen_task_ids.add(task_id)
         meta = manifest[task_id]
         split, control = raw["split"], raw["control"]
         if (not isinstance(split, str) or split not in {"iid", "ood"} or not isinstance(control, str) or control not in {"none", "shuffled", "random"}):
             raise ValueError(f"{task_id}: unsupported split or control")
         if raw["metric"] != metric:
             raise ValueError(f"{task_id}: metric mismatch")
+        task_dimension = (task_id, split, control)
+        if task_dimension in seen_task_dimensions:
+            raise ValueError(f"duplicate task/split/control observation: {task_dimension}")
+        seen_task_dimensions.add(task_dimension)
         if not isinstance(raw["status"], str):
             raise ValueError(f"{task_id}: status must be a string")
         if not isinstance(raw["preregistered"], bool):
@@ -222,18 +231,18 @@ def analyze_raw_observations(
         if compute_budget <= 0:
             raise ValueError(f"{task_id}: compute_budget must be positive")
         if raw["status"] != "succeeded":
-            excluded.append({"task_id": task_id, "reason": "task_not_succeeded"})
+            excluded.append({"task_id": task_id, "observation_id": observation_id, "reason": "task_not_succeeded"})
             continue
         value = _number(raw["metric_value"], "metric_value")
         key = (meta["track"], meta["seed"], split, control, parameter_count, compute_budget)
         bucket = joined.setdefault(key, {})
         condition = meta["condition"]
         if condition not in {treatment_condition, baseline_condition}:
-            excluded.append({"task_id": task_id, "reason": "condition_not_in_contrast"})
+            excluded.append({"task_id": task_id, "observation_id": observation_id, "reason": "condition_not_in_contrast"})
             continue
         if condition in bucket:
             raise ValueError(f"duplicate condition in matched pair: {key}")
-        bucket[condition] = {"task_id": task_id, "value": value,
+        bucket[condition] = {"task_id": task_id, "observation_id": observation_id, "value": value,
                              "preregistered": raw["preregistered"],
                              "split_source": raw["split_source"]}
 
@@ -241,7 +250,7 @@ def analyze_raw_observations(
     for key, pair in joined.items():
         track, seed, split, control, parameter_count, compute_budget = key
         if set(pair) != {treatment_condition, baseline_condition}:
-            excluded.extend({"task_id": item["task_id"], "reason": "unmatched_pair"}
+            excluded.extend({"task_id": item["task_id"], "observation_id": item["observation_id"], "reason": "unmatched_pair"}
                             for item in pair.values())
             continue
         treatment, baseline = pair[treatment_condition], pair[baseline_condition]
@@ -251,6 +260,7 @@ def analyze_raw_observations(
         groups[(track, split, control, parameter_count, compute_budget)].append({
             "seed": seed, "delta": delta,
             "task_ids": [treatment["task_id"], baseline["task_id"]],
+            "observation_ids": [treatment["observation_id"], baseline["observation_id"]],
             "preregistered": treatment["preregistered"] and baseline["preregistered"],
             "split_source": treatment["split_source"],
             "parameter_count": parameter_count, "compute_budget": compute_budget,
@@ -260,13 +270,14 @@ def analyze_raw_observations(
     for (track, split, control, parameter_count, compute_budget), pairs in sorted(groups.items()):
         pairs.sort(key=lambda item: item["seed"])
         if len(pairs) < 2:
-            excluded.extend({"task_id": task_id, "reason": "fewer_than_two_matched_seeds"}
-                            for pair in pairs for task_id in pair["task_ids"])
+            excluded.extend({"task_id": task_id, "observation_id": observation_id, "reason": "fewer_than_two_matched_seeds"}
+                            for pair in pairs for task_id, observation_id in zip(pair["task_ids"], pair["observation_ids"]))
             continue
         values = [pair["delta"] for pair in pairs]
         mean, lower, upper = _paired_t_interval(values, float(confidence_level))
         seeds = [pair["seed"] for pair in pairs]
         task_ids = [task_id for pair in pairs for task_id in pair["task_ids"]]
+        observation_ids = [observation_id for pair in pairs for observation_id in pair["observation_ids"]]
         evidence_id = hashlib.sha256(_canonical({
             "task_set_digest": task_set_digest, "track": track, "split": split,
             "control": control, "treatment": treatment_condition,
@@ -278,6 +289,7 @@ def analyze_raw_observations(
             "ci_upper": upper, "seeds": len(seeds), "valid": len(seeds) >= min_seeds,
             "preregistered": all(pair["preregistered"] for pair in pairs),
             "task_ids": task_ids,
+            "observation_ids": observation_ids,
             "expected_seeds": sorted({item["seed"] for item in manifest.values()
                                       if item["track"] == track and item["condition"] in
                                       {treatment_condition, baseline_condition}}),
@@ -296,8 +308,9 @@ def analyze_raw_observations(
         "schema_version": 1, "analysis_kind": "paired_raw_observation_analysis",
         "task_set_digest": task_set_digest,
         "input_observation_digest": hashlib.sha256(_canonical(list(observations))).hexdigest(),
-        "manifest_task_count": len(manifest), "observed_task_count": len(seen),
-        "missing_task_ids": sorted(set(manifest) - seen),
+        "manifest_task_count": len(manifest), "observed_task_count": len(seen_task_ids),
+        "observation_count": len(seen_observations),
+        "missing_task_ids": sorted(set(manifest) - seen_task_ids),
         "treatment_condition": treatment_condition,
         "baseline_condition": baseline_condition, "metric": metric,
         "metric_direction": metric_direction, "predicted_direction": predicted_direction,

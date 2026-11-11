@@ -45,11 +45,12 @@ def evaluate_archived_evidence(
         raise ValueError("archive report must contain non-empty evidence_rows")
 
     evaluator_rows = []
+    seen_observations: set[str] = set()
     seen_tasks: set[str] = set()
     for index, row in enumerate(rows):
         if not isinstance(row, dict):
             raise ValueError(f"evidence_rows[{index}] must be an object")
-        required = {"task_ids", "expected_seeds", "observed_seeds", "metric", "metric_direction", "split_source", "control_family"}
+        required = {"task_ids", "observation_ids", "expected_seeds", "observed_seeds", "metric", "metric_direction", "split_source", "control_family"}
         if not required <= row.keys():
             raise ValueError(f"evidence_rows[{index}] is missing provenance fields")
         task_ids = row["task_ids"]
@@ -57,10 +58,16 @@ def evaluate_archived_evidence(
         observed_seeds = row["observed_seeds"]
         if not isinstance(task_ids, list) or not task_ids or any(not isinstance(x, str) or not x for x in task_ids) or len(set(task_ids)) != len(task_ids):
             raise ValueError(f"evidence_rows[{index}].task_ids must be unique non-empty strings")
-        overlap = seen_tasks.intersection(task_ids)
-        if overlap:
-            raise ValueError(f"task IDs reused across evidence rows: {sorted(overlap)}")
         seen_tasks.update(task_ids)
+        observation_ids = row["observation_ids"]
+        if (not isinstance(observation_ids, list) or len(observation_ids) != len(task_ids)
+                or any(not isinstance(x, str) or not x for x in observation_ids)
+                or len(set(observation_ids)) != len(observation_ids)):
+            raise ValueError(f"evidence_rows[{index}].observation_ids must uniquely match task_ids")
+        observation_overlap = seen_observations.intersection(observation_ids)
+        if observation_overlap:
+            raise ValueError(f"observation IDs reused across evidence rows: {sorted(observation_overlap)}")
+        seen_observations.update(observation_ids)
         if not isinstance(expected_seeds, list) or not expected_seeds or any(isinstance(x, bool) or not isinstance(x, int) or x < 0 for x in expected_seeds) or len(set(expected_seeds)) != len(expected_seeds):
             raise ValueError(f"evidence_rows[{index}].expected_seeds must be unique non-negative integers")
         if not isinstance(observed_seeds, list) or any(isinstance(x, bool) or not isinstance(x, int) or x < 0 for x in observed_seeds) or len(set(observed_seeds)) != len(observed_seeds):
@@ -96,6 +103,7 @@ def evaluate_archived_evidence(
         "code_revision": envelope.get("code_revision"),
         "evidence_row_count": len(evaluator_rows),
         "unique_task_count": len(seen_tasks),
+        "unique_observation_count": len(seen_observations),
     }
     result["limitations"].append("Provenance fields are structurally checked, but their truth depends on the archive producer and raw-run audit.")
     return result

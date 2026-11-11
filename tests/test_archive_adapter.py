@@ -20,6 +20,7 @@ class ArchivedEvidenceAdapterTests(unittest.TestCase):
             "valid": True,
             "preregistered": True,
             "task_ids": [task_id],
+            "observation_ids": [f"obs-{task_id}"],
             "expected_seeds": list(range(10)),
             "observed_seeds": list(range(10)),
             "metric": "ood_accuracy_delta",
@@ -42,6 +43,7 @@ class ArchivedEvidenceAdapterTests(unittest.TestCase):
             result = evaluate_archived_evidence(path, expected_task_set_digest="matrix-abc", predicted_direction="positive")
             self.assertEqual(result["verdict"], "supported")
             self.assertEqual(result["archive"]["unique_task_count"], 2)
+            self.assertEqual(result["archive"]["unique_observation_count"], 2)
 
     def test_rejects_wrong_task_set_digest(self):
         with tempfile.TemporaryDirectory() as directory:
