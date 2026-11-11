@@ -1,5 +1,7 @@
 import os
 import stat
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -30,6 +32,29 @@ class E12A6WriterRuntimeTests(unittest.TestCase):
             with E12A6WriterProcessLock(path) as second:
                 self.assertTrue(second.acquired)
             self.assertEqual(stat.S_IMODE(path.stat().st_mode), 0o600)
+
+    def test_lock_excludes_a_separate_process(self):
+        with tempfile.TemporaryDirectory() as directory:
+            os.chmod(directory, 0o700)
+            path = Path(directory) / "writer.lock"
+            with E12A6WriterProcessLock(path):
+                script = (
+                    "from prototype.e12a6_writer_runtime import "
+                    "E12A6WriterAlreadyRunning, E12A6WriterProcessLock; "
+                    "import sys; "
+                    "lock=E12A6WriterProcessLock(sys.argv[1]); "
+                    "try: lock.acquire()\\n"
+                    "except E12A6WriterAlreadyRunning: raise SystemExit(0)\\n"
+                    "raise SystemExit(3)"
+                )
+                result = subprocess.run(
+                    [sys.executable, "-c", script, str(path)],
+                    cwd=Path(__file__).resolve().parents[1],
+                    capture_output=True,
+                    text=True,
+                    check=False,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
 
     def test_lock_fails_closed_for_group_or_world_accessible_state_directory(self):
         with tempfile.TemporaryDirectory() as directory:
