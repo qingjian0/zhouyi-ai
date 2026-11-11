@@ -24,6 +24,8 @@ class BayesianObservationCandidate:
     candidate_id: str
     system: ContextualProbabilisticTransitionSystem
     observation_channels: tuple[tuple[str, ObservationKernel], ...]
+    mechanism_hypothesis_id: str | None = None
+    channel_hypothesis_id: str | None = None
 
 
 @dataclass(frozen=True)
