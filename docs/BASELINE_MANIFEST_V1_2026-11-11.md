@@ -36,3 +36,23 @@ This file is the single reference for branch and commit identity. Other document
 ## Verification status
 
 This manifest records a repository/document audit and ref identity. It does not claim that tests or CI were run on the post-audit convergence HEAD, nor that the P1 end-to-end closure is complete.
+
+
+## Active PR dependency snapshot
+
+Live metadata checked during this audit:
+
+| PR | Base ref / SHA | Head ref / SHA | State | Integration interpretation |
+|---|---|---|---|---|
+| #185 E17 | `main` / `6983791` | `research/e17-candidate-bundle-contract-2026-11-11` / `9855f53` | Draft, mergeable | Separate from E09 line; review/reuse content contract, but remove its competing lifecycle authority before integration |
+| #206 Convergence | E09 / `e90f7eb` | `integration/zhouyi-unified-convergence-2026-11-11` / `c907478` | Draft, mergeable | This documentation convergence PR |
+| #208 CSG-GCR | E09 / `e90f7eb` | `integration/csg-gcr-executable-slice-2026-11-11` / `5f886df` | Draft, mergeable | Parallel integration candidate; not based on #206 and not yet wired to E09/E12-A6/ZPCM |
+| #212 Typed unification | CSG-GCR branch / `91f6ae4` | `integration/csg-typed-hyperedge-unification-2026-11-11` / `dd29958` | Draft, mergeable | Stacked on an earlier #208 branch commit; reference kernel is explicitly not yet connected to CSG-GCR |
+| #213 YJ-07 | YJ-06 / `77bb683` | `research/yj07-autonomous-role-schema-induction-2026-11-11` / `876cde8` | Draft, mergeable | Independent research stack; not part of the current P1 runtime closure |
+| #215 YJ-08 | YJ-07 / `876cde8` | `research/yj08-dynamic-role-evolution-2026-11-11` / `87fdaac` | Draft, mergeable | Stacked research follow-up; mergeability does not imply readiness |
+
+The #212 base commit is an ancestor of #208 head; comparison shows #208 is one commit ahead of the #212 base. Before combining them, re-evaluate the complete stack against the live branch heads and run the combined tests. All listed PRs remain Draft. `mergeable=true` is only a GitHub mergeability signal, not an architecture or validation approval.
+
+## CSG-GCR implementation boundary
+
+PR #208 is an R1 candidate bounded coordinator. Its own scope records the following as not yet implemented: canonical semantic deduplication, typed hyperedge unification, incremental branch deltas and structural merge, Pareto/diversity selection, E09 integration, E12-A6 lifecycle adaptation and ZPCM persistence. PR #212 supplies a standalone typed-unification reference kernel, but its own specification states that CSG-GCR does not yet call it. Therefore PR #212 does not close the typed-unification integration gate.
