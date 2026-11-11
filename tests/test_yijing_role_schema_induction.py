@@ -76,13 +76,7 @@ class StructuralRoleInductionTests(unittest.TestCase):
 
     def test_support_counts_distinct_observations_not_duplicate_edges(self):
         one = graph()
-        duplicate = RelationalState(
-            one.nodes,
-            tuple(sorted(one.relations + (one.relations[0],))),
-            one.context,
-        )
-        # The state contract disallows duplicate relation instances, so the same
-        # evidence is instead repeated as separate relation labels in the graph.
+        # Support is counted by distinct evidence IDs, not edge multiplicity.
         report = StructuralSchemaInducer(min_support=2).discover([
             RoleSchemaObservation(one, "e1", "d1"),
             RoleSchemaObservation(graph("x"), "e2", "d1"),
