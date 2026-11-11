@@ -184,3 +184,21 @@ The P1 runtime now has a tested single-branch path from typed CSG-GCR proposal e
 | [#229](https://github.com/qingjian0/zhouyi-ai/pull/229) | `561ecc4e51c5d2af39139cb367ec0d430571ec38` | #228 head `8edf52c3ee83bc8063d14d249a2edc7676f1e9d8` | `43040339295` success | Draft; end-to-end lifecycle transitions and restart/replay |
 
 PR #229 validates the full single-branch lifecycle: OBSERVED → PROPOSED → DISCRIMINATION_PENDING → TRAIN_SUPPORTED → GATE_VALIDATED → CHALLENGED. SUPPORT-derived TRAIN evidence, GATE_FINAL, and LOCKED_TEST are used only for their intended transitions. A negative test confirms GATE_DEV cannot satisfy GATE_FINAL and that rejected transitions do not append events. Restart restores the exact lifecycle state and action history from ZPCM.
+
+
+## P1 lifecycle and authorization integration audit (2026-11-11)
+
+| PR | Exact head | Exact-head workflow | Result |
+|---|---|---|---|
+| #223 typed CSG-GCR → E12-A6 OBSERVED projection | `1e23b23c515e3b339c52850d98ba9981176495b5` | `43034178683` | success |
+| #226 E12-A6 lifecycle append/replay through ZPCM | `f4406ab9e9a8eb89329d767bfe5e11cef10964ee` | `43037972184` | success |
+| #227 strict E09 reveal verification + redacted E12 evidence | `6a4b0dce8dd1255daaa613a2649796a07e37de85` | `43038677702` | success |
+| #228 atomic typed candidate + E09 evidence ingestion | `8edf52c3ee83bc8063d14d249a2edc7676f1e9d8` | `43040120573` | success |
+| #229 end-to-end CSG-GCR → E09 → E12-A6 → ZPCM lifecycle/replay | `561ecc4e51c5d2af39139cb367ec0d430571ec38` | `43040339295` | success |
+| #230 authenticated E09 cross-branch merge grants | `541ba18d790fc2b713051d5489a7543e2205c3e1` | `43050136136` | success |
+
+PR #229 verifies the full single-branch lifecycle through restart/replay and confirms split isolation: SUPPORT→TRAIN, GATE_FINAL→gate, LOCKED_TEST→challenge; GATE_DEV cannot satisfy GATE_FINAL.
+
+PR #230 closes the earlier unsigned authorization gap. Plain BranchMergeAuthorization claims are no longer sufficient. Cross-branch composition requires an E09 v0.3 signed grant with exact parent/scope/branch set, prior verified evidence references and a valid expiry window. Signature verification is delegated to an injected trusted issuer-keyring verifier; test callbacks are not production cryptography.
+
+**Remaining gate:** deployable issuer trust configuration, public-key rotation/revocation, evaluator process isolation, authenticated IPC and remote tamper-evident replication are not implemented. Current E09/ZPCM stores remain trusted single-process SQLite reference components. All listed PRs remain Draft and unmerged.
