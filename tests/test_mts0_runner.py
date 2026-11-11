@@ -118,6 +118,11 @@ class MTS0RunnerTests(unittest.TestCase):
         self.assertEqual(audit["evaluator_visible_locked_test_reveals"], 40)
         self.assertTrue(audit["prediction_batch_sealed_before_reveal"])
         self.assertTrue(audit["all_predictions_committed_before_reveal"])
+        self.assertTrue(audit["learner_and_evaluator_are_distinct_processes"])
+        self.assertTrue(audit["evaluator_started_after_batch_seal"])
+        self.assertEqual(audit["learner_received_locked_test_label_count"], 0)
+        self.assertEqual(audit["evaluator_received_locked_test_label_count"], 40)
+        self.assertNotEqual(audit["learner_pid"], audit["evaluator_pid"])
 
     def test_multiseed_runner_reports_mean_stddev_and_audits(self):
         result = run_mts0_multiseed(
@@ -142,7 +147,18 @@ class MTS0RunnerTests(unittest.TestCase):
     def test_runner_is_reproducible(self):
         first = run_mts0(seed=9, train_count=80, locked_test_count=30, epochs=30)
         second = run_mts0(seed=9, train_count=80, locked_test_count=30, epochs=30)
-        self.assertEqual(first, second)
+        self.assertEqual(first["metrics"], second["metrics"])
+        self.assertEqual(first["model_version"], second["model_version"])
+        self.assertEqual(first["learned_weights"], second["learned_weights"])
+        first_audit = {
+            key: value for key, value in first["audit"].items()
+            if not key.endswith("_pid")
+        }
+        second_audit = {
+            key: value for key, value in second["audit"].items()
+            if not key.endswith("_pid")
+        }
+        self.assertEqual(first_audit, second_audit)
 
 
 if __name__ == "__main__":
