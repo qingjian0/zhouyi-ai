@@ -108,6 +108,46 @@ class ActiveIdentificationTests(unittest.TestCase):
         self.assertEqual(len(identifier.rejected_observations), 1)
         self.assertEqual(identifier.rejected_observations[0].after, (999.0,))
 
+    def test_tolerance_partition_is_independent_of_hypothesis_id_order(self):
+        class ConstantProgram:
+            def __init__(self, value):
+                self.value = value
+            def apply(self, state):
+                return (self.value,)
+
+        first = ActiveOperatorIdentifier(
+            [
+                OperatorHypothesis("a", ConstantProgram(0.0)),
+                OperatorHypothesis("b", ConstantProgram(0.75)),
+                OperatorHypothesis("c", ConstantProgram(1.5)),
+            ],
+            [(0.0,)],
+            tolerance=1.0,
+        )
+        second = ActiveOperatorIdentifier(
+            [
+                OperatorHypothesis("a", ConstantProgram(1.5)),
+                OperatorHypothesis("b", ConstantProgram(0.0)),
+                OperatorHypothesis("c", ConstantProgram(0.75)),
+            ],
+            [(0.0,)],
+            tolerance=1.0,
+        )
+        first_partition = first.rank_experiments()[0].partitions
+        second_partition = second.rank_experiments()[0].partitions
+        self.assertEqual(
+            [len(ids) for _, ids in first_partition],
+            [len(ids) for _, ids in second_partition],
+        )
+        self.assertEqual(
+            [tuple(sorted(ids)) for _, ids in first_partition],
+            [("b", "c"), ("a",)],
+        )
+        self.assertEqual(
+            [tuple(sorted(ids)) for _, ids in second_partition],
+            [("b", "c"), ("a",)],
+        )
+
     def test_nonfinite_hypothesis_prediction_is_rejected(self):
         class BrokenProgram:
             def apply(self, state):
