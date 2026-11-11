@@ -11,6 +11,7 @@ deployment must still run distinct OS identities and protect the DB directory.
 """
 from __future__ import annotations
 
+import argparse
 import hashlib
 import hmac
 import json
@@ -32,6 +33,7 @@ from prototype.trusted_evidence_broker_contract import (
 
 
 MAX_REQUEST_BYTES = 1_048_576
+MAX_RESPONSE_BYTES = 4_194_304
 PROTOCOL_VERSION = "0.1"
 SO_PEERCRED = getattr(socket, "SO_PEERCRED", 17)  # Linux constant; guarded by platform check.
 
@@ -77,7 +79,10 @@ class TrustedEvidenceBroker:
         if not cursor_secret or len(cursor_secret) < 32:
             raise ValueError("cursor_secret must contain at least 32 bytes")
         self.database_path = Path(database_path).resolve()
-        self.database_path.parent.mkdir(parents=True, exist_ok=True)
+        self.database_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        os.chmod(self.database_path.parent, 0o700)
+        if self.database_path.parent.stat().st_mode & 0o077:
+            raise BrokerIPCError("database directory must be private to the broker service account")
         self.principals_by_uid = dict(principals_by_uid)
         self._cursor_secret = bytes(cursor_secret)
         self._lock = threading.RLock()
@@ -160,6 +165,8 @@ class _BrokerRequestHandler(socketserver.StreamRequestHandler):
                 raise BrokerIPCError("invalid JSON request") from exc
             response = server.broker.dispatch(principal, request)
             encoded = json.dumps(response, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+            if len(encoded) > MAX_RESPONSE_BYTES:
+                raise BrokerIPCError("response exceeds size limit")
         except Exception:
             # Do not disclose whether an episode, track, or evaluator record exists.
             encoded = b'{"error":"request_denied","protocol_version":"0.1"}'
@@ -175,7 +182,8 @@ class BrokerUnixServer(socketserver.ThreadingUnixStreamServer):
             raise BrokerIPCError("Unix broker server currently requires Linux")
         self.socket_path = Path(socket_path)
         self.broker = broker
-        self.socket_path.parent.mkdir(parents=True, exist_ok=True)
+        self.socket_path.parent.mkdir(parents=True, exist_ok=True, mode=0o750)
+        os.chmod(self.socket_path.parent, 0o750)
         if self.socket_path.exists() or self.socket_path.is_symlink():
             raise BrokerIPCError("refusing to replace an existing socket path")
         super().__init__(str(self.socket_path), _BrokerRequestHandler)
@@ -216,3 +224,47 @@ def request_snapshot(socket_path: str | os.PathLike[str], episode_id: str, *, ti
     if "error" in response:
         raise BrokerIPCError(response["error"])
     return response
+
+
+
+def main() -> None:
+    """Run a single-track learner broker using deployment-supplied UID and key."""
+    parser = argparse.ArgumentParser(description="Trusted Evidence Broker (experimental Linux MVP)")
+    parser.add_argument("--socket", required=True, help="Unix-domain socket path")
+    parser.add_argument("--database", required=True, help="private SQLite database path")
+    args = parser.parse_args()
+
+    uid_raw = os.environ.get("EVIDENCE_BROKER_LEARNER_UID")
+    track = os.environ.get("EVIDENCE_BROKER_LEARNER_TRACK")
+    secret_hex = os.environ.get("EVIDENCE_BROKER_CURSOR_SECRET_HEX")
+    if not uid_raw or not track or not secret_hex:
+        raise SystemExit(
+            "set EVIDENCE_BROKER_LEARNER_UID, EVIDENCE_BROKER_LEARNER_TRACK "
+            "and EVIDENCE_BROKER_CURSOR_SECRET_HEX"
+        )
+    try:
+        uid = int(uid_raw)
+        secret = bytes.fromhex(secret_hex)
+    except ValueError as exc:
+        raise SystemExit("invalid broker UID or cursor secret encoding") from exc
+
+    principal = PrincipalPolicy(
+        principal_id=f"learner-uid-{uid}",
+        role="learner",
+        learner_track=track,
+    )
+    broker = TrustedEvidenceBroker(
+        args.database,
+        principals_by_uid={uid: principal},
+        cursor_secret=secret,
+    )
+    server = BrokerUnixServer(args.socket, broker)
+    try:
+        server.serve_forever()
+    finally:
+        server.server_close()
+        broker.close()
+
+
+if __name__ == "__main__":
+    main()
