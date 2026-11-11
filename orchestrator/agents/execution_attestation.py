@@ -86,7 +86,7 @@ class SandboxAttestation:
     expires_at: str
 
     def __post_init__(self) -> None:
-        if self.schema_version != 1:
+        if isinstance(self.schema_version, bool) or not isinstance(self.schema_version, int) or self.schema_version != 1:
             raise ValueError("unsupported attestation schema_version")
         if not isinstance(self.key_id, str) or not _KEY_ID.fullmatch(self.key_id):
             raise ValueError("key_id must be a safe identifier")
