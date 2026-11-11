@@ -148,6 +148,9 @@ class CognitiveState:
     retracted: set[str] = field(default_factory=set)
     event_ids: set[str] = field(default_factory=set)
     event_ledger: list[ObservationEvent] = field(default_factory=list)
+    _by_relation_type: dict[str, set[str]] = field(default_factory=dict, init=False, repr=False)
+    _by_role_entity: dict[tuple[str, str], set[str]] = field(default_factory=dict, init=False, repr=False)
+    _assertion_order: dict[str, int] = field(default_factory=dict, init=False, repr=False)
 
     def apply(self, event: ObservationEvent) -> None:
         if event.event_id in self.event_ids:
@@ -172,7 +175,14 @@ class CognitiveState:
                 raise StateError("cannot retract an unknown or already retracted assertion")
         self.evidence.update((item.evidence_id, item) for item in event.evidence)
         self.entities.update((item.entity_id, item) for item in event.entities)
-        self.assertions.update((item.assertion_id, item) for item in event.relations)
+        for relation in event.relations:
+            self.assertions[relation.assertion_id] = relation
+            self._assertion_order[relation.assertion_id] = len(self._assertion_order)
+            self._by_relation_type.setdefault(relation.relation_type, set()).add(relation.assertion_id)
+            for participant in relation.participants:
+                self._by_role_entity.setdefault(
+                    (participant.role, participant.entity_id), set()
+                ).add(relation.assertion_id)
         self.retracted.update(event.retract_assertion_ids)
         self.event_ids.add(event.event_id)
         self.event_ledger.append(event)
@@ -183,13 +193,18 @@ class CognitiveState:
         matches: list[Relation] = []
         scanned = 0
         constraints = dict(query.role_constraints)
-        for assertion in self.assertions.values():
+        candidate_ids = set(self._by_relation_type.get(query.relation_type, set()))
+        for role, entity_id in constraints.items():
+            candidate_ids.intersection_update(
+                self._by_role_entity.get((role, entity_id), set())
+            )
+        ordered_ids = sorted(candidate_ids, key=self._assertion_order.__getitem__)
+        for assertion_id in ordered_ids:
             if scanned >= scan_budget:
                 return QueryResult(QueryStatus.BUDGET_EXHAUSTED, tuple(matches), scanned)
             scanned += 1
-            if assertion.assertion_id in self.retracted:
-                continue
-            if assertion.relation_type != query.relation_type:
+            assertion = self.assertions[assertion_id]
+            if assertion_id in self.retracted:
                 continue
             if query.at_time is not None:
                 if assertion.valid_from > query.at_time:
