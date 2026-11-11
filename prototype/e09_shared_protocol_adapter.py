@@ -210,7 +210,7 @@ class E09SharedProtocolAdapter:
                 episode_id=self.episode_id,
                 learner_track=self.learner_track,
             )
-            validate_reveal_binding(self._interop_commits[prediction_id], interop_reveal)
+            validate_reveal_binding(self._interop_commits[prediction_id], interop_reveal, require_context=True)
             self.store.reveal_evidence(
                 episode_id=self.episode_id,
                 event_id=event_id,
