@@ -1136,6 +1136,58 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
         with self.assertRaisesRegex(ProtocolError, "without typed E12 definitions"):
             self.store.replay_projection("ep").hydrate_lifecycle_ledgers()
 
+    def test_evaluator_channel_freezes_candidates_and_keeps_labels_out_of_learner_projection(self):
+        self.store.append_events(episode_id="eval-ep", idempotency_key="setup", events=[
+            self.observation("eval-obs"),
+            {"event_id": "eval-candidate", "event_type": "structure_version", "payload": {
+                "structure_id": "rule-a", "version_id": "rule-a@1", "kind": "candidate",
+                "definition": {"rule": "x>y"}, "learner_track": "track-a",
+                "parent_version_ids": [], "support_evidence_ids": [],
+            }},
+        ])
+        row = self.store._db.execute("SELECT payload_digest FROM events WHERE episode_id=? AND event_id=?", ("eval-ep", "eval-candidate")).fetchone()
+        candidate_digest = row["payload_digest"]
+        freeze_digest = digest_payload({"learner_track": "track-a", "evaluation_role": "LOCKED_TEST", "candidates": [{"version_id": "rule-a@1", "payload_digest": candidate_digest}]})
+        self.store.append_events(episode_id="eval-ep", idempotency_key="eval-chain", events=[
+            {"event_id": "freeze-1", "event_type": "candidate_set_freeze", "payload": {
+                "freeze_id": "freeze-1", "learner_track": "track-a", "evaluation_role": "LOCKED_TEST",
+                "candidate_version_ids": ["rule-a@1"], "candidate_set_digest": freeze_digest,
+            }},
+            {"event_id": "commit-1", "event_type": "prediction_commit", "payload": {
+                "prediction_id": "pred-1", "observation_id": "eval-obs", "model_version": "m1",
+                "learner_track": "track-a", "decision_status": "PREDICT",
+                "candidate_set_freeze_id": "freeze-1", "evaluation_role": "LOCKED_TEST",
+                "candidate_set_digest": freeze_digest,
+            }},
+            {"event_id": "eval-reveal-1", "event_type": "evaluation_reveal", "actor_role": "evaluator", "payload": {
+                "evaluation_id": "evaluation-1", "freeze_id": "freeze-1", "prediction_id": "pred-1",
+                "learner_track": "track-a", "evaluation_role": "LOCKED_TEST",
+                "candidate_set_digest": freeze_digest, "target": "SECRET_LABEL_42",
+            }},
+        ])
+        learner = self.store.replay_learner_projection("eval-ep", "track-a")
+        evaluator = self.store.replay_evaluator_projection("eval-ep")
+        self.assertNotIn("SECRET_LABEL_42", canonical_json(learner))
+        self.assertEqual(evaluator["evaluations"]["pred-1"]["target"], "SECRET_LABEL_42")
+
+    def test_evaluator_reveal_rejects_mismatched_frozen_digest(self):
+        self.store.append_events(episode_id="bad-eval", idempotency_key="setup", events=[
+            self.observation("bad-eval-obs"),
+            {"event_id": "bad-candidate", "event_type": "structure_version", "payload": {
+                "structure_id": "rule-b", "version_id": "rule-b@1", "kind": "candidate",
+                "definition": {"rule": "x<y"}, "learner_track": "track-b",
+                "parent_version_ids": [], "support_evidence_ids": [],
+            }},
+        ])
+        row = self.store._db.execute("SELECT payload_digest FROM events WHERE episode_id=? AND event_id=?", ("bad-eval", "bad-candidate")).fetchone()
+        digest = digest_payload({"learner_track": "track-b", "evaluation_role": "GATE_FINAL", "candidates": [{"version_id": "rule-b@1", "payload_digest": row["payload_digest"]}]})
+        with self.assertRaisesRegex(ProtocolError, "does not match durable candidate snapshot"):
+            self.store.append_events(episode_id="bad-eval", idempotency_key="bad-freeze", events=[
+                {"event_id": "bad-freeze", "event_type": "candidate_set_freeze", "payload": {
+                    "freeze_id": "bad-freeze", "learner_track": "track-b", "evaluation_role": "GATE_FINAL",
+                    "candidate_version_ids": ["rule-b@1"], "candidate_set_digest": "0" * 64,
+                }},
+            ])
 
 
 if __name__ == "__main__":
