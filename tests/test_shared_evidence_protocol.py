@@ -300,5 +300,81 @@ class SharedEvidenceProtocolTests(unittest.TestCase):
         self.assertEqual(self.store.snapshot_structure("ep1", "v1")["payload"]["definition"]["x"], 1)
 
 
+    def test_v03_commit_and_reveal_bind_scope_split_query_and_digest(self):
+        self.store.append_event(
+            episode_id="v03", event_id="obs", event_type="observation",
+            idempotency_key="obs", protocol_version="0.3",
+            payload={"observation_id": "o1", "query_id": "q1", "scope": "world/a", "split": "SUPPORT"},
+        )
+        receipt = self.store.commit_prediction(
+            episode_id="v03", event_id="commit", idempotency_key="commit",
+            protocol_version="0.3",
+            payload={"prediction_id": "p1", "observation_id": "o1", "query_id": "q1",
+                     "scope": "world/a", "split": "SUPPORT", "model_version": "m1",
+                     "learner_track": "e09", "decision_status": "PREDICT"},
+        )
+        reveal = self.store.reveal_evidence(
+            episode_id="v03", event_id="reveal", idempotency_key="reveal",
+            protocol_version="0.3",
+            payload={"prediction_id": "p1", "query_id": "q1", "scope": "world/a",
+                     "split": "SUPPORT", "commit_digest": receipt.payload_digest,
+                     "learner_track": "e09", "target_or_feedback": "yes"},
+        )
+        self.assertEqual(reveal.sequence_no, 3)
+        events = self.store.replay_episode("v03")
+        self.assertEqual([e["protocol_version"] for e in events], ["0.3", "0.3", "0.3"])
+
+    def test_v03_rejects_scope_or_split_mismatch(self):
+        self.store.append_event(
+            episode_id="v03", event_id="obs", event_type="observation",
+            idempotency_key="obs", protocol_version="0.3",
+            payload={"observation_id": "o1", "query_id": "q1", "scope": "world/a", "split": "SUPPORT"},
+        )
+        with self.assertRaises(ValueError):
+            self.store.commit_prediction(
+                episode_id="v03", event_id="commit", idempotency_key="commit",
+                protocol_version="0.3",
+                payload={"prediction_id": "p1", "observation_id": "o1", "query_id": "q1",
+                         "scope": "world/a", "split": "LOCKED_TEST", "model_version": "m1",
+                         "learner_track": "e09", "decision_status": "PREDICT"},
+            )
+
+    def test_v03_rejects_wrong_commit_digest(self):
+        self.store.append_event(
+            episode_id="v03", event_id="obs", event_type="observation",
+            idempotency_key="obs", protocol_version="0.3",
+            payload={"observation_id": "o1", "query_id": "q1", "scope": "world/a", "split": "SUPPORT"},
+        )
+        self.store.commit_prediction(
+            episode_id="v03", event_id="commit", idempotency_key="commit",
+            protocol_version="0.3",
+            payload={"prediction_id": "p1", "observation_id": "o1", "query_id": "q1",
+                     "scope": "world/a", "split": "SUPPORT", "model_version": "m1",
+                     "learner_track": "e09", "decision_status": "PREDICT"},
+        )
+        with self.assertRaises(ValueError):
+            self.store.reveal_evidence(
+                episode_id="v03", event_id="reveal", idempotency_key="reveal",
+                protocol_version="0.3",
+                payload={"prediction_id": "p1", "query_id": "q1", "scope": "world/a",
+                         "split": "SUPPORT", "commit_digest": "0" * 64,
+                         "learner_track": "e09", "target_or_feedback": "yes"},
+            )
+
+    def test_v03_rejects_legacy_observation_binding(self):
+        self.store.append_event(
+            episode_id="v03", event_id="obs", event_type="observation",
+            idempotency_key="obs", payload={"observation_id": "o1"},
+        )
+        with self.assertRaises(ValueError):
+            self.store.commit_prediction(
+                episode_id="v03", event_id="commit", idempotency_key="commit",
+                protocol_version="0.3",
+                payload={"prediction_id": "p1", "observation_id": "o1", "query_id": "q1",
+                         "scope": "world/a", "split": "SUPPORT", "model_version": "m1",
+                         "learner_track": "e09", "decision_status": "PREDICT"},
+            )
+
+
 if __name__ == "__main__":
     unittest.main()
