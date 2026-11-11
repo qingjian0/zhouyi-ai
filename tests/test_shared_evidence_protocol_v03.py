@@ -7,7 +7,7 @@ from prototype.shared_evidence_protocol_v03 import (
     BatchConflict, ProjectionRecoveryRequired, SQLiteEvidenceStoreV03,
     candidate_definition_payload, evidence_definition_payload,
 )
-from prototype.e12a6_lifecycle_contract import Candidate, CandidateState, Evidence, SplitRole
+from prototype.e12a6_lifecycle_contract import Action, ActionType, Candidate, CandidateState, Evidence, LifecycleLedger, SplitRole
 
 
 
@@ -843,6 +843,20 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
         ledgers = projection.hydrate_lifecycle_ledgers()
         self.assertEqual(set(ledgers), {"e12"})
         ledger = ledgers["e12"]
+        reference = LifecycleLedger()
+        reference.add_candidate(candidate)
+        reference.add_evidence(evidence)
+        for aid, action_type, before, after, refs in transitions:
+            reference.apply(Action(
+                action_id=aid, action_type=ActionType(action_type),
+                candidate_id=candidate.candidate_id, candidate_version=1,
+                evidence_ids=("train-ledger",) if refs else (), cost=0.1,
+                from_state=CandidateState(before), to_state=CandidateState(after),
+                note=aid,
+            ))
+        self.assertEqual(dict(ledger.candidates), dict(reference.candidates))
+        self.assertEqual(dict(ledger.evidence), dict(reference.evidence))
+        self.assertEqual(ledger.actions, reference.actions)
         self.assertEqual(
             ledger.candidates[(candidate.candidate_id, 1)].state,
             CandidateState.TRAIN_SUPPORTED,
