@@ -448,15 +448,21 @@ class LearnableSROK:
             raise LearnableSROKError("checkpoint fields do not match schema")
         supplied_digest = envelope.get("sha256")
         payload = {key: value for key, value in envelope.items() if key != "sha256"}
-        canonical = json.dumps(
-            payload, sort_keys=True, separators=(",", ":"),
-            ensure_ascii=False, allow_nan=False,
-        )
+        try:
+            canonical = json.dumps(
+                payload, sort_keys=True, separators=(",", ":"),
+                ensure_ascii=False, allow_nan=False,
+            )
+        except (TypeError, ValueError) as exc:
+            raise LearnableSROKError("checkpoint contains non-canonical values") from exc
         actual_digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
         if (not isinstance(supplied_digest, str)
                 or supplied_digest != actual_digest):
             raise LearnableSROKError("checkpoint digest mismatch")
-        if payload["format"] != "zhouyi-ai.n10.learnable-srok" or payload["schema_version"] != 1:
+        if (payload["format"] != "zhouyi-ai.n10.learnable-srok"
+                or isinstance(payload["schema_version"], bool)
+                or not isinstance(payload["schema_version"], int)
+                or payload["schema_version"] != 1):
             raise LearnableSROKError("unsupported checkpoint format or version")
         feature_dim = payload["feature_dim"]
         if isinstance(feature_dim, bool) or not isinstance(feature_dim, int) or feature_dim < 1:
