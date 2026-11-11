@@ -1,3 +1,4 @@
+import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
@@ -138,6 +139,13 @@ class ZPCMStoreTests(unittest.TestCase):
         result = self.store.verify_integrity()
         self.assertEqual(result["projection_lag"], 0)
 
+    def test_event_ledger_rejects_direct_update_and_delete(self):
+        self.store.append_event(asserted())
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.store._db.execute("UPDATE events SET event_type = 'MUTATED' WHERE event_id = 'assert-c1'")
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.store._db.execute("DELETE FROM events WHERE event_id = 'assert-c1'")
+        self.assertEqual(self.store.last_event_seq, 1)
     def test_invalid_event_fields_are_rejected(self):
         with self.assertRaises(ZPCMError):
             self.store.append_event({"event_id": "x"})
