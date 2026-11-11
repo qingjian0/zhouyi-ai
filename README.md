@@ -51,6 +51,9 @@
 - [E01-B 五种子结果报告](docs/E01B_RESULTS_2026-11-10.md)
 - [E01-C 组合 OOD 结果报告](docs/E01C_RESULTS_2026-11-10.md)
 - [研究风险与证伪条件](docs/RISKS_AND_FALSIFICATION.md)
+- [MTS-0 最小预序列训练与验证门](docs/MTS0_TRAINING_GATE_2026-11-11.md)
+- [MTS-0 运行器](prototype/mts0_runner.py)
+- [MTS-0 训练闭环测试](tests/test_mts0_runner.py)
 - [开发路线图](ROADMAP.md)
 - [原型代码](prototype/)
 
@@ -62,6 +65,7 @@
 python -m unittest discover -s tests -v
 python -m prototype.e01_sparse_composition
 python -m prototype.e01_learned_ranker --json
+python -m prototype.mts0_runner --seed 7 --train-samples 1200 --test-samples 400 --epochs 180 --json
 ```
 
 ## 研究状态标记
