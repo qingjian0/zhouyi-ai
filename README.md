@@ -89,6 +89,7 @@
 - [E12-A20 并行假设图推理运行时设计](docs/E12A20_PARALLEL_HYPOTHESIS_RUNTIME_DESIGN_2026-11-11.md)
 - [E12-A20-0 有限域因子图参考推理器](prototype/e12a20_factor_graph.py)
 - [E12-A20-1 同步 Sum-Product 信念传播](prototype/e12a20a1_belief_propagation.py)
+- [E12-A20-1 设计与限制](docs/E12A20_1_BELIEF_PROPAGATION_2026-11-11.md)
 - [E12-A20-1 专项测试](tests/test_e12a20a1_belief_propagation.py)
 - [E12-A20-0 参考推理器测试](tests/test_e12a20_factor_graph.py)
 - [E12-A20-0 实现说明与限制](docs/E12A20_0_FACTOR_GRAPH_REFERENCE_2026-11-11.md)
