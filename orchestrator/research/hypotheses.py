@@ -57,7 +57,7 @@ class HypothesisStore:
         if not isinstance(hypothesis, Hypothesis):
             raise TypeError("hypothesis must be a Hypothesis instance")
         record = {**asdict(hypothesis), "digest": hypothesis.digest}
-        data = _canonical(record) + b"\\n"
+        data = _canonical(record) + b"\n"
         target = self.root / f"{hypothesis.hypothesis_id}.json"
         temp = self.root / f".{hypothesis.hypothesis_id}.{os.getpid()}.tmp"
         try:
