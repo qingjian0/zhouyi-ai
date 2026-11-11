@@ -103,7 +103,7 @@ class N4ARelationDiscoveryTests(unittest.TestCase):
         )
         target = [
             c for c in result.candidates if c.role_count == 3
-            and {role[0] for role in __import__("json").loads(c.signature)["roles"]}
+            and {role[0] for role in json.loads(c.signature)["roles"]}
             == {"initiator", "mediator", "receiver"}
         ]
         self.assertEqual(len(target), 1)
