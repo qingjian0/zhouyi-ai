@@ -108,6 +108,19 @@ class ObservationEvent:
             raise StateError("duplicate assertion ids in event")
 
 
+class QueryStatus(str, Enum):
+    FOUND = "found"
+    NOT_FOUND = "not_found"
+    BUDGET_EXHAUSTED = "budget_exhausted"
+
+
+@dataclass(frozen=True)
+class QueryResult:
+    status: QueryStatus
+    relations: tuple[Relation, ...]
+    scanned: int
+
+
 @dataclass(frozen=True)
 class RelationQuery:
     relation_type: str
@@ -164,16 +177,16 @@ class CognitiveState:
         self.event_ids.add(event.event_id)
         self.event_ledger.append(event)
 
-    def query(self, query: RelationQuery, *, scan_budget: int = 10_000) -> tuple[Relation, ...]:
+    def query(self, query: RelationQuery, *, scan_budget: int = 10_000) -> QueryResult:
         if scan_budget < 1:
             raise StateError("scan_budget must be positive")
         matches: list[Relation] = []
         scanned = 0
         constraints = dict(query.role_constraints)
         for assertion in self.assertions.values():
+            if scanned >= scan_budget:
+                return QueryResult(QueryStatus.BUDGET_EXHAUSTED, tuple(matches), scanned)
             scanned += 1
-            if scanned > scan_budget:
-                break
             if assertion.assertion_id in self.retracted:
                 continue
             if assertion.relation_type != query.relation_type:
@@ -187,8 +200,9 @@ class CognitiveState:
             if all(roles.get(role) == entity_id for role, entity_id in constraints.items()):
                 matches.append(assertion)
                 if len(matches) >= query.limit:
-                    break
-        return tuple(matches)
+                    return QueryResult(QueryStatus.FOUND, tuple(matches), scanned)
+        status = QueryStatus.FOUND if matches else QueryStatus.NOT_FOUND
+        return QueryResult(status, tuple(matches), scanned)
 
     def source_refs(self, relation: Relation) -> tuple[str, ...]:
         return tuple(self.evidence[eid].source_ref for eid in relation.evidence_refs)
