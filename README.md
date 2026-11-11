@@ -59,6 +59,7 @@
 - [太玄经 81 首 / 9 赞 / 729 状态可逆编码原型](prototype/taixuan_ternary_encoding.py)
 - [TX-02A 跨状态基数 episode 生成器](prototype/tx02_multistate_benchmark.py)
 - [TX-02 多状态可逆编码器](prototype/tx02_state_encoders.py)
+- [TX-02 精确可辨识性审计器](prototype/tx02_identifiability.py)
 - [YF-01 动态观测策略原型](prototype/yinfu_active_observation.py)
 - [YF-03 三元反馈与关系反转原型](prototype/yinfu_interaction_dynamics.py)
 - [E12-A2-B 策略对照实验](prototype/e12a2b_policy_benchmark.py)
@@ -92,7 +93,8 @@ python -m prototype.yinfu_active_observation
 python -m prototype.yinfu_interaction_dynamics --horizon 8
 python -m prototype.taixuan_ternary_encoding
 python -m prototype.tx02_multistate_benchmark --episodes-per-cardinality 20 --support-size 2 --query-count 2
-python -m unittest tests.test_tx02_multistate_benchmark tests.test_tx02_state_encoders -v
+python -m prototype.tx02_identifiability --cardinality 3 --support-size 2 --query-count 2 --symbol-mapping permuted
+python -m unittest tests.test_tx02_multistate_benchmark tests.test_tx02_state_encoders tests.test_tx02_identifiability -v
 ```
 
 ## 研究状态标记
