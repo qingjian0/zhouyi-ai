@@ -30,7 +30,7 @@ class StructureRef:
     version: int
     learner_track: str
     def __post_init__(self):
-        if not self.structure_id.strip() or not self.earner_track.strip():
+        if not self.structure_id.strip() or not self.learner_track.strip():
             raise DependencyError("structure_id and learner_track must be non-empty")
         if isinstance(self.version, bool) or not isinstance(self.version, int) or self.version < 1:
             raise DependencyError("version must be a positive integer")
