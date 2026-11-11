@@ -37,6 +37,7 @@ class E09AuthorizationEnvelopeV2Tests(unittest.TestCase):
                 "signature_algorithm": "Ed25519",
                 "signature_version": "E09-AUTHZ-SIG-V2",
                 "audience": "e12a6-lifecycle",
+                "authorization_sequence": 10,
             },
         }
         self.signed = branch_merge_authorization_signing_bytes(self.event)
