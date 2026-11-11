@@ -24,9 +24,60 @@ class ZPCMMemory:
         CREATE INDEX IF NOT EXISTS memory_items_scope_type_seq ON memory_items(scope,item_type,created_seq DESC);
         CREATE TABLE IF NOT EXISTS assertions(assertion_id TEXT PRIMARY KEY,subject_id TEXT NOT NULL,predicate TEXT NOT NULL,object_json TEXT NOT NULL,scope TEXT NOT NULL,valid_from TEXT,valid_to TEXT,status TEXT NOT NULL,source_event_id TEXT NOT NULL,created_seq INTEGER NOT NULL,FOREIGN KEY(source_event_id) REFERENCES memory_events(event_id));
         CREATE INDEX IF NOT EXISTS assertions_lookup ON assertions(scope,subject_id,predicate,status);
+        CREATE TABLE IF NOT EXISTS e12a6_authorization_consumptions(
+            receipt_id TEXT PRIMARY KEY,
+            nonce TEXT UNIQUE NOT NULL,
+            event_id TEXT UNIQUE NOT NULL,
+            scope TEXT NOT NULL,
+            FOREIGN KEY(event_id) REFERENCES memory_events(event_id)
+        );
         """)
+        self._rebuild_authorization_consumption_index()
     def close(self):
         with self.lock:self.db.close()
+    def _rebuild_authorization_consumption_index(self):
+        """Backfill and validate DB-enforced unique receipt/nonce consumption."""
+        self.db.execute("BEGIN IMMEDIATE")
+        try:
+            rows = self.db.execute(
+                "SELECT event_id,scope,payload_json,payload_digest FROM memory_events "
+                "WHERE event_type='e12a6_lifecycle'"
+            ).fetchall()
+            for row in rows:
+                payload = json.loads(row["payload_json"])
+                if digest(payload) != row["payload_digest"]:
+                    raise ZPCMError("authorization consumption event digest mismatch")
+                if payload.get("kind") != "authorization_consumed":
+                    continue
+                body = payload.get("body")
+                if not isinstance(body, dict):
+                    raise ZPCMError("authorization consumption body must be an object")
+                receipt_id, nonce = body.get("receipt_id"), body.get("nonce")
+                if (not isinstance(receipt_id, str) or not receipt_id.strip()
+                        or not isinstance(nonce, str) or not nonce.strip()
+                        or body.get("scope") != row["scope"]
+                        or row["event_id"] != f"e12a6:authorization-consumed:{receipt_id}"):
+                    raise ZPCMError("authorization consumption index data is malformed")
+                existing = self.db.execute(
+                    "SELECT receipt_id,nonce,event_id,scope FROM e12a6_authorization_consumptions "
+                    "WHERE receipt_id=? OR nonce=? OR event_id=?",
+                    (receipt_id, nonce, row["event_id"]),
+                ).fetchone()
+                expected = (receipt_id, nonce, row["event_id"], row["scope"])
+                if existing is not None:
+                    actual = (existing["receipt_id"], existing["nonce"], existing["event_id"], existing["scope"])
+                    if actual != expected:
+                        raise ZPCMError("duplicate receipt ID or nonce in persisted lifecycle history")
+                    continue
+                self.db.execute(
+                    "INSERT INTO e12a6_authorization_consumptions(receipt_id,nonce,event_id,scope) "
+                    "VALUES(?,?,?,?)", expected,
+                )
+            self.db.execute("COMMIT")
+        except Exception:
+            self.db.execute("ROLLBACK")
+            raise
+
     def _append(self,event_id,event_type,scope,payload):
         if not all(isinstance(x,str) and x.strip() for x in (event_id,event_type,scope)):raise ZPCMError("event identifiers/type/scope required")
         raw=canonical(payload); d=digest(payload)
@@ -41,6 +92,8 @@ class ZPCMMemory:
                                expected_sequence: int) -> dict[str, Any]:
         """Append a versioned E12-A6 event to the unbounded durable event log."""
         if not isinstance(payload, dict): raise ZPCMError("lifecycle payload must be an object")
+        if payload.get("kind") == "authorization_consumed":
+            raise ZPCMError("authorization consumption must be appended with its candidate/evidence bundle")
         if isinstance(expected_sequence, bool) or not isinstance(expected_sequence, int) or expected_sequence < 0:
             raise ZPCMError("expected_sequence must be a non-negative integer")
         with self.lock:
@@ -101,6 +154,9 @@ class ZPCMMemory:
             raise ZPCMError("expected_sequence must be a non-negative integer")
         normalized = []
         ids = set()
+        authorization_uses = []
+        receipt_ids = set()
+        nonces = set()
         for event in events:
             if not isinstance(event, dict) or not isinstance(event.get("payload"), dict):
                 raise ZPCMError("each lifecycle event requires an object payload")
@@ -108,7 +164,23 @@ class ZPCMMemory:
             if not isinstance(event_id, str) or not event_id.strip() or event_id in ids:
                 raise ZPCMError("lifecycle batch event IDs must be unique non-empty strings")
             ids.add(event_id)
-            normalized.append((event_id, event["payload"]))
+            payload = event["payload"]
+            if payload.get("kind") == "authorization_consumed":
+                body = payload.get("body")
+                if not isinstance(body, dict):
+                    raise ZPCMError("authorization consumption body must be an object")
+                receipt_id, nonce = body.get("receipt_id"), body.get("nonce")
+                if (not isinstance(receipt_id, str) or not receipt_id.strip()
+                        or not isinstance(nonce, str) or not nonce.strip()
+                        or body.get("scope") != scope
+                        or event_id != f"e12a6:authorization-consumed:{receipt_id}"):
+                    raise ZPCMError("authorization consumption event is malformed")
+                if receipt_id in receipt_ids or nonce in nonces:
+                    raise ZPCMError("duplicate receipt ID or nonce within lifecycle batch")
+                receipt_ids.add(receipt_id)
+                nonces.add(nonce)
+                authorization_uses.append((receipt_id, nonce, event_id, scope))
+            normalized.append((event_id, payload))
         with self.lock:
             self.db.execute("BEGIN IMMEDIATE")
             try:
@@ -135,6 +207,13 @@ class ZPCMMemory:
                 receipts = []
                 for event_id, payload in normalized:
                     seq, replay = self._append(event_id, "e12a6_lifecycle", scope, payload)
+                    if payload.get("kind") == "authorization_consumed" and not replay:
+                        body = payload["body"]
+                        self.db.execute(
+                            "INSERT INTO e12a6_authorization_consumptions(receipt_id,nonce,event_id,scope) "
+                            "VALUES(?,?,?,?)",
+                            (body["receipt_id"], body["nonce"], event_id, scope),
+                        )
                     receipts.append({
                         "event_id": event_id, "sequence": seq,
                         "payload_digest": digest(payload), "replayed": replay,
