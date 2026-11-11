@@ -5,6 +5,7 @@ semantics from identifiers, missing fields, or implicit tuple positions.
 """
 from __future__ import annotations
 
+from collections import Counter
 from dataclasses import asdict, dataclass
 from enum import Enum
 from hashlib import sha256
@@ -116,7 +117,6 @@ class RelationInstance:
         _nonempty(self.relation_type, "relation_type")
         if not self.participants:
             raise ContractError("participants cannot be empty")
-        _unique(self.participants, "participants")
         for key, value in self.context:
             _nonempty(key, "context key")
             if not isinstance(value, str):
@@ -174,8 +174,8 @@ class RelationalGraph:
                 if schema.role_semantics != RoleSemantics.UNORDERED and actual_type != expected_type:
                     raise ContractError(f"argument type mismatch in relation {relation.relation_id}")
             if schema.role_semantics == RoleSemantics.UNORDERED:
-                expected = set(schema.argument_types)
-                actual = {entity_map[item].entity_type for item in relation.participants}
+                expected = Counter(schema.argument_types)
+                actual = Counter(entity_map[item].entity_type for item in relation.participants)
                 if actual != expected:
                     raise ContractError(f"unordered argument types mismatch in relation {relation.relation_id}")
             context_keys = {key for key, _ in relation.context}
