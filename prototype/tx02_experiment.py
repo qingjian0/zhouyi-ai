@@ -439,7 +439,7 @@ def run_sweep(cardinalities: tuple[int, ...] = (3,), support_sizes: tuple[int, .
                 "aggregate": aggregate_runs(runs),
             })
     return {
-        "protocol": "TX-02D-1",
+        "protocol": "TX-02D-3",
         "families": list(FAMILIES),
         "configuration": {
             "cardinalities": list(cardinalities),
