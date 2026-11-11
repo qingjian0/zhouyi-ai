@@ -21,6 +21,36 @@ class E09EvidenceBindingError(ValueError):
     """An E09 evidence reference is missing, mismatched, or not verifiable."""
 
 
+AUTHORIZATION_SIGNATURE_VERSION = "E09-AUTHZ-SIG-V2"
+AUTHORIZATION_AUDIENCE = "e12a6-lifecycle"
+AUTHORIZATION_PAYLOAD_SCHEMA = "branch_merge_authorization@2"
+
+
+def branch_merge_authorization_signing_bytes(event: dict[str, Any]) -> bytes:
+    """Canonical domain-separated signature over the complete security envelope."""
+    required = ("episode_id", "event_id", "event_type", "protocol_version",
+                "payload_schema", "actor_role", "causation_refs",
+                "integrity_metadata", "payload")
+    if any(key not in event for key in required):
+        raise E09EvidenceBindingError("authorization signing envelope is incomplete")
+    payload = event["payload"]
+    if not isinstance(payload, dict):
+        raise E09EvidenceBindingError("authorization payload is malformed")
+    statement = {
+        "domain": "zhouyi:e09:branch-merge:v2",
+        "episode_id": event["episode_id"],
+        "event_id": event["event_id"],
+        "event_type": event["event_type"],
+        "protocol_version": event["protocol_version"],
+        "payload_schema": event["payload_schema"],
+        "actor_role": event["actor_role"],
+        "causation_refs": event["causation_refs"],
+        "integrity_metadata": event["integrity_metadata"],
+        "payload": {key: value for key, value in payload.items() if key != "signature"},
+    }
+    return canonical_json(statement).encode("utf-8")
+
+
 _SPLIT_ROLE = {
     "SUPPORT": SplitRole.TRAIN,
     "GATE_DEV": SplitRole.GATE_DEV,
@@ -273,18 +303,26 @@ def resolve_branch_merge_authorization(
             learner_track=learner_track, world_family=world_family_by_evidence[ref],
         )
 
-    signed_payload = {key: value for key, value in payload.items() if key != "signature"}
-    signed_bytes = canonical_json({
-        "episode_id": episode_id,
-        "event_id": authorization_ref,
-        "payload": signed_payload,
-    }).encode("utf-8")
+    if event.get("payload_schema") != AUTHORIZATION_PAYLOAD_SCHEMA:
+        raise E09EvidenceBindingError("authorization requires branch_merge_authorization@2 schema")
+    expected_payload_keys = {
+        "authorization_id", "issuer_id", "scope", "parent_state_ref",
+        "branch_ids", "evidence_refs", "issued_at", "expires_at",
+        "signature_algorithm", "signature_version", "audience", "signature",
+    }
+    if set(payload) != expected_payload_keys:
+        raise E09EvidenceBindingError("authorization payload has missing or unknown fields")
+    if payload.get("signature_version") != AUTHORIZATION_SIGNATURE_VERSION:
+        raise E09EvidenceBindingError("unsupported authorization signature version")
+    if payload.get("audience") != AUTHORIZATION_AUDIENCE:
+        raise E09EvidenceBindingError("authorization audience does not match E12-A6 lifecycle service")
+    signed_bytes = branch_merge_authorization_signing_bytes(event)
     algorithm = payload.get("signature_algorithm")
     signature = payload.get("signature")
     if not isinstance(issuer_id, str) or not issuer_id.strip():
         raise E09EvidenceBindingError("authorization issuer_id is missing")
-    if not isinstance(algorithm, str) or not algorithm.strip() or not isinstance(signature, str) or not signature:
-        raise E09EvidenceBindingError("authorization signature metadata is missing")
+    if algorithm != "Ed25519" or not isinstance(signature, str) or not signature:
+        raise E09EvidenceBindingError("authorization signature metadata is missing or unsupported")
     try:
         valid = signature_verifier(issuer_id, algorithm, signed_bytes, signature)
     except Exception as exc:
