@@ -85,6 +85,19 @@ class CandidateBundleContractTests(unittest.TestCase):
         with self.assertRaises(CandidateContractError):
             validate_candidate_bundle(make_bundle(changes=(item, item)))
 
+    def test_bundle_kind_must_match_changed_layers(self):
+        item = make_bundle().changes[0]
+        relation = ChangeItem(
+            change_id="change-2", target_layer=ChangeLayer.RELATION,
+            operation=ChangeOperation.CREATE, target_refs=(),
+            proposed_definition_ref="dsl://relation/new",
+            input_output_contract_ref="contract://relation/new",
+        )
+        with self.assertRaises(CandidateContractError):
+            validate_candidate_bundle(make_bundle(
+                kind=BundleKind.PRIMITIVE_ONLY, changes=(item, relation)
+            ))
+
     def test_unknown_change_dependency_is_rejected(self):
         item = make_bundle().changes[0]
         item = ChangeItem(**{**item.__dict__, "depends_on_change_ids": ("missing",)})
@@ -97,7 +110,9 @@ class CandidateBundleContractTests(unittest.TestCase):
         b = ChangeItem("b", ChangeLayer.RELATION, ChangeOperation.CREATE, (),
                        "dsl://b", "contract://b", depends_on_change_ids=("a",))
         with self.assertRaises(CandidateContractError):
-            validate_candidate_bundle(make_bundle(changes=(a, b)))
+            validate_candidate_bundle(make_bundle(
+                kind=BundleKind.CROSS_LAYER, changes=(a, b)
+            ))
 
 
 class EvidenceIndependenceTests(unittest.TestCase):
@@ -143,7 +158,10 @@ class EvidenceIndependenceTests(unittest.TestCase):
 class CandidateRegistryTests(unittest.TestCase):
     def setUp(self):
         self.bundle = make_bundle()
-        self.registry = CandidateRegistry(active_version_refs=("structure-v1",))
+        self.registry = CandidateRegistry(
+            active_version_refs=("structure-v1",),
+            trusted_gate_evaluator_ids=("independent-evaluator", "proposer-A"),
+        )
         self.registry.propose(self.bundle)
         self.registry.static_validate(self.bundle.bundle_id)
 
@@ -168,6 +186,12 @@ class CandidateRegistryTests(unittest.TestCase):
     def test_evaluator_must_be_distinct_from_proposer(self):
         self.registry.submit_for_gate(self.bundle.bundle_id)
         receipt = make_receipt(self.bundle, evaluator_id=self.bundle.proposer_id)
+        with self.assertRaises(CandidateContractError):
+            self.registry.record_gate_receipt(receipt)
+
+    def test_untrusted_gate_evaluator_is_rejected(self):
+        self.registry.submit_for_gate(self.bundle.bundle_id)
+        receipt = make_receipt(self.bundle, evaluator_id="unknown-evaluator")
         with self.assertRaises(CandidateContractError):
             self.registry.record_gate_receipt(receipt)
 
