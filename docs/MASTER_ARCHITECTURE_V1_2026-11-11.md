@@ -179,3 +179,8 @@ Hyper-Speed 负责把获准计划编排为 DAG，进行并行调度、资源配�
 ## 8. 版本治理
 
 本文件是架构方向和分层边界的单一入口。模块具体 DTO 由 `MODULE_CONTRACTS_V1_2026-11-11.md` 管理；分支/PR 成熟度由 `INTEGRATION_REGISTRY_V1_2026-11-11.md` 管理；训练与性能门槛由 `TRAINING_EVALUATION_V1_2026-11-11.md` 管理。冲突时先更新决策记录，不允许在多个文档中分别定义同一接口。
+
+
+## 9. Canonical baseline pointer (2026-11-11)
+
+The canonical branch/commit identities are maintained in [BASELINE_MANIFEST](BASELINE_MANIFEST_V1_2026-11-11.md). The earlier header reference to `50104ed486db3d5b28527eb9785e1fe3a199990b` is historical and is superseded for convergence work by the selected E09 source baseline `e90f7eb210db456a541eb9f45ec39f64ebb934a5`. Do not infer current branch HEAD or CI status from this document; consult the manifest and live GitHub metadata.
