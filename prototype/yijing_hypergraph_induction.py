@@ -231,6 +231,7 @@ class DynamicHypergraphEvolution:
             if event.kind == "DISSOLVE":
                 # Absence is supported by successive complete snapshots, not
                 # by repeating a transition event that cannot recur once gone.
+                count = 0
                 members = set(event.shared_entity_ids)
                 for future in (row for row in rows if row.step >= event.to_step):
                     present = {entity.entity_id for entity in future.entities}
