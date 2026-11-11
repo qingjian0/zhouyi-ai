@@ -248,6 +248,54 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
                 idempotency_key="action-illegal", payload=illegal,
             )
 
+    def test_v02_unscoped_structure_replays_without_rewriting_legacy_history(self):
+        legacy = SQLiteEvidenceStore(self.db)
+        legacy.append_event(
+            episode_id="legacy-structure", event_id="legacy-observation",
+            event_type="observation", idempotency_key="legacy-observation",
+            payload={"observation_id": "legacy-obs"},
+        )
+        legacy.commit_prediction(
+            episode_id="legacy-structure", event_id="legacy-commit",
+            idempotency_key="legacy-commit",
+            payload={
+                "prediction_id": "legacy-pred", "observation_id": "legacy-obs",
+                "model_version": "legacy-model", "learner_track": "e09",
+                "decision_status": "PREDICT",
+            },
+        )
+        legacy.reveal_evidence(
+            episode_id="legacy-structure", event_id="legacy-reveal",
+            idempotency_key="legacy-reveal",
+            payload={
+                "prediction_id": "legacy-pred", "learner_track": "e09",
+                "target_or_feedback": "legacy-label",
+            },
+        )
+        legacy.append_event(
+            episode_id="legacy-structure", event_id="legacy-structure-v1",
+            event_type="structure_version", idempotency_key="legacy-structure-v1",
+            payload={
+                "structure_id": "legacy-rule", "version_id": "legacy-rule@1",
+                "kind": "rule", "definition": {"predicate": "x>y"},
+                "parent_version_ids": [], "support_evidence_ids": ["legacy-reveal"],
+            },
+        )
+        raw_before = legacy._db.execute(
+            "SELECT payload_json, payload_digest, protocol_version FROM events "
+            "WHERE episode_id='legacy-structure' AND event_id='legacy-structure-v1'"
+        ).fetchone()
+        legacy.close()
+        self.store.close()
+        self.store = SQLiteEvidenceStoreV03(self.db)
+        projection = self.store.replay_projection("legacy-structure")
+        self.assertEqual(projection.structures["legacy-rule@1"]["support_evidence_ids"], ["legacy-reveal"])
+        raw_after = self.store._db.execute(
+            "SELECT payload_json, payload_digest, protocol_version FROM events "
+            "WHERE episode_id='legacy-structure' AND event_id='legacy-structure-v1'"
+        ).fetchone()
+        self.assertEqual(tuple(raw_before), tuple(raw_after))
+
     def test_restart_replay_keeps_v03_events(self):
         self.store.append_events(
             episode_id="ep", idempotency_key="batch",
