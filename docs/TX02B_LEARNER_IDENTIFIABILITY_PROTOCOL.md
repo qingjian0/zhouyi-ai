@@ -145,3 +145,17 @@ python -m unittest tests.test_tx02_identifiability -v
 - TX-02E：未知 K、非均匀状态划分、噪声和规则族外测试。
 
 **当前结论：** E02-B 是固定三值规则诊断；TX-02B-1 精确审计器及生成器真值覆盖测试已通过 CI run #85（156 tests passed）；TX-02B 可训练学习器尚未实现。下一步进入 support 难度扫描与跨 episode learner。
+
+
+## 10. TX-02B-2 首批实现：规则族隔离与标签隔离
+
+新增 `prototype/tx02_splits.py` 与 `tests/test_tx02_splits.py`。
+
+- TX-02A `make_episode()` 增加可选的显式 `rule=(alpha,beta,delta)` 参数；不传时保持原随机生成行为。
+- 规则族按完整系数三元组分割，train / validation / locked-test 的系数集合互不相交，而不只是 episode seed 不同。
+- 每个规则可生成多个 episode，并独立采样 canonical/permuted 映射和 support/query/candidate 顺序。
+- 定义 `LearnerInput`，只包含 cardinality、mapping condition、support、queries、candidates；不包含 targets、hidden_rule 或 visible_symbols。
+- `SupervisedEpisode` 将训练 targets 与输入对象分开；`EvaluationEpisode` 将验证/锁定测试 targets 放在 evaluator 记录中。模型的 `predict()` 只接收 `LearnerInput`。
+- 测试覆盖规则集合互斥、标签/隐藏元数据隔离、固定 seed 可复现、K=2..5 三个 split 非空和非法参数拒绝。
+
+**边界：** 当前 held-out 是 TX-02A 仿射系数三元组的组合留出，不是规则函数族外泛化；同一系数在不同映射下仍属于同一规则组。该协议也尚未自动按单位/非单位系数、退化关系分层汇总。当前实现建立数据边界，不是 learner，也没有性能结果。
