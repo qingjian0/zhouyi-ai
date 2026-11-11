@@ -121,7 +121,7 @@ def resolve_e09_reveal(
     for field in ("query_id", "scope", "split"):
         if op.get(field) != cp.get(field) or rp.get(field) != cp.get(field):
             raise E09EvidenceBindingError(f"E09 observation/commit/reveal {field} mismatch")
-    if expected_commit_event not in commit.get("event_id", ""):
+    if commit.get("event_id") != expected_commit_event:
         raise E09EvidenceBindingError("prediction event identity mismatch")
 
     reveal_digest = reveal.get("payload_digest")
