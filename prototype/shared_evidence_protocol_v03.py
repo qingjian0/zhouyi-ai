@@ -579,6 +579,8 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                     raise MissingReference(f"dependency_added references unavailable evidence: {ref}")
                 evidence_payload = json.loads(evidence_row["payload_json"])
                 evidence_track = evidence_payload.get("learner_track")
+                if evidence_row["event_type"] == "evidence_reveal" and evidence_track is None:
+                    evidence_track = "legacy"
                 if evidence_track is not None and evidence_track != track:
                     raise ProtocolError("dependency_added evidence crosses learner tracks")
             existing_rows = self._db.execute(
