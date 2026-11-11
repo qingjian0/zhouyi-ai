@@ -2,7 +2,7 @@ import unittest
 
 from prototype.znca_core import (
     AnalogyMap, CognitiveState, Entity, Evidence, ObservationEvent,
-    Relation, RelationQuery, RoleBinding, StateError, audit_analogy,
+    QueryStatus, Relation, RelationQuery, RoleBinding, StateError, audit_analogy,
 )
 
 
@@ -29,13 +29,15 @@ class ZNCACoreTests(unittest.TestCase):
 
     def test_event_sourcing_and_provenance(self):
         found = self.state.query(RelationQuery("trusts", (("target", "bob"),)))
-        self.assertEqual({r.assertion_id for r in found}, {"r1", "r2"})
-        self.assertEqual(self.state.source_refs(found[0]), ("conversation://1",))
+        self.assertEqual(found.status, QueryStatus.FOUND)
+        self.assertEqual({r.assertion_id for r in found.relations}, {"r1", "r2"})
+        self.assertEqual(self.state.source_refs(found.relations[0]), ("conversation://1",))
         self.assertEqual(len(self.state.event_ledger), 1)
 
     def test_role_direction_is_not_collapsed(self):
         found = self.state.query(RelationQuery("trusts", (("source", "bob"),)))
-        self.assertEqual(found, ())
+        self.assertEqual(found.status, QueryStatus.NOT_FOUND)
+        self.assertEqual(found.relations, ())
 
     def test_temporal_validity(self):
         self.state.apply(ObservationEvent(
@@ -66,10 +68,14 @@ class ZNCACoreTests(unittest.TestCase):
     def test_scan_budget_rejected(self):
         with self.assertRaises(StateError):
             self.state.query(RelationQuery("trusts"), scan_budget=0)
+        result = self.state.query(RelationQuery("missing"), scan_budget=1)
+        self.assertEqual(result.status, QueryStatus.BUDGET_EXHAUSTED)
+        self.assertEqual(result.scanned, 1)
 
     def test_query_limit(self):
         found = self.state.query(RelationQuery("trusts", limit=1))
-        self.assertEqual(len(found), 1)
+        self.assertEqual(len(found.relations), 1)
+        self.assertEqual(found.status, QueryStatus.FOUND)
 
     def test_analogy_audit_preserves_roles_and_relations(self):
         source = [rel("s1", "supports", "s-agent", "s-object")]
