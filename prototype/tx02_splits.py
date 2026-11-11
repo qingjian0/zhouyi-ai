@@ -39,6 +39,8 @@ class EvaluationEpisode:
 class SplitBundle:
     train: tuple[SupervisedEpisode, ...]
     validation: tuple[EvaluationEpisode, ...]
+    validation_selection: tuple[EvaluationEpisode, ...]
+    validation_calibration: tuple[EvaluationEpisode, ...]
     locked_test: tuple[EvaluationEpisode, ...]
     rule_families: dict[str, tuple[tuple[int, int, int], ...]]
     metadata: dict
@@ -101,9 +103,25 @@ def make_rule_disjoint_splits(
         raise ValueError("symbol_mappings must contain canonical and/or permuted")
 
     rules = _partition_rules(cardinality, seed, train_fraction, validation_fraction)
-    split_rows = {"train": [], "validation": [], "locked_test": []}
-    for split_index, split_name in enumerate(("train", "validation", "locked_test")):
-        for rule_index, rule in enumerate(rules[split_name]):
+    validation_rules = list(rules["validation"])
+    if len(validation_rules) < 2:
+        raise ValueError(
+            "validation split needs at least two distinct rules for nested selection/calibration"
+        )
+    random.Random(seed ^ 0x5E1EC7).shuffle(validation_rules)
+    midpoint = len(validation_rules) // 2
+    selection_rules = tuple(validation_rules[:midpoint])
+    calibration_rules = tuple(validation_rules[midpoint:])
+    rule_sets = {
+        "train": rules["train"],
+        "validation_selection": selection_rules,
+        "validation_calibration": calibration_rules,
+        "locked_test": rules["locked_test"],
+    }
+    split_rows = {name: [] for name in rule_sets}
+    for split_index, split_name in enumerate(
+            ("train", "validation_selection", "validation_calibration", "locked_test")):
+        for rule_index, rule in enumerate(rule_sets[split_name]):
             for mapping_index, mapping in enumerate(mappings):
                 for repeat in range(episodes_per_rule):
                     episode_seed = (seed * 1_000_003 + split_index * 100_000_007
@@ -119,15 +137,25 @@ def make_rule_disjoint_splits(
 
     train = tuple(SupervisedEpisode(inputs, targets)
                   for inputs, targets in split_rows["train"])
-    validation = tuple(EvaluationEpisode(inputs, targets)
-                       for inputs, targets in split_rows["validation"])
+    validation_selection = tuple(EvaluationEpisode(inputs, targets)
+                                 for inputs, targets in split_rows["validation_selection"])
+    validation_calibration = tuple(EvaluationEpisode(inputs, targets)
+                                   for inputs, targets in split_rows["validation_calibration"])
+    validation = validation_selection + validation_calibration
     locked_test = tuple(EvaluationEpisode(inputs, targets)
                         for inputs, targets in split_rows["locked_test"])
+    rule_families = {
+        **rules,
+        "validation_selection": selection_rules,
+        "validation_calibration": calibration_rules,
+    }
     return SplitBundle(
         train=train,
         validation=validation,
+        validation_selection=validation_selection,
+        validation_calibration=validation_calibration,
         locked_test=locked_test,
-        rule_families=rules,
+        rule_families=rule_families,
         metadata={
             "protocol": "TX-02B-2",
             "cardinality": cardinality,
@@ -137,6 +165,7 @@ def make_rule_disjoint_splits(
             "seed": seed,
             "symbol_mappings": list(mappings),
             "split_unit": "hidden coefficient tuple (alpha,beta,delta)",
+            "validation_protocol": "disjoint rule-family selection and abstention-calibration subsets",
             "targets_exposed_to_learner": "train only; validation/test are evaluator records",
         },
     )
