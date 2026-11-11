@@ -33,6 +33,7 @@ def main() -> None:
             _write({"request_id": None, "ok": False,
                     "error": "request_too_large"})
             return
+        request: Any = None
         try:
             request = json.loads(raw.decode("utf-8"))
             if not isinstance(request, dict) or set(request) != {
