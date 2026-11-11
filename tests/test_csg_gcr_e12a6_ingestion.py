@@ -111,6 +111,38 @@ class CSGGCRAtomicIngestionTests(unittest.TestCase):
         self.memory.append_lifecycle_events=original
         self.assertEqual(self.ledger.snapshot(),before)
         self.assertEqual(self.memory.replay_lifecycle_events(scope="csg-gcr/project"),[])
+    def test_crash_after_batch_commit_recovers_whole_bundle(self):
+        original=self.memory.append_lifecycle_events
+        def commit_then_crash(**kwargs):
+            original(**kwargs)
+            raise RuntimeError("simulated crash after bundle commit")
+        self.memory.append_lifecycle_events=commit_then_crash
+        with self.assertRaises(RuntimeError): self.ingest()
+        self.memory.append_lifecycle_events=original
+        self.memory.close()
+        self.memory=ZPCMMemory(Path(self.tmp.name)/"zpcm.db")
+        restored=PersistentLifecycleLedger(self.memory,scope="csg-gcr/project")
+        self.assertEqual(len(restored.snapshot()["candidates"]),1)
+        self.assertEqual(len(restored.snapshot()["evidence"]),1)
+        self.assertEqual(len(self.memory.replay_lifecycle_events(scope="csg-gcr/project")),2)
+        self.assertNotIn("SECRET_TARGET",str(self.memory.replay_lifecycle_events(scope="csg-gcr/project")))
+    def test_zpcm_batch_rolls_back_if_second_event_insert_fails(self):
+        original=self.memory._append
+        calls={"count":0}
+        def fail_second(event_id,event_type,scope,payload):
+            calls["count"]+=1
+            if calls["count"]==2:
+                raise ZPCMError("simulated second insert failure")
+            return original(event_id,event_type,scope,payload)
+        self.memory._append=fail_second
+        with self.assertRaises(ZPCMError):
+            self.memory.append_lifecycle_events(
+                events=[{"event_id":"batch-e1","payload":{"kind":"one"}},
+                        {"event_id":"batch-e2","payload":{"kind":"two"}}],
+                scope="atomic-test",expected_sequence=0,
+            )
+        self.memory._append=original
+        self.assertEqual(self.memory.replay_lifecycle_events(scope="atomic-test"),[])
     def test_partial_bundle_replay_is_rejected(self):
         from prototype.e12a6_zpcm_persistence import _safe_evidence, _evidence_to_dict, EVENT_SCHEMA
         safe=_safe_evidence(resolve_for_test(self.e09,self.ref))
