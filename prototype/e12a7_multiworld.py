@@ -44,16 +44,19 @@ class SyntheticWorld:
 
     def sample(self, *, intervention: bool, x: int, context: int,
                time: int) -> Observation:
-        latent = (x + context) % 3
+        latent = (x + context + time) % 3
+        observed_x = x if intervention else latent
         if self.mechanism == "direct":
-            y = x if intervention else x
+            y = observed_x
+            x = observed_x
         elif self.mechanism == "inverse":
             y = (-x) % 3
         elif self.mechanism == "context_gate":
             y = x if context == 1 else 0
         elif self.mechanism == "confounded":
-            # Observationally mimics direct influence; intervention breaks it.
-            y = 0 if intervention else x
+            # A hidden common cause drives both observed X and Y. Under do(X),
+            # X is assigned independently while the latent cause still drives Y.
+            y = latent
         elif self.mechanism == "delayed_switch":
             y = x if time < self.switch_time else (-x) % 3
         elif self.mechanism == "null":
@@ -109,7 +112,7 @@ def predict(mechanism: str, row: Observation) -> int:
     if mechanism == "context_gate":
         return x if c == 1 else 0
     if mechanism == "confounded":
-        return 0 if row.intervention else x
+        return (x + c + t) % 3 if row.intervention else x
     if mechanism == "delayed_switch":
         return x if t < 2 else (-x) % 3
     if mechanism == "null":
@@ -175,7 +178,7 @@ def run_benchmark() -> dict:
         "mechanism_class": list(MECHANISMS),
         "identifications": identifications,
         "transfer_cases": pairs,
-        "surface_tag_collision_count": len({
+        "surface_tag_vocabulary_size": len({
             row.surface_tag for rows in full.values() for row in rows
         }),
         "limitations": [
