@@ -5,6 +5,8 @@ Status: first adapter slice; draft integration PR stacked on the CPG-EI v1 contr
 
 ## Scope
 
+The adapter branch carries the unchanged A20-0 exact solver, A20-1 BP implementation, their original focused tests, and the deterministic calibration runner from the E12-A20 research line. This keeps the adapter executable without importing the research branch's unrelated history.
+
 `prototype/e12a20_interop_adapter.py` maps the existing E12-A20 exact finite-domain solver and synchronous sum-product BP engine into the shared `prototype.cpg_interop.InferenceResult` contract.
 
 The adapter does not copy either inference engine and does not alter the native E12-A20 APIs.
