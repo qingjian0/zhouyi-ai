@@ -53,11 +53,11 @@ class CapabilityReport:
                 raise ValueError(f"{field} must be non-empty text")
         if not isinstance(self.namespaces, tuple):
             raise ValueError("namespaces must be a tuple")
-        if len(set(self.namespaces)) != len(self.namespaces):
-            raise ValueError("namespaces must not contain duplicates")
         if any(not isinstance(item, str) or item not in _ALLOWED_NAMESPACES
                for item in self.namespaces):
             raise ValueError("namespaces contains an unsupported namespace")
+        if len(set(self.namespaces)) != len(self.namespaces):
+            raise ValueError("namespaces must not contain duplicates")
         for field in (
             "seccomp_enforcing", "lsm_enforcing", "non_root_identity",
             "read_only_root", "network_isolated", "resource_limits_enforced",
@@ -93,11 +93,11 @@ class LinuxSandboxProfile:
     def __post_init__(self) -> None:
         if not isinstance(self.required_namespaces, tuple):
             raise ValueError("required_namespaces must be a tuple")
-        if len(set(self.required_namespaces)) != len(self.required_namespaces):
-            raise ValueError("required_namespaces must not contain duplicates")
         if any(not isinstance(item, str) or item not in _ALLOWED_NAMESPACES
                for item in self.required_namespaces):
             raise ValueError("required_namespaces contains an unsupported namespace")
+        if len(set(self.required_namespaces)) != len(self.required_namespaces):
+            raise ValueError("required_namespaces must not contain duplicates")
         for field in (
             "require_cgroup_v2", "require_seccomp", "require_lsm",
             "require_non_root", "require_read_only_root",
