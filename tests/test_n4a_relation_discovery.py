@@ -78,6 +78,37 @@ class N4ARelationDiscoveryTests(unittest.TestCase):
         ]
         self.assertEqual(len(target), 1)
 
+    def test_unrelated_outside_edges_do_not_change_local_motif_signature(self):
+        base = make_case("base", "train", True)
+        changed = make_case("changed", "train", True, rename="z-")
+        changed_edges = (
+            Edge("z-n1", "z-n2", "influence"),
+            Edge("z-n2", "z-n3", "transforms"),
+            Edge("z-n4", "z-n3", "different-context"),
+        )
+        changed = RelationalCase(
+            changed.case_id, changed.domain, changed.scope,
+            changed.partition, changed.outcome, changed.nodes, changed_edges,
+        )
+        cases = [
+            base, changed, make_case("train3", "train", True),
+            make_case("valid1", "validation", True),
+            make_case("valid2", "validation", True, rename="v-"),
+            make_case("negative1", "validation", False),
+            make_case("negative2", "validation", False, rename="n-"),
+        ]
+        result = discover_relations(
+            cases, min_train_support=3, min_validation_support=2,
+            min_validation_lift=0.1, max_nodes=3,
+        )
+        target = [
+            c for c in result.candidates if c.role_count == 3
+            and {role[0] for role in __import__("json").loads(c.signature)["roles"]}
+            == {"initiator", "mediator", "receiver"}
+        ]
+        self.assertEqual(len(target), 1)
+        self.assertEqual(len(target[0].support_case_ids), 3)
+
     def test_counterexamples_are_retained(self):
         cases = balanced_dataset()
         cases.append(make_case("train-false-motif", "train", True))
