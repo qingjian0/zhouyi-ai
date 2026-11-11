@@ -1,6 +1,7 @@
 import unittest
 
-from orchestrator.agents.experiment_statistics import (\n    SeedMetric, compare_paired, holm_bonferroni, paired_sign_flip_test,\n)
+from orchestrator.agents.experiment_statistics import SeedMetric, compare_paired
+from orchestrator.agents.experiment_inference import holm_bonferroni, paired_sign_flip_test
 
 
 class PairedStatisticsTests(unittest.TestCase):
@@ -54,8 +55,6 @@ class PairedStatisticsTests(unittest.TestCase):
             compare_paired("score", [SeedMetric(1, 1), SeedMetric(2, 2)],
                            [SeedMetric(1, 2), SeedMetric(2, 3)], bootstrap_samples=10)
 
-
-
     def test_exact_sign_flip_test(self):
         result = paired_sign_flip_test([1.0, 1.0, 1.0])
         self.assertEqual(result.method, "exact_sign_flip")
@@ -81,5 +80,7 @@ class PairedStatisticsTests(unittest.TestCase):
             holm_bonferroni({"bad": 1.2})
         with self.assertRaisesRegex(ValueError, "non-empty"):
             holm_bonferroni({})
-\nif __name__ == "__main__":
+
+
+if __name__ == "__main__":
     unittest.main()
