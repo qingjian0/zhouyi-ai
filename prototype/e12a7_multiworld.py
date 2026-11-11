@@ -46,9 +46,9 @@ class SyntheticWorld:
                time: int) -> Observation:
         latent = (x + context + time) % 3
         observed_x = x if intervention else latent
+        x = observed_x
         if self.mechanism == "direct":
-            y = observed_x
-            x = observed_x
+            y = x
         elif self.mechanism == "inverse":
             y = (-x) % 3
         elif self.mechanism == "context_gate":
