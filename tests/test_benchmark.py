@@ -45,7 +45,6 @@ class SerialParallelBenchmarkTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(report["equivalent"])
         self.assertFalse(report["all_succeeded"])
         self.assertEqual(report["interpretation"], "task_failures_present")
-
-
+,    async def test_mutating_handler_does_not_contaminate_repetitions(self):,        async def handler(payload):,            payload["nested"]["value"] += 1,            return payload["nested"]["value"],,        tasks = [TaskSpec("t0", "mutate", payload={"nested": {"value": 0}})],        report = await run_serial_parallel_benchmark(,            tasks, {"mutate": handler}, parallelism=2, repeats=3,        ),        self.assertTrue(report["equivalent"]),        self.assertTrue(report["all_succeeded"]),        self.assertEqual(tasks[0].payload["nested"]["value"], 0),        self.assertEqual(,            [run["outputs"]["t0"]["result"] for run in report["serial"]["runs"]],,            [1, 1, 1],,        ),
 if __name__ == "__main__":
     unittest.main()
