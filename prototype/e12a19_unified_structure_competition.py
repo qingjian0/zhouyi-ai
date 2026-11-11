@@ -173,7 +173,7 @@ def _candidate(family: str, payload: tuple) -> Candidate:
     return Candidate(family, key, payload)
 
 
-def _path_signatures(row: Example, max_length: int):
+def _path_signatures(row: Example, max_length: int, max_signatures: int | None = None):
     nodes = {n.node_id: n for n in row.nodes}
     outgoing = {}
     for edge in row.edges:
@@ -183,6 +183,8 @@ def _path_signatures(row: Example, max_length: int):
     def walk(node_id, path, visited):
         if path:
             found.add(path)
+            if max_signatures is not None and len(found) > max_signatures:
+                raise ValueError("feature signature budget exhausted during path extraction")
         if len(path) >= max_length:
             return
         for edge in sorted(outgoing.get(node_id, ())):
@@ -197,7 +199,7 @@ def _path_signatures(row: Example, max_length: int):
     return found
 
 
-def _fork_join_signatures(row: Example):
+def _fork_join_signatures(row: Example, max_signatures: int | None = None):
     types = {n.node_id: n.node_type for n in row.nodes}
     found = set()
     for center in row.nodes:
@@ -209,6 +211,8 @@ def _fork_join_signatures(row: Example):
             for i in range(len(arms)):
                 for j in range(i + 1, len(arms)):
                     found.add((shape, center.node_type, (arms[i], arms[j])))
+                    if max_signatures is not None and len(found) > max_signatures:
+                        raise ValueError("feature signature budget exhausted during fork/join extraction")
     return found
 
 
@@ -224,11 +228,16 @@ def _build_feature_index(rows: tuple[Example, ...], budget: Budget):
     index = {}
     signature_count = 0
     for row in rows:
-        paths = frozenset(_path_signatures(row, budget.max_path_length))
-        forks = frozenset(_fork_join_signatures(row))
-        signature_count += len(paths) + len(forks) + len(row.atoms)
-        if signature_count > budget.max_feature_signatures:
-            raise ValueError("feature signature budget exhausted before candidate search")
+        atom_count = len(row.atoms)
+        remaining = budget.max_feature_signatures - signature_count - atom_count
+        if remaining < 0:
+            raise ValueError("feature signature budget exhausted before graph extraction")
+        paths = frozenset(_path_signatures(row, budget.max_path_length, remaining))
+        remaining -= len(paths)
+        if remaining < 0:
+            raise ValueError("feature signature budget exhausted before fork/join extraction")
+        forks = frozenset(_fork_join_signatures(row, remaining))
+        signature_count += atom_count + len(paths) + len(forks)
         index[row.observation_id] = _FeatureRow(frozenset(row.atoms), paths, forks)
     return index, signature_count
 
