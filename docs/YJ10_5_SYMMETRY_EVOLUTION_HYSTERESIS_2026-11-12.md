@@ -27,6 +27,8 @@ For each group change, count consecutive snapshots in which the target group rem
 - Context, attributes, validity interval, and domain are environmental conditions. A change emits a boundary event.
 - Each exact group is checked for identity, inverse closure, and composition closure under a hard operation budget. Persistence is represented by the absence of a change event, not a separate emitted event.
 - Multiple observations in one lineage at the same step fail closed.
+- Step, domain, and global snapshot context are preserved per evidence ID; metadata is not borrowed from the final observation in a batch.
+- Unchanged groups are treated as persistence and do not emit a separate event.
 
 ## Limits
 
@@ -38,6 +40,3 @@ For each group change, count consecutive snapshots in which the target group rem
 ## Tests
 
 Persistent symmetry break, transient candidate, expansion, incomparable-group reconfiguration, context/domain boundaries, persistence, non-contiguous step values, duplicate steps/evidence, invalid group, and threshold validation.
-
-
-Validation branch note: this copy is used only for repository CI and must not be merged.
