@@ -34,7 +34,7 @@ Actions are bounded to:
 
 Passive measurements cost 1.0; interventions cost 2.0. These are explicit synthetic benchmark costs, not measured real-world costs.
 
-The hypothesis family is inherited from E12-A7: direct, inverse, context_gate, confounded, delayed_switch, and null. The selector uses the existing E12-A7 prediction function to construct candidate likelihoods. A symmetric ternary noise channel is configurable; missing outcomes are treated as censored evidence and do not update the posterior.
+The hypothesis family is inherited from E12-A7: direct, inverse, context_gate, confounded, delayed_switch, and null. The selector reuses the existing E12-A2 EIG and Bayesian-update implementation. E12-A7 predictions construct the action likelihoods. A seeded symmetric ternary measurement-noise channel is applied after the action is committed; its assumed probability is also used by the learner. Missing outcomes are treated as censored evidence and do not update the posterior.
 
 ## Key identifiability property
 
@@ -49,7 +49,7 @@ Compare:
 - random: seeded random choice among affordable actions;
 - fixed: deterministic action-ID order.
 
-All policies receive the same action set, world families, seeds, cost schedule, and total budget. Report:
+All policies receive the same action set, world families, seed list, cost schedule, stochastic measurement-noise rate, and total budget. The synthetic world mechanism itself remains fixed; seeds vary the measurement channel and the random baseline policy, not the underlying world family. Report:
 - exact mechanism identification accuracy;
 - high-confidence error rate;
 - mean measurement cost;
@@ -76,7 +76,7 @@ Do not claim active selection wins without executed multi-seed results and uncer
 - Finite known mechanism class; the learner cannot invent a new mechanism family.
 - The action space is enumerated in advance.
 - The generator and evaluator share a process. The separation is a protocol boundary, not a security sandbox.
-- The symmetric ternary noise likelihood is assumed rather than learned.
+- The symmetric ternary measurement-noise likelihood is assumed rather than learned; the injected measurement noise is seeded and matched to that likelihood.
 - The active policy is myopic one-step EIG/cost, not a long-horizon planner.
 - World-family observations are synthetic and small.
 - No Yijing, Taixuan, or Yinfu prior is included in this slice.
