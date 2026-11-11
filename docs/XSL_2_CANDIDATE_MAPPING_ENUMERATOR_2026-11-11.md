@@ -29,6 +29,10 @@ Candidates are ordered lexicographically by:
 
 This is retrieval order only, not a probability or truth score. Consumers inspect status, coverage, preservation rate, unmapped relations, violations and search completeness separately. A candidate with more preserved relations may also contain contradictions.
 
+Two truncation signals are separate:
+- search_complete=false means the recursive state budget stopped exploration; optimality and absence claims are invalid.
+- results_truncated=true means search completed, but more candidates existed than max_candidates and only the ordered prefix is returned. candidate_count reports the full discovered count.
+
 ## Limits
 
 - Type and relation correspondences are supplied explicitly; XSL-2 does not invent semantic equivalence.
@@ -40,7 +44,7 @@ This is retrieval order only, not a probability or truth score. Consumers inspec
 
 ## Tests
 
-Tests cover two competing valid mappings, deterministic output, explicit budget exhaustion, strict integer budget validation and injective type-map validation.
+Tests cover two competing valid mappings, deterministic output, explicit search-budget exhaustion, distinct result-cap truncation, strict integer budget validation and injective type-map validation.
 
 ## Next research gates
 
