@@ -48,6 +48,8 @@
 - [E12-A8 Evaluator Firewall 原型](prototype/e12a8_evaluator_firewall.py)
 - [E12-A8 Learner 子进程入口](prototype/e12a8_learner_worker.py)
 - [E12-A8 非干扰与提交完整性测试](tests/test_e12a8_evaluator_firewall.py)
+- [E12-A8 × E02-D 进程隔离实验 runner](prototype/e12a8_e02d_runner.py)
+- [E12-A8 × E02-D 集成测试](tests/test_e12a8_e02d_runner.py)
 - [E12-A0 可辨识性基线协议](docs/E12A0_IDENTIFIABILITY_BASELINE.md)
 - [E12-A1 类型化谓词生成基线](docs/E12A1_TYPED_PREDICATE_INDUCTION.md)
 - [E12-A2 主动观测选择研究协议](docs/E12A2_ACTIVE_MEASUREMENT_SELECTION.md)
