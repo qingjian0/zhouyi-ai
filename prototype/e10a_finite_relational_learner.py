@@ -252,9 +252,8 @@ class FiniteRelationalVersionSpace:
                 "ABSTAIN_OOD_SCHEMA", None, None, None
             )
         elif any(
-            key not in attrs for key in support_feature_keys
+            not (set(attrs) & support_feature_keys)
             for attrs in participant_attributes
-            if key in {rule.feature_key for rule in candidates}
         ):
             status, prediction, confidence, agreement = (
                 "ABSTAIN_OOD_SCHEMA", None, None, None
