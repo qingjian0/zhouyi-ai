@@ -61,7 +61,14 @@ def infer_structural_roles(
         incoming[relation.target].append((relation.relation_type, relation.source))
 
     colors = {node_id: _digest(("entity", node.entity_type)) for node_id, node in nodes.items()}
+    def partition_signature(values):
+        groups: dict[str, list[str]] = defaultdict(list)
+        for entity_id, color in values.items():
+            groups[color].append(entity_id)
+        return tuple(sorted(tuple(sorted(group)) for group in groups.values()))
+
     stabilized = False
+    previous_partition = partition_signature(colors)
     rounds_done = 0
     for round_index in range(max_rounds):
         next_colors = {}
@@ -80,10 +87,10 @@ def infer_structural_roles(
             )
             next_colors[node_id] = _digest(signature)
         rounds_done = round_index + 1
-        if next_colors == colors:
+        next_partition = partition_signature(next_colors)
+        if next_partition == previous_partition:
             stabilized = True
-            colors = next_colors
-            break
+        previous_partition = next_partition
         colors = next_colors
 
     assignments = tuple(sorted(
