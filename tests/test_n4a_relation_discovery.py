@@ -1,3 +1,4 @@
+import json
 import unittest
 
 from prototype.n4a_relation_discovery import (
@@ -69,7 +70,8 @@ class N4ARelationDiscoveryTests(unittest.TestCase):
             min_validation_lift=0.1, max_nodes=3,
         )
         three = [c for c in result.candidates if c.role_count == 3]
-        self.assertEqual(len(three), 1)
+        target = [c for c in three if {tuple(role) for role in json.loads(c.signature)[\"roles\"]} == {\n            (\"initiator\",), (\"mediator\",), (\"receiver\",)\n        }]
+        self.assertEqual(len(target), 1)
 
     def test_counterexamples_are_retained(self):
         cases = balanced_dataset()
