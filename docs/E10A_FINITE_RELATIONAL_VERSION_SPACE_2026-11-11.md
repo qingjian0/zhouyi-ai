@@ -107,3 +107,41 @@ This prevents a dangerous failure mode in which every known rule fails to match 
 7. Deterministic removal of 50% and 100% of positive Support evidence per relation, retaining negative Support examples.
 
 The oracle is evaluator-only and is reported solely as an upper bound. OOD abstention is a safe rejection behavior, not successful extrapolation. The current stage does not yet establish semantic analogy, relation-family transfer, or open-world concept induction. Positive-support ablation tests whether evidence reduction increases ambiguity or failure; hard-negative slices expose which violation types remain difficult. These are diagnostic stress tests, not population estimates. CI runs this audit and its unit tests.
+
+
+## E10-B.2: multi-seed positive-evidence ablation curve
+
+`prototype/e10b_ablation_curve.py` retains a deterministic random subset of positive Support observations independently for each seed and relation, while retaining every negative Support row. The same object-disjoint Query split is scored at each retention fraction. The CI configuration uses seeds 200–204, six instances per template, and positive-evidence retention fractions 100%, 75%, 50%, 25%, and 0%.
+
+Full repository workflow Run #42946954671 passed on commit `61bab220a92faef908a0a58dd638dd5c5ab3946e`. The five seeds produced identical aggregate values in this generator configuration:
+
+| Positive Support retained | Mean coverage | Mean selective accuracy | Mean strict accuracy | Mean abstention | Mean version-space size | Mean prediction rule checks |
+|---:|---:|---:|---:|---:|---:|---:|
+| 100% (12 rows) | 0.4444 | 1.0000 | 0.4444 | 0.5556 | 2 | 54 |
+| 75% (8 rows) | 0.4444 | 1.0000 | 0.4444 | 0.5556 | 2 | 54 |
+| 50% (6 rows) | 0.4444 | 1.0000 | 0.4444 | 0.5556 | 2 | 54 |
+| 25% (2 rows) | 0.4444 | 1.0000 | 0.4444 | 0.5556 | 2 | 54 |
+| 0% (0 rows) | 0.2222 | 1.0000 | 0.2222 | 0.7778 | 49 | 1,272 |
+
+The candidate-generation count remained 56 at every fraction. The standard deviation across the five seeds was zero for the listed aggregate metrics in this particular generator setup.
+
+**Interpretation:** one retained positive example per relation (25% overall) was sufficient to preserve the same version-space size and prediction coverage as full positive evidence. Removing all positive Support examples expanded the aggregate version space from 2 to 49 and halved coverage, while the predictions that remained covered were still correct. This is evidence that the current synthetic task is highly identifiable from very little positive evidence—not evidence of robust learning under broad evidence scarcity. The flat curve from 100% through 25% also shows that this ablation schedule does not yet probe a gradual degradation regime. Future stress tests should vary the latent rule family, introduce correlated nuisance features, and control which *types* of positive evidence are removed, not only their count.
+
+The strict metric counts abstentions as incorrect; selective accuracy is conditioned on coverage. These metrics must be read together. The reported 100% selective accuracy at 0% positive evidence does not mean the learner solves the task: coverage is only 22.22%.
+
+## E10-B.3: opaque relation zero-shot identifiability boundary
+
+`prototype/e10b_relation_ood_identifiability.py` constructs two evaluator worlds with byte-identical learner-visible Support and Query payloads but opposite hidden labels for an unseen relation symbol. The learner receives Support for one relation and Query for a second relation, with no shared examples or public relation-family descriptor.
+
+Full repository workflow Run #42947215049 passed on commit `305b03e9c131d15013b60fe3124b63d2c0c5be73`. On seed 2701, the seen relation supplied 16 Support observations and the unseen relation had 20 Query observations. Both evaluator worlds had the same visible-payload SHA-256 digest; all 20 hidden labels were inverted between worlds. The current learner correctly returned `ABSTAIN_OOD_RELATION` for all 20 observations.
+
+This is an identifiability boundary, not a model-performance benchmark: a forced binary predictor must have mean accuracy 50% across the two equally weighted, observationally indistinguishable worlds. Abstention avoids unsupported predictions but has zero coverage on this held-out relation. Zero-shot transfer for opaque relation symbols is impossible to justify from these inputs alone. A meaningful next experiment must expose a *public, non-label-bearing relation descriptor* or shared examples, then test whether that information actually supports transfer and whether descriptor collisions cause false transfer.
+
+## E10-B findings and next research gate
+
+1. The current finite DSL solves the matched object-disjoint task with very little positive evidence; increase structural diversity and adversarial nuisance variation before claiming evidence-efficient learning.
+2. Unknown relation symbols are not a learnable zero-shot transfer problem without additional observable structure. The current fail-closed abstention is the correct behavior under the present input contract.
+3. The next useful experiment is descriptor-conditioned relation-family transfer: provide an explicit public relation signature (e.g. arity and declared role/attribute schema), hold out an entire relation family, and compare descriptor-aware transfer against opaque-symbol abstention, majority, random, and evaluator-only oracle controls. Include descriptor collision and misleading-descriptor controls.
+4. Keep symbolic structure discovery separate from its encoding. Only after a descriptor-based baseline exists should E10-C test whether multiple local relations can compose into higher-order structures, and E10-D test whether those structures can be revised under changing conditions and contradictory evidence.
+
+All results remain limited to the synthetic generator and declared finite DSL. They do not establish semantic analogy, open-world operator invention, or superiority over neural or program-synthesis baselines.
