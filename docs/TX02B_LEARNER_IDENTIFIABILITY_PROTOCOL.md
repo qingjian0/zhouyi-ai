@@ -159,3 +159,34 @@ python -m unittest tests.test_tx02_identifiability -v
 - 测试覆盖规则集合互斥、标签/隐藏元数据隔离、固定 seed 可复现、K=2..5 三个 split 非空和非法参数拒绝。
 
 **边界：** 当前 held-out 是 TX-02A 仿射系数三元组的组合留出，不是规则函数族外泛化；同一系数在不同映射下仍属于同一规则组。该协议也尚未自动按单位/非单位系数、退化关系分层汇总。当前实现建立数据边界，不是 learner，也没有性能结果。
+
+
+## 11. TX-02B-3 首个可训练基线：support-set MLP
+
+新增 `prototype/tx02_learners.py` 与 `tests/test_tx02_learners.py`。
+
+### 模型结构
+
+- 输入是单个 support 三元组 `(s_a,s_b,s_c)`、query `(q_a,q_b)` 和一个候选符号 `c*`。
+- 六个符号分别经同一表示表编码，拼接后进入共享两层打分器（一个 tanh 隐层 + 标量输出）。
+- 对一个候选，跨全部 support 行的分数取均值；再对候选行做 softmax。
+- support 行均值池化使模型对 support 行顺序不敏感；候选顺序仅决定输出索引，不参与候选身份编码。
+- 交叉熵梯度更新 MLP。`LEARNED` 模式还会更新符号 embedding 表；BINARY / TERNARY / HYBRID / ONE_HOT / PERMUTED 使用固定 codebook。
+- `predict()` 只接收 `LearnerInput`，不接收 episode targets 或隐藏元数据。
+
+### 当前实验边界
+
+- 这是第一个可训练神经基线，不是已调优模型，也没有性能优势结论。
+- 当前实现是纯 Python 小型 MLP，适合验证接口、梯度链路与低 K 原型，不适合宣称大规模训练效率。
+- `fit()` 当前按 query 顺序执行 SGD；epoch 数是训练预算的一部分。正式对照还需加入显式更新步数/时间预算、批量训练和多种子统计。
+- 各编码维度不同，当前同 hidden size 不等于参数量匹配；后续实验必须同时报告参数量并构造 parameter-matched / compute-matched 对照。
+- `LEARNED` 与固定编码的差异同时包含可训练 embedding 的自由度；要单独归因 embedding 学习效果，必须增加同维度固定随机 embedding 对照。
+- 规则族 holdout 只覆盖 TX-02A 仿射系数三元组，不能称为任意规则 OOD。
+
+### 运行
+
+```bash
+python -m unittest tests.test_tx02_learners -v
+```
+
+**当前状态：** TX-02B-3 已有统一的最小预测接口和首个可训练 support-set learner；仍需完成端到端训练曲线、support 难度扫描、预算匹配和 locked-test 实验。
