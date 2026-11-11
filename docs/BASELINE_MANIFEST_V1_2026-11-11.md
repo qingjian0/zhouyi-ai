@@ -113,3 +113,13 @@ This stack remains layered: #221 -> #218 -> #217 -> #208. No PR in this chain ha
 ## PR #221 exact-head validation result
 
 PR #221 head `7e65c22f7a3a01782d59306ada3401899134392e` completed workflow run `43031651288` with conclusion `success`. The run includes the full repository unit-test and E01/E02 evaluation sequence. This validates that exact PR head only; it does not imply the PR stack has been merged or that E09/E12-A6/ZPCM end-to-end integration is complete.
+
+
+## P1 typed branch-delta bridge update
+
+| PR | Head | Base | Status |
+|---|---|---|---|
+| [#221](https://github.com/qingjian0/zhouyi-ai/pull/221) | `7e65c22f7a3a01782d59306ada3401899134392e` | #218 head `e433361` | Draft; exact-head workflow `43031651288` success |
+| [#222](https://github.com/qingjian0/zhouyi-ai/pull/222) | `38c5aeae0a7f980cbf377235ffd338a8c3559344` | #221 head `7e65c22` | Draft; exact-head CI pending |
+
+PR #222 connects branch snapshots to typed CSG-GCR candidate results. Cross-branch composition requires a scoped BranchMergeAuthorization receipt expected from E09; the adapter validates declared scope but does not authenticate the issuer. Accepted candidates carry the structural MergeResult and authorization reference. Candidate lifecycle and durable event persistence remain unimplemented in this adapter.
