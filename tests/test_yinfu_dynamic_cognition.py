@@ -129,7 +129,7 @@ class YinfuDynamicCognitionTests(unittest.TestCase):
         )[0]
         gate_rows = [{"a": float(i % 2), "b": float((i // 2) % 2)}
                      for i in range(4)]
-        gate_labels = [0, 0, 0, 1]
+        gate_labels = [0, 1, 1, 0]
         rejected = validate_compositional_relations(
             [candidate], gate_rows, gate_labels,
             min_gate_accuracy=0.99, min_class_support=2
