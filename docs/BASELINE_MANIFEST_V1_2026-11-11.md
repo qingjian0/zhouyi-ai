@@ -162,3 +162,15 @@ The validated boundary is a trusted single-process SQLite reference implementati
 PR #227 recomputes the E09 event-envelope fingerprint for observation, prediction commit, and reveal before projection. It requires the evaluator reveal role, strict v0.3, exact scope/track/query/split linkage, sequence ordering, semantic commit digest, durable commit-envelope digest, and causation reference. E09 SUPPORT maps explicitly to E12-A6 TRAIN; GATE_DEV/GATE_FINAL/LOCKED_TEST remain separate. World family is caller-supplied rather than inferred.
 
 This closes the evidence-reference verification slice only. It does not authenticate the E09 database operator, validate BranchMergeAuthorization issuer credentials, or yet provide one atomic ingestion operation combining a typed CSG-GCR candidate with all its E09-verified evidence.
+
+
+## P1 atomic CSG-GCR ingestion validation
+
+| PR | Exact head | Base | Exact-head workflow | Status |
+|---|---|---|---|---|
+| [#227](https://github.com/qingjian0/zhouyi-ai/pull/227) | `6a4b0dce8dd1255daaa613a2649796a07e37de85` | #226 head `f4406ab9e9a8eb89329d767bfe5e11cef10964ee` | `43038677702` success | Draft; E09 reveal chain verification and redacted E12 evidence DTO |
+| [#228](https://github.com/qingjian0/zhouyi-ai/pull/228) | `d68819c34275a6b69482b28a33dbeeaec8c7659e` | #227 head `6a4b0dce8dd1255daaa613a2649796a07e37de85` | `43039470802` success | Draft; atomic typed CSG-GCR candidate + verified E09 evidence ingestion |
+
+PR #228 adds a ZPCM all-new/all-replayed batch append contract and stages the candidate plus verified evidence on an E12-A6 ledger copy. It commits the full event bundle in one SQLite transaction, then swaps the staged ledger. Tests include second-insert rollback and crash-after-batch-commit replay. Cross-branch candidates are explicitly rejected until E09 authorization issuer verification exists.
+
+The P1 runtime now has a tested single-branch path from typed CSG-GCR proposal evidence references through E09 strict reveal verification, E12-A6 candidate/evidence registration, and ZPCM atomic persistence/replay. This remains a trusted single-process reference path; it is not a production multi-process or distributed transaction system. All PRs remain Draft and unmerged.
