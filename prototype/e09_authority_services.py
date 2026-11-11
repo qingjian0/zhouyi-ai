@@ -184,7 +184,6 @@ class E09AuthorityService:
         credential: object,
         *,
         episode_id: str,
-        authorization_id: str,
         scope: str,
         parent_state_ref: str,
         branch_ids: tuple[str, ...] | list[str],
