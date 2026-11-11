@@ -41,7 +41,7 @@ class E13BayesianEIGTests(unittest.TestCase):
                   for candidate in candidates),
             (((("x", "s"),), Fraction(1)),),
             (("mode", "fixed"),), "initial", initial_obs, "e0"
-        )
+        ).belief
 
     def test_perfectly_discriminating_query_has_one_bit_eig(self):
         left = BayesianObservationCandidate(
