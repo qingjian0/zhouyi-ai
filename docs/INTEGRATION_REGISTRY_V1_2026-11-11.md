@@ -145,3 +145,15 @@ Cross-branch candidate ingestion is intentionally blocked until E09 can authenti
 PR #229 proves the tested single-branch path can move a CSG-GCR candidate through E12-A6 lifecycle actions using split-appropriate E09 evidence and recover the exact final state/action history after reopening ZPCM. GATE_DEV cannot satisfy GATE_FINAL. Invalid transitions produce no persisted lifecycle action.
 
 This closes the current single-process reference integration path for one candidate lifecycle. It does not establish multi-process isolation, distributed transactionality, authenticated cross-branch authorization, or scientific validity of the induced relation.
+
+
+## 10. End-to-end lifecycle and authenticated cross-branch authorization
+
+| PR | Integration scope | Exact-head CI | Status |
+|---|---|---|---|
+| [#229](https://github.com/qingjian0/zhouyi-ai/pull/229) | Full typed CSG-GCR → E09 reveal verification → E12-A6 transitions → ZPCM restart/replay | `43040339295` success at `561ecc4e` | Draft integration test |
+| [#230](https://github.com/qingjian0/zhouyi-ai/pull/230) | E09 signed branch-merge grants; reject unsigned scope receipts; require verified grant in typed coordination and persistent ingestion | `43050136136` success at `541ba18d` | Draft security integration slice |
+
+PR #230 adds strict E09 v0.3 branch_merge_authorization events. It binds the authorization to episode/event identity, exact scope, parent state, branch set, evidence refs, validity interval and a signature checked by an injected trusted issuer-keyring verifier. Every evidence reference must resolve to a prior strict E09 reveal chain. The typed coordinator rejects plain unverified BranchMergeAuthorization values.
+
+The cryptographic trust root is intentionally injected; the repository does not ship a default keyring, private key or fake production verifier. A test callback only proves interface wiring. Production still needs a concrete public-key verifier, issuer key rotation/revocation, evaluator process isolation, authenticated IPC and remote tamper-evident replication.
