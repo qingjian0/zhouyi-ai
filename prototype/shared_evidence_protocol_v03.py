@@ -679,6 +679,7 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                 predictions[pid] = {
                     "event_id": event_id, "sequence_no": sequence, "observation_id": oid,
                     "learner_track": payload.get("learner_track", "legacy"),
+                    "model_version": payload.get("model_version"),
                     "decision_status": payload.get("decision_status"),
                 }
             elif event_type == "evidence_reveal":
@@ -698,6 +699,8 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                 }
                 definition = payload.get("evidence_definition")
                 if definition is not None:
+                    if definition.get("model_version") != prediction.get("model_version"):
+                        raise ProtocolError("typed evidence model_version must match its prediction commit")
                     commit_step = prediction["sequence_no"]
                     evidence_objects[event_id] = _evidence_from_definition(
                         evidence_id=event_id, episode_id=episode_id,
