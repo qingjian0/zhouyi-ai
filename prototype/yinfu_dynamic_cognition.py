@@ -428,7 +428,7 @@ def _validate_binary_rows(
 ) -> tuple[str, ...]:
     if not rows or len(rows) != len(labels):
         raise ValueError("rows and labels must be non-empty and equally sized")
-    if any(y not in (0, 1) for y in labels) or len(set(labels)) != 2:
+    if any(isinstance(y, bool) or y not in (0, 1) for y in labels) or len(set(labels)) != 2:
         raise ValueError("labels must contain both binary classes")
     keys = tuple(sorted(rows[0]))
     if not keys:
@@ -535,10 +535,13 @@ def validate_compositional_relations(
     *,
     min_gate_accuracy: float = 0.75,
     min_class_support: int = 5,
+    max_gate_candidates: int = 32,
 ) -> tuple[RelationGateResult, ...]:
-    """Independently gate Support-selected candidates on untouched Gate episodes."""
-    if not 0.5 <= min_gate_accuracy <= 1.0 or min_class_support < 1:
+    """Gate a bounded, Support-ranked shortlist; final promotion still needs Locked-Test."""
+    if (not 0.5 <= min_gate_accuracy <= 1.0 or min_class_support < 1
+        or max_gate_candidates < 1):
         raise ValueError("invalid Gate thresholds")
+    candidates = candidates[:max_gate_candidates]
     gate_keys = set(_validate_binary_rows(gate_rows, gate_labels))
     positive = sum(gate_labels)
     negative = len(gate_labels) - positive
