@@ -15,7 +15,7 @@ def _finite_number(value: Any, name: str) -> float:
 
 def evaluate_evidence(*, predicted_direction: str, evidence: Sequence[Mapping[str, Any]], min_seeds: int = 10) -> dict[str, Any]:
     """Evaluate supplied confidence intervals; this function does not perform inference."""
-    if predicted_direction not in {"positive", "negative"}:
+    if not isinstance(predicted_direction, str) or predicted_direction not in {"positive", "negative"}:
         raise ValueError("predicted_direction must be positive or negative")
     if isinstance(min_seeds, bool) or not isinstance(min_seeds, int) or min_seeds < 2:
         raise ValueError("min_seeds must be an integer >= 2")
@@ -29,9 +29,9 @@ def evaluate_evidence(*, predicted_direction: str, evidence: Sequence[Mapping[st
         if not isinstance(evidence_id, str) or not evidence_id.strip() or evidence_id in seen:
             raise ValueError("evidence_id values must be unique non-empty strings")
         seen.add(evidence_id)
-        if raw["split"] not in {"iid", "ood"}:
+        if not isinstance(raw["split"], str) or raw["split"] not in {"iid", "ood"}:
             raise ValueError(f"{evidence_id}: split must be iid or ood")
-        if raw["control"] not in {"none", "shuffled", "random"}:
+        if not isinstance(raw["control"], str) or raw["control"] not in {"none", "shuffled", "random"}:
             raise ValueError(f"{evidence_id}: unsupported control")
         if not isinstance(raw["valid"], bool) or not isinstance(raw["preregistered"], bool):
             raise ValueError(f"{evidence_id}: valid and preregistered must be booleans")
