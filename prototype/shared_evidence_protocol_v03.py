@@ -14,6 +14,7 @@ from datetime import datetime, timezone
 from typing import Any, Iterable, Sequence
 
 from prototype.e12a6_lifecycle_contract import Action, ActionType, Candidate, CandidateState, Evidence, LifecycleLedger, SplitRole, _TRANSITIONS
+from prototype.csl_dependency_graph import DependencyImpactPolicy, DependencyRole
 from prototype.shared_evidence_protocol import (
     EVENT_TYPES as V02_EVENT_TYPES,
     PROTOCOL_VERSION as V02_PROTOCOL_VERSION,
@@ -141,7 +142,7 @@ def _evidence_from_definition(
 
 
 PROTOCOL_VERSION = "0.3"
-EVENT_TYPES = V02_EVENT_TYPES | {"evidence_ingest", "lifecycle_action"}
+EVENT_TYPES = V02_EVENT_TYPES | {"evidence_ingest", "lifecycle_action", "dependency_added"}
 SPLIT_ROLES = {role.value for role in SplitRole}
 CHALLENGE_ROLES = {SplitRole.LOCKED_TEST.value, SplitRole.POST_DEPLOY.value}
 SUPPORT_ROLES = {SplitRole.SUPPORT.value, SplitRole.TRAIN.value, SplitRole.GATE_DEV.value, SplitRole.GATE_FINAL.value}
@@ -190,6 +191,8 @@ class EpisodeProjection:
     track_action_objects: dict[str, tuple[Action, ...]]
     actions: tuple[dict[str, Any], ...]
     revisions: dict[str, dict[str, Any]]
+    dependencies: tuple[dict[str, Any], ...]
+    dependency_revalidation_queue: tuple[dict[str, Any], ...]
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -205,6 +208,8 @@ class EpisodeProjection:
             "track_action_objects": {track: [_action_to_payload(a) for a in actions] for track, actions in sorted(self.track_action_objects.items())},
             "actions": list(self.actions),
             "revisions": {k: self.revisions[k] for k in sorted(self.revisions)},
+            "dependencies": list(self.dependencies),
+            "dependency_revalidation_queue": list(self.dependency_revalidation_queue),
         }
 
 
@@ -526,6 +531,76 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                         roles.add(split_role)
                 if not roles.intersection(required_role):
                     raise ProtocolError(f"{payload['to_state']} requires evidence role in {sorted(required_role)}")
+        elif event_type == "dependency_added":
+            required = {"dependent_version_id", "dependency_version_id", "learner_track", "role", "impact_policy", "evidence_refs"}
+            if set(payload) != required:
+                raise ProtocolError("dependency_added@1 requires exactly the declared fields")
+            dependent, dependency, track = payload["dependent_version_id"], payload["dependency_version_id"], payload["learner_track"]
+            for field, value in (("dependent_version_id", dependent), ("dependency_version_id", dependency), ("learner_track", track)):
+                if not isinstance(value, str) or not value.strip():
+                    raise ProtocolError(f"dependency_added {field} must be non-empty")
+            if dependent == dependency:
+                raise ProtocolError("dependency_added cannot create a self-dependency")
+            if payload["role"] not in {item.value for item in DependencyRole}:
+                raise ProtocolError("dependency_added has an unknown DependencyRole")
+            if payload["impact_policy"] not in {item.value for item in DependencyImpactPolicy}:
+                raise ProtocolError("dependency_added has an unknown impact policy")
+            refs = payload["evidence_refs"]
+            if not isinstance(refs, list) or len({canonical_json(x) for x in refs}) != len(refs):
+                raise ProtocolError("dependency_added evidence_refs must be a unique array")
+            for version_id in (dependent, dependency):
+                row = self._event_by_payload_id(episode_id, "structure_version", "version_id", version_id)
+                if row is None:
+                    raise MissingReference(f"dependency_added references unknown structure version: {version_id}")
+                structure = json.loads(row["payload_json"])
+                if structure.get("kind") != "candidate":
+                    raise ProtocolError("v0.3 dependency endpoints must be candidate structure versions")
+                candidate_id = structure.get("structure_id")
+                if not version_id.startswith(f"{candidate_id}@"):
+                    raise ProtocolError("dependency version identity does not match candidate structure_id")
+                try:
+                    candidate_version = int(version_id.rsplit("@", 1)[1])
+                except (IndexError, ValueError) as exc:
+                    raise ProtocolError("candidate version ID must end in @<positive integer>") from exc
+                if candidate_version < 1 or version_id != f"{candidate_id}@{candidate_version}":
+                    raise ProtocolError("invalid candidate version ID")
+                member = self._db.execute(
+                    "SELECT 1 FROM events WHERE episode_id=? AND event_type='lifecycle_action' "
+                    "AND json_extract(payload_json, '$.candidate_id')=? "
+                    "AND json_extract(payload_json, '$.candidate_version')=? "
+                    "AND json_extract(payload_json, '$.learner_track')=? LIMIT 1",
+                    (episode_id, candidate_id, candidate_version, track),
+                ).fetchone()
+                if member is None:
+                    raise MissingReference(f"candidate {version_id} has no E12 lifecycle binding in learner_track {track}")
+            for ref in refs:
+                evidence_row = self._resolve_evidence_ref(episode_id, ref)
+                if evidence_row is None:
+                    raise MissingReference(f"dependency_added references unavailable evidence: {ref}")
+                evidence_payload = json.loads(evidence_row["payload_json"])
+                evidence_track = evidence_payload.get("learner_track")
+                if evidence_track is not None and evidence_track != track:
+                    raise ProtocolError("dependency_added evidence crosses learner tracks")
+            existing_rows = self._db.execute(
+                "SELECT payload_json FROM events WHERE episode_id=? AND event_type='dependency_added'",
+                (episode_id,),
+            ).fetchall()
+            adjacency = {}
+            for existing in existing_rows:
+                old = json.loads(existing["payload_json"])
+                if (old["dependent_version_id"], old["dependency_version_id"], old["learner_track"], old["role"]) == (dependent, dependency, track, payload["role"]):
+                    raise ProtocolError("duplicate dependency edge")
+                if old["learner_track"] == track:
+                    adjacency.setdefault(old["dependent_version_id"], set()).add(old["dependency_version_id"])
+            todo, seen = [dependency], set()
+            while todo:
+                current = todo.pop()
+                if current == dependent:
+                    raise ProtocolError("dependency_added would introduce a cycle")
+                if current in seen:
+                    continue
+                seen.add(current)
+                todo.extend(adjacency.get(current, ()))
         elif event_type == "structure_version":
             required = {"structure_id", "version_id", "kind", "definition", "parent_version_ids", "support_evidence_ids"}
             if not required.issubset(payload):
@@ -720,6 +795,8 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
         structures, candidates, revisions = {}, {}, {}
         track_candidates: dict[str, dict[str, dict[str, Any]]] = {}
         actions, action_ids, event_ids = [], set(), set()
+        dependencies: list[dict[str, Any]] = []
+        invalidation_sources: list[tuple[str, str, int]] = []
         previous_sequence = 0
 
         def resolve_evidence(ref):
@@ -894,6 +971,10 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                     }.get(to_state)
                     if required_role and not any(item.get("split_role") in required_role for item in resolved):
                         raise ProtocolError(f"E12 transition lacks required evidence role: {aid}")
+                    previous_state = track_candidates[track][candidate_key]["state"]
+                    eligible_states = {CandidateState.GATE_VALIDATED.value, CandidateState.REUSED.value, CandidateState.SPECIALIZED.value}
+                    if previous_state in eligible_states and to_state not in eligible_states:
+                        invalidation_sources.append((candidate_key, track, sequence))
                     track_candidates[track][candidate_key]["state"] = to_state
                     candidates[candidate_key]["state"] = to_state
                 elif from_state is not None or to_state is not None:
@@ -908,6 +989,48 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                     "evidence_ids": [item["evidence_id"] for item in resolved],
                     "candidate_lineage_refs": list(payload.get("candidate_lineage_refs", [])),
                     "cost": payload.get("cost"), "note": payload.get("note", ""),
+                })
+            elif event_type == "dependency_added":
+                dependent, dependency, track = payload.get("dependent_version_id"), payload.get("dependency_version_id"), payload.get("learner_track")
+                if not all(isinstance(value, str) and value for value in (dependent, dependency, track)):
+                    raise ProtocolError(f"invalid dependency identity during replay: {event_id}")
+                if dependent == dependency or dependent not in candidates or dependency not in candidates:
+                    raise MissingReference(f"dependency edge has missing or identical candidate endpoint: {event_id}")
+                if track not in track_candidates or dependent not in track_candidates[track] or dependency not in track_candidates[track]:
+                    raise MissingReference(f"dependency edge lacks candidate ownership in learner_track {track}")
+                if payload.get("role") not in {item.value for item in DependencyRole}:
+                    raise ProtocolError(f"unknown dependency role during replay: {event_id}")
+                if payload.get("impact_policy") not in {item.value for item in DependencyImpactPolicy}:
+                    raise ProtocolError(f"unknown dependency impact policy during replay: {event_id}")
+                refs = payload.get("evidence_refs")
+                if not isinstance(refs, list) or len({canonical_json(x) for x in refs}) != len(refs):
+                    raise ProtocolError(f"invalid dependency evidence refs during replay: {event_id}")
+                for ref in refs:
+                    item = resolve_evidence(ref)
+                    if item is None:
+                        raise MissingReference(f"dependency edge has missing evidence ref: {event_id}")
+                    if item.get("learner_track") and item["learner_track"] != track:
+                        raise ProtocolError("dependency evidence crosses learner tracks during replay")
+                adjacency = {}
+                for old in dependencies:
+                    if (old["dependent_version_id"], old["dependency_version_id"], old["learner_track"], old["role"]) == (dependent, dependency, track, payload["role"]):
+                        raise ProtocolError("duplicate dependency edge during replay")
+                    if old["learner_track"] == track:
+                        adjacency.setdefault(old["dependent_version_id"], set()).add(old["dependency_version_id"])
+                todo, seen = [dependency], set()
+                while todo:
+                    current = todo.pop()
+                    if current == dependent:
+                        raise ProtocolError("dependency cycle during replay")
+                    if current in seen:
+                        continue
+                    seen.add(current)
+                    todo.extend(adjacency.get(current, ()))
+                dependencies.append({
+                    "event_id": event_id, "sequence_no": sequence,
+                    "dependent_version_id": dependent, "dependency_version_id": dependency,
+                    "learner_track": track, "role": payload["role"],
+                    "impact_policy": payload["impact_policy"], "evidence_refs": list(refs),
                 })
             elif event_type == "revision":
                 rid = payload.get("revision_id")
@@ -973,6 +1096,41 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                         state=CandidateState(item["state"]),
                     )
 
+        eligible_states = {CandidateState.GATE_VALIDATED.value, CandidateState.REUSED.value, CandidateState.SPECIALIZED.value}
+        reverse = {}
+        for edge in dependencies:
+            reverse.setdefault((edge["dependency_version_id"], edge["learner_track"]), []).append(edge)
+        for edges in reverse.values():
+            edges.sort(key=lambda item: (item["dependent_version_id"], item["role"], item["event_id"]))
+        queue_index = {}
+        for root, track, trigger_sequence in sorted(invalidation_sources, key=lambda item: item[2]):
+            if track_candidates.get(track, {}).get(root, {}).get("state") in eligible_states:
+                continue
+            todo, expanded = [root], set()
+            while todo:
+                prerequisite = todo.pop(0)
+                prerequisite_key = (prerequisite, track)
+                if prerequisite_key in expanded:
+                    continue
+                expanded.add(prerequisite_key)
+                for edge in reverse.get(prerequisite_key, ()):
+                    policy = edge["impact_policy"]
+                    if policy == DependencyImpactPolicy.ADVISORY.value:
+                        continue
+                    dependent = edge["dependent_version_id"]
+                    state = track_candidates.get(track, {}).get(dependent, {}).get("state")
+                    if state not in eligible_states:
+                        continue
+                    key = (dependent, track)
+                    item = queue_index.setdefault(key, {"version_id": dependent, "learner_track": track, "trigger_version_ids": []})
+                    if root not in item["trigger_version_ids"]:
+                        item["trigger_version_ids"].append(root)
+                    if policy == DependencyImpactPolicy.BLOCKING.value and dependent not in todo:
+                        todo.append(dependent)
+        dependency_queue = tuple(
+            {**item, "trigger_version_ids": sorted(item["trigger_version_ids"])}
+            for _, item in sorted(queue_index.items())
+        )
         return EpisodeProjection(
             episode_id=episode_id, last_sequence=previous_sequence,
             observations=observations, predictions=predictions, evidence=evidence,
@@ -981,6 +1139,8 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
             track_candidate_objects=track_candidate_objects,
             track_action_objects=track_action_objects,
             actions=tuple(actions), revisions=revisions,
+            dependencies=tuple(dependencies),
+            dependency_revalidation_queue=dependency_queue,
         )
 
     @staticmethod
