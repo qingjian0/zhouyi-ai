@@ -1167,6 +1167,8 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
             elif kind == "prediction_commit":
                 commits[payload["prediction_id"]] = payload
             elif kind == "evaluation_reveal":
+                if event.get("actor_role") != "evaluator":
+                    raise ProtocolError("replay evaluation_reveal actor_role must be evaluator")
                 frozen, committed = freezes.get(payload.get("freeze_id")), commits.get(payload.get("prediction_id"))
                 if frozen is None or committed is None:
                     raise MissingReference("replay evaluation reveal lacks prior freeze or prediction")
