@@ -35,6 +35,7 @@ jobs:
           assert audit["learner_visible_locked_test_reveals"] == 0
           assert audit["selector_visible_locked_test_reveals"] == 0
           assert audit["evaluator_visible_locked_test_reveals"] == 400
+          assert audit["prediction_batch_sealed_before_reveal"] is True
           assert audit["all_predictions_committed_before_reveal"] is True
           print(json.dumps({"metrics": result["metrics"], "audit": audit}, indent=2))
           PY
