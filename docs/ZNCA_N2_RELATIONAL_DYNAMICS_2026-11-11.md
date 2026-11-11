@@ -26,7 +26,7 @@ z_j^{t+1}=\sigma\left(b_j+
 
 `prototype/znca_dynamics.py` 包含：
 - `StateSnapshot`：有界状态快照；
-- `SourceSlot`：带语义角色的输入状态槽；
+- `SourceSlot`：带语义角色的输入状态槽，支持正向状态与互补状态 (1-x)；
 - `InfluenceTerm`：二元或高阶联合关系项；
 - `TransitionExample`：带证据引用的前态/后态样本；
 - `RelationalDynamicsModel`：同步状态更新、迭代 rollout 和全批量 BCE 学习；
