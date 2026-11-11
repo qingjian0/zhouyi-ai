@@ -88,7 +88,9 @@ The ten-seed sweep, subprocess learner backend, hidden-truth input canary, and f
 
 ## E10-B first gate: explicit OOD abstention and renaming invariance
 
-The learner now distinguishes three kinds of out-of-distribution input before voting:
+The learner now distinguishes three kinds of out-of-distribution input before voting. The first CI pass exposed two integration defects: the native ledger/shared protocol had a closed list of old decision statuses, and the rename-invariance test incorrectly required every query to be predictable even though the object-disjoint split intentionally creates unseen nuisance values. The ledger and shared protocol now accept the OOD statuses, and rename invariance compares both decision status and prediction, including valid abstentions. A subsequent CI run must verify these fixes.
+
+The learner distinguishes:
 - `ABSTAIN_OOD_RELATION`: an unseen relation symbol.
 - `ABSTAIN_OOD_SCHEMA`: unseen attribute/context keys or participant records with no Support-known feature key.
 - `ABSTAIN_OOD_VALUE`: unseen categorical attribute or context values.
