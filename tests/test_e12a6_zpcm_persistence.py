@@ -205,6 +205,7 @@ class PersistentLifecycleTests(unittest.TestCase):
         now = datetime(2026, 11, 12, 0, 30, tzinfo=timezone.utc)
         self.store.register_candidate_bundle(
             authorized_candidate(), (evidence_item,), authorization_receipt=receipt, consumed_at=now,
+            writer_identity=writer_identity(),
         )
         altered_definition = {
             "schema": "csg-gcr-typed-candidate-v1",
@@ -223,6 +224,7 @@ class PersistentLifecycleTests(unittest.TestCase):
         with self.assertRaises(LifecyclePersistenceError):
             self.store.register_candidate_bundle(
                 other, (evidence_item,), authorization_receipt=receipt, consumed_at=now,
+                writer_identity=writer_identity(),
             )
         reused_nonce = verified_receipt(evidence_item, receipt_id="receipt-2", nonce="nonce-1")
         with self.assertRaises(LifecyclePersistenceError):
