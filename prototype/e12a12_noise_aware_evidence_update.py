@@ -25,6 +25,31 @@ class LikelihoodModel:
     alpha: float = 0.05
     beta: float = 0.05
 
+    def __post_init__(self):
+        required = (self.model_id, self.model_version, self.candidate_ref,
+                    self.scope_id, self.scope_digest, self.protocol_id)
+        if not all(isinstance(x, str) and x.strip() for x in required):
+            raise ValueError("model identity and binding fields are required")
+        if "@" not in self.candidate_ref:
+            raise ValueError("candidate_ref must identify an immutable version")
+        if not (0 < self.alpha < 1 and 0 < self.beta < 1 and self.alpha + self.beta < 1):
+            raise ValueError("alpha and beta must be in (0,1) and sum to less than 1")
+        for distribution in (self.candidate_probabilities, self.alternative_probabilities):
+            if not distribution or tuple(sorted(distribution)) != distribution:
+                raise ValueError("likelihood distributions must be non-empty and canonically sorted")
+            if len({name for name, _ in distribution}) != len(distribution):
+                raise ValueError("likelihood outcome labels must be unique")
+            if any(not isinstance(name, str) or not name or isinstance(p, bool)
+                   or not isinstance(p, (int, float)) or not math.isfinite(p) or p <= 0 or p > 1
+                   for name, p in distribution):
+                raise ValueError("likelihood probabilities must be finite and in (0,1]")
+            if not math.isclose(sum(p for _, p in distribution), 1.0,
+                                rel_tol=1e-9, abs_tol=1e-9):
+                raise ValueError("likelihood probabilities must sum to one")
+        if tuple(name for name, _ in self.candidate_probabilities) != tuple(
+                name for name, _ in self.alternative_probabilities):
+            raise ValueError("hypotheses must define the same outcome space")
+
     @classmethod
     def create(cls, *, model_id: str, model_version: str, candidate_ref: str,
                scope_id: str, scope_digest: str, protocol_id: str,
@@ -115,12 +140,12 @@ class SequentialEvidenceUpdater:
         expected = {"executor_id": self.executor_id, "key_id": self.key_id,
             "candidate_ref": self.model.candidate_ref, "scope_id": self.model.scope_id,
             "scope_digest": self.model.scope_digest, "protocol_id": self.model.protocol_id}
-        verify_receipt(receipt, self.public_key_bytes, expected_context=expected,
-                       replay_guard=self.replay_guard)
+        verify_receipt(receipt, self.public_key_bytes, expected_context=expected)
         candidate_probs = dict(self.model.candidate_probabilities)
         alternative_probs = dict(self.model.alternative_probabilities)
         if receipt.outcome not in candidate_probs:
             raise ValueError("observation is outside the pre-registered outcome space")
+        self.replay_guard.accept(receipt)
         increment = math.log(candidate_probs[receipt.outcome] / alternative_probs[receipt.outcome])
         next_llr = self._llr + increment
         if next_llr >= self.model.upper_threshold:
