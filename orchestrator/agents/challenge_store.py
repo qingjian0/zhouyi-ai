@@ -43,6 +43,33 @@ class ExecutionChallenge:
     issued_at: str
     expires_at: str
 
+    def __post_init__(self) -> None:
+        if not isinstance(self.nonce, str) or len(self.nonce) != 64 or any(
+            ch not in "0123456789abcdef" for ch in self.nonce
+        ):
+            raise ValueError("nonce must be 64 lowercase hex characters")
+        for field in ("execution_id", "target_branch", "runner_id"):
+            value = getattr(self, field)
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"{field} must be non-empty text")
+        for field, value in (("manifest_digest", self.manifest_digest),
+                             ("patch_digest", self.patch_digest)):
+            if value is None and field == "patch_digest":
+                continue
+            if not isinstance(value, str) or len(value) != 64 or any(
+                ch not in "0123456789abcdef" for ch in value
+            ):
+                raise ValueError(f"{field} must be a lowercase SHA-256 digest")
+        if (not isinstance(self.image_digest, str)
+                or not self.image_digest.startswith("sha256:")
+                or len(self.image_digest) != 71
+                or any(ch not in "0123456789abcdef" for ch in self.image_digest[7:])):
+            raise ValueError("image_digest must be sha256:<64 lowercase hex>")
+        issued = _aware(self.issued_at, "issued_at")
+        expires = _aware(self.expires_at, "expires_at")
+        if expires <= issued:
+            raise ValueError("expires_at must be later than issued_at")
+
 
 class ExecutionChallengeStore:
     """SQLite-backed challenge issuer and atomic one-time attestation verifier."""
