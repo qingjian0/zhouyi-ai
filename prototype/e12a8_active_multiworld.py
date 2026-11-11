@@ -58,10 +58,12 @@ def _entropy(weights: Mapping[str, float]) -> float:
 
 
 def _predicted_outcome(hypothesis: str, action: ExperimentAction) -> int:
+    observed_x = (action.x if action.intervention
+                  else (action.x + action.context + action.time) % 3)
     row = Observation(
         world_family="candidate-world",
         intervention=action.intervention,
-        x=action.x,
+        x=observed_x,
         context=action.context,
         time=action.time,
         y=None,
