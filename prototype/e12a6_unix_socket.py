@@ -50,8 +50,8 @@ class E12A6UnixSocketServer:
             raise TypeError("dispatcher must be callable")
         if not allowed_uids or any(type(uid) is not int or uid < 0 for uid in allowed_uids):
             raise ValueError("allowed_uids must contain non-negative integer UIDs")
-        if type(max_frame_bytes) is not int or not 1 <= max_frame_bytes <= 16_777_216:
-            raise ValueError("max_frame_bytes must be between 1 and 16777216")
+        if type(max_frame_bytes) is not int or not 64 <= max_frame_bytes <= 16_777_216:
+            raise ValueError("max_frame_bytes must be between 64 and 16777216")
         if client_timeout <= 0 or backlog < 1:
             raise ValueError("client_timeout and backlog must be positive")
         self._dispatcher = dispatcher
@@ -76,11 +76,15 @@ class E12A6UnixSocketServer:
             raise E12A6IPCError("IPC server is already started")
         parent = self.path.parent
         try:
-            st = parent.stat()
+            st = parent.lstat()
         except OSError as exc:
             raise E12A6IPCError("IPC parent directory is unavailable") from exc
-        if not stat.S_ISDIR(st.st_mode) or st.st_uid != os.geteuid() or st.st_mode & 0o077:
+        if not stat.S_ISDIR(st.st_mode) or stat.S_ISLNK(st.st_mode):
+            raise E12A6IPCError("IPC parent must be a real directory, not a symlink")
+        if st.st_uid != os.geteuid() or st.st_mode & 0o077:
             raise E12A6IPCError("IPC parent directory must be service-owned and mode 0700")
+        if len(os.fsencode(str(self.path))) >= 104:
+            raise E12A6IPCError("IPC socket path exceeds the Linux AF_UNIX path limit")
         try:
             existing = self.path.lstat()
         except FileNotFoundError:
@@ -90,11 +94,14 @@ class E12A6UnixSocketServer:
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         try:
             sock.bind(str(self.path))
-            os.chmod(self.path, 0o600, follow_symlinks=False)
             st = self.path.lstat()
             if not stat.S_ISSOCK(st.st_mode) or st.st_uid != os.geteuid():
                 raise E12A6IPCError("bound IPC path failed socket ownership validation")
             self._inode = (st.st_dev, st.st_ino)
+            os.chmod(self.path, 0o600, follow_symlinks=False)
+            st = self.path.lstat()
+            if not stat.S_ISSOCK(st.st_mode) or (st.st_dev, st.st_ino) != self._inode:
+                raise E12A6IPCError("bound IPC socket inode changed during setup")
             sock.listen(self._backlog)
             sock.settimeout(0.2)
             self._socket = sock
