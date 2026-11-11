@@ -42,3 +42,9 @@ New tests cover strict commit/reveal binding, wrong digest rejection, mismatched
 ## E09 incremental learner conflict correction
 
 CI exposed a semantic inconsistency in the incremental conjunction learner: a directly contested input could still receive a prediction from a broader clean pattern. The learner now abstains when the queried input itself has contradictory labels, even if broader patterns would otherwise produce one label. The bootstrap-conflict test was updated to assert the same quarantine rule. This is a conservative identifiability policy, not a performance optimization.
+
+
+## Additional CI-found defects corrected
+
+- The E09 evidence-ledger adjudication summary treated a set of contested keys as a mapping and failed when producing the summary. It now reads labels from the canonical label index.
+- The incremental learner's full-recompute oracle now includes the explicit directly-contested-query abstention rule, so the test compares equivalent semantics rather than the older, weaker rule.
