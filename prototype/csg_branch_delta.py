@@ -174,12 +174,17 @@ def merge_branch_deltas(base_state: Mapping[str, Any],
             return MergeResult(MergeStatus.NO_OP, tuple(sorted(state.items())), (), ())
         for snap in snapshots:
             validate_snapshot(snap)
+        branch_ids = [s.branch_id for s in snapshots]
+        if len(branch_ids) != len(set(branch_ids)):
+            return MergeResult(MergeStatus.REJECTED, tuple(sorted(state.items())), (), (),
+                               "branch IDs must be unique in one merge request")
         parents = {s.parent_state_ref for s in snapshots}
         versions = {s.base_version for s in snapshots}
         if len(parents) != 1 or len(versions) != 1:
             return MergeResult(MergeStatus.REJECTED, tuple(sorted(state.items())), (), (),
                                "all branches must share the exact parent state and base version")
         all_events: dict[str, BranchDelta] = {}
+        target_writers: dict[str, dict[str, set[str]]] = {}
         for snap in snapshots:
             for event in snap.delta_events:
                 previous = all_events.get(event.event_id)
@@ -187,14 +192,15 @@ def merge_branch_deltas(base_state: Mapping[str, Any],
                     return MergeResult(MergeStatus.CONFLICT, tuple(sorted(state.items())), (), (event.event_id,),
                                        "event ID reused with different content")
                 all_events[event.event_id] = event
+                target_writers.setdefault(event.target_ref, {}).setdefault(snap.branch_id, set()).add(event.event_id)
         unique_events = tuple(all_events.values())
-        targets: dict[str, list[str]] = {}
-        for event in unique_events:
-            targets.setdefault(event.target_ref, []).append(event.event_id)
-        overlap = tuple(sorted(target for target, ids in targets.items() if len(ids) > 1))
+        overlap = tuple(sorted(
+            target for target, writers in target_writers.items()
+            if len(set().union(*writers.values())) > 1 and len(writers) > 1
+        ))
         if overlap:
             return MergeResult(MergeStatus.CONFLICT, tuple(sorted(state.items())), (), overlap,
-                               "multiple branches write the same target")
+                               "distinct branches write the same target")
         writes = set(targets)
         for snap in snapshots:
             other_reads = set().union(*(set(s.read_set) for s in snapshots if s.branch_id != snap.branch_id))
