@@ -186,27 +186,38 @@ def aggregate_runs(runs: list[dict]) -> dict:
 def run_sweep(cardinalities: tuple[int, ...] = (3,), support_sizes: tuple[int, ...] = (2, 4, 8),
               seeds: tuple[int, ...] = (11, 29, 47), episodes_per_rule: int = 1,
               epochs: int = 5, hidden_size: int = 24,
-              parameter_matched: bool = True, parameter_budget: int | None = None) -> dict:
+              parameter_matched: bool = True,
+              parameter_budget: int | None = None) -> dict:
     conditions = []
     for k in cardinalities:
         for support in support_sizes:
             if not 1 <= support < k * k:
                 raise ValueError(f"support_size must be in [1, K*K): K={k}, support={support}")
-            runs = [run_condition(k, support, seed, episodes_per_rule, epochs, hidden_size,
-                                      parameter_matched, parameter_budget)
-                    for seed in seeds]
+            runs = [
+                run_condition(
+                    k, support, seed, episodes_per_rule, epochs, hidden_size,
+                    parameter_matched, parameter_budget,
+                )
+                for seed in seeds
+            ]
             conditions.append({
-                "cardinality": k, "support_size": support,
-                "runs": runs, "aggregate": aggregate_runs(runs),
+                "cardinality": k,
+                "support_size": support,
+                "runs": runs,
+                "aggregate": aggregate_runs(runs),
             })
     return {
-        "protocol": "TX-02B-4",
+        "protocol": "TX-02C",
         "families": list(FAMILIES),
         "configuration": {
-            "cardinalities": list(cardinalities), "support_sizes": list(support_sizes),
-            "seeds": list(seeds), "episodes_per_rule": episodes_per_rule,
-            "epochs": epochs, "hidden_size": hidden_size,
-\n            "parameter_matched": parameter_matched, "parameter_budget": parameter_budget,
+            "cardinalities": list(cardinalities),
+            "support_sizes": list(support_sizes),
+            "seeds": list(seeds),
+            "episodes_per_rule": episodes_per_rule,
+            "epochs": epochs,
+            "hidden_size": hidden_size,
+            "parameter_matched": parameter_matched,
+            "parameter_budget": parameter_budget,
         },
         "conditions": conditions,
         "interpretation_limits": [
@@ -230,16 +241,25 @@ def main() -> None:
     parser.add_argument("--epochs", type=int, default=5)
     parser.add_argument("--hidden-size", type=int, default=24)
     parser.add_argument("--no-parameter-match", action="store_true")
-    parser.add_argument("--parameter-budget", type=int, default=None)\n    parser.add_argument("--no-parameter-match", action="store_true")\n    parser.add_argument("--parameter-budget", type=int, default=None)\n    parser.add_argument("--no-parameter-match", action="store_true")\n    parser.add_argument("--parameter-budget", type=int, default=None)
+    parser.add_argument("--parameter-budget", type=int, default=None)
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
-    result = run_sweep(tuple(args.cardinalities), tuple(args.support_sizes),
-                       tuple(args.seeds), args.episodes_per_rule,
-                       args.epochs, args.hidden_size,\n                       not args.no_parameter_match, args.parameter_budget)
+    result = run_sweep(
+        tuple(args.cardinalities),
+        tuple(args.support_sizes),
+        tuple(args.seeds),
+        args.episodes_per_rule,
+        args.epochs,
+        args.hidden_size,
+        not args.no_parameter_match,
+        args.parameter_budget,
+    )
     print(json.dumps(result, ensure_ascii=False, indent=2) if args.json else {
-        "protocol": result["protocol"], "configuration": result["configuration"],
+        "protocol": result["protocol"],
+        "configuration": result["configuration"],
         "conditions": [{
-            "cardinality": c["cardinality"], "support_size": c["support_size"],
+            "cardinality": c["cardinality"],
+            "support_size": c["support_size"],
             "aggregate": c["aggregate"],
         } for c in result["conditions"]],
     })
