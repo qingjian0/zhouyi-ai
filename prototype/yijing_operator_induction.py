@@ -124,6 +124,7 @@ class MechanismCandidate:
     version: int
     intervention: str
     role_signature: tuple[tuple[str, str], ...]
+    required_patterns: tuple[Pattern, ...]
     remove_patterns: tuple[Pattern, ...]
     add_patterns: tuple[Pattern, ...]
     required_context: tuple[tuple[str, str], ...]
@@ -150,6 +151,8 @@ class MechanismCandidate:
         if any(context.get(k) != v for k, v in self.required_context):
             return None
         current = _patterns(state)
+        if not set(self.required_patterns).issubset(current):
+            return None
         if not set(self.remove_patterns).issubset(current):
             return None
         next_patterns = (current - set(self.remove_patterns)) | set(self.add_patterns)
@@ -188,6 +191,15 @@ class RelationalOperatorInducer:
         return (
             row.intervention, _signature(row.before), removed, added
         )
+
+    @staticmethod
+    def _common_patterns(rows: Sequence[TransitionObservation]) -> tuple[Pattern, ...]:
+        if not rows:
+            return ()
+        common = _patterns(rows[0].before)
+        for row in rows[1:]:
+            common.intersection_update(_patterns(row.before))
+        return tuple(sorted(common))
 
     @staticmethod
     def _common_context(rows: Sequence[TransitionObservation]):
@@ -234,6 +246,7 @@ class RelationalOperatorInducer:
                 version=1,
                 intervention=intervention,
                 role_signature=signature,
+                required_patterns=self._common_patterns(support),
                 remove_patterns=removed,
                 add_patterns=added,
                 required_context=self._common_context(support),
