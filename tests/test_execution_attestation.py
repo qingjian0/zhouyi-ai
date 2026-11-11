@@ -131,6 +131,12 @@ class SandboxAttestationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "signature"):
             SignedSandboxAttestation(self.attestation, "not-a-signature")
 
+    def test_schema_version_rejects_boolean(self):
+        with self.assertRaisesRegex(ValueError, "schema_version"):
+            SandboxAttestation(
+                **{**self.attestation.__dict__, "schema_version": True}
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
