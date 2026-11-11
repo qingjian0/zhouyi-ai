@@ -176,6 +176,19 @@ class TypedHyperedgeUnifierTests(unittest.TestCase):
         )
         self.assertEqual(result.evidence_refs, ("source-a", "source-b"))
 
+    def test_same_variable_name_in_different_namespaces_isolated(self):
+        other = VariableRef("worldline-B", "cause")
+        result = unify_hyperedges(
+            [self.edge("e1", "observes", [
+                RoleBinding("left", self.x, "rain", "Entity"),
+                RoleBinding("right", other, "snow", "Entity"),
+            ])],
+            (VariableSpec(self.x, "Entity", required=False),
+             VariableSpec(other, "Entity", required=False)),
+        )
+        self.assertEqual(len(result.variables), 2)
+        self.assertEqual({item.member_id for item in result.variables}, {"rain", "snow"})
+
     def test_required_unbound_variable_is_rejected(self):
         with self.assertRaises(UnificationError):
             unify_hyperedges(
