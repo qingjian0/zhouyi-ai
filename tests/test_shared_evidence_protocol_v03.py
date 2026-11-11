@@ -178,5 +178,35 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
 
 
 
+    def test_lifecycle_action_rejects_unknown_candidate_version(self):
+        action = {
+            "action_id": "phantom-propose", "action_type": "propose",
+            "candidate_id": "missing", "candidate_version": 1,
+            "from_state": "observed", "to_state": "proposed",
+            "evidence_refs": [], "cost": 0.1, "note": "phantom",
+            "candidate_lineage_refs": [], "learner_track": "e12",
+        }
+        with self.assertRaises(MissingReference):
+            self.store.append_event(
+                episode_id="ep", event_id="phantom-action", event_type="lifecycle_action",
+                idempotency_key="phantom-action", payload=action,
+            )
+
+    def test_lifecycle_action_rejects_non_finite_cost(self):
+        payload = {
+            "action_id": "measure-nan", "action_type": "measure",
+            "candidate_id": None, "candidate_version": None,
+            "from_state": None, "to_state": None,
+            "evidence_refs": [], "cost": float("nan"), "note": "invalid cost",
+            "candidate_lineage_refs": [], "learner_track": "e12",
+        }
+        with self.assertRaises(ValueError):
+            self.store.append_event(
+                episode_id="ep", event_id="measure-nan", event_type="lifecycle_action",
+                idempotency_key="measure-nan", payload=payload,
+            )
+
+
+
 if __name__ == "__main__":
     unittest.main()
