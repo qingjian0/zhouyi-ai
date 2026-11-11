@@ -448,7 +448,7 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
             episode_id="ep", event_id="candidate-v1", event_type="structure_version",
             idempotency_key="candidate-v1",
             payload={
-                "structure_id": "wrong-identity", "version_id": "candidate@1",
+                "structure_id": "candidate", "version_id": "candidate@1",
                 "kind": "candidate", "definition": {}, "parent_version_ids": [],
                 "support_evidence_ids": [],
             },
@@ -459,7 +459,7 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
                 idempotency_key="candidate-action",
                 payload={
                     "action_id": "candidate-action", "action_type": "propose",
-                    "candidate_id": "candidate", "candidate_version": 1,
+                    "candidate_id": "wrong-candidate", "candidate_version": 1,
                     "from_state": "observed", "to_state": "proposed",
                     "evidence_refs": [], "cost": 0.1, "note": "identity mismatch",
                     "candidate_lineage_refs": [], "learner_track": "e12",
