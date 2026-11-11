@@ -55,7 +55,7 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
                     "payload": {
                         "structure_id": "primitive-set", "version_id": "v1",
                         "kind": "primitive", "definition": {"predicate": "x>y"},
-                        "parent_version_ids": [],
+                        "learner_track": "e12", "parent_version_ids": [],
                         "support_evidence_ids": [{"kind": "ingested", "id": "train-1"}],
                     },
                 },
@@ -85,7 +85,7 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
                         "event_id": "structure-first", "event_type": "structure_version",
                         "payload": {
                             "structure_id": "s", "version_id": "v1", "kind": "rule",
-                            "definition": {}, "parent_version_ids": [],
+                            "definition": {}, "learner_track": "e12", "parent_version_ids": [],
                             "support_evidence_ids": [{"kind": "ingested", "id": "late"}],
                         },
                     },
@@ -108,6 +108,115 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
         with self.assertRaises(BatchConflict):
             self.store.append_events(episode_id="ep", events=changed, idempotency_key="batch")
         self.assertEqual(len(self.store.replay_episode("ep")), 2)
+
+    def test_structure_support_rejects_cross_track_evidence(self):
+        with self.assertRaisesRegex(ProtocolError, "another learner_track"):
+            self.store.append_events(
+                episode_id="cross-support", idempotency_key="cross-support",
+                events=[
+                    self.observation("cross-obs"),
+                    {
+                        "event_id": "cross-ingest", "event_type": "evidence_ingest",
+                        "payload": {
+                            "evidence_id": "cross-evidence",
+                            "observation_ref": "event-cross-obs",
+                            "split_role": "train", "outcome_ref": "sha256:cross",
+                            "source_provenance": {"source_kind": "dataset", "source_id": "cross"},
+                            "learner_track": "track-a",
+                        },
+                    },
+                    {
+                        "event_id": "cross-structure", "event_type": "structure_version",
+                        "payload": {
+                            "structure_id": "cross-primitive", "version_id": "cross-primitive@1",
+                            "kind": "primitive", "definition": {"predicate": "x>y"},
+                            "learner_track": "track-b", "parent_version_ids": [],
+                            "support_evidence_ids": [{"kind": "ingested", "id": "cross-evidence"}],
+                        },
+                    },
+                ],
+            )
+        self.assertEqual(self.store.replay_episode("cross-support"), [])
+
+    def test_structure_with_support_requires_explicit_track(self):
+        with self.assertRaisesRegex(ProtocolError, "requires learner_track"):
+            self.store.append_events(
+                episode_id="missing-track", idempotency_key="missing-track",
+                events=[
+                    self.observation("missing-track-obs"),
+                    self.ingest(evidence_id="missing-track-evidence", observation_id="missing-track-obs"),
+                    {
+                        "event_id": "unscoped-structure", "event_type": "structure_version",
+                        "payload": {
+                            "structure_id": "unscoped", "version_id": "unscoped@1",
+                            "kind": "primitive", "definition": {},
+                            "parent_version_ids": [],
+                            "support_evidence_ids": [{"kind": "ingested", "id": "missing-track-evidence"}],
+                        },
+                    },
+                ],
+            )
+
+    def test_replay_rejects_cross_track_structure_even_if_digest_is_recomputed(self):
+        import json
+
+        self.store.append_events(
+            episode_id="replay-cross", idempotency_key="valid-track",
+            events=[
+                self.observation("replay-obs"),
+                self.ingest(evidence_id="replay-evidence", observation_id="replay-obs"),
+                {
+                    "event_id": "replay-structure", "event_type": "structure_version",
+                    "payload": {
+                        "structure_id": "replay-primitive", "version_id": "replay-primitive@1",
+                        "kind": "primitive", "definition": {},
+                        "learner_track": "e12", "parent_version_ids": [],
+                        "support_evidence_ids": [{"kind": "ingested", "id": "replay-evidence"}],
+                    },
+                },
+            ],
+        )
+        row = self.store._db.execute(
+            "SELECT * FROM events WHERE episode_id='replay-cross' AND event_id='replay-structure'"
+        ).fetchone()
+        payload = json.loads(row["payload_json"])
+        payload["learner_track"] = "attacker-track"
+        envelope = {
+            "event_type": row["event_type"], "payload_schema": row["payload_schema"],
+            "payload": payload, "actor_role": row["actor_role"],
+            "causation_refs": json.loads(row["causation_refs_json"]),
+            "integrity_metadata": json.loads(row["integrity_metadata_json"]),
+        }
+        self.store._db.execute(
+            "UPDATE events SET payload_json=?, payload_digest=? WHERE episode_id=? AND event_id=?",
+            (canonical_json(payload), digest_payload(envelope), "replay-cross", "replay-structure"),
+        )
+        with self.assertRaisesRegex(ProtocolError, "crosses learner tracks during replay"):
+            self.store.replay_projection("replay-cross")
+
+    def test_lifecycle_action_rejects_candidate_from_another_track(self):
+        self.store.append_event(
+            episode_id="candidate-track", event_id="candidate-track-v1",
+            event_type="structure_version", idempotency_key="candidate-track-v1",
+            payload={
+                "structure_id": "candidate-track", "version_id": "candidate-track@1",
+                "kind": "candidate", "definition": {},
+                "learner_track": "track-a", "parent_version_ids": [],
+                "support_evidence_ids": [],
+            },
+        )
+        with self.assertRaisesRegex(ProtocolError, "another learner_track"):
+            self.store.append_event(
+                episode_id="candidate-track", event_id="candidate-track-action",
+                event_type="lifecycle_action", idempotency_key="candidate-track-action",
+                payload={
+                    "action_id": "candidate-track-action", "action_type": "propose",
+                    "candidate_id": "candidate-track", "candidate_version": 1,
+                    "from_state": "observed", "to_state": "proposed",
+                    "evidence_refs": [], "cost": 0.1, "note": "wrong track",
+                    "candidate_lineage_refs": [], "learner_track": "track-b",
+                },
+            )
 
     def test_lifecycle_action_uses_e12_transition_contract(self):
         self.store.append_event(
@@ -138,6 +247,54 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
                 episode_id="ep", event_id="action-illegal", event_type="lifecycle_action",
                 idempotency_key="action-illegal", payload=illegal,
             )
+
+    def test_v02_unscoped_structure_replays_without_rewriting_legacy_history(self):
+        legacy = SQLiteEvidenceStore(self.db)
+        legacy.append_event(
+            episode_id="legacy-structure", event_id="legacy-observation",
+            event_type="observation", idempotency_key="legacy-observation",
+            payload={"observation_id": "legacy-obs"},
+        )
+        legacy.commit_prediction(
+            episode_id="legacy-structure", event_id="legacy-commit",
+            idempotency_key="legacy-commit",
+            payload={
+                "prediction_id": "legacy-pred", "observation_id": "legacy-obs",
+                "model_version": "legacy-model", "learner_track": "e09",
+                "decision_status": "PREDICT",
+            },
+        )
+        legacy.reveal_evidence(
+            episode_id="legacy-structure", event_id="legacy-reveal",
+            idempotency_key="legacy-reveal",
+            payload={
+                "prediction_id": "legacy-pred", "learner_track": "e09",
+                "target_or_feedback": "legacy-label",
+            },
+        )
+        legacy.append_event(
+            episode_id="legacy-structure", event_id="legacy-structure-v1",
+            event_type="structure_version", idempotency_key="legacy-structure-v1",
+            payload={
+                "structure_id": "legacy-rule", "version_id": "legacy-rule@1",
+                "kind": "rule", "definition": {"predicate": "x>y"},
+                "parent_version_ids": [], "support_evidence_ids": ["legacy-reveal"],
+            },
+        )
+        raw_before = legacy._db.execute(
+            "SELECT payload_json, payload_digest, protocol_version FROM events "
+            "WHERE episode_id='legacy-structure' AND event_id='legacy-structure-v1'"
+        ).fetchone()
+        legacy.close()
+        self.store.close()
+        self.store = SQLiteEvidenceStoreV03(self.db)
+        projection = self.store.replay_projection("legacy-structure")
+        self.assertEqual(projection.structures["legacy-rule@1"]["support_evidence_ids"], ["legacy-reveal"])
+        raw_after = self.store._db.execute(
+            "SELECT payload_json, payload_digest, protocol_version FROM events "
+            "WHERE episode_id='legacy-structure' AND event_id='legacy-structure-v1'"
+        ).fetchone()
+        self.assertEqual(tuple(raw_before), tuple(raw_after))
 
     def test_restart_replay_keeps_v03_events(self):
         self.store.append_events(
@@ -296,7 +453,7 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
             "payload": {
                 "structure_id": "candidate", "version_id": "candidate@2",
                 "kind": "candidate", "definition": {"expression": "x>y and z"},
-                "parent_version_ids": ["candidate@1"],
+                "learner_track": "e12", "parent_version_ids": ["candidate@1"],
                 "support_evidence_ids": [{"kind": "ingested", "id": "train-1"}],
             },
         }
@@ -388,7 +545,7 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
                     "payload": {
                         "structure_id": "primitive-set", "version_id": "v1",
                         "kind": "primitive", "definition": {"predicate": "x>y"},
-                        "parent_version_ids": [],
+                        "learner_track": "e12", "parent_version_ids": [],
                         "support_evidence_ids": [{"kind": "ingested", "id": "train-1"}],
                     },
                 },
@@ -652,7 +809,7 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
                         "structure_id": candidate.candidate_id,
                         "version_id": "relation:supported@1", "kind": "candidate",
                         "definition": candidate_definition_payload(candidate),
-                        "parent_version_ids": [],
+                        "learner_track": "e12", "parent_version_ids": [],
                         "support_evidence_ids": [{"kind": "ingested", "id": "train-1"}],
                     },
                 },
@@ -832,7 +989,7 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
                     "payload": {
                         "structure_id": candidate.candidate_id, "version_id": "primitive-ledger@1",
                         "kind": "candidate", "definition": candidate_definition_payload(candidate),
-                        "parent_version_ids": [],
+                        "learner_track": "e12", "parent_version_ids": [],
                         "support_evidence_ids": [{"kind": "ingested", "id": "train-ledger"}],
                     },
                 },
@@ -960,7 +1117,7 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
                         "structure_id": candidate.candidate_id,
                         "version_id": "candidate-needs-typed-evidence@1",
                         "kind": "candidate", "definition": candidate_definition_payload(candidate),
-                        "parent_version_ids": [],
+                        "learner_track": "e12", "parent_version_ids": [],
                         "support_evidence_ids": [{"kind": "revealed", "id": "reveal-legacy"}],
                     },
                 },
