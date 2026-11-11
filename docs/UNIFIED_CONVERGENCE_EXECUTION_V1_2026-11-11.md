@@ -350,3 +350,8 @@ PR #185 的 Actions 曾有一次成功运行，但这只证明该 PR 当前 CI �
 4. N0.10 仅作为可学习评分候选，不能绕开 SROK 硬约束、E09 证据门和 E12-A6 生命周期。
 5. ZPCM 保持 E09 事件源的投影角色，不另立证据账本。
 6. 未完成上述测试和当前 head CI 前，不提升模块成熟度，不开始全模型联合训练。
+
+
+## 12. Canonical baseline pointer (2026-11-11)
+
+Branch and commit identities are centralized in [BASELINE_MANIFEST](BASELINE_MANIFEST_V1_2026-11-11.md). The selected source-code baseline remains E09 integration commit `e90f7eb210db456a541eb9f45ec39f64ebb934a5`; the convergence branch HEAD advances independently as fixes are committed. The manifest supersedes any older document-local baseline references.
