@@ -180,3 +180,8 @@ N0.8 的研发策略是：**不再扩张抽象层，而是让现有理论进入�
 - 内存与计算成本可接受；
 
 才值得进入更大规模的神经训练。
+
+
+## P1 integration correction: candidate-pool truncation
+
+The integrated SearchReport now reports `candidate_pool_truncated_roles` separately from `budget_exhausted`. A capped role pool can omit a valid node before Cartesian search begins; this is a distinct recall-loss condition and must not be hidden behind a successful search or an untruncated expansion budget.

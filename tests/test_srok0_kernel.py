@@ -60,6 +60,23 @@ class SROK0KernelTests(unittest.TestCase):
         )
         self.assertEqual(report.candidates[0].member_ids[0], "a2")
 
+    def test_candidate_pool_truncation_is_reported_separately(self):
+        nodes = [
+            Node("a1", "A", score=2.0),
+            Node("a2", "A", score=1.0),
+            Node("b1", "B", score=1.0),
+        ]
+        spec = OperatorSpec(
+            "pool-cap", "pair",
+            (RoleSpec("left", frozenset({"A"})), RoleSpec("right", frozenset({"B"}))),
+            max_candidates_per_role=1,
+            max_expansions=10,
+        )
+        report = SparseRoleComposer(nodes).compose(spec)
+        self.assertEqual(report.candidate_pool_sizes, (("left", 1), ("right", 1)))
+        self.assertEqual(report.candidate_pool_truncated_roles, ("left",))
+        self.assertFalse(report.budget_exhausted)
+
     def test_expansion_budget_is_reported(self):
         nodes = [
             Node(f"a{i}", "A", score=10-i) for i in range(5)
