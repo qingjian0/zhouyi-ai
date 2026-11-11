@@ -89,3 +89,11 @@ PR #208 now provides a bounded R1 coordinator candidate, but its declared gaps r
 - PR #230 exact head `541ba18d790fc2b713051d5489a7543e2205c3e1`, workflow `43050136136`: success. Cross-branch composition now requires a signed E09 authorization event verified through an injected trusted issuer keyring. Unsigned scope receipts fail closed.
 - Production security remains open: concrete public-key verifier deployment, key rotation/revocation, process isolation, authenticated IPC, and remote tamper-evident replication.
 - No large-scale language or joint cognition training yet. Next research gate is production-grade trust/process boundaries plus measurement of native composition quality, not parameter scaling.
+
+
+## Concrete E09 issuer authentication milestone (2026-11-11)
+
+- PR #231 exact head `99249112754fb747a791c75205309313820501ed`, workflow `43050925777`: success.
+- Concrete Ed25519 public-key verification now backs E09 branch-merge grants. Unknown/revoked issuers and signatures from a previous rotated key fail closed.
+- An end-to-end test proves signed grant → two-branch typed composition → atomic E12-A6/ZPCM ingestion, with raw E09 labels excluded from lifecycle persistence.
+- Remaining P1 production gates: trusted public-key provisioning, immutable configuration delivery and rollback control, rotation overlap/key IDs, revocation distribution, evaluator process isolation, authenticated IPC, and remote anti-rollback/tamper-evident replication.
