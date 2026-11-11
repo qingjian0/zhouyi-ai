@@ -1108,7 +1108,7 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
                     "payload": {
                         "prediction_id": "pred-legacy", "learner_track": "e12",
                         "target_or_feedback": {"label": "positive"},
-                        "split_role": "locked_test",
+                        "split_role": "support",
                     },
                 },
                 {
