@@ -1,6 +1,6 @@
 import unittest
 from prototype.e12a18_branch_merge_transition_discovery import (
-    Config, Edge, Node, Observation, discover,
+    Config, Edge, Node, Observation, _present, discover,
 )
 
 
@@ -56,11 +56,25 @@ class BranchMergeTransitionTests(unittest.TestCase):
         self.assertEqual(discover(rows,config=Config(max_complexity_bits=40)).motifs,())
 
     def test_candidate_budget_is_deterministic(self):
-        cfg=Config(max_candidates=1)
-        a,b=discover(fork_rows(),config=cfg),discover(fork_rows(),config=cfg)
+        rows=[]
+        for row in fork_rows():
+            nodes=row.nodes+(Node("x","context2"),Node("y","signal2"),Node("z","resource2"))
+            extra=(Edge("x","routes","y"),Edge("x","supplies","z")) if row.outcome=="success" else (Edge("y","blocks","x"),)
+            rows.append(Observation(row.observation_id,nodes,row.edges+extra,row.outcome))
+        cfg=Config(max_candidates=1,max_complexity_bits=40)
+        a,b=discover(rows,config=cfg),discover(rows,config=cfg)
         self.assertEqual(a,b)
         self.assertEqual(a.generated_candidate_count,1)
         self.assertTrue(a.truncated)
+
+    def test_repeated_arm_signature_requires_two_distinct_edges(self):
+        one=Observation("one",(Node("c","center"),Node("a","leaf")),
+                        (Edge("c","r","a"),),"yes")
+        two=Observation("two",(Node("c","center"),Node("a","leaf"),Node("b","leaf")),
+                        (Edge("c","r","a"),Edge("c","r","b")),"yes")
+        arms=(("r","leaf",""),("r","leaf",""))
+        self.assertFalse(_present(one,"FORK","center",arms))
+        self.assertTrue(_present(two,"FORK","center",arms))
 
     def test_invalid_endpoint_rejected(self):
         with self.assertRaises(ValueError):
