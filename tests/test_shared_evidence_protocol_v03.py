@@ -144,5 +144,21 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
         self.assertEqual(before, after)
 
 
+    def test_non_transition_e12_action_can_be_recorded_without_candidate_state(self):
+        receipt = self.store.append_event(
+            episode_id="ep", event_id="measure-1", event_type="lifecycle_action",
+            idempotency_key="measure-1",
+            payload={
+                "action_id": "measure-1", "action_type": "measure",
+                "candidate_id": None, "candidate_version": None,
+                "from_state": None, "to_state": None,
+                "evidence_refs": [], "cost": 0.5, "note": "active measurement",
+                "candidate_lineage_refs": [], "learner_track": "e12",
+            },
+        )
+        self.assertEqual(receipt.sequence_no, 1)
+
+
+
 if __name__ == "__main__":
     unittest.main()
