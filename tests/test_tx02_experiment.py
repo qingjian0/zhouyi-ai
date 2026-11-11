@@ -1,6 +1,6 @@
 import unittest
 
-from prototype.tx02_experiment import (\n    aggregate_runs, choose_hidden_size_for_budget, model_parameter_count, run_sweep,\n)
+from prototype.tx02_experiment import aggregate_runs, choose_hidden_size_for_budget, model_parameter_count, run_sweep
 
 
 class TX02ExperimentTests(unittest.TestCase):
