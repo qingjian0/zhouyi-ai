@@ -93,6 +93,19 @@ class YixiangAnalogyTests(unittest.TestCase):
                 relation_mapping=bridge.relation_mapping,
             )
 
+    def test_malformed_mapping_shape_is_rejected_as_value_error(self):
+        bridge = graph_pair()
+        with self.assertRaisesRegex(ValueError, "entries must be pairs"):
+            AnalogyBridge(
+                bridge_id="bad-shape",
+                source=bridge.source,
+                target=bridge.target,
+                mapping_kind=bridge.mapping_kind,
+                node_mapping=(["a", "x"],),
+                node_type_mapping=bridge.node_type_mapping,
+                relation_mapping=bridge.relation_mapping,
+            )
+
     def test_digest_is_deterministic(self):
         first = validate_bridge(graph_pair()).bridge_digest
         second = validate_bridge(graph_pair()).bridge_digest
