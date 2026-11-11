@@ -53,7 +53,7 @@ class DriftMismatchMonitor:
                  candidate_reference: Mapping[str, float],
                  control_references: Mapping[str, Mapping[str, float]],
                  public_key_bytes, executor_id, key_id, ledger: OrthogonalLifecycleLedger,
-                 min_samples=20, window_size=100, tv_threshold=0.25,
+                 protocol_version="measurement-v1", min_samples=20, window_size=100, tv_threshold=0.25,
                  replay_guard: MeasurementReplayGuard | None = None):
         if "@" not in candidate_ref or not all(isinstance(x, str) and x.strip()
                 for x in (scope_id, scope_digest, protocol_id, executor_id, key_id)):
@@ -70,9 +70,12 @@ class DriftMismatchMonitor:
         self.control_references = {k: _distribution(v) for k, v in control_references.items()}
         if not self.control_references or any(not isinstance(k, str) or not k for k in self.control_references):
             raise ValueError("non-empty known control target digests are required")
-        spaces = {tuple(k for k, _ in v) for v in self.control_references.values()}
-        if len(spaces) != 1:
-            raise ValueError("all aggregated controls must share an outcome space")
+        control_models = set(self.control_references.values())
+        if len(control_models) != 1:
+            raise ValueError("aggregated controls must share an identical reference distribution")
+        if not isinstance(protocol_version, str) or not protocol_version.strip():
+            raise ValueError("protocol_version is required")
+        self.protocol_version = protocol_version
         self.public_key_bytes, self.executor_id, self.key_id = public_key_bytes, executor_id, key_id
         self.ledger, self.min_samples, self.window_size = ledger, min_samples, window_size
         self.tv_threshold = float(tv_threshold)
@@ -92,7 +95,7 @@ class DriftMismatchMonitor:
         if receipt.status != MeasurementStatus.SELECT.value or not receipt.outcome:
             raise ValueError("only signed SELECT observations can be diagnosed")
         expected = {"executor_id": self.executor_id, "key_id": self.key_id,
-            "candidate_ref": self.candidate_ref, "scope_id": self.scope_id,
+            "protocol_version": self.protocol_version, "candidate_ref": self.candidate_ref, "scope_id": self.scope_id,
             "scope_digest": self.scope_digest, "protocol_id": self.protocol_id}
         verify_receipt(receipt, self.public_key_bytes, expected_context=expected)
         if receipt.receipt_id in self._receipt_ids:
