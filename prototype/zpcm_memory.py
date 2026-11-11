@@ -211,6 +211,15 @@ class ZPCMMemory:
                 or not isinstance(body.get("authorization_event_digest"), str)
                 or len(body["authorization_event_digest"]) != 64):
             raise ZPCMError("authorization receipt issuer/verifier/digest fields are invalid")
+        submitter_fields = (
+            "submitter_workload_id", "submitter_identity_provider",
+            "submitter_authentication_method", "submitter_credential_fingerprint",
+        )
+        if any(not isinstance(body.get(field), str) or not body[field].strip() for field in submitter_fields):
+            raise ZPCMError("authorization consumption submitter identity is incomplete")
+        fingerprint = body["submitter_credential_fingerprint"]
+        if len(fingerprint) != 64 or any(char not in "0123456789abcdef" for char in fingerprint):
+            raise ZPCMError("authorization consumption submitter fingerprint is invalid")
         if normalized[-1][0] != auth_event_id:
             raise ZPCMError("authorization consumption event must be last in its atomic bundle")
 

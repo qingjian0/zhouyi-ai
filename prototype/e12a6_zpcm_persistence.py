@@ -5,7 +5,7 @@ import json
 from datetime import datetime
 from dataclasses import dataclass, replace
 from threading import RLock
-from typing import Any
+from typing import Any, Mapping
 from prototype.e12a6_lifecycle_contract import Action, ActionType, Candidate, CandidateState, Evidence, LifecycleLedger, SplitRole
 from prototype.e09_verification_receipt import VerifiedE09VerificationReceipt
 from prototype.zpcm_memory import ZPCMMemory
@@ -116,6 +116,8 @@ class PersistentLifecycleLedger:
                         "parent_state_ref", "branch_ids", "authorization_evidence_refs",
                         "evidence_refs", "issuer_id", "verifier_id", "authorization_event_digest",
                         "receipt_issued_at", "receipt_expires_at", "candidate_id", "candidate_version", "consumed_at",
+                        "submitter_workload_id", "submitter_identity_provider",
+                        "submitter_authentication_method", "submitter_credential_fingerprint",
                     }
                     if set(body) != required:
                         raise LifecyclePersistenceError("authorization consumption has an invalid schema")
@@ -143,6 +145,15 @@ class PersistentLifecycleLedger:
                         receipt_expires_at = datetime.fromisoformat(body["receipt_expires_at"].replace("Z", "+00:00"))
                     except (TypeError, ValueError, KeyError) as exc:
                         raise LifecyclePersistenceError("authorization candidate binding is malformed") from exc
+                    identity_fields = (
+                        "submitter_workload_id", "submitter_identity_provider",
+                        "submitter_authentication_method", "submitter_credential_fingerprint",
+                    )
+                    if any(not isinstance(body.get(field), str) or not body[field].strip() for field in identity_fields):
+                        raise LifecyclePersistenceError("authorization consumption submitter identity is incomplete")
+                    if (len(body["submitter_credential_fingerprint"]) != 64
+                            or any(char not in "0123456789abcdef" for char in body["submitter_credential_fingerprint"])):
+                        raise LifecyclePersistenceError("authorization consumption submitter fingerprint is invalid")
                     if (not isinstance(merge, dict)
                             or merge.get("authorization_ref") != body["authorization_ref"]
                             or set(definition.get("branch_ids", ())) != set(body["branch_ids"])
@@ -208,6 +219,7 @@ class PersistentLifecycleLedger:
         *,
         authorization_receipt: VerifiedE09VerificationReceipt | None = None,
         consumed_at: datetime | None = None,
+        writer_identity: Mapping[str, str] | None = None,
     ) -> LifecycleBundleReceipt:
         """Atomically register a candidate/evidence bundle and consume its verifier receipt."""
         if not isinstance(candidate, Candidate):
@@ -235,14 +247,25 @@ class PersistentLifecycleLedger:
         authorization_event = None
         authorization_body = None
         if authorization_receipt is None:
-            if consumed_at is not None:
-                raise LifecyclePersistenceError("consumed_at requires a verified authorization receipt")
+            if consumed_at is not None or writer_identity is not None:
+                raise LifecyclePersistenceError("receipt consumption metadata requires a verified authorization receipt")
         else:
             if not isinstance(authorization_receipt, VerifiedE09VerificationReceipt):
                 raise TypeError("authorization_receipt must be a VerifiedE09VerificationReceipt")
             if not isinstance(consumed_at, datetime) or consumed_at.tzinfo is None:
                 raise LifecyclePersistenceError("receipt consumption requires timezone-aware writer time")
             receipt = authorization_receipt
+            identity_fields = {
+                "workload_id", "identity_provider", "authentication_method", "credential_fingerprint",
+            }
+            if not isinstance(writer_identity, Mapping) or set(writer_identity) != identity_fields:
+                raise LifecyclePersistenceError("receipt consumption requires authenticated writer identity")
+            if any(not isinstance(writer_identity[field], str) or not writer_identity[field].strip()
+                   for field in identity_fields):
+                raise LifecyclePersistenceError("authenticated writer identity fields must be non-empty strings")
+            fingerprint = writer_identity["credential_fingerprint"]
+            if len(fingerprint) != 64 or any(char not in "0123456789abcdef" for char in fingerprint):
+                raise LifecyclePersistenceError("writer credential fingerprint must be lowercase SHA-256")
             consumed_at = consumed_at.astimezone(receipt.expires_at.tzinfo)
             if receipt.scope != self.scope:
                 raise LifecyclePersistenceError("authorization receipt scope does not match lifecycle ledger")
@@ -289,6 +312,10 @@ class PersistentLifecycleLedger:
                 "candidate_id": candidate.candidate_id,
                 "candidate_version": candidate.version,
                 "consumed_at": consumed_at.isoformat(),
+                "submitter_workload_id": writer_identity["workload_id"],
+                "submitter_identity_provider": writer_identity["identity_provider"],
+                "submitter_authentication_method": writer_identity["authentication_method"],
+                "submitter_credential_fingerprint": writer_identity["credential_fingerprint"],
             }
             prior_receipt_use = self._consumed_receipts.get(receipt.receipt_id)
             if prior_receipt_use is not None:

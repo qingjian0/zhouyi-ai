@@ -60,6 +60,15 @@ def verified_receipt(evidence_item=None, *, receipt_id="receipt-1", nonce="nonce
     )
 
 
+def writer_identity():
+    return {
+        "workload_id": "spiffe://zhouyi/test-writer",
+        "identity_provider": "test-spiffe",
+        "authentication_method": "mTLS",
+        "credential_fingerprint": "c" * 64,
+    }
+
+
 def propose():
     return Action(action_id="propose-1",action_type=ActionType.PROPOSE,candidate_id="rel:greater-than",
       candidate_version=1,from_state=CandidateState.OBSERVED,to_state=CandidateState.PROPOSED)
@@ -159,7 +168,7 @@ class PersistentLifecycleTests(unittest.TestCase):
         receipt = verified_receipt(evidence_item)
         now = datetime(2026, 11, 12, 0, 30, tzinfo=timezone.utc)
         bundle = self.store.register_candidate_bundle(
-            candidate_item, (evidence_item,), authorization_receipt=receipt, consumed_at=now,
+            candidate_item, (evidence_item,), authorization_receipt=receipt, consumed_at=now, writer_identity=writer_identity(),
         )
         self.assertIsNotNone(bundle.authorization)
         self.assertFalse(bundle.authorization.replayed)
@@ -174,10 +183,40 @@ class PersistentLifecycleTests(unittest.TestCase):
         self.assertEqual(self.store.snapshot(), before)
         replay = self.store.register_candidate_bundle(
             candidate_item, (evidence_item,), authorization_receipt=receipt,
-            consumed_at=now + timedelta(seconds=10),
+            consumed_at=now + timedelta(seconds=10), writer_identity=writer_identity(),
         )
         self.assertTrue(replay.replayed)
         self.assertTrue(replay.authorization.replayed)
+
+    def test_receipt_consumption_requires_and_audits_authenticated_writer_identity(self):
+        item = evidence()
+        receipt = verified_receipt(item)
+        now = datetime(2026, 11, 12, 0, 30, tzinfo=timezone.utc)
+        candidate_item = authorized_candidate()
+        with self.assertRaises(LifecyclePersistenceError):
+            self.store.register_candidate_bundle(
+                candidate_item, (item,), authorization_receipt=receipt, consumed_at=now,
+            )
+        self.assertEqual(self.memory.replay_lifecycle_events(scope="project-a"), [])
+        identity = writer_identity()
+        identity["credential_fingerprint"] = "not-a-sha256-fingerprint"
+        with self.assertRaises(LifecyclePersistenceError):
+            self.store.register_candidate_bundle(
+                candidate_item, (item,), authorization_receipt=receipt,
+                consumed_at=now, writer_identity=identity,
+            )
+        self.assertEqual(self.memory.replay_lifecycle_events(scope="project-a"), [])
+        identity = writer_identity()
+        self.store.register_candidate_bundle(
+            candidate_item, (item,), authorization_receipt=receipt,
+            consumed_at=now, writer_identity=identity,
+        )
+        events = self.memory.replay_lifecycle_events(scope="project-a")
+        consumption = events[-1]["payload"]["body"]
+        self.assertEqual(consumption["submitter_workload_id"], identity["workload_id"])
+        self.assertEqual(consumption["submitter_identity_provider"], identity["identity_provider"])
+        self.assertEqual(consumption["submitter_authentication_method"], identity["authentication_method"])
+        self.assertEqual(consumption["submitter_credential_fingerprint"], identity["credential_fingerprint"])
 
     def test_receipt_backed_candidate_requires_same_receipt_on_replay(self):
         evidence_item = evidence()
@@ -186,6 +225,7 @@ class PersistentLifecycleTests(unittest.TestCase):
         candidate_item = authorized_candidate()
         self.store.register_candidate_bundle(
             candidate_item, (evidence_item,), authorization_receipt=receipt, consumed_at=now,
+            writer_identity=writer_identity(),
         )
         with self.assertRaises(LifecyclePersistenceError):
             self.store.register_candidate_bundle(candidate_item, (evidence_item,))
@@ -196,6 +236,7 @@ class PersistentLifecycleTests(unittest.TestCase):
         now = datetime(2026, 11, 12, 0, 30, tzinfo=timezone.utc)
         self.store.register_candidate_bundle(
             authorized_candidate(), (evidence_item,), authorization_receipt=receipt, consumed_at=now,
+            writer_identity=writer_identity(),
         )
         altered_definition = {
             "schema": "csg-gcr-typed-candidate-v1",
@@ -214,11 +255,12 @@ class PersistentLifecycleTests(unittest.TestCase):
         with self.assertRaises(LifecyclePersistenceError):
             self.store.register_candidate_bundle(
                 other, (evidence_item,), authorization_receipt=receipt, consumed_at=now,
+                writer_identity=writer_identity(),
             )
         reused_nonce = verified_receipt(evidence_item, receipt_id="receipt-2", nonce="nonce-1")
         with self.assertRaises(LifecyclePersistenceError):
             self.store.register_candidate_bundle(
-                other, (evidence_item,), authorization_receipt=reused_nonce, consumed_at=now,
+                other, (evidence_item,), authorization_receipt=reused_nonce, consumed_at=now, writer_identity=writer_identity(),
             )
 
     def test_sqlite_unique_nonce_constraint_blocks_stale_second_writer(self):
@@ -227,7 +269,7 @@ class PersistentLifecycleTests(unittest.TestCase):
         now = datetime(2026, 11, 12, 0, 30, tzinfo=timezone.utc)
         self.store.register_candidate_bundle(
             authorized_candidate(), (first_evidence,),
-            authorization_receipt=first_receipt, consumed_at=now,
+            authorization_receipt=first_receipt, consumed_at=now, writer_identity=writer_identity(),
         )
 
         second_evidence = replace(evidence(), evidence_id="train-2", observation_id="obs-2")
@@ -257,6 +299,10 @@ class PersistentLifecycleTests(unittest.TestCase):
             "receipt_expires_at": "2026-11-12T00:31:00+00:00",
             "candidate_id": "rel:other", "candidate_version": 1,
             "consumed_at": "2026-11-12T00:30:00+00:00",
+            "submitter_workload_id": "spiffe://zhouyi/test-writer",
+            "submitter_identity_provider": "test-spiffe",
+            "submitter_authentication_method": "mTLS",
+            "submitter_credential_fingerprint": "c" * 64,
         }
         events = [
             {"event_id": "e12a6:evidence:train-2", "payload": {
@@ -289,6 +335,7 @@ class PersistentLifecycleTests(unittest.TestCase):
             self.store.register_candidate_bundle(
                 authorized_candidate(), (evidence_item,), authorization_receipt=receipt,
                 consumed_at=datetime(2026, 11, 12, 0, 32, tzinfo=timezone.utc),
+                writer_identity=writer_identity(),
             )
         self.assertEqual(self.store.snapshot()["candidates"], [])
         self.assertEqual(self.memory.replay_lifecycle_events(scope="project-a"), [])
@@ -302,6 +349,7 @@ class PersistentLifecycleTests(unittest.TestCase):
                 authorized_candidate(), (evidence(),),
                 authorization_receipt=verified_receipt(),
                 consumed_at=datetime(2026, 11, 12, 0, 30, tzinfo=timezone.utc),
+                writer_identity=writer_identity(),
             )
         self.memory.append_lifecycle_events = original
         self.assertEqual(self.store.snapshot(), before)
