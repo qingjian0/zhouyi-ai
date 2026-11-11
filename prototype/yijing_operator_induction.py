@@ -136,9 +136,15 @@ class MechanismCandidate:
     def has_interventional_support(self) -> bool:
         return EvidenceKind.INTERVENTIONAL in self.evidence_kinds
 
-    def predict(self, state: RelationalState, intervention: str) -> RelationalState | None:
-        """Apply only when role/type, context and structural preconditions match."""
-        if intervention != self.intervention or _signature(state) != self.role_signature:
+    def predict(
+        self, state: RelationalState, intervention: str, *, domain: str
+    ) -> RelationalState | None:
+        """Apply only within an observed domain and matching structural context."""
+        if (
+            not domain or domain not in self.domains
+            or intervention != self.intervention
+            or _signature(state) != self.role_signature
+        ):
             return None
         context = _context(state)
         if any(context.get(k) != v for k, v in self.required_context):
@@ -261,7 +267,7 @@ def validate_candidate(
     mismatches = []
     support = 0
     for row in rows:
-        predicted = candidate.predict(row.before, row.intervention)
+        predicted = candidate.predict(row.before, row.intervention, domain=row.domain)
         if predicted == row.after:
             support += 1
         else:
@@ -276,6 +282,7 @@ def validate_candidate(
 class ExperimentQuery:
     state: RelationalState
     intervention: str
+    domain: str
     query_id: str
 
 
@@ -301,7 +308,9 @@ def rank_experiments(
         buckets: dict[str, list[str]] = {}
         eligible = []
         for candidate in candidates:
-            prediction = candidate.predict(query.state, query.intervention)
+            prediction = candidate.predict(
+                query.state, query.intervention, domain=query.domain
+            )
             if prediction is None:
                 continue
             eligible.append(candidate.candidate_id)
