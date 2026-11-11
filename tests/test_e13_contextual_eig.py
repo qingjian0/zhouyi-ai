@@ -39,7 +39,7 @@ class E13BayesianEIGTests(unittest.TestCase):
             candidates,
             tuple((candidate.candidate_id, Fraction(1, len(candidates)))
                   for candidate in candidates),
-            ((("x", "s"), Fraction(1)),),
+            (((("x", "s"),), Fraction(1)),),
             (("mode", "fixed"),), "initial", initial_obs, "e0"
         )
 
@@ -127,8 +127,8 @@ class E13BayesianEIGTests(unittest.TestCase):
         # Initial belief after observing zero has only latent state zero.
         belief = initialize_observation_belief(
             (candidate,), (("id", Fraction(1)),),
-            ((("x", "zero"), Fraction(1, 2)),
-             (("x", "one"), Fraction(1, 2))),
+            (((("x", "zero"),), Fraction(1, 2)),
+             ((("x", "one"),), Fraction(1, 2))),
             (("mode", "fixed"),), "initial", "zero", "e0"
         ).belief
         result = select_bayesian_experiment(
