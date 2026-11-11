@@ -130,6 +130,17 @@ class ExactSlotGroupInductionTests(unittest.TestCase):
         )
         group = report.hypotheses[0].group
         self.assertEqual(group.generated_group, ((0, 1, 2),))
+        self.assertEqual(len(report.observation_groups), 2)
+        self.assertEqual(
+            report.observation_groups[0].exact_group,
+            ((0, 1, 2), (1, 0, 2)),
+        )
+        self.assertEqual(
+            report.observation_groups[1].exact_group,
+            ((0, 1, 2),),
+        )
+        self.assertEqual(len(report.transitions), 1)
+        self.assertEqual(report.transitions[0].transition.relation, "SYMMETRY_BROKEN")
         swap01 = next(item for item in group.support if item.permutation == (1, 0, 2))
         self.assertEqual(swap01.status, "CONTRADICTED")
         self.assertEqual(swap01.compatible_evidence_ids, ("before",))
