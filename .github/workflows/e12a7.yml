@@ -1,0 +1,20 @@
+name: E12-A7 multi-world benchmark
+
+on:
+  push:
+    branches: [research/e12a7-multiworld-analogy-benchmark-2026-11-11]
+  pull_request:
+    branches: [research/e12a6-e02d-lifecycle-runner-2026-11-11]
+
+jobs:
+  e12a7:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run E12-A7 focused tests
+        run: python -m unittest tests.test_e12a7_multiworld -v
+      - name: Run E12-A7 multi-world benchmark
+        run: python -m prototype.e12a7_multiworld --json
