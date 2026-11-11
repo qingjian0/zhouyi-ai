@@ -21,13 +21,42 @@ class CandidateDiscoveryTests(unittest.TestCase):
                         f"synthetic:{int(a)}:{int(b)}:{int(c)}",
                     ))
         report = discover_candidates(
-            rows, max_arity=3, candidate_budget=100, max_terms_per_target=20
+            rows, max_arity=3, candidate_budget=200, max_terms_per_target=20
         )
         z_scores = [s for s in report.scores if s.target == "z"]
         self.assertTrue(any(s.source_keys == ("a", "b", "c") for s in z_scores))
         self.assertEqual(report.candidates_considered, 104)
         joint = next(s for s in z_scores if s.source_keys == ("a", "b", "c"))
         self.assertEqual(joint.polarity, 1)
+
+    def test_xor_is_discovered_and_learned_with_complementary_literals(self):
+        rows = []
+        for a in (0.0, 1.0):
+            for b in (0.0, 1.0):
+                rows.append(TransitionExample(
+                    snap(a=a, b=b, z=0.0),
+                    snap(a=a, b=b, z=1.0 if a != b else 0.0),
+                    f"xor:{int(a)}:{int(b)}",
+                ))
+        report = discover_candidates(
+            rows, max_arity=2, candidate_budget=100, max_terms_per_target=8
+        )
+        z_scores = [score for score in report.scores if score.target == "z"]
+        self.assertTrue(any(
+            score.source_keys == ("a", "b") and score.negated_keys == ("b",)
+            for score in z_scores
+        ))
+        self.assertTrue(any(
+            score.source_keys == ("a", "b") and score.negated_keys == ("a",)
+            for score in z_scores
+        ))
+        terms = tuple(term for term in report.terms if term.target == "z")
+        self.assertTrue(any(slot.complement for term in terms for slot in term.sources))
+        model = RelationalDynamicsModel(terms, biases={"z": -2.0})
+        model.fit(rows, epochs=3000, learning_rate=0.5)
+        for a, b, expected in ((0, 0, 0), (0, 1, 1), (1, 0, 1), (1, 1, 0)):
+            prediction = model.predict(snap(a=a, b=b, z=0)).as_dict()["z"]
+            self.assertEqual(prediction > 0.5, bool(expected))
 
     def test_discovers_negative_association(self):
         rows = []
@@ -78,7 +107,7 @@ class CandidateDiscoveryTests(unittest.TestCase):
                         f"train:{int(a)}:{int(b)}:{int(c)}",
                     ))
         discovered = discover_candidates(
-            rows, max_arity=3, candidate_budget=100, max_terms_per_target=1
+            rows, max_arity=3, candidate_budget=200, max_terms_per_target=1
         )
         z_term = next(term for term in discovered.terms if term.target == "z")
         model = RelationalDynamicsModel((z_term,), biases={"z": -1.0})
