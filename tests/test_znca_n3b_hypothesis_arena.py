@@ -94,12 +94,13 @@ class HypothesisArenaTests(unittest.TestCase):
         with self.assertRaises(ArenaError):
             self.arena.propose(proposal("bad-read", ("missing",), ("b",), {"b": "1"}))
 
-    def test_cannot_bypass_evidence_gate_with_pre_supported_status(self):
+    def test_arena_rejects_pre_supported_hypothesis(self):
+        forged = Hypothesis(
+            "forged", 4, ("a",), ("b",), (("b", "1"),), ("ev-1",),
+            HypothesisStatus.SUPPORTED,
+        )
         with self.assertRaises(ArenaError):
-            Hypothesis(
-                "forged", 4, ("a",), ("b",), (("b", "1"),), ("ev-1",),
-                HypothesisStatus.SUPPORTED,
-            )
+            self.arena.propose(forged)
 
     def test_empty_read_or_write_set_is_rejected(self):
         with self.assertRaises(ArenaError):
