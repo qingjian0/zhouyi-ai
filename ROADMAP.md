@@ -62,3 +62,12 @@ PR #208 now provides a bounded R1 coordinator candidate, but its declared gaps r
 - E09 evidence references are now checked against strict observation → prediction commit → reveal event chains, including envelope digests, scope/track/split binding, event order, and causation.
 - SUPPORT maps to E12-A6 TRAIN; GATE_DEV, GATE_FINAL, and LOCKED_TEST remain isolated. Raw labels are not copied into lifecycle persistence.
 - Both PRs remain Draft. Next: atomically ingest a typed CSG-GCR candidate and its verified E09 evidence into PersistentLifecycleLedger/ZPCM; reject cross-branch merges until authorization issuer verification exists.
+
+
+## P1 atomic ingestion milestone (2026-11-11)
+
+- PR #227 exact head 6a4b0dce8dd1255daaa613a2649796a07e37de85 passed workflow 43038677702.
+- PR #228 exact head d68819c34275a6b69482b28a33dbeeaec8c7659e passed full workflow 43039470802.
+- Single-branch typed CSG-GCR candidate evidence references can now be resolved against strict E09 reveal chains, projected into E12-A6, and atomically persisted with the candidate in ZPCM.
+- Batch failure rollback, idempotent retry, and crash-after-commit replay are covered by tests. Raw labels remain in E09; ZPCM lifecycle events contain only opaque references.
+- Cross-branch ingestion remains fail-closed until E09 authorization issuer verification exists. Process isolation, authenticated IPC, and cross-process transactional outbox remain separate P1 gates.
