@@ -71,3 +71,13 @@ PR #208 now provides a bounded R1 coordinator candidate, but its declared gaps r
 - Single-branch typed CSG-GCR candidate evidence references can now be resolved against strict E09 reveal chains, projected into E12-A6, and atomically persisted with the candidate in ZPCM.
 - Batch failure rollback, idempotent retry, and crash-after-commit replay are covered by tests. Raw labels remain in E09; ZPCM lifecycle events contain only opaque references.
 - Cross-branch ingestion remains fail-closed until E09 authorization issuer verification exists. Process isolation, authenticated IPC, and cross-process transactional outbox remain separate P1 gates.
+
+
+## P1 single-branch end-to-end lifecycle closure (2026-11-11)
+
+- PR #228 exact head 8edf52c3ee83bc8063d14d249a2edc7676f1e9d8 passed full workflow 43040120573.
+- PR #229 exact head 561ecc4e51c5d2af39139cb367ec0d430571ec38 passed full workflow 43040339295.
+- The tested path now spans typed CSG-GCR candidate creation, strict E09 evidence-chain verification, atomic candidate/evidence persistence, E12-A6 lifecycle actions, ZPCM append-only event history, and restart/replay.
+- The full tested transition path is OBSERVED → PROPOSED → DISCRIMINATION_PENDING → TRAIN_SUPPORTED → GATE_VALIDATED → CHALLENGED.
+- SUPPORT-derived TRAIN, GATE_FINAL, and LOCKED_TEST evidence remain distinct; GATE_DEV cannot satisfy GATE_FINAL.
+- Remaining gates: authenticated cross-branch authorization, OS-level evaluator/learner isolation, authenticated IPC, cross-process transactional outbox, and broader scientific/generalization validation. All integration PRs remain Draft and unmerged.
