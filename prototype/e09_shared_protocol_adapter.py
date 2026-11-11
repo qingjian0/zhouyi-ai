@@ -1,8 +1,8 @@
-"""E09 adapter for the shared durable evidence protocol.
+"""E09 adapter for learner-authorized feedback in the shared evidence protocol.
 
-The adapter keeps E09's learner semantics intact while persisting the
-predict/commit/reveal/revise lifecycle in SQLite. It is a trusted-runner
-integration, not evaluator/learner process isolation or crash-resume support.
+This v0.2 adapter persists predict/commit/feedback/revise. It deliberately
+refuses evaluator-only labels because v0.2 has no evaluator-only event channel.
+It is not evaluator/learner process isolation or crash-resume support.
 """
 from __future__ import annotations
 
@@ -141,8 +141,8 @@ class E09SharedProtocolAdapter:
                 f"prediction persistence failed; adapter stopped: {exc}"
             ) from exc
 
-    def reveal(self, prediction_id: str, label: Any, *,
-               source: str = "feedback", source_id: str = "") -> str:
+    def reveal_feedback(self, prediction_id: str, label: Any, *,
+                        source: str = "feedback", source_id: str = "") -> str:
         self._assert_healthy()
         if prediction_id not in self._committed_predictions:
             raise PrequentialError("reveal requires a prediction committed by this adapter")
@@ -155,7 +155,7 @@ class E09SharedProtocolAdapter:
                 episode_id=self.episode_id,
                 event_id=event_id,
                 idempotency_key=event_id,
-                actor_role="evaluator",
+                actor_role="learner_feedback",
                 causation_refs=[f"{self.episode_id}:prediction:{prediction_id}"],
                 payload={
                     "prediction_id": prediction_id,
@@ -164,8 +164,9 @@ class E09SharedProtocolAdapter:
                     "reveal_source": source,
                 },
             )
-            # Source IDs remain in E09's provenance ledger, not learner-facing
-            # protocol payloads; the protocol has no evaluator-only field ACL.
+            # This method is only for feedback explicitly authorized for learning.
+            # Evaluator-only labels must use record_evaluation(), which fails closed
+            # on this v0.2 store rather than routing labels into runner.reveal().
             self.runner.reveal(
                 prediction_id, label, source=source, source_id=source_id
             )
@@ -176,6 +177,29 @@ class E09SharedProtocolAdapter:
             raise E09ProtocolAdapterError(
                 f"reveal/append failed; durable state may require reconciliation: {exc}"
             ) from exc
+
+    def reveal(self, prediction_id: str, label: Any, *,
+               source: str = "feedback", source_id: str = "") -> str:
+        """Backward-compatible alias for learner-authorized feedback only."""
+        return self.reveal_feedback(
+            prediction_id, label, source=source, source_id=source_id
+        )
+
+    def record_evaluation(self, prediction_id: str, label: Any, *,
+                          evaluation_role: str,
+                          candidate_set_digest: str) -> None:
+        """Reject evaluator-only labels until a dedicated v0.3 channel exists.
+
+        Never persist these labels as evidence_reveal and never call
+        PrequentialRunner.reveal(). The v0.2 protocol cannot represent the
+        required evaluator/learner separation safely.
+        """
+        self._assert_healthy()
+        raise E09ProtocolAdapterError(
+            "evaluator-only recording is unavailable: v0.2 has no "
+            "evaluation_reveal channel or learner/evaluator projections; "
+            "refusing to persist or train on this label"
+        )
 
     def revise(self, prediction_id: str) -> dict[str, Any]:
         self._assert_healthy()
