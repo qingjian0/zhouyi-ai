@@ -7,9 +7,11 @@ is a local filesystem store with content-addressed objects and atomic publicatio
 ## Contract
 - `ArtifactStore.put(AgentArtifact) -> ArtifactRef`
 - `ArtifactStore.get(ArtifactRef) -> AgentArtifact`
-- References carry artifact ID, kind, and a SHA-256 content digest.
+- References carry artifact ID, kind, and a SHA-256 digest over the canonical artifact envelope
+  (artifact ID, kind, and content). Including identity avoids collisions between distinct
+  deliverables that happen to contain identical JSON.
 - JSON is canonicalized (UTF-8, sorted keys, compact separators, finite numbers only)
-  before hashing, so equivalent JSON objects produce stable content identifiers.
+  before hashing, so the same artifact identity and payload produce a stable digest.
 - Object paths are derived only from the validated digest, never from user-provided IDs.
 - Writes use a temporary file, fsync, and atomic hard-link publication; concurrent
   writers of identical content converge on the same object.
@@ -30,7 +32,7 @@ retention controls before deployment.
 
 ## Acceptance
 1. Round-trip preserves artifact identity, kind, and JSON content.
-2. Identical content maps to the same digest.
+2. Identical artifact identity, kind, and content map to the same digest; changing any of them changes the digest.
 3. Tampered content and mismatched references are rejected.
 4. Oversized artifacts are rejected before publication.
 5. Concurrent identical writes do not expose partial objects.
