@@ -44,3 +44,8 @@ Queue entries are derived from all recorded invalidation triggers, current per-t
 Regression tests cover durable edge append, projection digest, SQLite close/reopen parity, unknown endpoint rejection, unbound-track rejection, cycle rejection without sequence consumption, and lifecycle-driven BLOCKING/REVIEW/ADVISORY behavior on a three-node dependency chain.
 
 This remains a single-process SQLite reference implementation. It does not provide cross-track sharing, distributed consensus, authorization, learner crash-resume, or automatic revalidation execution.
+
+
+## Causal ordering invariant
+
+Invalidation propagation uses a causal graph snapshot at each trigger sequence. An edge can transmit a trigger only when its own `dependency_added` sequence is less than or equal to the lifecycle transition sequence that produced the trigger. Edges appended later remain part of the current graph but cannot retroactively invalidate a consumer for an earlier event. A regression test places the same blocking edges after the root challenge and requires an empty queue.

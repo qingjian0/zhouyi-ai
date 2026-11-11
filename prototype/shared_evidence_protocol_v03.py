@@ -1103,19 +1103,23 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                     )
 
         eligible_states = {CandidateState.GATE_VALIDATED.value, CandidateState.REUSED.value, CandidateState.SPECIALIZED.value}
-        reverse = {}
-        for edge in dependencies:
-            reverse.setdefault((edge["dependency_version_id"], edge["learner_track"]), []).append(edge)
-        for edges in reverse.values():
-            edges.sort(key=lambda item: (item["dependent_version_id"], item["role"], item["event_id"]))
         queue_index = {}
         for root, track, trigger_sequence in sorted(invalidation_sources, key=lambda item: item[2]):
             if track_candidates.get(track, {}).get(root, {}).get("state") in eligible_states:
                 continue
+            # Causal snapshot: only dependencies that were already durable at
+            # the invalidation event may transmit that trigger. Edges appended
+            # later cannot retroactively make a candidate stale.
+            reverse = {}
+            for edge in dependencies:
+                if edge["learner_track"] == track and edge["sequence_no"] <= trigger_sequence:
+                    reverse.setdefault(edge["dependency_version_id"], []).append(edge)
+            for edges in reverse.values():
+                edges.sort(key=lambda item: (item["dependent_version_id"], item["role"], item["event_id"]))
             todo, expanded = [root], set()
             while todo:
                 prerequisite = todo.pop(0)
-                prerequisite_key = (prerequisite, track)
+                prerequisite_key = prerequisite
                 if prerequisite_key in expanded:
                     continue
                 expanded.add(prerequisite_key)
