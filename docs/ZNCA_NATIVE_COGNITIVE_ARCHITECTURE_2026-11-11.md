@@ -334,3 +334,17 @@ CPU 优先，内存映射/分页索引、稀疏活动子图、增量 checkpoint�
 **以结构化对象和关系为基本表征，以事件驱动状态变化为基本计算，以类象为跨域映射算子，以多路径证据裁决为推理机制，以语言生成作为可替换表达层。**
 
 这是一个需要从小规模可证伪原型逐步发展出来的新架构。当前只定义了研究路线，尚未证明它能够在通用语言能力、知识覆盖或训练效率上超过现有大模型。
+
+
+## 14. 相关研究与定位
+
+以下工作是候选技术路线和比较基线，不代表本提案等同于它们：
+
+1. **Mamba-2 / State Space Duality**：说明状态空间模型与注意力存在可分析的数学联系，并提出更高效的选择性状态空间层。https://proceedings.mlr.press/v235/dao24a.html
+2. **RWKV-7**：研究动态状态演化、广义 Delta Rule 和有界递归状态。https://arxiv.org/abs/2503.14456
+3. **xLSTM**：研究指数门控、标量/矩阵记忆及并行训练。https://proceedings.neurips.cc/paper_files/paper/2024/hash/c2ce2f2701c10a2b2f2ea0bfa43cfaa3-Abstract-Conference.html
+4. **Titans**：研究测试时神经长期记忆，并将其与短期注意力组合；其长上下文结果值得比较，但仍不是本提案的结构状态架构。https://proceedings.neurips.cc/paper_files/paper/2025/hash/a4ca07aa108036f80cbb5b82285fd4b1-Abstract-Conference.html
+5. **RetNet**：研究并行、递归和 chunkwise recurrent 执行形式。https://arxiv.org/abs/2307.08621
+6. **Hyena**：研究长卷积与门控作为注意力替代算子。https://proceedings.mlr.press/v202/poli23a.html
+
+本提案的差异化假设不在于“另一个线性序列算子”，而在于将类型化关系状态、事件转移、类象结构映射、多路径证据裁决和语言表达解耦为不同计算职责，再检验这种组合是否产生可测量的能力/效率优势。
