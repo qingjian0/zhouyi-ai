@@ -84,6 +84,67 @@ class ZPCMMemory:
                 "payload_digest":row["payload_digest"],"recorded_at":row["recorded_at"]})
         return events
 
+
+    def append_lifecycle_events(self, *, events: Sequence[dict[str, Any]], scope: str,
+                                expected_sequence: int) -> list[dict[str, Any]]:
+        """Atomically append a complete lifecycle event bundle.
+
+        The batch is all-new or all-replayed. Mixed prior/new batches are
+        rejected so retries cannot silently complete a partially committed
+        logical ingestion.
+        """
+        if not isinstance(scope, str) or not scope.strip():
+            raise ZPCMError("scope must be non-empty")
+        if not isinstance(events, (list, tuple)) or not events:
+            raise ZPCMError("events must be a non-empty sequence")
+        if isinstance(expected_sequence, bool) or not isinstance(expected_sequence, int) or expected_sequence < 0:
+            raise ZPCMError("expected_sequence must be a non-negative integer")
+        normalized = []
+        ids = set()
+        for event in events:
+            if not isinstance(event, dict) or not isinstance(event.get("payload"), dict):
+                raise ZPCMError("each lifecycle event requires an object payload")
+            event_id = event.get("event_id")
+            if not isinstance(event_id, str) or not event_id.strip() or event_id in ids:
+                raise ZPCMError("lifecycle batch event IDs must be unique non-empty strings")
+            ids.add(event_id)
+            normalized.append((event_id, event["payload"]))
+        with self.lock:
+            self.db.execute("BEGIN IMMEDIATE")
+            try:
+                prior_rows = [
+                    self.db.execute(
+                        "SELECT seq,event_type,scope,payload_digest FROM memory_events WHERE event_id=?",
+                        (event_id,),
+                    ).fetchone()
+                    for event_id, _ in normalized
+                ]
+                existing_count = sum(row is not None for row in prior_rows)
+                if existing_count not in (0, len(normalized)):
+                    raise ZPCMError("partial lifecycle batch replay conflict")
+                if existing_count == 0:
+                    current = self.db.execute(
+                        "SELECT COALESCE(MAX(seq),0) FROM memory_events "
+                        "WHERE event_type='e12a6_lifecycle' AND scope=?",
+                        (scope,),
+                    ).fetchone()[0]
+                    if current != expected_sequence:
+                        raise ZPCMError(
+                            f"stale lifecycle sequence: expected {expected_sequence}, current {current}"
+                        )
+                receipts = []
+                for event_id, payload in normalized:
+                    seq, replay = self._append(event_id, "e12a6_lifecycle", scope, payload)
+                    receipts.append({
+                        "event_id": event_id, "sequence": seq,
+                        "payload_digest": digest(payload), "replayed": replay,
+                    })
+                self.db.execute("COMMIT")
+                return receipts
+            except Exception:
+                self.db.execute("ROLLBACK")
+                raise
+
     def append_item(self,*,item_id,item_type,scope,content,source_event_id):
         if not isinstance(content,dict):raise ZPCMError("content must be object")
         with self.lock:
