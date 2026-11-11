@@ -7,15 +7,14 @@ narrow synthetic identifiability test, not a natural-language benchmark.
 from __future__ import annotations
 
 import json
-from dataclasses import asdict
-
 from prototype.n4a_relation_discovery import (
     Edge, Node, RelationalCase, discover_relations, matches_candidate,
 )
 
 
 def make_case(index: int, partition: str, outcome: bool) -> RelationalCase:
-    prefix = f"case-{index}-"
+    label = "positive" if outcome else "negative"
+    prefix = f"case-{index}-{label}-"
     nodes = (
         Node(prefix + "a", "domain-specific-source", ("source",)),
         Node(prefix + "b", "domain-specific-process", ("mediator",)),
@@ -32,7 +31,7 @@ def make_case(index: int, partition: str, outcome: bool) -> RelationalCase:
         Edge(prefix + "d", prefix + "a", "contextualizes"),
     )
     return RelationalCase(
-        f"case-{index}", f"domain-{index % 3}", "directed-process",
+        f"case-{index}-{label}", f"domain-{index % 3}", "directed-process",
         partition, outcome, nodes, edges,
     )
 
