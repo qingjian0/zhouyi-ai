@@ -63,7 +63,7 @@ class TX02ExperimentTests(unittest.TestCase):
         for family in run["families"].values():
             self.assertLessEqual(family["forward_macs_budget_delta"], 0)
             self.assertEqual(family["locked_test_selective_prediction"]["threshold_selected_on"],
-                             "validation")
+                             "validation_calibration")
             self.assertIn("nll", family["validation_probability_metrics"])
             self.assertEqual(
                 family["locked_test_episode_selective_prediction"]["risk_unit"],
