@@ -9,11 +9,11 @@ from __future__ import annotations
 
 import json
 import math
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime, timezone
 from typing import Any, Iterable, Sequence
 
-from prototype.e12a6_lifecycle_contract import Action, ActionType, Candidate, CandidateState, Evidence, SplitRole, _TRANSITIONS
+from prototype.e12a6_lifecycle_contract import Action, ActionType, Candidate, CandidateState, Evidence, LifecycleLedger, SplitRole, _TRANSITIONS
 from prototype.shared_evidence_protocol import (
     EVENT_TYPES as V02_EVENT_TYPES,
     PROTOCOL_VERSION as V02_PROTOCOL_VERSION,
@@ -185,6 +185,8 @@ class EpisodeProjection:
     candidate_objects: dict[str, Candidate]
     evidence_objects: dict[str, Evidence]
     action_objects: tuple[Action, ...]
+    track_candidate_objects: dict[str, dict[str, Candidate]]
+    track_action_objects: dict[str, tuple[Action, ...]]
     actions: tuple[dict[str, Any], ...]
     revisions: dict[str, dict[str, Any]]
 
@@ -198,14 +200,57 @@ class EpisodeProjection:
             "candidates": {k: self.candidates[k] for k in sorted(self.candidates)},
             "evidence_objects": {k: _evidence_to_payload(self.evidence_objects[k]) for k in sorted(self.evidence_objects)},
             "action_objects": [_action_to_payload(a) for a in self.action_objects],
+            "track_candidate_objects": {track: {k: _candidate_to_payload(v) for k, v in sorted(items.items())} for track, items in sorted(self.track_candidate_objects.items())},
+            "track_action_objects": {track: [_action_to_payload(a) for a in actions] for track, actions in sorted(self.track_action_objects.items())},
             "actions": list(self.actions),
             "revisions": {k: self.revisions[k] for k in sorted(self.revisions)},
         }
+
+
+    def hydrate_lifecycle_ledgers(self) -> dict[str, LifecycleLedger]:
+        """Rebuild one E12 ledger per learner track; never merge track state."""
+        ledgers: dict[str, LifecycleLedger] = {}
+        evidence_by_track: dict[str, dict[str, Evidence]] = {}
+        for key, item in self.evidence.items():
+            track = item.get("learner_track")
+            if track and item["evidence_id"] in self.evidence_objects:
+                evidence_by_track.setdefault(track, {})[item["evidence_id"]] = self.evidence_objects[item["evidence_id"]]
+        for track, candidates in self.track_candidate_objects.items():
+            ledger = LifecycleLedger()
+            track_evidence = evidence_by_track.get(track, {})
+            for candidate in candidates.values():
+                missing = set(candidate.evidence_ids) - track_evidence.keys()
+                if missing:
+                    raise ProtocolError(
+                        f"cannot hydrate learner_track {track}: candidate has evidence without typed E12 definitions: {sorted(missing)}"
+                    )
+                ledger.add_candidate(replace(candidate, state=CandidateState.OBSERVED))
+            for item in track_evidence.values():
+                ledger.add_evidence(item)
+            for action in self.track_action_objects.get(track, ()):
+                missing = set(action.evidence_ids) - ledger.evidence.keys()
+                if missing:
+                    raise ProtocolError(
+                        f"cannot hydrate learner_track {track}: action has evidence without typed E12 definitions: {sorted(missing)}"
+                    )
+                ledger.apply(action)
+            ledgers[track] = ledger
+        return ledgers
 
     @property
     def digest(self) -> str:
         return digest_payload(self.to_dict())
 
+
+
+
+def _candidate_to_payload(item: Candidate) -> dict[str, Any]:
+    payload = candidate_definition_payload(item)
+    return {
+        **payload, "candidate_id": item.candidate_id, "version": item.version,
+        "parent_refs": list(item.parent_refs), "evidence_ids": list(item.evidence_ids),
+        "state": item.state.value,
+    }
 
 
 def _evidence_to_payload(item: Evidence) -> dict[str, Any]:
@@ -638,6 +683,7 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
         observations, predictions, evidence = {}, {}, {}
         evidence_objects = {}
         structures, candidates, revisions = {}, {}, {}
+        track_candidates: dict[str, dict[str, dict[str, Any]]] = {}
         actions, action_ids, event_ids = [], set(), set()
         previous_sequence = 0
 
@@ -785,6 +831,11 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                         raise ProtocolError("replayed lifecycle candidate_id does not match structure identity")
                     if payload.get("candidate_lineage_refs", []) != candidate.get("parent_version_ids", []):
                         raise ProtocolError("replayed candidate lineage differs from its structure version")
+                    track_candidates.setdefault(track, {})
+                    track_candidates[track].setdefault(
+                        candidate_key, {**candidate, "state": CandidateState.OBSERVED.value}
+                    )
+                    track_candidate = track_candidates[track][candidate_key]
                 resolved = []
                 for ref in payload.get("evidence_refs", []):
                     item = resolve_evidence(ref)
@@ -798,9 +849,9 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                 if allowed:
                     if candidate_key is None or (CandidateState(from_state), CandidateState(to_state)) not in allowed:
                         raise ProtocolError(f"invalid E12 transition during replay: {aid}")
-                    current = candidates[candidate_key]["state"]
+                    current = track_candidates[track][candidate_key]["state"]
                     if current != from_state:
-                        raise ProtocolError(f"stale E12 transition during replay: {aid}, current={current}, from={from_state}")
+                        raise ProtocolError(f"stale E12 transition during replay: {aid}, track={track}, current={current}, from={from_state}")
                     required_role = {
                         CandidateState.TRAIN_SUPPORTED.value: {SplitRole.TRAIN.value},
                         CandidateState.GATE_VALIDATED.value: {SplitRole.GATE_FINAL.value},
@@ -808,6 +859,7 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                     }.get(to_state)
                     if required_role and not any(item.get("split_role") in required_role for item in resolved):
                         raise ProtocolError(f"E12 transition lacks required evidence role: {aid}")
+                    track_candidates[track][candidate_key]["state"] = to_state
                     candidates[candidate_key]["state"] = to_state
                 elif from_state is not None or to_state is not None:
                     raise ProtocolError(f"non-transition E12 action changes state: {aid}")
@@ -853,23 +905,46 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                     state=CandidateState(item["state"]),
                 )
 
-        action_objects = tuple(
-            Action(
+        def make_action(item: dict[str, Any]) -> Action:
+            candidate_key = item["candidate_key"]
+            return Action(
                 action_id=item["action_id"], action_type=ActionType(item["action_type"]),
-                candidate_id=(item["candidate_key"].rsplit("@", 1)[0] if item["candidate_key"] else None),
-                candidate_version=(int(item["candidate_key"].rsplit("@", 1)[1]) if item["candidate_key"] else None),
+                candidate_id=(candidate_key.rsplit("@", 1)[0] if candidate_key else None),
+                candidate_version=(int(candidate_key.rsplit("@", 1)[1]) if candidate_key else None),
                 evidence_ids=tuple(item["evidence_ids"]), cost=item["cost"],
                 from_state=CandidateState(item["from_state"]) if item["from_state"] else None,
                 to_state=CandidateState(item["to_state"]) if item["to_state"] else None,
                 note=item["note"],
             )
-            for item in actions
-        )
+
+        action_objects = tuple(make_action(item) for item in actions)
+        track_action_objects: dict[str, tuple[Action, ...]] = {}
+        for track in sorted({item["learner_track"] for item in actions}):
+            track_action_objects[track] = tuple(
+                make_action(item) for item in actions if item["learner_track"] == track
+            )
+
+        track_candidate_objects: dict[str, dict[str, Candidate]] = {}
+        for track, track_items in track_candidates.items():
+            track_candidate_objects[track] = {}
+            for version_id, item in track_items.items():
+                definition = item.get("definition")
+                if isinstance(definition, dict) and definition.get("schema") == CANDIDATE_DEFINITION_SCHEMA:
+                    track_candidate_objects[track][version_id] = _candidate_from_definition(
+                        candidate_id=item["candidate_id"],
+                        version=item["candidate_version"], definition=definition,
+                        parent_refs=item["parent_version_ids"],
+                        evidence_ids=item["support_evidence_ids"],
+                        state=CandidateState(item["state"]),
+                    )
+
         return EpisodeProjection(
             episode_id=episode_id, last_sequence=previous_sequence,
             observations=observations, predictions=predictions, evidence=evidence,
             structures=structures, candidates=candidates, candidate_objects=candidate_objects,
             evidence_objects=evidence_objects, action_objects=action_objects,
+            track_candidate_objects=track_candidate_objects,
+            track_action_objects=track_action_objects,
             actions=tuple(actions), revisions=revisions,
         )
 
