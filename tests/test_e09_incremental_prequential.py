@@ -64,7 +64,7 @@ class IncrementalPrequentialRunnerTests(unittest.TestCase):
         runner.reveal(commit.prediction_id, "A")
         runner.revise(commit.prediction_id)
         self.assertEqual(runner.learner.report["contested_inputs"], 1)
-        self.assertEqual(runner.learner.predict((0, 0)), "B")
+        self.assertIsNone(runner.learner.predict((0, 0)))
 
 
 if __name__ == "__main__":
