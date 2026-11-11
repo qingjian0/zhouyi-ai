@@ -482,6 +482,9 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                 candidate_structure = json.loads(candidate_row["payload_json"])
                 if candidate_structure.get("structure_id") != candidate_id:
                     raise ProtocolError("lifecycle_action candidate_id does not match structure_version structure_id")
+                candidate_track = candidate_structure.get("learner_track")
+                if candidate_track is not None and candidate_track != payload["learner_track"]:
+                    raise ProtocolError("lifecycle_action cannot use a candidate version from another learner_track")
                 if payload["candidate_lineage_refs"] != candidate_structure.get("parent_version_ids", []):
                     raise ProtocolError("lifecycle_action candidate_lineage_refs must match its structure_version parent lineage")
             for lineage_ref in payload["candidate_lineage_refs"]:
@@ -526,16 +529,60 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                         roles.add(split_role)
                 if not roles.intersection(required_role):
                     raise ProtocolError(f"{payload['to_state']} requires evidence role in {sorted(required_role)}")
+        elif event_type == "revision":
+            super()._validate_semantics(episode_id, event_type, payload)
+            trigger_tracks = set()
+            for trigger_id in payload.get("trigger_evidence_ids", []):
+                trigger = self._event_by_id(episode_id, trigger_id)
+                if trigger is None or trigger["event_type"] != "evidence_reveal":
+                    raise MissingReference(f"revision trigger must reference a prior reveal: {trigger_id}")
+                trigger_payload = json.loads(trigger["payload_json"])
+                trigger_tracks.add(trigger_payload.get("learner_track", "legacy"))
+            if len(trigger_tracks) > 1:
+                raise ProtocolError("revision cannot combine trigger evidence from different learner_tracks")
+            revision_track = payload.get("learner_track")
+            if revision_track is not None and (
+                not isinstance(revision_track, str) or not revision_track.strip()
+            ):
+                raise ProtocolError("revision learner_track must be a non-empty string")
+            if revision_track is None and trigger_tracks:
+                revision_track = next(iter(trigger_tracks))
+            if revision_track is not None and trigger_tracks and trigger_tracks != {revision_track}:
+                raise ProtocolError("revision trigger evidence does not match its learner_track")
+            for version_id in list(payload.get("before_version_ids", [])) + list(payload.get("after_version_ids", [])):
+                version_row = self._event_by_payload_id(
+                    episode_id, "structure_version", "version_id", version_id
+                )
+                if version_row is None:
+                    raise MissingReference(f"revision references unknown structure version: {version_id}")
+                version_track = json.loads(version_row["payload_json"]).get("learner_track")
+                if version_track is not None and version_track != revision_track:
+                    raise ProtocolError("revision cannot reference a structure version from another learner_track")
         elif event_type == "structure_version":
             required = {"structure_id", "version_id", "kind", "definition", "parent_version_ids", "support_evidence_ids"}
             if not required.issubset(payload):
                 raise ProtocolError(f"structure_version missing fields: {sorted(required - payload.keys())}")
+            structure_track = payload.get("learner_track")
+            if structure_track is not None and (
+                not isinstance(structure_track, str) or not structure_track.strip()
+            ):
+                raise ProtocolError("structure_version learner_track must be a non-empty string")
+            if payload["support_evidence_ids"] and structure_track is None:
+                raise ProtocolError("structure_version with support evidence requires learner_track")
             for parent_id in payload["parent_version_ids"]:
-                if self._event_by_payload_id(episode_id, "structure_version", "version_id", parent_id) is None:
+                parent_row = self._event_by_payload_id(episode_id, "structure_version", "version_id", parent_id)
+                if parent_row is None:
                     raise MissingReference(f"unknown parent structure version: {parent_id}")
+                parent_track = json.loads(parent_row["payload_json"]).get("learner_track")
+                if parent_track is not None and parent_track != structure_track:
+                    raise ProtocolError("structure_version cannot inherit a parent from another learner_track")
             for evidence_ref in payload["support_evidence_ids"]:
-                if self._resolve_evidence_ref(episode_id, evidence_ref) is None:
+                evidence_row = self._resolve_evidence_ref(episode_id, evidence_ref)
+                if evidence_row is None:
                     raise MissingReference(f"unknown support evidence reference: {evidence_ref}")
+                evidence_track = json.loads(evidence_row["payload_json"]).get("learner_track", "legacy")
+                if evidence_track != structure_track:
+                    raise ProtocolError("structure_version cannot cite support evidence from another learner_track")
             if payload["kind"] == "candidate":
                 version_id = payload["version_id"]
                 structure_id = payload["structure_id"]
@@ -821,19 +868,33 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                 parents = payload.get("parent_version_ids", [])
                 if not isinstance(parents, list) or any(parent not in structures for parent in parents):
                     raise MissingReference(f"structure version has missing prior parent: {event_id}")
+                structure_track = payload.get("learner_track")
+                if structure_track is not None and (
+                    not isinstance(structure_track, str) or not structure_track.strip()
+                ):
+                    raise ProtocolError(f"invalid structure learner_track during replay: {event_id}")
                 support_refs = payload.get("support_evidence_ids", [])
                 if not isinstance(support_refs, list):
                     raise ProtocolError(f"structure support evidence must be an array: {event_id}")
+                if support_refs and structure_track is None:
+                    raise ProtocolError(f"structure with support evidence has no learner_track: {event_id}")
+                for parent_id in parents:
+                    parent_track = structures[parent_id].get("learner_track")
+                    if parent_track is not None and parent_track != structure_track:
+                        raise ProtocolError(f"structure parent crosses learner tracks during replay: {event_id}")
                 support_ids = []
                 for ref in support_refs:
                     item = resolve_evidence(ref)
                     if item is None:
                         raise MissingReference(f"structure version has missing prior support evidence: {event_id}")
+                    if item.get("learner_track", "legacy") != structure_track:
+                        raise ProtocolError(f"structure support crosses learner tracks during replay: {event_id}")
                     support_ids.append(item["evidence_id"])
                 structure = {
                     "event_id": event_id, "sequence_no": sequence,
                     "structure_id": payload.get("structure_id"), "version_id": vid,
                     "kind": payload.get("kind"), "definition": payload.get("definition"),
+                    "learner_track": structure_track,
                     "parent_version_ids": list(parents), "support_evidence_ids": support_ids,
                 }
                 structures[vid] = structure
@@ -864,6 +925,9 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                     candidate = candidates[candidate_key]
                     if candidate.get("candidate_id") != cid:
                         raise ProtocolError("replayed lifecycle candidate_id does not match structure identity")
+                    candidate_track = candidate.get("learner_track")
+                    if candidate_track is not None and candidate_track != track:
+                        raise ProtocolError("replayed lifecycle action crosses candidate learner_track")
                     if payload.get("candidate_lineage_refs", []) != candidate.get("parent_version_ids", []):
                         raise ProtocolError("replayed candidate lineage differs from its structure version")
                     track_candidates.setdefault(track, {})
@@ -914,13 +978,26 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                 if not isinstance(rid, str) or not rid or rid in revisions:
                     raise ProtocolError(f"invalid or duplicate revision during replay: {event_id}")
                 triggers = payload.get("trigger_evidence_ids", [])
+                trigger_tracks = set()
                 for trigger in triggers:
                     item = evidence.get(f"revealed:{trigger}")
                     if item is None or item.get("split_role") not in CHALLENGE_ROLES:
                         raise ProtocolError(f"revision trigger is not locked/post-deploy evidence: {trigger}")
+                    trigger_tracks.add(item.get("learner_track", "legacy"))
+                if len(trigger_tracks) > 1:
+                    raise ProtocolError("revision combines trigger evidence from different learner_tracks during replay")
+                revision_track = payload.get("learner_track")
+                if revision_track is None and trigger_tracks:
+                    revision_track = next(iter(trigger_tracks))
+                if revision_track is not None and trigger_tracks and trigger_tracks != {revision_track}:
+                    raise ProtocolError("revision trigger crosses learner tracks during replay")
                 before, after = payload.get("before_version_ids", []), payload.get("after_version_ids", [])
                 if any(vid not in structures for vid in list(before) + list(after)):
                     raise MissingReference(f"revision references missing structure version: {rid}")
+                for version_id in list(before) + list(after):
+                    version_track = structures[version_id].get("learner_track")
+                    if version_track is not None and version_track != revision_track:
+                        raise ProtocolError("revision structure version crosses learner tracks during replay")
                 revisions[rid] = {
                     "event_id": event_id, "sequence_no": sequence, "operation": payload.get("operation"),
                     "trigger_evidence_ids": list(triggers), "before_version_ids": list(before),
