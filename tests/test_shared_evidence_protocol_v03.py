@@ -4,7 +4,7 @@ from pathlib import Path
 
 from prototype.shared_evidence_protocol import MissingReference, ProtocolError, SQLiteEvidenceStore, canonical_json, digest_payload
 from prototype.shared_evidence_protocol_v03 import (
-    BatchConflict, SQLiteEvidenceStoreV03,
+    BatchConflict, ProjectionRecoveryRequired, SQLiteEvidenceStoreV03,
 )
 
 
@@ -536,6 +536,36 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
             "SELECT payload_json FROM events WHERE episode_id='ep' AND event_id='legacy-prediction'"
         ).fetchone()[0]
         self.assertNotIn("learner_track", stored)
+
+
+
+    def test_append_events_and_project_returns_committed_projection(self):
+        receipts, projection = self.store.append_events_and_project(
+            episode_id="ep", idempotency_key="append-project",
+            events=[self.observation("obs-project")],
+        )
+        self.assertEqual(receipts[0].sequence_no, 1)
+        self.assertEqual(projection.last_sequence, 1)
+        self.assertIn("obs-project", projection.observations)
+
+    def test_projection_failure_after_commit_is_explicit_and_recoverable(self):
+        original = self.store.replay_projection
+
+        def fail_projection(_episode_id):
+            raise RuntimeError("simulated projection failure")
+
+        self.store.replay_projection = fail_projection
+        with self.assertRaises(ProjectionRecoveryRequired) as caught:
+            self.store.append_events_and_project(
+                episode_id="ep", idempotency_key="committed-before-projection",
+                events=[self.observation("obs-durable")],
+            )
+        self.assertEqual(len(caught.exception.committed_receipts), 1)
+        self.assertEqual(caught.exception.committed_receipts[0].sequence_no, 1)
+        self.store.replay_projection = original
+        recovered = self.store.replay_projection("ep")
+        self.assertIn("obs-durable", recovered.observations)
+        self.assertEqual(recovered.last_sequence, 1)
 
 
 
