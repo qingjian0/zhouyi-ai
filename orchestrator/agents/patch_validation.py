@@ -51,6 +51,11 @@ class PatchValidator:
         parts = value.split("/")
         if any(part in {"", ".", ".."} for part in parts):
             raise ValueError("patch path traversal or non-canonical path rejected")
+        if ":" in value or any(part.endswith((" ", ".")) for part in parts):
+            raise ValueError("patch path is not portable across supported filesystems")
+        reserved = {"CON", "PRN", "AUX", "NUL", *(f"COM{i}" for i in range(1, 10)), *(f"LPT{i}" for i in range(1, 10))}
+        if any(part.split(".", 1)[0].upper() in reserved for part in parts):
+            raise ValueError("patch path contains a reserved Windows device name")
         if parts[0].lower() == ".git":
             raise ValueError("patches may not modify Git metadata")
         if PurePosixPath(value).is_absolute():
