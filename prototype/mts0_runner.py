@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+from statistics import mean, stdev
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any, Iterable
@@ -283,6 +284,73 @@ def run_mts0(
             "In-process visibility metadata is not a security boundary.",
             "IID held-out evaluation is not a structural OOD benchmark.",
             "No claim of CPG-EI superiority or general intelligence.",
+        ],
+    }
+
+
+def run_mts0_multiseed(
+    *,
+    start_seed: int = 7,
+    seed_count: int = 5,
+    train_count: int = 1200,
+    locked_test_count: int = 400,
+    candidate_count: int = 7,
+    feature_dim: int = 6,
+    choose_k: int = 3,
+    epochs: int = 180,
+) -> dict[str, Any]:
+    """Run independent seeds and report per-seed metrics plus mean/sample stddev."""
+    if seed_count < 2:
+        raise ValueError("seed_count must be at least 2 for variance reporting")
+    if train_count < 1 or locked_test_count < 1:
+        raise ValueError("sample counts must be positive")
+    results = [
+        run_mts0(
+            seed=start_seed + offset,
+            train_count=train_count,
+            locked_test_count=locked_test_count,
+            candidate_count=candidate_count,
+            feature_dim=feature_dim,
+            choose_k=choose_k,
+            epochs=epochs,
+        )
+        for offset in range(seed_count)
+    ]
+    metric_names = tuple(results[0]["metrics"])
+    if any(tuple(result["metrics"]) != metric_names for result in results):
+        raise RuntimeError("metric schema changed between seeds")
+    summary = {
+        name: {
+            "mean": mean(result["metrics"][name] for result in results),
+            "sample_stddev": stdev(result["metrics"][name] for result in results),
+        }
+        for name in metric_names
+    }
+    return {
+        "experiment": "MTS-0-multiseed-prequential-e01",
+        "seed_start": start_seed,
+        "seed_count": seed_count,
+        "configuration": {
+            "train_count": train_count,
+            "locked_test_count": locked_test_count,
+            "candidate_count": candidate_count,
+            "feature_dim": feature_dim,
+            "choose_k": choose_k,
+            "epochs": epochs,
+        },
+        "summary": summary,
+        "per_seed": [
+            {
+                "seed": result["seed"],
+                "metrics": result["metrics"],
+                "audit": result["audit"],
+            }
+            for result in results
+        ],
+        "limitations": [
+            "Synthetic E01 IID task only; not structural OOD or natural-language evaluation.",
+            "Same-process visibility policy is not a security boundary.",
+            "Mean and sample standard deviation over seeds do not replace confidence intervals or task-family replication.",
         ],
     }
 
