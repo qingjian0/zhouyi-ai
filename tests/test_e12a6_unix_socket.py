@@ -70,7 +70,7 @@ class TestE12A6UnixSocketServer(unittest.TestCase):
 
     def test_rejects_oversized_frame(self):
         with E12A6UnixSocketServer(self.path, lambda peer, req: {}, allowed_uids={os.getuid()},
-                                   max_frame_bytes=32):
+                                   max_frame_bytes=64):
             result = self.request({}, raw=b'{"payload":"' + b"x" * 64 + b'"}\n')
             self.assertFalse(result["ok"])
 
