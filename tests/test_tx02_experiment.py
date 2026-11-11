@@ -46,6 +46,28 @@ class TX02ExperimentTests(unittest.TestCase):
         for item in families.values():
             self.assertLessEqual(item["parameter_budget_delta"], 0)
 
+    def test_compute_matched_runner_calibrates_and_selects_on_validation(self):
+        result = run_sweep(
+            cardinalities=(2,), support_sizes=(1,), seeds=(7,),
+            episodes_per_rule=1, epochs=1, hidden_size=3,
+            parameter_matched=False, compute_matched=True,
+            max_selective_risk=0.5,
+        )
+        run = result["conditions"][0]["runs"][0]
+        self.assertTrue(run["compute_matched"])
+        self.assertIn(run["validation_representation_selection"]["selected_family"],
+                      run["families"])
+        self.assertIn("ADAPTIVE_VALIDATION_SELECTED",
+                      result["conditions"][0]["aggregate"])
+        for family in run["families"].values():
+            self.assertLessEqual(family["forward_macs_budget_delta"], 0)
+            self.assertEqual(family["locked_test_selective_prediction"]["threshold_selected_on"],
+                             "validation")
+            self.assertIn("nll", family["validation_probability_metrics"])
+    def test_parameter_and_compute_matching_are_exclusive(self):
+        with self.assertRaises(ValueError):
+            run_sweep(cardinalities=(2,), support_sizes=(1,), seeds=(1,),
+                      parameter_matched=True, compute_matched=True)
     def test_support_must_leave_unseen_query_pair(self):
         with self.assertRaises(ValueError):
             run_sweep(cardinalities=(2,), support_sizes=(4,), seeds=(1,))
