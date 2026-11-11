@@ -99,8 +99,8 @@ def infer_structural_roles(
                 entity_id=node_id,
                 role_id="role-" + colors[node_id],
                 entity_type=node.entity_type,
-                rounds_done,
-                colors[node_id],
+                refinement_round=rounds_done,
+                structural_signature=colors[node_id],
             )
             for node_id, node in nodes.items()
         ),
