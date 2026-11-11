@@ -136,6 +136,10 @@ class E09SharedProtocolAdapter:
                 abstention_reason=(
                     None if commit.prediction is not None else "E09_NO_IDENTIFIABLE_PREDICTION"
                 ),
+                episode_id=self.episode_id,
+                learner_track=self.learner_track,
+                split=EvidenceSplit(self.split.lower()),
+                model_version=f"e09-model-{commit.model_version}",
             )
             prediction_payload = {
                 "prediction_id": commit.prediction_id,
@@ -203,6 +207,8 @@ class E09SharedProtocolAdapter:
                 split=EvidenceSplit(self.split.lower()),
                 outcome_json=canonical_json(self._jsonable(label)),
                 source_ref=event_id,
+                episode_id=self.episode_id,
+                learner_track=self.learner_track,
             )
             validate_reveal_binding(self._interop_commits[prediction_id], interop_reveal)
             self.store.reveal_evidence(
