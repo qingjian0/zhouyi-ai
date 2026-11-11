@@ -89,10 +89,14 @@ class LinuxRunnerProfileTests(unittest.TestCase):
             self.report(immutable_image_digest="mutable:latest")
         with self.assertRaisesRegex(ValueError, "namespaces"):
             self.report(namespaces=("pid", "pid"))
+        with self.assertRaisesRegex(ValueError, "namespaces"):
+            self.report(namespaces=([],))
 
     def test_invalid_profile_and_age_rejected(self):
         with self.assertRaisesRegex(ValueError, "namespaces"):
             LinuxSandboxProfile(required_namespaces=("pid", "pid"))
+        with self.assertRaisesRegex(ValueError, "namespaces"):
+            LinuxSandboxProfile(required_namespaces=([],))
         with self.assertRaisesRegex(ValueError, "positive integer"):
             evaluate_linux_profile(self.report(), max_report_age_seconds=0)
 
