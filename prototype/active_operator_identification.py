@@ -155,8 +155,8 @@ class ActiveOperatorIdentifier:
         for state in self._pool:
             if state in self._used_inputs:
                 continue
-            groups: list[tuple[State, list[str]]] = []
-            for hypothesis in sorted(self._hypotheses, key=lambda item: item.hypothesis_id):
+            predictions = []
+            for hypothesis in self._hypotheses:
                 try:
                     prediction = self._state(hypothesis.predict(state))
                 except (TypeError, ValueError, OverflowError) as exc:
@@ -167,15 +167,26 @@ class ActiveOperatorIdentifier:
                     raise IdentificationError(
                         f"hypothesis {hypothesis.hypothesis_id!r} changed state dimension"
                     )
+                predictions.append((prediction, hypothesis.hypothesis_id))
+
+            # Absolute-tolerance closeness is not transitive. Build deterministic
+            # complete-link clusters over sorted predictions so hypothesis ID
+            # ordering cannot change the resulting partition.
+            predictions.sort(key=lambda item: (item[0], item[1]))
+            groups: list[tuple[list[State], list[str]]] = []
+            for prediction, hypothesis_id in predictions:
                 matching = next(
-                    (ids for representative, ids in groups
-                     if self._same(representative, prediction)),
+                    (
+                        group for group in groups
+                        if all(self._same(member, prediction) for member in group[0])
+                    ),
                     None,
                 )
                 if matching is None:
-                    groups.append((prediction, [hypothesis.hypothesis_id]))
+                    groups.append(([prediction], [hypothesis_id]))
                 else:
-                    matching.append(hypothesis.hypothesis_id)
+                    matching[0].append(prediction)
+                    matching[1].append(hypothesis_id)
             if len(groups) <= 1:
                 continue
             sizes = [len(ids) for _, ids in groups]
@@ -190,8 +201,8 @@ class ActiveOperatorIdentifier:
                 expected_remaining=expected,
                 worst_case_remaining=max(sizes),
                 partitions=tuple(
-                    (output, tuple(sorted(ids)))
-                    for output, ids in sorted(groups, key=lambda item: item[0])
+                    (outputs[0], tuple(sorted(ids)))
+                    for outputs, ids in groups
                 ),
             ))
         ranked.sort(key=lambda item: (
