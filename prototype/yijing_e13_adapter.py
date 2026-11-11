@@ -40,6 +40,15 @@ class E13Envelope:
 
 def to_e13(state: RelationalState) -> E13Envelope:
     """Map a YJ-04 state to E13; reject relation-type signature ambiguity."""
+    if any(
+        not all(isinstance(value, str) and value for value in (
+            node.entity_id, node.entity_type, node.role
+        ))
+        for node in state.nodes
+    ):
+        raise RelationalMappingError("node IDs, types and roles must be non-empty strings")
+    if len({key for key, _ in state.context}) != len(state.context):
+        raise RelationalMappingError("global state context keys must be unique")
     entities = tuple(
         Entity(node.entity_id, node.entity_type, ((_ROLE_KEY, node.role),))
         for node in state.nodes
@@ -125,6 +134,11 @@ def from_e13(envelope: E13Envelope) -> RelationalState:
         nodes.append(Node(entity.entity_id, entity.entity_type, role))
 
     schema_map = {schema.relation_type: schema for schema in graph.schemas}
+    used_relation_types = {instance.relation_type for instance in graph.relations}
+    if used_relation_types != set(schema_map):
+        raise RelationalMappingError(
+            "schemas without instances or instances without schemas cannot be losslessly mapped"
+        )
     for schema in graph.schemas:
         if (
             schema.arity != 2
@@ -178,6 +192,8 @@ def from_e13(envelope: E13Envelope) -> RelationalState:
             )
     if tuple(sorted(envelope.state_context)) != envelope.state_context:
         raise RelationalMappingError("global state context must be canonically sorted")
+    if len({key for key, _ in envelope.state_context}) != len(envelope.state_context):
+        raise RelationalMappingError("global state context keys must be unique")
     if any(
         not isinstance(key, str) or not key or not isinstance(value, str)
         for key, value in envelope.state_context
