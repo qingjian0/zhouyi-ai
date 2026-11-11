@@ -876,18 +876,22 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                 support_refs = payload.get("support_evidence_ids", [])
                 if not isinstance(support_refs, list):
                     raise ProtocolError(f"structure support evidence must be an array: {event_id}")
-                if support_refs and structure_track is None:
+                is_v03_structure = row["protocol_version"] == "0.3"
+                if support_refs and structure_track is None and is_v03_structure:
                     raise ProtocolError(f"structure with support evidence has no learner_track: {event_id}")
                 for parent_id in parents:
                     parent_track = structures[parent_id].get("learner_track")
-                    if parent_track is not None and parent_track != structure_track:
+                    if parent_track is not None and structure_track is not None and parent_track != structure_track:
                         raise ProtocolError(f"structure parent crosses learner tracks during replay: {event_id}")
                 support_ids = []
                 for ref in support_refs:
                     item = resolve_evidence(ref)
                     if item is None:
                         raise MissingReference(f"structure version has missing prior support evidence: {event_id}")
-                    if item.get("learner_track", "legacy") != structure_track:
+                    # v0.1/v0.2 structures may predate track-scoped structure
+                    # metadata. Preserve those immutable legacy rows on replay;
+                    # every newly written v0.3 support-bearing structure is scoped.
+                    if structure_track is not None and item.get("learner_track", "legacy") != structure_track:
                         raise ProtocolError(f"structure support crosses learner tracks during replay: {event_id}")
                     support_ids.append(item["evidence_id"])
                 structure = {
