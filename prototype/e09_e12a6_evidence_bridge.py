@@ -308,7 +308,8 @@ def resolve_branch_merge_authorization(
     expected_payload_keys = {
         "authorization_id", "issuer_id", "scope", "parent_state_ref",
         "branch_ids", "evidence_refs", "issued_at", "expires_at",
-        "signature_algorithm", "signature_version", "audience", "signature",
+        "signature_algorithm", "signature_version", "audience",
+        "authorization_sequence", "signature",
     }
     if set(payload) != expected_payload_keys:
         raise E09EvidenceBindingError("authorization payload has missing or unknown fields")
@@ -316,6 +317,12 @@ def resolve_branch_merge_authorization(
         raise E09EvidenceBindingError("unsupported authorization signature version")
     if payload.get("audience") != AUTHORIZATION_AUDIENCE:
         raise E09EvidenceBindingError("authorization audience does not match E12-A6 lifecycle service")
+    authorization_sequence = payload.get("authorization_sequence")
+    if (isinstance(authorization_sequence, bool)
+            or not isinstance(authorization_sequence, int)
+            or authorization_sequence < 1
+            or authorization_sequence != event.get("sequence_no")):
+        raise E09EvidenceBindingError("signed authorization_sequence does not match durable event sequence")
     signed_bytes = branch_merge_authorization_signing_bytes(event)
     algorithm = payload.get("signature_algorithm")
     signature = payload.get("signature")
