@@ -37,14 +37,20 @@ class TypedHypergraphTests(unittest.TestCase):
                       ("ev",))
 
     def test_role_order_is_semantically_significant(self):
-        left = state(0, [edge()])
+        left = HypergraphState(
+            (Entity("a", "agent"), Entity("b", "resource"), Entity("c", "context")),
+            (Hyperedge("h", "joint", (
+                RoleBinding("initiator", "a"), RoleBinding("mediator", "b"),
+                RoleBinding("outcome", "c")), ("ev1",), (("phase", "active"),)),),
+            (), 0, "s0", "typed",
+        )
         swapped = Hyperedge(
             "other", "joint",
             (RoleBinding("initiator", "b"), RoleBinding("mediator", "a"),
              RoleBinding("outcome", "c")),
             ("ev2",), (("phase", "active"),),
         )
-        right = state(1, [swapped])
+        right = HypergraphState(left.entities, (swapped,), (), 1, "s1", "typed")
         self.assertNotEqual(structural_signature(left.hyperedges[0], left),
                             structural_signature(right.hyperedges[0], right))
 
