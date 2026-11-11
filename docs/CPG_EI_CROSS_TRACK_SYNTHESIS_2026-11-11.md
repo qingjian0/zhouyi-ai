@@ -1066,3 +1066,41 @@ The full PR #115 workflow Run #42941878146 completed successfully on exact head 
 4. Add restart reconstruction and crash-injection coverage at each durable event boundary.
 5. Only then attach an E10 mechanism learner and compare it with frozen and batch-refit controls under equal compute budgets.
 
+
+## 20. E10-A finite relational version-space learner (2026-11-11)
+
+### 20.1 First implemented hypothesis language
+
+PR #120 adds a deliberately narrow finite relational DSL for the existing generator-first object-disjoint Support/Query task:
+
+`R(participants | context) := unordered distinct values for one categorical feature AND one context equality`.
+
+Candidate rules are generated from Support-visible object attributes and Support context values. The learner does not receive template IDs, role mappings, latent mechanisms, or Query labels. Query predictions are emitted only when every surviving hypothesis agrees; disagreement yields `ABSTAIN_AMBIGUOUS`, and an empty version space yields `ABSTAIN_INCONSISTENT`.
+
+Because participant order is shuffled and role mapping is evaluator-only, the learner models an unordered role-value set. It does not identify ordered semantic roles.
+
+### 20.2 Update controls
+
+- `FROZEN`: no hypothesis update after Query reveals.
+- `BATCH_REFIT`: recompute consistency across all accumulated evidence over the initial candidate universe.
+- `INCREMENTAL_FILTER`: intersect the current version space with each new revealed example.
+
+For an exact finite version space over a fixed candidate universe, BATCH_REFIT and INCREMENTAL_FILTER should yield identical surviving hypotheses. This experiment compares candidate-update operations, not predictive superiority or a new general learning principle.
+
+### 20.3 Prequential integration
+
+The new runner connects the learner to E10's native ledger and the shared SQLite adapter. Each Query item follows commit -> reveal -> update -> new StructureVersion -> revision. The observation payload is hashed in the shared event log; the evaluator target is only supplied after the durable prediction commit.
+
+### 20.4 Current validation
+
+PR #120 exact head `10368215a246c1d773048e7d260b2b8562fcebe9` has passed its unit-test step and the dedicated E10-A prequential experiment step in Run #42942627256 (https://github.com/qingjian0/zhouyi-ai/actions/runs/42942627256). The complete E01/E02 workflow was still running at the time of this note; do not claim full CI success yet.
+
+### 20.5 Limits and next gates
+
+- The DSL is matched to the current synthetic generator family. This is a finite-language baseline, not open-world concept discovery or XPC operator invention.
+- The generator returns Support, Query, and evaluator truth from one process. The runner respects the data-flow boundary, but this is not OS-level evaluator/learner isolation.
+- Current compute accounting counts candidate consistency operations; it does not yet measure wall-clock time, CPU, or peak memory.
+- Run a multi-seed sweep and report per-seed coverage, selective accuracy, strict accuracy, abstention, version-space sizes, and update operations.
+- Add a subprocess boundary and hidden-truth noninterference canary before treating the evaluator boundary as a security property.
+- Compare the finite DSL against matched baselines before making any performance claim.
+
