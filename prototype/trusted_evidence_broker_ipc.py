@@ -34,6 +34,8 @@ from prototype.trusted_evidence_broker_contract import (
 
 MAX_REQUEST_BYTES = 1_048_576
 MAX_RESPONSE_BYTES = 4_194_304
+REQUEST_TIMEOUT_SECONDS = 5.0
+MAX_CONCURRENT_CLIENTS = 32
 PROTOCOL_VERSION = "0.1"
 SO_PEERCRED = getattr(socket, "SO_PEERCRED", 17)  # Linux constant; guarded by platform check.
 
@@ -155,11 +157,15 @@ class TrustedEvidenceBroker:
 class _BrokerRequestHandler(socketserver.StreamRequestHandler):
     def handle(self) -> None:
         server: "BrokerUnixServer" = self.server  # type: ignore[assignment]
+        if not server._client_slots.acquire(blocking=False):
+            self.wfile.write(b'{"error":"request_denied","protocol_version":"0.1"}\\n')
+            return
         try:
+            self.request.settimeout(REQUEST_TIMEOUT_SECONDS)
             _, uid, _ = linux_peer_credentials(self.request)
             principal = server.broker.principal_for_uid(uid)
             raw = self.rfile.readline(MAX_REQUEST_BYTES + 1)
-            if not raw or len(raw) > MAX_REQUEST_BYTES or not raw.endswith(b"\n"):
+            if not raw or len(raw) > MAX_REQUEST_BYTES or not raw.endswith(b"\\n"):
                 raise BrokerIPCError("invalid or oversized request frame")
             try:
                 request = json.loads(raw.decode("utf-8"))
@@ -172,8 +178,10 @@ class _BrokerRequestHandler(socketserver.StreamRequestHandler):
         except Exception:
             # Do not disclose whether an episode, track, or evaluator record exists.
             encoded = b'{"error":"request_denied","protocol_version":"0.1"}'
-        self.wfile.write(encoded + b"\n")
-
+        try:
+            self.wfile.write(encoded + b"\\n")
+        finally:
+            server._client_slots.release()
 
 class BrokerUnixServer(socketserver.ThreadingUnixStreamServer):
     daemon_threads = True
@@ -184,6 +192,7 @@ class BrokerUnixServer(socketserver.ThreadingUnixStreamServer):
             raise BrokerIPCError("Unix broker server currently requires Linux")
         self.socket_path = Path(socket_path)
         self.broker = broker
+        self._client_slots = threading.BoundedSemaphore(MAX_CONCURRENT_CLIENTS)
         socket_dir_created = not self.socket_path.parent.exists()
         self.socket_path.parent.mkdir(parents=True, exist_ok=True, mode=0o750)
         if socket_dir_created:
