@@ -76,6 +76,13 @@ class LinuxHostProbeTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "state"):
             ProbeFact("yes", "not a supported state")
 
+    def test_snapshot_rejects_malformed_fact_entries(self):
+        from orchestrator.agents.linux_host_probe import HostProbeSnapshot
+        with self.assertRaisesRegex(ValueError, "fact names"):
+            HostProbeSnapshot("linux", "6.8", (([], ProbeFact("unknown", "not checked")),))
+        with self.assertRaisesRegex(ValueError, "pair"):
+            HostProbeSnapshot("linux", "6.8", (("broken",),))
+
 
 if __name__ == "__main__":
     unittest.main()
