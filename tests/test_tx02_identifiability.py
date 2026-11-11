@@ -1,6 +1,7 @@
 import unittest
 
 from prototype.tx02_identifiability import audit_episode
+from prototype.tx02_multistate_benchmark import episode_to_dict, make_episode
 
 
 class TX02IdentifiabilityTests(unittest.TestCase):
@@ -93,6 +94,21 @@ class TX02IdentifiabilityTests(unittest.TestCase):
         result = audit_episode(payload)
         self.assertEqual(result["status"], "inconsistent")
         self.assertEqual(result["consistent_hypotheses"], 0)
+
+    def test_generator_ground_truth_is_never_excluded(self):
+        for k in (2, 3, 4, 5):
+            for mapping in ("canonical", "permuted"):
+                episode = make_episode(k, 1000 + k, support_size=2, query_count=2,
+                                       symbol_mapping=mapping)
+                result = audit_episode(episode_to_dict(episode))
+                self.assertEqual(result["status"], "ok")
+                for qi, target in enumerate(episode.targets):
+                    self.assertGreater(
+                        result["queries"][qi]["candidate_hypothesis_counts"][target], 0
+                    )
+                    self.assertAlmostEqual(
+                        sum(result["queries"][qi]["candidate_posterior"]), 1.0
+                    )
 
     def test_invalid_candidate_row_is_rejected(self):
         payload = {
