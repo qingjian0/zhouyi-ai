@@ -17,6 +17,7 @@ from prototype.csg_branch_delta import (
     canonical_hash,
     merge_branch_deltas,
     validate_merge_authorization,
+    validate_snapshot,
 )
 
 from prototype.csg_gcr_coordinator import (
@@ -256,6 +257,10 @@ class TypedCandidateCoordinator:
                     raise CoordinationError("branch_snapshots must contain BranchSnapshot")
                 if snapshot.branch_id in snapshot_by_branch:
                     raise CoordinationError("branch snapshot IDs must be unique")
+                try:
+                    validate_snapshot(snapshot)
+                except ValueError as exc:
+                    raise CoordinationError(f"invalid branch snapshot: {exc}") from exc
                 snapshot_by_branch[snapshot.branch_id] = snapshot
             proposal_branches = {row.proposal.branch_id for row in rows}
             if set(snapshot_by_branch) != proposal_branches:
