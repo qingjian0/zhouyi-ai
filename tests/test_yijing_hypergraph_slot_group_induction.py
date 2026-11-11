@@ -22,10 +22,10 @@ def make_edge(edge_id, relation, participants, roles=None, attributes=()):
     )
 
 
-def observation(evidence_id, entities, edges):
+def observation(evidence_id, entities, edges, coverage_complete=True):
     state = HypergraphState(
         tuple(Entity(entity_id, entity_type) for entity_id, entity_type in entities),
-        tuple(edges), (), 0, evidence_id, "synthetic", True,
+        tuple(edges), (), 0, evidence_id, "synthetic", coverage_complete,
     )
     return HypergraphRoleObservation(state, evidence_id, "synthetic")
 
