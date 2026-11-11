@@ -36,6 +36,54 @@ class ZPCMMemory:
             return old["seq"],True
         cur=self.db.execute("INSERT INTO memory_events(event_id,event_type,scope,payload_json,payload_digest,recorded_at) VALUES(?,?,?,?,?,?)",(event_id,event_type,scope,raw,d,datetime.now(timezone.utc).isoformat()))
         return cur.lastrowid,False
+
+    def append_lifecycle_event(self, *, event_id: str, scope: str, payload: dict[str, Any],
+                               expected_sequence: int) -> dict[str, Any]:
+        """Append a versioned E12-A6 event to the unbounded durable event log."""
+        if not isinstance(payload, dict): raise ZPCMError("lifecycle payload must be an object")
+        if isinstance(expected_sequence, bool) or not isinstance(expected_sequence, int) or expected_sequence < 0:
+            raise ZPCMError("expected_sequence must be a non-negative integer")
+        with self.lock:
+            self.db.execute("BEGIN IMMEDIATE")
+            try:
+                prior = self.db.execute("SELECT seq,event_type,scope,payload_digest FROM memory_events WHERE event_id=?",
+                                        (event_id,)).fetchone()
+                if prior is not None:
+                    seq, replay = self._append(event_id, "e12a6_lifecycle", scope, payload)
+                    self.db.execute("COMMIT")
+                    return {"sequence":seq,"payload_digest":prior["payload_digest"],"replayed":replay}
+                current = self.db.execute("SELECT COALESCE(MAX(seq),0) FROM memory_events WHERE event_type='e12a6_lifecycle' AND scope=?",
+                                          (scope,)).fetchone()[0]
+                if current != expected_sequence:
+                    raise ZPCMError(f"stale lifecycle sequence: expected {expected_sequence}, current {current}")
+                seq, replay = self._append(event_id, "e12a6_lifecycle", scope, payload)
+                self.db.execute("COMMIT")
+                return {"sequence":seq,"payload_digest":digest(payload),"replayed":replay}
+            except Exception:
+                self.db.execute("ROLLBACK")
+                raise
+
+    def replay_lifecycle_events(self, *, scope: str, after_sequence: int = 0) -> list[dict[str, Any]]:
+        """Replay every scoped lifecycle event; unlike retrieve(), this never truncates."""
+        if not isinstance(scope, str) or not scope.strip(): raise ZPCMError("scope must be non-empty")
+        if isinstance(after_sequence, bool) or not isinstance(after_sequence, int) or after_sequence < 0:
+            raise ZPCMError("after_sequence must be a non-negative integer")
+        with self.lock:
+            rows = self.db.execute(
+                "SELECT seq,event_id,event_type,scope,payload_json,payload_digest,recorded_at "
+                "FROM memory_events WHERE event_type='e12a6_lifecycle' AND scope=? AND seq>? ORDER BY seq",
+                (scope, after_sequence),
+            ).fetchall()
+        events = []
+        for row in rows:
+            payload = json.loads(row["payload_json"])
+            if digest(payload) != row["payload_digest"]:
+                raise ZPCMError(f"lifecycle event digest mismatch: {row['event_id']}")
+            events.append({"sequence":row["seq"],"event_id":row["event_id"],
+                "event_type":row["event_type"],"scope":row["scope"],"payload":payload,
+                "payload_digest":row["payload_digest"],"recorded_at":row["recorded_at"]})
+        return events
+
     def append_item(self,*,item_id,item_type,scope,content,source_event_id):
         if not isinstance(content,dict):raise ZPCMError("content must be object")
         with self.lock:
