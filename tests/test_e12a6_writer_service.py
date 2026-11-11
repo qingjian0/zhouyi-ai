@@ -301,7 +301,7 @@ class E12A6WriterServiceTests(unittest.TestCase):
         self.assertEqual(
             [event["payload"]["kind"] for event in events],
             ["evidence_registered", "evidence_registered", "evidence_registered",
-             "candidate_registered", "authorization_consumed"],
+             "evidence_registered", "candidate_registered", "authorization_consumed"],
         )
         self.assertNotIn("PRIVATE-proposal-left", str(events))
         self.assertNotIn("PRIVATE-proposal-right", str(events))
@@ -316,7 +316,7 @@ class E12A6WriterServiceTests(unittest.TestCase):
         self.assertFalse(first.lifecycle_receipt.replayed)
         self.assertTrue(second.lifecycle_receipt.replayed)
         self.assertTrue(second.lifecycle_receipt.authorization.replayed)
-        self.assertEqual(len(self.memory.replay_lifecycle_events(scope=self.scope)), 5)
+        self.assertEqual(len(self.memory.replay_lifecycle_events(scope=self.scope)), 6)
 
     def test_reader_role_cannot_write_candidates(self):
         with self.assertRaises(E12A6AuthorizationError):
