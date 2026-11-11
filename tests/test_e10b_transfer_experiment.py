@@ -25,6 +25,12 @@ class E10BTransferExperimentTests(unittest.TestCase):
         self.assertIn("support_majority", result["baselines"])
         self.assertIn("deterministic_random", result["baselines"])
         self.assertIn("evaluator_oracle_upper_bound", result["baselines"])
+        self.assertTrue(result["hard_negative_slices"])
+        self.assertTrue(result["support_positive_ablation"])
+        self.assertTrue(all(
+            "query_metrics" in item
+            for item in result["support_positive_ablation"].values()
+        ))
 
 
 if __name__ == "__main__":
