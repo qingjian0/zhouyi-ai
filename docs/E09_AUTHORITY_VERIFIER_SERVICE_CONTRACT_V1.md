@@ -9,7 +9,7 @@ This increment adds two narrow service contracts around the existing E09 referen
 - Authority service: accepts a transport credential, resolves it through a configured workload authenticator, checks the authenticated workload's role and scope, and derives the event role itself. Evaluator reveal writes and authorizer grant issuance are separate methods.
 - Verifier service: verifies branch-merge grants through the existing strict E09 resolver and obtains verification time from a server-owned clock. A request cannot supply the verification time.
 
-The authorizer's issuer_id is taken from the authenticated workload identity, not from a request payload. The authority constructs the complete v2 envelope, obtains the signature through a signer interface (intended for HSM/KMS integration), and appends with expected-sequence compare-and-swap.
+The authorizer's issuer_id is taken from the authenticated workload identity, not from a request payload. The authority constructs the complete v2 envelope, derives issue/expiry timestamps from its server-owned clock, enforces a maximum grant lifetime, obtains the signature through a signer interface (intended for HSM/KMS integration), and appends with expected-sequence compare-and-swap.
 
 ## Invariants covered
 
@@ -19,9 +19,9 @@ The authorizer's issuer_id is taken from the authenticated workload identity, no
 4. Event actor role is derived by the service, not caller input.
 5. Grant issuer identity is mapped from the authenticated workload.
 6. Grant signing covers the authority-generated envelope, including identity metadata and the reserved sequence.
-7. Concurrent append races fail through the existing E09 sequence CAS.
-8. Verification time is server-owned; caller-provided time is rejected.
-9. Verifier still checks E09 reveal ancestry, strict v2 schema, audience, exact scope/parent/branches/evidence, expiry and Ed25519 signature.
+7. Grant lifetime is bounded by authority policy and timestamps are server-generated.\n8. Concurrent append races fail through the existing E09 sequence CAS.
+9. Verification time is server-owned; caller-provided time is rejected.
+10. Verifier still checks E09 reveal ancestry, strict v2 schema, audience, exact scope/parent/branches/evidence, expiry and Ed25519 signature.
 
 ## Deployment boundary — still not solved
 
