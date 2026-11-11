@@ -142,6 +142,45 @@ class N4ARelationDiscoveryTests(unittest.TestCase):
         with self.assertRaises(DiscoveryError):
             discover_relations([invalid])
 
+    def test_symmetric_roles_report_ambiguous_mapping(self):
+        def symmetric(case_id, partition, outcome, prefix=""):
+            nodes = (
+                Node(prefix + "a", "surface-a", ("same-role",)),
+                Node(prefix + "b", "surface-b", ("same-role",)),
+            )
+            edges = (
+                Edge(prefix + "a", prefix + "b", "mutual"),
+                Edge(prefix + "b", prefix + "a", "mutual"),
+            )
+            return RelationalCase(
+                case_id, "domain", "symmetry", partition, outcome, nodes, edges
+            )
+        cases = [
+            symmetric("t1", "train", True),
+            symmetric("t2", "train", True, "x"),
+            symmetric("t3", "train", True, "y"),
+            symmetric("v1", "validation", True),
+            symmetric("v2", "validation", True, "x"),
+            symmetric("vn1", "validation", False, "n"),
+            symmetric("vn2", "validation", False, "m"),
+        ]
+        result = discover_relations(
+            cases, min_train_support=2, min_validation_support=2,
+            min_validation_lift=0.1, max_nodes=2,
+        )
+        self.assertTrue(result.candidates)
+        self.assertTrue(all(i.mapping_ambiguous
+                            for i in result.candidates[0].instances))
+
+    def test_budget_truncation_discards_partial_case_motifs(self):
+        result = discover_relations(
+            balanced_dataset(), min_train_support=2,
+            min_validation_support=2, min_validation_lift=0.0,
+            max_nodes=3, max_subsets_per_case=1,
+        )
+        self.assertGreater(result.motifs_over_budget, 0)
+        self.assertFalse(result.candidates)
+
 
 if __name__ == "__main__":
     unittest.main()
