@@ -142,13 +142,21 @@ class ActiveOperatorIdentifier:
         for state in self._pool:
             if state in self._used_inputs:
                 continue
-            groups: dict[State, list[str]] = {}
-            for hypothesis in self._hypotheses:
+            groups: list[tuple[State, list[str]]] = []
+            for hypothesis in sorted(self._hypotheses, key=lambda item: item.hypothesis_id):
                 prediction = hypothesis.predict(state)
-                groups.setdefault(prediction, []).append(hypothesis.hypothesis_id)
+                matching = next(
+                    (ids for representative, ids in groups
+                     if self._same(representative, prediction)),
+                    None,
+                )
+                if matching is None:
+                    groups.append((prediction, [hypothesis.hypothesis_id]))
+                else:
+                    matching.append(hypothesis.hypothesis_id)
             if len(groups) <= 1:
                 continue
-            sizes = [len(ids) for ids in groups.values()]
+            sizes = [len(ids) for _, ids in groups]
             total = len(self._hypotheses)
             entropy = -sum(
                 (size / total) * math.log2(size / total) for size in sizes
@@ -161,7 +169,7 @@ class ActiveOperatorIdentifier:
                 worst_case_remaining=max(sizes),
                 partitions=tuple(
                     (output, tuple(sorted(ids)))
-                    for output, ids in sorted(groups.items())
+                    for output, ids in sorted(groups, key=lambda item: item[0])
                 ),
             ))
         ranked.sort(key=lambda item: (
@@ -233,6 +241,11 @@ class ActiveOperatorIdentifier:
             return IdentificationStatus(
                 "identified", ids, len(self._issued),
                 "one hypothesis remains in the declared candidate set",
+            )
+        if len(self._issued) > len(self._answered_inputs):
+            return IdentificationStatus(
+                "ambiguous", ids, len(self._issued),
+                "an informative experiment is awaiting its observation",
             )
         if not self.rank_experiments():
             return IdentificationStatus(
