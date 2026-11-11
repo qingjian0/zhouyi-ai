@@ -2,7 +2,7 @@ import unittest
 
 from orchestrator.agents.execution_contract import (
     ApprovalBinding, ExecutionManifest, ExecutionRecord, ResourceLimits,
-    manifest_digest, validate_approval,
+    manifest_digest, validate_approval, validate_execution_record,
 )
 
 
@@ -73,7 +73,36 @@ class ExecutionContractTests(unittest.TestCase):
                               current_patch_digest="c" * 64,
                               target_branch="feature/test")
 
-    def test_execution_record_validates_observed_usage(self):
+
+    def test_execution_record_is_checked_against_manifest_budgets(self):
+        record = ExecutionRecord(
+            manifest_digest(self.manifest), "c" * 64, "runner-local",
+            "completed", 0, "2026-11-11T03:02:00Z",
+            "2026-11-11T03:03:00Z", 4.5, 512, 10, 1024, "d" * 64,
+        )
+        validate_execution_record(self.manifest, record)
+        over_budget = ExecutionRecord(
+            manifest_digest(self.manifest), "c" * 64, "runner-local",
+            "completed", 0, "2026-11-11T03:02:00Z",
+            "2026-11-11T03:03:00Z", 4.5, 4096, 10, 1024, "d" * 64,
+        )
+        with self.assertRaisesRegex(ValueError, "memory"):
+            validate_execution_record(self.manifest, over_budget)
+
+    def test_execution_record_rejects_stale_manifest_and_bad_time_order(self):
+        record = ExecutionRecord(
+            manifest_digest(self.manifest), "c" * 64, "runner-local",
+            "completed", 0, "2026-11-11T03:04:00Z",
+            "2026-11-11T03:03:00Z", 1, 10, 1, 10,
+        )
+        with self.assertRaisesRegex(ValueError, "precede"):
+            validate_execution_record(self.manifest, record)
+        other = ExecutionManifest(
+            **{**self.manifest.__dict__, "seed": 11}
+        )
+        with self.assertRaisesRegex(ValueError, "different manifest"):
+            validate_execution_record(other, record)
+\n    def test_execution_record_validates_observed_usage(self):
         record = ExecutionRecord(
             manifest_digest(self.manifest), "c" * 64, "runner-local",
             "completed", 0, "2026-11-11T03:02:00Z",
