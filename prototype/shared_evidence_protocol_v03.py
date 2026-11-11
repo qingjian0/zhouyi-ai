@@ -125,6 +125,7 @@ def _evidence_from_definition(
         if not isinstance(definition[field], str) or not definition[field].strip():
             raise ProtocolError(f"evidence definition {field} must be non-empty")
     try:
+        # Step values are assigned by the event-log replay layer, not callers.
         return Evidence(
             evidence_id=evidence_id, episode_id=episode_id,
             world_family=definition["world_family"],
@@ -208,7 +209,14 @@ class EpisodeProjection:
 
 
     def hydrate_lifecycle_ledgers(self) -> dict[str, LifecycleLedger]:
-        """Rebuild one E12 ledger per learner track; never merge track state."""
+        """Rebuild one E12 ledger per learner track; never merge track state.
+
+        E12 commit/reveal step fields are populated from durable per-episode
+        event sequence positions. They represent causal ordering in this store,
+        not wall-clock timestamps or optimizer/training-step counters.
+        Legacy events without typed evidence definitions remain replayable as
+        protocol projections but cannot be fabricated into E12 Evidence.
+        """
         ledgers: dict[str, LifecycleLedger] = {}
         evidence_by_track: dict[str, dict[str, Evidence]] = {}
         for key, item in self.evidence.items():
