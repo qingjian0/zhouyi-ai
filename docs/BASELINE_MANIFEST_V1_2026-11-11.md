@@ -84,3 +84,13 @@ A new Draft integration PR was opened after the code-level review:
 PR #217 is stacked on the #208 CSG-GCR executable slice. It is not yet based on #206 or the E09 branch. Do not merge it independently to main or treat it as end-to-end E09 integration.
 
 The bridge filters completed bounded CSG-GCR candidate sets through the typed unifier and preserves explicit budget exhaustion. It currently does not prune typed-infeasible partial sets during DFS; this is a known efficiency limitation, not a correctness claim about global search completeness. The exact PR head currently has no workflow run or combined status returned by GitHub; tests are therefore pending, not passing.
+
+
+## P1 typed bridge and branch-delta stack update (2026-11-11)
+
+| PR | Base | Head | Scope | Status |
+|---|---|---|---|---|
+| [#217](https://github.com/qingjian0/zhouyi-ai/pull/217) | #208 branch at `5f886df` | typed bridge branch at `ecc20f3` | Typed hyperedge unifier wired to bounded CSG-GCR candidate-set filtering | Draft; syntax error found in earlier CI and corrected at `ecc20f3`; exact corrected-head CI pending |
+| [#218](https://github.com/qingjian0/zhouyi-ai/pull/218) | #217 corrected head at `ecc20f3` | branch-delta stack at `164e28b` | Immutable parent references, typed append-only deltas, stale/read-write/write-write conflict checks, idempotent replay | Draft; exact-head CI in progress at audit time |
+
+PR #218 is stacked on PR #217 and inherits the #208 dependency. Neither PR is independently mergeable to main as a complete architecture slice. The branch-delta kernel validates structural edit compatibility only; it does not own E09 evidence, E12-A6 lifecycle, or ZPCM persistence. Exact-head CI and review remain mandatory.
