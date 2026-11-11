@@ -14,7 +14,7 @@ from prototype.cpg_interop import (
     digest_json,
 )
 from prototype.e12a20_factor_graph import InferenceResult as ExactResult
-from prototype.e12a20a1_belief_propagation import BPResult
+from prototype.e12a20a1_belief_propagation import BPResult, Marginal
 
 
 @dataclass(frozen=True)
@@ -34,6 +34,7 @@ class E12A20AdapterResult:
     engine: str
     engine_status: str
     ranked_hypotheses: tuple[RankedHypothesis, ...] = ()
+    marginals: tuple[Marginal, ...] = ()
 
 
 def adapt_exact_result(
@@ -127,4 +128,5 @@ def adapt_bp_result(
         inference=inference,
         engine="e12a20-sum-product-bp",
         engine_status=result.status,
+        marginals=result.marginals,
     )
