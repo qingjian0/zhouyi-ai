@@ -133,3 +133,8 @@ PR #222 latest head is `44166f27f1b9892782080a312fc80a15c0e19f2b`, based on PR #
 ## PR #222 exact-head validation result
 
 PR #222 head `44166f27f1b9892782080a312fc80a15c0e19f2b` completed workflow run `43032951104` with conclusion `success`. The run includes the repository unit-test and E01/E02 evaluation sequence. The typed candidate result preserves merged branch-delta evidence references and the E09 authorization reference/evidence references. This is still a Draft prototype adapter, not E09 cryptographic authorization, E12-A6 lifecycle integration, or ZPCM persistence.
+
+
+## PR #223 exact-head audit
+
+PR #223 head `1e23b23c515e3b339c52850d98ba9981176495b5`, base PR #222 head `44166f27f1b9892782080a312fc80a15c0e19f2b`. Workflow `43034178683` was running at audit time, currently in the unit-test step. The adapter creates an E12-A6 OBSERVED candidate and read-only CPG-EI projection; raw CSG-GCR score remains uncalibrated metadata and E12-A6 remains the only lifecycle authority.
