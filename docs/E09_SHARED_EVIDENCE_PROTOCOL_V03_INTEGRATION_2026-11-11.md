@@ -1,0 +1,38 @@
+# E09 Shared Evidence Protocol v0.3 integration
+
+Date: 2026-11-11  
+Status: implementation slice; pending exact-head CI.
+
+## Compatibility
+
+The SQLite store continues to write v0.2 by default. Callers must explicitly request `protocol_version="0.3"` for the strict cross-track contract. Existing v0.1/v0.2 event rows remain replayable and are not silently upgraded or assigned fabricated scope/split metadata.
+
+## v0.3 causal binding
+
+For a strict prediction cycle:
+
+1. `observation` carries `observation_id`, `query_id`, `scope` and `split`.
+2. `prediction_commit` repeats the same query/scope/split tuple and must reference a prior v0.3 observation with an exact match.
+3. The committed event receipt exposes the immutable event digest.
+4. `evidence_reveal` repeats query/scope/split, learner track and prediction ID, and carries `commit_digest` equal to the exact committed event digest.
+5. A reveal cannot bind to a legacy event, another scope, another split, another query or a different committed payload.
+
+Allowed split labels are `SUPPORT`, `GATE_DEV`, `GATE_FINAL` and `LOCKED_TEST`. Labels are metadata and validation inputs, not an authentication boundary.
+
+## E09 adapter behavior
+
+The E09 adapter now requires an explicit scope and records query/scope/split on observations and commits. Reveals include the exact prediction-commit digest.
+
+Only `SUPPORT` reveals are passed to the E09 learner's update path. Gate and locked-test reveals are persisted but not delivered to the learner, and therefore cannot trigger an E09 revision through this adapter. This is a code-path safeguard inside one trusted process, not process isolation.
+
+## Remaining security and recovery work
+
+- Evaluator/learner process separation and authenticated evidence transport remain unimplemented.
+- The runner still cannot reconstruct its in-memory state from the SQLite event log after restart.
+- The adapter still requires a fresh episode; live resume is not claimed.
+- Scope and split values are supplied by the trusted caller; source identity is not cryptographically authenticated.
+- Durable reveal append followed by learner update still has a cross-system crash window. A transactional outbox or deterministic state reconstruction is required before claiming crash-safe exactly-once learning.
+
+## Tests
+
+New tests cover strict commit/reveal binding, wrong digest rejection, mismatched split rejection, legacy-to-v0.3 binding rejection, and withholding locked-test labels from the learner. The existing v0.2 tests remain unchanged to protect backward compatibility.
