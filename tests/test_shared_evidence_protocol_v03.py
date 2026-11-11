@@ -440,5 +440,65 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
 
 
 
+    def test_lifecycle_candidate_identity_must_match_structure_version(self):
+        self.store.append_event(
+            episode_id="ep", event_id="candidate-v1", event_type="structure_version",
+            idempotency_key="candidate-v1",
+            payload={
+                "structure_id": "wrong-identity", "version_id": "candidate@1",
+                "kind": "candidate", "definition": {}, "parent_version_ids": [],
+                "support_evidence_ids": [],
+            },
+        )
+        with self.assertRaises(ProtocolError):
+            self.store.append_event(
+                episode_id="ep", event_id="candidate-action", event_type="lifecycle_action",
+                idempotency_key="candidate-action",
+                payload={
+                    "action_id": "candidate-action", "action_type": "propose",
+                    "candidate_id": "candidate", "candidate_version": 1,
+                    "from_state": "observed", "to_state": "proposed",
+                    "evidence_refs": [], "cost": 0.1, "note": "identity mismatch",
+                    "candidate_lineage_refs": [], "learner_track": "e12",
+                },
+            )
+
+    def test_lifecycle_lineage_must_match_candidate_parent_versions(self):
+        self.store.append_events(
+            episode_id="ep", idempotency_key="candidate-versions",
+            events=[
+                {
+                    "event_id": "parent", "event_type": "structure_version",
+                    "payload": {
+                        "structure_id": "candidate", "version_id": "candidate@1",
+                        "kind": "candidate", "definition": {}, "parent_version_ids": [],
+                        "support_evidence_ids": [],
+                    },
+                },
+                {
+                    "event_id": "child", "event_type": "structure_version",
+                    "payload": {
+                        "structure_id": "candidate", "version_id": "candidate@2",
+                        "kind": "candidate", "definition": {}, "parent_version_ids": ["candidate@1"],
+                        "support_evidence_ids": [],
+                    },
+                },
+            ],
+        )
+        with self.assertRaises(ProtocolError):
+            self.store.append_event(
+                episode_id="ep", event_id="register-child", event_type="lifecycle_action",
+                idempotency_key="register-child",
+                payload={
+                    "action_id": "register-child", "action_type": "register_revision",
+                    "candidate_id": "candidate", "candidate_version": 2,
+                    "from_state": "observed", "to_state": "revalidation_pending",
+                    "evidence_refs": [], "cost": 0.0, "note": "missing parent lineage",
+                    "candidate_lineage_refs": [], "learner_track": "e12",
+                },
+            )
+
+
+
 if __name__ == "__main__":
     unittest.main()
