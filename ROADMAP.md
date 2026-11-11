@@ -44,3 +44,12 @@ The single source of truth for branch/commit identities is [BASELINE_MANIFEST](d
 ## CSG-GCR and typed-unification status correction (2026-11-11)
 
 PR #208 now provides a bounded R1 coordinator candidate, but its declared gaps remain semantic deduplication, typed unification, branch-delta merge, Pareto/diversity selection, E09 integration, E12-A6 lifecycle adaptation and ZPCM persistence. PR #212 adds a standalone typed hyperedge unifier; its own specification explicitly says the coordinator is not wired to call it. Treat these as separate prototypes, not a completed integrated CSG-GCR subsystem. See [BASELINE_MANIFEST](docs/BASELINE_MANIFEST_V1_2026-11-11.md) for the live PR dependency snapshot.
+
+
+## P1 lifecycle persistence progress (2026-11-11)
+
+- PR #223 exact-head workflow `43034178683` passed: typed CSG-GCR candidates can be projected read-only into E12-A6 as OBSERVED candidates.
+- PR #226 exact-head workflow `43036878778` passed: E12-A6 lifecycle events now have a scoped append-only ZPCM persistence/replay adapter. Mutations validate on a staged E12-A6 ledger, persist first, then swap; restart replays and revalidates the event stream.
+- Evidence outcome/provenance strings are replaced with opaque references in lifecycle persistence. E09 remains the authority for evidence payloads and split visibility.
+- Both PRs remain Draft and unmerged. This does not yet complete P1.
+- Next: bind E09-verified evidence into E12-A6 without exposing LOCKED_TEST labels, connect the CSG-GCR projection to the persistent ledger, and test the full end-to-end restart path. Process isolation, authenticated IPC, and transactional outbox remain outstanding.
