@@ -65,6 +65,7 @@ class ExactSlotGroupObservation:
     exact_group: tuple[tuple[int, ...], ...]
     step: int = 0
     domain: str = ""
+    snapshot_context: tuple[tuple[str, str], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -85,7 +86,10 @@ class ExactSlotGroupDiscoveryReport:
     hypotheses: tuple[ExactSlotGroupHypothesis, ...]
 
 
-def _schema_key(edge, entity_types: dict[str, str], semantics: str) -> tuple:
+def _schema_key(
+    edge, entity_types: dict[str, str], semantics: str,
+    snapshot_context: tuple[tuple[str, str], ...],
+) -> tuple:
     return (
         edge.relation_type,
         len(edge.bindings),
@@ -95,6 +99,7 @@ def _schema_key(edge, entity_types: dict[str, str], semantics: str) -> tuple:
         edge.attributes,
         edge.valid_from,
         edge.valid_until,
+        snapshot_context,
         semantics,
     )
 
@@ -130,10 +135,14 @@ def induce_exact_slot_permutation_groups(
 
     # key -> observation evidence ID -> common exact stabilizer
     evidence_by_schema: dict[tuple, dict[str, set[tuple[int, ...]]]] = defaultdict(dict)
+    observation_metadata: dict[str, tuple[int, str, tuple[tuple[str, str], ...]]] = {}
     audits = []
 
     for observation in rows:
         state = observation.state
+        observation_metadata[observation.evidence_id] = (
+            state.step, observation.domain, state.context
+        )
         if state.coverage_complete is not True:
             raise ExactSlotGroupInductionError(
                 "complete coverage is required for exact slot-group induction"
@@ -180,7 +189,7 @@ def induce_exact_slot_permutation_groups(
                 induced = tuple(slot_index[item] for item in mapped_participants)
                 stabilizer.add(induced)
 
-            key = _schema_key(edge, entity_types, semantics)
+            key = _schema_key(edge, entity_types, semantics, state.context)
             groups_in_snapshot[key].append(stabilizer)
 
         for key, instance_groups in groups_in_snapshot.items():
@@ -196,9 +205,10 @@ def induce_exact_slot_permutation_groups(
     transitions = []
     for key, evidence_groups in sorted(evidence_by_schema.items(), key=lambda item: repr(item[0])):
         (relation_type, arity, slot_frame, entity_type_frame, context,
-         attributes, valid_from, valid_until, semantics) = key
+         attributes, valid_from, valid_until, snapshot_context, semantics) = key
         ordered_groups = list(evidence_groups.items())
         for evidence_id, exact_group in ordered_groups:
+            step, domain, snapshot_context_for_row = observation_metadata[evidence_id]
             observation_groups.append(ExactSlotGroupObservation(
                 evidence_id=evidence_id,
                 relation_type=relation_type,
@@ -211,8 +221,9 @@ def induce_exact_slot_permutation_groups(
                 valid_until=valid_until,
                 semantics=semantics,
                 exact_group=tuple(sorted(exact_group)),
-                step=observation.state.step,
-                domain=observation.domain,
+                step=step,
+                domain=domain,
+                snapshot_context=snapshot_context_for_row,
             ))
         for (before_id, before_group), (after_id, after_group) in zip(
             ordered_groups, ordered_groups[1:]
@@ -253,6 +264,7 @@ def induce_exact_slot_permutation_groups(
             valid_until=valid_until,
             semantics=semantics,
             group=learned,
+            snapshot_context=snapshot_context,
         ))
 
     return ExactSlotGroupDiscoveryReport(
