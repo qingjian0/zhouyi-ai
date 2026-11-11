@@ -87,6 +87,18 @@ class TX02ExperimentTests(unittest.TestCase):
         result = aggregate_runs(runs)
         self.assertEqual(result["TERNARY"]["mean_query_accuracy"], 0.5)
         self.assertGreater(result["TERNARY"]["stdev_query_accuracy"], 0.0)
+        adaptive = result["ADAPTIVE_VALIDATION_SELECTED"]
+        self.assertEqual(adaptive["selection_frequency"]["TERNARY"], 1.0)
+        self.assertEqual(
+            adaptive["paired_differences_vs_fixed"]["TERNARY"]["mean_accuracy_difference"],
+            0.0,
+        )
+        self.assertEqual(adaptive["paired_differences_vs_fixed"]["BINARY"]["win_rate"], 0.0)
+    def test_sweep_requires_unique_nonempty_outer_seeds(self):
+        with self.assertRaises(ValueError):
+            run_sweep(seeds=())
+        with self.assertRaises(ValueError):
+            run_sweep(seeds=(1, 1))
 
 
 if __name__ == "__main__":
