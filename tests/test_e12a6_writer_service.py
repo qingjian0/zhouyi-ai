@@ -14,6 +14,7 @@ from prototype.e09_authority_services import (
     E09AuthenticatedWorkload, E09AuthorityService, E09VerifierService,
 )
 from prototype.e09_ed25519_keyring import E09Ed25519IssuerKeyring
+from prototype.e09_verification_receipt import verification_receipt_signing_bytes
 from prototype.e12a6_lifecycle_contract import CandidateState
 from prototype.e12a6_writer_service import (
     E12A6AuthenticatedWorkload, E12A6AuthorizationError, E12A6WriterService,
@@ -328,6 +329,23 @@ class E12A6WriterServiceTests(unittest.TestCase):
         altered = dict(self.receipt)
         altered["scope"] = "world/other"
         with self.assertRaises(ValueError):
+            self._submit(receipt=altered)
+        self.assertEqual(self.memory.replay_lifecycle_events(scope=self.scope), [])
+
+    def test_valid_signature_cannot_omit_evidence_from_recomputed_candidate(self):
+        altered = dict(self.receipt)
+        omitted = self.proposal_ref_right
+        altered["evidence_refs"] = [
+            ref for ref in altered["evidence_refs"] if ref != omitted
+        ]
+        altered["evidence"] = [
+            item for item in altered["evidence"] if item["evidence_id"] != omitted
+        ]
+        altered["signature"] = ""
+        altered["signature"] = base64.b64encode(
+            self.receipt_signer_private.sign(verification_receipt_signing_bytes(altered))
+        ).decode("ascii")
+        with self.assertRaises(E12A6AuthorizationError):
             self._submit(receipt=altered)
         self.assertEqual(self.memory.replay_lifecycle_events(scope=self.scope), [])
 
