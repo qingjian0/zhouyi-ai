@@ -157,7 +157,7 @@ def make_rule_disjoint_splits(
         locked_test=locked_test,
         rule_families=rule_families,
         metadata={
-            "protocol": "TX-02B-2",
+            "protocol": "TX-02D-3",
             "cardinality": cardinality,
             "episodes_per_rule": episodes_per_rule,
             "support_size": support_size,
