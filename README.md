@@ -33,6 +33,9 @@
 
 ## 文档导航
 
+- [ZNCA 原生认知架构研究提案](docs/ZNCA_NATIVE_COGNITIVE_ARCHITECTURE_2026-11-11.md)
+- [ZNCA N1 可执行关系状态核心](docs/ZNCA_N1_REFERENCE_CORE_2026-11-11.md)
+- [ZNCA 可证伪实验协议](docs/ZNCA_EXPERIMENT_PROTOCOL_2026-11-11.md)
 - [CPG-EI v1 收敛基础与跨线集成门槛](docs/CPG_EI_V1_CONVERGENCE_FOUNDATION_2026-11-11.md)
 - [研究总纲与问题定义](docs/RESEARCH_CHARTER.md)
 - [数学理论 v0.3](docs/THEORY_v0.3.md)
