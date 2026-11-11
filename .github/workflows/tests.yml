@@ -2,9 +2,9 @@ name: tests
 
 on:
   push:
-    branches: [main, research/xsl3-role-transform-2026-11-11]
+    branches: [main, research/xsl3-role-transform-2026-11-11, research/xsl4-multi-perspective-2026-11-11]
   pull_request:
-    branches: [main, integration/cpg-ei-v1-foundation-2026-11-11, integration/e12a20-interop-adapter-2026-11-11]
+    branches: [main, integration/cpg-ei-v1-foundation-2026-11-11, integration/e12a20-interop-adapter-2026-11-11, research/xsl3-role-transform-2026-11-11]
 
 jobs:
   unit-tests:
