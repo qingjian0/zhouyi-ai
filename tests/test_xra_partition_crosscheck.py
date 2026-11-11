@@ -3,7 +3,7 @@ import random
 import unittest
 
 from prototype.xra_partition import exact_predictive_partition
-from prototype.xra_partition_crosscheck import greatest_bisimulation_partition
+from prototype.xra_partition_crosscheck import (\n    greatest_bisimulation_partition,\n    shortest_distinguishing_sequence,\n)
 
 
 def _tables(states, actions, outcomes_flat, targets_flat):
@@ -83,3 +83,62 @@ class XRAPartitionCrossCheckTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class XRADistinguishingWitnessTests(unittest.TestCase):
+    def test_immediate_distinction_has_one_action_witness(self):
+        states = ("red", "blue")
+        actions = ("inspect", "wait")
+        outcomes = {
+            ("red", "inspect"): "R", ("blue", "inspect"): "B",
+            ("red", "wait"): "same", ("blue", "wait"): "same",
+        }
+        transitions = {
+            (s, a): s for s in states for a in actions
+        }
+        self.assertEqual(
+            shortest_distinguishing_sequence(
+                states, actions, outcomes, transitions, "red", "blue"
+            ),
+            ("inspect",),
+        )
+
+    def test_delayed_distinction_returns_shortest_sequence(self):
+        states = ("A", "B", "C", "D")
+        actions = ("step", "jump")
+        outcomes = {
+            ("A", "step"): "go", ("B", "step"): "go",
+            ("A", "jump"): "same", ("B", "jump"): "same",
+            ("C", "step"): "red", ("D", "step"): "blue",
+            ("C", "jump"): "same", ("D", "jump"): "same",
+        }
+        transitions = {
+            ("A", "step"): "C", ("B", "step"): "D",
+            ("A", "jump"): "A", ("B", "jump"): "B",
+            ("C", "step"): "C", ("D", "step"): "D",
+            ("C", "jump"): "C", ("D", "jump"): "D",
+        }
+        self.assertEqual(
+            shortest_distinguishing_sequence(
+                states, actions, outcomes, transitions, "A", "B"
+            ),
+            ("step", "step"),
+        )
+
+    def test_equivalent_states_have_no_finite_witness(self):
+        states = ("A", "B")
+        actions = ("step",)
+        outcomes = {("A", "step"): "same", ("B", "step"): "same"}
+        transitions = {("A", "step"): "A", ("B", "step"): "B"}
+        self.assertIsNone(
+            shortest_distinguishing_sequence(
+                states, actions, outcomes, transitions, "A", "B"
+            )
+        )
+
+    def test_unknown_query_state_is_rejected(self):
+        with self.assertRaises(KeyError):
+            shortest_distinguishing_sequence(
+                ("A",), ("step",), {("A", "step"): "x"},
+                {("A", "step"): "A"}, "A", "missing"
+            )
