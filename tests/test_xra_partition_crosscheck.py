@@ -81,9 +81,6 @@ class XRAPartitionCrossCheckTests(unittest.TestCase):
             )
 
 
-if __name__ == "__main__":
-    unittest.main()
-
 
 class XRADistinguishingWitnessTests(unittest.TestCase):
     def test_immediate_distinction_has_one_action_witness(self):
@@ -142,3 +139,7 @@ class XRADistinguishingWitnessTests(unittest.TestCase):
                 ("A",), ("step",), {("A", "step"): "x"},
                 {("A", "step"): "A"}, "A", "missing"
             )
+
+
+if __name__ == "__main__":
+    unittest.main()
