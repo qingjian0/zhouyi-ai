@@ -82,13 +82,40 @@ class SROK0KernelTests(unittest.TestCase):
             SparseRoleComposer([Node("x", "A"), Node("x", "B")])
 
     def test_invalid_budget_is_rejected(self):
-        spec = OperatorSpec(
-            "bad", "bad",
-            (RoleSpec("one"), RoleSpec("two")),
-            max_expansions=0,
-        )
+        for budget in (0, 1.5, True):
+            spec = OperatorSpec(
+                "bad", "bad",
+                (RoleSpec("one"), RoleSpec("two")),
+                max_expansions=budget,
+            )
+            with self.subTest(budget=budget), self.assertRaises(SROKValidationError):
+                SparseRoleComposer(self.nodes).compose(spec)
+
+    def test_empty_role_name_is_rejected(self):
+        spec = OperatorSpec("bad", "bad", (RoleSpec(" "), RoleSpec("two")))
         with self.assertRaises(SROKValidationError):
             SparseRoleComposer(self.nodes).compose(spec)
+
+    def test_non_finite_composed_score_is_rejected(self):
+        nodes = [Node("a", "A", score=1e308), Node("b", "B", score=1e308)]
+        spec = OperatorSpec("overflow", "pair", (RoleSpec("left", frozenset({"A"})), RoleSpec("right", frozenset({"B"}))))
+        with self.assertRaises(SROKValidationError):
+            SparseRoleComposer(nodes).compose(spec)
+
+    def test_non_finite_joint_score_is_rejected(self):
+        spec = OperatorSpec("nan", "pair", (RoleSpec("left", frozenset({"A"})), RoleSpec("right", frozenset({"B"}))))
+        with self.assertRaises(SROKValidationError):
+            SparseRoleComposer(self.nodes).compose(spec, joint_scorer=lambda _: float("nan"))
+
+    def test_equal_score_order_is_deterministic(self):
+        nodes = [Node("z", "A", score=1), Node("a", "A", score=1), Node("y", "B", score=1), Node("b", "B", score=1)]
+        spec = OperatorSpec("ties", "pair", (RoleSpec("left", frozenset({"A"})), RoleSpec("right", frozenset({"B"}))), max_expansions=20)
+        first = SparseRoleComposer(nodes).compose(spec, limit=4)
+        second = SparseRoleComposer(reversed(nodes)).compose(spec, limit=4)
+        self.assertEqual(
+            [candidate.member_ids for candidate in first.candidates],
+            [candidate.member_ids for candidate in second.candidates],
+        )
 
 
 if __name__ == "__main__":

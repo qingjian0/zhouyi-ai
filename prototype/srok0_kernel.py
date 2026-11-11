@@ -78,12 +78,19 @@ class SparseRoleComposer:
     def __init__(self, nodes: Iterable[Node]) -> None:
         self.nodes = tuple(nodes)
         ids = [node.node_id for node in self.nodes]
-        if any(not node.node_id or not node.node_type for node in self.nodes):
-            raise SROKValidationError("node_id and node_type are required")
+        for node in self.nodes:
+            if not isinstance(node.node_id, str) or not node.node_id.strip():
+                raise SROKValidationError("node_id must be a non-empty string")
+            if not isinstance(node.node_type, str) or not node.node_type.strip():
+                raise SROKValidationError("node_type must be a non-empty string")
+            if not isinstance(node.score, (int, float)) or isinstance(node.score, bool) or not math.isfinite(node.score):
+                raise SROKValidationError("node scores must be finite numbers")
+            if any(not isinstance(tag, str) or not tag.strip() for tag in node.tags):
+                raise SROKValidationError("node tags must be non-empty strings")
+            if any(not isinstance(ref, str) or not ref.strip() for ref in node.evidence_ids):
+                raise SROKValidationError("evidence IDs must be non-empty strings")
         if len(ids) != len(set(ids)):
             raise SROKValidationError("node_id values must be unique")
-        if any(not math.isfinite(node.score) for node in self.nodes):
-            raise SROKValidationError("node scores must be finite")
         self._by_id = {node.node_id: node for node in self.nodes}
         self._by_type: dict[str, set[str]] = {}
         self._by_tag: dict[str, set[str]] = {}
@@ -93,8 +100,12 @@ class SparseRoleComposer:
                 self._by_tag.setdefault(tag, set()).add(node.node_id)
 
     def _pool(self, role: RoleSpec, limit: int) -> tuple[Node, ...]:
-        if not role.name:
+        if not isinstance(role.name, str) or not role.name.strip():
             raise SROKValidationError("role names must be non-empty")
+        if any(not isinstance(value, str) or not value.strip() for value in role.allowed_types):
+            raise SROKValidationError("allowed_types must contain non-empty strings")
+        if any(not isinstance(value, str) or not value.strip() for value in role.required_tags):
+            raise SROKValidationError("required_tags must contain non-empty strings")
         if role.allowed_types:
             eligible: set[str] = set()
             for node_type in role.allowed_types:
@@ -111,15 +122,18 @@ class SparseRoleComposer:
 
     @staticmethod
     def _validate_spec(spec: OperatorSpec) -> None:
-        if not spec.name or not spec.relation_type:
+        if not isinstance(spec.name, str) or not spec.name.strip() or not isinstance(spec.relation_type, str) or not spec.relation_type.strip():
             raise SROKValidationError("operator name and relation_type are required")
-        if len(spec.roles) < 2:
-            raise SROKValidationError("an operator requires at least two roles")
+        if not isinstance(spec.roles, tuple) or len(spec.roles) < 2 or any(not isinstance(role, RoleSpec) for role in spec.roles):
+            raise SROKValidationError("an operator requires at least two valid roles")
+        for name, budget in (("max_candidates_per_role", spec.max_candidates_per_role), ("max_expansions", spec.max_expansions)):
+            if isinstance(budget, bool) or not isinstance(budget, int) or budget < 1:
+                raise SROKValidationError(f"{name} must be a positive integer")
         names = [role.name for role in spec.roles]
         if len(names) != len(set(names)):
             raise SROKValidationError("role names must be unique")
-        if spec.max_candidates_per_role < 1 or spec.max_expansions < 1:
-            raise SROKValidationError("search budgets must be positive")
+        if any(not isinstance(role.name, str) or not role.name.strip() for role in spec.roles):
+            raise SROKValidationError("role names must be non-empty strings")
 
     def compose(
         self,
@@ -137,8 +151,8 @@ class SparseRoleComposer:
         not globally optimal ranking under arbitrary joint scores.
         """
         self._validate_spec(spec)
-        if limit < 1:
-            raise SROKValidationError("result limit must be positive")
+        if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
+            raise SROKValidationError("result limit must be a positive integer")
 
         pools = tuple(
             self._pool(role, spec.max_candidates_per_role) for role in spec.roles
@@ -154,7 +168,13 @@ class SparseRoleComposer:
         start = tuple(0 for _ in pools)
 
         def base_score(indices: tuple[int, ...]) -> float:
-            return sum(pools[i][index].score for i, index in enumerate(indices))
+            try:
+                value = math.fsum(pools[i][index].score for i, index in enumerate(indices))
+            except OverflowError as exc:
+                raise SROKValidationError("base score overflowed") from exc
+            if not math.isfinite(value):
+                raise SROKValidationError("base score must be finite")
+            return value
 
         heap: list[tuple[float, tuple[str, ...], tuple[int, ...]]] = []
         heapq.heappush(heap, (-base_score(start), (), start))
@@ -173,9 +193,14 @@ class SparseRoleComposer:
                 if hard_constraint is None or hard_constraint(selected):
                     valid += 1
                     extra = joint_scorer(selected) if joint_scorer else 0.0
-                    if not math.isfinite(extra):
-                        raise SROKValidationError("joint score must be finite")
-                    score = sum(node.score for node in selected) + extra
+                    if not isinstance(extra, (int, float)) or isinstance(extra, bool) or not math.isfinite(extra):
+                        raise SROKValidationError("joint score must be a finite number")
+                    try:
+                        score = math.fsum([*(node.score for node in selected), extra])
+                    except OverflowError as exc:
+                        raise SROKValidationError("composed score overflowed") from exc
+                    if not math.isfinite(score):
+                        raise SROKValidationError("composed score must be finite")
                     evidence = tuple(dict.fromkeys(
                         evidence_id
                         for node in selected
