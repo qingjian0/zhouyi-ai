@@ -118,6 +118,8 @@ class TypedCandidateCoordinator:
         proposals: Iterable[TypedCandidateProposal],
         constraints: GlobalConstraints = GlobalConstraints(),
     ) -> TypedCoordinationReport:
+        if not isinstance(constraints, GlobalConstraints):
+            raise CoordinationError("constraints must be GlobalConstraints")
         rows = tuple(proposals)
         for row in rows:
             _validate_pair(row)
