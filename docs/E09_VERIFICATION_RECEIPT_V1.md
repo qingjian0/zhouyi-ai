@@ -1,6 +1,6 @@
 # E09 Verification Receipt v1
 
-Status: implemented signed receipt reference contract; one-time consumption is not yet implemented.
+Status: signed receipt reference contract implemented; atomic one-time consumption is implemented by the E12-A6 persistent ledger adapter.
 
 ## Purpose
 
@@ -41,7 +41,7 @@ The resulting VerifiedE09VerificationReceipt is only an in-process result after 
 
 ## Remaining production gates
 
-- E12-A6 must atomically consume receipt_id/nonce with the candidate/evidence lifecycle bundle; this PR does not yet provide replay-consumption persistence.
+- The persistent ledger now consumes receipt_id/nonce atomically with candidate/evidence registration; the service boundary must still ensure only a receipt-verified writer can invoke this API.
 - The verifier signing key must be held by an HSM/KMS and its public key pinned in the writer trust bundle.
 - The receipt verifier and E12 writer must run in distinct processes with authenticated IPC and least-privilege filesystem permissions.
 - External checkpointing and rollback detection remain separate release gates.
