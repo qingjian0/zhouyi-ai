@@ -2,6 +2,7 @@
 from __future__ import annotations
 import math
 from typing import Iterable, Sequence
+from statistics import NormalDist
 from prototype.tx02_state_encoders import build_codebook
 
 def feature_dimension(family: str, cardinality: int, embedding_dim: int = 6) -> int:
@@ -134,16 +135,12 @@ def wilson_upper_bound(errors: int, count: int, z: float = 1.6448536269514722) -
 
 def choose_abstention_threshold(probability_rows: Sequence[Sequence[float]],
         targets: Sequence[int], max_selective_risk: float,
-        confidence_z: float = 1.6448536269514722) -> dict:
-    """Maximize validation coverage subject to a one-sided Wilson risk bound.
-
-    This is a conservative finite-sample heuristic, not a distribution-free
-    guarantee under arbitrary dataset shift or adaptive repeated use.
-    """
+        confidence_level: float = 0.95) -> dict:
+    """Maximize validation coverage under Bonferroni-adjusted Wilson risk bounds."""
     if not math.isfinite(max_selective_risk) or not 0 <= max_selective_risk <= 1:
         raise ValueError("max_selective_risk must be in [0,1]")
-    if not math.isfinite(confidence_z) or confidence_z <= 0:
-        raise ValueError("confidence_z must be finite and positive")
+    if not math.isfinite(confidence_level) or not 0.5 < confidence_level < 1.0:
+        raise ValueError("confidence_level must be in (0.5,1)")
     if len(probability_rows) != len(targets) or not targets:
         raise ValueError("probability_rows and targets must have equal non-zero length")
     ranked = []
@@ -156,10 +153,15 @@ def choose_abstention_threshold(probability_rows: Sequence[Sequence[float]],
             raise ValueError("probabilities must sum to one")
         pred = max(range(len(probs)), key=lambda i: probs[i])
         ranked.append((max(probs), int(pred == target)))
+    thresholds = sorted({confidence for confidence, _ in ranked}, reverse=True)
+    # Correct for searching multiple candidate thresholds on the same calibration set.
+    alpha_per_threshold = (1.0 - confidence_level) / len(thresholds)
+    confidence_z = NormalDist().inv_cdf(1.0 - alpha_per_threshold)
     best = {"threshold": math.nextafter(1.0, math.inf), "coverage": 0.0,
             "selective_risk": None, "risk_upper_bound": None, "accepted": 0,
-            "confidence_z": confidence_z, "risk_bound_method": "one_sided_wilson"}
-    thresholds = sorted({confidence for confidence, _ in ranked}, reverse=True)
+            "confidence_z": confidence_z, "confidence_level": confidence_level,
+            "threshold_hypotheses": len(thresholds),
+            "risk_bound_method": "bonferroni_one_sided_wilson"}
     for threshold in thresholds:
         accepted = [hit for confidence, hit in ranked if confidence >= threshold]
         count = len(accepted)
@@ -170,15 +172,17 @@ def choose_abstention_threshold(probability_rows: Sequence[Sequence[float]],
             best = {"threshold": threshold, "coverage": count / len(ranked),
                     "selective_risk": risk, "risk_upper_bound": upper,
                     "accepted": count, "confidence_z": confidence_z,
-                    "risk_bound_method": "one_sided_wilson"}
+                    "confidence_level": confidence_level,
+                    "threshold_hypotheses": len(thresholds),
+                    "risk_bound_method": "bonferroni_one_sided_wilson"}
     return best
 
 
 def choose_episode_abstention_threshold(
         probability_episodes: Sequence[Sequence[Sequence[float]]],
         target_episodes: Sequence[Sequence[int]], max_selective_risk: float,
-        confidence_z: float = 1.6448536269514722) -> dict:
-    """Calibrate whole-episode deferral using episode-level all-queries-correct risk."""
+        confidence_level: float = 0.95) -> dict:
+    """Calibrate whole-episode deferral with multiplicity-adjusted Wilson risk bounds."""
     if len(probability_episodes) != len(target_episodes) or not target_episodes:
         raise ValueError("probability_episodes and target_episodes must be equal and non-empty")
     episode_confidences = []
@@ -202,14 +206,19 @@ def choose_episode_abstention_threshold(
         episode_hits.append(all(hits))
     if not math.isfinite(max_selective_risk) or not 0 <= max_selective_risk <= 1:
         raise ValueError("max_selective_risk must be in [0,1]")
-    if not math.isfinite(confidence_z) or confidence_z <= 0:
-        raise ValueError("confidence_z must be finite and positive")
+    if not math.isfinite(confidence_level) or not 0.5 < confidence_level < 1.0:
+        raise ValueError("confidence_level must be in (0.5,1)")
+    thresholds = sorted(set(episode_confidences), reverse=True)
+    alpha_per_threshold = (1.0 - confidence_level) / len(thresholds)
+    confidence_z = NormalDist().inv_cdf(1.0 - alpha_per_threshold)
     best = {"threshold": math.nextafter(1.0, math.inf), "coverage": 0.0,
             "selective_risk": None, "risk_upper_bound": None, "accepted": 0,
-            "confidence_z": confidence_z, "risk_bound_method": "one_sided_wilson",
+            "confidence_z": confidence_z, "confidence_level": confidence_level,
+            "threshold_hypotheses": len(thresholds),
+            "risk_bound_method": "bonferroni_one_sided_wilson",
             "risk_unit": "episode_all_queries_correct",
             "episode_count": len(target_episodes)}
-    for threshold in sorted(set(episode_confidences), reverse=True):
+    for threshold in thresholds:
         accepted_hits = [hit for confidence, hit
                          in zip(episode_confidences, episode_hits)
                          if confidence >= threshold]
@@ -221,10 +230,13 @@ def choose_episode_abstention_threshold(
             best = {"threshold": threshold, "coverage": count / len(target_episodes),
                     "selective_risk": risk, "risk_upper_bound": upper,
                     "accepted": count, "confidence_z": confidence_z,
-                    "risk_bound_method": "one_sided_wilson",
+                    "confidence_level": confidence_level,
+                    "threshold_hypotheses": len(thresholds),
+                    "risk_bound_method": "bonferroni_one_sided_wilson",
                     "risk_unit": "episode_all_queries_correct",
                     "episode_count": len(target_episodes)}
     return best
+
 
 
 def apply_episode_abstention(
