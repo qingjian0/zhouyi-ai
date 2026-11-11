@@ -10,6 +10,8 @@ from dataclasses import dataclass, replace
 import math
 from typing import Iterable
 
+from prototype.znca_core import Relation
+
 
 class DynamicsError(ValueError):
     """Invalid state, transition, or dynamics configuration."""
@@ -53,6 +55,7 @@ class InfluenceTerm:
     target: str
     polarity: int = 1
     weight: float = 0.5
+    evidence_refs: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
         if not self.term_id.strip() or not self.relation_type.strip() or not self.target.strip():
@@ -68,6 +71,33 @@ class InfluenceTerm:
             raise DynamicsError("polarity must be -1 or +1")
         if not math.isfinite(self.weight) or self.weight < 0:
             raise DynamicsError("weight must be finite and non-negative")
+        if len(self.evidence_refs) != len(set(self.evidence_refs)):
+            raise DynamicsError("evidence_refs must be unique")
+
+
+def influence_term_from_relation(relation: Relation, *, target_role: str,
+                                 polarity: int = 1, weight: float = 0.5,
+                                 term_id: str | None = None) -> InfluenceTerm:
+    """Compile one N1 relation assertion into a role-preserving N2 operator."""
+    roles = relation.role_map()
+    if target_role not in roles:
+        raise DynamicsError(f"target role not present in relation: {target_role}")
+    sources = tuple(
+        SourceSlot(role, entity_id)
+        for role, entity_id in roles.items()
+        if role != target_role
+    )
+    if not sources:
+        raise DynamicsError("relation must have at least one non-target participant")
+    return InfluenceTerm(
+        term_id or relation.assertion_id,
+        relation.relation_type,
+        sources,
+        roles[target_role],
+        polarity,
+        weight,
+        relation.evidence_refs,
+    )
 
 
 @dataclass(frozen=True)
