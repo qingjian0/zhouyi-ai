@@ -116,6 +116,8 @@ class PersistentLifecycleLedger:
                         "parent_state_ref", "branch_ids", "authorization_evidence_refs",
                         "evidence_refs", "issuer_id", "verifier_id", "authorization_event_digest",
                         "receipt_issued_at", "receipt_expires_at", "candidate_id", "candidate_version", "consumed_at",
+                        "submitter_workload_id", "submitter_identity_provider",
+                        "submitter_authentication_method", "submitter_credential_fingerprint",
                     }
                     if set(body) != required:
                         raise LifecyclePersistenceError("authorization consumption has an invalid schema")
