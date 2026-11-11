@@ -109,7 +109,8 @@ class E12A6WriterServiceTests(unittest.TestCase):
             max_grant_ttl=timedelta(hours=1),
         )
 
-        self.proposal_ref = self._add_reveal("proposal")
+        self.proposal_ref = self._add_reveal("proposal-left")
+        self.proposal_ref_right = self._add_reveal("proposal-right")
         self.branch_ref = self._add_reveal("branch")
         self.authorization_evidence_ref = self._add_reveal("authorization")
         self.e09_authority.issue_branch_merge_authorization(
@@ -141,10 +142,11 @@ class E12A6WriterServiceTests(unittest.TestCase):
             learner_track=self.track,
             world_family_by_evidence={self.authorization_evidence_ref: "family-a"},
             candidate_evidence_refs=(
-                self.proposal_ref, self.branch_ref, self.authorization_evidence_ref,
+                self.proposal_ref, self.proposal_ref_right, self.branch_ref, self.authorization_evidence_ref,
             ),
             candidate_evidence_world_family_by_ref={
                 self.proposal_ref: "family-a",
+                self.proposal_ref_right: "family-a",
                 self.branch_ref: "family-a",
                 self.authorization_evidence_ref: "family-a",
             },
@@ -241,7 +243,7 @@ class E12A6WriterServiceTests(unittest.TestCase):
                 RoleBinding("source", y, "entity-shared", "Entity"),
                 RoleBinding("target", z, "entity-right", "Entity"),
             ),
-            (self.proposal_ref,),
+            (self.proposal_ref_right,),
         )
         left = TypedCandidateProposal(
             CandidateProposal("edge-left", "parent-writer", "left", (), (self.proposal_ref,),
@@ -249,7 +251,7 @@ class E12A6WriterServiceTests(unittest.TestCase):
             left_edge, (VariableSpec(x, "Entity"), VariableSpec(y, "Entity")),
         )
         right = TypedCandidateProposal(
-            CandidateProposal("edge-right", "parent-writer", "right", (), (self.proposal_ref,),
+            CandidateProposal("edge-right", "parent-writer", "right", (), (self.proposal_ref_right,),
                               score=1.0, candidate_kind="amplifies"),
             right_edge, (VariableSpec(y, "Entity"), VariableSpec(z, "Entity")),
         )
@@ -299,7 +301,8 @@ class E12A6WriterServiceTests(unittest.TestCase):
             ["evidence_registered", "evidence_registered", "evidence_registered",
              "candidate_registered", "authorization_consumed"],
         )
-        self.assertNotIn("PRIVATE-proposal", str(events))
+        self.assertNotIn("PRIVATE-proposal-left", str(events))
+        self.assertNotIn("PRIVATE-proposal-right", str(events))
         self.assertNotIn("PRIVATE-branch", str(events))
         self.assertNotIn("PRIVATE-authorization", str(events))
 
