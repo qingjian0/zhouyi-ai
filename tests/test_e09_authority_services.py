@@ -174,7 +174,7 @@ class E09AuthorityServiceTests(unittest.TestCase):
             evidence_refs=[reveal_ref], issued_at="2026-11-12T00:00:00+00:00",
             expires_at="2026-11-12T01:00:00+00:00",
         )
-        self.assertEqual(receipt.sequence, 4)
+        self.assertEqual(receipt.sequence_no, 4)
         verifier = E09VerifierService(
             self.store, signature_verifier=self.keyring.verify,
             verifier_id=self.keyring.verifier_id,
