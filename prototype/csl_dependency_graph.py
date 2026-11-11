@@ -72,7 +72,7 @@ def _canonical(value):
 class StructureDependencyGraph:
     """Event-sourced DAG. Edges point from consumer to prerequisite."""
     def __init__(self):
-        self._nodes={}; self._edges={}; self._events=[]; self._event_ids=set(); self._queue=set()
+        self._nodes={}; self._edges={}; self._events=[]; self._event_ids=set(); self._queue=[]
     @property
     def events(self): return tuple(self._events)
     @property
@@ -81,7 +81,7 @@ class StructureDependencyGraph:
     def edges(self):
         return tuple(self._edges[k] for k in sorted(self._edges,key=lambda k:(k[0],k[1],k[2],k[3])))
     @property
-    def revalidation_queue(self): return tuple(sorted(self._queue))
+    def revalidation_queue(self): return tuple(self._queue)
     def _append(self,event_id,event_type,payload):
         if not isinstance(event_id,str) or not event_id.strip(): raise DependencyError("event_id must be non-empty")
         if event_id in self._event_ids: raise DependencyError(f"duplicate event_id: {event_id}")
@@ -120,7 +120,7 @@ class StructureDependencyGraph:
             if item in found:continue
             found.add(item)
             if transitive:todo.extend(sorted(reverse.get(item,())))
-        return tuple(sorted(found))
+        return tuple(found)
     def stale_dependencies(self):
         return tuple(e for e in self.edges if self._nodes[e.dependency].status is not StructureStatus.ACTIVE)
     def set_status(self,ref,status,*,event_id):
@@ -132,7 +132,7 @@ class StructureDependencyGraph:
         self._nodes[ref]=StructureNode(ref,old.kind,status,old.shared)
         if status is not StructureStatus.ACTIVE:
             for dependent in self.dependents_of(ref):
-                if self._nodes[dependent].status in {StructureStatus.ACTIVE,StructureStatus.PROVISIONAL}: self._queue.add(dependent)
+                if self._nodes[dependent].status in {StructureStatus.ACTIVE,StructureStatus.PROVISIONAL} and dependent not in self._queue: self._queue.append(dependent)
     def acknowledge_revalidation(self,ref,*,event_id):
         if ref not in self._queue: raise DependencyError("structure is not awaiting revalidation")
         self._append(event_id,"revalidation_acknowledged",{"ref":_ref_payload(ref)}); self._queue.remove(ref)
