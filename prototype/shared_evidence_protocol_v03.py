@@ -881,7 +881,7 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                     raise ProtocolError(f"structure with support evidence has no learner_track: {event_id}")
                 for parent_id in parents:
                     parent_track = structures[parent_id].get("learner_track")
-                    if parent_track is not None and structure_track is not None and parent_track != structure_track:
+                    if parent_track is not None and parent_track != structure_track:
                         raise ProtocolError(f"structure parent crosses learner tracks during replay: {event_id}")
                 support_ids = []
                 for ref in support_refs:
