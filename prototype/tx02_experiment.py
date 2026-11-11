@@ -95,7 +95,12 @@ def choose_hidden_size_for_budget(family: str, cardinality: int, target_paramete
     # Prefer the largest model that does not exceed the target; if impossible,
     # use the smallest model and expose the mismatch in the report.
     under = [(count, hidden) for count, hidden in candidates if count <= target_parameters]
-    count, hidden = max(under, key=lambda pair: pair[0]) if under else min(candidates)
+    if not under:
+        raise ValueError(
+            f"parameter budget {target_parameters} is below the minimum model size "
+            f"for {family} at K={cardinality}"
+        )
+    count, hidden = max(under, key=lambda pair: pair[0])
     return hidden, count
 
 
