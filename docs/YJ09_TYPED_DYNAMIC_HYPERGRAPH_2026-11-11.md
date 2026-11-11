@@ -1,0 +1,61 @@
+# YJ-09：类型化动态超图与高阶关系演化
+
+日期：2026-11-11  
+分支：`research/yj09-typed-dynamic-hypergraph-2026-11-11`  
+基础：YJ-08 PR #215
+
+## 研究目标
+
+将 YJ-04 的二元 `RelationalState`、YJ-07 的结构角色归纳、YJ-08 的动态谱系研究向多元关系扩展。核心要求是：**一条 n 元关系保持为一个原子超边，不能拆成 n(n-1)/2 条二元边后宣称保留了高阶语义。**
+
+## v0.1 数据契约
+
+- `Entity`：稳定实体标识与类型。
+- `RoleBinding`：命名角色槽位到实体的绑定。
+- `Hyperedge`：关系类型、完整角色绑定、证据、上下文、有效时间和属性。
+- `HypergraphState`：实体集合、超边集合、快照上下文、时间步、证据和覆盖完整性。
+
+角色槽位有序且有名。交换 initiator/recipient 等角色会改变结构签名；重命名具体实体 ID 不会改变结构签名。实体 ID 仅在快照之间建立身份对应。
+
+## 动态事件
+
+支持结构层面的 PERSIST、TRANSFORM、SPLIT、MERGE、EMERGE、DISSOLVE 候选。持续性确认采用相邻转移滞回；DISSOLVE 受 closed-world 覆盖门控。所有事件保留前后快照证据。
+
+## 与旧架构的边界
+
+本原型不修改 YJ-04 的二元 Relation，也不把超边投影回 pairwise。它提供独立、类型化的高阶表示契约，便于后续设计 E13 adapter。尚未实现概率超边、超边角色归纳、学习型候选召回、算子执行、神经参数化或跨域因果迁移。
+
+## 必须继续的实验
+
+1. Pairwise graph、static hypergraph、dynamic hypergraph 在参数量和计算预算匹配下比较。
+2. 高阶协同任务加入 pairwise-matched hard negatives，避免局部捷径。
+3. 报告候选召回率、角色绑定 exact match、超边 precision/recall/F1、成员组合 OOD。
+4. 用符号重命名、角色置换、实体缺失、上下文漂移、噪声边和分布切换做压力测试。
+5. 用至少五个独立种子报告均值、离散程度和失败样例。
+6. 验证动态结构是否优于静态超图；若无稳定收益，移除无效生命周期操作。
+
+## v0.1 测试范围
+
+单元测试验证类型契约、n 元原子性、角色顺序敏感、实体重命名不变、未知实体拒绝、证据唯一性、动态持续性、关系转化和完整覆盖门控。通过这些测试只说明数据结构和确定性状态机满足软件契约，不证明学会了高阶认知或现实语义。
+
+
+## Schema identity versus temporal identity
+
+YJ-09 now separates two comparison contracts:
+
+- `structural_signature`: alpha-invariant schema comparison; excludes concrete entity IDs but preserves named role slots and entity types.
+- `transition_signature`: temporal comparison; includes the entity bound to each role, because stable entity IDs are the correspondence mechanism across snapshots.
+
+This distinction prevents a role reassignment between same-typed entities from being mislabeled as persistence, while still allowing entity-renamed isomorphic schemas to share a structural signature. It assumes entity IDs are stable within an episode; cross-episode entity resolution remains out of scope.
+
+
+## YJ-09 ↔ E13 strict adapter
+
+The E13 contract already supports arbitrary relation arity, ordered named roles, argument types, participant lists, and provenance references. YJ-09 therefore adds an adapter rather than a duplicate shared graph contract. The adapter maps role bindings to `ORDERED_NAMED` schema slots, evidence IDs to provenance references, and edge context/attributes/validity bounds into reserved namespaces. Snapshot metadata remains in a versioned envelope.
+
+The adapter rejects mixed role/type signatures under one relation type, unsupported E13 evidence status, missing provenance, unknown context namespaces, unused schemas, and unsupported entity metadata. This is a lossless representation bridge for the supported subset, not a claim that E13 and YJ-09 inference semantics are equivalent.
+
+
+### Dissolution semantics correction
+
+A hyperedge can dissolve while all of its participant entities remain present. Therefore `DISSOLVE` is gated by complete **relation/hyperedge coverage**, not by participant disappearance. Confirmation requires successive complete snapshots with no sufficiently overlapping hyperedge lineage; an incomplete snapshot or a reappearing related hyperedge breaks the confirmation run.
