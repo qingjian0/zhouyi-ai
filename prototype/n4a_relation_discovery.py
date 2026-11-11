@@ -86,10 +86,57 @@ def _require_text(value: str, field: str) -> None:
         raise DiscoveryError(f"{field} must be a non-empty string")
 
 
+def derive_structural_role_features(
+    nodes: tuple[Node, ...], edges: tuple[Edge, ...], *, rounds: int = 2
+) -> dict[str, tuple[str, ...]]:
+    """Infer ID- and surface-type-independent roles by relational color refinement.
+
+    This is a structural descriptor, not semantic understanding. It starts
+    from supplied abstract features when present, otherwise from one shared
+    untyped color, then repeatedly hashes directed relation neighborhoods.
+    """
+    if rounds < 0:
+        raise DiscoveryError("role refinement rounds cannot be negative")
+    supplied = [bool(node.role_features) for node in nodes]
+    if any(supplied) and not all(supplied):
+        raise DiscoveryError("role_features must be supplied for all nodes or none")
+    labels = {
+        node.node_id: json.dumps(
+            sorted(node.role_features) if all(supplied) else ["untyped"],
+            ensure_ascii=False, separators=(",", ":"),
+        )
+        for node in nodes
+    }
+    for _ in range(rounds):
+        updated: dict[str, str] = {}
+        for node in nodes:
+            incoming = sorted(
+                (edge.relation_family, labels[edge.source])
+                for edge in edges if edge.target == node.node_id
+            )
+            outgoing = sorted(
+                (edge.relation_family, labels[edge.target])
+                for edge in edges if edge.source == node.node_id
+            )
+            payload = {
+                "self": labels[node.node_id],
+                "incoming": incoming,
+                "outgoing": outgoing,
+            }
+            encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True,
+                                 separators=(",", ":"))
+            updated[node.node_id] = hashlib.sha256(
+                encoded.encode("utf-8")
+            ).hexdigest()
+        labels = updated
+    return {node_id: (label,) for node_id, label in labels.items()}
+
+
 def _canonical_motif(nodes: tuple[Node, ...], edges: tuple[Edge, ...],
                      subset: tuple[str, ...]) -> tuple[str, tuple[str, ...], bool]:
     """Return an ID-invariant signature and IDs ordered by canonical role."""
     by_id = {node.node_id: node for node in nodes}
+    inferred_roles = derive_structural_role_features(nodes, edges)
     selected = set(subset)
     edge_labels = [
         (edge.source, edge.target, edge.relation_family)
@@ -101,7 +148,7 @@ def _canonical_motif(nodes: tuple[Node, ...], edges: tuple[Edge, ...],
     best_count = 0
     for order in itertools.permutations(subset):
         position = {node_id: i for i, node_id in enumerate(order)}
-        role_labels = [list(sorted(by_id[node_id].role_features)) for node_id in order]
+        role_labels = [list(inferred_roles[node_id]) for node_id in order]
         relation_labels = sorted(
             (position[source], position[target], relation)
             for source, target, relation in edge_labels
@@ -152,8 +199,8 @@ def _validate_case(case: RelationalCase) -> None:
     for node in case.nodes:
         _require_text(node.node_id, "node_id")
         _require_text(node.surface_type, "surface_type")
-        if not node.role_features or any(not x.strip() for x in node.role_features):
-            raise DiscoveryError("each node requires non-empty abstract role_features")
+        if any(not x.strip() for x in node.role_features):
+            raise DiscoveryError("role_features cannot contain empty values")
     for edge in case.edges:
         if edge.source not in set(node_ids) or edge.target not in set(node_ids):
             raise DiscoveryError("edge endpoint is not present in its case")
