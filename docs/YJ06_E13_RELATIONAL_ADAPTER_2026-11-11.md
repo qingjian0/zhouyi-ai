@@ -41,7 +41,7 @@ YJ-06 提供一个严格的可逆映射子集：能无损映射则转换；遇�
 
 ## 5. 验收
 
-`tests/test_yijing_e13_adapter.py` 共 11 项测试，覆盖：
+`tests/test_yijing_e13_adapter.py` 共 13 项测试，覆盖：
 - 正向/反向 round-trip；
 - 无关系图的全局上下文保留；
 - relation type schema 歧义拒绝；
@@ -50,6 +50,8 @@ YJ-06 提供一个严格的可逆映射子集：能无损映射则转换；遇�
 - 非二元/无序 schema 拒绝；
 - relation context namespace；
 - adapter version；
+- 未使用的 E13 relation schema；
+- 重复全局 context key。
 - 重复 relation attribute key；
 - 不可映射的 evidence/provenance metadata；
 - 重复 role metadata。
