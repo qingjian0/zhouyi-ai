@@ -210,4 +210,6 @@ python -m prototype.tx02_experiment --cardinalities 3 --support-sizes 2 4 8 --se
 python -m unittest tests.test_tx02_experiment -v
 ```
 
+**CI 验证：** PR run #124 在新 HEAD `af58ec922c17c97d687c029d8230a0a497c3482c` 上通过，完整测试套件 **171 tests in 9.941s, OK**。该 CI 运行包含 runner 的小规模 smoke test，不等于执行默认多 K / 多 support / 多种子的完整研究 sweep。
+
 **重要限制：** 当前 runner 是首轮可复现实验驱动，不是公平性最终版本。不同编码的参数量不同，训练耗时受 Python 实现和运行环境影响；没有实现 parameter-matched / compute-matched 搜索，也没有把 LEARNED 与同维度 fixed-random embedding 分开。因此即使某表示得分更高，也只能视为该配置下的初步观察，不能归因于三值理论或符号几何。验证集当前只报告，不做自动超参数选择；locked-test 不用于选模型。
