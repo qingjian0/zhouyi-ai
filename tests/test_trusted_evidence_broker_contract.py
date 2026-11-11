@@ -46,7 +46,7 @@ class TrustedEvidenceBrokerContractTests(unittest.TestCase):
     def test_snapshot_rejects_non_allowlisted_projection_shapes(self):
         projection = self.projection()
         projection["released_challenges"][0]["source_evaluation_id"] = "eval-secret"
-        with self.assertRaisesRegex(BrokerContractError, "exactly three"):
+        with self.assertRaisesRegex(BrokerContractError, "private field"):
             LearnerSnapshotDTO.from_projection(projection, opaque_cursor="opaque:1")
 
     def test_challenge_dto_rejects_extra_fields_and_empty_values(self):
