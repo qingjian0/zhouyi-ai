@@ -348,3 +348,16 @@ CPU 优先，内存映射/分页索引、稀疏活动子图、增量 checkpoint�
 6. **Hyena**：研究长卷积与门控作为注意力替代算子。https://proceedings.mlr.press/v202/poli23a.html
 
 本提案的差异化假设不在于“另一个线性序列算子”，而在于将类型化关系状态、事件转移、类象结构映射、多路径证据裁决和语言表达解耦为不同计算职责，再检验这种组合是否产生可测量的能力/效率优势。
+
+
+## 研究更新：N2 可学习关系动力学（2026-11-11）
+
+N2 新增一个依赖无第三方库的低维参考学习器：带角色槽位的关系项通过同步状态更新影响目标状态；二元与高阶来源交互以乘积项表示；关系强度由状态转移样本上的全批量 BCE 学习。它是候选计算原语，不是已证明的新基础模型。
+
+N2 的边界：候选关系项仍由外部提供；自动结构发现、类象映射学习、真实多模态感知、持久化、移动端基准和大规模训练都未实现。后续必须与参数量/算力匹配的 pairwise、MLP、GNN/超图模型比较，并采用锁定的组合泛化测试。
+
+参考研究：
+- EpiGNN, ICLR 2025: https://proceedings.iclr.cc/paper_files/paper/2025/hash/6590cb829f5ffef50050f3e5845fbb4c-Abstract-Conference.html
+- NoRA, NeurIPS 2025: https://papers.neurips.cc/paper_files/paper/2025/hash/167856a2bb094d44872c4a992bad49d0-Abstract-Datasets_and_Benchmarks_Track.html
+- Hypergraph Dynamic System, ICLR 2024: https://proceedings.iclr.cc/paper_files/paper/2024/hash/0973524e02a712af33325d0688ae6f49-Abstract-Conference.html
+- IRED, ICML 2024: https://proceedings.mlr.press/v235/du24f.html
