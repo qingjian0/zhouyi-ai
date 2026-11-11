@@ -2,7 +2,7 @@ import unittest
 
 from prototype.csg_gcr_coordinator import CandidateProposal, GlobalConstraints
 from prototype.typed_csg_gcr import (
-    TypedCandidateCoordinator, TypedCandidateProposal,
+    TypedCandidateCoordinator, TypedCandidateProposal, _partial_typed_feasible,
 )
 from prototype.typed_hypergraph_unifier import (
     HyperedgeProposal, RoleBinding, UnificationConstraints,
@@ -75,7 +75,7 @@ class TypedCSGBridgeTests(unittest.TestCase):
                       [VariableSpec(y, "Entity")], start=10, end=20),
         ]
         report = TypedCandidateCoordinator().coordinate(rows)
-        self.assertGreater(report.rejected_typed_sets, 0)
+        self.assertGreater(report.rejected_typed_sets + report.pruned_partial_sets, 0)
         self.assertFalse(any(len(x.coordinated.proposal_ids) == 2
                              for x in report.candidates))
 
@@ -89,7 +89,53 @@ class TypedCSGBridgeTests(unittest.TestCase):
                       [VariableSpec(x, "Event")]),
         ]
         report = TypedCandidateCoordinator().coordinate(rows)
-        self.assertGreater(report.rejected_typed_sets, 0)
+        self.assertGreater(report.rejected_typed_sets + report.pruned_partial_sets, 0)
+
+    def test_partial_pruning_is_monotonic_for_small_exhaustive_subsets(self):
+        x, y, z = (VariableRef("wl", name) for name in ("x", "y", "z"))
+        rows = [
+            self.make("e1", "r1", [RoleBinding("a", x, "m1", "Entity")],
+                      [VariableSpec(x, "Entity")], start=0, end=5),
+            self.make("e2", "r2", [RoleBinding("b", y, "m2", "Entity")],
+                      [VariableSpec(y, "Entity")], start=5, end=10),
+            self.make("e3", "r3", [RoleBinding("c", x, "m1", "Entity")],
+                      [VariableSpec(x, "Event")]),
+            self.make("e4", "r4", [RoleBinding("d", z, "m4", "Entity")],
+                      [VariableSpec(z, "Entity")]),
+        ]
+        from itertools import combinations
+        subsets = []
+        for size in range(len(rows) + 1):
+            subsets.extend(combinations(rows, size))
+        for subset in subsets:
+            if _partial_typed_feasible(tuple(subset)):
+                continue
+            subset_ids = {row.proposal.proposal_id for row in subset}
+            for superset in subsets:
+                superset_ids = {row.proposal.proposal_id for row in superset}
+                if subset_ids.issubset(superset_ids):
+                    self.assertFalse(
+                        _partial_typed_feasible(tuple(superset)),
+                        msg=f"pruned subset became feasible: {sorted(subset_ids)}",
+                    )
+
+    def test_pruned_and_unpruned_oracle_results_are_identical(self):
+        x, y, z = (VariableRef("wl", name) for name in ("x", "y", "z"))
+        rows = [
+            self.make("e1", "r1", [RoleBinding("a", x, "m1", "Entity")],
+                      [VariableSpec(x, "Entity")], start=0, end=5, score=4),
+            self.make("e2", "r2", [RoleBinding("b", y, "m2", "Entity")],
+                      [VariableSpec(y, "Entity")], start=5, end=10, score=3),
+            self.make("e3", "r3", [RoleBinding("c", z, "m3", "Entity")],
+                      [VariableSpec(z, "Entity")], score=2),
+        ]
+        limits = GlobalConstraints(max_states=500, result_limit=20)
+        optimized = TypedCandidateCoordinator(enable_partial_pruning=True).coordinate(rows, limits)
+        oracle = TypedCandidateCoordinator(enable_partial_pruning=False).coordinate(rows, limits)
+        self.assertEqual(optimized.candidates, oracle.candidates)
+        self.assertEqual(optimized.status, oracle.status)
+        self.assertGreater(optimized.pruned_partial_sets, 0)
+        self.assertLess(optimized.expanded_states, oracle.expanded_states)
 
     def test_legacy_binding_mixing_is_rejected(self):
         x = VariableRef("wl", "x")
