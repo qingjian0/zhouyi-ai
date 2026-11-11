@@ -226,7 +226,7 @@ def merge_branch_deltas(base_state: Mapping[str, Any],
         if overlap:
             return MergeResult(MergeStatus.CONFLICT, tuple(sorted(state.items())), (), overlap,
                                "distinct branches write the same target")
-        writes = set(targets)
+        writes = set(target_writers)
         for snap in snapshots:
             other_reads = set().union(*(set(s.read_set) for s in snapshots if s.branch_id != snap.branch_id))
             collision = writes.intersection(other_reads)
