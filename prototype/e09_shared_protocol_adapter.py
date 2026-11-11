@@ -167,6 +167,9 @@ class E09SharedProtocolAdapter:
                 "compute_cost": {
                     "revision_mode": self.runner.REVISION_MODE,
                     "step": commit.step,
+                    "inference_report": self._jsonable(
+                        getattr(self.runner.learner, "last_inference", {})
+                    ),
                 },
             }
             prediction_event_id = f"{self.episode_id}:prediction:{commit.prediction_id}"

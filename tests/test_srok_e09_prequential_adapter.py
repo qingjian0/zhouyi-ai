@@ -63,6 +63,7 @@ class SROKPrequentialTests(unittest.TestCase):
         self.assertEqual(events[4]["payload"]["structure_id"],"srok0-role-model")
         self.assertEqual(events[4]["payload"]["kind"],"learnable_role_binding_model")
         self.assertEqual(events[2]["payload"]["prediction"],list(target))
+        self.assertEqual(events[2]["payload"]["compute_cost"]["inference_report"]["status"],"RANKED")
         self.assertEqual(events[3]["event_id"],reveal_id)
         self.assertEqual(adapter.score()["revealed_observations"],1)
         self.assertGreater(learner.report["candidate_patterns_evaluated"],0)
@@ -83,11 +84,13 @@ class SROKPrequentialTests(unittest.TestCase):
         self.assertIsNone(committed["prediction"])
         self.assertEqual(learner.last_inference["status"],"ROLE_POOL_TRUNCATED")
         self.assertEqual(adapter.replay()[-1]["payload"]["decision_status"],"ABSTAIN_AMBIGUOUS")
+        self.assertEqual(adapter.replay()[-1]["payload"]["compute_cost"]["inference_report"]["status"],"ROLE_POOL_TRUNCATED")
     def test_expansion_budget_exhaustion_abstains(self):
         adapter,runner,learner=self.adapter(max_expansions=1)
         nodes,_=make_episode(104)
         committed=adapter.predict_and_commit("obs-budget",(encode_srok_observation(nodes),))
         self.assertIsNone(committed["prediction"])
         self.assertEqual(learner.last_inference["status"],"BUDGET_EXHAUSTED")
+        self.assertEqual(adapter.replay()[-1]["payload"]["compute_cost"]["inference_report"]["status"],"BUDGET_EXHAUSTED")
 
 if __name__=="__main__": unittest.main()
