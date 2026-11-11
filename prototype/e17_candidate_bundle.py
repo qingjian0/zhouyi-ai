@@ -5,6 +5,7 @@ candidates, evaluate scientific truth, or execute cognitive programs.
 """
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import math
@@ -374,7 +375,7 @@ class CandidateRegistry:
     }
 
     def __init__(self, active_version_refs: Iterable[str] = ()) -> None:
-        self.active_version_refs = set(active_version_refs)
+        self._active_version_refs = set(active_version_refs)
         self._bundles: dict[str, CandidateBundle] = {}
         self._states: dict[str, LifecycleState] = {}
         self._receipts: dict[str, ValidationReceipt] = {}
@@ -382,7 +383,36 @@ class CandidateRegistry:
 
     @property
     def events(self) -> tuple[dict[str, Any], ...]:
-        return tuple(dict(event) for event in self._events)
+        return tuple(copy.deepcopy(event) for event in self._events)
+
+    @property
+    def active_version_refs(self) -> frozenset[str]:
+        """Read-only view; callers cannot bypass publication through set mutation."""
+        return frozenset(self._active_version_refs)
+
+    def advance_version_projection(
+        self, parent_version_refs: Iterable[str], new_version_ref: str
+    ) -> None:
+        """Apply a separate committed version, useful for conflict/concurrency handling."""
+        parents = tuple(parent_version_refs)
+        _require_unique(parents, "parent_version_refs")
+        _require_nonempty(new_version_ref, "new_version_ref")
+        missing = set(parents) - self._active_version_refs
+        if missing:
+            raise VersionConflictError(
+                f"cannot advance from inactive parent versions: {sorted(missing)}"
+            )
+        if new_version_ref in self._active_version_refs:
+            raise VersionConflictError("new version reference is already active")
+        next_active = set(self._active_version_refs)
+        next_active.difference_update(parents)
+        next_active.add(new_version_ref)
+        self._active_version_refs = next_active
+        self._events.append({
+            "event": "EXTERNAL_VERSION_ADVANCE",
+            "parent_version_refs": list(parents),
+            "new_version_ref": new_version_ref,
+        })
 
     def state_of(self, bundle_id: str) -> LifecycleState:
         if bundle_id not in self._states:
@@ -488,7 +518,7 @@ class CandidateRegistry:
         new_active.difference_update(bundle.parent_version_refs)
         new_active.add(bundle.proposed_version_ref)
 
-        self.active_version_refs = new_active
+        self._active_version_refs = new_active
         self._transition(bundle_id, LifecycleState.COMMITTED, {
             "published_version_ref": bundle.proposed_version_ref,
             "replaced_parent_version_refs": list(bundle.parent_version_refs),
