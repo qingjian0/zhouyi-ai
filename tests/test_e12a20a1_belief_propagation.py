@@ -87,6 +87,15 @@ class BeliefPropagationTests(unittest.TestCase):
         self.assertEqual(result.status, "BUDGET_EXHAUSTED")
         self.assertEqual(result.marginals, ())
 
+    def test_repeated_factor_evaluation_budget_fails_closed(self):
+        problem = Problem(
+            (Variable("x", ("0", "1")),),
+            (Factor("unary", ("x",), "SOFT"),),
+        )
+        result = infer_beliefs(problem, budget=BPBudget(max_factor_evaluations=1))
+        self.assertEqual(result.status, "BUDGET_EXHAUSTED")
+        self.assertEqual(result.factor_evaluations, 0)
+
     def test_message_update_budget_fails_closed(self):
         problem = Problem(
             (Variable("x", ("0", "1")),),
