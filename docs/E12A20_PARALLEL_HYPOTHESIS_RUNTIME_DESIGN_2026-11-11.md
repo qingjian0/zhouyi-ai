@@ -152,10 +152,9 @@ HARD 因子违反时直接判为 INFEASIBLE，不通过有限大惩罚伪装成�
 当前已提交的 A20-0 仅实现其中的**有限域完整赋值精确枚举参考求解器**：支持 HARD/SOFT/EVIDENCE/PRIOR 因子、硬约束拒绝、证据引用、top-k、顺序不变性和预算耗尽状态。partial assignment、同步消息更新、近似推理和实际并行执行尚未实现。详见 [A20-0 实现说明](E12A20_0_FACTOR_GRAPH_REFERENCE_2026-11-11.md)。
 
 ### A20-1：多假设竞争图
-- SUPPORTS / CONTRADICTS / REFINES / ALTERNATIVE；
-- 假设 lineage；
-- 证据去重；
-- 局部冲突传播。
+目标能力：SUPPORTS / CONTRADICTS / REFINES / ALTERNATIVE、假设 lineage、证据去重和局部冲突传播。
+
+前置基础已实现 A20-1 同步 Sum-Product 信念传播：复用 A20-0 因子语义，在 log-space 更新变量/因子消息，具备 damping、收敛判据和硬预算。当前是单进程同步参考实现，不等于多核并行；多假设关系图、消息调度并行化和有环图可靠性评估仍待实现。
 
 ### A20-2：结构语法接入
 - A16/A17/A18/A19 候选规则适配成因子模板；
