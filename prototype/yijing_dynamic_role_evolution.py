@@ -229,21 +229,25 @@ class DynamicRoleEvolution:
         # recurs over adjacent transitions. A one-step topology fluctuation
         # remains a candidate rather than changing the durable role lineage.
         finalized: list[RoleEvent] = []
-        for index, event in enumerate(events):
+        transition_keys: dict[int, set[tuple]] = defaultdict(set)
+        next_step: dict[int, int] = {}
+        for left, right in zip(rows, rows[1:]):
+            next_step[left.step] = right.step
+        for item in events:
+            transition_keys[item.from_step].add(
+                (item.event_type, item.source_role_ids, item.target_role_ids)
+            )
+        for event in events:
             key = (event.event_type, event.source_role_ids, event.target_role_ids)
             consecutive = 1
             expected_step = event.to_step
-            for later in events[index + 1:]:
-                later_key = (later.event_type, later.source_role_ids, later.target_role_ids)
-                if later.from_step < expected_step:
-                    continue
-                if later.from_step > expected_step:
-                    break
-                if later_key == key:
-                    consecutive += 1
-                    expected_step = later.to_step
-                else:
-                    break
+            while (
+                expected_step in transition_keys
+                and key in transition_keys[expected_step]
+                and expected_step in next_step
+            ):
+                consecutive += 1
+                expected_step = next_step[expected_step]
             if event.event_type == RoleEventType.DISSOLVE:
                 # Dissolution requires repeated complete-coverage absence.
                 members = set(event.supporting_entity_ids)
