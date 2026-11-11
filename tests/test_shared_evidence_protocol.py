@@ -338,6 +338,7 @@ class SharedEvidenceProtocolTests(unittest.TestCase):
                 protocol_version="0.3",
                 payload={"prediction_id": "p1", "observation_id": "o1", "query_id": "q1",
                          "scope": "world/a", "split": "LOCKED_TEST", "model_version": "m1",
+                         "interop_commit_digest": "a" * 64,
                          "learner_track": "e09", "decision_status": "PREDICT"},
             )
 
@@ -375,6 +376,7 @@ class SharedEvidenceProtocolTests(unittest.TestCase):
                 protocol_version="0.3",
                 payload={"prediction_id": "p1", "observation_id": "o1", "query_id": "q1",
                          "scope": "world/a", "split": "SUPPORT", "model_version": "m1",
+                         "interop_commit_digest": "a" * 64,
                          "learner_track": "e09", "decision_status": "PREDICT"},
             )
 
