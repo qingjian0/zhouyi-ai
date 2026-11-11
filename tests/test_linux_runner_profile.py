@@ -77,7 +77,7 @@ class LinuxRunnerProfileTests(unittest.TestCase):
             require_immutable_image=False,
         )
         result = evaluate_linux_profile(
-            self.report(platform="darwin", cgroup_mode="none"),
+            self.report(platform="linux", cgroup_mode="none"),
             profile, now="2026-11-11T03:01:00Z",
         )
         self.assertTrue(result.ready)
