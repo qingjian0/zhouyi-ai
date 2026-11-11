@@ -47,7 +47,7 @@ class SROKPrequentialTests(unittest.TestCase):
         return adapter,runner,learner
 
     def test_srok_learner_snapshot_round_trip_and_validation(self):
-        adapter, runner, learner = self.make_adapter()
+        runner, learner = make_runner()
         snapshot = learner.snapshot()
         restored = SROKPrequentialLearner.from_snapshot(snapshot)
         self.assertEqual(restored.snapshot(), snapshot)
