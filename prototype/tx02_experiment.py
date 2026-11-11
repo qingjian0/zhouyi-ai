@@ -264,7 +264,7 @@ def run_condition(cardinality: int, support_size: int, seed: int,
         ]
         episode_selective = {
             "risk_unit": "episode_all_queries_correct",
-            "threshold_selected_on": "validation",
+            "threshold_selected_on": "validation_calibration",
             "threshold": record["validation_episode_abstention"]["threshold"],
             "validation_coverage": record["validation_episode_abstention"]["coverage"],
             "validation_selective_risk": record["validation_episode_abstention"]["selective_risk"],
@@ -280,7 +280,7 @@ def run_condition(cardinality: int, support_size: int, seed: int,
         accepted = [(decision, target) for decision, target in zip(deferred, test_targets)
                     if decision is not None]
         selective = {
-            "threshold_selected_on": "validation",
+            "threshold_selected_on": "validation_calibration",
             "threshold": record["validation_abstention"]["threshold"],
             "validation_coverage": record["validation_abstention"]["coverage"],
             "validation_selective_risk": record["validation_abstention"]["selective_risk"],
