@@ -1,8 +1,7 @@
 """E13-B2 explicit cross-domain bridge hypotheses and structural validator.
 
-Candidate proposal is deliberately separate from validation. This module does not
-infer semantic equivalence from names or surface similarity: every bridge is an
-auditable hypothesis supplied by a proposer or enumerated finite hypothesis source.
+Candidate proposal is separate from validation. No semantic equivalence is inferred
+from names: every bridge is an auditable hypothesis from a proposer or enumerator.
 """
 from __future__ import annotations
 
@@ -69,14 +68,9 @@ def _unique_mapping(pairs: Iterable[tuple[str, str]], label: str, allow_many_to_
 
 
 def propose_bridge(
-    hypothesis_id: str,
-    *,
-    entity_types: Iterable[tuple[str, str]],
-    relations: Iterable[tuple[str, str]],
-    roles: Iterable[tuple[str, str, str, str]],
-    contexts: Iterable[tuple[str, str]] = (),
-    provenance: str,
-    rationale: str,
+    hypothesis_id: str, *, entity_types: Iterable[tuple[str, str]],
+    relations: Iterable[tuple[str, str]], roles: Iterable[tuple[str, str, str, str]],
+    contexts: Iterable[tuple[str, str]] = (), provenance: str, rationale: str,
     allow_many_to_one: bool = False,
 ) -> BridgeHypothesis:
     """Create an auditable proposal; this function makes no truth claim."""
@@ -98,15 +92,12 @@ def propose_bridge(
     )
 
 
-def validate_bridge(
-    source: RelationalGraph,
-    target: RelationalGraph,
-    hypothesis: BridgeHypothesis,
-) -> BridgeValidation:
+def validate_bridge(source: RelationalGraph, target: RelationalGraph,
+                    hypothesis: BridgeHypothesis) -> BridgeValidation:
     """Validate a proposed bridge against finite graph structure; fail closed."""
     reasons: list[str] = []
-    checked = ["entity-type compatibility", "relation correspondence",
-               "role identity and direction", "context equality"]
+    checked = ("entity-type compatibility", "relation correspondence",
+               "role identity and direction", "context equality")
     source_types = {x.entity_type for x in source.entities}
     target_types = {x.entity_type for x in target.entities}
     type_map = {x.source: x.target for x in hypothesis.entity_types}
@@ -121,7 +112,7 @@ def validate_bridge(
 
     source_schemas = {x.relation_type: x for x in source.schemas}
     target_schemas = {x.relation_type: x for x in target.schemas}
-    if set(relation_map) != {x.relation_type for x in source.schemas}:
+    if set(relation_map) != set(source_schemas):
         reasons.append("UNMAPPED_OR_EXTRA_SOURCE_RELATION")
     if any(v not in target_schemas for v in relation_map.values()):
         reasons.append("UNKNOWN_TARGET_RELATION")
@@ -129,6 +120,7 @@ def validate_bridge(
         reasons.append("RELATION_MAP_COLLISION")
 
     role_map = {(x.source_relation, x.source_role): x.target_role for x in hypothesis.roles}
+    role_positions: dict[str, dict[int, int]] = {}
     expected_role_keys = set()
     for source_name, target_name in relation_map.items():
         if source_name not in source_schemas or target_name not in target_schemas:
@@ -140,19 +132,29 @@ def validate_bridge(
         if ss.role_semantics != RoleSemantics.ORDERED_NAMED or ts.role_semantics != RoleSemantics.ORDERED_NAMED:
             reasons.append(f"ROLE_SEMANTICS_NOT_EXPLICIT:{source_name}")
             continue
-        for sr, tr in zip(ss.role_names, ts.role_names):
-            expected_role_keys.add((source_name, sr))
-            if role_map.get((source_name, sr)) != tr:
-                reasons.append(f"ROLE_MISMATCH:{source_name}:{sr}")
-        if tuple(type_map.get(t, "") for t in ss.argument_types) != ts.argument_types:
-            reasons.append(f"ARGUMENT_TYPE_PATTERN_MISMATCH:{source_name}")
+        target_role_index = {role: index for index, role in enumerate(ts.role_names)}
+        used_target_roles = set()
+        positions = {}
+        for source_index, source_role in enumerate(ss.role_names):
+            expected_role_keys.add((source_name, source_role))
+            mapped_role = role_map.get((source_name, source_role))
+            if mapped_role not in target_role_index or mapped_role in used_target_roles:
+                reasons.append(f"ROLE_MISMATCH:{source_name}:{source_role}")
+                continue
+            target_index = target_role_index[mapped_role]
+            used_target_roles.add(mapped_role)
+            positions[source_index] = target_index
+            if type_map.get(ss.argument_types[source_index]) != ts.argument_types[target_index]:
+                reasons.append(f"ARGUMENT_TYPE_PATTERN_MISMATCH:{source_name}:{source_role}")
+        if len(used_target_roles) != ts.arity:
+            reasons.append(f"ROLE_COVERAGE_MISMATCH:{source_name}")
+        role_positions[source_name] = positions
         if ss.symmetry != ts.symmetry:
             reasons.append(f"SYMMETRY_MISMATCH:{source_name}")
     if set(role_map) != expected_role_keys:
         reasons.append("ROLE_MAP_HAS_MISSING_OR_UNAUTHORIZED_ENTRIES")
 
     matched = []
-    target_relations = {x.relation_id: x for x in target.relations}
     target_by_type = {}
     for item in target.relations:
         target_by_type.setdefault(item.relation_type, []).append(item)
@@ -161,9 +163,8 @@ def validate_bridge(
     target_entities = {x.entity_id: x for x in target.entities}
     for sr in source.relations:
         mapped_name = relation_map.get(sr.relation_type)
-        if mapped_name is None:
+        if mapped_name is None or mapped_name not in target_schemas:
             continue
-        ss = source_schemas[sr.relation_type]
         candidates = target_by_type.get(mapped_name, [])
         mapped_context = {}
         for key, value in sr.context:
@@ -172,21 +173,18 @@ def validate_bridge(
                 reasons.append(f"UNMAPPED_CONTEXT_KEY:{key}")
                 continue
             mapped_context[target_key] = value
+        positions = role_positions.get(sr.relation_type, {})
         matches = []
         for tr in candidates:
             if tr.relation_id in used_targets or dict(tr.context) != mapped_context:
                 continue
-            ts = target_schemas[mapped_name]
-            ok = True
-            for index, (source_entity_id, target_entity_id) in enumerate(zip(sr.participants, tr.participants)):
-                source_entity = source_entities[source_entity_id]
-                target_entity = target_entities[target_entity_id]
+            ok = len(positions) == len(sr.participants) == len(tr.participants)
+            if not ok:
+                continue
+            for source_index, target_index in positions.items():
+                source_entity = source_entities[sr.participants[source_index]]
+                target_entity = target_entities[tr.participants[target_index]]
                 if type_map.get(source_entity.entity_type) != target_entity.entity_type:
-                    ok = False
-                    break
-                source_role = ss.role_names[index] if ss.role_semantics == RoleSemantics.ORDERED_NAMED else None
-                target_role = ts.role_names[index] if ts.role_semantics == RoleSemantics.ORDERED_NAMED else None
-                if source_role is None or role_map.get((sr.relation_type, source_role)) != target_role:
                     ok = False
                     break
             if ok:
@@ -198,4 +196,5 @@ def validate_bridge(
             matched.append((sr.relation_id, matches[0].relation_id))
 
     status = "VALID" if not reasons else "REJECTED"
-    return BridgeValidation(status, tuple(sorted(set(reasons))), tuple(sorted(matched)), tuple(checked))
+    return BridgeValidation(status, tuple(sorted(set(reasons))),
+                             tuple(sorted(matched)), checked)
