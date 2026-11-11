@@ -21,6 +21,11 @@
 
 若 (G) 是超图的 automorphism group，(e) 是目标超边，则将 setwise stabilizer (G_e) 限制到参与实体集合，得到一个群作用；在参与实体唯一时，该作用诱导到 (S_n) 的群同态，其像是 (S_n) 的子群。因此输出不是任意兼容置换的集合，而是由精确结构对称诱导的置换群。
 
+## 覆盖完整性与坐标系边界
+
+- 精确槽位置换归纳要求每个输入快照显式声明 `coverage_complete=True`；不完整快照 fail-closed，不把未观测到的关系当作不存在。
+- 这使精确群结论仅适用于完整覆盖的有限结构快照；不完整观测需要先经过缺失机制建模或独立补全，不能直接参与确定性群归纳。
+
 ## 坐标系与保守边界
 
 - `RoleBinding.role` 只作为跨 observation 对齐的显式 slot coordinate frame；不被当作自动发现的语义角色，也不参与 exact automorphism 结构判断。
@@ -33,7 +38,7 @@
 
 ## 测试设计
 
-覆盖 mapping opt-in、逐 observation 群保留与 transition 输出、无外部约束的 (S_3)、外部上下文约束出的 (C_2)、不对称上下文降为 identity、跨快照 (C_2	o 1) 对称性破缺、重复参与实体拒绝、slot frame 不一致隔离。
+覆盖 mapping opt-in、不完整覆盖 fail-closed、逐 observation 群保留与 transition 输出、无外部约束的 (S_3)、外部上下文约束出的 (C_2)、不对称上下文降为 identity、跨快照 (C_2	o 1) 对称性破缺、重复参与实体拒绝、slot frame 不一致隔离。
 
 ## 下一步
 
