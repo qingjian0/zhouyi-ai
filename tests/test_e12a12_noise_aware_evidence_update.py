@@ -43,8 +43,11 @@ class NoiseAwareEvidenceTests(unittest.TestCase):
         self.assertEqual(updates[-1].epistemic_status, EpistemicStatus.REFUTED_IN_SCOPE)
 
     def test_mixed_observations_accumulate_and_can_cancel(self):
-        first = self.updater.update(self.executor("yes").execute(req(1)))
-        second = self.updater.update(self.executor("no").execute(req(2)))
+        ex = BudgetedMeasurementExecutor(self.signer,
+            {"probe-v1": lambda target, params: ("yes" if target.endswith("-1") else "no", 0.5)},
+            allowed_candidate_scopes={("primitive:shape@1", "world-A")}, budget=20)
+        first = self.updater.update(ex.execute(req(1)))
+        second = self.updater.update(ex.execute(req(2)))
         self.assertAlmostEqual(second.cumulative_log_likelihood_ratio, 0.0)
         self.assertEqual(second.epistemic_status, EpistemicStatus.UNDERDETERMINED)
 
