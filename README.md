@@ -7,9 +7,9 @@
 
 ## 项目状态
 
-- 当前阶段：E12 原语发现与评估闭环研究；E12-A19 多规则联合判别原型；E12-A20 有限域精确参考求解与同步信念传播
+- 当前阶段：E12 原语发现与评估闭环研究；E12-A19 多规则联合判别原型；E12-A20 因子图、同步信念传播与假设关系图
 - 理论版本：CPG-EI v0.3（研究草案）
-- 代码状态：A19-C 完整 CI 已通过；A20-0 精确参考求解器 CI 已通过；A20-1 同步 Sum-Product 核心实现完整 CI #42954756089 已通过；A20-1-B 精确解校准测试/基准正在 CI 验证。当前实现是单进程同步更新，不代表多核并行或已证明性能优势
+- 代码状态：A19-C 完整 CI 已通过；A20-0 精确参考求解器、A20-1 同步 Sum-Product 核心完整 CI #42954798842 已通过；A20-1-B 精确解校准和 A20-2 类型化假设关系图已提交，CI 验证中。当前 BP 为单进程同步更新，不代表多核并行或已证明性能优势
 - 尚无规模化模型或性能优势结论
 - 验证原则：所有架构主张均须通过可复现实验、消融和公平对照验证
 
@@ -93,6 +93,9 @@
 - [E12-A20-1 精确解校准实验](prototype/e12a20a1_bp_calibration.py)
 - [E12-A20-1 校准测试](tests/test_e12a20a1_bp_calibration.py)
 - [E12-A20-1 校准协议](docs/E12A20_1B_BP_CALIBRATION_2026-11-11.md)
+- [E12-A20-2 类型化假设关系图](prototype/e12a20a2_hypothesis_graph.py)
+- [E12-A20-2 专项测试](tests/test_e12a20a2_hypothesis_graph.py)
+- [E12-A20-2 关系语义与限制](docs/E12A20_2_HYPOTHESIS_RELATION_GRAPH_2026-11-11.md)
 - [E12-A20-1 专项测试](tests/test_e12a20a1_belief_propagation.py)
 - [E12-A20-0 参考推理器测试](tests/test_e12a20_factor_graph.py)
 - [E12-A20-0 实现说明与限制](docs/E12A20_0_FACTOR_GRAPH_REFERENCE_2026-11-11.md)
