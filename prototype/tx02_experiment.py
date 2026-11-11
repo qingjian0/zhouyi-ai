@@ -16,7 +16,7 @@ from typing import Iterable
 from prototype.tx02_identifiability import audit_episode
 from prototype.tx02_learners import SetConditionedMLPLearner
 from prototype.tx02_compute import (
-    apply_abstention, choose_abstention_threshold, choose_hidden_size_for_compute_budget,
+    apply_abstention, apply_episode_abstention, choose_abstention_threshold,\n    choose_episode_abstention_threshold, choose_hidden_size_for_compute_budget,
     estimate_forward_macs, probability_metrics, risk_coverage_curve, select_representation,
 )
 from prototype.tx02_state_encoders import build_codebook
@@ -122,6 +122,21 @@ def _collect_probabilities(learner: SetConditionedMLPLearner,
     return probability_rows, targets
 
 
+def _collect_episode_probabilities(
+        learner: SetConditionedMLPLearner,
+        episodes: Iterable[EvaluationEpisode]
+) -> tuple[list[tuple[tuple[float, ...], ...]], list[tuple[int, ...]]]:
+    probability_episodes = []
+    target_episodes = []
+    for episode in episodes:
+        probability_episodes.append(tuple(
+            learner.predict_proba(episode.inputs, qi)
+            for qi in range(len(episode.inputs.queries))
+        ))
+        target_episodes.append(tuple(episode.targets))
+    return probability_episodes, target_episodes
+
+
 def run_condition(cardinality: int, support_size: int, seed: int,
                   episodes_per_rule: int, epochs: int, hidden_size: int,
                   parameter_matched: bool = True,
@@ -183,6 +198,12 @@ def run_condition(cardinality: int, support_size: int, seed: int,
         threshold = choose_abstention_threshold(
             validation_probs, validation_targets, max_selective_risk
         )
+        validation_episode_probs, validation_episode_targets = _collect_episode_probabilities(
+            learner, splits.validation
+        )
+        episode_threshold = choose_episode_abstention_threshold(
+            validation_episode_probs, validation_episode_targets, max_selective_risk
+        )
         validation_selection_metrics[family] = {
             "accuracy": validation_metrics["accuracy"],
             "nll": validation_metrics["nll"],
@@ -192,7 +213,9 @@ def run_condition(cardinality: int, support_size: int, seed: int,
         trained[family] = {
             "learner": learner, "fit": fit, "hidden_size": selected_hidden_size,
             "train_seconds": train_seconds, "validation_metrics": validation_metrics,
-            "validation_abstention": threshold, "episode_macs": episode_macs,
+            "validation_abstention": threshold,
+            "validation_episode_abstention": episode_threshold,
+            "episode_macs": episode_macs,
         }
 
     # Freeze the adaptive choice before reading any locked-test targets.
@@ -221,6 +244,31 @@ def run_condition(cardinality: int, support_size: int, seed: int,
         deferred = apply_abstention(
             test_probs, record["validation_abstention"]["threshold"]
         )
+        test_episode_probs, test_episode_targets = _collect_episode_probabilities(
+            learner, splits.locked_test
+        )
+        episode_decisions = apply_episode_abstention(
+            test_episode_probs, record["validation_episode_abstention"]["threshold"]
+        )
+        accepted_episodes = [
+            (decision, target) for decision, target
+            in zip(episode_decisions, test_episode_targets) if decision is not None
+        ]
+        episode_selective = {
+            "risk_unit": "episode_all_queries_correct",
+            "threshold_selected_on": "validation",
+            "threshold": record["validation_episode_abstention"]["threshold"],
+            "validation_coverage": record["validation_episode_abstention"]["coverage"],
+            "validation_selective_risk": record["validation_episode_abstention"]["selective_risk"],
+            "validation_risk_upper_bound": record["validation_episode_abstention"]["risk_upper_bound"],
+            "locked_test_coverage": len(accepted_episodes) / len(test_episode_targets)
+                if test_episode_targets else 0.0,
+            "locked_test_selective_risk": (
+                sum(tuple(decision) != tuple(target) for decision, target in accepted_episodes)
+                / len(accepted_episodes) if accepted_episodes else None
+            ),
+            "locked_test_deferred_episodes": len(test_episode_targets) - len(accepted_episodes),
+        }
         accepted = [(decision, target) for decision, target in zip(deferred, test_targets)
                     if decision is not None]
         selective = {
@@ -265,6 +313,7 @@ def run_condition(cardinality: int, support_size: int, seed: int,
             "validation_abstention_calibration": record["validation_abstention"],
             "locked_test_probability_metrics": test_probability_metrics,
             "locked_test_selective_prediction": selective,
+            "locked_test_episode_selective_prediction": episode_selective,
             "locked_test": metrics,
             "locked_test_by_mapping": by_mapping,
         }
