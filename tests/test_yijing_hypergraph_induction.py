@@ -86,6 +86,19 @@ class TypedHypergraphTests(unittest.TestCase):
         ])
         self.assertIn("TRANSFORM", {x.kind for x in result.events})
 
+    def test_role_rebinding_is_temporal_transform_even_for_same_entity_types(self):
+        before = edge()
+        after = Hyperedge(
+            "h", "joint",
+            (RoleBinding("initiator", "b"), RoleBinding("mediator", "a"),
+             RoleBinding("outcome", "c")),
+            ("edge-evidence-2",), (("phase", "active"),),
+        )
+        result = DynamicHypergraphEvolution(min_consecutive_transitions=1).analyze([
+            state(0, [before]), state(1, [after])
+        ])
+        self.assertIn("TRANSFORM", {x.kind for x in result.events})
+
     def test_incomplete_absence_never_dissolves(self):
         result = DynamicHypergraphEvolution(min_consecutive_transitions=1).analyze([
             state(0, [edge()]), state(1, [], entities=("x", "y", "z"), complete=False)
