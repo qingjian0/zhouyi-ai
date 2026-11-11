@@ -84,6 +84,16 @@ def project_contextual_observation_trajectory(
     return tuple(projected)
 
 
+def _nonnegative_fraction(value, error_code: str) -> Fraction:
+    try:
+        result = value if isinstance(value, Fraction) else Fraction(value)
+    except (TypeError, ValueError, ZeroDivisionError) as exc:
+        raise StochasticContractError(error_code) from exc
+    if result < 0:
+        raise StochasticContractError(error_code)
+    return result
+
+
 def _observation_trajectory_disagreement(
     left: tuple[Distribution, ...],
     right: tuple[Distribution, ...],
@@ -117,8 +127,11 @@ def select_contextual_observation_query(
     """
     candidate_list, query_list = tuple(candidates), tuple(queries)
     risk_limit = _prob(max_risk)
-    cost_limit = None if max_cost is None else _prob(max_cost)
-    rw, cw = _prob(risk_weight), _prob(cost_weight)
+    cost_limit = None if max_cost is None else _nonnegative_fraction(
+        max_cost, "MAX_COST_MUST_BE_NONNEGATIVE"
+    )
+    rw = _nonnegative_fraction(risk_weight, "UTILITY_WEIGHTS_MUST_BE_NONNEGATIVE")
+    cw = _nonnegative_fraction(cost_weight, "UTILITY_WEIGHTS_MUST_BE_NONNEGATIVE")
     if not candidate_list:
         raise StochasticContractError("AT_LEAST_ONE_CANDIDATE_REQUIRED")
     candidate_ids = [c.candidate_id for c in candidate_list]
@@ -133,7 +146,8 @@ def select_contextual_observation_query(
     ranked: list[ContextualObservationQueryScore] = []
     rejected: list[tuple[str, str]] = []
     for query in query_list:
-        risk, cost = _prob(query.risk), _prob(query.cost)
+        risk = _prob(query.risk)
+        cost = _nonnegative_fraction(query.cost, "QUERY_COST_MUST_BE_NONNEGATIVE")
         if not query.sensor_id:
             rejected.append((query.query_id, "MISSING_SENSOR_ID"))
             continue
