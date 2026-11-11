@@ -40,14 +40,14 @@ class E12A6WriterRuntimeTests(unittest.TestCase):
             with E12A6WriterProcessLock(path):
                 script = (
                     "from prototype.e12a6_writer_runtime import "
-                    "E12A6WriterAlreadyRunning, E12A6WriterProcessLock\\n"
-                    "import sys\\n"
-                    "lock = E12A6WriterProcessLock(sys.argv[1])\\n"
-                    "try:\\n"
-                    "    lock.acquire()\\n"
-                    "except E12A6WriterAlreadyRunning:\\n"
-                    "    raise SystemExit(0)\\n"
-                    "raise SystemExit(3)\\n"
+                    "E12A6WriterAlreadyRunning, E12A6WriterProcessLock\n"
+                    "import sys\n"
+                    "lock = E12A6WriterProcessLock(sys.argv[1])\n"
+                    "try:\n"
+                    "    lock.acquire()\n"
+                    "except E12A6WriterAlreadyRunning:\n"
+                    "    raise SystemExit(0)\n"
+                    "raise SystemExit(3)\n"
                 )
                 result = subprocess.run(
                     [sys.executable, "-c", script, str(path)],
