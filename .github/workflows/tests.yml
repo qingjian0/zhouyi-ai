@@ -33,6 +33,11 @@ jobs:
           assert audit["evaluator_visible_locked_test_reveals"] == 400
           assert audit["prediction_batch_sealed_before_reveal"] is True
           assert audit["all_predictions_committed_before_reveal"] is True
+          assert audit["learner_and_evaluator_are_distinct_processes"] is True
+          assert audit["evaluator_started_after_batch_seal"] is True
+          assert audit["learner_received_locked_test_label_count"] == 0
+          assert audit["evaluator_received_locked_test_label_count"] == 400
+          assert audit["learner_pid"] != audit["evaluator_pid"]
           print(json.dumps({"metrics": result["metrics"], "audit": audit}, indent=2))
           PY
       - name: Run MTS-0 five-seed full-size evaluation
