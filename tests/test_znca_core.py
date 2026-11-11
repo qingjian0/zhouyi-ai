@@ -70,8 +70,15 @@ class ZNCACoreTests(unittest.TestCase):
     def test_scan_budget_rejected(self):
         with self.assertRaises(StateError):
             self.state.query(RelationQuery("trusts"), scan_budget=0)
-        result = self.state.query(RelationQuery("missing"), scan_budget=1)
+        result = self.state.query(RelationQuery("trusts"), scan_budget=1)
         self.assertEqual(result.status, QueryStatus.BUDGET_EXHAUSTED)
+        self.assertEqual(result.scanned, 1)
+
+    def test_role_index_reduces_query_candidates(self):
+        result = self.state.query(
+            RelationQuery("trusts", (("source", "alice"),)), scan_budget=1)
+        self.assertEqual(result.status, QueryStatus.FOUND)
+        self.assertEqual([r.assertion_id for r in result.relations], ["r1"])
         self.assertEqual(result.scanned, 1)
 
     def test_query_limit(self):
