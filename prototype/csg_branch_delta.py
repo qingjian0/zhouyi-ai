@@ -94,12 +94,42 @@ class BranchMergeAuthorization:
         object.__setattr__(self, "evidence_refs", tuple(self.evidence_refs))
 
 
-@dataclass(frozen=True)
+_VERIFIED_AUTHORIZATION_SEAL = object()
+
+
+@dataclass(frozen=True, init=False)
 class VerifiedBranchMergeAuthorization(BranchMergeAuthorization):
-    """Authorization claim whose E09 event signature was checked by a trust anchor."""
+    """E09-verified authorization capability; direct construction is blocked."""
     issuer_id: str
     event_digest: str
     verifier_id: str
+
+    def __init__(
+        self, authorization_ref: str, parent_state_ref: str,
+        branch_ids: tuple[str, ...], evidence_refs: tuple[str, ...],
+        issuer_id: str, event_digest: str, verifier_id: str, *,
+        _seal: object | None = None,
+    ) -> None:
+        if _seal is not _VERIFIED_AUTHORIZATION_SEAL:
+            raise TypeError("VerifiedBranchMergeAuthorization must come from the E09 verifier")
+        object.__setattr__(self, "authorization_ref", authorization_ref)
+        object.__setattr__(self, "parent_state_ref", parent_state_ref)
+        object.__setattr__(self, "branch_ids", tuple(branch_ids))
+        object.__setattr__(self, "evidence_refs", tuple(evidence_refs))
+        object.__setattr__(self, "issuer_id", issuer_id)
+        object.__setattr__(self, "event_digest", event_digest)
+        object.__setattr__(self, "verifier_id", verifier_id)
+
+
+def _issue_verified_branch_merge_authorization(
+    authorization_ref: str, parent_state_ref: str, branch_ids: tuple[str, ...],
+    evidence_refs: tuple[str, ...], issuer_id: str, event_digest: str, verifier_id: str,
+) -> VerifiedBranchMergeAuthorization:
+    """Internal factory called only after the E09 signature verifier succeeds."""
+    return VerifiedBranchMergeAuthorization(
+        authorization_ref, parent_state_ref, branch_ids, evidence_refs,
+        issuer_id, event_digest, verifier_id, _seal=_VERIFIED_AUTHORIZATION_SEAL,
+    )
 
 
 def validate_merge_authorization(
