@@ -69,7 +69,7 @@ class YixiangSrokAdapterTests(unittest.TestCase):
 
     def test_missing_source_node_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "missing from workspace"):
-            compile_yixiang_operator(self.relation, self.transform, self.nodes[:-1])
+            compile_yixiang_operator(self.relation, self.transform, (self.nodes[0], self.nodes[1], self.nodes[3]))
 
     def test_relation_type_mismatch_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "source relation type"):
