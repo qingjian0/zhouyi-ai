@@ -107,7 +107,7 @@ class E09EvidenceBridgeTests(unittest.TestCase):
     def test_commit_event_digest_tampering_is_rejected(self):
         ref=self.add_reveal()
         # Alter the reveal's binding to a different durable commit digest.
-        self.e09.db.execute(
+        self.e09._db.execute(
             "UPDATE events SET payload_json=json_set(payload_json,'$.event_digest',?) WHERE event_id=?",
             ("f"*64,ref),
         )
