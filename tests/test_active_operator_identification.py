@@ -97,6 +97,8 @@ class ActiveIdentificationTests(unittest.TestCase):
             identifier.observe(experiment.before, (999,))
         self.assertEqual(len(identifier.hypotheses), 2)
         self.assertEqual(len(identifier.observations), 0)
+        self.assertEqual(len(identifier.rejected_observations), 1)
+        self.assertEqual(identifier.rejected_observations[0].after, (999.0,))
 
 
 if __name__ == "__main__":
