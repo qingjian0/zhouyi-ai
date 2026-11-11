@@ -58,6 +58,7 @@ class InferenceStatus(str, Enum):
     AMBIGUOUS = "ambiguous"
     INCONSISTENT = "inconsistent"
     UNKNOWN = "unknown"
+    ABSTAINED = "abstained"
     BUDGET_EXHAUSTED = "budget_exhausted"
 
 @dataclass(frozen=True)
@@ -245,5 +246,5 @@ class InferenceResult:
                 raise ValueError("budget amounts must be non-negative integers")
         if self.status is InferenceStatus.IDENTIFIED and not self.ranked_hypothesis_refs:
             raise ValueError("identified result requires at least one hypothesis")
-        if self.status in (InferenceStatus.UNKNOWN, InferenceStatus.INCONSISTENT) and self.ranked_hypothesis_refs:
+        if self.status in (InferenceStatus.UNKNOWN, InferenceStatus.INCONSISTENT, InferenceStatus.ABSTAINED) and self.ranked_hypothesis_refs:
             raise ValueError("unknown/inconsistent result cannot rank hypotheses")
