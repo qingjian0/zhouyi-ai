@@ -2,7 +2,7 @@ import unittest
 from dataclasses import replace
 
 from prototype.e12a8_signed_evaluator_receipts import (
-    EvaluatorSigner, ReceiptReplayGuard, verify_receipt,
+    EvaluatorSigner, ReceiptReplayGuard, verify_receipt, verify_and_bind_receipt,
 )
 from prototype.e12a8_evaluator_firewall import Evaluator, run_learner_process
 
@@ -63,6 +63,18 @@ class E12A10SignedReceiptTests(unittest.TestCase):
         second = self._receipt(sequence=2)
         with self.assertRaises(ValueError):
             verify_receipt(second, self.signer.public_key_bytes(), replay_guard=guard)
+
+    def test_verified_receipt_enters_e12a9_evidence_bridge(self):
+        receipt = self._receipt()
+        bound = verify_and_bind_receipt(
+            receipt, self.commit, self.signer.public_key_bytes(),
+            scope_id="z3-affine",
+            expected_context={"candidate_ref":"rule@1", "scope_digest":"sha256:scope-a",
+                              "dataset_version":"z3-v1", "split_id":"locked-test-01"},
+            replay_guard=ReceiptReplayGuard())
+        self.assertEqual(bound.commit_digest, self.commit.commit_digest)
+        self.assertTrue(bound.correct)
+        self.assertEqual(bound.candidate_ref, "rule@1")
 
     def test_receipt_is_bound_to_prediction_commit(self):
         with self.assertRaises(ValueError):
