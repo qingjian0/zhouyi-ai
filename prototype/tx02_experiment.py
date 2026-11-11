@@ -111,10 +111,21 @@ def run_condition(cardinality: int, support_size: int, seed: int,
         seed=seed,
         symbol_mappings=("canonical", "permuted"),
     )
+    target_budget = parameter_budget
+    if target_budget is None and parameter_matched:
+        target_budget = max(
+            model_parameter_count(family, cardinality, hidden_size, 6)
+            for family in FAMILIES
+        )
     family_results = {}
     for family in FAMILIES:
+        selected_hidden_size = hidden_size
+        if parameter_matched:
+            selected_hidden_size, _ = choose_hidden_size_for_budget(
+                family, cardinality, target_budget, embedding_dim=6
+            )
         learner = SetConditionedMLPLearner(
-            family=family, hidden_size=hidden_size, embedding_dim=6, seed=seed
+            family=family, hidden_size=selected_hidden_size, embedding_dim=6, seed=seed
         )
         started = time.perf_counter()
         fit = learner.fit(
@@ -122,7 +133,6 @@ def run_condition(cardinality: int, support_size: int, seed: int,
             budget={"epochs": epochs}, seed=seed,
         )
         train_seconds = time.perf_counter() - started
-        # Predictions are produced from learner-visible inputs only.
         predictions = [learner.predict(item.inputs) for item in splits.locked_test]
         metrics = _metrics(predictions, splits.locked_test, cardinality)
         by_mapping = {}
@@ -135,6 +145,10 @@ def run_condition(cardinality: int, support_size: int, seed: int,
         family_results[family] = {
             "fit": asdict(fit),
             "metadata": learner.metadata(),
+            "target_parameter_budget": target_budget if parameter_matched else None,
+            "parameter_budget_delta": (
+                fit.parameter_count - target_budget if parameter_matched else None
+            ),
             "train_seconds": train_seconds,
             "locked_test": metrics,
             "locked_test_by_mapping": by_mapping,
@@ -143,6 +157,8 @@ def run_condition(cardinality: int, support_size: int, seed: int,
         "cardinality": cardinality,
         "support_size": support_size,
         "seed": seed,
+        "parameter_matched": parameter_matched,
+        "target_parameter_budget": target_budget if parameter_matched else None,
         "split_metadata": splits.metadata,
         "rule_counts": {k: len(v) for k, v in splits.rule_families.items()},
         "episode_counts": {
@@ -151,7 +167,6 @@ def run_condition(cardinality: int, support_size: int, seed: int,
         },
         "families": family_results,
     }
-
 
 def aggregate_runs(runs: list[dict]) -> dict:
     result = {}
@@ -213,7 +228,9 @@ def main() -> None:
     parser.add_argument("--seeds", type=int, nargs="+", default=[11, 29, 47])
     parser.add_argument("--episodes-per-rule", type=int, default=1)
     parser.add_argument("--epochs", type=int, default=5)
-    parser.add_argument("--hidden-size", type=int, default=24)\n    parser.add_argument("--no-parameter-match", action="store_true")\n    parser.add_argument("--parameter-budget", type=int, default=None)\n    parser.add_argument("--no-parameter-match", action="store_true")\n    parser.add_argument("--parameter-budget", type=int, default=None)
+    parser.add_argument("--hidden-size", type=int, default=24)
+    parser.add_argument("--no-parameter-match", action="store_true")
+    parser.add_argument("--parameter-budget", type=int, default=None)\n    parser.add_argument("--no-parameter-match", action="store_true")\n    parser.add_argument("--parameter-budget", type=int, default=None)\n    parser.add_argument("--no-parameter-match", action="store_true")\n    parser.add_argument("--parameter-budget", type=int, default=None)
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
     result = run_sweep(tuple(args.cardinalities), tuple(args.support_sizes),
