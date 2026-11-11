@@ -323,6 +323,7 @@ def _validate_kernel_map(source: ProbabilisticTransitionSystem,
 
 
 def map_source_state(source_state: State, mapping: StochasticKernelMap) -> State | None:
+    source_state = _state(source_state)
     variable_map = dict(mapping.source_to_target_variables)
     value_map = {(var, source_value): target_value
                  for var, source_value, target_value in mapping.source_to_target_values}
