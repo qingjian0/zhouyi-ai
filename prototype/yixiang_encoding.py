@@ -33,10 +33,9 @@ class HexagramState:
 def validate_lines(lines: Sequence[int]) -> tuple[int, ...]:
     if len(lines) not in (3, 6):
         raise ValueError("expected exactly 3 trigram lines or 6 hexagram lines")
-    normalized = tuple(int(bit) for bit in lines)
-    if any(bit not in (0, 1) for bit in normalized):
-        raise ValueError("each line must be encoded as 0 (yin) or 1 (yang)")
-    return normalized
+    if any(isinstance(bit, bool) or not isinstance(bit, int) or bit not in (0, 1) for bit in lines):
+        raise ValueError("each line must be an integer 0 (yin) or 1 (yang)")
+    return tuple(lines)
 
 
 def trigram_name(lines_bottom_to_top: Sequence[int]) -> str:
