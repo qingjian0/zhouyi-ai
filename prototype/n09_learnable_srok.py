@@ -36,6 +36,12 @@ class TrainingExample:
 
 
 @dataclass(frozen=True)
+class LabeledStructure:
+    assignment: tuple[Node, ...]
+    label: int
+
+
+@dataclass(frozen=True)
 class RankedStructure:
     role_bindings: tuple[tuple[str, str], ...]
     score: float
@@ -287,3 +293,108 @@ class LearnableSROK:
         return Prediction(
             structures, False, "ACCEPTED", expanded, exhausted, sizes
         )
+
+
+    def _features_at_order(self, assignment: Sequence[Node], max_order: int) -> list[float]:
+        if isinstance(max_order, bool) or max_order not in (1, 2, 3):
+            raise LearnableSROKError("max_order must be 1, 2, or 3")
+        features = self._assignment_features(assignment)
+        unary_end = self.feature_dim * len(self.roles)
+        pair_end = unary_end + self.feature_dim * len(self.pairs)
+        if max_order == 1:
+            features[unary_end:] = [0.0] * (len(features) - unary_end)
+        elif max_order == 2:
+            features[pair_end:] = [0.0] * (len(features) - pair_end)
+        if any(not math.isfinite(value) for value in features):
+            raise LearnableSROKError("interaction features must be finite")
+        return features
+
+    def fit_binary(
+        self,
+        examples: Iterable[LabeledStructure],
+        *,
+        max_order: int = 3,
+        epochs: int = 120,
+        learning_rate: float = 0.15,
+        l2: float = 1e-3,
+    ) -> list[float]:
+        """Fit a binary structure classifier for controlled interaction ablations.
+
+        max_order=1 trains unary terms only; 2 adds pairwise terms; 3 adds
+        explicit triple terms. The same feature map and optimizer are used for
+        every ablation, with inactive higher-order blocks zeroed.
+        """
+        if isinstance(max_order, bool) or max_order not in (1, 2, 3):
+            raise LearnableSROKError("max_order must be 1, 2, or 3")
+        if isinstance(epochs, bool) or not isinstance(epochs, int) or epochs < 1:
+            raise LearnableSROKError("epochs must be a positive integer")
+        if (not math.isfinite(learning_rate) or learning_rate <= 0
+                or not math.isfinite(l2) or l2 < 0):
+            raise LearnableSROKError("invalid optimizer settings")
+        rows = []
+        for example in examples:
+            if not isinstance(example, LabeledStructure):
+                raise LearnableSROKError("examples must be LabeledStructure values")
+            if isinstance(example.label, bool) or example.label not in (0, 1):
+                raise LearnableSROKError("binary labels must be integer 0 or 1")
+            if len(example.assignment) != len(self.roles):
+                raise LearnableSROKError("assignment role count mismatch")
+            if len({node.node_id for node in example.assignment}) != len(self.roles):
+                raise LearnableSROKError("assignment node IDs must be unique")
+            for role, node in zip(self.roles, example.assignment):
+                self._validate_node(node)
+                if not self._compatible(node, role):
+                    raise LearnableSROKError("assignment violates role constraints")
+            rows.append((self._features_at_order(example.assignment, max_order),
+                         float(example.label)))
+        if not rows:
+            raise LearnableSROKError("binary training examples must not be empty")
+
+        active_width = (
+            self.feature_dim * len(self.roles)
+            + (self.feature_dim * len(self.pairs) if max_order >= 2 else 0)
+            + (self.feature_dim * len(self.triples) if max_order >= 3 else 0)
+        )
+        active_mask = [1.0 if i < active_width else 0.0
+                       for i in range(len(self.weights))]
+        self.weights = [0.0] * len(self.weights)
+        history = []
+        for _ in range(epochs):
+            gradient = [0.0] * len(self.weights)
+            total_loss = 0.0
+            for features, label in rows:
+                score = self._dot(self.weights, features)
+                if score >= 0:
+                    probability = 1.0 / (1.0 + math.exp(-min(score, 60.0)))
+                else:
+                    exp_score = math.exp(max(score, -60.0))
+                    probability = exp_score / (1.0 + exp_score)
+                total_loss += (
+                    max(score, 0.0) - score * label
+                    + math.log1p(math.exp(-abs(score)))
+                )
+                error = probability - label
+                for index, value in enumerate(features):
+                    gradient[index] += error * value
+            scale = 1.0 / len(rows)
+            for index in range(len(self.weights)):
+                gradient[index] = (
+                    gradient[index] * scale
+                    + l2 * self.weights[index] * active_mask[index]
+                )
+                self.weights[index] -= learning_rate * gradient[index] * active_mask[index]
+                if not math.isfinite(self.weights[index]):
+                    raise LearnableSROKError("optimizer produced non-finite weights")
+            history.append(total_loss / len(rows))
+            self.training_steps += 1
+        return history
+
+    def predict_binary(
+        self, assignment: Sequence[Node], *, max_order: int = 3
+    ) -> tuple[int, float]:
+        """Return (thresholded label, raw logit) at the requested interaction order."""
+        features = self._features_at_order(assignment, max_order)
+        score = self._dot(self.weights, features)
+        if not math.isfinite(score):
+            raise LearnableSROKError("prediction score must be finite")
+        return (1 if score >= 0.0 else 0), score
