@@ -88,6 +88,11 @@ def adapt_typed_candidate(
     authorization_ref = coordinated.branch_merge_authorization_ref
     authorization_evidence = tuple(coordinated.branch_merge_authorization_evidence_refs)
     branch_evidence = tuple(coordinated.branch_merge_evidence_refs)
+    if authorization_ref is not None and (
+            not isinstance(authorization_ref, str) or not authorization_ref.strip()):
+        raise ValueError("branch merge authorization reference must be non-empty")
+    if authorization_evidence and authorization_ref is None:
+        raise ValueError("authorization evidence requires an authorization reference")
     if any(not isinstance(ref, str) or not ref.strip()
            for ref in authorization_evidence + branch_evidence):
         raise ValueError("branch merge provenance references must be non-empty strings")
@@ -100,8 +105,9 @@ def adapt_typed_candidate(
     if coordinated.branch_merge is not None:
         if len(candidate.branch_ids) > 1 and (
             not isinstance(authorization_ref, str) or not authorization_ref.strip()
+            or not authorization_evidence
         ):
-            raise ValueError("cross-branch lifecycle candidate requires an authorization reference")
+            raise ValueError("cross-branch lifecycle candidate requires an authorization reference and evidence")
         branch_merge_definition = _merge_definition(
             coordinated.branch_merge, authorization_ref,
             authorization_evidence, branch_evidence,
