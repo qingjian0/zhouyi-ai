@@ -12,7 +12,7 @@
 
 `y = 1[x_0 x_1 x_2 = +1]`
 
-其中三个角色的特征独立、均匀取值于 `{-1,+1}`。在总体分布上，标签与任何单一角色特征、任何二元乘积都独立；只有三元乘积携带标签信息。
+其中三个角色的特征取值于 `{-1,+1}`。数据按 8 种完整因子组合分周期采样，并在周期内随机打乱，因此每个数据集都精确平衡；标签与任何单一角色特征、任何二元乘积都正交，只有三元乘积携带标签信息。
 
 ## 2. 对照
 
@@ -30,7 +30,7 @@
 
 ```bash
 python -m unittest tests.test_n10_higher_order_benchmark -v
-python -m prototype.n10_higher_order_benchmark --seeds 5 --start-seed 7 --train-samples 3000 --test-samples 1500 --epochs 120 --json
+python -m prototype.n10_higher_order_benchmark --seeds 5 --start-seed 7 --train-samples 3000 --test-samples 1504 --epochs 120 --json
 ```
 
 CI 将对五个种子执行正式样本规模运行，并保存 JSON Artifact。报告的准确率阈值只用于验证基准构造和实现是否按预期工作，不构成真实世界能力门槛。
