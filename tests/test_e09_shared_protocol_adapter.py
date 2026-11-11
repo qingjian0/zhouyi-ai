@@ -49,7 +49,7 @@ class E09SharedProtocolAdapterTests(unittest.TestCase):
             ["structure_version", "observation", "prediction_commit"],
         )
 
-        reveal_event_id = adapter.reveal(commit["prediction_id"], "no")
+        reveal_event_id = adapter.reveal_feedback(commit["prediction_id"], "no")
         self.assertEqual(adapter.score()["revealed_observations"], 1)
         revision = adapter.revise(commit["prediction_id"])
         self.assertEqual(revision["operation"], "INCREMENTAL_INDEX")
@@ -63,6 +63,7 @@ class E09SharedProtocolAdapterTests(unittest.TestCase):
         )
         reveal = next(e for e in events if e["event_type"] == "evidence_reveal")
         self.assertEqual(reveal["event_id"], reveal_event_id)
+        self.assertEqual(reveal["actor_role"], "learner_feedback")
         structure = [e for e in events if e["event_type"] == "structure_version"][-1]
         self.assertEqual(structure["payload"]["parent_version_ids"], ["e09-v1"])
         self.assertEqual(structure["payload"]["support_evidence_ids"], [reveal_event_id])
@@ -79,6 +80,35 @@ class E09SharedProtocolAdapterTests(unittest.TestCase):
         events = adapter.replay()
         self.assertEqual(events[-1]["payload"]["operation"], "BATCH_REFIT")
         self.assertGreater(events[-1]["payload"]["candidate_evaluations"], 0)
+
+    def test_evaluator_only_label_fails_closed_without_learner_reveal(self):
+        adapter = self.make_adapter("INCREMENTAL_INDEX")
+        commit = adapter.predict_and_commit("obs-5", (0, 0, 2))
+        before_events = adapter.replay()
+        before_score = adapter.score()
+
+        with self.assertRaisesRegex(
+            RuntimeError, "v0.2 has no evaluation_reveal channel"
+        ):
+            adapter.record_evaluation(
+                commit["prediction_id"], "LOCKED_SECRET",
+                evaluation_role="LOCKED_TEST",
+                candidate_set_digest="candidate-set-sha256",
+            )
+
+        self.assertEqual(adapter.replay(), before_events)
+        self.assertEqual(adapter.score(), before_score)
+        self.assertNotIn("LOCKED_SECRET", repr(adapter.replay()))
+
+    def test_legacy_reveal_alias_is_learner_feedback_only(self):
+        adapter = self.make_adapter("INCREMENTAL_INDEX")
+        commit = adapter.predict_and_commit("obs-5", (0, 0, 2))
+        adapter.reveal(commit["prediction_id"], "no")
+        reveal = next(
+            e for e in adapter.replay() if e["event_type"] == "evidence_reveal"
+        )
+        self.assertEqual(reveal["actor_role"], "learner_feedback")
+        self.assertEqual(adapter.score()["revealed_observations"], 1)
 
     def test_prediction_is_durable_before_reveal(self):
         adapter = self.make_adapter("INCREMENTAL_INDEX")
