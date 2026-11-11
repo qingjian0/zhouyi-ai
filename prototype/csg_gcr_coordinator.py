@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import math
-from typing import Iterable
+from typing import Callable, Iterable
 
 
 class CoordinationError(ValueError):
@@ -59,6 +59,7 @@ class CoordinationReport:
     expanded_states: int
     rejected_conflicts: int
     status: str
+    pruned_partial_sets: int = 0
 
 
 def _require_text(value: str, field: str) -> None:
@@ -127,6 +128,8 @@ class CandidateCoordinator:
         self,
         proposals: Iterable[CandidateProposal],
         constraints: GlobalConstraints = GlobalConstraints(),
+        *,
+        partial_feasibility: Callable[[tuple[CandidateProposal, ...]], bool] | None = None,
     ) -> CoordinationReport:
         _validate_constraints(constraints)
         rows = tuple(proposals)
@@ -150,6 +153,9 @@ class CandidateCoordinator:
         expanded = 0
         rejected = 0
         budget_exhausted = False
+        pruned_partial = 0
+        if partial_feasibility is not None and not callable(partial_feasibility):
+            raise CoordinationError("partial_feasibility must be callable")
 
         def compatible(candidate: CandidateProposal,
                        selected: tuple[CandidateProposal, ...]) -> bool:
@@ -213,7 +219,7 @@ class CandidateCoordinator:
 
         def search(index: int, selected: tuple[CandidateProposal, ...],
                    total_cost: int) -> None:
-            nonlocal expanded, rejected, budget_exhausted
+            nonlocal expanded, rejected, budget_exhausted, pruned_partial
             if expanded >= constraints.max_states:
                 budget_exhausted = True
                 return
@@ -226,7 +232,17 @@ class CandidateCoordinator:
             # Explore inclusion first because proposals are utility-ranked.
             if total_cost + current.cost <= constraints.max_cost:
                 if compatible(current, selected):
-                    search(index + 1, (*selected, current), total_cost + current.cost)
+                    next_selected = (*selected, current)
+                    if partial_feasibility is None:
+                        search(index + 1, next_selected, total_cost + current.cost)
+                    else:
+                        feasible = partial_feasibility(next_selected)
+                        if not isinstance(feasible, bool):
+                            raise CoordinationError("partial_feasibility must return bool")
+                        if feasible:
+                            search(index + 1, next_selected, total_cost + current.cost)
+                        else:
+                            pruned_partial += 1
                 else:
                     rejected += 1
             search(index + 1, selected, total_cost)
@@ -249,4 +265,5 @@ class CandidateCoordinator:
             expanded_states=expanded,
             rejected_conflicts=rejected,
             status=status,
+            pruned_partial_sets=pruned_partial,
         )
