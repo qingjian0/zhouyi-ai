@@ -1,6 +1,10 @@
 import unittest
 
-from prototype.csg_gcr_coordinator import CandidateProposal, GlobalConstraints
+from prototype.csg_gcr_coordinator import CandidateProposal, CoordinationError, GlobalConstraints
+from prototype.csg_branch_delta import (
+    BranchDelta, BranchMergeAuthorization, BranchSnapshot, DeltaOperation,
+    MergeStatus, canonical_hash,
+)
 from prototype.typed_csg_gcr import (
     TypedCandidateCoordinator, TypedCandidateProposal, _partial_typed_feasible,
 )
@@ -136,6 +140,103 @@ class TypedCSGBridgeTests(unittest.TestCase):
         self.assertEqual(optimized.status, oracle.status)
         self.assertGreater(optimized.pruned_partial_sets, 0)
         self.assertLess(optimized.expanded_states, oracle.expanded_states)
+
+    def branch_snapshot(self, branch, base, target, before, after):
+        event = BranchDelta(
+            f"{branch}-delta-1", DeltaOperation.UPDATE_ATTRIBUTE, target,
+            canonical_hash(before), after, (f"derivation:{branch}",), None, 1,
+        )
+        return BranchSnapshot(
+            "s0", canonical_hash(base), branch, 0, (event,), (),
+            (target,), (f"derivation:{branch}",), ("root", branch),
+        )
+
+    def test_authorized_branch_deltas_merge_with_typed_candidate(self):
+        base = {"node:a": {"value": 0}, "node:b": {"value": 0}}
+        x, y = VariableRef("wl", "x"), VariableRef("wl", "y")
+        rows = [
+            self.make("e1", "r1", [RoleBinding("a", x, "m1", "Entity")],
+                      [VariableSpec(x, "Entity")], branch="left", evidence=("ev-a",), score=2),
+            self.make("e2", "r2", [RoleBinding("b", y, "m2", "Entity")],
+                      [VariableSpec(y, "Entity")], branch="right", evidence=("ev-b",), score=3),
+        ]
+        snapshots = (
+            self.branch_snapshot("left", base, "node:a", base["node:a"], {"value": 1}),
+            self.branch_snapshot("right", base, "node:b", base["node:b"], {"value": 2}),
+        )
+        permit = BranchMergeAuthorization(
+            "e09-permit-1", "s0", ("left", "right"), ("e09:decision-77",),
+        )
+        report = TypedCandidateCoordinator().coordinate(
+            rows, base_state=base, branch_snapshots=snapshots,
+            branch_merge_authorization=permit,
+        )
+        combined = next(item for item in report.candidates
+                        if len(item.coordinated.proposal_ids) == 2)
+        self.assertEqual(combined.branch_merge.status, MergeStatus.MERGED)
+        self.assertEqual(dict(combined.branch_merge.state), {
+            "node:a": {"value": 1}, "node:b": {"value": 2},
+        })
+        self.assertEqual(combined.branch_merge_authorization_ref, "e09-permit-1")
+        self.assertEqual(combined.branch_merge_authorization_evidence_refs, ("e09:decision-77",))
+        self.assertEqual(combined.branch_merge_evidence_refs,
+                         ("derivation:left", "derivation:right"))
+
+    def test_cross_branch_merge_requires_explicit_authorization(self):
+        base = {"node:a": {"value": 0}, "node:b": {"value": 0}}
+        x, y = VariableRef("wl", "x"), VariableRef("wl", "y")
+        rows = [
+            self.make("e1", "r1", [RoleBinding("a", x, "m1", "Entity")],
+                      [VariableSpec(x, "Entity")], branch="left"),
+            self.make("e2", "r2", [RoleBinding("b", y, "m2", "Entity")],
+                      [VariableSpec(y, "Entity")], branch="right"),
+        ]
+        snapshots = (
+            self.branch_snapshot("left", base, "node:a", base["node:a"], {"value": 1}),
+            self.branch_snapshot("right", base, "node:b", base["node:b"], {"value": 2}),
+        )
+        with self.assertRaises(CoordinationError):
+            TypedCandidateCoordinator().coordinate(
+                rows, base_state=base, branch_snapshots=snapshots,
+            )
+
+    def test_branch_delta_write_conflict_prunes_cross_branch_candidate(self):
+        base = {"node:a": {"value": 0}}
+        x, y = VariableRef("wl", "x"), VariableRef("wl", "y")
+        rows = [
+            self.make("e1", "r1", [RoleBinding("a", x, "m1", "Entity")],
+                      [VariableSpec(x, "Entity")], branch="left", score=2),
+            self.make("e2", "r2", [RoleBinding("b", y, "m2", "Entity")],
+                      [VariableSpec(y, "Entity")], branch="right", score=1),
+        ]
+        snapshots = (
+            self.branch_snapshot("left", base, "node:a", base["node:a"], {"value": 1}),
+            self.branch_snapshot("right", base, "node:a", base["node:a"], {"value": 2}),
+        )
+        permit = BranchMergeAuthorization(
+            "e09-permit-2", "s0", ("left", "right"), ("e09:decision-78",),
+        )
+        report = TypedCandidateCoordinator().coordinate(
+            rows, base_state=base, branch_snapshots=snapshots,
+            branch_merge_authorization=permit,
+        )
+        self.assertFalse(any(len(item.coordinated.proposal_ids) == 2
+                             for item in report.candidates))
+        self.assertGreater(report.pruned_partial_sets, 0)
+
+    def test_branch_snapshot_parent_digest_must_match_base(self):
+        base = {"node:a": {"value": 0}}
+        x = VariableRef("wl", "x")
+        row = self.make("e1", "r1", [RoleBinding("a", x, "m1", "Entity")],
+                        [VariableSpec(x, "Entity")], branch="left")
+        wrong = {"node:a": {"value": 99}}
+        snapshot = self.branch_snapshot(
+            "left", wrong, "node:a", wrong["node:a"], {"value": 1},
+        )
+        with self.assertRaises(CoordinationError):
+            TypedCandidateCoordinator().coordinate(
+                [row], base_state=base, branch_snapshots=(snapshot,),
+            )
 
     def test_legacy_binding_mixing_is_rejected(self):
         x = VariableRef("wl", "x")

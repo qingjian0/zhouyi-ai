@@ -82,6 +82,44 @@ class BranchSnapshot:
 
 
 @dataclass(frozen=True)
+class BranchMergeAuthorization:
+    """Scope receipt expected to originate from the E09 evidence authority.
+
+    This value object does not authenticate its issuer. The caller must pass
+    an E09-validated receipt; this module checks only its declared scope.
+    """
+    authorization_ref: str
+    parent_state_ref: str
+    branch_ids: tuple[str, ...]
+    evidence_refs: tuple[str, ...]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "branch_ids", tuple(self.branch_ids))
+        object.__setattr__(self, "evidence_refs", tuple(self.evidence_refs))
+
+
+def validate_merge_authorization(
+    authorization: BranchMergeAuthorization,
+    parent_state_ref: str,
+    branch_ids: tuple[str, ...],
+) -> None:
+    if not isinstance(authorization, BranchMergeAuthorization):
+        raise ValueError("cross-branch merge requires BranchMergeAuthorization")
+    _text(authorization.authorization_ref, "authorization_ref")
+    _text(authorization.parent_state_ref, "authorization parent_state_ref")
+    if authorization.parent_state_ref != parent_state_ref:
+        raise ValueError("merge authorization parent state does not match")
+    for field, values in (("authorization branch_ids", authorization.branch_ids),
+                          ("authorization evidence_refs", authorization.evidence_refs)):
+        if not values or len(values) != len(set(values)):
+            raise ValueError(f"{field} must be non-empty and unique")
+        for value in values:
+            _text(value, field)
+    if not set(branch_ids).issubset(set(authorization.branch_ids)):
+        raise ValueError("merge authorization does not cover every selected branch")
+
+
+@dataclass(frozen=True)
 class MergeResult:
     status: MergeStatus
     state: tuple[tuple[str, Any], ...]
