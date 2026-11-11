@@ -1025,3 +1025,44 @@ This is a durable event-log integration, not a complete production adapter:
 6. Benchmark `BATCH_REFIT` versus `INCREMENTAL_INDEX` on identical prequential streams and equal budgets. Report predictive score, abstention, update operations, wall time, memory, and structure coverage separately.
 
 No claim of E09 superiority, cross-track transfer, secure process isolation, or a novel general-purpose AI architecture follows from this integration.
+
+## 19. E10 shared-protocol adapter: representation-preserving integration (2026-11-11)
+
+### 19.1 Design decision
+
+E10 is integrated as a second learner track without importing E09's rule AST or conjunction learner. The E10-native prequential ledger remains authoritative for E10-specific prediction, reveal, and revision semantics; the SQLite shared protocol provides durable cross-track event sequencing and StructureVersion lineage.
+
+The adapter preserves E10's model version, candidate-set hash, confidence, compute-cost metadata, reveal reliability, revision operation, and rationale code. It stores a canonical digest of the learner-visible observation payload rather than copying the observation body into the shared event payload.
+
+### 19.2 Implemented slice
+
+- Initial E10 relation-mechanism StructureVersion.
+- Observation digest followed by immutable prediction commit.
+- Explicit learner track `e10` on prediction and reveal.
+- Durable evidence reveal before the native ledger accepts the target.
+- New structure version with parent version and revealed-evidence support references.
+- Revision event referencing the reveal and resulting structure version.
+- Fail-closed behavior after partial operations across the native in-memory ledger and SQLite store.
+- Reject stale parent version sets and duplicate/current after-version IDs.
+
+PR #115: https://github.com/qingjian0/zhouyi-ai/pull/115 (Draft, layered on PR #107's research branch).
+
+### 19.3 Validation status
+
+The PR #115 workflow Run #42941878146 has passed its unit-test step, including the new E10 adapter tests. The full workflow is still running through the repository's E01/E02 demonstrations and evaluation steps; do not call the full workflow passed until the run reaches completed/success.
+
+### 19.4 Explicit limits
+
+- This is not an E10 relation/analogy induction learner. The initial and revised structure definitions are supplied by the caller.
+- The E10 native ledger and SQLite store are separate state holders. Fail-closed behavior prevents continued use after partial writes but does not provide a distributed transaction or restart recovery.
+- The adapter is still in-process. Hidden evaluator truth is not protected by OS-level process isolation or authenticated IPC.
+- No claim of continual-learning benefit, improved accuracy, or performance superiority is supported.
+
+### 19.5 Next gates
+
+1. Complete the exact-head PR #115 workflow.
+2. Add a shared adapter conformance suite that runs the same causal invariants against E09 and E10 while leaving learner-specific payloads separate.
+3. Introduce an evaluator-owned reveal broker and learner subprocess. A hidden-truth noninterference canary should vary evaluator-only labels while asserting byte-identical learner-visible input transcripts.
+4. Add restart reconstruction and crash-injection coverage at each durable event boundary.
+5. Only then attach an E10 mechanism learner and compare it with frozen and batch-refit controls under equal compute budgets.
+
