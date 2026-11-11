@@ -33,6 +33,12 @@ class YixiangEncodingTests(unittest.TestCase):
     def test_line_change_uses_bottom_zero_index(self):
         self.assertEqual(change_lines((0, 0, 0, 0, 0, 0), [0, 5]), (1, 0, 0, 0, 0, 1))
 
+    def test_non_integer_and_boolean_line_values_rejected(self):
+        for lines in ((0, 1, 0.9), (0, True, 1), ("0", 1, 0)):
+            with self.subTest(lines=lines):
+                with self.assertRaises(ValueError):
+                    trigram_name(lines)
+
     def test_invalid_line_value_rejected(self):
         with self.assertRaises(ValueError):
             trigram_name((0, 1, 2))
