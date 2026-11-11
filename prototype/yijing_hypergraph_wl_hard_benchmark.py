@@ -109,12 +109,11 @@ def _case_report(
         max_candidate_bijections=max_candidate_bijections,
         max_rounds=max_rounds,
     )
-    wl_colors: dict[str, int] = {}
-    for group in audit.wl_classes:
-        # The exact oracle exposes the WL partition. Recompute the stable
-        # signature through the public role inducer for cross-case comparison.
-        pass
+    # Recompute stable WL signatures through the public role inducer so
+    # the two benchmark cases can be compared across graph instances.
     from prototype.yijing_hypergraph_role_induction import infer_hypergraph_roles
+
+    wl_colors: dict[str, int] = {}
 
     inferred = infer_hypergraph_roles(
         state, (RelationSymmetry("undirected_edge", "UNORDERED"),),
