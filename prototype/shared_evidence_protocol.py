@@ -254,7 +254,8 @@ class SQLiteEvidenceStore:
             raise ProtocolError("actor_role and payload_schema must be non-empty")
         # Include event type and schema in the idempotency fingerprint.
         fingerprint = digest_payload({
-            "event_type": event_type, "payload_schema": payload_schema, "payload": payload,
+            "event_type": event_type, "protocol_version": protocol_version,
+            "payload_schema": payload_schema, "payload": payload,
             "actor_role": actor_role, "causation_refs": json.loads(causation_refs_json),
             "integrity_metadata": json.loads(integrity_metadata_json),
         })
