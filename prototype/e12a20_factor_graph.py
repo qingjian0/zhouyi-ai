@@ -128,7 +128,7 @@ class Budget:
 class Hypothesis:
     assignment: tuple[tuple[str, str], ...]
     energy: float
-    active_factor_ids: tuple[str, ...]
+    evaluated_factor_ids: tuple[str, ...]
     evidence_refs: tuple[str, ...]
     factor_costs: tuple[tuple[str, float], ...]
 
