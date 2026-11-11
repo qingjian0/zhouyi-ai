@@ -261,19 +261,39 @@ class SQLiteEventStore:
         return events
 
     def recover(self, initial_state: Mapping[str, str] | None = None) -> RecoveryResult:
+        """Rebuild canonical state; branch lifecycle events do not mutate it."""
         events = self.verify()
         state = dict(initial_state or {})
         for event in events:
-            if event.event_type != "HypothesisCommitted":
-                raise IntegrityError(f"unsupported event type: {event.event_type}")
-            delta = event.payload.get("state_delta")
-            if not isinstance(delta, dict) or any(
-                not isinstance(k, str) or not k.strip()
-                or not isinstance(v, str) or not v.strip()
-                for k, v in delta.items()
+            payload = event.payload
+            if event.event_type in ("HypothesisCommitted", "BranchPromoted"):
+                delta = payload.get("state_delta")
+                if not isinstance(delta, dict) or any(
+                    not isinstance(k, str) or not k.strip()
+                    or not isinstance(v, str) or not v.strip()
+                    for k, v in delta.items()
+                ):
+                    raise IntegrityError(f"invalid state_delta at sequence {event.sequence}")
+                state.update(delta)
+            elif event.event_type == "CommitCompensated":
+                restore = payload.get("restore")
+                if not isinstance(restore, dict):
+                    raise IntegrityError("invalid compensation restore payload")
+                for key, item in restore.items():
+                    if not isinstance(key, str) or not key.strip() or not isinstance(item, dict):
+                        raise IntegrityError("invalid compensation restore entry")
+                    if item.get("present") is True and isinstance(item.get("value"), str):
+                        state[key] = item["value"]
+                    elif item.get("present") is False:
+                        state.pop(key, None)
+                    else:
+                        raise IntegrityError("invalid compensation restore value")
+            elif event.event_type in (
+                "BranchCreated", "BranchDeltaRecorded", "BranchRejected",
             ):
-                raise IntegrityError(f"invalid state_delta at sequence {event.sequence}")
-            state.update(delta)
+                continue
+            else:
+                raise IntegrityError(f"unsupported event type: {event.event_type}")
         return RecoveryResult(self.stream_id, len(events), tuple(sorted(state.items())),
                               self.last_hash)
 
