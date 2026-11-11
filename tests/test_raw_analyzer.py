@@ -2,7 +2,7 @@ import math
 import unittest
 
 from orchestrator.research.raw_analyzer import (
-    _student_t_critical_two_sided, analyze_raw_observations,
+    _student_t_critical_two_sided, analyze_raw_observations, task_manifest_from_specs,
 )
 
 
@@ -31,6 +31,14 @@ class RawAnalyzerTests(unittest.TestCase):
             baseline_condition="baseline", metric="accuracy",
             metric_direction="higher", **kwargs,
         )
+
+    def test_manifest_helper_reads_matrix_task_payload(self):
+        class Task:
+            task_id = "t0"
+            payload = {"track": "B2", "condition": "treatment", "seed": 7}
+        self.assertEqual(task_manifest_from_specs([Task()]), [
+            {"task_id": "t0", "track": "B2", "condition": "treatment", "seed": 7}
+        ])
 
     def test_student_t_critical_known_values(self):
         self.assertAlmostEqual(_student_t_critical_two_sided(0.95, 9), 2.262157, places=5)

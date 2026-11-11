@@ -11,7 +11,7 @@ scientific outcome metrics.
 Call `analyze_raw_observations(observations, task_manifest=..., ...)`.
 
 The authoritative task manifest is derived from `ExperimentMatrix.to_tasks()`
-and must provide one record per scheduled task:
+with `task_manifest_from_specs(tasks)`, which extracts one record per task:
 
 - `task_id`, `track`, `condition`, `seed`
 

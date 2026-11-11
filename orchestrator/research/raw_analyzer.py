@@ -112,6 +112,25 @@ def _paired_t_interval(values: list[float], confidence_level: float) -> tuple[fl
     return mean, mean - margin, mean + margin
 
 
+
+def task_manifest_from_specs(tasks: Sequence[Any]) -> list[dict[str, Any]]:
+    """Extract analyzer identity fields from ExperimentMatrix TaskSpec objects."""
+    manifest = []
+    for index, task in enumerate(tasks):
+        task_id = getattr(task, "task_id", None)
+        payload = getattr(task, "payload", None)
+        if not isinstance(task_id, str) or not isinstance(payload, Mapping):
+            raise ValueError(f"tasks[{index}] must be a TaskSpec-like object")
+        required = {"track", "condition", "seed"}
+        if not required <= payload.keys():
+            raise ValueError(f"tasks[{index}] payload lacks track/condition/seed")
+        manifest.append({"task_id": task_id, "track": payload["track"],
+                         "condition": payload["condition"], "seed": payload["seed"]})
+    if not manifest:
+        raise ValueError("tasks must not be empty")
+    return manifest
+
+
 def analyze_raw_observations(
     observations: Sequence[Mapping[str, Any]],
     *,
