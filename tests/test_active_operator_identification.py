@@ -5,22 +5,30 @@ from prototype.active_operator_identification import (
     IdentificationError,
     OperatorHypothesis,
 )
-from prototype.operator_induction import OperatorProgram, Primitive
+
+
+class SimpleProgram:
+    def __init__(self, operation=None):
+        self.operation = operation
+
+    def apply(self, state):
+        values = list(float(value) for value in state)
+        if self.operation == "abs":
+            values[0] = abs(values[0])
+        elif self.operation == "neg":
+            values[0] = -values[0]
+        return tuple(values)
 
 
 def program(kind):
-    return OperatorProgram((Primitive(kind, 0),))
-
-
-def double_negation():
-    return OperatorProgram((Primitive("neg", 0), Primitive("neg", 0)))
+    return SimpleProgram(kind)
 
 
 class ActiveIdentificationTests(unittest.TestCase):
     def test_positive_only_data_cannot_identify_identity_vs_abs(self):
         identifier = ActiveOperatorIdentifier(
             [
-                OperatorHypothesis("identity", OperatorProgram(())),
+                OperatorHypothesis("identity", SimpleProgram()),
                 OperatorHypothesis("absolute", program("abs")),
             ],
             [(1,), (2,), (3,)],
@@ -31,7 +39,7 @@ class ActiveIdentificationTests(unittest.TestCase):
     def test_negative_query_separates_identity_and_abs(self):
         identifier = ActiveOperatorIdentifier(
             [
-                OperatorHypothesis("identity", OperatorProgram(())),
+                OperatorHypothesis("identity", SimpleProgram()),
                 OperatorHypothesis("absolute", program("abs")),
             ],
             [(-3,), (2,)],
@@ -46,10 +54,10 @@ class ActiveIdentificationTests(unittest.TestCase):
 
     def test_max_disagreement_prefers_balanced_partition(self):
         hypotheses = [
-            OperatorHypothesis("h0", OperatorProgram(())),
+            OperatorHypothesis("h0", SimpleProgram()),
             OperatorHypothesis("h1", program("neg")),
             OperatorHypothesis("h2", program("abs")),
-            OperatorHypothesis("h3", double_negation()),
+            OperatorHypothesis("h3", SimpleProgram()),
         ]
         identifier = ActiveOperatorIdentifier(hypotheses, [(-2,), (0,)])
         ranked = identifier.rank_experiments()
@@ -59,7 +67,7 @@ class ActiveIdentificationTests(unittest.TestCase):
     def test_budget_exhaustion_is_explicit(self):
         identifier = ActiveOperatorIdentifier(
             [
-                OperatorHypothesis("identity", OperatorProgram(())),
+                OperatorHypothesis("identity", SimpleProgram()),
                 OperatorHypothesis("absolute", program("abs")),
             ],
             [(-1,), (1,)],
@@ -71,7 +79,7 @@ class ActiveIdentificationTests(unittest.TestCase):
     def test_conflicting_duplicate_observation_does_not_mutate_state(self):
         identifier = ActiveOperatorIdentifier(
             [
-                OperatorHypothesis("identity", OperatorProgram(())),
+                OperatorHypothesis("identity", SimpleProgram()),
                 OperatorHypothesis("negative", program("neg")),
             ],
             [(-2,), (2,)],
@@ -87,7 +95,7 @@ class ActiveIdentificationTests(unittest.TestCase):
     def test_unexplained_observation_preserves_version_space(self):
         identifier = ActiveOperatorIdentifier(
             [
-                OperatorHypothesis("identity", OperatorProgram(())),
+                OperatorHypothesis("identity", SimpleProgram()),
                 OperatorHypothesis("negative", program("neg")),
             ],
             [(-2,), (2,)],
@@ -99,6 +107,17 @@ class ActiveIdentificationTests(unittest.TestCase):
         self.assertEqual(len(identifier.observations), 0)
         self.assertEqual(len(identifier.rejected_observations), 1)
         self.assertEqual(identifier.rejected_observations[0].after, (999.0,))
+
+    def test_status_does_not_call_pending_query_unidentifiable(self):
+        identifier = ActiveOperatorIdentifier(
+            [
+                OperatorHypothesis("identity", SimpleProgram()),
+                OperatorHypothesis("absolute", program("abs")),
+            ],
+            [(-2,), (2,)],
+        )
+        identifier.choose_experiment()
+        self.assertEqual(identifier.status().status, "ambiguous")
 
 
 if __name__ == "__main__":
