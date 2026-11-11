@@ -1,6 +1,6 @@
 import unittest
 
-from prototype.znca_dynamics import StateSnapshot, TransitionExample
+from prototype.znca_dynamics import RelationalDynamicsModel, StateSnapshot, TransitionExample
 from prototype.znca_discovery import DiscoveryError, discover_candidates
 
 
@@ -65,6 +65,27 @@ class CandidateDiscoveryTests(unittest.TestCase):
         ]
         with self.assertRaises(DiscoveryError):
             discover_candidates(rows)
+
+    def test_discovered_candidate_can_train_n2_dynamics(self):
+        rows = []
+        for a in (0.0, 1.0):
+            for b in (0.0, 1.0):
+                for c in (0.0, 1.0):
+                    z = 1.0 if a == b == c == 1.0 else 0.0
+                    rows.append(TransitionExample(
+                        snap(a=a, b=b, c=c, z=0.0),
+                        snap(a=a, b=b, c=c, z=z),
+                        f"train:{int(a)}:{int(b)}:{int(c)}",
+                    ))
+        discovered = discover_candidates(
+            rows, max_arity=3, candidate_budget=100, max_terms_per_target=1
+        )
+        z_term = next(term for term in discovered.terms if term.target == "z")
+        model = RelationalDynamicsModel((z_term,), biases={"z": -1.0})
+        report = model.fit(rows, epochs=2500, learning_rate=0.5)
+        self.assertLess(report.final_loss, report.initial_loss)
+        prediction = model.predict(snap(a=1, b=1, c=1, z=0)).as_dict()["z"]
+        self.assertGreater(prediction, 0.8)
 
     def test_candidate_terms_keep_evidence_refs(self):
         rows = [
