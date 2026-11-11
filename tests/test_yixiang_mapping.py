@@ -22,7 +22,9 @@ class XSL2CandidateMappingTests(unittest.TestCase):
     def test_enumerates_competing_preserved_candidates(self):
         result = enumerate_candidate_bridges(self.source, self.target, **self.kwargs)
         self.assertTrue(result.search_complete)
+        self.assertEqual(result.candidate_count, 2)
         self.assertEqual(len(result.candidates), 2)
+        self.assertFalse(result.results_truncated)
         self.assertTrue(all(c.validation.status == BridgeStatus.STRUCTURALLY_PRESERVED for c in result.candidates))
         self.assertEqual({c.bridge.node_mapping for c in result.candidates},
             {(("a", "x"), ("b", "y")), (("a", "z"), ("b", "y"))})
@@ -37,6 +39,13 @@ class XSL2CandidateMappingTests(unittest.TestCase):
         result = enumerate_candidate_bridges(self.source, self.target, max_search_states=2, **self.kwargs)
         self.assertFalse(result.search_complete)
         self.assertLessEqual(result.states_visited, 2)
+
+    def test_result_cap_is_distinct_from_search_truncation(self):
+        result = enumerate_candidate_bridges(self.source, self.target, max_candidates=1, **self.kwargs)
+        self.assertTrue(result.search_complete)
+        self.assertEqual(result.candidate_count, 2)
+        self.assertEqual(len(result.candidates), 1)
+        self.assertTrue(result.results_truncated)
 
     def test_rejects_boolean_budget(self):
         with self.assertRaisesRegex(ValueError, "max_search_states"):
