@@ -16,26 +16,18 @@ class E10BPositiveAblationCurveTests(unittest.TestCase):
         ]
         self.assertEqual(retained, sorted(retained, reverse=True))
         self.assertEqual(curve["0.00"]["retained_positive_support"], 0)
-        self.assertEqual(
-            curve["0.00"]["support_rows"],
-            sum(
-                item["original_positive"] * 0
-                + sum(1 for row in [])
-                for item in curve["0.00"]["per_relation_support"].values()
-            ) + curve["0.00"]["support_rows"],
+        negative_count = (
+            curve["1.00"]["support_rows"]
+            - curve["1.00"]["original_positive_support"]
         )
         for point in curve.values():
             self.assertEqual(
                 point["support_rows"],
-                point["retained_positive_support"]
-                + sum(
-                    # All negatives are retained; derive them from the full-support
-                    # row count minus the original positive count.
-                    1 for _ in range(
-                        curve["1.00"]["support_rows"]
-                        - curve["1.00"]["original_positive_support"]
-                    )
-                ),
+                point["retained_positive_support"] + negative_count,
+            )
+            self.assertEqual(
+                point["original_positive_support"],
+                curve["1.00"]["original_positive_support"],
             )
 
     def test_multi_seed_aggregate_reports_distribution_and_compute(self):
