@@ -1,7 +1,7 @@
 import unittest
 from dataclasses import replace
 
-from prototype.e12a8_signed_evaluator_receipts import (
+from prototype.e12a10_signed_evaluator_receipts import (
     EvaluatorSigner, ReceiptReplayGuard, verify_receipt, verify_and_bind_receipt,
 )
 from prototype.e12a8_evaluator_firewall import Evaluator, run_learner_process
