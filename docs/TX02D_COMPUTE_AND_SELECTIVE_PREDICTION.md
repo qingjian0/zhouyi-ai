@@ -76,7 +76,7 @@ python -m prototype.tx02_experiment --cardinalities 3 --support-sizes 2 4 --seed
 原先的拒绝阈值只约束 validation 上的经验错误率，样本很小时容易出现“只接受一个正确样本、经验风险为 0”的虚假安全感。现改为：
 
 - 对每个置信度阈值，按完整同置信度组计算接受样本数与错误数。
-- 计算单侧 Wilson score 上界（默认 z=1.95996，对应约 97.5% 双侧/95% 单侧常用正态临界值约定需注意：这里明确按单侧上界公式使用该 z）。
+- 计算单侧 Wilson score 上界（默认 z=1.64485，对应单侧 95% 正态近似临界值）。
 - 只有 Wilson 上界不超过目标风险时，才接受该阈值。
 - 在满足约束的阈值中选择覆盖率最高者。
 - 报告经验 selective risk、Wilson risk upper bound、接受数、覆盖率和 z 值。
@@ -84,3 +84,22 @@ python -m prototype.tx02_experiment --cardinalities 3 --support-sizes 2 4 --seed
 这是有限样本保守校准启发式，不是任意分布漂移下的分布无关保证，也不能消除重复调参导致的选择偏差。小 validation 集合可能产生零覆盖；此时正确行为是 DEFER，而不是放宽测试集阈值。
 
 测试：40 个高置信正确样本可被接受；另 40 个低置信错误样本被拒绝；单样本零错误的 Wilson 上界仍显著大于零。
+
+
+## TX-02D-2：外层种子配对分析
+
+Runner 的 aggregate 新增：
+
+- 每个表示被 Validation 仲裁器选中的频率。
+- 自适应策略相对每个固定表示的逐 seed 配对准确率差。
+- 配对差均值、标准差、win rate 和 tie rate。
+- 要求 outer seeds 非空且唯一，避免把重复 seed 伪装成独立重复实验。
+
+配对比较只回答“在相同 seed/split 下，自适应策略相对某个预先指定固定家族的差异”。不得在 Locked-test 上挑选最强固定家族，再把它当成无偏对照。当前不计算显著性结论；默认三种子远不足以支撑强统计结论，正式研究应预注册更多 outer seeds 并报告区间估计。
+
+### 仍需解决的核心问题
+
+1. 当前 learner 的每个候选分数都对 support 行逐一执行共享 MLP，再做均值池化；MAC proxy 对应这一路径，但不计反向传播。
+2. 各表示虽然共享 hidden-size 选择预算，但不同编码维度带来的参数量、优化难度和训练更新效率仍不同；必须同时展示参数量与 wall-clock。
+3. 单一 validation split 既选择表示又校准拒绝阈值，会增加选择噪声。后续应引入 validation 内部拆分或 nested validation：一部分负责 family selection，另一部分负责 abstention calibration，outer locked-test 只做一次最终评估。
+4. Wilson 上界是单侧二项近似区间；对 episode 内相关 Query、重复使用验证集或分布漂移不构成保证。当前独立性单位尚需从 query 提升为 episode/规则族层级的 cluster-aware 风险估计。
