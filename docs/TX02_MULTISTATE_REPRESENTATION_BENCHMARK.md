@@ -1,6 +1,6 @@
 # TX-02：多状态表示竞争与自主选择基准
 
-状态：TX-02A 数据生成器、TX-02B-1 精确审计、TX-02B-2 规则族隔离切分、TX-02B-3 可训练 support-set MLP、TX-02B-4 初版实验 runner 已实现；尚无经预算匹配验证的表示优劣结论。已有 E02-B 固定三值规则学习器不等同于 TX-02B。  
+状态：TX-02A 数据生成器、TX-02B-1 精确审计、TX-02B-2 规则族隔离切分、TX-02B-3 可训练 support-set MLP、TX-02B-4 初版实验 runner、TX-02C 参数预算匹配和固定随机嵌入对照已实现；尚无经预算匹配验证的表示优劣结论。已有 E02-B 固定三值规则学习器不等同于 TX-02B。  
 关联：TX-01、E02-B、E02-D、E12、YF-02/YF-03。
 
 ## 1. 研究问题
@@ -133,3 +133,8 @@ TX-02B-2 切分实现位于 [prototype/tx02_splits.py](../prototype/tx02_splits.
 
 
 TX-02B-3 最小可训练模型：`prototype/tx02_learners.py`。模型以 support-set 均值池化方式对候选评分，固定表示可选 BINARY / TERNARY / HYBRID / ONE_HOT / PERMUTED，LEARNED embedding 由交叉熵梯度更新。单测：`tests/test_tx02_learners.py`。当前为纯 Python 原型，不能把相同 hidden size 解释为参数/计算预算匹配。
+
+
+## TX-02C 公平性扩展
+
+新增 `FIXED_RANDOM`，与 `LEARNED` 使用相同维度、同 seed 的相同初始嵌入表；唯一区别是固定随机表不更新，学习表参与梯度更新。实验默认按可训练参数预算选择每个表示的 hidden size，并报告实际参数量与预算差。此举改善容量公平性，但尚未匹配 FLOPs / 实际计算量，也不构成表示优越性证据。
