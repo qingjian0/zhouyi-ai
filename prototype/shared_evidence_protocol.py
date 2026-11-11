@@ -18,7 +18,7 @@ PROTOCOL_VERSION = "0.2"
 STRICT_PROTOCOL_VERSION = "0.3"
 EVIDENCE_SPLITS = {"SUPPORT", "GATE_DEV", "GATE_FINAL", "LOCKED_TEST"}
 LEGACY_LEARNER_TRACK = "legacy"
-EVENT_TYPES = {"observation", "prediction_commit", "evidence_reveal", "structure_version", "revision"}
+EVENT_TYPES = {"observation", "prediction_commit", "evidence_reveal", "structure_version", "revision", "branch_merge_authorization"}
 
 
 class ProtocolError(ValueError):
@@ -247,6 +247,41 @@ class SQLiteEvidenceStore:
                     raise ProtocolError("evidence_reveal commit_digest does not match CPG-EI semantic commit digest")
                 if payload["event_digest"] != commit["payload_digest"]:
                     raise ProtocolError("evidence_reveal event_digest does not match durable event envelope digest")
+        elif event_type == "branch_merge_authorization":
+            required = {
+                "authorization_id", "issuer_id", "scope", "parent_state_ref",
+                "branch_ids", "evidence_refs", "issued_at", "expires_at",
+                "signature_algorithm", "signature",
+            }
+            if not strict:
+                raise ProtocolError("branch merge authorization requires strict E09 v0.3")
+            if not required.issubset(payload):
+                raise ProtocolError(
+                    f"branch_merge_authorization missing fields: {sorted(required - payload.keys())}"
+                )
+            for field in ("authorization_id", "issuer_id", "scope", "parent_state_ref",
+                          "signature_algorithm", "signature"):
+                if not isinstance(payload[field], str) or not payload[field].strip():
+                    raise ProtocolError(f"branch_merge_authorization {field} must be non-empty")
+            for field in ("branch_ids", "evidence_refs"):
+                values = payload[field]
+                if (not isinstance(values, list) or not values
+                        or any(not isinstance(value, str) or not value.strip() for value in values)
+                        or len(values) != len(set(values))):
+                    raise ProtocolError(f"branch_merge_authorization {field} must be a non-empty unique string list")
+            for field in ("issued_at", "expires_at"):
+                if not isinstance(payload[field], str) or not payload[field].strip():
+                    raise ProtocolError(f"branch_merge_authorization {field} must be an ISO timestamp")
+                try:
+                    parsed = datetime.fromisoformat(payload[field].replace("Z", "+00:00"))
+                except ValueError as exc:
+                    raise ProtocolError(f"branch_merge_authorization {field} is invalid") from exc
+                if parsed.tzinfo is None:
+                    raise ProtocolError(f"branch_merge_authorization {field} must include a timezone")
+            issued = datetime.fromisoformat(payload["issued_at"].replace("Z", "+00:00"))
+            expires = datetime.fromisoformat(payload["expires_at"].replace("Z", "+00:00"))
+            if expires <= issued:
+                raise ProtocolError("branch merge authorization must expire after issue time")
         elif event_type == "structure_version":
             required = {"structure_id", "version_id", "kind", "definition", "parent_version_ids", "support_evidence_ids"}
             if not required.issubset(payload):
@@ -306,6 +341,8 @@ class SQLiteEvidenceStore:
         integrity_metadata_json = canonical_json(integrity_metadata or {})
         if not actor_role or not payload_schema:
             raise ProtocolError("actor_role and payload_schema must be non-empty")
+        if event_type == "branch_merge_authorization" and actor_role != "authorizer":
+            raise ProtocolError("branch_merge_authorization must be appended by the authorizer role")
         # Include event type and schema in the idempotency fingerprint.
         fingerprint = digest_payload({
             "event_type": event_type, "protocol_version": protocol_version,

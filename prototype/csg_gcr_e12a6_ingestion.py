@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Mapping
 
 from prototype.csg_gcr_e12a6_adapter import CSGGCRLifecycleProjection, adapt_typed_candidate
+from prototype.csg_branch_delta import VerifiedBranchMergeAuthorization
 from prototype.e09_e12a6_evidence_bridge import resolve_e09_reveal
 from prototype.e12a6_lifecycle_contract import Evidence
 from prototype.e12a6_zpcm_persistence import LifecycleBundleReceipt, PersistentLifecycleLedger
@@ -34,13 +35,13 @@ def ingest_typed_candidate(
     grammar_version: str,
     world_family_by_evidence: Mapping[str, str],
     measurement_cost_by_evidence: Mapping[str, float] | None = None,
+    branch_merge_authorization: VerifiedBranchMergeAuthorization | None = None,
 ) -> PersistentCSGGCRIngestion:
     """Verify evidence refs, project one candidate, and atomically persist bundle.
 
-    Cross-branch candidates are rejected until BranchMergeAuthorization has an
-    authenticated E09 issuer-verification contract. Branch-delta and
-    authorization provenance remains preserved in the projected candidate,
-    but this adapter will not treat those refs as verified E09 reveal events.
+    Cross-branch candidates require a VerifiedBranchMergeAuthorization returned
+    by the E09 signed-grant resolver. Its issuer signature, parent, exact branch
+    set, expiry and evidence reveal references must already have been verified.
     """
     if not isinstance(ledger, PersistentLifecycleLedger):
         raise TypeError("ledger must be PersistentLifecycleLedger")
@@ -59,9 +60,21 @@ def ingest_typed_candidate(
             raise CSGGCRIngestionError(f"{name} must be a non-empty string")
     branch_ids = tuple(coordinated.coordinated.branch_ids)
     if len(set(branch_ids)) > 1:
-        raise CSGGCRIngestionError(
-            "cross-branch candidate ingestion is blocked until E09 authorization issuer verification exists"
-        )
+        if not isinstance(branch_merge_authorization, VerifiedBranchMergeAuthorization):
+            raise CSGGCRIngestionError(
+                "cross-branch candidate ingestion requires a signature-verified E09 authorization"
+            )
+        if (
+            branch_merge_authorization.authorization_ref != coordinated.branch_merge_authorization_ref
+            or branch_merge_authorization.evidence_refs != coordinated.branch_merge_authorization_evidence_refs
+            or branch_merge_authorization.parent_state_ref != coordinated.coordinated.parent_state_ref
+            or set(branch_merge_authorization.branch_ids) != set(branch_ids)
+        ):
+            raise CSGGCRIngestionError(
+                "verified E09 authorization does not match candidate parent, branches, or provenance"
+            )
+    elif branch_merge_authorization is not None:
+        raise CSGGCRIngestionError("branch merge authorization supplied for a single-branch candidate")
 
     refs = tuple(coordinated.coordinated.evidence_refs)
     if len(refs) != len(set(refs)):

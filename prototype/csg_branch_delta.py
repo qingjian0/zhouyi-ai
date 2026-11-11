@@ -83,11 +83,7 @@ class BranchSnapshot:
 
 @dataclass(frozen=True)
 class BranchMergeAuthorization:
-    """Scope receipt expected to originate from the E09 evidence authority.
-
-    This value object does not authenticate its issuer. The caller must pass
-    an E09-validated receipt; this module checks only its declared scope.
-    """
+    """Unverified authorization claims. Never sufficient to authorize a merge."""
     authorization_ref: str
     parent_state_ref: str
     branch_ids: tuple[str, ...]
@@ -98,13 +94,26 @@ class BranchMergeAuthorization:
         object.__setattr__(self, "evidence_refs", tuple(self.evidence_refs))
 
 
+@dataclass(frozen=True)
+class VerifiedBranchMergeAuthorization(BranchMergeAuthorization):
+    """Authorization claim whose E09 event signature was checked by a trust anchor."""
+    issuer_id: str
+    event_digest: str
+    verifier_id: str
+
+
 def validate_merge_authorization(
     authorization: BranchMergeAuthorization,
     parent_state_ref: str,
     branch_ids: tuple[str, ...],
 ) -> None:
-    if not isinstance(authorization, BranchMergeAuthorization):
-        raise ValueError("cross-branch merge requires BranchMergeAuthorization")
+    if not isinstance(authorization, VerifiedBranchMergeAuthorization):
+        raise ValueError("cross-branch merge requires an E09 signature-verified authorization")
+    _text(authorization.issuer_id, "authorization issuer_id")
+    _text(authorization.verifier_id, "authorization verifier_id")
+    if (not isinstance(authorization.event_digest, str) or len(authorization.event_digest) != 64
+            or any(ch not in "0123456789abcdef" for ch in authorization.event_digest)):
+        raise ValueError("verified authorization event_digest must be a lowercase SHA-256 digest")
     _text(authorization.authorization_ref, "authorization_ref")
     _text(authorization.parent_state_ref, "authorization parent_state_ref")
     if authorization.parent_state_ref != parent_state_ref:
