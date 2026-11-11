@@ -1,6 +1,6 @@
 import unittest
 from prototype.csl_dependency_graph import (
-    DependencyEdge, DependencyError, DependencyRole, DependencyScope,
+    DependencyEdge, DependencyError, DependencyImpactPolicy, DependencyRole, DependencyScope,
     StructureDependencyGraph, StructureNode, StructureRef, StructureStatus,
 )
 
@@ -65,6 +65,49 @@ class StructureDependencyGraphTests(unittest.TestCase):
         raw=[{"event_id":e.event_id,"sequence":e.sequence+1,"event_type":e.event_type,"payload":e.payload} for e in graph.events]
         with self.assertRaisesRegex(DependencyError,"contiguous"):
             StructureDependencyGraph.replay(raw)
+
+
+    def test_review_policy_queues_direct_consumer_but_stops_propagation(self):
+        graph=StructureDependencyGraph()
+        root=node(graph,"root"); middle=node(graph,"middle"); leaf=node(graph,"leaf")
+        graph.add_dependency(DependencyEdge(middle,root,DependencyRole.USES,
+            impact_policy=DependencyImpactPolicy.REVIEW),event_id="review-edge")
+        graph.add_dependency(DependencyEdge(leaf,middle,DependencyRole.COMPOSES),event_id="leaf-edge")
+        graph.set_status(root,StructureStatus.REVISED,event_id="rev")
+        self.assertEqual(graph.revalidation_queue,(middle,))
+
+    def test_advisory_policy_retains_stale_edge_without_queueing(self):
+        graph=StructureDependencyGraph()
+        root=node(graph,"root"); consumer=node(graph,"consumer")
+        graph.add_dependency(DependencyEdge(consumer,root,DependencyRole.SUPPORTS,
+            impact_policy=DependencyImpactPolicy.ADVISORY),event_id="advisory-edge")
+        graph.set_status(root,StructureStatus.CHALLENGED,event_id="challenge")
+        self.assertEqual(graph.revalidation_queue,())
+        self.assertEqual(len(graph.stale_dependencies()),1)
+
+    def test_blocking_path_wins_over_review_path_in_diamond(self):
+        graph=StructureDependencyGraph()
+        root=node(graph,"root"); left=node(graph,"left"); right=node(graph,"right"); leaf=node(graph,"leaf")
+        graph.add_dependency(DependencyEdge(left,root,DependencyRole.USES,
+            impact_policy=DependencyImpactPolicy.REVIEW),event_id="left-edge")
+        graph.add_dependency(DependencyEdge(right,root,DependencyRole.USES),event_id="right-edge")
+        graph.add_dependency(DependencyEdge(leaf,left,DependencyRole.COMPOSES),event_id="leaf-left")
+        graph.add_dependency(DependencyEdge(leaf,right,DependencyRole.COMPOSES),event_id="leaf-right")
+        graph.set_status(root,StructureStatus.REVISED,event_id="rev")
+        self.assertEqual(set(graph.revalidation_queue),{left,right,leaf})
+
+    def test_legacy_edge_constructor_defaults_to_blocking(self):
+        edge=DependencyEdge(ref("consumer"),ref("dependency"),DependencyRole.USES)
+        self.assertIs(edge.impact_policy,DependencyImpactPolicy.BLOCKING)
+
+    def test_impact_policy_roundtrip_and_digest(self):
+        graph=StructureDependencyGraph()
+        root=node(graph,"root"); consumer=node(graph,"consumer")
+        graph.add_dependency(DependencyEdge(consumer,root,DependencyRole.USES,
+            impact_policy=DependencyImpactPolicy.REVIEW),event_id="edge")
+        replay=StructureDependencyGraph.replay(graph.events)
+        self.assertEqual(replay.digest,graph.digest)
+        self.assertIs(replay.edges[0].impact_policy,DependencyImpactPolicy.REVIEW)
 
     def test_revalidation_ack_is_explicit_and_replayable(self):
         graph=StructureDependencyGraph(); a=node(graph,"a"); b=node(graph,"b")
