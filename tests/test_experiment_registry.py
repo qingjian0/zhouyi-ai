@@ -1,4 +1,5 @@
 import sqlite3
+from contextlib import closing
 import tempfile
 import unittest
 from pathlib import Path
@@ -99,9 +100,10 @@ class ExperimentRegistryTests(unittest.TestCase):
             path = Path(temp) / "db.sqlite3"
             registry = ExperimentRegistry(path)
             registry.register(make_spec())
-            with sqlite3.connect(path) as db:
-                db.execute("UPDATE experiments SET spec_json = ? WHERE experiment_id = ?",
-                           ('{"tampered":true}', "exp-001"))
+            with closing(sqlite3.connect(path)) as db:
+                with db:
+                    db.execute("UPDATE experiments SET spec_json = ? WHERE experiment_id = ?",
+                               ('{"tampered":true}', "exp-001"))
             with self.assertRaisesRegex(ValueError, "integrity"):
                 registry.get_spec("exp-001")
 
