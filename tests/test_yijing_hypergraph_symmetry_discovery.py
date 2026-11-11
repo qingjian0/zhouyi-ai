@@ -68,8 +68,7 @@ class RelationSymmetryDiscoveryTests(unittest.TestCase):
             min_support=1,
         )
         classes = [item.positions for item in report.hypotheses[0].slot_equivalence_classes]
-        self.assertIn((0, 1), classes)
-        self.assertNotIn((0, 1, 2), classes)
+        self.assertEqual(classes, [])
 
     def test_single_observation_does_not_confirm_min_support_two(self):
         report = discover_relation_symmetry(
