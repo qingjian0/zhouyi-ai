@@ -22,6 +22,10 @@ The evaluate_evidence function consumes independently analysed comparison rows. 
 
 This module does not calculate confidence intervals, perform multiplicity correction, estimate statistical power, verify preregistration timestamps, or inspect raw per-seed observations. It trusts supplied analysis fields and is intentionally conservative. A verdict is a review gate, not a claim that a theory is true. Distinct evidence-row IDs are required for the OOD and control support gates to prevent double-counting. IID-only improvement is insufficient. Yijing- or Taixuanjing-inspired priors must compete against shuffled and random controls with matched budgets.
 
+## Current integration state
+
+The paired raw-observation analyzer now converts task outputs into evidence rows using matched seed, split, control, parameter-count, and compute-budget keys. The archive adapter verifies the archive digest and structural provenance before evaluation. The active experiment selector ranks researcher-authored, preregistered candidates against explicit evidence gaps and a compute budget.
+
 ## Next integration gate
 
-Add an analysis adapter that converts archived per-seed experiment outputs into preregistered evidence rows. The adapter must validate task-set identity, missing/failed seeds, metric direction, OOD split provenance, and control matching before invoking this evaluator. Do not connect scheduler completion directly to supported.
+Build a raw-observation producer contract for actual experiment handlers and preserve per-seed raw outputs as immutable artifacts. Then add end-to-end tests from ExperimentMatrix TaskSpec -> handler observations -> raw analyzer -> archive -> evidence evaluator -> candidate selector. The producer must bind observation IDs to task IDs and verify split/control provenance. Do not connect scheduler completion directly to supported.
