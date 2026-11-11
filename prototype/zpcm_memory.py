@@ -91,7 +91,7 @@ class ZPCMMemory:
             if typ=="evidence_reveal":
                 safe.pop("target_or_feedback",None)
                 safe.pop("reveal_source",None)
-            if typ=="structure_version" and isinstance(safe.get("definition"),dict):safe["definition"]={k:v for k,v in safe["definition"].items() if k!="snapshot"}
+            if typ=="structure_version" and isinstance(safe.get("definition"),dict):safe["definition"]={k:v for k,v in safe["definition"].items() if k not in {"snapshot","ledger_snapshot"}}
             safe.pop("raw_input",None)
             s=str(safe.get("scope",scope))
             with self.lock:
