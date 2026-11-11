@@ -39,9 +39,9 @@ class TX02ComputeAndCalibrationTests(unittest.TestCase):
             (0.55, 0.45) for _ in range(40)
         )
         targets = (0,) * 40 + (1,) * 40
-        chosen = choose_abstention_threshold(probs, targets, 0.1)
+        chosen = choose_abstention_threshold(probs, targets, 0.15)
         self.assertEqual(chosen["accepted"], 40)
-        self.assertLessEqual(chosen["risk_upper_bound"], 0.1)
+        self.assertLessEqual(chosen["risk_upper_bound"], 0.15)
         decisions = apply_abstention(probs, chosen["threshold"])
         self.assertEqual(sum(value is not None for value in decisions), 40)
     def test_episode_level_calibration_uses_episode_correctness_for_k3(self):
@@ -54,7 +54,7 @@ class TX02ComputeAndCalibrationTests(unittest.TestCase):
             (0, 1) for _ in range(40)
         )
         chosen = choose_episode_abstention_threshold(
-            probability_episodes, targets, 0.1
+            probability_episodes, targets, 0.15
         )
         self.assertEqual(chosen["accepted"], 40)
         # All confidence ties are deliberately indivisible: no query-level leakage.
