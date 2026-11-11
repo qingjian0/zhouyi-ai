@@ -15,7 +15,13 @@ class TX02RuleDisjointSplitTests(unittest.TestCase):
         self.assertTrue(train.isdisjoint(validation))
         self.assertTrue(train.isdisjoint(test))
         self.assertTrue(validation.isdisjoint(test))
+        selection = set(bundle.rule_families["validation_selection"])
+        calibration = set(bundle.rule_families["validation_calibration"])
+        self.assertTrue(selection.isdisjoint(calibration))
+        self.assertEqual(selection | calibration, validation)
         self.assertEqual(len(train | validation | test), 27)
+        self.assertTrue(bundle.validation_selection)
+        self.assertTrue(bundle.validation_calibration)
 
     def test_locked_test_inputs_do_not_contain_targets_or_hidden_metadata(self):
         bundle = make_rule_disjoint_splits(
