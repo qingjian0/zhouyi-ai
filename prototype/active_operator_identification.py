@@ -88,7 +88,10 @@ class ActiveOperatorIdentifier:
         ids = [item.hypothesis_id for item in items]
         if any(not item for item in ids) or len(set(ids)) != len(ids):
             raise IdentificationError("hypothesis IDs must be non-empty and unique")
-        if max_experiments < 0 or tolerance < 0:
+        if (
+            isinstance(max_experiments, bool) or max_experiments < 0
+            or not math.isfinite(tolerance) or tolerance < 0
+        ):
             raise IdentificationError("invalid experiment budget or tolerance")
         pool = tuple(sorted({self._state(row) for row in query_pool}))
         if not pool:
@@ -149,7 +152,16 @@ class ActiveOperatorIdentifier:
                 continue
             groups: list[tuple[State, list[str]]] = []
             for hypothesis in sorted(self._hypotheses, key=lambda item: item.hypothesis_id):
-                prediction = hypothesis.predict(state)
+                try:
+                    prediction = self._state(hypothesis.predict(state))
+                except (TypeError, ValueError, OverflowError) as exc:
+                    raise IdentificationError(
+                        f"hypothesis {hypothesis.hypothesis_id!r} returned an invalid state"
+                    ) from exc
+                if len(prediction) != len(state):
+                    raise IdentificationError(
+                        f"hypothesis {hypothesis.hypothesis_id!r} changed state dimension"
+                    )
                 matching = next(
                     (ids for representative, ids in groups
                      if self._same(representative, prediction)),
@@ -207,8 +219,10 @@ class ActiveOperatorIdentifier:
     ) -> IdentificationStatus:
         state = self._state(before)
         output = self._state(after)
-        if not source_id:
-            raise IdentificationError("source_id must be non-empty")
+        if not isinstance(source_id, str) or not source_id.strip():
+            raise IdentificationError("source_id must be a non-empty string")
+        if len(output) != len(state):
+            raise IdentificationError("observed output dimension must match input state")
         if state not in self._issued:
             raise IdentificationError("observation must answer an issued experiment")
         for prior in self._observations + self._rejected_observations:
@@ -220,7 +234,7 @@ class ActiveOperatorIdentifier:
         observation = Observation(state, output, source_id)
         survivors = tuple(
             hypothesis for hypothesis in self._hypotheses
-            if self._same(hypothesis.predict(state), output)
+            if self._same(self._state(hypothesis.predict(state)), output)
         )
         self._answered_inputs.add(state)
         if not survivors:
