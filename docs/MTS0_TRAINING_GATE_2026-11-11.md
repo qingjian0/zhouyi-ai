@@ -50,15 +50,18 @@ python -m prototype.mts0_runner --seed 7 --train-samples 1200 --test-samples 400
 | T3 标签隔离策略 | learner/selector 看不到 locked-test | 同进程策略测试通过；非安全边界 |
 | T4 证据绑定 | reveal 绑定 commit digest、query、scope | 单测通过 |
 | T5 独立审计 | evaluator 独立进程/服务 | 未实现 |
-| T6 多种子报告 | 至少 5 seeds，均值/标准差及逐 seed 结果 | 5-seed API 测试通过；小样本 CI 运行，不代表完整基准 |
+| T6 多种子报告 | 至少 5 seeds，均值/标准差及逐 seed 结果 | 5 seeds × 1,200 train / 400 locked-test，当前头 CI 已通过；仅为 E01 IID 合成任务 |
 | T7 OOD 验证 | entity/composition/rule-family/domain OOD | 下一步 |
 
 ## 已验证的 CI 记录
 
-- Run 42982760405：完整 tests workflow 成功。
-- 单元测试成功，MTS-0 prequential smoke experiment 成功。
-- E01/E02 既有实验步骤全部成功。
-- 5-seed API 的小样本单元测试通过；正式报告仍需更大样本、多种子失败案例与 OOD 切分。
+- Run 43092157613：当前 MTS-0 PR 头 `e95022d0e11c9b89d2695cd15dc96ddeea372047` 的完整 tests workflow 成功。
+- 五种子正式样本规模：每种子 1,200 条训练、400 条锁定测试、180 epochs；总计 6,000 条训练和 2,000 条锁定测试。
+- Exact Match：`0.9220 ± 0.0212`；Micro-F1：`0.9740 ± 0.0071`（5 seeds，样本标准差）。
+- 各种子 Exact Match：seed 7 `0.9375`；8 `0.9075`；9 `0.9300`；10 `0.8925`；11 `0.9425`。
+- 五个种子均通过预测先提交、批次封存后揭示；每个种子 400 commits / 400 reveals，learner 与 selector 可见 locked-test 标签均为 0。
+- JSON Artifact：`mts0-five-seed-results`，workflow run 43092157613。
+- 解释边界：结果只验证当前 E01 线性合成 IID 任务；不证明结构 OOD、独立 evaluator 安全隔离或完整认知能力。
 
 ## 下一阶段
 
