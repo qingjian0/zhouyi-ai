@@ -98,13 +98,14 @@ class TestE12A6UnixSocketServer(unittest.TestCase):
         observed = []
         with E12A6UnixSocketServer(
             self.path,
-            lambda peer, req: observed.append(peer) or {"pid": peer.pid, "uid": peer.uid},
+            lambda peer, req: observed.append(peer) or {"pid": peer.pid, "uid": peer.uid, "claimed_pid": req["pid"]},
             allowed_uids={os.getuid()},
         ):
             script = (
-                "import socket,sys; "
+                "import socket,sys,os,json; "
                 "s=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM); "
-                "s.connect(sys.argv[1]); s.sendall(b'{\"probe\":true}\\n'); "
+                "s.connect(sys.argv[1]); "
+                "s.sendall((json.dumps({'pid':os.getpid()})+'\\n').encode()); "
                 "print(s.recv(4096).decode(), end=''); s.close()"
             )
             child = subprocess.run(
@@ -113,9 +114,9 @@ class TestE12A6UnixSocketServer(unittest.TestCase):
             )
             result = json.loads(child.stdout)
             self.assertTrue(result["ok"])
-            self.assertEqual(result["result"]["pid"], child.pid)
+            self.assertEqual(result["result"]["pid"], result["result"]["claimed_pid"])
             self.assertEqual(result["result"]["uid"], os.getuid())
-            self.assertEqual(observed[0].pid, child.pid)
+            self.assertEqual(observed[0].pid, result["result"]["claimed_pid"])
 
     def test_rejects_symlink_parent_directory(self):
         target = self.root / "target"
