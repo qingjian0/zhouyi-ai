@@ -188,6 +188,36 @@ class PersistentLifecycleTests(unittest.TestCase):
         self.assertTrue(replay.replayed)
         self.assertTrue(replay.authorization.replayed)
 
+    def test_receipt_consumption_requires_and_audits_authenticated_writer_identity(self):
+        item = evidence()
+        receipt = verified_receipt(item)
+        now = datetime(2026, 11, 12, 0, 30, tzinfo=timezone.utc)
+        candidate_item = authorized_candidate()
+        with self.assertRaises(LifecyclePersistenceError):
+            self.store.register_candidate_bundle(
+                candidate_item, (item,), authorization_receipt=receipt, consumed_at=now,
+            )
+        self.assertEqual(self.memory.replay_lifecycle_events(scope="project-a"), [])
+        identity = writer_identity()
+        identity["credential_fingerprint"] = "not-a-sha256-fingerprint"
+        with self.assertRaises(LifecyclePersistenceError):
+            self.store.register_candidate_bundle(
+                candidate_item, (item,), authorization_receipt=receipt,
+                consumed_at=now, writer_identity=identity,
+            )
+        self.assertEqual(self.memory.replay_lifecycle_events(scope="project-a"), [])
+        identity = writer_identity()
+        self.store.register_candidate_bundle(
+            candidate_item, (item,), authorization_receipt=receipt,
+            consumed_at=now, writer_identity=identity,
+        )
+        events = self.memory.replay_lifecycle_events(scope="project-a")
+        consumption = events[-1]["payload"]["body"]
+        self.assertEqual(consumption["submitter_workload_id"], identity["workload_id"])
+        self.assertEqual(consumption["submitter_identity_provider"], identity["identity_provider"])
+        self.assertEqual(consumption["submitter_authentication_method"], identity["authentication_method"])
+        self.assertEqual(consumption["submitter_credential_fingerprint"], identity["credential_fingerprint"])
+
     def test_receipt_backed_candidate_requires_same_receipt_on_replay(self):
         evidence_item = evidence()
         receipt = verified_receipt(evidence_item)
