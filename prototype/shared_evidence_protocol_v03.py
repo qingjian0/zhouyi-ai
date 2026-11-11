@@ -283,9 +283,12 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
             spec["fingerprint"] = _fingerprint(spec)
             normalized.append(spec)
         batch_digest = digest_payload([
-            {k: spec[k] for k in ("event_id", "event_type", "payload", "payload_schema",
-                                  "actor_role", "causation_refs", "integrity_metadata",
-                                  "idempotency_key")}
+            {
+                **({} if len(normalized) == 1 and idempotency_key.startswith("single:") else {"event_id": spec["event_id"]}),
+                **{k: spec[k] for k in ("event_type", "payload", "payload_schema",
+                                        "actor_role", "causation_refs", "integrity_metadata",
+                                        "idempotency_key")},
+            }
             for spec in normalized
         ])
         with self._lock:
