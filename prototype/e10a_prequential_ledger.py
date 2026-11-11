@@ -13,7 +13,7 @@ from typing import Any
 
 
 SCHEMA_VERSION = "e10a-prequential-ledger-v1"
-DECISIONS = {"PREDICT", "ABSTAIN_AMBIGUOUS", "ABSTAIN_INCONSISTENT", "ABSTAIN_BUDGET"}
+DECISIONS = {"PREDICT", "ABSTAIN_AMBIGUOUS", "ABSTAIN_INCONSISTENT", "ABSTAIN_BUDGET", "ABSTAIN_OOD_SCHEMA", "ABSTAIN_OOD_VALUE", "ABSTAIN_OOD_RELATION"}
 REVISION_OPERATIONS = {"create", "keep", "modify", "split", "merge", "suspend", "retire", "abstain"}
 
 
