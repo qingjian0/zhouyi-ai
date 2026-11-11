@@ -118,7 +118,7 @@ def probability_metrics(probability_rows: Sequence[Sequence[float]],
             "brier_multiclass": brier / n, "ece_top_label_fixed_width": ece,
             "ece_bins": bins, "ece_bin_details": details}
 
-def wilson_upper_bound(errors: int, count: int, z: float = 1.959963984540054) -> float:
+def wilson_upper_bound(errors: int, count: int, z: float = 1.6448536269514722) -> float:
     """One-sided Wilson score upper bound for a binomial error rate."""
     if type(errors) is not int or type(count) is not int or count < 1 or not 0 <= errors <= count:
         raise ValueError("require 0 <= errors <= count and count >= 1")
@@ -134,7 +134,7 @@ def wilson_upper_bound(errors: int, count: int, z: float = 1.959963984540054) ->
 
 def choose_abstention_threshold(probability_rows: Sequence[Sequence[float]],
         targets: Sequence[int], max_selective_risk: float,
-        confidence_z: float = 1.959963984540054) -> dict:
+        confidence_z: float = 1.6448536269514722) -> dict:
     """Maximize validation coverage subject to a one-sided Wilson risk bound.
 
     This is a conservative finite-sample heuristic, not a distribution-free
