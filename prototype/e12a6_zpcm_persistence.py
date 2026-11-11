@@ -290,6 +290,15 @@ class PersistentLifecycleLedger:
                 "candidate_version": candidate.version,
                 "consumed_at": consumed_at.isoformat(),
             }
+            prior_receipt_use = self._consumed_receipts.get(receipt.receipt_id)
+            if prior_receipt_use is not None:
+                prior_binding = dict(prior_receipt_use)
+                current_binding = dict(authorization_body)
+                prior_binding.pop("consumed_at", None)
+                current_binding.pop("consumed_at", None)
+                if prior_binding != current_binding:
+                    raise LifecyclePersistenceError("authorization receipt was already consumed for another binding")
+                authorization_body["consumed_at"] = prior_receipt_use["consumed_at"]
             authorization_event = (
                 f"e12a6:authorization-consumed:{receipt.receipt_id}",
                 {"schema_version": EVENT_SCHEMA, "kind": "authorization_consumed",
