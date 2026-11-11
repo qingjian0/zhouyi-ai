@@ -7,6 +7,7 @@ from prototype.e12a8_active_multiworld import (
     evaluate_policy,
     likelihoods,
     make_actions,
+    run_benchmark,
     run_episode,
     select_action,
 )
@@ -121,6 +122,12 @@ class E12A8ActiveMultiworldTests(unittest.TestCase):
             with self.subTest(kwargs=kwargs):
                 with self.assertRaises(ValueError):
                     run_episode(world, **kwargs)
+
+    def test_benchmark_runs_matched_policies_over_all_worlds(self):
+        result = run_benchmark(seeds=(0, 1), budget=6.0)
+        self.assertEqual(result["world_count"], 7)
+        self.assertEqual(set(result["policies"]), {"active", "random", "fixed"})
+        self.assertTrue(all(len(x["episodes"]) == 14 for x in result["policies"].values()))
 
 
 if __name__ == "__main__":
