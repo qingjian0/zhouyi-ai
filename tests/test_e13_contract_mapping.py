@@ -88,9 +88,9 @@ class ExactMappingTests(ContractTests):
         self.assertEqual(len(result.candidates), 1)
         self.assertEqual(dict(result.candidates[0].node_mapping), {"sc": "tc", "se": "te"})
 
-    def test_rejects_role_reversal_for_asymmetric_relation(self):
-        result = enumerate_exact_mappings(self.graph("s"), self.graph("t", reverse=True))
-        self.assertEqual(result.status, "NO_MAPPING")
+    def test_rejects_type_invalid_role_reversal_at_contract_boundary(self):
+        with self.assertRaises(ContractError):
+            self.graph("t", reverse=True)
 
     def test_preserves_multiple_equivalent_mappings(self):
         schema = RelationSchema(
