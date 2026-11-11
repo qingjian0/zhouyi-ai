@@ -9,7 +9,7 @@
 
 - 当前阶段：E12 原语发现与评估闭环研究；E12-A19 多规则联合判别原型；E12-A20 并行假设图运行时设计
 - 理论版本：CPG-EI v0.3（研究草案）
-- 代码状态：E01/E02 有限基准、E12-A6～A19 原型和专项测试持续扩展；A19-C 已进入全仓库 CI 验证；A20 目前只有设计提案，尚无运行时实现
+- 代码状态：E01/E02 有限基准、E12-A6～A19 原型和专项测试持续扩展；A19-C 完整 CI 已通过；A20-0 有限域精确参考求解器已提交，CI 验证中，尚非并行消息传递引擎
 - 尚无规模化模型或性能优势结论
 - 验证原则：所有架构主张均须通过可复现实验、消融和公平对照验证
 
@@ -87,6 +87,9 @@
 - [E12-A19-C 多规则联合推理原型](prototype/e12a19c_multi_rule_controls.py)
 - [E12-A19-C 专项测试](tests/test_e12a19c_multi_rule_controls.py)
 - [E12-A20 并行假设图推理运行时设计](docs/E12A20_PARALLEL_HYPOTHESIS_RUNTIME_DESIGN_2026-11-11.md)
+- [E12-A20-0 有限域因子图参考推理器](prototype/e12a20_factor_graph.py)
+- [E12-A20-0 参考推理器测试](tests/test_e12a20_factor_graph.py)
+- [E12-A20-0 实现说明与限制](docs/E12A20_0_FACTOR_GRAPH_REFERENCE_2026-11-11.md)
 - [E12-A0 可辨识性基线协议](docs/E12A0_IDENTIFIABILITY_BASELINE.md)
 - [E12-A1 类型化谓词生成基线](docs/E12A1_TYPED_PREDICATE_INDUCTION.md)
 - [E12-A2 主动观测选择研究协议](docs/E12A2_ACTIVE_MEASUREMENT_SELECTION.md)
