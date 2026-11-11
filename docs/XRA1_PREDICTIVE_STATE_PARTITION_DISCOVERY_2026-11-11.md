@@ -207,7 +207,7 @@ Purpose: test whether discovered partitions preserve reusable structure.
 
 ## 12. Staged implementation
 
-### XRA-1a — deterministic evaluator oracle (implemented; execution pending)
+### XRA-1a — deterministic evaluator oracle (implementation added; execution pending)
 
 Added:
 - `prototype/xra_partition.py`: exact partition refinement for complete finite deterministic state/action tables. It groups states only when all declared actions produce equal immediate outcomes and transition into the same final partition blocks.
@@ -218,8 +218,8 @@ The oracle is evaluator-side only. It must not be passed into learner-visible ta
 ### Remaining gates
 
 - XRA-1b: add a task manifest and independent exact partition enumerator / cross-check for tiny worlds.
-- XRA-1c: implement MERGE / SPLIT / UNRESOLVED with held-out challenge evidence.
-- XRA-1d: connect E12-A8 action selection to competing partition hypotheses.
+- XRA-1c: evidence-bounded MERGE / SPLIT / UNRESOLVED reference protocol added in `prototype/xra_partition_decision.py`; tests and runtime validation pending.
+- XRA-1d: freeze task-manifest/evidence provenance and connect E12-A8 action selection to competing partition hypotheses.
 - XRA-1e: add binary, ternary, generic, shuffled, and anti-aligned proposal families.
 - XRA-1f: add context drift and revalidation using the existing lifecycle adapter.
 
@@ -228,3 +228,18 @@ The adaptive K selector remains blocked until the evaluator oracle, leakage boun
 ## 13. Current scientific claim
 
 At this stage, the project has a testable hypothesis that useful state cardinality and factorization can be discovered from predictive equivalence and evidence-driven partition revision. It has not yet demonstrated that this approach outperforms fixed encodings, clustering, or existing symbolic/neural baselines.
+
+
+## 14. XRA-1c implementation note
+
+The deterministic P1 reference decision helper is now added:
+- `prototype/xra_partition_decision.py`
+- `tests/test_xra_partition_decision.py`
+- `docs/XRA1C_EVIDENCE_BOUNDED_PARTITION_DECISIONS_2026-11-11.md`
+
+It returns SPLIT on any observed immediate-outcome or successor-signature
+counterexample, MERGE only after complete declared-action coverage and the
+minimum paired repetitions, and UNRESOLVED otherwise. MERGE is explicitly
+scoped to the tested interface and horizon. This is not a stochastic
+confidence procedure and is not yet integrated with task-manifest validation
+or E12-A8.
