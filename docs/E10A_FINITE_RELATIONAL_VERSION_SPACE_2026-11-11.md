@@ -40,6 +40,25 @@ The original harness runs in one process. An optional subprocess backend now run
 
 Reports coverage, selective accuracy, strict accuracy with abstentions counted wrong, abstention rate, version-space changes, candidate-update operations, final version-space sizes, and durable event count. It preserves per-query prediction traces. Each run now emits canonical SHA-256 digests of the complete final rule sets (not only their counts), allowing exact equivalence checks between update arms. `run_sweep` evaluates all three arms across consecutive seeds and reports per-seed results plus mean, median, population standard deviation, minimum, and maximum for key metrics; it also reports the aggregate incremental-to-batch update-operation ratio.
 
+
+## Ten-seed result (commit 7d20f0d, run #42943830809)
+
+Configuration: seeds 100–109, six instances per template, 54 Support observations and 54 Query observations per seed.
+
+| Metric | FROZEN | BATCH_REFIT | INCREMENTAL_FILTER |
+|---|---:|---:|---:|
+| Mean coverage | 1.000 | 1.000 | 1.000 |
+| Mean selective accuracy | 1.000 | 1.000 | 1.000 |
+| Mean strict accuracy | 1.000 | 1.000 | 1.000 |
+| Mean abstention rate | 0.000 | 0.000 | 0.000 |
+| Mean candidate-update checks | 0 | 9,232.2 | 54 |
+
+Batch refit and incremental filtering produced exactly equal final rule sets in all ten seeds. Aggregate measured update checks were 92,322 for batch refit and 540 for incremental filtering; the incremental/batch ratio was 0.005849 (about 0.585%, or about 171x fewer checks in this synthetic workload).
+
+**Critical interpretation:** FROZEN also achieved 100% strict accuracy with zero update operations. The current Support set already identifies the finite rules well enough to solve this Query distribution. Thus this task does not demonstrate a need for online learning, adaptation, or continual structure revision. The operation-count result is an algorithmic comparison inside this narrow finite DSL; it is not an end-to-end latency or general efficiency claim.
+
+This finding changes the next experiment: E10-B must include genuinely informative held-out conditions—renamed attributes, unseen categorical values, unseen contexts, controlled support ablations, and hard negatives—and must compare against frozen, majority, random, and exact-oracle controls. If the task is not underdetermined for FROZEN, it cannot measure the value of updating.
+
 ## Tests
 
 - Candidate discovery from Support without generator truth.
@@ -50,6 +69,8 @@ Reports coverage, selective accuracy, strict accuracy with abstentions counted w
 - Rejection of evaluator-only fields in Query payload.
 - Candidate budget fail-closed behavior.
 - Prequential runner event lifecycle.
+- Multi-seed exact rule-set digest equivalence and distribution reporting.
+- Subprocess learner lifecycle and evaluator-truth mutation canary.
 
 ## Limitations and non-claims
 
@@ -62,4 +83,4 @@ Reports coverage, selective accuracy, strict accuracy with abstentions counted w
 
 ## Next gate
 
-The ten-seed sweep is wired into CI (`--sweep --seeds 10 --start-seed 100`). A subprocess learner backend and hidden-truth input canary are now included; the next security gate is an OS-level sandbox/privilege profile and adversarial IPC tests. Then test E10-B transfer to renamed attributes, unseen objects, and hard negatives. Operator synthesis should wait until those transfer tests and matched baselines exist.
+The ten-seed sweep passed as part of full workflow run #42943830809. The subprocess learner backend and hidden-truth input canary were added after that run; their validation is pending on the latest branch head. The next security gate is an OS-level sandbox/privilege profile, IPC timeouts, and adversarial framing tests. Then test E10-B transfer to renamed attributes, unseen objects, unseen contexts, support ablations, and hard negatives. Operator synthesis should wait until those transfer tests and matched baselines exist.
