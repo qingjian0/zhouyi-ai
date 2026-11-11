@@ -99,6 +99,7 @@ class ActiveOperatorIdentifier:
         self._rejected_observations: list[Observation] = []
         self._records: list[ExperimentRecord] = []
         self._issued: dict[State, ExperimentCandidate] = {}
+        self._answered_inputs: set[State] = set()
         self._used_inputs: set[State] = set()
 
     @staticmethod
@@ -172,7 +173,9 @@ class ActiveOperatorIdentifier:
         return tuple(ranked)
 
     def choose_experiment(self) -> ExperimentCandidate | None:
-        if len(self._records) + len(self._issued) - len(self._records) >= self._max_experiments:
+        if len(self._issued) >= self._max_experiments:
+            return None
+        if len(self._issued) > len(self._answered_inputs):
             return None
         ranked = self.rank_experiments()
         if not ranked:
@@ -206,6 +209,7 @@ class ActiveOperatorIdentifier:
             hypothesis for hypothesis in self._hypotheses
             if self._same(hypothesis.predict(state), output)
         )
+        self._answered_inputs.add(state)
         if not survivors:
             self._rejected_observations.append(observation)
             raise IdentificationError(
@@ -227,20 +231,20 @@ class ActiveOperatorIdentifier:
         ids = tuple(item.hypothesis_id for item in self._hypotheses)
         if len(ids) == 1:
             return IdentificationStatus(
-                "identified", ids, len(self._records),
+                "identified", ids, len(self._issued),
                 "one hypothesis remains in the declared candidate set",
             )
         if not self.rank_experiments():
             return IdentificationStatus(
-                "unidentifiable", ids, len(self._records),
+                "unidentifiable", ids, len(self._issued),
                 "all surviving hypotheses agree on the remaining query pool",
             )
-        if len(self._records) >= self._max_experiments:
+        if len(self._issued) >= self._max_experiments:
             return IdentificationStatus(
-                "budget_exhausted", ids, len(self._records),
+                "budget_exhausted", ids, len(self._issued),
                 "experiment budget exhausted while multiple hypotheses remain",
             )
         return IdentificationStatus(
-            "ambiguous", ids, len(self._records),
+            "ambiguous", ids, len(self._issued),
             "more than one hypothesis remains; informative experiments are available",
         )
