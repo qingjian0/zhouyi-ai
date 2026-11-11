@@ -68,6 +68,8 @@ class FiniteRelationalVersionSpace:
             raise RelationalLearnerError("max_candidates must be a positive integer")
         self.max_candidates = max_candidates
         self._objects: dict[str, dict[str, str]] = {}
+        self._support_feature_values: dict[str, set[str]] = {}
+        self._support_context_values: dict[str, set[str]] = {}
         self._support_rows: list[dict[str, Any]] = []
         self._evidence_rows: list[dict[str, Any]] = []
         self._universe: dict[str, tuple[RelationRule, ...]] = {}
@@ -191,6 +193,14 @@ class FiniteRelationalVersionSpace:
                 raise RelationalLearnerError("Support observation references unknown object")
         universe, generated = self._enumerate_universe(rows, objects)
         self._objects = objects
+        self._support_feature_values = {}
+        for attributes in objects.values():
+            for key, value in attributes.items():
+                self._support_feature_values.setdefault(key, set()).add(value)
+        self._support_context_values = {}
+        for row in rows:
+            for key, value in row["context"].items():
+                self._support_context_values.setdefault(key, set()).add(value)
         self._support_rows = rows
         self._evidence_rows = list(rows)
         self._universe = universe
@@ -228,7 +238,39 @@ class FiniteRelationalVersionSpace:
         candidates = self._versions.get(row["relation_symbol"], ())
         candidate_payload = [item.as_dict() for item in candidates]
         candidate_hash = _hash(candidate_payload)
-        if not candidates:
+        participant_attributes = [objects[object_id] for object_id in row["participants"]]
+        query_feature_keys = {key for attrs in participant_attributes for key in attrs}
+        support_feature_keys = set(self._support_feature_values)
+        query_context_keys = set(row["context"])
+        support_context_keys = set(self._support_context_values)
+        if row["relation_symbol"] not in self._versions:
+            status, prediction, confidence, agreement = (
+                "ABSTAIN_OOD_RELATION", None, None, None
+            )
+        elif query_feature_keys - support_feature_keys or query_context_keys - support_context_keys:
+            status, prediction, confidence, agreement = (
+                "ABSTAIN_OOD_SCHEMA", None, None, None
+            )
+        elif any(
+            key not in attrs for key in support_feature_keys
+            for attrs in participant_attributes
+            if key in {rule.feature_key for rule in candidates}
+        ):
+            status, prediction, confidence, agreement = (
+                "ABSTAIN_OOD_SCHEMA", None, None, None
+            )
+        elif any(
+            value not in self._support_feature_values.get(key, set())
+            for attrs in participant_attributes for key, value in attrs.items()
+            if key in support_feature_keys
+        ) or any(
+            value not in self._support_context_values.get(key, set())
+            for key, value in row["context"].items()
+        ):
+            status, prediction, confidence, agreement = (
+                "ABSTAIN_OOD_VALUE", None, None, None
+            )
+        elif not candidates:
             status, prediction, confidence, agreement = (
                 "ABSTAIN_INCONSISTENT", None, None, None
             )
