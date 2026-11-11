@@ -88,3 +88,5 @@ Next:
    prior candidates or silently treating missing evidence as contradiction.
 5. Only after defining priors and observation likelihoods, add posterior
    candidate updates and calibrated EIG.
+
+Implementation note: the initial test-import escaping defect was corrected on the research branch; current-head CI is required to validate the corrected tree.
