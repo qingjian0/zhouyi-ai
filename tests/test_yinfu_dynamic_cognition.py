@@ -172,6 +172,19 @@ class YinfuDynamicCognitionTests(unittest.TestCase):
             ),
             ("active", 0),
         )
+        self.assertEqual(
+            advance_relation_lifecycle(
+                "active", gate_accuracy=0.7, counterexample_rate=0.1
+            ),
+            ("active", 0),
+        )
+        self.assertEqual(
+            advance_relation_lifecycle(
+                "decaying", gate_accuracy=0.7, counterexample_rate=0.1,
+                consecutive_failures=1,
+            ),
+            ("active", 0),
+        )
 
 
 if __name__ == "__main__":
