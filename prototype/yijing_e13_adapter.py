@@ -49,6 +49,13 @@ def to_e13(state: RelationalState) -> E13Envelope:
     signatures: dict[str, tuple[str, str]] = {}
     attribute_keys: dict[str, set[str]] = {}
     for relation in state.relations:
+        attribute_names = [key for key, _ in relation.attributes]
+        if (
+            any(not isinstance(key, str) or not key for key in attribute_names)
+            or any(not isinstance(value, str) for _, value in relation.attributes)
+            or len(attribute_names) != len(set(attribute_names))
+        ):
+            raise RelationalMappingError("relation attributes must have unique non-empty string keys and string values")
         source = node_by_id[relation.source]
         target = node_by_id[relation.target]
         signature = (source.entity_type, target.entity_type)
@@ -92,6 +99,11 @@ def to_e13(state: RelationalState) -> E13Envelope:
         for index, relation in enumerate(state.relations)
     )
     graph = RelationalGraph(entities, schemas, instances)
+    if any(
+        not isinstance(key, str) or not key or not isinstance(value, str)
+        for key, value in state.context
+    ):
+        raise RelationalMappingError("global state context must use non-empty string keys and string values")
     return E13Envelope(graph=graph, state_context=state.context)
 
 
@@ -100,18 +112,16 @@ def from_e13(envelope: E13Envelope) -> RelationalState:
     if envelope.adapter_version != ADAPTER_VERSION:
         raise RelationalMappingError("unsupported adapter version")
     graph = envelope.graph
-    roles: dict[str, str] = {}
     nodes = []
     for entity in graph.entities:
         attributes = dict(entity.attributes)
-        if set(attributes) != {_ROLE_KEY}:
+        if len(entity.attributes) != 1 or set(attributes) != {_ROLE_KEY}:
             raise RelationalMappingError(
                 "entity attributes must contain exactly one preserved YJ role"
             )
         role = attributes[_ROLE_KEY]
         if not role:
             raise RelationalMappingError("YJ role cannot be empty")
-        roles[entity.entity_id] = role
         nodes.append(Node(entity.entity_id, entity.entity_type, role))
 
     schema_map = {schema.relation_type: schema for schema in graph.schemas}
@@ -127,7 +137,12 @@ def from_e13(envelope: E13Envelope) -> RelationalState:
             )
 
     relations = []
+    observed_attribute_keys: dict[str, set[str]] = {}
     for instance in graph.relations:
+        if instance.evidence_status != EvidenceStatus.UNKNOWN or instance.provenance_refs:
+            raise RelationalMappingError(
+                "YJ-04 has no equivalent relation evidence-status or provenance fields"
+            )
         schema = schema_map.get(instance.relation_type)
         if schema is None or len(instance.participants) != 2:
             raise RelationalMappingError("missing or unsupported relation schema")
@@ -141,6 +156,9 @@ def from_e13(envelope: E13Envelope) -> RelationalState:
             if not attribute_key:
                 raise RelationalMappingError("empty relation attribute key")
             attributes.append((attribute_key, value))
+        observed_attribute_keys.setdefault(instance.relation_type, set()).update(
+            key for key, _ in attributes
+        )
         relations.append(Relation(
             source=instance.participants[0],
             target=instance.participants[1],
@@ -148,6 +166,23 @@ def from_e13(envelope: E13Envelope) -> RelationalState:
             attributes=tuple(sorted(attributes)),
         ))
 
+    for relation_type, schema in schema_map.items():
+        expected = set(schema.context_keys)
+        observed = {
+            _ATTRIBUTE_PREFIX + key
+            for key in observed_attribute_keys.get(relation_type, set())
+        }
+        if expected != observed:
+            raise RelationalMappingError(
+                "schema declares relation attributes not represented by instances"
+            )
+    if tuple(sorted(envelope.state_context)) != envelope.state_context:
+        raise RelationalMappingError("global state context must be canonically sorted")
+    if any(
+        not isinstance(key, str) or not key or not isinstance(value, str)
+        for key, value in envelope.state_context
+    ):
+        raise RelationalMappingError("global state context must use non-empty string keys and string values")
     try:
         return RelationalState(
             nodes=tuple(sorted(nodes)),
