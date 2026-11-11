@@ -80,8 +80,10 @@ def propose_bridge(
     role_maps = tuple(RoleMap(*item) for item in roles)
     context_maps = tuple(ContextMap(*item) for item in contexts)
     _unique_mapping(((x.source, x.target) for x in type_maps), "entity type map", allow_many_to_one)
-    _unique_mapping(((x.source, x.target) for x in relation_maps), "relation map", allow_many_to_one)
-    _unique_mapping(((x.source_key, x.target_key) for x in context_maps), "context map", allow_many_to_one)
+    # Many-to-one abstraction is meaningful for entity types only. Relation and
+    # context correspondences remain injective to avoid collapsing distinct dynamics.
+    _unique_mapping(((x.source, x.target) for x in relation_maps), "relation map", False)
+    _unique_mapping(((x.source_key, x.target_key) for x in context_maps), "context map", False)
     role_keys = [(x.source_relation, x.source_role) for x in role_maps]
     if len(set(role_keys)) != len(role_keys):
         raise ContractError("each source relation role may be mapped only once")
