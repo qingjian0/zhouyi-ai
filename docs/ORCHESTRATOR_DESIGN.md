@@ -12,10 +12,10 @@ Add an external research-and-engineering scheduler without changing the CPG-EI r
 - Safe handler registry: no arbitrary shell execution and no implicit repository write access.
 
 ## Execution contract
-Each task has task_id, handler, optional depends_on, payload, and max_retries. A task becomes eligible only after all dependencies succeed. Failed dependencies block descendants. Checkpoints are atomically replaced after state transitions.
+Each task has task_id, handler, optional depends_on, payload, and max_retries. A task becomes eligible only after all dependencies succeed. Failed dependencies block descendants. Checkpoints are atomically replaced after state transitions. Task payloads and results must be JSON-serializable.
 
-## Resume semantics
-A checkpoint is accepted only when its task IDs match the current manifest. Tasks left running at interruption return to pending; completed tasks remain completed. Use a fresh checkpoint when intentionally changing a manifest.
+## Resume and delivery semantics
+A checkpoint is accepted only when its version and task IDs match the current manifest. Tasks left running at interruption return to pending; completed tasks remain completed. Failed and blocked tasks remain terminal on resume. Use a fresh checkpoint when intentionally changing a manifest. Recovery is **at-least-once**, not exactly-once: a handler may have performed an external side effect before interruption. Therefore, handlers must be idempotent (for example, use task_id as an idempotency key) or explicitly reconcile their side effects before retrying.
 
 ## Security boundaries
 No eval, arbitrary shell commands, or dynamic imports. Handlers receive a copy of their JSON payload. Repository modifications require later branch-scoped adapters. Secrets must never be stored in manifests or checkpoints.
