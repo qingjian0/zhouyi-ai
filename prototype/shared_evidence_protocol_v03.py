@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Iterable, Sequence
 
-from prototype.e12a6_lifecycle_contract import ActionType, Candidate, CandidateState, SplitRole, _TRANSITIONS
+from prototype.e12a6_lifecycle_contract import Action, ActionType, Candidate, CandidateState, Evidence, SplitRole, _TRANSITIONS
 from prototype.shared_evidence_protocol import (
     EVENT_TYPES as V02_EVENT_TYPES,
     PROTOCOL_VERSION as V02_PROTOCOL_VERSION,
@@ -93,6 +93,52 @@ def _candidate_from_definition(
         raise ProtocolError(f"invalid typed candidate definition: {exc}") from exc
 
 
+
+EVIDENCE_DEFINITION_SCHEMA = "evidence_definition@1"
+
+
+def evidence_definition_payload(evidence: Evidence) -> dict[str, Any]:
+    """Serialize E12 evidence attributes not derivable from event causality."""
+    return {
+        "schema": EVIDENCE_DEFINITION_SCHEMA,
+        "world_family": evidence.world_family,
+        "outcome": evidence.outcome,
+        "model_version": evidence.model_version,
+        "measurement_cost": evidence.measurement_cost,
+        "provenance": evidence.provenance,
+    }
+
+
+def _evidence_from_definition(
+    *, evidence_id: str, episode_id: str, split_role: str, observation_id: str,
+    definition: dict[str, Any], prediction_commit_step: int | None,
+    label_visibility_step: int | None,
+) -> Evidence:
+    if definition.get("schema") != EVIDENCE_DEFINITION_SCHEMA:
+        raise ProtocolError("unsupported evidence definition schema")
+    required = {"world_family", "outcome", "model_version"}
+    if not required.issubset(definition):
+        raise ProtocolError(
+            f"evidence definition missing fields: {sorted(required - definition.keys())}"
+        )
+    for field in ("world_family", "outcome", "model_version"):
+        if not isinstance(definition[field], str) or not definition[field].strip():
+            raise ProtocolError(f"evidence definition {field} must be non-empty")
+    try:
+        return Evidence(
+            evidence_id=evidence_id, episode_id=episode_id,
+            world_family=definition["world_family"],
+            split_role=SplitRole(split_role), observation_id=observation_id,
+            outcome=definition["outcome"], model_version=definition["model_version"],
+            measurement_cost=definition.get("measurement_cost", 0.0),
+            prediction_commit_step=prediction_commit_step,
+            label_visibility_step=label_visibility_step,
+            provenance=definition.get("provenance", ""),
+        )
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ProtocolError(f"invalid typed E12 evidence definition: {exc}") from exc
+
+
 PROTOCOL_VERSION = "0.3"
 EVENT_TYPES = V02_EVENT_TYPES | {"evidence_ingest", "lifecycle_action"}
 SPLIT_ROLES = {role.value for role in SplitRole}
@@ -137,6 +183,8 @@ class EpisodeProjection:
     structures: dict[str, dict[str, Any]]
     candidates: dict[str, dict[str, Any]]
     candidate_objects: dict[str, Candidate]
+    evidence_objects: dict[str, Evidence]
+    action_objects: tuple[Action, ...]
     actions: tuple[dict[str, Any], ...]
     revisions: dict[str, dict[str, Any]]
 
@@ -148,6 +196,8 @@ class EpisodeProjection:
             "evidence": {k: self.evidence[k] for k in sorted(self.evidence)},
             "structures": {k: self.structures[k] for k in sorted(self.structures)},
             "candidates": {k: self.candidates[k] for k in sorted(self.candidates)},
+            "evidence_objects": {k: _evidence_to_payload(self.evidence_objects[k]) for k in sorted(self.evidence_objects)},
+            "action_objects": [_action_to_payload(a) for a in self.action_objects],
             "actions": list(self.actions),
             "revisions": {k: self.revisions[k] for k in sorted(self.revisions)},
         }
@@ -155,6 +205,28 @@ class EpisodeProjection:
     @property
     def digest(self) -> str:
         return digest_payload(self.to_dict())
+
+
+
+def _evidence_to_payload(item: Evidence) -> dict[str, Any]:
+    return {
+        "evidence_id": item.evidence_id, "episode_id": item.episode_id,
+        "world_family": item.world_family, "split_role": item.split_role.value,
+        "observation_id": item.observation_id, "outcome": item.outcome,
+        "model_version": item.model_version, "measurement_cost": item.measurement_cost,
+        "prediction_commit_step": item.prediction_commit_step,
+        "label_visibility_step": item.label_visibility_step, "provenance": item.provenance,
+    }
+
+
+def _action_to_payload(item: Action) -> dict[str, Any]:
+    return {
+        "action_id": item.action_id, "action_type": item.action_type.value,
+        "candidate_id": item.candidate_id, "candidate_version": item.candidate_version,
+        "evidence_ids": list(item.evidence_ids), "cost": item.cost,
+        "from_state": item.from_state.value if item.from_state else None,
+        "to_state": item.to_state.value if item.to_state else None, "note": item.note,
+    }
 
 
 class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
@@ -230,6 +302,16 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                 raise ProtocolError("evidence_ingest requires source provenance")
             if not isinstance(payload["outcome_ref"], str) or not payload["outcome_ref"].strip():
                 raise ProtocolError("evidence_ingest outcome_ref must be a non-empty immutable reference")
+            typed_definition = payload.get("evidence_definition")
+            if typed_definition is not None:
+                if not isinstance(typed_definition, dict):
+                    raise ProtocolError("evidence_definition must be an object")
+                _evidence_from_definition(
+                    evidence_id=payload["evidence_id"], episode_id=episode_id,
+                    split_role=payload["split_role"], observation_id="validation-observation",
+                    definition=typed_definition, prediction_commit_step=None,
+                    label_visibility_step=None,
+                )
             if self._event_by_payload_id(episode_id, "evidence_ingest", "evidence_id", payload["evidence_id"]):
                 raise ProtocolError("duplicate evidence_id in episode")
             observation_ref = payload.get("observation_ref")
@@ -238,6 +320,21 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
             observation = self._event_by_id(episode_id, observation_ref)
             if observation is None or observation["event_type"] != "observation":
                 raise MissingReference("evidence_ingest observation_ref must reference a prior observation")
+        elif event_type == "evidence_reveal":
+            typed_definition = payload.get("evidence_definition")
+            if typed_definition is not None:
+                if not isinstance(typed_definition, dict):
+                    raise ProtocolError("evidence_definition must be an object")
+                if typed_definition.get("schema") != EVIDENCE_DEFINITION_SCHEMA:
+                    raise ProtocolError("unsupported evidence definition schema")
+                for field in ("world_family", "outcome"):
+                    if not isinstance(typed_definition.get(field), str) or not typed_definition[field].strip():
+                        raise ProtocolError(f"evidence definition {field} must be non-empty")
+                cost = typed_definition.get("measurement_cost", 0.0)
+                if isinstance(cost, bool) or not isinstance(cost, (int, float)) or not math.isfinite(float(cost)) or cost < 0:
+                    raise ProtocolError("evidence definition measurement_cost must be finite and non-negative")
+                if not isinstance(typed_definition.get("provenance", ""), str):
+                    raise ProtocolError("evidence definition provenance must be a string")
         elif event_type == "lifecycle_action":
             required = {
                 "action_id", "action_type", "candidate_id", "candidate_version",
@@ -539,6 +636,7 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                 "FROM events WHERE episode_id=? ORDER BY sequence_no", (episode_id,),
             ).fetchall()
         observations, predictions, evidence = {}, {}, {}
+        evidence_objects = {}
         structures, candidates, revisions = {}, {}, {}
         actions, action_ids, event_ids = [], set(), set()
         previous_sequence = 0
@@ -598,6 +696,18 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                     "observation_id": prediction["observation_id"],
                     "outcome_ref": digest_payload(payload.get("target_or_feedback")),
                 }
+                definition = payload.get("evidence_definition")
+                if definition is not None:
+                    commit_step = prediction["sequence_no"]
+                    evidence_objects[event_id] = _evidence_from_definition(
+                        evidence_id=event_id, episode_id=episode_id,
+                        split_role=payload["split_role"],
+                        observation_id=prediction["observation_id"],
+                        definition=definition, prediction_commit_step=commit_step,
+                        label_visibility_step=sequence,
+                    )
+                    if definition["outcome"] != canonical_json(payload.get("target_or_feedback")) and definition["outcome"] != payload.get("target_or_feedback"):
+                        raise ProtocolError("typed evidence outcome must match the revealed target/feedback")
             elif event_type == "evidence_ingest":
                 eid, observation_ref = payload.get("evidence_id"), payload.get("observation_ref")
                 observation = next((v for v in observations.values() if v["event_id"] == observation_ref), None)
@@ -611,6 +721,14 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                     "observation_ref": observation_ref, "outcome_ref": payload.get("outcome_ref"),
                     "source_provenance": payload.get("source_provenance"),
                 }
+                definition = payload.get("evidence_definition")
+                if definition is not None:
+                    evidence_objects[eid] = _evidence_from_definition(
+                        evidence_id=eid, episode_id=episode_id,
+                        split_role=payload["split_role"], observation_id=observation["observation_id"],
+                        definition=definition, prediction_commit_step=None,
+                        label_visibility_step=None,
+                    )
             elif event_type == "structure_version":
                 vid = payload.get("version_id")
                 if not isinstance(vid, str) or not vid or vid in structures:
@@ -731,10 +849,23 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                     state=CandidateState(item["state"]),
                 )
 
+        action_objects = tuple(
+            Action(
+                action_id=item["action_id"], action_type=ActionType(item["action_type"]),
+                candidate_id=(item["candidate_key"].rsplit("@", 1)[0] if item["candidate_key"] else None),
+                candidate_version=(int(item["candidate_key"].rsplit("@", 1)[1]) if item["candidate_key"] else None),
+                evidence_ids=tuple(item["evidence_ids"]), cost=item["cost"],
+                from_state=CandidateState(item["from_state"]) if item["from_state"] else None,
+                to_state=CandidateState(item["to_state"]) if item["to_state"] else None,
+                note=item["note"],
+            )
+            for item in actions
+        )
         return EpisodeProjection(
             episode_id=episode_id, last_sequence=previous_sequence,
             observations=observations, predictions=predictions, evidence=evidence,
             structures=structures, candidates=candidates, candidate_objects=candidate_objects,
+            evidence_objects=evidence_objects, action_objects=action_objects,
             actions=tuple(actions), revisions=revisions,
         )
 
