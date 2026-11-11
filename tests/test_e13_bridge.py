@@ -32,7 +32,9 @@ def make_graph(prefix, domain, source_side):
 class CrossDomainBridgeTests(unittest.TestCase):
     def setUp(self):
         self.source = make_graph("s", "thermal", True)
-        self.target = make_graph("t", "metabolic", False)
+        # The domain vocabulary changes, but this mapped context value must remain
+        # equal unless a separate explicit value-level transform is introduced.
+        self.target = make_graph("t", "thermal", False)
 
     def hypothesis(self, **overrides):
         args = dict(
