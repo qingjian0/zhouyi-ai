@@ -202,7 +202,10 @@ class BudgetedMeasurementExecutor:
             if not math.isfinite(actual_cost) or actual_cost < 0 or actual_cost > request.max_cost:
                 raise ValueError("actual cost violates request ceiling")
             if actual_cost > self.remaining_budget:
-                return self._receipt(request, MeasurementStatus.BUDGET_EXHAUSTED, None, 0.0)
+                # The protocol already ran: account for the entire remaining
+                # allocation so a later request cannot reuse spent budget.
+                self.remaining_budget = 0.0
+                return self._receipt(request, MeasurementStatus.BUDGET_EXHAUSTED, None, actual_cost)
             self.remaining_budget -= actual_cost
             status = MeasurementStatus.NO_DISCRIMINATING_MEASUREMENT if outcome == "NO_DISCRIMINATION" else MeasurementStatus.SELECT
             return self._receipt(request, status, None if status != MeasurementStatus.SELECT else outcome, actual_cost)
