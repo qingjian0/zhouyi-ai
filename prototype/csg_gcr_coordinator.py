@@ -162,8 +162,9 @@ class CandidateCoordinator:
             for item in (*selected, candidate):
                 for key, value in item.bindings:
                     previous = bindings.get(key)
-                    if previous is not None and previous != value:
+                    if key in bindings and bindings[key] != value:
                         return False
+                    bindings[key] = value
             return True
 
         def emit(selected: tuple[CandidateProposal, ...], total_cost: int) -> None:
@@ -174,7 +175,10 @@ class CandidateCoordinator:
                 return
             merged: dict[str, str] = {}
             for item in selected:
-                merged.update(item.bindings)
+                for key, value in item.bindings:
+                    if key in merged and merged[key] != value:
+                        return
+                    merged[key] = value
             if any(merged.get(key) != value
                    for key, value in constraints.required_bindings):
                 return
@@ -186,13 +190,19 @@ class CandidateCoordinator:
             evidence = tuple(sorted({
                 ref for item in selected for ref in item.evidence_refs
             }))
+            try:
+                combined_score = math.fsum(item.score for item in selected)
+            except OverflowError as exc:
+                raise CoordinationError("combined score overflowed") from exc
+            if not math.isfinite(combined_score):
+                raise CoordinationError("combined score must be finite")
             candidate = CoordinatedCandidate(
                 parent_state_ref=selected[0].parent_state_ref,
                 proposal_ids=proposal_ids,
                 branch_ids=branches,
                 bindings=tuple(sorted(merged.items())),
                 evidence_refs=evidence,
-                score=math.fsum(item.score for item in selected),
+                score=combined_score,
                 cost=total_cost,
             )
             results[proposal_ids] = candidate
