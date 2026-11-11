@@ -1,4 +1,4 @@
-"""Agent collaboration contracts and provider interfaces."""
+"""Agent collaboration contracts, provider interfaces, and artifact storage."""
 from .protocol import AgentArtifact, AgentRegistry, AgentRequest, AgentResult, EvidenceRef
 from .provider import (
     AgentProvider,
@@ -7,9 +7,10 @@ from .provider import (
     ProviderResponse,
     invoke_provider,
 )
+from .artifact_store import ArtifactRef, ArtifactStore, FileArtifactStore
 
 __all__ = [
     "AgentArtifact", "AgentRegistry", "AgentRequest", "AgentResult", "EvidenceRef",
     "AgentProvider", "ProviderBudget", "ProviderRequest", "ProviderResponse",
-    "invoke_provider",
+    "invoke_provider", "ArtifactRef", "ArtifactStore", "FileArtifactStore",
 ]
