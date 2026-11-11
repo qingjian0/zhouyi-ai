@@ -33,11 +33,12 @@ YJ-01～04 分别建立易学结构算子契约、确定性参考算子、类型
 
 ## 4. 防止数据泄漏
 
-- DISCOVERY evidence ID 不能进入 VALIDATION 或 TEST；
+- evidence ID 由全局 ledger 管理，不能跨 DISCOVERY / VALIDATION / TEST / ACTIVE_INTERVENTION 重用；
 - 每个 evaluation split 内 evidence ID 不能重复使用；
 - TEST 结果不能调用 validate，也不能改变候选生命周期；
 - 主动实验必须先 commit query，再 reveal outcome；
-- 反例进入持久候选记录，候选被暂停而不是被静默抹除；
+- 反例进入候选记录，候选被暂停而不是被静默抹除；
+- 同一结构候选可跨发现批次累积证据；候选版本递增，验证指标失效并要求重新验证；
 - 当前内存态 coordinator 只用于协议原型；跨进程防篡改、锁定测试隔离和持久事件存储仍需后续实现。
 
 ## 5. 与现有研究线的关系
