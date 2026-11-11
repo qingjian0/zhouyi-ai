@@ -87,7 +87,8 @@ def _require_text(value: str, field: str) -> None:
 
 
 def derive_structural_role_features(
-    nodes: tuple[Node, ...], edges: tuple[Edge, ...], *, rounds: int = 2
+    nodes: tuple[Node, ...], edges: tuple[Edge, ...], *, rounds: int = 2,
+    node_ids: tuple[str, ...] | None = None,
 ) -> dict[str, tuple[str, ...]]:
     """Infer ID- and surface-type-independent roles by relational color refinement.
 
@@ -97,7 +98,13 @@ def derive_structural_role_features(
     """
     if rounds < 0:
         raise DiscoveryError("role refinement rounds cannot be negative")
-    supplied = [bool(node.role_features) for node in nodes]
+    selected = set(node_ids) if node_ids is not None else {n.node_id for n in nodes}
+    active_nodes = tuple(node for node in nodes if node.node_id in selected)
+    active_edges = tuple(edge for edge in edges
+                         if edge.source in selected and edge.target in selected)
+    if len(active_nodes) != len(selected) or len(active_nodes) < 1:
+        raise DiscoveryError("role refinement node selection is invalid")
+    supplied = [bool(node.role_features) for node in active_nodes]
     if any(supplied) and not all(supplied):
         raise DiscoveryError("role_features must be supplied for all nodes or none")
     labels = {
@@ -105,18 +112,18 @@ def derive_structural_role_features(
             sorted(node.role_features) if all(supplied) else ["untyped"],
             ensure_ascii=False, separators=(",", ":"),
         )
-        for node in nodes
+        for node in active_nodes
     }
     for _ in range(rounds):
         updated: dict[str, str] = {}
         for node in nodes:
             incoming = sorted(
                 (edge.relation_family, labels[edge.source])
-                for edge in edges if edge.target == node.node_id
+                for edge in active_edges if edge.target == node.node_id
             )
             outgoing = sorted(
                 (edge.relation_family, labels[edge.target])
-                for edge in edges if edge.source == node.node_id
+                for edge in active_edges if edge.source == node.node_id
             )
             payload = {
                 "self": labels[node.node_id],
@@ -132,7 +139,7 @@ def derive_structural_role_features(
     return {
         node.node_id: tuple(sorted(node.role_features or ("untyped",)))
         + ("wl:" + labels[node.node_id],)
-        for node in nodes
+        for node in active_nodes
     }
 
 
@@ -140,7 +147,7 @@ def _canonical_motif(nodes: tuple[Node, ...], edges: tuple[Edge, ...],
                      subset: tuple[str, ...]) -> tuple[str, tuple[str, ...], bool]:
     """Return an ID-invariant signature and IDs ordered by canonical role."""
     by_id = {node.node_id: node for node in nodes}
-    inferred_roles = derive_structural_role_features(nodes, edges)
+    inferred_roles = derive_structural_role_features(nodes, edges, node_ids=subset)
     selected = set(subset)
     edge_labels = [
         (edge.source, edge.target, edge.relation_family)
