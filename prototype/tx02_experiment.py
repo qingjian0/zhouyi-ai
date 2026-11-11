@@ -191,19 +191,25 @@ def run_condition(cardinality: int, support_size: int, seed: int,
             budget={"epochs": epochs}, seed=seed,
         )
         train_seconds = time.perf_counter() - started
-        validation_probs, validation_targets = _collect_probabilities(learner, splits.validation)
+        validation_probs, validation_targets = _collect_probabilities(
+            learner, splits.validation_selection
+        )
         validation_metrics = probability_metrics(validation_probs, validation_targets)
+        calibration_probs, calibration_targets = _collect_probabilities(
+            learner, splits.validation_calibration
+        )
+        calibration_metrics = probability_metrics(calibration_probs, calibration_targets)
         episode_macs = estimate_forward_macs(
             family, cardinality, selected_hidden_size, support_size, 2, cardinality, 6
         )
         threshold = choose_abstention_threshold(
-            validation_probs, validation_targets, max_selective_risk
+            calibration_probs, calibration_targets, max_selective_risk
         )
-        validation_episode_probs, validation_episode_targets = _collect_episode_probabilities(
-            learner, splits.validation
+        calibration_episode_probs, calibration_episode_targets = _collect_episode_probabilities(
+            learner, splits.validation_calibration
         )
         episode_threshold = choose_episode_abstention_threshold(
-            validation_episode_probs, validation_episode_targets, max_selective_risk
+            calibration_episode_probs, calibration_episode_targets, max_selective_risk
         )
         validation_selection_metrics[family] = {
             "accuracy": validation_metrics["accuracy"],
@@ -310,6 +316,8 @@ def run_condition(cardinality: int, support_size: int, seed: int,
             ),
             "estimated_training_forward_macs": len(splits.train) * epochs * episode_macs,
             "train_seconds": record["train_seconds"],
+            "validation_selection_probability_metrics": record["validation_metrics"],
+            "validation_calibration_probability_metrics": record["calibration_metrics"],
             "validation_probability_metrics": record["validation_metrics"],
             "validation_abstention_calibration": record["validation_abstention"],
             "locked_test_probability_metrics": test_probability_metrics,
@@ -332,6 +340,8 @@ def run_condition(cardinality: int, support_size: int, seed: int,
         "rule_counts": {key: len(value) for key, value in splits.rule_families.items()},
         "episode_counts": {
             "train": len(splits.train), "validation": len(splits.validation),
+            "validation_selection": len(splits.validation_selection),
+            "validation_calibration": len(splits.validation_calibration),
             "locked_test": len(splits.locked_test),
         },
         "families": family_results,
