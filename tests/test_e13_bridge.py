@@ -40,8 +40,8 @@ class CrossDomainBridgeTests(unittest.TestCase):
         args = dict(
             entity_types=(("heat_source", "bio_supplier"), ("receiver", "consumer")),
             relations=(("transfers_heat", "transfers_energy"),),
-            roles=(("transfers_heat", "donor", "provider"),
-                   ("transfers_heat", "recipient", "recipient")),
+            roles=(("transfers_heat", "transfers_energy", "donor", "provider"),
+                   ("transfers_heat", "transfers_energy", "recipient", "recipient")),
             contexts=(("domain", "field"),),
             provenance="human-authored mapping proposal v1",
             rationale="test whether a directed transfer pattern can be structurally aligned",
@@ -64,8 +64,8 @@ class CrossDomainBridgeTests(unittest.TestCase):
         self.assertIn("UNMAPPED_OR_EXTRA_SOURCE_RELATION", result.reasons)
 
     def test_direction_or_role_swap_is_rejected(self):
-        h = self.hypothesis(roles=(("transfers_heat", "donor", "recipient"),
-                                  ("transfers_heat", "recipient", "provider")))
+        h = self.hypothesis(roles=(("transfers_heat", "transfers_energy", "donor", "recipient"),
+                                  ("transfers_heat", "transfers_energy", "recipient", "provider")))
         result = validate_bridge(self.source, self.target, h)
         self.assertEqual(result.status, "REJECTED")
         self.assertTrue(any(
