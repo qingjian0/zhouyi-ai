@@ -41,6 +41,7 @@
 - [TX-02 多状态表示竞争与自主选择基准](docs/TX02_MULTISTATE_REPRESENTATION_BENCHMARK.md)
 - [TX-02B / TX-02C 跨 Episode 学习器、公平对照与可辨识性协议](docs/TX02B_LEARNER_IDENTIFIABILITY_PROTOCOL.md)
 - [TX-02D 计算预算、校准与拒绝预测协议](docs/TX02D_COMPUTE_AND_SELECTIVE_PREDICTION.md)
+  - TX-02D-1 已接入 Runner：MAC 匹配、概率校准、Validation-only 拒绝阈值、risk-coverage 曲线和自适应表示选择。
 - [TX-02D 计算与可信度量原型](prototype/tx02_compute.py)
 - [TX-02B-4 多状态表示与 support 难度实验驱动](prototype/tx02_experiment.py)
 - [TX-02B-2 规则族隔离切分原型](prototype/tx02_splits.py)
