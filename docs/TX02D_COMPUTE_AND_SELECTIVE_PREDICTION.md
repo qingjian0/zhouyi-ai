@@ -31,3 +31,8 @@ choose_abstention_threshold 在 validation 概率和标签上选择满足经验 
 ## 当前边界
 
 这是 TX-02D 的计算账本和校准工具基础，尚未接入完整实验 runner，也没有实现 validation 驱动的表示选择器。尚无任何表示优劣结论。
+
+
+## Validation-only representation arbitration
+
+The module also provides select_representation(). It consumes only per-family validation metrics and deterministically ranks by higher validation accuracy, lower NLL, lower forward-MAC estimate, lower parameter count, then family name. The selector must run before any locked-test labels are inspected. This is a baseline arbitration policy, not a learned meta-controller; its selection can overfit a small validation set and should be evaluated across independent outer seeds or nested splits.
