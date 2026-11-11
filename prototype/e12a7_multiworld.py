@@ -64,7 +64,7 @@ class SyntheticWorld:
         else:
             raise ValueError(f"unknown mechanism: {self.mechanism}")
 
-        noisy = self.noise_every > 0 and (x + context + time) % self.noise_every == 0
+        noisy = self.noise_every > 0 and (x + context + time + 1) % self.noise_every == 0
         if noisy:
             y = (y + 1) % 3
         missing = self.missing_every > 0 and (x + 2 * context + time) % self.missing_every == 0
