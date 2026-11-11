@@ -132,3 +132,41 @@ Interpretation is intentionally narrow:
 - YF-10 shows a positive regret gap for the local greedy baseline on the generated graphs, but exhaustive search is an oracle with full graph knowledge and is not compute-matched.
 
 The benchmark used five seeds only. Treat these numbers as a smoke-test snapshot, not a confirmatory study or evidence of Yinfu/Yijing-specific benefit. Next validation must expand seeds, vary signal-to-noise and generator families, add permuted controls, and compare planning under equal node-expansion budgets.
+
+
+## YF-11 — Sparse high-order relation discovery
+
+Prototype: `discover_compositional_relations` and `validate_compositional_relations`.
+
+This slice extends pairwise class-symbol generation into bounded conjunctions over feature subsets of order 2–4. It explicitly enumerates subsets, not only contiguous windows: from `(a,b,c,d,e)`, the grammar can propose `(a,b,c,e)` and omit `d`. Each literal uses a Support-only median threshold and one of two directions. Candidate budgets are distributed round-robin across interaction orders so pairwise candidates cannot starve higher-order candidates.
+
+The protocol is two-stage:
+1. Support proposes and ranks candidates.
+2. A separate Gate episode evaluates only the selected candidates. Insufficient class support causes abstention; Gate evidence, not Support score, controls promotion.
+
+This remains a deliberately narrow conjunction grammar. It does not discover arbitrary programs, latent variables, causal mechanisms, or relations outside the supplied feature vocabulary. Median thresholds and conjunctions are inductive biases, not classical truth.
+
+Required next validation:
+- split by generator family and episode, not rows;
+- add irrelevant and adversarial nuisance features;
+- test XOR, parity, modular, continuous multiplicative, and compositional rules outside the conjunction grammar;
+- compare pairwise-only, high-order conjunction, sparse linear, decision-tree, random-symbolic, and capacity-matched controls;
+- report candidate count, order coverage, search cost, Gate promotion precision, abstention, and confidence intervals;
+- lock a final test set after Gate selection to prevent repeated Gate tuning.
+
+## YF-12 — Evidence-governed relation lifecycle
+
+Prototype: `advance_relation_lifecycle`.
+
+A relation can move through `proposed → active → decaying → retired`. Promotion requires Gate accuracy and a bounded counterexample rate. A failed active relation first decays; repeated independent failures retire it. Missing evidence leaves its state unchanged, and a retired relation cannot silently reactivate. Reconsideration should create a new version with fresh provenance rather than erase the historical failure.
+
+The current function is a deterministic state-transition policy, not a learned memory system. Its thresholds are configuration parameters that must be fixed before evaluation. A production implementation still needs immutable candidate IDs, evidence provenance, temporal decay, duplicate/lineage handling, versioned thresholds, and an audit log of counterexamples.
+
+## YF-11/YF-12 current test boundary
+
+The unit tests cover:
+- a four-way conjunction over non-contiguous features `a,b,c,e`, explicitly skipping `d`;
+- independent Gate promotion and rejection/abstention behavior;
+- relation lifecycle promotion, decay, retirement, and missing-evidence stability.
+
+These are correctness tests on controlled finite examples. They do not establish open-world concept discovery or a performance advantage over neural or statistical baselines.
