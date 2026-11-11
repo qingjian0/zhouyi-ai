@@ -42,6 +42,42 @@ def choose_hidden_size_for_compute_budget(family: str, cardinality: int,
         raise ValueError(f"compute budget {target_forward_macs} is below minimum {unit}")
     return hidden, hidden * unit
 
+def select_representation(validation_results: dict[str, dict]) -> dict:
+    """Select one family using validation-only metrics and deterministic tie breaks.
+
+    Required fields per family: accuracy, nll, forward_macs, parameter_count.
+    Locked-test metrics must never be supplied here.
+    """
+    if not validation_results:
+        raise ValueError("validation_results must not be empty")
+    ranked = []
+    for family, metrics in validation_results.items():
+        try:
+            accuracy = float(metrics["accuracy"])
+            nll = float(metrics["nll"])
+            macs = int(metrics["forward_macs"])
+            params = int(metrics["parameter_count"])
+        except (KeyError, TypeError, ValueError) as exc:
+            raise ValueError(f"invalid validation metrics for {family}") from exc
+        if (not math.isfinite(accuracy) or not 0.0 <= accuracy <= 1.0
+                or not math.isfinite(nll) or nll < 0.0 or macs < 0 or params < 0):
+            raise ValueError(f"out-of-range validation metrics for {family}")
+        ranked.append(( -accuracy, nll, macs, params, str(family)))
+    ranked.sort()
+    winner = ranked[0]
+    return {
+        "selected_family": winner[4],
+        "selection_source": "validation_only",
+        "tie_break_order": ["higher_accuracy", "lower_nll", "lower_forward_macs",
+                            "lower_parameter_count", "lexicographic_family"],
+        "validation_rank": [
+            {"family": row[4], "accuracy": -row[0], "nll": row[1],
+             "forward_macs": row[2], "parameter_count": row[3]}
+            for row in ranked
+        ],
+    }
+
+
 def probability_metrics(probability_rows: Sequence[Sequence[float]],
                         targets: Sequence[int], bins: int = 10) -> dict:
     """Multiclass NLL/Brier and fixed-width top-label ECE."""
