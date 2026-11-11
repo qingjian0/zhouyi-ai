@@ -52,8 +52,6 @@ worlds.
 
 ## Next gate
 
-After execution in a CI-enabled environment, add shortest distinguishing
-action-sequence witnesses for non-equivalent state pairs, then define the
-learner-visible evidence contract for held-out MERGE / SPLIT / UNRESOLVED
-decisions. Do not train the representation selector before those boundaries
-are frozen.
+After execution in a CI-enabled environment, validate shortest distinguishing
+action-sequence witness traces against independently simulated outcomes. The
+learner-visible evidence contract and deterministic XRA-1c decision helper now exist; task-manifest validation and E12-A8 integration remain open. Do not train the representation selector before those boundaries are frozen.
