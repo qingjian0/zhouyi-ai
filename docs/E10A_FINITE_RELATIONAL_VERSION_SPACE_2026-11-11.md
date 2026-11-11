@@ -173,3 +173,18 @@ The next dynamic-learning experiment must distinguish two cases that currently c
 A future expansion arm may regenerate a bounded candidate universe from authorized revealed evidence, but it must be separately versioned and audited. It must not silently erase old evidence or reinterpret contradictions as drift. Required controls: frozen universe, incremental filtering, bounded expansion, explicit drift declaration, and evaluator-only oracle. Measure candidate-universe growth, version-space changes, prediction coverage, selective/strict accuracy, abstention, and compute cost. Include a no-drift control to quantify false structure expansion.
 
 The full repository workflow on the above code commit passed all unit tests and E10-A/E10-B/E10-C.1 and E01/E02 experiment gates. The documentation-only update that records these results triggers a fresh workflow run.
+
+
+## E10-C.2: single-rule concept-drift representability boundary
+
+`prototype/e10c_drift_representability.py` tests a limitation of the current one-rule-per-relation DSL. A controlled epoch-1 mechanism requires unordered role values `{A, B}` under context `red`; epoch 2 requires `{C, D}` under context `blue`. The same relation symbol is used across epochs.
+
+The minimal audit has four gates: the combined stationary fit must have an empty version space; fitting each epoch separately must produce exactly one candidate each; and a no-drift control with the same `{A, B}`/`red` signature repeated across epochs must remain identifiable. These checks passed in the E10-C.2 CI step and its unit test on commit `9f5e224f4153f4cbc829dab4e03c04b05bd35882`.
+
+**Interpretation:** this is a representability boundary, not a drift-detection result. A single static rule cannot represent the two sequentially different signatures when all evidence is forced into one version. An externally supplied epoch boundary restores identifiability in this minimal example. The learner does not autonomously detect the boundary, and this experiment does not modify production learner behavior.
+
+## E10-C next gate: drift declaration and bounded expansion
+
+Keep three operations distinct: (a) contradiction adjudication, where incompatible labels for identical inputs must remain explicitly inconsistent; (b) epoch segmentation, where evidence from different mechanisms is assigned to separate immutable versions; and (c) hypothesis expansion, where a declared epoch may enumerate a bounded new candidate universe from authorized evidence. Do not silently treat an empty version space as proof of drift. A future detector must be evaluated against stationary false-alarm controls, abrupt and gradual changes, noisy labels, detection delay, and the cost of unnecessary expansion.
+
+Full repository Run #42951140784 is verifying the E10-C.2 addition and all E01/E02 gates; the E10-C.2 unit test and experiment step have passed so far. The final workflow conclusion remains pending at this documentation update.
