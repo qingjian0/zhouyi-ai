@@ -89,7 +89,7 @@ class E13ContextualMechanismTests(unittest.TestCase):
         partial = ContextualProbabilisticTransitionSystem("partial", ("charge",), ("regime",),
             ("drive",), (
                 ContextualTransitionRule((("regime", "warm"),), "drive", (("charge", "full"),),
-                    (((("charge", "full"),), Fraction(1)),)),
+                    (((("charge", "empty"),), Fraction(1)),)),
             ))
         report = validate_contextual_trajectory(source, partial, mapping, case)
         self.assertEqual(report.status, "UNKNOWN_TARGET_CONTEXT_SUPPORT")
