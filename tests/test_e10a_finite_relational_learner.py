@@ -41,6 +41,7 @@ class E10AFiniteRelationalLearnerTests(unittest.TestCase):
             result = learner.predict(row, self.objects_for(row))
             self.assertIn(result["decision_status"], {
                 "PREDICT", "ABSTAIN_AMBIGUOUS", "ABSTAIN_INCONSISTENT",
+                "ABSTAIN_OOD_SCHEMA", "ABSTAIN_OOD_VALUE", "ABSTAIN_OOD_RELATION",
             })
             if result["decision_status"] == "PREDICT":
                 self.assertIs(type(result["prediction"]), bool)
@@ -119,6 +120,85 @@ class E10AFiniteRelationalLearnerTests(unittest.TestCase):
     def test_candidate_budget_fails_closed(self):
         with self.assertRaisesRegex(RelationalLearnerError, "budget"):
             FiniteRelationalVersionSpace(max_candidates=1).fit(self.support)
+
+
+    def test_consistent_global_renaming_of_attributes_and_context_preserves_predictions(self):
+        support = copy.deepcopy(self.support)
+        query = copy.deepcopy(self.query)
+        feature_keys = {
+            key for obj in support["objects"]
+            for key, _ in obj["attributes"]
+        }
+        context_keys = {
+            key for row in support["observations"]
+            for key, _ in row["context"]
+        }
+        feature_map = {key: f"renamed_{index}" for index, key in enumerate(sorted(feature_keys))}
+        context_map = {key: f"context_{index}" for index, key in enumerate(sorted(context_keys))}
+
+        def rename_objects(rows):
+            for obj in rows:
+                obj["attributes"] = [[feature_map[key], value] for key, value in obj["attributes"]]
+
+        def rename_observations(rows):
+            for row in rows:
+                row["context"] = [[context_map[key], value] for key, value in row["context"]]
+
+        rename_objects(support["objects"])
+        rename_objects(query["objects"])
+        rename_observations(support["observations"])
+        rename_observations(query["observations"])
+        learner = FiniteRelationalVersionSpace().fit(support)
+        object_map = {row["object_id"]: row for row in query["objects"]}
+        for row in query["observations"]:
+            objects = [object_map[key] for key in row["participants"]]
+            prediction = learner.predict(row, objects)
+            self.assertEqual(prediction["decision_status"], "PREDICT")
+            original = FiniteRelationalVersionSpace().fit(self.support)
+            original_map = {item["object_id"]: item for item in self.query["objects"]}
+            baseline = original.predict(
+                row,
+                [original_map[key] for key in row["participants"]],
+            )
+            self.assertEqual(prediction["prediction"], baseline["prediction"])
+
+    def test_query_only_renamed_attribute_fails_closed_as_ood_schema(self):
+        learner = FiniteRelationalVersionSpace().fit(self.support)
+        row = self.query["observations"][0]
+        objects = copy.deepcopy(self.objects_for(row))
+        objects[0]["attributes"] = [
+            [f"unseen_{key}", value] for key, value in objects[0]["attributes"]
+        ]
+        result = learner.predict(row, objects)
+        self.assertEqual(result["decision_status"], "ABSTAIN_OOD_SCHEMA")
+        self.assertIsNone(result["prediction"])
+
+    def test_unseen_categorical_value_abstains_instead_of_predicting_negative(self):
+        learner = FiniteRelationalVersionSpace().fit(self.support)
+        row = self.query["observations"][0]
+        objects = copy.deepcopy(self.objects_for(row))
+        key, _ = objects[0]["attributes"][0]
+        objects[0]["attributes"][0][1] = "never-seen-category"
+        result = learner.predict(row, objects)
+        self.assertEqual(result["decision_status"], "ABSTAIN_OOD_VALUE")
+        self.assertIsNone(result["prediction"])
+
+    def test_unseen_context_value_abstains(self):
+        learner = FiniteRelationalVersionSpace().fit(self.support)
+        row = copy.deepcopy(self.query["observations"][0])
+        key, _ = row["context"][0]
+        row["context"] = [[key, "never-seen-context"]]
+        result = learner.predict(row, self.objects_for(row))
+        self.assertEqual(result["decision_status"], "ABSTAIN_OOD_VALUE")
+        self.assertIsNone(result["prediction"])
+
+    def test_unseen_relation_symbol_abstains_as_ood_relation(self):
+        learner = FiniteRelationalVersionSpace().fit(self.support)
+        row = copy.deepcopy(self.query["observations"][0])
+        row["relation_symbol"] = "unseen-relation"
+        result = learner.predict(row, self.objects_for(row))
+        self.assertEqual(result["decision_status"], "ABSTAIN_OOD_RELATION")
+        self.assertIsNone(result["prediction"])
 
 
 if __name__ == "__main__":
