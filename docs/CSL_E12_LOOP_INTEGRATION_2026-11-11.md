@@ -344,3 +344,20 @@ The lock must record each upstream PR, head SHA, base SHA, and any cherry-pick/m
 - **CSL-1 — benchmark integration:** reuse E12-A6 × E02-D and E03-B components, but preserve their own preregistered split and locked-test contracts.
 
 No code implementation or empirical result is claimed by this follow-up audit.
+
+
+### Protocol v0.2 and CI evidence refinement
+
+PR #99 advances the shared protocol to `PROTOCOL_VERSION = "0.2"` while retaining the same five event types. It adds required `learner_track` identity to prediction/reveal semantics and scopes the one-prediction-per-observation uniqueness constraint by learner track. This is a meaningful multi-track compatibility change, but it is not an event-type extension and does not add evaluator-only payload ACLs or process authentication. A CSL adapter must therefore include `learner_track` consistently and must not assume that track labels are authenticated identities.
+
+Individual upstream workflow evidence inspected during this audit:
+
+| PR | Workflow run | Result |
+|---|---:|---|
+| #96 E12-A6 contract | 42890107127 | unit-tests success |
+| #102 E12-A6 × E02-D runner | 42892364910 | unit-tests success |
+| #107 E09 adapter | 42893314129, 42893489719 | unit-tests success |
+
+These are separate branch-level runs. They do not establish that the four dependency branches work together in one combined checkout. PR #108's updated documentation commit has no associated PR workflow run; the document update is not a code or benchmark validation.
+
+The E09 adapter's reported earlier workflow success and the separately inspected PR #107 runs support its branch-local test status only. The fresh-episode-only and fail-closed limitations remain unchanged.
