@@ -39,9 +39,10 @@ class MultiRuleControlTests(unittest.TestCase):
                            budget=JointBudget(max_candidates=100, max_rules=6, gradient_steps=80))
         self.assertGreaterEqual(result.candidate_count, len(result.selected_rule_keys))
         self.assertGreaterEqual(len(result.selected_rule_keys), 1)
-        self.assertTrue(any(key.startswith("SPARSE_CONJUNCTION:") for key in result.selected_rule_keys))
-        self.assertTrue(any(key.startswith("TYPED_PATH:") for key in result.selected_rule_keys))
-        self.assertTrue(any(key.startswith("FORK_JOIN:") for key in result.selected_rule_keys))
+        family_counts = dict(result.candidate_family_counts)
+        self.assertTrue(all(family_counts[name] > 0 for name in
+                            ("SPARSE_CONJUNCTION", "TYPED_PATH", "FORK_JOIN")))
+        self.assertEqual(sum(family_counts.values()), result.candidate_count)
         self.assertTrue(0 <= result.joint_model.accuracy <= 1)
         self.assertTrue(0 <= result.randomized_control.accuracy <= 1)
         self.assertEqual(len(result.fitted_weights), 2)
@@ -57,9 +58,8 @@ class MultiRuleControlTests(unittest.TestCase):
         train, valid, manifest = fixture()
         with self.assertRaises(ValueError):
             run_joint(train + (train[0],), valid, manifest)
-        locked = replace(manifest, locked_test_ids=tuple(sorted(manifest.locked_test_ids + (train[0].observation_id,))))
-        with self.assertRaises(ValueError):
-            run_joint(train, valid, locked)
+        with self.assertRaisesRegex(ValueError, "pairwise disjoint"):
+            replace(manifest, locked_test_ids=tuple(sorted(manifest.locked_test_ids + (train[0].observation_id,))))
 
 
 if __name__ == "__main__":
