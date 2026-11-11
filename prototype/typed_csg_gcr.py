@@ -113,12 +113,6 @@ def _partial_typed_feasible(rows: tuple[TypedCandidateProposal, ...]) -> bool:
     """
     try:
         variables, constraints = _merge_contract(rows)
-        declared = {spec.ref for spec in variables}
-
-        # Variable declaration conflicts are rejected by _merge_contract and
-        # cannot be repaired by adding more proposals.
-        del declared
-
         starts = []
         ends = []
         member_ids: dict[VariableRef, set[str]] = {}
@@ -181,12 +175,22 @@ def _partial_typed_feasible(rows: tuple[TypedCandidateProposal, ...]) -> bool:
                 if left != right:
                     low, high = sorted((left, right))
                     roots[high] = low
+        members_by_root: dict[VariableRef, set[str]] = {}
+        for ref, values in member_ids.items():
+            members_by_root.setdefault(find(ref), set()).update(values)
+        if any(len(values) > 1 for values in members_by_root.values()):
+            return False
+
         for relation in constraints.not_equal:
             if relation.left in roots and relation.right in roots:
-                if find(relation.left) == find(relation.right):
+                left_root, right_root = find(relation.left), find(relation.right)
+                if left_root == right_root:
+                    return False
+                if members_by_root.get(left_root, set()).intersection(
+                        members_by_root.get(right_root, set())):
                     return False
         return True
-    except (UnificationError, TypeError, ValueError):
+    except (AttributeError, UnificationError, TypeError, ValueError):
         return False
 
 
