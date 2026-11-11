@@ -73,6 +73,19 @@ class CrossDomainBridgeTests(unittest.TestCase):
             self.hypothesis(relations=(("transfers_heat", "transfers_energy"),
                                        ("other", "transfers_energy")))
 
+    def test_many_to_one_is_limited_to_entity_type_abstraction(self):
+        with self.assertRaises(ValueError):
+            self.hypothesis(
+                relations=(("transfers_heat", "transfers_energy"),
+                           ("other", "transfers_energy")),
+                allow_many_to_one=True,
+            )
+        with self.assertRaises(ValueError):
+            self.hypothesis(
+                contexts=(("domain", "field"), ("other_domain", "field")),
+                allow_many_to_one=True,
+            )
+
     def test_context_mismatch_rejected(self):
         wrong_target = make_graph("t", "different", False)
         result = validate_bridge(self.source, wrong_target, self.hypothesis())
