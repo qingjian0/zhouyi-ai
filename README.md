@@ -7,9 +7,9 @@
 
 ## 项目状态
 
-- 当前阶段：E12 原语发现与评估闭环研究；E12-A19 多规则联合判别原型；E12-A20 并行假设图运行时设计
+- 当前阶段：E12 原语发现与评估闭环研究；E12-A19 多规则联合判别原型；E12-A20 有限域精确参考求解与同步信念传播
 - 理论版本：CPG-EI v0.3（研究草案）
-- 代码状态：E01/E02 有限基准、E12-A6～A19 原型和专项测试持续扩展；A19-C 完整 CI 已通过；A20-0 有限域精确参考求解器已提交，CI 验证中，尚非并行消息传递引擎
+- 代码状态：A19-C 完整 CI 已通过；A20-0 精确参考求解器 CI 已通过；A20-1 同步 Sum-Product 信念传播已提交，CI 验证中。当前实现是单进程同步更新，不代表多核并行或已证明性能优势
 - 尚无规模化模型或性能优势结论
 - 验证原则：所有架构主张均须通过可复现实验、消融和公平对照验证
 
@@ -88,6 +88,8 @@
 - [E12-A19-C 专项测试](tests/test_e12a19c_multi_rule_controls.py)
 - [E12-A20 并行假设图推理运行时设计](docs/E12A20_PARALLEL_HYPOTHESIS_RUNTIME_DESIGN_2026-11-11.md)
 - [E12-A20-0 有限域因子图参考推理器](prototype/e12a20_factor_graph.py)
+- [E12-A20-1 同步 Sum-Product 信念传播](prototype/e12a20a1_belief_propagation.py)
+- [E12-A20-1 专项测试](tests/test_e12a20a1_belief_propagation.py)
 - [E12-A20-0 参考推理器测试](tests/test_e12a20_factor_graph.py)
 - [E12-A20-0 实现说明与限制](docs/E12A20_0_FACTOR_GRAPH_REFERENCE_2026-11-11.md)
 - [E12-A0 可辨识性基线协议](docs/E12A0_IDENTIFIABILITY_BASELINE.md)
