@@ -62,6 +62,8 @@ class ExactSlotGroupObservation:
     valid_until: int | None
     semantics: str
     exact_group: tuple[tuple[int, ...], ...]
+    step: int = 0
+    domain: str = ""
 
 
 @dataclass(frozen=True)
@@ -208,6 +210,8 @@ def induce_exact_slot_permutation_groups(
                 valid_until=valid_until,
                 semantics=semantics,
                 exact_group=tuple(sorted(exact_group)),
+                step=observation.state.step,
+                domain=observation.domain,
             ))
         for (before_id, before_group), (after_id, after_group) in zip(
             ordered_groups, ordered_groups[1:]
