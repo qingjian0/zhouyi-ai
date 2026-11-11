@@ -201,32 +201,25 @@ class ZPCMStore:
         normalized = self._normalize_event(event)
         encoded = _canonical_json(normalized)
         digest = hashlib.sha256(encoded.encode("utf-8")).hexdigest()
-        with self._db:
-            existing = self._db.execute(
-                "SELECT seq, event_hash FROM events WHERE event_id = ?",
-                (normalized["event_id"],),
-            ).fetchone()
+        self._db.execute("BEGIN IMMEDIATE")
+        try:
+            existing = self._db.execute("SELECT seq, event_hash FROM events WHERE event_id = ?", (normalized["event_id"],)).fetchone()
             if existing:
                 if existing["event_hash"] != digest:
-                    raise EventConflictError(
-                        "event_id already exists with a different payload"
-                    )
-                return AppendReceipt(existing["seq"], normalized["event_id"],
-                                     True, digest)
+                    raise EventConflictError("event_id already exists with a different payload")
+                receipt = AppendReceipt(existing["seq"], normalized["event_id"], True, digest)
+                self._db.execute("COMMIT")
+                return receipt
             cursor = self._db.execute("""
-                INSERT INTO events(
-                    event_id, event_type, schema_version, observed_at,
-                    recorded_at, source_refs_json, payload_json,
-                    canonical_json, event_hash
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            """, (
-                normalized["event_id"], normalized["event_type"],
-                normalized["schema_version"], normalized["observed_at"],
-                normalized["recorded_at"], _canonical_json(normalized["source_refs"]),
-                _canonical_json(normalized["payload"]), encoded, digest,
-            ))
-            return AppendReceipt(cursor.lastrowid, normalized["event_id"],
-                                 False, digest)
+                INSERT INTO events(event_id, event_type, schema_version, observed_at, recorded_at, source_refs_json, payload_json, canonical_json, event_hash)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, (normalized["event_id"], normalized["event_type"], normalized["schema_version"], normalized["observed_at"], normalized["recorded_at"], _canonical_json(normalized["source_refs"]), _canonical_json(normalized["payload"]), encoded, digest))
+            receipt = AppendReceipt(cursor.lastrowid, normalized["event_id"], False, digest)
+            self._db.execute("COMMIT")
+            return receipt
+        except Exception:
+            self._db.execute("ROLLBACK")
+            raise
 
     @property
     def last_event_seq(self) -> int:
