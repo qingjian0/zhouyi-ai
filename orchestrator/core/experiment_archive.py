@@ -5,7 +5,6 @@ import json
 import os
 import platform
 import sys
-[object Promise]
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Mapping
@@ -43,7 +42,6 @@ def archive_benchmark_report(report: Mapping[str, Any], archive_dir: str | Path,
             stream.write(data)
             stream.flush()
             os.fsync(stream.fileno())
-        # Hard-link publication is atomic and refuses to overwrite an existing run.
         os.link(temp, target)
     except FileExistsError as exc:
         raise FileExistsError(f"archive run already exists: {run_id}") from exc
