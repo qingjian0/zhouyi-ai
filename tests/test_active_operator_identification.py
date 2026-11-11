@@ -12,6 +12,10 @@ def program(kind):
     return OperatorProgram((Primitive(kind, 0),))
 
 
+def double_negation():
+    return OperatorProgram((Primitive("neg", 0), Primitive("neg", 0)))
+
+
 class ActiveIdentificationTests(unittest.TestCase):
     def test_positive_only_data_cannot_identify_identity_vs_abs(self):
         identifier = ActiveOperatorIdentifier(
@@ -45,7 +49,7 @@ class ActiveIdentificationTests(unittest.TestCase):
             OperatorHypothesis("h0", OperatorProgram(())),
             OperatorHypothesis("h1", program("neg")),
             OperatorHypothesis("h2", program("abs")),
-            OperatorHypothesis("h3", program("neg")),
+            OperatorHypothesis("h3", double_negation()),
         ]
         identifier = ActiveOperatorIdentifier(hypotheses, [(-2,), (0,)])
         ranked = identifier.rank_experiments()
