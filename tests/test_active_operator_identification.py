@@ -108,6 +108,56 @@ class ActiveIdentificationTests(unittest.TestCase):
         self.assertEqual(len(identifier.rejected_observations), 1)
         self.assertEqual(identifier.rejected_observations[0].after, (999.0,))
 
+    def test_nonfinite_hypothesis_prediction_is_rejected(self):
+        class BrokenProgram:
+            def apply(self, state):
+                return (float("nan"),)
+        identifier = ActiveOperatorIdentifier(
+            [
+                OperatorHypothesis("identity", SimpleProgram()),
+                OperatorHypothesis("broken", BrokenProgram()),
+            ],
+            [(-1,)],
+        )
+        with self.assertRaisesRegex(IdentificationError, "invalid state"):
+            identifier.rank_experiments()
+
+    def test_hypothesis_must_preserve_state_dimension(self):
+        class WrongDimensionProgram:
+            def apply(self, state):
+                return (1.0, 2.0)
+        identifier = ActiveOperatorIdentifier(
+            [
+                OperatorHypothesis("identity", SimpleProgram()),
+                OperatorHypothesis("wrong-dimension", WrongDimensionProgram()),
+            ],
+            [(-1,)],
+        )
+        with self.assertRaisesRegex(IdentificationError, "changed state dimension"):
+            identifier.rank_experiments()
+
+    def test_observed_output_dimension_must_match_input(self):
+        identifier = ActiveOperatorIdentifier(
+            [
+                OperatorHypothesis("identity", SimpleProgram()),
+                OperatorHypothesis("negative", program("neg")),
+            ],
+            [(-2,)],
+        )
+        experiment = identifier.choose_experiment()
+        with self.assertRaisesRegex(IdentificationError, "output dimension"):
+            identifier.observe(experiment.before, (1.0, 2.0))
+        self.assertEqual(len(identifier.observations), 0)
+        self.assertEqual(len(identifier.hypotheses), 2)
+
+    def test_nonfinite_tolerance_is_rejected(self):
+        with self.assertRaises(IdentificationError):
+            ActiveOperatorIdentifier(
+                [OperatorHypothesis("identity", SimpleProgram())],
+                [(1,)],
+                tolerance=float("nan"),
+            )
+
     def test_status_does_not_call_pending_query_unidentifiable(self):
         identifier = ActiveOperatorIdentifier(
             [
