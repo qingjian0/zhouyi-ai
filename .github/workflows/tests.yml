@@ -2,7 +2,7 @@ name: tests
 
 on:
   push:
-    branches: [main, research/e12a3-m0-composition-engine-2026-11-11, research/e12a6-lifecycle-contract-2026-11-11, research/e12a6-e02d-lifecycle-runner-2026-11-11, research/e12a7-orthogonal-lifecycle-prototype-2026-11-11, research/e12a8-evaluator-firewall-2026-11-11, research/e12a9-evidence-bridge-2026-11-11, research/e12a10-signed-evaluator-receipts-2026-11-11, research/e12a11-active-measurement-evidence-2026-11-11, research/e12a12-noise-aware-evidence-update-2026-11-11]
+    branches: [main, research/e12a3-m0-composition-engine-2026-11-11, research/e12a6-lifecycle-contract-2026-11-11, research/e12a6-e02d-lifecycle-runner-2026-11-11, research/e12a7-orthogonal-lifecycle-prototype-2026-11-11, research/e12a8-evaluator-firewall-2026-11-11, research/e12a9-evidence-bridge-2026-11-11, research/e12a10-signed-evaluator-receipts-2026-11-11, research/e12a11-active-measurement-evidence-2026-11-11, research/e12a12-noise-aware-evidence-update-2026-11-11, research/e12a13-drift-mismatch-diagnostics-2026-11-11]
   pull_request:
     branches: [main, research/e12a3-m0-composition-engine-2026-11-11, research/e12a6-lifecycle-contract-2026-11-11, research/e12a7-orthogonal-lifecycle-prototype-2026-11-11]
 
@@ -44,6 +44,8 @@ jobs:
         run: python -m unittest tests.test_e12a11_active_measurement_evidence -v
       - name: Run E12-A12 noise-aware evidence update tests
         run: python -m unittest tests.test_e12a12_noise_aware_evidence_update -v
+      - name: Run E12-A13 drift mismatch diagnostics tests
+        run: python -m unittest tests.test_e12a13_drift_mismatch_diagnostics -v
       - name: Run E12-A9 evidence bridge tests
         run: python -m unittest tests.test_e12a9_evidence_bridge -v
       - name: Run E12-A8 evaluator firewall tests
