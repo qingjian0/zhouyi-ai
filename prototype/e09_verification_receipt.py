@@ -16,7 +16,7 @@ RECEIPT_DOMAIN = "zhouyi:e09:verification-receipt:v1"
 RECEIPT_FIELDS = {
     "schema_version", "receipt_id", "nonce", "audience", "verifier_id",
     "episode_id", "authorization_ref", "scope", "parent_state_ref",
-    "branch_ids", "evidence_refs", "issuer_id", "authorization_event_digest",
+    "branch_ids", "authorization_evidence_refs", "evidence_refs", "issuer_id", "authorization_event_digest",
     "issued_at", "expires_at", "evidence", "signature_algorithm", "signature",
 }
 EVIDENCE_FIELDS = {
@@ -41,6 +41,7 @@ class VerifiedE09VerificationReceipt:
     scope: str
     parent_state_ref: str
     branch_ids: tuple[str, ...]
+    authorization_evidence_refs: tuple[str, ...]
     evidence_refs: tuple[str, ...]
     issuer_id: str
     authorization_event_digest: str
@@ -80,6 +81,7 @@ def verify_e09_verification_receipt(
     expected_parent_state_ref: str,
     expected_branch_ids: tuple[str, ...] | list[str],
     expected_evidence_refs: tuple[str, ...] | list[str],
+    expected_authorization_evidence_refs: tuple[str, ...] | list[str],
 ) -> VerifiedE09VerificationReceipt:
     """Validate a verifier-signed receipt without access to the E09 database."""
     if not isinstance(receipt, dict) or set(receipt) != RECEIPT_FIELDS:
@@ -115,15 +117,22 @@ def verify_e09_verification_receipt(
         raise E09VerificationReceiptError("receipt is not currently valid")
 
     branches = receipt.get("branch_ids")
+    branches = receipt.get("branch_ids")
+    authorization_refs = receipt.get("authorization_evidence_refs")
     refs = receipt.get("evidence_refs")
     if (not isinstance(branches, list) or not branches
             or any(not isinstance(item, str) or not item.strip() for item in branches)
             or len(branches) != len(set(branches))):
         raise E09VerificationReceiptError("branch_ids must be a non-empty unique string list")
-    if (not isinstance(refs, list) or not refs
-            or any(not isinstance(item, str) or not item.strip() for item in refs)
-            or len(refs) != len(set(refs))):
-        raise E09VerificationReceiptError("evidence_refs must be a non-empty unique string list")
+    for name, values in (("authorization_evidence_refs", authorization_refs), ("evidence_refs", refs)):
+        if (not isinstance(values, list) or not values
+                or any(not isinstance(item, str) or not item.strip() for item in values)
+                or len(values) != len(set(values))):
+            raise E09VerificationReceiptError(f"{name} must be a non-empty unique string list")
+    if not set(authorization_refs).issubset(set(refs)):
+        raise E09VerificationReceiptError("authorization evidence refs must be included in receipt evidence refs")
+    if set(authorization_refs) != set(expected_authorization_evidence_refs):
+        raise E09VerificationReceiptError("receipt authorization evidence set does not match grant")
     if receipt["scope"] != expected_scope:
         raise E09VerificationReceiptError("receipt scope does not match writer request")
     if receipt["parent_state_ref"] != expected_parent_state_ref:
@@ -183,6 +192,7 @@ def verify_e09_verification_receipt(
         scope=receipt["scope"],
         parent_state_ref=receipt["parent_state_ref"],
         branch_ids=tuple(sorted(branches)),
+        authorization_evidence_refs=tuple(authorization_refs),
         evidence_refs=tuple(refs),
         issuer_id=receipt["issuer_id"],
         authorization_event_digest=digest,
