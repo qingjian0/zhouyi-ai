@@ -22,13 +22,15 @@ LEARNER_COLLECTIONS = (
     "track_action_objects",
 )
 # Metadata that belongs to the broker/event log, not to a learner DTO.
-PRIVATE_KEYS = {
+DROP_INTERNAL_KEYS = {
     "actor_role",
     "event_id",
     "sequence_no",
     "last_sequence",
     "split_role",
     "evaluation_role",
+}
+FORBIDDEN_KEYS = {
     "target",
     "label",
     "expected",
@@ -57,7 +59,10 @@ def _public_value(value: Any, *, depth: int = 0) -> Any:
         for key, item in value.items():
             if not isinstance(key, str):
                 raise BrokerContractError("learner DTO object keys must be strings")
-            if key in PRIVATE_KEYS:
+            if key in DROP_INTERNAL_KEYS:
+                # Never export raw event identity or global ordering metadata.
+                continue
+            if key in FORBIDDEN_KEYS:
                 # Fail closed: a caller must not accidentally serialize an
                 # evaluator-bearing projection by merely forgetting a filter.
                 raise BrokerContractError(f"private field is forbidden in learner DTO: {key}")
