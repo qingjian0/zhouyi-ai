@@ -36,7 +36,7 @@ class E09SharedProtocolAdapterTests(unittest.TestCase):
         runner = PrequentialRunner(learner, revision_mode=mode)
         runner.bootstrap(BOOTSTRAP)
         return E09SharedProtocolAdapter(
-            runner, self.store, episode_id=f"episode-{mode}"
+            runner, self.store, episode_id=f"episode-{mode}", scope="e09/test"
         )
 
     def test_incremental_arm_persists_full_causal_chain(self):
@@ -88,6 +88,20 @@ class E09SharedProtocolAdapterTests(unittest.TestCase):
         self.assertEqual(events[-1]["payload"]["learner_track"], "e09")
         self.assertEqual(adapter.score()["revealed_observations"], 0)
         self.assertEqual(commit["decision_status"], "PREDICT")
+ 
+    def test_locked_gate_reveal_is_not_delivered_to_learner(self):
+        adapter = self.make_adapter("INCREMENTAL_INDEX")
+        adapter.split = "LOCKED_TEST"
+        commit = adapter.predict_and_commit("obs-locked", (0, 0, 2))
+        adapter.reveal(commit["prediction_id"], "no")
+        self.assertEqual(adapter.score()["revealed_observations"], 0)
+        with self.assertRaises(Exception):
+            adapter.revise(commit["prediction_id"])
+        reveal = next(
+            e for e in adapter.replay() if e["event_type"] == "evidence_reveal"
+        )
+        self.assertEqual(reveal["protocol_version"], "0.3")
+        self.assertEqual(reveal["payload"]["split"], "LOCKED_TEST")
 
 
 if __name__ == "__main__":
