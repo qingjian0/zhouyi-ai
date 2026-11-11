@@ -1,6 +1,6 @@
 # TX-02B：跨 Episode 可训练学习器与可辨识性协议
 
-状态：研究设计与审计结论；尚未实现 TX-02B 学习器，尚无 TX-02B 性能结果。
+状态：TX-02B-1 精确可辨识性审计器已实现并等待 CI 验收；TX-02B 可训练学习器尚未实现，尚无性能结果。
 关联：TX-02A、TX-02B-0、E02-B、E02-D。
 
 ## 1. 本轮代码审计结论
@@ -35,7 +35,27 @@ c=(\alpha a+\beta b+\delta)\bmod K
 
 如果 exact enumeration 成本过高，先对小 K 做精确审计，再对较大 K 使用明确标注的采样近似；不得把近似结果称为精确 Bayes 上界。
 
-## 3. 数据协议修订要求
+## 3. TX-02B-1 已实现：精确可辨识性审计
+
+实现：`prototype/tx02_identifiability.py`；测试：`tests/test_tx02_identifiability.py`。
+
+- canonical：枚举 K³ 个仿射系数假设，固定恒等符号映射。
+- permuted：枚举 K³ 个系数与 K! 个潜在到可见符号双射。
+- 对每个假设检查 support 是否全部一致；对每个 query 累计各候选答案的假设计数。
+- 输出规则假设数、规则唯一性、逐 query 后验、答案熵、Bayes-optimal accuracy 和 query 可辨识率。
+- 不读取 `hidden_rule`、`visible_symbols` 或 `targets`；目标标签仅可由外部 evaluator 用于核验。
+- 设置 `max_hypotheses` 上限，超过时明确报错，不会悄悄切换成近似算法。
+
+**概率解释边界：** 当前 posterior 是在 TX-02A 生成器的仿射规则族内，对系数和允许的符号双射采用均匀先验所得。它不是对所有可能函数的无先验 Bayes 上界。规则假设可能多于一个，但只要某 query 的所有一致假设都给出同一答案，该 query 仍可辨识。
+
+运行示例：
+
+```bash
+python -m prototype.tx02_identifiability --cardinality 3 --support-size 2 --query-count 2 --symbol-mapping permuted
+python -m unittest tests.test_tx02_identifiability -v
+```
+
+## 4. 数据协议修订要求
 
 ### 3.1 分割单位
 
@@ -66,7 +86,7 @@ c=(\alpha a+\beta b+\delta)\bmod K
 
 不得静默删除困难规则。若增加受限规则子集，必须作为独立任务条件报告。
 
-## 4. TX-02B 学习器比较矩阵
+## 5. TX-02B 学习器比较矩阵
 
 先实现可复现、低依赖的基线，再考虑深度模型：
 
@@ -81,7 +101,7 @@ c=(\alpha a+\beta b+\delta)\bmod K
 
 每个可训练模型必须实现同一接口：`fit(train_episodes, validation_episodes, budget, seed)`、`predict(episode)`、`state_dict()/metadata()`。推理时只能读取 learner-visible episode 字段，不能读取 `hidden_rule`、`visible_symbols` 或任何 evaluator-only 元数据。
 
-## 5. 公平比较
+## 6. 公平比较
 
 - 首选统一训练样本、优化器更新次数、早停规则和硬件环境。
 - 同时报告参数量、训练步数、运行时间、峰值内存；可测时报告 FLOPs。
@@ -90,7 +110,7 @@ c=(\alpha a+\beta b+\delta)\bmod K
 - 所有随机性拆分为 episode seed、初始化 seed、训练顺序 seed，并逐项记录。
 - 超参数只能由 validation 选择；locked-test 在实验方案、模型和阈值锁定后运行一次。
 
-## 6. 评价指标
+## 7. 评价指标
 
 必须报告：
 
@@ -105,7 +125,7 @@ c=(\alpha a+\beta b+\delta)\bmod K
 - 多随机种子均值、标准差及置信区间；
 - 失败 episode 的类别和证据摘要。
 
-## 7. 证伪标准
+## 8. 证伪标准
 
 - 若 TERNARY 不优于容量/计算匹配的 ONE_HOT 或 LEARNED，不能声称三值编码有学习优势。
 - 若 PERMUTED 与 TERNARY 相当，不能把结果归因于规范三值结构。
@@ -115,7 +135,7 @@ c=(\alpha a+\beta b+\delta)\bmod K
 - 若优势来自更多参数/算力，结论必须限定为资源优势。
 - 只在合成有限环任务上成立的结论，不得外推为自然语言理解或通用智能。
 
-## 8. 实施顺序
+## 9. 实施顺序
 
 - TX-02B-1：实现可辨识性审计器与小 K exact posterior 基线。
 - TX-02B-2：实现统一 episode learner API 与 one-hot / binary / ternary / hybrid / learned embedding 基线。
@@ -124,4 +144,4 @@ c=(\alpha a+\beta b+\delta)\bmod K
 - TX-02D：在验证集上训练表示选择器，并加入 DEFER / fallback。
 - TX-02E：未知 K、非均匀状态划分、噪声和规则族外测试。
 
-**当前结论：** 已有 E02-B 固定三值规则 learner，但 TX-02B 尚未开始训练学习器实现。下一步优先实现可辨识性审计，避免让模型为信息不足的 episode 背锅，也避免把不可泛化的固定规则记忆误判为关系归纳。
+**当前结论：** E02-B 是固定三值规则诊断；TX-02B-1 的精确审计器已实现，待 CI 验收；TX-02B 可训练学习器尚未实现。下一步应先用生成器覆盖测试验证真值假设始终被审计空间包含，再增加 support 难度扫描与跨 episode learner。
