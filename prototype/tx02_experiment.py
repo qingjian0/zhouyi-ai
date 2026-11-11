@@ -134,16 +134,13 @@ def run_condition(cardinality: int, support_size: int, seed: int,
     if not 0.0 <= max_selective_risk <= 1.0:
         raise ValueError("max_selective_risk must be in [0,1]")
     splits = make_rule_disjoint_splits(
-        cardinality=cardinality,
-        episodes_per_rule=episodes_per_rule,
-        support_size=support_size,
-        query_count=2,
-        seed=seed,
+        cardinality=cardinality, episodes_per_rule=episodes_per_rule,
+        support_size=support_size, query_count=2, seed=seed,
         symbol_mappings=("canonical", "permuted"),
     )
-    target_budget = parameter_budget
-    if target_budget is None and parameter_matched:
-        target_budget = max(
+    target_parameter_budget = parameter_budget
+    if target_parameter_budget is None and parameter_matched:
+        target_parameter_budget = max(
             model_parameter_count(family, cardinality, hidden_size, 6)
             for family in FAMILIES
         )
@@ -153,14 +150,16 @@ def run_condition(cardinality: int, support_size: int, seed: int,
             estimate_forward_macs(family, cardinality, hidden_size,
                                   support_size, 2, cardinality, 6)
             for family in FAMILIES
-        ) * 1
-    family_results = {}
+        )
+
+    # Phase A: train all candidates and inspect validation only.
+    trained = {}
     validation_selection_metrics = {}
     for family in FAMILIES:
         selected_hidden_size = hidden_size
         if parameter_matched:
             selected_hidden_size, _ = choose_hidden_size_for_budget(
-                family, cardinality, target_budget, embedding_dim=6
+                family, cardinality, target_parameter_budget, embedding_dim=6
             )
         elif compute_matched:
             selected_hidden_size, _ = choose_hidden_size_for_compute_budget(
@@ -178,20 +177,35 @@ def run_condition(cardinality: int, support_size: int, seed: int,
         train_seconds = time.perf_counter() - started
         validation_probs, validation_targets = _collect_probabilities(learner, splits.validation)
         validation_metrics = probability_metrics(validation_probs, validation_targets)
-        validation_macs = estimate_forward_macs(
+        episode_macs = estimate_forward_macs(
             family, cardinality, selected_hidden_size, support_size, 2, cardinality, 6
+        )
+        threshold = choose_abstention_threshold(
+            validation_probs, validation_targets, max_selective_risk
         )
         validation_selection_metrics[family] = {
             "accuracy": validation_metrics["accuracy"],
             "nll": validation_metrics["nll"],
-            "forward_macs": validation_macs,
+            "forward_macs": episode_macs,
             "parameter_count": fit.parameter_count,
         }
-        abstention = choose_abstention_threshold(
-            validation_probs, validation_targets, max_selective_risk
-        )
+        trained[family] = {
+            "learner": learner, "fit": fit, "hidden_size": selected_hidden_size,
+            "train_seconds": train_seconds, "validation_metrics": validation_metrics,
+            "validation_abstention": threshold, "episode_macs": episode_macs,
+        }
+
+    # Freeze the adaptive choice before reading any locked-test targets.
+    adaptive_choice = select_representation(validation_selection_metrics)
+
+    # Phase B: evaluate fixed baselines and the already-frozen selected policy.
+    # Fixed-family test metrics are retained as descriptive baselines; they never
+    # feed back into the selector or validation-calibrated abstention threshold.
+    family_results = {}
+    for family in FAMILIES:
+        record = trained[family]
+        learner = record["learner"]
         test_probs, test_targets = _collect_probabilities(learner, splits.locked_test)
-        # Rebuild episode-shaped predictions for the existing audit helper.
         cursor = 0
         episode_predictions = []
         for item in splits.locked_test:
@@ -202,17 +216,18 @@ def run_condition(cardinality: int, support_size: int, seed: int,
                 for offset in range(count)
             ))
             cursor += count
-        predictions = episode_predictions
         metrics = _metrics(episode_predictions, splits.locked_test, cardinality)
         test_probability_metrics = probability_metrics(test_probs, test_targets)
-        deferred = apply_abstention(test_probs, abstention["threshold"])
+        deferred = apply_abstention(
+            test_probs, record["validation_abstention"]["threshold"]
+        )
         accepted = [(decision, target) for decision, target in zip(deferred, test_targets)
                     if decision is not None]
         selective = {
             "threshold_selected_on": "validation",
-            "threshold": abstention["threshold"],
-            "validation_coverage": abstention["coverage"],
-            "validation_selective_risk": abstention["selective_risk"],
+            "threshold": record["validation_abstention"]["threshold"],
+            "validation_coverage": record["validation_abstention"]["coverage"],
+            "validation_selective_risk": record["validation_abstention"]["selective_risk"],
             "locked_test_coverage": len(accepted) / len(test_targets) if test_targets else 0.0,
             "locked_test_selective_risk": (
                 sum(decision != target for decision, target in accepted) / len(accepted)
@@ -223,54 +238,55 @@ def run_condition(cardinality: int, support_size: int, seed: int,
         }
         by_mapping = {}
         for mapping in ("canonical", "permuted"):
-            selected = [(p, e) for p, e in zip(predictions, splits.locked_test)
-                        if e.inputs.symbol_mapping == mapping]
+            selected = [(prediction, episode) for prediction, episode
+                        in zip(episode_predictions, splits.locked_test)
+                        if episode.inputs.symbol_mapping == mapping]
             by_mapping[mapping] = _metrics(
-                [p for p, _ in selected], [e for _, e in selected], cardinality
+                [prediction for prediction, _ in selected],
+                [episode for _, episode in selected], cardinality
             )
+        fit = record["fit"]
+        episode_macs = record["episode_macs"]
         family_results[family] = {
             "fit": asdict(fit),
             "metadata": learner.metadata(),
-            "target_parameter_budget": target_budget if parameter_matched else None,
+            "target_parameter_budget": target_parameter_budget if parameter_matched else None,
             "parameter_budget_delta": (
-                fit.parameter_count - target_budget if parameter_matched else None
+                fit.parameter_count - target_parameter_budget if parameter_matched else None
             ),
             "target_forward_mac_budget": target_compute_budget if compute_matched else None,
-            "forward_macs_per_episode": validation_macs,
+            "forward_macs_per_episode": episode_macs,
             "forward_macs_budget_delta": (
-                validation_macs - target_compute_budget if compute_matched else None
+                episode_macs - target_compute_budget if compute_matched else None
             ),
-            "estimated_training_forward_macs": (
-                len(splits.train) * epochs * validation_macs
-            ),
-            "train_seconds": train_seconds,
-            "validation_probability_metrics": validation_metrics,
-            "validation_abstention_calibration": abstention,
+            "estimated_training_forward_macs": len(splits.train) * epochs * episode_macs,
+            "train_seconds": record["train_seconds"],
+            "validation_probability_metrics": record["validation_metrics"],
+            "validation_abstention_calibration": record["validation_abstention"],
             "locked_test_probability_metrics": test_probability_metrics,
             "locked_test_selective_prediction": selective,
             "locked_test": metrics,
             "locked_test_by_mapping": by_mapping,
         }
-    adaptive_choice = select_representation(validation_selection_metrics)
-    adaptive_locked_test = family_results[adaptive_choice["selected_family"]]["locked_test"]
+
+    selected_family = adaptive_choice["selected_family"]
+    adaptive_locked_test = family_results[selected_family]["locked_test"]
     return {
-        "cardinality": cardinality,
-        "support_size": support_size,
-        "seed": seed,
-        "parameter_matched": parameter_matched,
-        "compute_matched": compute_matched,
-        "target_parameter_budget": target_budget if parameter_matched else None,
+        "cardinality": cardinality, "support_size": support_size, "seed": seed,
+        "parameter_matched": parameter_matched, "compute_matched": compute_matched,
+        "target_parameter_budget": target_parameter_budget if parameter_matched else None,
         "target_forward_mac_budget": target_compute_budget if compute_matched else None,
         "validation_representation_selection": adaptive_choice,
         "adaptive_representation_locked_test": adaptive_locked_test,
         "split_metadata": splits.metadata,
-        "rule_counts": {k: len(v) for k, v in splits.rule_families.items()},
+        "rule_counts": {key: len(value) for key, value in splits.rule_families.items()},
         "episode_counts": {
             "train": len(splits.train), "validation": len(splits.validation),
             "locked_test": len(splits.locked_test),
         },
         "families": family_results,
     }
+
 
 def aggregate_runs(runs: list[dict]) -> dict:
     result = {}
