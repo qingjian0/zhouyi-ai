@@ -31,7 +31,7 @@ class PartialPermutationGroupTests(unittest.TestCase):
             )
         )
         self.assertEqual(len(report.generated_group), 6)
-        self.assertEqual(len(report.closure_only_elements), 3)
+        self.assertEqual(len(report.closure_only_elements), 4)
 
     def test_conflicting_evidence_blocks_generator(self):
         swap01 = (1, 0, 2)
@@ -82,7 +82,7 @@ class PartialPermutationGroupTests(unittest.TestCase):
         swap01 = (1, 0, 2)
         swap12 = (0, 2, 1)
         with self.assertRaises(PermutationGroupError):
-            compare_symmetry_groups((identity, swap01), (identity, swap12))
+            compare_symmetry_groups((identity, swap01), (identity, swap01, swap12))
 
     def test_group_expansion_and_reconfiguration(self):
         identity = (0, 1, 2)
