@@ -17,3 +17,4 @@ jobs:
       - run: python -m unittest tests.test_e12a9_symbolic_prior_ablation -v
       - run: python -m prototype.e12a9_symbolic_prior_ablation --json --seeds 100 > e12a9-results.json
       - run: python -c "import json; d=json.load(open('e12a9-results.json')); assert d['seed_count']==100; assert set(d['families'])=={'aligned','uniform','misaligned','permuted'}"
+      - run: cat e12a9-results.json
