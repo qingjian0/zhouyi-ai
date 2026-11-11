@@ -194,3 +194,32 @@ PR #242  E09 signed verification receipt
 3. 对单分支端到端、跨分支授权合并、receipt 一次性消费、writer identity 持久化分别定义验收，禁止合并成一个模糊的“E2E passed”。
 4. 在同一 exact head 上运行全部 CSG-GCR、E09、E12-A6、ZPCM 测试和故障恢复测试。
 5. 然后再进行逐文件集成映射，不提前宣布生产级或联合训练就绪。
+
+
+### 10.6 安全 receipt 链仍继承 world-family 自报问题
+
+对 PR #245 head 的 `prototype/e09_authority_services.py` 进一步检查发现：
+
+- `E09VerifierService.issue_verification_receipt` 从 request 读取 `candidate_evidence_world_family_by_ref`（兼容旧字段 `world_family_by_evidence`）。
+- 它只验证该 mapping 的键集合与候选 evidence refs 完全相等，以及值是由下游校验的非空字符串。
+- 随后将每个调用方提供的 world-family 直接传给 `resolve_e09_reveal`。
+- 该值被放进 redacted evidence DTO，并由 E09 verifier 签名进入 receipt。
+- E12-A6 writer 会正确验证 receipt 签名和 evidence DTO，但无法证明签名前的 world-family 来源真实。
+
+因此，上一节所述问题**没有被 PR #242–#245 自动解决**。签名能证明 verifier 签过这份 receipt，不能证明 verifier 所依据的调用方自报 world-family 正确。这属于可信元数据来源问题，不是签名算法问题。
+
+必须在 E09 verifier 内部完成来源绑定，优先顺序：
+
+1. 在严格 E09 observation/reveal schema 中加入 world-family/domain ID，并让其处于事件完整性摘要及授权签名覆盖范围内；
+2. 或由 E09 authority 从受信任、版本化的 episode/scope registry 派生 world-family；
+3. verifier 对 observation、prediction commit、reveal 三者的 domain ID 做一致性检查；
+4. receipt 只携带 verifier 派生的 domain ID；拒绝请求体覆盖该字段；
+5. 增加跨 scope、跨 world-family、伪造 domain、旧 registry version、缺失 domain 的负向测试。
+
+在此修复之前，receipt 的 cryptographic authenticity 不应被描述为所有 evidence metadata 都具有来源真实性。
+
+### 10.7 PR #245 身份字段的成熟度边界
+
+PR #245 将 workload ID、identity provider、authentication method 和 credential fingerprint 持久化到 authorization-consumed 事件，改善了可追责性和 replay 审计。它仍依赖部署时配置的 authenticator 真正从 mTLS peer certificate、Unix peer credentials 或等效 OS/workload 身份中派生 principal。若 authenticator 只是根据调用方可控字符串返回 principal，则身份仍只是应用层声明。
+
+部署验收必须验证真实 transport credential → authenticated principal → method/scope authorization → durable audit event 的端到端链路，并证明 learner worker 无法直接打开 E09/ZPCM 数据库文件。
