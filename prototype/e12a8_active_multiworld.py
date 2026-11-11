@@ -6,13 +6,15 @@ then updates only after the environment reveals the outcome.
 """
 from __future__ import annotations
 
+import argparse
+import json
 import math
 import random
 from dataclasses import dataclass
 from typing import Mapping, Sequence
 
 from prototype.e12a7_multiworld import (
-    MECHANISMS, Observation, SyntheticWorld, predict,
+    MECHANISMS, Observation, SyntheticWorld, make_worlds, predict,
 )
 from prototype.e12a2_active_measurement_selector import (
     select_measurement, update_weights,
@@ -325,3 +327,29 @@ def evaluate_policy(
             "No Yijing/Taixuan prior is included in this first slice.",
         ],
     }
+
+def run_benchmark(*, seeds: Sequence[int] = tuple(range(20)), budget: float = 12.0) -> dict:
+    """Run matched active/random/fixed policies across all E12-A7 worlds."""
+    return evaluate_policy(
+        make_worlds(),
+        policies=("active", "random", "fixed"),
+        seeds=seeds,
+        include_interventions=True,
+        budget=budget,
+    )
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--json", action="store_true")
+    parser.add_argument("--seeds", type=int, default=20)
+    parser.add_argument("--budget", type=float, default=12.0)
+    args = parser.parse_args()
+    if args.seeds < 1:
+        parser.error("--seeds must be positive")
+    result = run_benchmark(seeds=tuple(range(args.seeds)), budget=args.budget)
+    print(json.dumps(result, indent=2, ensure_ascii=False) if args.json else result)
+
+
+if __name__ == "__main__":
+    main()
