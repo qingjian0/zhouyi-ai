@@ -2,7 +2,7 @@ name: tests
 
 on:
   push:
-    branches: [main, research/e12a3-m0-composition-engine-2026-11-11, research/e12a6-lifecycle-contract-2026-11-11, research/e12a6-e02d-lifecycle-runner-2026-11-11, research/e12a7-orthogonal-lifecycle-prototype-2026-11-11, research/e12a8-evaluator-firewall-2026-11-11, research/e12a9-evidence-bridge-2026-11-11, research/e12a10-signed-evaluator-receipts-2026-11-11, research/e12a11-active-measurement-evidence-2026-11-11, research/e12a12-noise-aware-evidence-update-2026-11-11, research/e12a13-drift-mismatch-diagnostics-2026-11-11, research/e12a14-drift-detector-calibration-2026-11-11]
+    branches: [main, research/e12a3-m0-composition-engine-2026-11-11, research/e12a6-lifecycle-contract-2026-11-11, research/e12a6-e02d-lifecycle-runner-2026-11-11, research/e12a7-orthogonal-lifecycle-prototype-2026-11-11, research/e12a8-evaluator-firewall-2026-11-11, research/e12a9-evidence-bridge-2026-11-11, research/e12a10-signed-evaluator-receipts-2026-11-11, research/e12a11-active-measurement-evidence-2026-11-11, research/e12a12-noise-aware-evidence-update-2026-11-11, research/e12a13-drift-mismatch-diagnostics-2026-11-11, research/e12a14-drift-detector-calibration-2026-11-11, research/e12a15-competing-hypotheses-2026-11-11]
   pull_request:
     branches: [main, research/e12a3-m0-composition-engine-2026-11-11, research/e12a6-lifecycle-contract-2026-11-11, research/e12a7-orthogonal-lifecycle-prototype-2026-11-11]
 
@@ -50,6 +50,8 @@ jobs:
         run: python -m unittest tests.test_e12a14_drift_detector_calibration -v
       - name: Run E12-A14 paired synthetic calibration benchmark
         run: python -m prototype.e12a14_drift_detector_calibration --seeds 100 --start-seed 1000 --json
+      - name: Run E12-A15 competing hypothesis tests
+        run: python -m unittest tests.test_e12a15_competing_hypotheses -v
       - name: Run E12-A9 evidence bridge tests
         run: python -m unittest tests.test_e12a9_evidence_bridge -v
       - name: Run E12-A8 evaluator firewall tests
