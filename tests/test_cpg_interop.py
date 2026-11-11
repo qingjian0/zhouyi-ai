@@ -10,14 +10,14 @@ class CpgInteropTests(unittest.TestCase):
     def commit(self, **changes):
         values = dict(commit_id="commit-1", candidate_ref="rule@1", query_id="q-1",
             scope="world-a", input_digest=D, identifiable=True,
-            prediction_json=canonical_json({"answer": 2}))
+            prediction_json=canonical_json({"answer": 2}), episode_id="episode-1", learner_track="track-a", split=EvidenceSplit.SUPPORT, model_version="model-1")
         values.update(changes)
         return PredictionCommit(**values)
 
     def reveal(self, commit, **changes):
         values = dict(evidence_id="e-1", commit_digest=commit.commit_digest,
             query_id=commit.query_id, scope=commit.scope, split=EvidenceSplit.SUPPORT,
-            outcome_json=canonical_json({"label": 2}), source_ref="episode://1")
+            outcome_json=canonical_json({"label": 2}), source_ref="episode://1", episode_id=commit.episode_id, learner_track=commit.learner_track)
         values.update(changes)
         return EvidenceReveal(**values)
 
@@ -52,6 +52,16 @@ class CpgInteropTests(unittest.TestCase):
         commit = self.commit()
         with self.assertRaises(ValueError): validate_reveal_binding(commit, self.reveal(commit, query_id="other"))
         with self.assertRaises(ValueError): validate_reveal_binding(commit, self.reveal(commit, scope="other"))
+
+    def test_reveal_must_match_episode_track_and_split(self):
+        commit = self.commit()
+        with self.assertRaisesRegex(ValueError, "episode_id"):
+            validate_reveal_binding(commit, self.reveal(commit, episode_id="other"))
+        with self.assertRaisesRegex(ValueError, "learner_track"):
+            validate_reveal_binding(commit, self.reveal(commit, learner_track="other"))
+        with self.assertRaisesRegex(ValueError, "split"):
+            validate_reveal_binding(commit, self.reveal(commit, split=EvidenceSplit.LOCKED_TEST))
+
 
     def test_locked_test_is_not_visible_to_learner_or_selector(self):
         reveal = self.reveal(self.commit(), split=EvidenceSplit.LOCKED_TEST)
