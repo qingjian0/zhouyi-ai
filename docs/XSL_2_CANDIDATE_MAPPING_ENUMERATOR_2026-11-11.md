@@ -15,7 +15,7 @@ Implementation:
 
 Inputs are source and target typed relational graphs; explicit node-type compatibility and one-to-one relation-type mappings; mapping kind and optional scope/evidence metadata; a minimum number of testable source relations; and maximum recursive search states and returned candidates.
 
-For every source node, search considers each compatible target node and an explicit unmapped choice. Target nodes cannot be reused. Candidate instance mappings are partial and injective. Node-type compatibility is an explicit relation and may map multiple source types to one target supertype; this does not weaken one-to-one instance-node correspondence. Relation argument order remains semantic and is checked by XSL-1.
+For every source node, search considers each compatible target node and an explicit unmapped choice. Target nodes cannot be reused. Candidate instance mappings are partial and injective. Node-type compatibility is an explicit relation and may map multiple source types to one target supertype; this is supported by the XSL-1 bridge contract and does not weaken one-to-one instance-node correspondence. Relation argument order remains semantic and is checked by XSL-1.
 
 Traversal is deterministic. The state budget counts recursive states. If reached, search_complete is false; an incomplete search must never be interpreted as proof that no better mapping exists.
 
