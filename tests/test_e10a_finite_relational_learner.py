@@ -14,6 +14,15 @@ class E10AFiniteRelationalLearnerTests(unittest.TestCase):
             row["observation_id"]: row["valid"]
             for row in self.truth["query_truth"]
         }
+        self.query_object_map = {
+            row["object_id"]: row for row in self.query["objects"]
+        }
+
+    def objects_for(self, observation):
+        return [
+            self.query_object_map[object_id]
+            for object_id in observation["participants"]
+        ]
 
     def test_fits_support_without_template_truth(self):
         learner = FiniteRelationalVersionSpace().fit(self.support)
@@ -29,7 +38,7 @@ class E10AFiniteRelationalLearnerTests(unittest.TestCase):
         query_before = copy.deepcopy(self.query)
         statuses = set()
         for row in self.query["observations"]:
-            result = learner.predict(row, self.query["objects"])
+            result = learner.predict(row, self.objects_for(row))
             self.assertIn(result["decision_status"], {
                 "PREDICT", "ABSTAIN_AMBIGUOUS", "ABSTAIN_INCONSISTENT",
             })
@@ -48,8 +57,8 @@ class E10AFiniteRelationalLearnerTests(unittest.TestCase):
         row = self.query["observations"][0]
         swapped = dict(row)
         swapped["participants"] = list(reversed(row["participants"]))
-        left = learner.predict(row, self.query["objects"])
-        right = learner.predict(swapped, self.query["objects"])
+        left = learner.predict(row, self.objects_for(row))
+        right = learner.predict(swapped, self.objects_for(swapped))
         self.assertEqual(left["prediction"], right["prediction"])
         self.assertEqual(left["decision_status"], right["decision_status"])
 
@@ -59,10 +68,10 @@ class E10AFiniteRelationalLearnerTests(unittest.TestCase):
         for row in self.query["observations"]:
             label = self.truth_by_id[row["observation_id"]]
             inc = incremental.update(
-                row, label, self.query["objects"], mode="INCREMENTAL_FILTER"
+                row, label, self.objects_for(row), mode="INCREMENTAL_FILTER"
             )
             bat = batch.update(
-                row, label, self.query["objects"], mode="BATCH_REFIT"
+                row, label, self.objects_for(row), mode="BATCH_REFIT"
             )
             self.assertEqual(
                 incremental.snapshot()["version_spaces"],
@@ -80,7 +89,7 @@ class E10AFiniteRelationalLearnerTests(unittest.TestCase):
         row = self.query["observations"][0]
         learner.update(
             row, self.truth_by_id[row["observation_id"]],
-            self.query["objects"], mode="FROZEN",
+            self.objects_for(row), mode="FROZEN",
         )
         self.assertEqual(learner.snapshot()["version_spaces"], before)
 
@@ -90,6 +99,20 @@ class E10AFiniteRelationalLearnerTests(unittest.TestCase):
         row["valid"] = True
         with self.assertRaisesRegex(RelationalLearnerError, "evaluator-only"):
             learner.predict(row, self.query["objects"])
+
+    def test_future_query_objects_are_not_available_to_current_prediction(self):
+        learner = FiniteRelationalVersionSpace().fit(self.support)
+        first = self.query["observations"][0]
+        first_ids = set(first["participants"])
+        current_objects = self.objects_for(first)
+        learner.predict(first, current_objects)
+
+        future = next(
+            row for row in self.query["observations"][1:]
+            if not set(row["participants"]) <= first_ids
+        )
+        with self.assertRaisesRegex(RelationalLearnerError, "unknown Query object"):
+            learner.predict(future, current_objects)
 
     def test_candidate_budget_fails_closed(self):
         with self.assertRaisesRegex(RelationalLearnerError, "budget"):
