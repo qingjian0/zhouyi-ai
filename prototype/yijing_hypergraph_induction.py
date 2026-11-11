@@ -228,9 +228,19 @@ class DynamicHypergraphEvolution:
             key = (event.kind, event.source_edge_ids, event.target_edge_ids)
             count = 1
             cursor = event.to_step
-            while cursor in keys_by_transition and key in keys_by_transition[cursor] and cursor in next_step:
-                count += 1
-                cursor = next_step[cursor]
+            if event.kind == "DISSOLVE":
+                # Absence is supported by successive complete snapshots, not
+                # by repeating a transition event that cannot recur once gone.
+                members = set(event.shared_entity_ids)
+                for future in (row for row in rows if row.step >= event.to_step):
+                    present = {entity.entity_id for entity in future.entities}
+                    if not future.coverage_complete or members & present:
+                        break
+                    count += 1
+            else:
+                while cursor in keys_by_transition and key in keys_by_transition[cursor] and cursor in next_step:
+                    count += 1
+                    cursor = next_step[cursor]
             status = "CONFIRMED" if count >= self.min_consecutive_transitions else "CANDIDATE"
             finalized.append(HyperedgeEvent(
                 event.kind, event.from_step, event.to_step,
