@@ -30,7 +30,7 @@ class PermutationEvidence:
     permutation: tuple[int, ...]
     compatible_evidence_ids: tuple[str, ...]
     conflicting_evidence_ids: tuple[str, ...]
-    status: str  # STRUCTURALLY_COMPATIBLE, CONTRADICTED, UNRESOLVED
+    status: str
 
 
 @dataclass(frozen=True)
@@ -46,7 +46,7 @@ class RelationSymmetryHypothesis:
     permutation_evidence: tuple[PermutationEvidence, ...]
     slot_equivalence_classes: tuple[SlotEquivalenceClass, ...]
     evidence_ids_seen: tuple[str, ...]
-    semantic_status: str  # NOT_ESTABLISHED
+    semantic_status: str
 
 
 @dataclass(frozen=True)
@@ -59,43 +59,45 @@ class SymmetryDiscoveryReport:
 
 
 def _permutation_groups(
-    arity: int, permutations_by_tuple: dict[tuple[int, ...], PermutationEvidence]
+    arity: int,
+    permutations_by_tuple: dict[tuple[int, ...], PermutationEvidence],
+    *,
+    min_support: int,
 ) -> tuple[SlotEquivalenceClass, ...]:
-    parent = list(range(arity))
-
-    def find(value: int) -> int:
-        while parent[value] != value:
-            parent[value] = parent[parent[value]]
-            value = parent[value]
-        return value
-
-    supports: dict[tuple[int, int], set[str]] = {}
+    """Build only cliques whose every pair has common independent support."""
+    pair_support: dict[tuple[int, int], set[str]] = {}
     for left in range(arity):
         for right in range(left + 1, arity):
             permutation = list(range(arity))
             permutation[left], permutation[right] = permutation[right], permutation[left]
             item = permutations_by_tuple.get(tuple(permutation))
             if item and item.status == "STRUCTURALLY_COMPATIBLE":
-                parent[find(right)] = find(left)
-                supports[(left, right)] = set(item.compatible_evidence_ids)
+                pair_support[(left, right)] = set(item.compatible_evidence_ids)
 
-    groups: dict[int, list[int]] = defaultdict(list)
+    groups: list[list[int]] = []
+    group_supports: list[set[str]] = []
     for position in range(arity):
-        groups[find(position)].append(position)
+        placed = False
+        for index, members in enumerate(groups):
+            supports = [
+                pair_support.get((min(position, member), max(position, member)), set())
+                for member in members
+            ]
+            common = set.intersection(*supports) if supports else set()
+            if len(common) >= min_support:
+                members.append(position)
+                group_supports[index] = common
+                placed = True
+                break
+        if not placed:
+            groups.append([position])
+            group_supports.append(set())
 
-    result = []
-    for members in groups.values():
-        if len(members) < 2:
-            continue
-        evidence_sets = [
-            supports[(left, right)]
-            for offset, left in enumerate(members)
-            for right in members[offset + 1:]
-            if (left, right) in supports
-        ]
-        shared = set.intersection(*evidence_sets) if evidence_sets else set()
-        result.append(SlotEquivalenceClass(tuple(members), tuple(sorted(shared))))
-    return tuple(sorted(result, key=lambda item: item.positions))
+    return tuple(
+        SlotEquivalenceClass(tuple(members), tuple(sorted(group_supports[index])))
+        for index, members in enumerate(groups)
+        if len(members) > 1
+    )
 
 
 def discover_relation_symmetry(
@@ -110,15 +112,10 @@ def discover_relation_symmetry(
 ) -> SymmetryDiscoveryReport:
     """Find slot permutations compatible with external typed structure.
 
-    For each target relation instance, remove every edge of the target relation
-    type, infer bounded WL colors from the remaining context graph, then test
-    whether a slot permutation only exchanges participants with equal context
-    colors. Evidence is aggregated by distinct observation IDs.
-
-    This is deliberately conservative: a permutation with any observed
-    conflict is marked CONTRADICTED; one with insufficient support remains
-    UNRESOLVED. No target relation's own slot ordering is used to color its
-    participants, avoiding circular evidence.
+    Remove all target-relation edges before WL refinement, then test each
+    permutation against participants' external structural colors. Results
+    aggregate distinct observation evidence IDs. Conflicts are retained and
+    prevent a permutation from being labeled structurally compatible.
     """
     if not isinstance(target_relation_type, str) or not target_relation_type.strip():
         raise SymmetryDiscoveryError("target_relation_type is required")
@@ -221,15 +218,16 @@ def discover_relation_symmetry(
                 status = "STRUCTURALLY_COMPATIBLE"
             else:
                 status = "UNRESOLVED"
-            item = PermutationEvidence(
-                permutation, compatible_ids, conflicting_ids, status
-            )
+            item = PermutationEvidence(permutation, compatible_ids, conflicting_ids, status)
             evidence.append(item)
             by_permutation[permutation] = item
             if status == "UNRESOLVED":
                 unresolved += 1
+
         total_permutations += len(evidence)
-        slot_classes = _permutation_groups(arity, by_permutation)
+        slot_classes = _permutation_groups(
+            arity, by_permutation, min_support=min_support
+        )
         hypotheses.append(RelationSymmetryHypothesis(
             relation_type=target_relation_type,
             arity=arity,
