@@ -81,6 +81,17 @@ class UnifiedStructureCompetitionTests(unittest.TestCase):
             compete(train, validation, manifest,
                     budget=Budget(max_feature_signatures=1))
 
+    def test_dense_fork_extraction_stops_at_feature_budget(self):
+        nodes = (Node("c", "center"),) + tuple(Node(f"n{i}", "leaf") for i in range(10))
+        edges = tuple(Edge("c", f"r{i}", f"n{i}") for i in range(10))
+        train = (Example("t0", (), nodes, edges, "yes"),
+                 Example("t1", (), nodes, edges, "no"))
+        validation = (Example("v0", (), nodes, edges, "yes"),)
+        manifest = SplitManifest(("t0", "t1"), ("v0",), ("locked",), ("no", "yes"))
+        with self.assertRaisesRegex(ValueError, "feature signature budget"):
+            compete(train, validation, manifest,
+                    budget=Budget(max_feature_signatures=20, max_path_length=1))
+
     def test_predicate_evaluation_budget_is_enforced(self):
         train, validation, manifest = dataset()
         result = compete(train, validation, manifest,
