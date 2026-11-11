@@ -26,6 +26,7 @@ class RelationMap:
 @dataclass(frozen=True)
 class RoleMap:
     source_relation: str
+    target_relation: str
     source_role: str
     target_role: str
 
