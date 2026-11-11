@@ -178,7 +178,7 @@ def build_synthetic_suite(
         lexical_trap_view = CandidateView(
             view_id=f"view-lexical-{index}",
             relation_signature=frozenset({"isolated_storage"}),
-            required_context=frozenset(),
+            required_context=frozenset({"historical_metaphor"}),
             counterexample_context=frozenset(),
             evidence_polarity="SUPPORTS",
             is_valid_transfer=False,
@@ -190,7 +190,7 @@ def build_synthetic_suite(
         )
         candidate_lexical = Candidate(
             candidate_id="candidate-lexical",
-            lexical_terms=frozenset({"flow", "channel", "transfer", "flow", "channel"}),
+            lexical_terms=frozenset({"flow", "channel", "transfer", "receiver", "surface"}),
             views=(lexical_trap_view,),
         )
         candidate_unknown = Candidate(
