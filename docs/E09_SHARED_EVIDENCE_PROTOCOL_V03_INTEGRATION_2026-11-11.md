@@ -13,7 +13,7 @@ For a strict prediction cycle:
 
 1. `observation` carries `observation_id`, `query_id`, `scope` and `split`.
 2. `prediction_commit` repeats the same query/scope/split tuple and must reference a prior v0.3 observation with an exact match.
-3. The committed event receipt exposes the immutable event digest.
+3. The committed event receipt exposes the immutable event-envelope digest. Protocol version is included in the idempotency fingerprint, so a v0.2 retry cannot silently replay as v0.3.
 4. `evidence_reveal` repeats query/scope/split, learner track and prediction ID, and carries `commit_digest` equal to the exact committed event digest.
 5. A reveal cannot bind to a legacy event, another scope, another split, another query or a different committed payload.
 
