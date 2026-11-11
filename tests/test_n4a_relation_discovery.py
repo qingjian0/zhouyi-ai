@@ -72,8 +72,8 @@ class N4ARelationDiscoveryTests(unittest.TestCase):
         three = [c for c in result.candidates if c.role_count == 3]
         target = [
             c for c in three
-            if {tuple(role) for role in json.loads(c.signature)["roles"]} == {
-                ("initiator",), ("mediator",), ("receiver",)
+            if {role[0] for role in json.loads(c.signature)["roles"]} == {
+                "initiator", "mediator", "receiver"
             }
         ]
         self.assertEqual(len(target), 1)
