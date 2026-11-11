@@ -2,7 +2,7 @@ import base64
 import hashlib
 import tempfile
 import unittest
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from cryptography.hazmat.primitives import serialization
@@ -83,7 +83,9 @@ class E09AuthorityServiceTests(unittest.TestCase):
                                            {"authorizer"}, {"world/other"}),
         })
         self.authority = E09AuthorityService(
-            self.store, authenticator=self.authenticator, signer=_Signer(self.private)
+            self.store, authenticator=self.authenticator, signer=_Signer(self.private),
+            clock=_FixedClock(datetime(2026, 11, 12, 0, 0, tzinfo=timezone.utc)),
+            max_grant_ttl=timedelta(hours=1),
         )
 
     def tearDown(self):
@@ -162,8 +164,7 @@ class E09AuthorityServiceTests(unittest.TestCase):
             self.authority.issue_branch_merge_authorization(
                 "wrong-scope-cert", episode_id=self.episode, authorization_id="grant-denied",
                 scope=self.scope, parent_state_ref="parent-1", branch_ids=["left", "right"],
-                evidence_refs=["reveal-1"], issued_at="2026-11-12T00:00:00+00:00",
-                expires_at="2026-11-12T01:00:00+00:00",
+                evidence_refs=["reveal-1"], ttl=timedelta(minutes=45),
             )
 
     def test_signed_grant_is_bound_to_authenticated_issuer_and_service_clock(self):
@@ -171,8 +172,7 @@ class E09AuthorityServiceTests(unittest.TestCase):
         receipt = self.authority.issue_branch_merge_authorization(
             "authorizer-cert", episode_id=self.episode, authorization_id="grant-1",
             scope=self.scope, parent_state_ref="parent-1", branch_ids=["left", "right"],
-            evidence_refs=[reveal_ref], issued_at="2026-11-12T00:00:00+00:00",
-            expires_at="2026-11-12T01:00:00+00:00",
+            evidence_refs=[reveal_ref], ttl=timedelta(minutes=45),
         )
         self.assertEqual(receipt.sequence_no, 4)
         verifier = E09VerifierService(
@@ -198,13 +198,21 @@ class E09AuthorityServiceTests(unittest.TestCase):
         with self.assertRaises(E09AuthorizationError):
             verifier.verify_branch_merge_authorization(now=datetime.now(timezone.utc))
 
+
+    def test_authority_rejects_grant_lifetime_above_policy(self):
+        with self.assertRaises(E09AuthorizationError):
+            self.authority.issue_branch_merge_authorization(
+                "authorizer-cert", episode_id=self.episode, authorization_id="grant-too-long",
+                scope=self.scope, parent_state_ref="parent-1", branch_ids=["left", "right"],
+                evidence_refs=["reveal-1"], ttl=timedelta(hours=2),
+            )
+
     def test_authorizer_identity_not_request_payload_controls_issuer(self):
         reveal_ref = self._prior_prediction()
         receipt = self.authority.issue_branch_merge_authorization(
             "authorizer-cert", episode_id=self.episode, authorization_id="grant-2",
             scope=self.scope, parent_state_ref="parent-1", branch_ids=["left", "right"],
-            evidence_refs=[reveal_ref], issued_at="2026-11-12T00:00:00+00:00",
-            expires_at="2026-11-12T01:00:00+00:00",
+            evidence_refs=[reveal_ref], ttl=timedelta(minutes=45),
         )
         event = next(e for e in self.store.replay_episode(self.episode) if e["event_id"] == "grant-2")
         self.assertEqual(event["payload"]["issuer_id"], "issuer-authority")
