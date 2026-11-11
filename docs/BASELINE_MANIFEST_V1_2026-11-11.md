@@ -71,3 +71,16 @@ Inspected PR #208 source and tests, plus PR #212 source and tests:
 ## Exact-head CI observation
 
 At audit time, PR #206 head was `6e14c4a9c2363b15d46eee0bbff4417a4907ea6a`. No PR-triggered workflow run or combined status check was returned for that exact commit. An intermediate head `c907478` had a tests workflow reported in progress, but that is not evidence of CI success on the final head. No local test suite was executed during this audit.
+
+
+## P1 typed CSG-GCR bridge status
+
+A new Draft integration PR was opened after the code-level review:
+
+| PR | Base | Head | Scope | Status |
+|---|---|---|---|---|
+| [#217](https://github.com/qingjian0/zhouyi-ai/pull/217) | #208 branch at `5f886df` | `integration/csg-gcr-typed-hyperedge-bridge-2026-11-11` at `4c61f75` | Typed hyperedge unifier + typed CSG-GCR bridge + focused tests | Draft; exact-head CI not yet reported |
+
+PR #217 is stacked on the #208 CSG-GCR executable slice. It is not yet based on #206 or the E09 branch. Do not merge it independently to main or treat it as end-to-end E09 integration.
+
+The bridge filters completed bounded CSG-GCR candidate sets through the typed unifier and preserves explicit budget exhaustion. It currently does not prune typed-infeasible partial sets during DFS; this is a known efficiency limitation, not a correctness claim about global search completeness. The exact PR head currently has no workflow run or combined status returned by GitHub; tests are therefore pending, not passing.
