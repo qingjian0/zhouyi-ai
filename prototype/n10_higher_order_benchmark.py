@@ -74,7 +74,7 @@ def run_seed(seed: int, train_count: int = 3000, test_count: int = 1500,
     models = {}
     for order in (1, 2, 3):
         model = LearnableSROK(roles, feature_dim=1)
-        history = model.fit_binary(
+        model.fit_binary(
             train, max_order=order, epochs=epochs,
             learning_rate=0.15, l2=1e-3,
         )
@@ -100,7 +100,7 @@ def run_seed(seed: int, train_count: int = 3000, test_count: int = 1500,
         # contributions, mask only the explicit third-order feature block.
         "triple_model_after_triple_mask": evaluate(models[3], test, 2),
         "final_train_bce": {
-            "unary": models[1].training_steps and history_loss(models[1], train, 1),
+            "unary": history_loss(models[1], train, 1),
             "pairwise": history_loss(models[2], train, 2),
             "third_order": history_loss(models[3], train, 3),
         },
