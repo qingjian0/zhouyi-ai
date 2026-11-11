@@ -89,8 +89,13 @@ class ActiveOperatorIdentifier:
         if any(not item for item in ids) or len(set(ids)) != len(ids):
             raise IdentificationError("hypothesis IDs must be non-empty and unique")
         if (
-            isinstance(max_experiments, bool) or max_experiments < 0
-            or not math.isfinite(tolerance) or tolerance < 0
+            isinstance(max_experiments, bool)
+            or not isinstance(max_experiments, int)
+            or max_experiments < 0
+            or isinstance(tolerance, bool)
+            or not isinstance(tolerance, (int, float))
+            or not math.isfinite(tolerance)
+            or tolerance < 0
         ):
             raise IdentificationError("invalid experiment budget or tolerance")
         pool = tuple(sorted({self._state(row) for row in query_pool}))
