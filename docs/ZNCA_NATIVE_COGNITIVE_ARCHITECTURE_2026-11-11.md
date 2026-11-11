@@ -361,3 +361,10 @@ N2 的边界：候选关系项仍由外部提供；自动结构发现、类象�
 - NoRA, NeurIPS 2025: https://papers.neurips.cc/paper_files/paper/2025/hash/167856a2bb094d44872c4a992bad49d0-Abstract-Datasets_and_Benchmarks_Track.html
 - Hypergraph Dynamic System, ICLR 2024: https://proceedings.iclr.cc/paper_files/paper/2024/hash/0973524e02a712af33325d0688ae6f49-Abstract-Conference.html
 - IRED, ICML 2024: https://proceedings.mlr.press/v235/du24f.html
+
+
+## 研究更新：N3 自主关系候选发现（2026-11-11）
+
+N3 新增有界候选生成器：从结构化状态转移中枚举有限阶交互乘积，以训练集残差关联提出候选结构、促进/抑制方向和证据引用。候选预算耗尽会显式报告。该方法只提出预测关联假设，不识别因果，也不从原始文本/图像提取状态。
+
+新增文件：`prototype/znca_discovery.py`、`tests/test_znca_discovery.py`、`docs/ZNCA_N3_AUTONOMOUS_DISCOVERY_2026-11-11.md`。必须在独立验证集和锁定测试集评估候选，不能用发现候选的同一批数据报告泛化成绩。
