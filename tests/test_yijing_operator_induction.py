@@ -28,7 +28,7 @@ class RelationalInductionTests(unittest.TestCase):
         candidate = report.candidates[0]
         self.assertEqual(candidate.status, CandidateStatus.INTERVENTION_SUPPORTED)
         self.assertEqual(candidate.domains, ("d1", "d2"))
-        self.assertEqual(candidate.predict(before, "allocate"), after)
+        self.assertEqual(candidate.predict(before, "allocate", domain="d1"), after)
 
     def test_concrete_entity_ids_are_alpha_renamed_by_roles(self):
         before1 = state()
@@ -74,7 +74,8 @@ class RelationalInductionTests(unittest.TestCase):
             (Node("a", "agent", "actor"), Node("b", "resource", "target")),
             (), (("phase", "growth"),),
         )
-        self.assertIsNone(candidate.predict(no_support, "allocate"))
+        self.assertIsNone(candidate.predict(no_support, "allocate", domain="d1"))
+        self.assertIsNone(candidate.predict(state(), "allocate", domain="unseen-domain"))
 
     def test_held_out_counterexample_fails(self):
         before = state()
@@ -97,8 +98,8 @@ class RelationalInductionTests(unittest.TestCase):
             self.row(before, after_b, "e2"),
         ]).candidates
         ranked = rank_experiments(candidates, [
-            ExperimentQuery(before, "allocate", "q1"),
-            ExperimentQuery(state(phase="other"), "allocate", "q2"),
+            ExperimentQuery(before, "allocate", "d1", "q1"),
+            ExperimentQuery(state(phase="other"), "allocate", "d1", "q2"),
         ])
         self.assertEqual(ranked[0].query_id, "q1")
         self.assertGreater(ranked[0].disagreement_bits, 0)
