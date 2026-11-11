@@ -69,7 +69,12 @@ class E09AuthorizationEnvelopeV2Tests(unittest.TestCase):
             with self.subTest(field=field):
                 altered = dict(self.event)
                 altered["payload"] = dict(self.event["payload"])
-                altered["payload"][field] = value + ["changed"] if isinstance(value, list) else value + "-changed"
+                if isinstance(value, list):
+                    altered["payload"][field] = value + ["changed"]
+                elif isinstance(value, int):
+                    altered["payload"][field] = value + 1
+                else:
+                    altered["payload"][field] = value + "-changed"
                 changed_bytes = branch_merge_authorization_signing_bytes(altered)
                 self.assertFalse(self.keyring("issuer-v2", "Ed25519", changed_bytes, self.signature))
 
