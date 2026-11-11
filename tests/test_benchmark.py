@@ -1,24 +1,22 @@
 import asyncio
+import json
+import tempfile
 import unittest
+from pathlib import Path
 
 from orchestrator.core.benchmark import run_serial_parallel_benchmark
+from orchestrator.core.experiment_archive import archive_benchmark_report
 from orchestrator.core.scheduler import TaskSpec
-
 
 class SerialParallelBenchmarkTests(unittest.IsolatedAsyncioTestCase):
     async def test_same_outputs_and_speedup_report(self):
         async def handler(payload):
             await asyncio.sleep(0.001)
             return {"value": payload["value"] * 2}
-
-        tasks = [
-            TaskSpec(f"t{i}", "double", payload={"value": i})
-            for i in range(8)
-        ]
-        report = await run_serial_parallel_benchmark(
-            tasks, {"double": handler}, parallelism=4, repeats=2
-        )
+        tasks = [TaskSpec(f"t{i}", "double", payload={"value": i}) for i in range(8)]
+        report = await run_serial_parallel_benchmark(tasks, {"double": handler}, parallelism=4, repeats=2)
         self.assertTrue(report["equivalent"])
+        self.assertTrue(report["all_succeeded"])
         self.assertEqual(report["task_count"], 8)
         self.assertEqual(len(report["serial"]["runs"]), 2)
         self.assertEqual(len(report["parallel"]["runs"]), 2)
@@ -27,7 +25,6 @@ class SerialParallelBenchmarkTests(unittest.IsolatedAsyncioTestCase):
     async def test_rejects_invalid_parallelism_and_repeats(self):
         async def handler(payload):
             return payload
-
         tasks = [TaskSpec("t0", "identity")]
         with self.assertRaises(ValueError):
             await run_serial_parallel_benchmark(tasks, {"identity": handler}, parallelism=1)
@@ -37,14 +34,45 @@ class SerialParallelBenchmarkTests(unittest.IsolatedAsyncioTestCase):
     async def test_non_json_handler_output_is_reported_as_task_failure(self):
         async def handler(payload):
             return object()
-
-        tasks = [TaskSpec("t0", "bad")]
-        report = await run_serial_parallel_benchmark(
-            tasks, {"bad": handler}, repeats=1
-        )
+        report = await run_serial_parallel_benchmark([TaskSpec("t0", "bad")], {"bad": handler}, repeats=1)
         self.assertTrue(report["equivalent"])
         self.assertFalse(report["all_succeeded"])
         self.assertEqual(report["interpretation"], "task_failures_present")
-,    async def test_mutating_handler_does_not_contaminate_repetitions(self):,        async def handler(payload):,            payload["nested"]["value"] += 1,            return payload["nested"]["value"],,        tasks = [TaskSpec("t0", "mutate", payload={"nested": {"value": 0}})],        report = await run_serial_parallel_benchmark(,            tasks, {"mutate": handler}, parallelism=2, repeats=3,        ),        self.assertTrue(report["equivalent"]),        self.assertTrue(report["all_succeeded"]),        self.assertEqual(tasks[0].payload["nested"]["value"], 0),        self.assertEqual(,            [run["outputs"]["t0"]["result"] for run in report["serial"]["runs"]],,            [1, 1, 1],,        ),
+
+    async def test_mutating_handler_does_not_contaminate_repetitions(self):
+        async def handler(payload):
+            payload["nested"]["value"] += 1
+            return payload["nested"]["value"]
+        tasks = [TaskSpec("t0", "mutate", payload={"nested": {"value": 0}})]
+        report = await run_serial_parallel_benchmark(tasks, {"mutate": handler}, parallelism=2, repeats=3)
+        self.assertTrue(report["equivalent"])
+        self.assertTrue(report["all_succeeded"])
+        self.assertEqual(tasks[0].payload["nested"]["value"], 0)
+        self.assertEqual([run["outputs"]["t0"]["result"] for run in report["serial"]["runs"]], [1, 1, 1])
+
+class ExperimentArchiveTests(unittest.TestCase):
+    def test_writes_verified_envelope(self):
+        with tempfile.TemporaryDirectory() as directory:
+            report = {"task_set_digest": "abc", "equivalent": True, "speedup": 2.0}
+            result = archive_benchmark_report(report, directory, run_id="trial-001", code_revision="deadbeef")
+            saved = json.loads(Path(result["path"]).read_text(encoding="utf-8"))
+            self.assertEqual(saved["report"], report)
+            self.assertEqual(saved["task_set_digest"], "abc")
+            self.assertEqual(saved["code_revision"], "deadbeef")
+            self.assertEqual(saved["report_digest"], result["report_digest"])
+
+    def test_refuses_overwrite(self):
+        with tempfile.TemporaryDirectory() as directory:
+            archive_benchmark_report({"x": 1}, directory, run_id="same")
+            with self.assertRaises(FileExistsError):
+                archive_benchmark_report({"x": 2}, directory, run_id="same")
+
+    def test_rejects_invalid_json_and_run_id(self):
+        with tempfile.TemporaryDirectory() as directory:
+            with self.assertRaises(ValueError):
+                archive_benchmark_report({"x": float("nan")}, directory, run_id="bad")
+            with self.assertRaises(ValueError):
+                archive_benchmark_report({"x": 1}, directory, run_id="../escape")
+
 if __name__ == "__main__":
     unittest.main()
