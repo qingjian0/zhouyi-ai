@@ -1112,10 +1112,13 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                 trigger_tracks = set()
                 for trigger in triggers:
                     item = evidence.get(f"revealed:{trigger}")
-                    if item is None or item.get("split_role") not in CHALLENGE_ROLES:
-                        raise ProtocolError(f"revision trigger is not locked/post-deploy evidence: {trigger}")
-                    if row["protocol_version"] == "0.3" and item.get("split_role") not in LEARNER_SUPPORT_ROLES:
-                        raise ProtocolError(f"v0.3 revision cannot consume evaluator-only evidence: {trigger}")
+                    if item is None:
+                        raise ProtocolError(f"revision trigger evidence is unavailable: {trigger}")
+                    if row["protocol_version"] == "0.3":
+                        if item.get("split_role") not in LEARNER_SUPPORT_ROLES:
+                            raise ProtocolError(f"v0.3 revision cannot consume evaluator-only evidence: {trigger}")
+                    elif item.get("split_role") not in CHALLENGE_ROLES:
+                        raise ProtocolError(f"legacy revision trigger is not locked/post-deploy evidence: {trigger}")
                     trigger_tracks.add(item.get("learner_track", "legacy"))
                 if len(trigger_tracks) > 1:
                     raise ProtocolError("revision combines trigger evidence from different learner_tracks during replay")
