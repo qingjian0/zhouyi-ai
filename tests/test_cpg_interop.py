@@ -72,6 +72,19 @@ class CpgInteropTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "split"):
             validate_reveal_binding(commit, self.reveal(commit, split=EvidenceSplit.LOCKED_TEST))
 
+    def test_strict_binding_rejects_missing_context(self):
+        legacy_commit = PredictionCommit(
+            commit_id="c", candidate_ref="r@1", query_id="q", scope="s",
+            input_digest=D, identifiable=True, prediction_json=canonical_json(1)
+        )
+        legacy_reveal = EvidenceReveal(
+            evidence_id="e", commit_digest=legacy_commit.commit_digest,
+            query_id="q", scope="s", split=EvidenceSplit.SUPPORT,
+            outcome_json=canonical_json(1), source_ref="source"
+        )
+        with self.assertRaisesRegex(ValueError, "strict prediction commit"):
+            validate_reveal_binding(legacy_commit, legacy_reveal, require_context=True)
+
     def test_abstained_is_distinct_from_unknown(self):
         result = InferenceResult("q", "w", InferenceStatus.ABSTAINED, (), (), ())
         self.assertEqual(result.status, InferenceStatus.ABSTAINED)
