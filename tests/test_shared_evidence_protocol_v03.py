@@ -18,13 +18,21 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
         self.store.close()
         self.tmp.cleanup()
 
-    def ingest(self, *, evidence_id="train-1", role="train"):
+    def observation(self, observation_id="obs-1"):
+        return {
+            "event_id": f"event-{observation_id}",
+            "event_type": "observation",
+            "payload": {"observation_id": observation_id},
+        }
+
+    def ingest(self, *, evidence_id="train-1", role="train", observation_id="obs-1"):
         return {
             "event_id": f"ingest-event-{evidence_id}",
             "event_type": "evidence_ingest",
             "idempotency_key": f"ingest-key-{evidence_id}",
             "payload": {
                 "evidence_id": evidence_id,
+                "observation_ref": f"event-{observation_id}",
                 "split_role": role,
                 "outcome_ref": f"sha256:{evidence_id}",
                 "source_provenance": {"source_kind": "dataset", "source_id": "fixture-1"},
@@ -36,6 +44,7 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
         receipts = self.store.append_events(
             episode_id="ep", idempotency_key="batch-1",
             events=[
+                self.observation(),
                 self.ingest(),
                 {
                     "event_id": "structure-1", "event_type": "structure_version",
@@ -51,7 +60,7 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
         )
         self.assertEqual([r.sequence_no for r in receipts], [1, 2])
         events = self.store.replay_episode("ep")
-        self.assertEqual([e["event_type"] for e in events], ["evidence_ingest", "structure_version"])
+        self.assertEqual([e["event_type"] for e in events], ["observation", "evidence_ingest", "structure_version"])
 
     def test_ingest_rejects_locked_test_and_gate_final(self):
         for role in ("locked_test", "post_deploy", "gate_final", "gate_dev"):
@@ -68,6 +77,7 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
             self.store.append_events(
                 episode_id="ep", idempotency_key="bad-batch",
                 events=[
+                    self.observation(),
                     {
                         "event_id": "structure-first", "event_type": "structure_version",
                         "payload": {
@@ -86,10 +96,7 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
         )
 
     def test_batch_retry_returns_same_receipts_and_conflicting_retry_fails(self):
-        events = [self.ingest(), {
-            "event_id": "obs", "event_type": "observation",
-            "payload": {"observation_id": "obs-1"},
-        }]
+        events = [self.observation(), self.ingest()]
         first = self.store.append_events(episode_id="ep", events=events, idempotency_key="batch")
         retry = self.store.append_events(episode_id="ep", events=events, idempotency_key="batch")
         self.assertEqual([r.sequence_no for r in first], [1, 2])
@@ -132,10 +139,7 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
     def test_restart_replay_keeps_v03_events(self):
         self.store.append_events(
             episode_id="ep", idempotency_key="batch",
-            events=[self.ingest(), {
-                "event_id": "obs", "event_type": "observation",
-                "payload": {"observation_id": "obs"},
-            }],
+            events=[self.observation(), self.ingest()],
         )
         before = [(x["event_id"], x["payload_digest"]) for x in self.store.replay_episode("ep")]
         self.store.close()
