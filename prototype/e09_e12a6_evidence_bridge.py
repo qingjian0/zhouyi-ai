@@ -9,7 +9,9 @@ import math
 from datetime import datetime, timezone
 from typing import Any, Callable
 
-from prototype.csg_branch_delta import VerifiedBranchMergeAuthorization
+from prototype.csg_branch_delta import (
+    VerifiedBranchMergeAuthorization, _issue_verified_branch_merge_authorization,
+)
 from prototype.e12a6_lifecycle_contract import Evidence, SplitRole
 from prototype.e12a6_zpcm_persistence import LifecycleEventReceipt, PersistentLifecycleLedger
 from prototype.shared_evidence_protocol import STRICT_PROTOCOL_VERSION, SQLiteEvidenceStore, canonical_json, digest_payload
@@ -290,7 +292,7 @@ def resolve_branch_merge_authorization(
     if valid is not True:
         raise E09EvidenceBindingError("branch merge authorization signature is invalid or issuer is untrusted")
 
-    return VerifiedBranchMergeAuthorization(
+    return _issue_verified_branch_merge_authorization(
         authorization_ref=authorization_ref,
         parent_state_ref=parent_state_ref,
         branch_ids=tuple(sorted(branch_ids)),
