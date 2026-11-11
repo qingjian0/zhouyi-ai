@@ -50,6 +50,7 @@ class MotifInstance:
     case_id: str
     domain: str
     node_ids_by_role: tuple[str, ...]
+    mapping_ambiguous: bool
 
 
 @dataclass(frozen=True)
@@ -86,7 +87,7 @@ def _require_text(value: str, field: str) -> None:
 
 
 def _canonical_motif(nodes: tuple[Node, ...], edges: tuple[Edge, ...],
-                     subset: tuple[str, ...]) -> tuple[str, tuple[str, ...]]:
+                     subset: tuple[str, ...]) -> tuple[str, tuple[str, ...], bool]:
     """Return an ID-invariant signature and IDs ordered by canonical role."""
     by_id = {node.node_id: node for node in nodes}
     selected = set(subset)
@@ -97,6 +98,7 @@ def _canonical_motif(nodes: tuple[Node, ...], edges: tuple[Edge, ...],
     ]
     best_signature: str | None = None
     best_order: tuple[str, ...] | None = None
+    best_count = 0
     for order in itertools.permutations(subset):
         position = {node_id: i for i, node_id in enumerate(order)}
         role_labels = [list(sorted(by_id[node_id].role_features)) for node_id in order]
@@ -108,9 +110,11 @@ def _canonical_motif(nodes: tuple[Node, ...], edges: tuple[Edge, ...],
         signature = json.dumps(payload, ensure_ascii=False, sort_keys=True,
                                separators=(",", ":"))
         if best_signature is None or signature < best_signature:
-            best_signature, best_order = signature, order
+            best_signature, best_order, best_count = signature, order, 1
+        elif signature == best_signature:
+            best_count += 1
     assert best_signature is not None and best_order is not None
-    return best_signature, best_order
+    return best_signature, best_order, best_count > 1
 
 
 def _is_connected(subset: tuple[str, ...], edges: tuple[Edge, ...]) -> bool:
@@ -168,13 +172,13 @@ def _case_motifs(case: RelationalCase, *, max_nodes: int,
         for subset in itertools.combinations(ids, size):
             visited += 1
             if visited > max_subsets:
-                return motifs, 1
+                return {}, 1
             if not _is_connected(subset, case.edges):
                 continue
-            signature, canonical_order = _canonical_motif(
+            signature, canonical_order, mapping_ambiguous = _canonical_motif(
                 nodes, case.edges, subset
             )
-            motifs.setdefault(signature, canonical_order)
+            motifs.setdefault(signature, (canonical_order, mapping_ambiguous))
     return motifs, 0
 
 
@@ -222,7 +226,7 @@ def discover_relations(
         )
         over_budget += exceeded
         motifs_seen += len(motifs)
-        for signature, ordered_ids in motifs.items():
+        for signature, (ordered_ids, mapping_ambiguous) in motifs.items():
             key = (case.scope, signature)
             record = aggregate.setdefault(key, {
                 "train_pos": set(), "train_neg": set(),
@@ -238,7 +242,7 @@ def discover_relations(
             record[bucket].add(case.case_id)
             record["domains"].add(case.domain)
             record["instances"].append(
-                MotifInstance(case.case_id, case.domain, ordered_ids)
+                MotifInstance(case.case_id, case.domain, ordered_ids, mapping_ambiguous)
             )
 
     candidates: list[RelationCandidate] = []
