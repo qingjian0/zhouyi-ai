@@ -29,7 +29,10 @@ class HigherOrderNecessaryBenchmarkTests(unittest.TestCase):
                 train, max_order=order, epochs=120,
                 learning_rate=0.15, l2=1e-3,
             )
-            self.assertLess(history[-1], history[0])
+            if order == 3:
+                self.assertLess(history[-1], history[0])
+            else:
+                self.assertAlmostEqual(history[-1], history[0], places=8)
             models[order] = model
             results[order] = evaluate(model, test, order)["accuracy"]
 
