@@ -122,13 +122,13 @@ class MTS0RunnerTests(unittest.TestCase):
     def test_multiseed_runner_reports_mean_stddev_and_audits(self):
         result = run_mts0_multiseed(
             start_seed=20,
-            seed_count=3,
+            seed_count=5,
             train_count=80,
             locked_test_count=30,
             epochs=30,
         )
-        self.assertEqual(result["seed_count"], 3)
-        self.assertEqual(len(result["per_seed"]), 3)
+        self.assertEqual(result["seed_count"], 5)
+        self.assertEqual(len(result["per_seed"]), 5)
         self.assertIn("sample_stddev", result["summary"]["exact_match"])
         self.assertTrue(all(
             row["audit"]["all_predictions_committed_before_reveal"]
