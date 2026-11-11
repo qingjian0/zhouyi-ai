@@ -1,6 +1,6 @@
 import unittest
 
-from prototype.e10a_prequential_experiment import run, run_all
+from prototype.e10a_prequential_experiment import run, run_all, run_sweep
 
 
 class E10APrequentialExperimentTests(unittest.TestCase):
@@ -22,6 +22,10 @@ class E10APrequentialExperimentTests(unittest.TestCase):
             result["comparisons"]["incremental_equals_batch_final_version_space"]
         )
         self.assertEqual(
+            result["arms"][1]["final_version_space_hashes"],
+            result["arms"][2]["final_version_space_hashes"],
+        )
+        self.assertEqual(
             result["comparisons"]["frozen_candidate_update_operations"], 0
         )
         self.assertGreater(
@@ -29,6 +33,19 @@ class E10APrequentialExperimentTests(unittest.TestCase):
         )
         self.assertGreater(
             result["comparisons"]["incremental_candidate_update_operations"], 0
+        )
+
+
+    def test_multi_seed_sweep_checks_exact_spaces_and_reports_distributions(self):
+        result = run_sweep(start_seed=1400, seeds=3, instances_per_template=2)
+        self.assertEqual(result["seeds"], 3)
+        self.assertTrue(
+            result["comparisons"]["batch_equals_incremental_exact_version_space_all_seeds"]
+        )
+        self.assertEqual(result["arms"]["FROZEN"]["coverage"]["n"], 3)
+        self.assertEqual(len(result["comparisons"]["per_seed"]), 3)
+        self.assertIsNotNone(
+            result["comparisons"]["aggregate_incremental_to_batch_update_operation_ratio"]
         )
 
 
