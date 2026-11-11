@@ -420,10 +420,10 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
             if not isinstance(payload["learner_track"], str) or not payload["learner_track"].strip():
                 raise ProtocolError("challenge release policy learner_track must be non-empty")
             roles, kinds = payload["allowed_evaluation_roles"], payload["allowed_challenge_kinds"]
-            if not isinstance(roles, list) or not roles or any(r not in EVALUATION_ROLES for r in roles) or roles != sorted(set(roles)):
+            if not isinstance(roles, list) or not roles or any(not isinstance(r, str) or r not in EVALUATION_ROLES for r in roles) or roles != sorted(set(roles)):
                 raise ProtocolError("allowed_evaluation_roles must be a non-empty sorted unique role list")
             allowed_kinds = {"RECONSIDER", "INSUFFICIENT_EVIDENCE", "BOUNDARY_CASE", "INVARIANCE_CHECK"}
-            if not isinstance(kinds, list) or not kinds or any(k not in allowed_kinds for k in kinds) or kinds != sorted(set(kinds)):
+            if not isinstance(kinds, list) or not kinds or any(not isinstance(k, str) or k not in allowed_kinds for k in kinds) or kinds != sorted(set(kinds)):
                 raise ProtocolError("allowed_challenge_kinds must be a non-empty sorted unique challenge-kind list")
             maximum = payload["max_releases"]
             if isinstance(maximum, bool) or not isinstance(maximum, int) or maximum < 1:
@@ -437,8 +437,9 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
             required = {"challenge_id", "policy_id", "source_evaluation_id", "source_prediction_id", "learner_track", "challenge_kind", "observation_id", "challenge_digest"}
             if set(payload) != required:
                 raise ProtocolError("challenge_release contains forbidden or missing fields; raw labels are not releasable")
-            if not isinstance(payload["challenge_id"], str) or not payload["challenge_id"].strip():
-                raise ProtocolError("challenge_id must be non-empty")
+            for field in ("challenge_id", "policy_id", "source_evaluation_id", "source_prediction_id", "learner_track", "challenge_kind", "observation_id"):
+                if not isinstance(payload[field], str) or not payload[field].strip():
+                    raise ProtocolError(f"challenge_release {field} must be a non-empty string")
             if self._event_by_payload_id(episode_id, "challenge_release", "challenge_id", payload["challenge_id"]):
                 raise ProtocolError("duplicate challenge_id")
             policy_row = self._event_by_payload_id(episode_id, "challenge_release_policy", "policy_id", payload["policy_id"])
@@ -1252,6 +1253,17 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                 required = {"policy_id", "learner_track", "allowed_evaluation_roles", "allowed_challenge_kinds", "max_releases", "policy_digest"}
                 if set(payload) != required or payload["policy_id"] in policies:
                     raise ProtocolError("replay challenge release policy has invalid shape or duplicate ID")
+                if (not isinstance(payload["learner_track"], str) or not payload["learner_track"].strip()
+                    or not isinstance(payload["allowed_evaluation_roles"], list)
+                    or not payload["allowed_evaluation_roles"]
+                    or any(not isinstance(r, str) or r not in EVALUATION_ROLES for r in payload["allowed_evaluation_roles"])
+                    or payload["allowed_evaluation_roles"] != sorted(set(payload["allowed_evaluation_roles"]))
+                    or not isinstance(payload["allowed_challenge_kinds"], list)
+                    or not payload["allowed_challenge_kinds"]
+                    or any(not isinstance(k, str) or k not in {"RECONSIDER", "INSUFFICIENT_EVIDENCE", "BOUNDARY_CASE", "INVARIANCE_CHECK"} for k in payload["allowed_challenge_kinds"])
+                    or payload["allowed_challenge_kinds"] != sorted(set(payload["allowed_challenge_kinds"]))
+                    or isinstance(payload["max_releases"], bool) or not isinstance(payload["max_releases"], int) or payload["max_releases"] < 1):
+                    raise ProtocolError("replay challenge release policy fields are invalid")
                 expected = digest_payload({k: payload[k] for k in sorted(required - {"policy_digest"})})
                 if expected != payload["policy_digest"]:
                     raise ProtocolError("replay challenge release policy digest mismatch")
@@ -1262,6 +1274,9 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                 required = {"challenge_id", "policy_id", "source_evaluation_id", "source_prediction_id", "learner_track", "challenge_kind", "observation_id", "challenge_digest"}
                 if set(payload) != required:
                     raise ProtocolError("replay challenge_release contains forbidden or missing fields")
+                for field in ("challenge_id", "policy_id", "source_evaluation_id", "source_prediction_id", "learner_track", "challenge_kind", "observation_id"):
+                    if not isinstance(payload[field], str) or not payload[field].strip():
+                        raise ProtocolError(f"replay challenge_release {field} must be a non-empty string")
                 policy = policies.get(payload["policy_id"])
                 evaluation = next((v for v in evaluations.values() if v["evaluation_id"] == payload["source_evaluation_id"]), None)
                 if policy is None or evaluation is None:
