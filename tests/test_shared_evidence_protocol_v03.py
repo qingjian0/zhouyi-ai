@@ -904,5 +904,59 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
 
 
 
+    def test_ledger_hydration_fails_closed_for_legacy_untyped_evidence(self):
+        candidate = Candidate(
+            candidate_id="candidate-needs-typed-evidence", version=1,
+            canonical_expression="x > y", proposer_family="relational",
+            supporting_families=("relational",), input_types=("number", "number"),
+            operator="GT", evidence_ids=("legacy-reveal",),
+        )
+        self.store.append_events(
+            episode_id="ep", idempotency_key="legacy-evidence-no-hydration",
+            events=[
+                self.observation("obs-locked"),
+                {
+                    "event_id": "commit-legacy", "event_type": "prediction_commit",
+                    "payload": {
+                        "prediction_id": "pred-legacy", "observation_id": "obs-locked",
+                        "model_version": "model-v1", "learner_track": "e12",
+                        "decision_status": "PREDICT",
+                    },
+                },
+                {
+                    "event_id": "reveal-legacy", "event_type": "evidence_reveal",
+                    "payload": {
+                        "prediction_id": "pred-legacy", "learner_track": "e12",
+                        "target_or_feedback": {"label": "positive"},
+                        "split_role": "locked_test",
+                    },
+                },
+                {
+                    "event_id": "candidate-needs-evidence", "event_type": "structure_version",
+                    "payload": {
+                        "structure_id": candidate.candidate_id,
+                        "version_id": "candidate-needs-typed-evidence@1",
+                        "kind": "candidate", "definition": candidate_definition_payload(candidate),
+                        "parent_version_ids": [],
+                        "support_evidence_ids": [{"kind": "revealed", "id": "reveal-legacy"}],
+                    },
+                },
+                {
+                    "event_id": "candidate-propose", "event_type": "lifecycle_action",
+                    "payload": {
+                        "action_id": "candidate-propose", "action_type": "propose",
+                        "candidate_id": candidate.candidate_id, "candidate_version": 1,
+                        "from_state": "observed", "to_state": "proposed",
+                        "evidence_refs": [], "cost": 0.1, "note": "propose",
+                        "candidate_lineage_refs": [], "learner_track": "e12",
+                    },
+                },
+            ],
+        )
+        with self.assertRaisesRegex(ProtocolError, "without typed E12 definitions"):
+            self.store.replay_projection("ep").hydrate_lifecycle_ledgers()
+
+
+
 if __name__ == "__main__":
     unittest.main()
