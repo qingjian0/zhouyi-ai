@@ -213,3 +213,24 @@ python -m unittest tests.test_tx02_experiment -v
 **CI 验证：** PR run #124 在新 HEAD `af58ec922c17c97d687c029d8230a0a497c3482c` 上通过，完整测试套件 **171 tests in 9.941s, OK**。该 CI 运行包含 runner 的小规模 smoke test，不等于执行默认多 K / 多 support / 多种子的完整研究 sweep。
 
 **重要限制：** 当前 runner 是首轮可复现实验驱动，不是公平性最终版本。不同编码的参数量不同，训练耗时受 Python 实现和运行环境影响；没有实现 parameter-matched / compute-matched 搜索，也没有把 LEARNED 与同维度 fixed-random embedding 分开。因此即使某表示得分更高，也只能视为该配置下的初步观察，不能归因于三值理论或符号几何。验证集当前只报告，不做自动超参数选择；locked-test 不用于选模型。
+
+
+## 13. TX-02C：参数预算匹配与固定随机嵌入对照（2026-11-11）
+
+新增表示条件：`FIXED_RANDOM`。
+
+- `FIXED_RANDOM` 与 `LEARNED` 使用相同 embedding_dim、相同初始化分布和相同 seed；二者初始化嵌入表完全一致。
+- `FIXED_RANDOM` 的嵌入表在训练期间冻结；`LEARNED` 的嵌入表接受交叉熵梯度更新。
+- 实验 runner 新增共享可训练参数预算：按每种表示的实际输入维度选择最大 hidden size，使模型参数量不超过共同预算，并报告参数差值。
+- 可用 `--no-parameter-match` 关闭匹配；可用 `--parameter-budget N` 指定预算。
+- `model_parameter_count()` 以可训练参数量计数；固定编码表是常量，不计入可训练参数。固定随机表同样是冻结状态，不计入可训练参数。
+
+运行：
+
+```bash
+python -m prototype.tx02_experiment --cardinalities 3 --support-sizes 2 4 8 --seeds 11 29 47 --parameter-match --json
+```
+
+CLI 默认启用参数预算匹配；若不指定 `--parameter-budget`，预算取该 K 和基础 hidden_size 下七种表示可训练参数量的最大值。由于 hidden size 为整数，实际参数量只能做到不超过预算的近似匹配，runner 会逐模型报告实际差额。
+
+**解释边界：** 参数量匹配不等于计算量匹配。不同表示的特征维度、support 计算成本和 Python 执行时间仍可能不同；wall-clock 时间仅作为当前运行环境下的描述性指标。下一步还需按实际乘加操作数或明确 FLOPs 代理量匹配计算预算。
