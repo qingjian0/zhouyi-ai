@@ -64,6 +64,26 @@ class DriftMismatchTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.monitor.ingest(ex.execute(request(1,"target-a","wrong")))
 
+    def test_incompatible_control_reference_models_rejected(self):
+        with self.assertRaises(ValueError):
+            DriftMismatchMonitor(candidate_ref=CANDIDATE, scope_id=SCOPE,
+                scope_digest="scope-d", protocol_id="probe-v1",
+                candidate_reference={"yes":0.8,"no":0.2},
+                control_references={"c1":{"ok":0.8,"bad":0.2},
+                                    "c2":{"ok":0.6,"bad":0.4}},
+                public_key_bytes=self.signer.public_key_bytes(),
+                executor_id="measurement-service", key_id="key-1",
+                ledger=self.ledger, min_samples=4)
+
+    def test_wrong_protocol_version_rejected(self):
+        signer = MeasurementSigner("measurement-service", "key-1",
+            __import__("cryptography.hazmat.primitives.asymmetric.ed25519", fromlist=["Ed25519PrivateKey"]).Ed25519PrivateKey.generate(),
+            protocol_version="measurement-v2")
+        ex = BudgetedMeasurementExecutor(signer, {"probe-v1":lambda t,p:("yes",0.2)},
+            allowed_candidate_scopes={(CANDIDATE,SCOPE)}, budget=10)
+        with self.assertRaises(ValueError):
+            self.monitor.ingest(ex.execute(request(1,"target-a")))
+
     def test_control_unknown_outcome_rejected(self):
         ex = BudgetedMeasurementExecutor(self.signer, {"probe-v1":lambda t,p:("unknown",0.2)},
             allowed_candidate_scopes={(CANDIDATE,SCOPE)}, budget=10)
