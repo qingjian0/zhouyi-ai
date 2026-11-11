@@ -58,3 +58,6 @@ python -m unittest tests.test_e10c_drift_detector -v
 Results must be recorded from the actual CI output before making performance
 claims. This is a synthetic detector audit, not evidence of general autonomous
 concept-drift learning.
+
+
+CI note: stacked E10-C.3 pull-request validation is enabled by the parent research branch's pull_request base-branch filter.
