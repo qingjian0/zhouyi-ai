@@ -65,6 +65,10 @@ class TX02ExperimentTests(unittest.TestCase):
             self.assertEqual(family["locked_test_selective_prediction"]["threshold_selected_on"],
                              "validation")
             self.assertIn("nll", family["validation_probability_metrics"])
+            self.assertEqual(
+                family["locked_test_episode_selective_prediction"]["risk_unit"],
+                "episode_all_queries_correct",
+            )
     def test_parameter_and_compute_matching_are_exclusive(self):
         with self.assertRaises(ValueError):
             run_sweep(cardinalities=(2,), support_sizes=(1,), seeds=(1,),
