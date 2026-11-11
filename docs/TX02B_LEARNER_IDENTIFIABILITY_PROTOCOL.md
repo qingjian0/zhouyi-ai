@@ -1,6 +1,6 @@
 # TX-02B：跨 Episode 可训练学习器与可辨识性协议
 
-状态：TX-02B-1 精确可辨识性审计器已实现并等待 CI 验收；TX-02B 可训练学习器尚未实现，尚无性能结果。
+状态：TX-02B-1 精确可辨识性审计器已实现并通过 CI；TX-02B 可训练学习器尚未实现，尚无性能结果。
 关联：TX-02A、TX-02B-0、E02-B、E02-D。
 
 ## 1. 本轮代码审计结论
@@ -57,7 +57,7 @@ python -m unittest tests.test_tx02_identifiability -v
 
 ## 4. 数据协议修订要求
 
-### 3.1 分割单位
+### 4.1 分割单位
 
 - 以完整 episode 为最小分割单位。
 - train / validation / locked-test 使用互不相交的 episode seeds。
@@ -65,7 +65,7 @@ python -m unittest tests.test_tx02_identifiability -v
 - canonical 与 permuted 分层报告，不得混合后只报一个总分。
 - 每个 K 独立报告；K=2、3、4、5 不得只汇总平均值。
 
-### 3.2 Support 难度扫描
+### 4.2 Support 难度扫描
 
 不能只使用 support_size=2。至少扫描：
 
@@ -76,7 +76,7 @@ python -m unittest tests.test_tx02_identifiability -v
 
 每个配置必须检查 support/query 输入对无交集，并记录有效 episode 数、无效/歧义 episode 比例。对每个 K，support_size 必须严格小于 K²。
 
-### 3.3 规则覆盖
+### 4.3 规则覆盖
 
 当前生成器从 Z_K 中独立采样 alpha、beta、delta。对复合 K，系数不一定可逆；alpha 或 beta 为零也可能产生退化关系。实验应分层标注：
 
@@ -144,4 +144,4 @@ python -m unittest tests.test_tx02_identifiability -v
 - TX-02D：在验证集上训练表示选择器，并加入 DEFER / fallback。
 - TX-02E：未知 K、非均匀状态划分、噪声和规则族外测试。
 
-**当前结论：** E02-B 是固定三值规则诊断；TX-02B-1 的精确审计器已实现，待 CI 验收；TX-02B 可训练学习器尚未实现。下一步应先用生成器覆盖测试验证真值假设始终被审计空间包含，再增加 support 难度扫描与跨 episode learner。
+**当前结论：** E02-B 是固定三值规则诊断；TX-02B-1 精确审计器及生成器真值覆盖测试已通过 CI run #85（156 tests passed）；TX-02B 可训练学习器尚未实现。下一步进入 support 难度扫描与跨 episode learner。
