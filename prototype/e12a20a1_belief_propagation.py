@@ -155,7 +155,6 @@ def infer_beliefs(problem: Problem, *, budget: BPBudget = BPBudget()) -> BPResul
         for factor_id, variable_id in edges:
             factor = factors[factor_id]
             scope = factor_neighbors[factor_id]
-            target_index = scope.index(variable_id)
             target_domain = variables[variable_id].domain
             accumulators = [[] for _ in target_domain]
             other_ids = tuple(item for item in scope if item != variable_id)
