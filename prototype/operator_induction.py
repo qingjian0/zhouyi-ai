@@ -176,6 +176,7 @@ class OperatorInducer:
             raise InductionError("result_limit must be positive")
         candidates = []
         examined = 0
+        total_programs = sum(len(self.grammar) ** depth for depth in range(1, self.max_depth + 1))
         truncated = False
         for program in self._programs():
             if examined >= self.max_programs:
@@ -199,6 +200,7 @@ class OperatorInducer:
                 validation_support=validation_support,
                 validation_total=len(valid) if valid else None,
             ))
+        truncated = total_programs > examined
         candidates.sort(key=lambda item: (
             len(item.program.steps),
             -1 if item.validation_support is None else -item.validation_support,
