@@ -6,6 +6,7 @@ from prototype.e09_counterexample_learner import CounterexampleRuleLearner, Exam
 from prototype.e09_incremental_learner import IncrementalConjunctionLearner
 from prototype.e09_prequential import PrequentialError, PrequentialRunner
 from prototype.e09_shared_protocol_adapter import E09SharedProtocolAdapter
+from prototype.e09_evaluator_projection import E09EvaluatorProjection
 from prototype.shared_evidence_protocol import SQLiteEvidenceStore
 
 
@@ -114,6 +115,24 @@ class E09SharedProtocolAdapterTests(unittest.TestCase):
         )
         self.assertEqual(reveal["protocol_version"], "0.3")
         self.assertEqual(reveal["payload"]["split"], "LOCKED_TEST")
+
+    def test_locked_test_is_scored_by_evaluator_projection_only(self):
+        adapter = self.make_adapter("INCREMENTAL_INDEX", split="LOCKED_TEST")
+        commit = adapter.predict_and_commit("obs-locked-score", (0, 0, 2))
+        adapter.reveal(commit["prediction_id"], "yes")
+
+        # The learner's own prequential ledger remains blind to LOCKED_TEST.
+        self.assertEqual(adapter.score()["revealed_observations"], 0)
+        metrics = E09EvaluatorProjection(
+            self.store, "episode-INCREMENTAL_INDEX"
+        ).score()
+        locked = metrics["by_split"]["LOCKED_TEST"]
+        self.assertEqual(locked["prediction_commits"], 1)
+        self.assertEqual(locked["revealed_observations"], 1)
+        self.assertEqual(locked["scored_predictions"], 1)
+        self.assertEqual(locked["correct_predictions"], 1)
+        self.assertEqual(locked["selective_accuracy"], 1.0)
+        self.assertEqual(metrics["overall"]["selective_accuracy"], 1.0)
 
 
 if __name__ == "__main__":
