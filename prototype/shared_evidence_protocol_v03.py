@@ -146,6 +146,8 @@ EVALUATION_ROLES = {"GATE_DEV", "GATE_FINAL", "LOCKED_TEST", "POST_DEPLOY_AUDIT"
 SPLIT_ROLES = {role.value for role in SplitRole}
 CHALLENGE_ROLES = {SplitRole.LOCKED_TEST.value, SplitRole.POST_DEPLOY.value}
 SUPPORT_ROLES = {SplitRole.SUPPORT.value, SplitRole.TRAIN.value, SplitRole.GATE_DEV.value, SplitRole.GATE_FINAL.value}
+LEARNER_SUPPORT_ROLES = {SplitRole.SUPPORT.value, SplitRole.TRAIN.value, SplitRole.GATE_DEV.value}
+EVALUATOR_ONLY_SPLIT_ROLES = {SplitRole.GATE_FINAL.value, SplitRole.LOCKED_TEST.value, SplitRole.POST_DEPLOY.value}
 ACTION_TYPES = {action.value for action in ActionType}
 CANDIDATE_STATES = {state.value for state in CandidateState}
 
@@ -649,6 +651,8 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                 if trigger is None or trigger["event_type"] != "evidence_reveal":
                     raise MissingReference(f"revision trigger must reference a prior reveal: {trigger_id}")
                 trigger_payload = json.loads(trigger["payload_json"])
+                if trigger_payload.get("split_role") not in LEARNER_SUPPORT_ROLES:
+                    raise ProtocolError("revision cannot use evaluator-only or unclassified evidence as learner feedback")
                 trigger_tracks.add(trigger_payload.get("learner_track", "legacy"))
             if len(trigger_tracks) > 1:
                 raise ProtocolError("revision cannot combine trigger evidence from different learner_tracks")
@@ -692,9 +696,12 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                 evidence_row = self._resolve_evidence_ref(episode_id, evidence_ref)
                 if evidence_row is None:
                     raise MissingReference(f"unknown support evidence reference: {evidence_ref}")
-                evidence_track = json.loads(evidence_row["payload_json"]).get("learner_track", "legacy")
+                evidence_payload = json.loads(evidence_row["payload_json"])
+                evidence_track = evidence_payload.get("learner_track", "legacy")
                 if evidence_track != structure_track:
                     raise ProtocolError("structure_version cannot cite support evidence from another learner_track")
+                if evidence_payload.get("split_role") not in LEARNER_SUPPORT_ROLES:
+                    raise ProtocolError("structure_version support evidence must be learner-visible train/support/gate_dev evidence")
             if payload["kind"] == "candidate":
                 version_id = payload["version_id"]
                 structure_id = payload["structure_id"]
@@ -1011,6 +1018,8 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                     # every newly written v0.3 support-bearing structure is scoped.
                     if structure_track is not None and item.get("learner_track", "legacy") != structure_track:
                         raise ProtocolError(f"structure support crosses learner tracks during replay: {event_id}")
+                    if is_v03_structure and item.get("split_role") not in LEARNER_SUPPORT_ROLES:
+                        raise ProtocolError(f"v0.3 structure support is not learner-visible evidence: {event_id}")
                     support_ids.append(item["evidence_id"])
                 structure = {
                     "event_id": event_id, "sequence_no": sequence,
@@ -1105,6 +1114,8 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                     item = evidence.get(f"revealed:{trigger}")
                     if item is None or item.get("split_role") not in CHALLENGE_ROLES:
                         raise ProtocolError(f"revision trigger is not locked/post-deploy evidence: {trigger}")
+                    if row["protocol_version"] == "0.3" and item.get("split_role") not in LEARNER_SUPPORT_ROLES:
+                        raise ProtocolError(f"v0.3 revision cannot consume evaluator-only evidence: {trigger}")
                     trigger_tracks.add(item.get("learner_track", "legacy"))
                 if len(trigger_tracks) > 1:
                     raise ProtocolError("revision combines trigger evidence from different learner_tracks during replay")
@@ -1193,21 +1204,60 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
             for item in evaluator_view["released_challenges"].values()
             if item["learner_track"] == learner_track
         ]
+        evaluator_evidence_ids = {
+            item["evidence_id"] for item in projection.evidence.values()
+            if item.get("split_role") in EVALUATOR_ONLY_SPLIT_ROLES
+        }
         predictions = {k: v for k, v in projection.predictions.items() if v.get("learner_track") == learner_track}
         observations = {v["observation_id"] for v in predictions.values()}
-        evidence = {k: v for k, v in projection.evidence.items() if v.get("learner_track") == learner_track}
-        structures = {k: v for k, v in projection.structures.items() if v.get("learner_track") in (None, learner_track)}
-        candidates = {k: v for k, v in projection.candidates.items() if v.get("learner_track") in (None, learner_track)}
-        actions = [v for v in projection.actions if v.get("learner_track") == learner_track]
-        return {"episode_id": episode_id, "learner_track": learner_track, "last_sequence": projection.last_sequence,
+        evidence = {
+            k: v for k, v in projection.evidence.items()
+            if v.get("learner_track") == learner_track and v.get("split_role") not in EVALUATOR_ONLY_SPLIT_ROLES
+        }
+        structures = {
+            k: v for k, v in projection.structures.items()
+            if v.get("learner_track") in (None, learner_track)
+            and not (set(v.get("support_evidence_ids", ())) & evaluator_evidence_ids)
+        }
+        candidates = {
+            k: v for k, v in projection.candidates.items()
+            if v.get("learner_track") in (None, learner_track)
+            and not (set(v.get("support_evidence_ids", ())) & evaluator_evidence_ids)
+        }
+        actions = [
+            v for v in projection.actions
+            if v.get("learner_track") == learner_track
+            and not (set(v.get("evidence_ids", ())) & evaluator_evidence_ids)
+        ]
+        safe_action_ids = {item["action_id"] for item in actions}
+        candidate_states = {key: CandidateState.OBSERVED.value for key in candidates}
+        for action in sorted(actions, key=lambda item: item["sequence_no"]):
+            if action.get("candidate_key") in candidate_states and action.get("to_state") is not None:
+                candidate_states[action["candidate_key"]] = action["to_state"]
+        candidates = {key: {**value, "state": candidate_states.get(key, CandidateState.OBSERVED.value)} for key, value in candidates.items()}
+        track_candidates = {}
+        for key, candidate in projection.track_candidate_objects.get(learner_track, {}).items():
+            if key in candidates:
+                track_candidates[key] = replace(candidate, state=CandidateState(candidate_states.get(key, CandidateState.OBSERVED.value)))
+        track_actions = tuple(
+            action for action in projection.track_action_objects.get(learner_track, ())
+            if action.action_id in safe_action_ids
+        )
+        visible_sequences = [item["sequence_no"] for item in observations.values() if isinstance(item, dict)]
+        visible_sequences.extend(item["sequence_no"] for item in predictions.values())
+        visible_sequences.extend(item["sequence_no"] for item in evidence.values())
+        visible_sequences.extend(item["sequence_no"] for item in structures.values())
+        visible_sequences.extend(item["sequence_no"] for item in actions)
+        visible_sequences.extend(item["sequence_no"] for item in evaluator_view["released_challenges"].values() if item["learner_track"] == learner_track)
+        return {"episode_id": episode_id, "learner_track": learner_track, "last_sequence": max(visible_sequences, default=0),
             "observations": {k: projection.observations[k] for k in sorted(observations) if k in projection.observations},
             "predictions": {k: predictions[k] for k in sorted(predictions)},
             "evidence": {k: evidence[k] for k in sorted(evidence)},
             "structures": {k: structures[k] for k in sorted(structures)},
             "candidates": {k: candidates[k] for k in sorted(candidates)}, "actions": actions,
             "released_challenges": released_challenges,
-            "track_candidate_objects": {learner_track: {k: _candidate_to_payload(v) for k, v in sorted(projection.track_candidate_objects.get(learner_track, {}).items())}},
-            "track_action_objects": {learner_track: [_action_to_payload(a) for a in projection.track_action_objects.get(learner_track, ())]}}
+            "track_candidate_objects": {learner_track: {k: _candidate_to_payload(v) for k, v in sorted(track_candidates.items())}},
+            "track_action_objects": {learner_track: [_action_to_payload(a) for a in track_actions]}}
 
     def replay_evaluator_projection(self, episode_id: str) -> dict[str, Any]:
         """Revalidate frozen candidate/commit/reveal links and expose labels to evaluator only."""
