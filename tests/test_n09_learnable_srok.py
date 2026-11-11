@@ -86,6 +86,32 @@ class LearnableSROKTests(unittest.TestCase):
         self.assertTrue(result.abstained)
         self.assertEqual(result.reason, "LOW_SCORE_MARGIN")
 
+    def test_abstention_still_applies_when_result_limit_is_one(self):
+        model = LearnableSROK(self.roles, feature_dim=3)
+        nodes = [
+            Node(f"{role}-{i}", role, (0.0, 0.0, 0.0), frozenset({"eligible"}))
+            for role in ("r0", "r1", "r2") for i in range(2)
+        ]
+        result = model.predict(
+            nodes, top_k_per_role=2, result_limit=1, abstain_margin=0.01
+        )
+        self.assertTrue(result.abstained)
+        self.assertEqual(result.reason, "LOW_SCORE_MARGIN")
+
+    def test_duplicate_assignments_consume_expansion_budget(self):
+        model = LearnableSROK(
+            (RoleSpec("left"), RoleSpec("right")), feature_dim=1
+        )
+        nodes = (
+            Node("a", "x", (0.0,)),
+            Node("b", "x", (0.0,)),
+        )
+        result = model.predict(
+            nodes, top_k_per_role=2, max_expansions=2, result_limit=2
+        )
+        self.assertEqual(result.expanded_assignments, 2)
+        self.assertTrue(result.budget_exhausted)
+
     def test_reports_budget_exhaustion(self):
         model = LearnableSROK(self.roles, feature_dim=3)
         nodes = [
