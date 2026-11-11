@@ -9,6 +9,8 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import multiprocessing
+import os
 from statistics import mean, stdev
 from dataclasses import dataclass
 from enum import Enum
@@ -64,6 +66,13 @@ class EvidenceReveal:
     split: EvidenceSplit
     outcome: tuple[int, ...]
     sequence: int
+
+
+@dataclass(frozen=True)
+class PublicExample:
+    """Locked-test input DTO deliberately excludes target labels."""
+    query: tuple[float, ...]
+    candidates: tuple[tuple[float, ...], ...]
 
 
 class EvidenceLedger:
@@ -192,11 +201,80 @@ class EvidenceLedger:
         return tuple(visible)
 
 
-def _example_payload(example: Example) -> dict[str, Any]:
+def _example_payload(example: Example | PublicExample) -> dict[str, Any]:
     return {
         "query": example.query,
         "candidates": example.candidates,
     }
+
+
+def _learner_process(
+    connection,
+    support: list[Example],
+    locked_inputs: list[PublicExample],
+    feature_dim: int,
+    choose_k: int,
+    epochs: int,
+) -> None:
+    """Train and predict in a process that never receives locked-test labels."""
+    try:
+        weights = train_ranker(support, feature_dim=feature_dim, epochs=epochs)
+        predictions = [
+            predict_indices(example, weights, choose_k)
+            for example in locked_inputs
+        ]
+        connection.send({
+            "ok": True,
+            "pid": os.getpid(),
+            "weights": weights,
+            "predictions": predictions,
+        })
+        # Keep the learner process alive until the evaluator has started. This
+        # makes the distinct-process audit deterministic rather than PID-reuse
+        # dependent.
+        if connection.recv() != "release":
+            raise RuntimeError("learner process received an invalid release signal")
+    except Exception as exc:
+        try:
+            connection.send({"ok": False, "error": f"{type(exc).__name__}: {exc}"})
+        except (BrokenPipeError, EOFError, OSError):
+            pass
+    finally:
+        connection.close()
+
+
+def _evaluator_process(connection, predictions, outcomes) -> None:
+    """Evaluate after batch sealing; receives labels but no learner state."""
+    try:
+        evaluator_examples = [
+            Example((), (), tuple(outcome)) for outcome in outcomes
+        ]
+        metrics = score_predictions(evaluator_examples, predictions)
+        connection.send({"ok": True, "pid": os.getpid(), "metrics": metrics})
+    except Exception as exc:
+        try:
+            connection.send({"ok": False, "error": f"{type(exc).__name__}: {exc}"})
+        except (BrokenPipeError, EOFError, OSError):
+            pass
+    finally:
+        connection.close()
+
+
+def _receive_process_result(connection, process, label: str, timeout: float = 120.0):
+    if not connection.poll(timeout):
+        process.terminate()
+        process.join(timeout=5)
+        raise TimeoutError(f"{label} process did not return within {timeout} seconds")
+    try:
+        result = connection.recv()
+    except EOFError as exc:
+        process.join(timeout=5)
+        raise RuntimeError(f"{label} process exited without a result") from exc
+    if not isinstance(result, dict) or result.get("ok") is not True:
+        process.join(timeout=5)
+        detail = result.get("error", "invalid worker response") if isinstance(result, dict) else "invalid worker response"
+        raise RuntimeError(f"{label} process failed: {detail}")
+    return result
 
 
 def run_mts0(
@@ -209,7 +287,7 @@ def run_mts0(
     choose_k: int = 3,
     epochs: int = 180,
 ) -> dict[str, Any]:
-    """Train on support data, commit all locked predictions, then reveal labels."""
+    """Train in a label-blind learner process, seal commits, then evaluate separately."""
     if train_count < 1 or locked_test_count < 1:
         raise ValueError("train_count and locked_test_count must be positive")
 
@@ -219,73 +297,136 @@ def run_mts0(
     locked_test = make_dataset(
         locked_test_count, seed + 1_000_003, candidate_count, feature_dim, choose_k
     )
-    weights = train_ranker(support, feature_dim=feature_dim, epochs=epochs)
+    locked_inputs = [
+        PublicExample(example.query, example.candidates)
+        for example in locked_test
+    ]
+    outcomes = [example.targets for example in locked_test]
 
-    ledger = EvidenceLedger()
-    predictions: list[tuple[int, ...]] = []
-    for index, example in enumerate(locked_test):
-        prediction = predict_indices(example, weights, choose_k)
-        predictions.append(prediction)
-        ledger.commit(
-            commit_id=f"mts0-{seed}-{index}",
-            query_id=f"query-{index}",
-            scope="e01-sparse-composition-v1",
-            input_payload=_example_payload(example),
-            model_version="e01-linear-ranker-v1",
-            prediction=prediction,
-        )
-
-    # Seal the complete prediction batch before the evaluator can reveal any label.
-    ledger.seal_commits()
-
-    # The evaluator receives labels only after every prediction is committed.
-    for index, example in enumerate(locked_test):
-        ledger.reveal(
-            evidence_id=f"locked-{seed}-{index}",
-            commit_id=f"mts0-{seed}-{index}",
-            scope="e01-sparse-composition-v1",
-            split=EvidenceSplit.LOCKED_TEST,
-            outcome=example.targets,
-        )
-
-    evaluator_reveals = ledger.visible_reveals(ConsumerRole.EVALUATOR)
-    learner_reveals = ledger.visible_reveals(ConsumerRole.LEARNER)
-    selector_reveals = ledger.visible_reveals(ConsumerRole.SELECTOR)
-    metrics = score_predictions(
-        [Example(row.query, row.candidates, reveal.outcome)
-         for row, reveal in zip(locked_test, evaluator_reveals)],
-        predictions,
+    context = multiprocessing.get_context("spawn")
+    learner_parent, learner_child = context.Pipe(duplex=True)
+    learner_process = context.Process(
+        target=_learner_process,
+        args=(learner_child, support, locked_inputs, feature_dim, choose_k, epochs),
+        name="mts0-learner",
     )
-    return {
-        "experiment": "MTS-0-prequential-e01",
-        "seed": seed,
-        "model_version": "e01-linear-ranker-v1",
-        "train_samples": train_count,
-        "locked_test_samples": locked_test_count,
-        "candidate_count": candidate_count,
-        "feature_dim": feature_dim,
-        "selected_per_example": choose_k,
-        "epochs": epochs,
-        "metrics": metrics,
-        "audit": {
-            "prediction_commits": len(ledger.commits),
-            "locked_test_reveals": len(ledger.reveals),
-            "learner_visible_locked_test_reveals": len(learner_reveals),
-            "selector_visible_locked_test_reveals": len(selector_reveals),
-            "evaluator_visible_locked_test_reveals": len(evaluator_reveals),
-            "prediction_batch_sealed_before_reveal": ledger.commits_sealed,
-            "all_predictions_committed_before_reveal": (
-                ledger.commits_sealed and len(ledger.commits) == len(ledger.reveals)
-            ),
-        },
-        "learned_weights": weights,
-        "limitations": [
-            "Synthetic E01 task only; not natural-language understanding.",
-            "In-process visibility metadata is not a security boundary.",
-            "IID held-out evaluation is not a structural OOD benchmark.",
-            "No claim of CPG-EI superiority or general intelligence.",
-        ],
-    }
+    evaluator_parent = evaluator_child = evaluator_process = None
+    learner_result = None
+    try:
+        learner_process.start()
+        learner_child.close()
+        learner_result = _receive_process_result(
+            learner_parent, learner_process, "learner"
+        )
+        weights = learner_result["weights"]
+        predictions = [tuple(row) for row in learner_result["predictions"]]
+        if len(predictions) != locked_test_count:
+            raise RuntimeError("learner returned an incomplete prediction batch")
+        model_version = "e01-linear-ranker-v1:" + digest(weights)[:16]
+
+        ledger = EvidenceLedger()
+        for index, (example, prediction) in enumerate(zip(locked_inputs, predictions)):
+            ledger.commit(
+                commit_id=f"mts0-{seed}-{index}",
+                query_id=f"query-{index}",
+                scope="e01-sparse-composition-v1",
+                input_payload=_example_payload(example),
+                model_version=model_version,
+                prediction=prediction,
+            )
+
+        # No evaluator process is started until the complete prediction batch is sealed.
+        ledger.seal_commits()
+        evaluator_parent, evaluator_child = context.Pipe(duplex=False)
+        evaluator_process = context.Process(
+            target=_evaluator_process,
+            args=(evaluator_child, predictions, outcomes),
+            name="mts0-evaluator",
+        )
+        evaluator_process.start()
+        evaluator_child.close()
+        evaluator_result = _receive_process_result(
+            evaluator_parent, evaluator_process, "evaluator"
+        )
+        evaluator_process.join(timeout=30)
+        if evaluator_process.is_alive() or evaluator_process.exitcode != 0:
+            raise RuntimeError("evaluator process did not exit cleanly")
+
+        # Only after evaluator execution are the revealed outcomes appended to the
+        # coordinator's audit ledger.
+        for index, outcome in enumerate(outcomes):
+            ledger.reveal(
+                evidence_id=f"locked-{seed}-{index}",
+                commit_id=f"mts0-{seed}-{index}",
+                scope="e01-sparse-composition-v1",
+                split=EvidenceSplit.LOCKED_TEST,
+                outcome=outcome,
+            )
+
+        evaluator_reveals = ledger.visible_reveals(ConsumerRole.EVALUATOR)
+        learner_reveals = ledger.visible_reveals(ConsumerRole.LEARNER)
+        selector_reveals = ledger.visible_reveals(ConsumerRole.SELECTOR)
+        orchestrator_pid = os.getpid()
+        learner_pid = learner_result["pid"]
+        evaluator_pid = evaluator_result["pid"]
+        metrics = evaluator_result["metrics"]
+        return {
+            "experiment": "MTS-0-prequential-e01",
+            "seed": seed,
+            "model_version": model_version,
+            "train_samples": train_count,
+            "locked_test_samples": locked_test_count,
+            "candidate_count": candidate_count,
+            "feature_dim": feature_dim,
+            "selected_per_example": choose_k,
+            "epochs": epochs,
+            "metrics": metrics,
+            "audit": {
+                "prediction_commits": len(ledger.commits),
+                "locked_test_reveals": len(ledger.reveals),
+                "learner_visible_locked_test_reveals": len(learner_reveals),
+                "selector_visible_locked_test_reveals": len(selector_reveals),
+                "evaluator_visible_locked_test_reveals": len(evaluator_reveals),
+                "prediction_batch_sealed_before_reveal": ledger.commits_sealed,
+                "all_predictions_committed_before_reveal": (
+                    ledger.commits_sealed and len(ledger.commits) == len(ledger.reveals)
+                ),
+                "orchestrator_pid": orchestrator_pid,
+                "learner_pid": learner_pid,
+                "evaluator_pid": evaluator_pid,
+                "learner_and_evaluator_are_distinct_processes": learner_pid != evaluator_pid,
+                "evaluator_started_after_batch_seal": ledger.commits_sealed,
+                "learner_received_locked_test_label_count": 0,
+                "evaluator_received_locked_test_label_count": len(outcomes),
+            },
+            "learned_weights": weights,
+            "limitations": [
+                "Synthetic E01 task only; not natural-language understanding.",
+                "Learner and evaluator run in separate spawned processes; the trusted orchestrator still holds labels.",
+                "Same-UID process separation is not a security boundary against ptrace, root, or a compromised host.",
+                "IID held-out evaluation is not a structural OOD benchmark.",
+                "No claim of CPG-EI superiority or general intelligence.",
+            ],
+        }
+    finally:
+        # Release the learner only after the evaluator has had a chance to start;
+        # always clean up if an exception interrupts the orchestration.
+        if learner_process.is_alive():
+            try:
+                learner_parent.send("release")
+            except (BrokenPipeError, EOFError, OSError):
+                pass
+            learner_process.join(timeout=10)
+            if learner_process.is_alive():
+                learner_process.terminate()
+                learner_process.join(timeout=5)
+        if evaluator_process is not None and evaluator_process.is_alive():
+            evaluator_process.terminate()
+            evaluator_process.join(timeout=5)
+        learner_parent.close()
+        if evaluator_parent is not None:
+            evaluator_parent.close()
+
 
 
 def run_mts0_multiseed(
