@@ -27,7 +27,10 @@ class E09SharedProtocolAdapter:
 
     def __init__(self, runner: PrequentialRunner, store: SQLiteEvidenceStore,
                  *, episode_id: str, scope: str, split: str = "SUPPORT",
-                 learner_track: str = LEARNER_TRACK) -> None:
+                 learner_track: str = LEARNER_TRACK,
+                 structure_id: str = "e09-rule-set",
+                 structure_kind: str = "rule_set",
+                 version_prefix: str = "e09") -> None:
         if not isinstance(episode_id, str) or not episode_id.strip():
             raise ValueError("episode_id must be non-empty")
         if not isinstance(learner_track, str) or not learner_track.strip():
@@ -36,6 +39,9 @@ class E09SharedProtocolAdapter:
             raise ValueError("scope must be non-empty")
         if split not in EVIDENCE_SPLITS:
             raise ValueError(f"split must be one of {sorted(EVIDENCE_SPLITS)}")
+        for name, value in (("structure_id", structure_id), ("structure_kind", structure_kind), ("version_prefix", version_prefix)):
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"{name} must be non-empty")
         if runner.model_version < 1:
             raise PrequentialError("bootstrap the E09 runner before attaching the adapter")
         self.runner = runner
@@ -44,6 +50,9 @@ class E09SharedProtocolAdapter:
         self.learner_track = learner_track
         self.scope = scope
         self.split = split
+        self.structure_id = structure_id
+        self.structure_kind = structure_kind
+        self.version_prefix = version_prefix
         self._failed = False
         self._committed_predictions: set[str] = set()
         self._commit_digests: dict[str, str] = {}
@@ -51,7 +60,7 @@ class E09SharedProtocolAdapter:
         self._interop_commits: dict[str, PredictionCommit] = {}
         self._prediction_queries: dict[str, str] = {}
         self._reveals: dict[str, str] = {}
-        self._version_id = f"e09-v{runner.model_version}"
+        self._version_id = f"{self.version_prefix}-v{runner.model_version}"
         if self.store.replay_episode(self.episode_id):
             raise E09ProtocolAdapterError(
                 "adapter currently requires a fresh episode; replay/resume is not implemented"
@@ -87,9 +96,9 @@ class E09SharedProtocolAdapter:
             idempotency_key=f"{self.episode_id}:structure:{self._version_id}",
             actor_role="learner",
             payload={
-                "structure_id": "e09-rule-set",
+                "structure_id": self.structure_id,
                 "version_id": self._version_id,
-                "kind": "rule_set",
+                "kind": self.structure_kind,
                 "definition": definition,
                 "parent_version_ids": [],
                 "support_evidence_ids": [],
@@ -124,7 +133,7 @@ class E09SharedProtocolAdapter:
             commit = self.runner.predict_and_commit(observation_id, input_values)
             interop_commit = PredictionCommit(
                 commit_id=commit.prediction_id,
-                candidate_ref=f"e09-rule-set@{self._version_id}",
+                candidate_ref=f"{self.structure_id}@{self._version_id}",
                 query_id=observation_id,
                 scope=self.scope,
                 input_digest=input_digest,
@@ -139,7 +148,7 @@ class E09SharedProtocolAdapter:
                 episode_id=self.episode_id,
                 learner_track=self.learner_track,
                 split=EvidenceSplit(self.split.lower()),
-                model_version=f"e09-model-{commit.model_version}",
+                model_version=f"{self.version_prefix}-model-{commit.model_version}",
             )
             prediction_payload = {
                 "prediction_id": commit.prediction_id,
@@ -148,7 +157,7 @@ class E09SharedProtocolAdapter:
                 "query_id": observation_id,
                 "scope": self.scope,
                 "split": self.split,
-                "model_version": f"e09-model-{commit.model_version}",
+                "model_version": f"{self.version_prefix}-model-{commit.model_version}",
                 "learner_track": self.learner_track,
                 "candidate_set_hash": digest_payload(self._snapshot()),
                 "decision_status": (
@@ -254,7 +263,7 @@ class E09SharedProtocolAdapter:
             reveal_event_id = self._reveals[prediction_id]
             before_version = self._version_id
             revision = self.runner.revise(prediction_id)
-            after_version = f"e09-v{revision.after_model_version}"
+            after_version = f"{self.version_prefix}-v{revision.after_model_version}"
             snapshot = self._snapshot()
             structure_event_id = f"{self.episode_id}:structure:{after_version}"
             self.store.append_event(
