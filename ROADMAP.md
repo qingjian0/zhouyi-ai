@@ -39,3 +39,8 @@
 ## Baseline reference correction (2026-11-11)
 
 The single source of truth for branch/commit identities is [BASELINE_MANIFEST](docs/BASELINE_MANIFEST_V1_2026-11-11.md). The E09 convergence source baseline is `e90f7eb210db456a541eb9f45ec39f64ebb934a5`. The recorded `8b0aa2a` Actions snapshot is historical and does not establish CI status for the current convergence branch HEAD. PR #202's crash-resume support is trusted single-process recovery only; process isolation, authenticated IPC, atomic cross-process outbox and end-to-end fault injection remain open P1 gates.
+
+
+## CSG-GCR and typed-unification status correction (2026-11-11)
+
+PR #208 now provides a bounded R1 coordinator candidate, but its declared gaps remain semantic deduplication, typed unification, branch-delta merge, Pareto/diversity selection, E09 integration, E12-A6 lifecycle adaptation and ZPCM persistence. PR #212 adds a standalone typed hyperedge unifier; its own specification explicitly says the coordinator is not wired to call it. Treat these as separate prototypes, not a completed integrated CSG-GCR subsystem. See [BASELINE_MANIFEST](docs/BASELINE_MANIFEST_V1_2026-11-11.md) for the live PR dependency snapshot.
