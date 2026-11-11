@@ -34,8 +34,7 @@ def run(seed: int = 17, *, mode: str = "INCREMENTAL_FILTER",
         row["observation_id"]: row["valid"]
         for row in evaluator_truth["query_truth"]
     }
-    query_objects = query["objects"]
-    query_object_map = {row["object_id"]: row for row in query_objects}
+    query_object_map = {row["object_id"]: row for row in query["objects"]}
 
     episode_id = f"e10a-{seed}-{mode.lower()}"
     ledger = PrequentialLedger(episode_id=episode_id)
@@ -55,17 +54,20 @@ def run(seed: int = 17, *, mode: str = "INCREMENTAL_FILTER",
         prediction_rows = []
 
         for step, observation in enumerate(query["observations"], start=1):
-            prediction = learner.predict(observation, query_objects)
+            # Reveal only the current observation's participants, never the
+            # complete future Query object pool.
+            current_objects = [
+                query_object_map[object_id]
+                for object_id in observation["participants"]
+            ]
+            prediction = learner.predict(observation, current_objects)
             prediction_id = f"prediction-{step:05d}"
             adapter.commit_prediction(
                 prediction_id=prediction_id,
                 observation_id=observation["observation_id"],
                 observation_payload={
                     "observation": observation,
-                    "participant_objects": [
-                        query_object_map[object_id]
-                        for object_id in observation["participants"]
-                    ],
+                    "participant_objects": current_objects,
                 },
                 model_version=f"e10a-{mode.lower()}-v{version}",
                 candidate_set_hash=prediction["candidate_set_hash"],
@@ -93,7 +95,7 @@ def run(seed: int = 17, *, mode: str = "INCREMENTAL_FILTER",
 
             before_version = f"e10-v{version}"
             update = learner.update(
-                observation, label, query_objects, mode=mode
+                observation, label, current_objects, mode=mode
             )
             update_operations += update["candidate_operations"]
             if update["changed"]:
