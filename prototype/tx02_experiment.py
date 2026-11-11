@@ -100,7 +100,9 @@ def choose_hidden_size_for_budget(family: str, cardinality: int, target_paramete
 
 
 def run_condition(cardinality: int, support_size: int, seed: int,
-                  episodes_per_rule: int, epochs: int, hidden_size: int,\n                  parameter_matched: bool = True, parameter_budget: int | None = None) -> dict:
+                  episodes_per_rule: int, epochs: int, hidden_size: int,
+                  parameter_matched: bool = True,
+                  parameter_budget: int | None = None) -> dict:
     splits = make_rule_disjoint_splits(
         cardinality=cardinality,
         episodes_per_rule=episodes_per_rule,
@@ -186,7 +188,7 @@ def run_sweep(cardinalities: tuple[int, ...] = (3,), support_sizes: tuple[int, .
         "configuration": {
             "cardinalities": list(cardinalities), "support_sizes": list(support_sizes),
             "seeds": list(seeds), "episodes_per_rule": episodes_per_rule,
-            "epochs": epochs, "hidden_size": hidden_size,\n            "parameter_matched": parameter_matched, "parameter_budget": parameter_budget,
+            "epochs": epochs, "hidden_size": hidden_size,\n            "parameter_matched": parameter_matched, "parameter_budget": parameter_budget,\n            "parameter_matched": parameter_matched, "parameter_budget": parameter_budget,
         },
         "conditions": conditions,
         "interpretation_limits": [
@@ -207,7 +209,7 @@ def main() -> None:
     parser.add_argument("--seeds", type=int, nargs="+", default=[11, 29, 47])
     parser.add_argument("--episodes-per-rule", type=int, default=1)
     parser.add_argument("--epochs", type=int, default=5)
-    parser.add_argument("--hidden-size", type=int, default=24)\n    parser.add_argument("--no-parameter-match", action="store_true")\n    parser.add_argument("--parameter-budget", type=int, default=None)
+    parser.add_argument("--hidden-size", type=int, default=24)\n    parser.add_argument("--no-parameter-match", action="store_true")\n    parser.add_argument("--parameter-budget", type=int, default=None)\n    parser.add_argument("--no-parameter-match", action="store_true")\n    parser.add_argument("--parameter-budget", type=int, default=None)
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
     result = run_sweep(tuple(args.cardinalities), tuple(args.support_sizes),
