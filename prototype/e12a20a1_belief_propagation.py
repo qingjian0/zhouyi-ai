@@ -115,8 +115,10 @@ def infer_beliefs(problem: Problem, *, budget: BPBudget = BPBudget()) -> BPResul
         variable_id: tuple(factor_id for factor_id, edge_variable in edges if edge_variable == variable_id)
         for variable_id in variables
     }
+    # Preserve each factor's declared scope order: cost/forbidden tuples are
+    # encoded in Factor.variable_ids order, not lexicographic edge order.
     factor_neighbors = {
-        factor_id: tuple(var_id for edge_factor, var_id in edges if edge_factor == factor_id)
+        factor_id: tuple(factors[factor_id].variable_ids)
         for factor_id in factors
     }
     vf = {}
