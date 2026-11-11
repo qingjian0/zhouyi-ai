@@ -234,3 +234,16 @@ python -m prototype.tx02_experiment --cardinalities 3 --support-sizes 2 4 8 --se
 CLI 默认启用参数预算匹配；若不指定 `--parameter-budget`，预算取该 K 和基础 hidden_size 下七种表示可训练参数量的最大值。由于 hidden size 为整数，实际参数量只能做到不超过预算的近似匹配，runner 会逐模型报告实际差额。
 
 **解释边界：** 参数量匹配不等于计算量匹配。不同表示的特征维度、support 计算成本和 Python 执行时间仍可能不同；wall-clock 时间仅作为当前运行环境下的描述性指标。下一步还需按实际乘加操作数或明确 FLOPs 代理量匹配计算预算。
+
+
+## 14. TX-02D-0：计算账本与可信预测工具（2026-11-11）
+
+新增 `prototype/tx02_compute.py` 与 `tests/test_tx02_compute.py`。
+
+- 按当前 MLP 的真实评分路径定义 forward-MAC proxy：每个 (query, candidate, support-row) 评分为 H(6D+1) MAC；episode 成本乘以 support/query/candidate 数量。
+- 提供共同 forward-MAC 预算下的最大合法 hidden-size 选择器，并在预算低于最小模型时拒绝。
+- 提供多分类 NLL、Brier、固定宽度 top-label ECE，以及 validation-only selective-risk 阈值与 DEFER 执行工具。
+- 严格区分 forward-MAC proxy、完整 FLOPs 和训练总成本；当前代理不计反向传播、优化器、非线性、聚合、softmax、内存与解释器开销。
+- 经验 selective-risk 约束仅描述校准集，不是分布无关保证；阈值不得在 locked-test 上调整。
+
+**尚未完成：** 该工具尚未接入 TX-02 实验 runner；validation 驱动的表示选择器和 locked-test risk-coverage 报告尚待实现。本阶段不产生表示优劣结论。
