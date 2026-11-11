@@ -116,11 +116,12 @@ class Budget:
     min_train_support: int = 3
     max_sparse_arity: int = 3
     max_path_length: int = 2
+    max_feature_signatures: int = 500000
     alpha: float = 0.5
 
     def __post_init__(self):
         for name in ("max_candidates_per_family", "max_predicate_evaluations_per_family",
-                     "min_train_support", "max_sparse_arity", "max_path_length"):
+                     "min_train_support", "max_sparse_arity", "max_path_length", "max_feature_signatures"):
             value = getattr(self, name)
             if isinstance(value, bool) or not isinstance(value, int) or value < 1:
                 raise ValueError(name + " must be a positive integer")
@@ -152,6 +153,8 @@ class FamilyResult:
     best_candidate_key: str | None
     best_candidate_complexity_bits_proxy: int | None
     validation: Metrics | None
+    feature_signatures_indexed: int = 0
+    candidate_space_exhausted: bool = True
 
 
 @dataclass(frozen=True)
@@ -209,43 +212,58 @@ def _fork_join_signatures(row: Example):
     return found
 
 
-def _universe(train: tuple[Example, ...], budget: Budget):
-    atoms = sorted({a for row in train for a in row.atoms})
-    sparse = [_candidate("SPARSE_CONJUNCTION", tuple(combo))
-              for k in range(1, min(budget.max_sparse_arity, len(atoms)) + 1)
-              for combo in itertools.combinations(atoms, k)]
-    paths = sorted(set().union(*(_path_signatures(r, budget.max_path_length) for r in train)))
-    path_candidates = [_candidate("TYPED_PATH", p) for p in paths]
-    forks = sorted(set().union(*(_fork_join_signatures(r) for r in train)))
-    fork_candidates = [_candidate("FORK_JOIN", p) for p in forks]
-    return {
-        "SPARSE_CONJUNCTION": sorted(sparse, key=lambda c: c.key),
-        "TYPED_PATH": sorted(path_candidates, key=lambda c: c.key),
-        "FORK_JOIN": sorted(fork_candidates, key=lambda c: c.key),
-    }
+@dataclass(frozen=True)
+class _FeatureRow:
+    atoms: frozenset[str]
+    paths: frozenset[tuple]
+    forks: frozenset[tuple]
 
 
-def _matches(row: Example, candidate: Candidate, budget: Budget) -> bool:
+def _build_feature_index(rows: tuple[Example, ...], budget: Budget):
+    """Extract graph motifs once per observation and enforce a hard feature budget."""
+    index = {}
+    signature_count = 0
+    for row in rows:
+        paths = frozenset(_path_signatures(row, budget.max_path_length))
+        forks = frozenset(_fork_join_signatures(row))
+        signature_count += len(paths) + len(forks) + len(row.atoms)
+        if signature_count > budget.max_feature_signatures:
+            raise ValueError("feature signature budget exhausted before candidate search")
+        index[row.observation_id] = _FeatureRow(frozenset(row.atoms), paths, forks)
+    return index, signature_count
+
+
+def _candidate_stream(family: str, train: tuple[Example, ...],
+                      features: dict[str, _FeatureRow], budget: Budget):
+    """Yield candidates in deterministic order without materializing the candidate space."""
+    if family == "SPARSE_CONJUNCTION":
+        atoms = sorted({a for row in train for a in row.atoms})
+        for arity in range(1, min(budget.max_sparse_arity, len(atoms)) + 1):
+            for combo in itertools.combinations(atoms, arity):
+                yield _candidate(family, tuple(combo))
+        return
+    if family == "TYPED_PATH":
+        signatures = sorted(set().union(*(features[r.observation_id].paths for r in train)),
+                            key=_canonical)
+        for signature in signatures:
+            yield _candidate(family, signature)
+        return
+    if family == "FORK_JOIN":
+        signatures = sorted(set().union(*(features[r.observation_id].forks for r in train)),
+                            key=_canonical)
+        for signature in signatures:
+            yield _candidate(family, signature)
+        return
+    raise ValueError("unknown candidate family")
+
+
+def _matches(feature: _FeatureRow, candidate: Candidate) -> bool:
     if candidate.family == "SPARSE_CONJUNCTION":
-        return all(atom in row.atoms for atom in candidate.payload)
+        return all(atom in feature.atoms for atom in candidate.payload)
     if candidate.family == "TYPED_PATH":
-        return candidate.payload in _path_signatures(row, budget.max_path_length)
+        return candidate.payload in feature.paths
     if candidate.family == "FORK_JOIN":
-        shape, center_type, arms = candidate.payload
-        required = Counter(arms)
-        types = {n.node_id: n.node_type for n in row.nodes}
-        for center in row.nodes:
-            if center.node_type != center_type:
-                continue
-            if shape == "FORK":
-                actual = Counter((e.relation, types[e.target], e.transition)
-                                 for e in row.edges if e.source == center.node_id)
-            else:
-                actual = Counter((e.relation, types[e.source], e.transition)
-                                 for e in row.edges if e.target == center.node_id)
-            if all(actual[arm] >= count for arm, count in required.items()):
-                return True
-        return False
+        return candidate.payload in feature.forks
     raise ValueError("unknown candidate family")
 
 
@@ -269,13 +287,13 @@ def _metrics(rows, predictions, outcomes) -> Metrics:
                    math.fsum(briers) / len(briers))
 
 
-def _score_candidate(candidate, train, validation, outcomes, budget):
-    matched = [r for r in train if _matches(r, candidate, budget)]
+def _score_candidate(candidate, train, validation, features, outcomes, budget):
+    matched = [r for r in train if _matches(features[r.observation_id], candidate)]
     if len(matched) < budget.min_train_support:
         return None, len(train) + len(validation)
     conditional = _distribution(matched, outcomes, budget.alpha)
     baseline = _distribution(train, outcomes, budget.alpha)
-    predictions = [conditional if _matches(r, candidate, budget) else baseline
+    predictions = [conditional if _matches(features[r.observation_id], candidate) else baseline
                    for r in validation]
     return _metrics(validation, predictions, outcomes), len(train) + len(validation)
 
@@ -302,7 +320,7 @@ def compete(train_examples: Iterable[Example], validation_examples: Iterable[Exa
     outcomes = manifest.outcome_vocabulary
     prior = _distribution(train, outcomes, budget.alpha)
     baseline = _metrics(validation, [prior for _ in validation], outcomes)
-    universes = _universe(train, budget)
+    features, feature_count = _build_feature_index(train + validation, budget)
     results = []
     dataset_digest = _digest([
         {"id": r.observation_id, "atoms": r.atoms,
@@ -313,27 +331,30 @@ def compete(train_examples: Iterable[Example], validation_examples: Iterable[Exa
     ])
 
     for family in ("SPARSE_CONJUNCTION", "TYPED_PATH", "FORK_JOIN"):
-        universe = universes[family]
-        limited = universe[:budget.max_candidates_per_family]
-        truncated = len(universe) > len(limited)
+        stream = _candidate_stream(family, train, features, budget)
+        limited = list(itertools.islice(stream, budget.max_candidates_per_family + 1))
+        candidate_space_exhausted = len(limited) <= budget.max_candidates_per_family
+        candidates = limited[:budget.max_candidates_per_family]
+        truncated = not candidate_space_exhausted
         used, evaluated, best = 0, 0, None
-        for candidate in limited:
+        for candidate in candidates:
             cost = len(train) + len(validation)
             if used + cost > budget.max_predicate_evaluations_per_family:
                 truncated = True
                 break
             metric, actual_cost = _score_candidate(candidate, train, validation,
-                                                   outcomes, budget)
+                                                   features, outcomes, budget)
             used += actual_cost
             evaluated += 1
             if metric is not None and (best is None or
                     (metric.log_loss, candidate.key) < (best[0].log_loss, best[1].key)):
                 best = (metric, candidate, len(_canonical(candidate.payload).encode("utf-8")) * 8)
         results.append(FamilyResult(
-            family, len(universe), evaluated, used, truncated,
+            family, len(limited), evaluated, used, truncated,
             best[1].key if best else None,
             best[2] if best else None,
-            best[0] if best else None))
+            best[0] if best else None,
+            feature_count, candidate_space_exhausted))
     return CompetitionResult(manifest.digest, manifest.train_ids,
         manifest.validation_ids, manifest.locked_test_ids, baseline,
         tuple(results), dataset_digest)
