@@ -2,7 +2,8 @@ import unittest
 from dataclasses import replace
 
 from prototype.e13_contract import (
-    Entity, RelationInstance, RelationSchema, RelationalGraph, RoleSemantics,
+    Entity, EvidenceStatus, RelationInstance, RelationSchema, RelationalGraph,
+    RoleSemantics,
 )
 from prototype.yijing_operator_induction import Node, Relation, RelationalState
 from prototype.yijing_e13_adapter import (
@@ -100,6 +101,36 @@ class E13AdapterTests(unittest.TestCase):
     def test_adapter_version_is_checked(self):
         with self.assertRaises(RelationalMappingError):
             from_e13(replace(to_e13(sample_state()), adapter_version="future/9"))
+
+    def test_duplicate_relation_attribute_keys_are_rejected(self):
+        state = RelationalState(
+            nodes=(Node("a", "agent", "actor"), Node("b", "resource", "target")),
+            relations=(Relation("a", "b", "supports", (("x", "1"), ("x", "2"))),),
+            context=(),
+        )
+        with self.assertRaises(RelationalMappingError):
+            to_e13(state)
+
+    def test_reverse_mapping_rejects_unmapped_evidence_metadata(self):
+        graph = to_e13(sample_state()).graph
+        instance = graph.relations[0]
+        changed = replace(instance, evidence_status=EvidenceStatus.SUPPORT)
+        relations = tuple(
+            changed if item.relation_id == instance.relation_id else item
+            for item in graph.relations
+        )
+        with self.assertRaises(RelationalMappingError):
+            from_e13(E13Envelope(replace(graph, relations=relations), sample_state().context))
+
+    def test_duplicate_role_metadata_is_rejected(self):
+        graph = to_e13(sample_state()).graph
+        entities = tuple(
+            replace(entity, attributes=entity.attributes + (("yj_role", "duplicate"),))
+            if entity.entity_id == "a" else entity
+            for entity in graph.entities
+        )
+        with self.assertRaises(RelationalMappingError):
+            from_e13(E13Envelope(replace(graph, entities=entities), sample_state().context))
 
 
 if __name__ == "__main__":
