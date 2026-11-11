@@ -31,7 +31,7 @@ N3-C 已能持久化并恢复已提交认知状态，但仍缺少“如果另一
 1. 事件追加沿用 N3-C 的 expected-version CAS、transaction_id 幂等和哈希链。
 2. 分支基于 canonical revision/hash，而不是 event stream sequence。这样创建另一个分支等元数据事件不会无意义地使所有分支过期。
 3. 任一 canonical mutation 都会推进 canonical revision；旧分支不能直接晋升，必须重新评估。
-4. 补偿只允许目标是 canonical mutation 的事件；若目标影响字段后来被改写，拒绝自动补偿，避免覆盖更新知识。
+4. 补偿只允许目标是 canonical mutation 的事件；投影/恢复会重新验证目标序号、目标字段集合、原始前态和当前后态。若目标影响字段后来被改写，拒绝自动补偿，避免覆盖更新知识。
 5. 补偿事件要求 reason 与 evidence refs；当前引用只是标识符，尚未验证外部证据对象真实性。
 6. 当前是单机 SQLite 参考实现，不提供多设备分布式共识、并发多分支调度或真正的模型反事实推理。
 
