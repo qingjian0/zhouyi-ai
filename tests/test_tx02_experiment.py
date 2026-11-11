@@ -11,7 +11,8 @@ class TX02ExperimentTests(unittest.TestCase):
         )
         condition = result["conditions"][0]
         self.assertEqual(set(condition["aggregate"]), {
-            "BINARY", "TERNARY", "HYBRID", "ONE_HOT", "LEARNED", "FIXED_RANDOM", "PERMUTED"
+            "BINARY", "TERNARY", "HYBRID", "ONE_HOT", "LEARNED", "FIXED_RANDOM", "PERMUTED",
+            "ADAPTIVE_VALIDATION_SELECTED"
         })
         for family in condition["runs"][0]["families"].values():
             self.assertIn("query_accuracy", family["locked_test"])
@@ -75,7 +76,10 @@ class TX02ExperimentTests(unittest.TestCase):
     def test_aggregate_reports_seed_dispersion(self):
         runs = []
         for value in (0.25, 0.75):
-            runs.append({"families": {
+            runs.append({
+                "adaptive_representation_locked_test": {"query_accuracy": value},
+                "validation_representation_selection": {"selected_family": "TERNARY"},
+                "families": {
                 family: {"locked_test": {"query_accuracy": value},
                          "fit": {"parameter_count": 10}}
                 for family in ("BINARY", "TERNARY", "HYBRID", "ONE_HOT", "LEARNED", "FIXED_RANDOM", "PERMUTED")
