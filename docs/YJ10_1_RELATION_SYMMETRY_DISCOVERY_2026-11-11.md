@@ -16,7 +16,7 @@ YJ-10 v0.1 需要调用方为每种 relation type 指定 ORDERED 或 UNORDERED�
 3. 对元数 n 的目标关系枚举 S_n 中所有位置置换（受 arity 与 permutation budget 限制）。
 4. 若一个置换只交换外部结构颜色相同的参与者，则该 observation 对该置换提供结构兼容证据；否则提供冲突证据。
 5. 按 distinct observation evidence IDs 聚合。存在任何冲突时标记 CONTRADICTED；无冲突且达到 min_support 标记 STRUCTURALLY_COMPATIBLE；否则保留 UNRESOLVED。
-6. 仅当成对换位有充分兼容证据时，合并槽位等价类。
+6. 仅当一个槽位组内每一对换位都获得足够的共同独立证据时，才合并为等价类；不允许用不同样本支持的局部相似性做传递闭包。
 
 ## 解释边界
 
