@@ -117,7 +117,6 @@ def verify_e09_verification_receipt(
         raise E09VerificationReceiptError("receipt is not currently valid")
 
     branches = receipt.get("branch_ids")
-    branches = receipt.get("branch_ids")
     authorization_refs = receipt.get("authorization_evidence_refs")
     refs = receipt.get("evidence_refs")
     if (not isinstance(branches, list) or not branches
