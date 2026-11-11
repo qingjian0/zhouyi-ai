@@ -123,3 +123,8 @@ PR #221 head `7e65c22f7a3a01782d59306ada3401899134392e` completed workflow run `
 | [#222](https://github.com/qingjian0/zhouyi-ai/pull/222) | `38c5aeae0a7f980cbf377235ffd338a8c3559344` | #221 head `7e65c22` | Draft; exact-head CI pending |
 
 PR #222 connects branch snapshots to typed CSG-GCR candidate results. Cross-branch composition requires a scoped BranchMergeAuthorization receipt expected from E09; the adapter validates declared scope but does not authenticate the issuer. Accepted candidates carry the structural MergeResult and authorization reference. Candidate lifecycle and durable event persistence remain unimplemented in this adapter.
+
+
+## PR #222 exact-head refresh
+
+PR #222 latest head is `44166f27f1b9892782080a312fc80a15c0e19f2b`, based on PR #221 head `7e65c22f7a3a01782d59306ada3401899134392e`. Workflow `43032951104` was running at audit time; the unit-test step had completed and the workflow had advanced to E01-B. Do not mark the latest head fully validated until the complete workflow concludes.
