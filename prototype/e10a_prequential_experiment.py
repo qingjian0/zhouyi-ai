@@ -50,6 +50,7 @@ def run(seed: int = 17, *, mode: str = "INCREMENTAL_FILTER",
         abstentions = 0
         revisions = 0
         update_operations = 0
+        prediction_rule_match_operations = 0
         version = 0
         prediction_rows = []
 
@@ -61,6 +62,7 @@ def run(seed: int = 17, *, mode: str = "INCREMENTAL_FILTER",
                 for object_id in observation["participants"]
             ]
             prediction = learner.predict(observation, current_objects)
+            prediction_rule_match_operations += prediction["compute_cost"]["rule_match_evaluations"]
             prediction_id = f"prediction-{step:05d}"
             adapter.commit_prediction(
                 prediction_id=prediction_id,
@@ -143,6 +145,8 @@ def run(seed: int = 17, *, mode: str = "INCREMENTAL_FILTER",
             "strict_accuracy_abstentions_count_wrong": correct / total if total else 0.0,
             "abstention_rate": abstentions / total if total else 0.0,
             "revision_count_with_version_space_change": revisions,
+            "candidate_generation_evaluations": learner.snapshot()["report"]["candidate_generation_evaluations"],
+            "prediction_rule_match_operations": prediction_rule_match_operations,
             "candidate_update_operations": update_operations,
             "final_version_space_counts": {
                 key: len(value)
