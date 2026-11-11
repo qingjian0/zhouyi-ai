@@ -73,3 +73,98 @@ XSL、E10、E13、太玄、阴符等研究线必须正交化；先定义任务�
 - 关键学习结果必须有预注册 split、独立 evaluator 和锁定测试集。
 - 资源成本和失败案例必须报告。
 - 未验证 PR 保持 Draft；不因数量或日期批量合并。
+
+
+## 5. Canonical baseline and snapshot caveat (2026-11-11)
+
+Use [BASELINE_MANIFEST](BASELINE_MANIFEST_V1_2026-11-11.md) as the single authority for branch and commit identity. This registry is a dated maturity snapshot, not live branch metadata. In particular, the earlier #149 row reference to `50104ed` is historical; the selected convergence source baseline is `e90f7eb210db456a541eb9f45ec39f64ebb934a5`. PR #202's single-process crash-resume increment is recorded in the convergence execution audit and roadmap; it does not imply OS-level process isolation or an atomic cross-process outbox.
+
+
+## 6. Live PR dependency audit (2026-11-11)
+
+The canonical branch and SHA values are in [BASELINE_MANIFEST](BASELINE_MANIFEST_V1_2026-11-11.md). The active PR graph is not a flat merge queue:
+
+- **#206** is the documentation/convergence line based on E09 `e90f7eb`.
+- **#208** is a separate CSG-GCR branch also based on E09, not on #206. It must be reviewed as a parallel integration candidate.
+- **#212** is stacked on an earlier #208 branch commit (`91f6ae4`); #208 head (`5f886df`) is one commit ahead. Its typed unification kernel is standalone and is not yet called by CSG-GCR.
+- **#185** is based on `main`, not E09. Reuse its CandidateBundle content/provenance/validation design only after removing its independent lifecycle authority or delegating lifecycle transitions to E12-A6.
+- **#213 → #215** is a separate YJ-07/YJ-08 research stack. Neither is a prerequisite for the P1 runtime closure.
+
+All these PRs were Draft at audit time. GitHub reporting `mergeable=true` is not sufficient for approval. Each stack must be rebased or otherwise reconciled against its actual parent head, then tested as a combined exact head.
+
+
+## 7. CSG-GCR lifecycle persistence stack (2026-11-11)
+
+| PR | Scope | Exact-head CI | Maturity/status |
+|---|---|---|---|
+| [#217](https://github.com/qingjian0/zhouyi-ai/pull/217) | Typed hyperedge unification bridge into CSG-GCR | `43027843058` success | Draft integration slice |
+| [#218](https://github.com/qingjian0/zhouyi-ai/pull/218) | Immutable branch delta and deterministic merge | `43030468165` success | Draft integration slice |
+| [#221](https://github.com/qingjian0/zhouyi-ai/pull/221) | Monotonic partial feasibility pruning | `43031651288` success | Draft integration slice |
+| [#222](https://github.com/qingjian0/zhouyi-ai/pull/222) | Typed CSG-GCR ↔ Branch Delta bridge | `43032951104` success | Draft integration slice |
+| [#223](https://github.com/qingjian0/zhouyi-ai/pull/223) | Typed CSG-GCR → E12-A6 OBSERVED projection | `43034178683` success | Draft integration slice |
+| [#226](https://github.com/qingjian0/zhouyi-ai/pull/226) | E12-A6 lifecycle append/replay persistence through ZPCM | `43036878778` success | Draft integration slice |
+
+The #223 adapter is read-only: it creates a typed E12-A6 candidate projection but does not apply lifecycle actions. PR #226 adds the durable lifecycle event path and reconstructs state by replaying through E12-A6. E12-A6 remains lifecycle authority; ZPCM remains durable event-history authority; E09 remains evidence payload and authorization authority.
+
+PR #226 validates append-before-swap behavior, append-failure non-mutation, crash-after-append replay, idempotent action/revision retries, content conflicts, stale cursors, scope isolation, and payload digest integrity. Raw evidence outcome/provenance values are not copied into ZPCM lifecycle records; they are replaced by opaque references.
+
+**Remaining P1 work:** connect E09-verified evidence references to E12-A6 Evidence registration without bypassing split visibility; wire the typed CSG-GCR projection into PersistentLifecycleLedger as one supported ingestion path; then exercise the complete CSG-GCR → E09 evidence validation → E12-A6 transition → ZPCM persistence/restart flow. Cross-process evaluator/learner isolation, authenticated IPC, and transactional outbox remain separate gates. Full CI success validates software behavior and experiment scripts, not scientific validity or production readiness.
+
+
+## 8. E09 evidence bridge update (2026-11-11)
+
+| PR | Scope | Exact-head CI | Maturity/status |
+|---|---|---|---|
+| [#226](https://github.com/qingjian0/zhouyi-ai/pull/226) | E12-A6 lifecycle append/replay through ZPCM | `43037972184` success at `f4406ab` | Draft integration slice |
+| [#227](https://github.com/qingjian0/zhouyi-ai/pull/227) | Strict E09 observation/commit/reveal evidence binding into E12-A6 | `43038201790` success at `bc5114f` | Draft integration slice |
+
+PR #227 verifies complete E09 event-envelope fingerprints before projecting evidence metadata. SUPPORT → TRAIN is an explicit mapping; GATE_DEV, GATE_FINAL, and LOCKED_TEST remain distinct. Raw revealed targets are not copied into E12-A6/ZPCM. This is a trusted-store integrity and linkage check, not operator authentication or process isolation.
+
+**Next P1 gate:** an atomic typed-candidate ingestion path that (1) projects the CSG-GCR candidate, (2) resolves and verifies each declared E09 reveal reference, and (3) appends candidate plus evidence events as one ZPCM transaction before swapping the E12-A6 ledger. Cross-branch authorization issuer verification remains separate and must fail closed until E09 provides a verifiable authorization contract.
+
+
+## 9. Atomic CSG-GCR → E09 → E12-A6 → ZPCM ingestion (2026-11-11)
+
+| PR | Scope | Exact-head CI | Maturity/status |
+|---|---|---|---|
+| [#227](https://github.com/qingjian0/zhouyi-ai/pull/227) | Strict E09 reveal verification and redacted E12-A6 evidence DTO | `43038677702` success at `6a4b0dce` | Draft integration slice |
+| [#228](https://github.com/qingjian0/zhouyi-ai/pull/228) | Atomic typed CSG-GCR candidate + verified E09 evidence bundle into E12-A6/ZPCM | `43039470802` success at `d68819c` | Draft integration slice |
+
+PR #228 provides the first tested single-branch ingestion path across all four authorities. It verifies proposal evidence references against E09, requires explicit world-family context, stages evidence and candidate in E12-A6, and atomically appends both to ZPCM before installing the staged ledger. ZPCM rejects mixed partial batch replay. Raw labels remain only in E09.
+
+Cross-branch candidate ingestion is intentionally blocked until E09 can authenticate BranchMergeAuthorization issuer credentials. The current implementation is a trusted single-process SQLite reference path; distributed consensus, OS-level process isolation, authenticated IPC, and cross-process outbox remain open. Exact-head CI success is software validation, not scientific capability validation.
+
+
+## 10. End-to-end lifecycle transition and recovery validation (2026-11-11)
+
+| PR | Scope | Exact-head CI | Maturity/status |
+|---|---|---|---|
+| [#228](https://github.com/qingjian0/zhouyi-ai/pull/228) | Atomic CSG-GCR candidate + E09 evidence bundle | `43040120573` success at `8edf52c3` | Draft integration slice |
+| [#229](https://github.com/qingjian0/zhouyi-ai/pull/229) | End-to-end E12-A6 transitions and ZPCM restart/replay | `43040339295` success at `561ecc4e` | Draft integration validation |
+
+PR #229 proves the tested single-branch path can move a CSG-GCR candidate through E12-A6 lifecycle actions using split-appropriate E09 evidence and recover the exact final state/action history after reopening ZPCM. GATE_DEV cannot satisfy GATE_FINAL. Invalid transitions produce no persisted lifecycle action.
+
+This closes the current single-process reference integration path for one candidate lifecycle. It does not establish multi-process isolation, distributed transactionality, authenticated cross-branch authorization, or scientific validity of the induced relation.
+
+
+## 10. End-to-end lifecycle and authenticated cross-branch authorization
+
+| PR | Integration scope | Exact-head CI | Status |
+|---|---|---|---|
+| [#229](https://github.com/qingjian0/zhouyi-ai/pull/229) | Full typed CSG-GCR → E09 reveal verification → E12-A6 transitions → ZPCM restart/replay | `43040339295` success at `561ecc4e` | Draft integration test |
+| [#230](https://github.com/qingjian0/zhouyi-ai/pull/230) | E09 signed branch-merge grants; reject unsigned scope receipts; require verified grant in typed coordination and persistent ingestion | `43050136136` success at `541ba18d` | Draft security integration slice |
+
+PR #230 adds strict E09 v0.3 branch_merge_authorization events. It binds the authorization to episode/event identity, exact scope, parent state, branch set, evidence refs, validity interval and a signature checked by an injected trusted issuer-keyring verifier. Every evidence reference must resolve to a prior strict E09 reveal chain. The typed coordinator rejects plain unverified BranchMergeAuthorization values.
+
+The cryptographic trust root is intentionally injected; the repository does not ship a default keyring, private key or fake production verifier. A test callback only proves interface wiring. Production still needs a concrete public-key verifier, issuer key rotation/revocation, evaluator process isolation, authenticated IPC and remote tamper-evident replication.
+
+
+## 11. Concrete Ed25519 verification and cross-branch end-to-end ingestion
+
+[PR #231](https://github.com/qingjian0/zhouyi-ai/pull/231) exact head `99249112754fb747a791c75205309313820501ed`, workflow `43050925777`: success.
+
+The new `E09Ed25519IssuerKeyring` verifies real Ed25519 signatures from out-of-band 32-byte public keys, rejects unknown/revoked issuers and unsupported algorithms, and fingerprints the active keyring/revocation configuration. Key rotation replaces the immutable keyring; old signatures fail under the replacement key.
+
+An end-to-end test now signs an E09 authorization event, resolves it through the concrete keyring, merges two typed branch snapshots, and ingests the combined candidate plus verified evidence atomically into E12-A6/ZPCM. This closes the software reference-path gap between the signed grant verifier and cross-branch ingestion.
+
+Still not production-ready: public-key provisioning, deployment/rollback controls for keyring configuration, overlap windows and key IDs, issuer revocation distribution, E09 evaluator process isolation, authenticated IPC, and remote tamper-evident replication remain open.
