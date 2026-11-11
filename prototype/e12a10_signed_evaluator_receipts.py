@@ -8,6 +8,7 @@ from typing import Mapping
 from cryptography.exceptions import InvalidSignature
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
+from prototype.e12a9_evidence_bridge import bind_verdict
 
 
 def _canonical(value: object) -> bytes:
@@ -137,3 +138,15 @@ def verify_receipt(receipt: SignedEvaluatorReceipt, public_key_bytes: bytes, *,
     if replay_guard is not None:
         replay_guard.accept(receipt)
     return True
+
+
+def verify_and_bind_receipt(receipt: SignedEvaluatorReceipt, commit, public_key_bytes: bytes,
+                            *, scope_id: str,
+                            expected_context: Mapping[str, str],
+                            replay_guard: ReceiptReplayGuard):
+    """Verify signed provenance first, then adapt the receipt into E12-A9 evidence."""
+    verify_receipt(receipt, public_key_bytes,
+                   expected_context=expected_context, replay_guard=replay_guard)
+    if receipt.commit_digest != commit.commit_digest or receipt.episode_id != commit.episode_id:
+        raise ValueError("signed receipt does not bind the supplied prediction commit")
+    return bind_verdict(receipt.candidate_ref, scope_id, commit, receipt)
