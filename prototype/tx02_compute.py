@@ -138,12 +138,16 @@ def choose_abstention_threshold(probability_rows: Sequence[Sequence[float]],
     ranked.sort(key=lambda x: x[0], reverse=True)
     best = {"threshold": math.nextafter(1.0, math.inf), "coverage": 0.0,
             "selective_risk": None, "accepted": 0}
-    correct = 0
-    for count, (confidence, hit) in enumerate(ranked, 1):
-        correct += hit
-        risk = 1.0 - correct / count
+    # Evaluate only complete confidence-tie groups. Otherwise applying >= threshold
+    # could accept more rows than the prefix used to estimate the selected risk.
+    thresholds = sorted({confidence for confidence, _ in ranked}, reverse=True)
+    for threshold in thresholds:
+        accepted = [(confidence, hit) for confidence, hit in ranked
+                    if confidence >= threshold]
+        count = len(accepted)
+        risk = 1.0 - sum(hit for _, hit in accepted) / count
         if risk <= max_selective_risk:
-            best = {"threshold": confidence, "coverage": count / len(ranked),
+            best = {"threshold": threshold, "coverage": count / len(ranked),
                     "selective_risk": risk, "accepted": count}
     return best
 
