@@ -241,7 +241,7 @@ def run_condition(cardinality: int, support_size: int, seed: int,
                 validation_macs - target_compute_budget if compute_matched else None
             ),
             "estimated_training_forward_macs": (
-                len(splits.train) * 2 * epochs * validation_macs
+                len(splits.train) * epochs * validation_macs
             ),
             "train_seconds": train_seconds,
             "validation_probability_metrics": validation_metrics,
@@ -353,7 +353,7 @@ def run_sweep(cardinalities: tuple[int, ...] = (3,), support_sizes: tuple[int, .
             "Adaptive representation is selected using validation metrics only; locked-test evaluates the already selected family.",
             "Selective-risk threshold is calibrated on validation only; locked-test risk-coverage is descriptive and never used for threshold selection.",
             "FIXED_RANDOM and LEARNED share the same embedding dimension and initialization distribution; only LEARNED updates the embedding table.",
-            "Validation is reported but no hyperparameter search or test-driven model selection is performed.",
+            "Validation metrics drive the adaptive representation selector; locked-test labels never enter selection or calibration.",
             "Results do not establish natural-language or general-intelligence capability.",
         ],
     }
