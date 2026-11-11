@@ -70,7 +70,12 @@ class N4ARelationDiscoveryTests(unittest.TestCase):
             min_validation_lift=0.1, max_nodes=3,
         )
         three = [c for c in result.candidates if c.role_count == 3]
-        target = [c for c in three if {tuple(role) for role in json.loads(c.signature)[\"roles\"]} == {\n            (\"initiator\",), (\"mediator\",), (\"receiver\",)\n        }]
+        target = [
+            c for c in three
+            if {tuple(role) for role in json.loads(c.signature)["roles"]} == {
+                ("initiator",), ("mediator",), ("receiver",)
+            }
+        ]
         self.assertEqual(len(target), 1)
 
     def test_counterexamples_are_retained(self):
