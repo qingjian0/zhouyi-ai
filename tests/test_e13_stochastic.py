@@ -126,9 +126,6 @@ class E13StochasticMechanismTests(unittest.TestCase):
         self.assertEqual(result.rejected, (("forbidden", "UNAUTHORIZED"),))
 
 
-if __name__ == "__main__":
-    unittest.main()
-
 
 class E13StochasticCrossDomainMappingTests(unittest.TestCase):
     def _systems(self, target_probability=Fraction(3, 4)):
@@ -213,3 +210,7 @@ class E13StochasticCrossDomainMappingTests(unittest.TestCase):
         )
         self.assertEqual(report.status, "INCOMPLETE")
         self.assertEqual(report.cases[0].status, "UNKNOWN_MAPPING_OR_CASE_ALIGNMENT")
+
+
+if __name__ == "__main__":
+    unittest.main()
