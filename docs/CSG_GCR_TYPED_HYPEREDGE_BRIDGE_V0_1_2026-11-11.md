@@ -35,12 +35,7 @@ before it is emitted as a typed result.
 
 ## Important limitation
 
-The current bounded coordinator does not prune typed-infeasible partial sets
-during DFS. The bridge checks typed feasibility on completed candidate sets.
-This is correct as a filter for emitted candidates but can spend search budget
-on combinations that will later be rejected. A future optimization may add a
-pure, monotonic partial-feasibility callback to the coordinator after proving
-that the callback cannot reject a partial set that becomes valid when extended.
+This limitation was closed by the monotonic partial-feasibility implementation in `prototype/typed_csg_gcr.py`. The typed coordinator now prunes only contradictions proven impossible to repair by extending the selected prefix, while retaining the complete-set unifier as final authority. See `CSG_GCR_MONOTONIC_PRUNING_V0_1_2026-11-11.md` and `tests/test_typed_csg_gcr.py` for exhaustive subset/superset and pruned-versus-unpruned differential checks.
 
 The bridge also does not implement semantic deduplication, branch-delta merge,
 Pareto/diversity selection, E09 commits, E12-A6 lifecycle transitions, or ZPCM
@@ -49,7 +44,4 @@ compatibility or authorize cross-worldline transfer.
 
 ## Acceptance
 
-Focused tests cover typed composition, type conflict, temporal conflict,
-declaration conflict, legacy/typed contract separation, parent isolation,
-budget propagation and provenance preservation. Full repository CI must pass
-on the exact PR head before this prototype is considered integrated.
+Focused tests cover typed composition, type conflict, temporal conflict, declaration conflict, legacy/typed contract separation, parent isolation, budget propagation, provenance preservation, monotonic prefix pruning, and equivalence with the unpruned oracle. PR #244 exact-head workflow run 43080177000 completed successfully (unit-tests job). This remains a bounded reference implementation, not a general learned semantic reasoner.
