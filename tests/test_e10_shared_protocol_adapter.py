@@ -78,27 +78,37 @@ class E10SharedProtocolAdapterTests(unittest.TestCase):
                 reveal_id="r1", prediction_id="unknown", target=False
             )
 
-    def test_tracks_are_separate_for_same_observation(self):
-        ledger_a = PrequentialLedger(episode_id="same-observation")
-        ledger_b = PrequentialLedger(episode_id="same-observation")
-        a = E10SharedProtocolAdapter(
-            ledger_a, self.store, episode_id="same-observation",
-            initial_version_id="a-v0", initial_structure={"track": "a"},
-            learner_track="e10-a",
-        )
-        # Same episode can host only one initial version identity; use a
-        # distinct version but the same learner track's event namespace.
-        # The protocol allows different learner tracks to predict one query.
-        a.commit_prediction(
-            prediction_id="a-p", observation_id="shared-q",
-            observation_payload={"q": [1, 2]}, model_version="a-v1",
-            candidate_set_hash="a-candidates", decision_status="PREDICT",
+    def test_learner_track_is_explicit_on_prediction_and_reveal(self):
+        _, adapter = self.make_adapter()
+        adapter.commit_prediction(
+            prediction_id="track-p", observation_id="track-q",
+            observation_payload={"q": [1, 2]}, model_version="e10-model-v0",
+            candidate_set_hash="track-candidates", decision_status="PREDICT",
             prediction="A",
         )
-        # A second adapter instance for the same episode is intentionally not
-        # supported: each adapter owns one native ledger and structure chain.
-        # The multi-track invariant itself is exercised at protocol level.
-        self.assertEqual(a.replay()[-1]["payload"]["learner_track"], "e10-a")
+        adapter.reveal_evidence(
+            reveal_id="track-r", prediction_id="track-p", target="B"
+        )
+        events = adapter.replay()
+        self.assertEqual(events[-2]["payload"]["learner_track"], "e10")
+        self.assertEqual(events[-1]["payload"]["learner_track"], "e10")
+
+    def test_partial_cross_store_failure_fails_closed(self):
+        _, adapter = self.make_adapter("partial-failure")
+        with self.assertRaises(Exception):
+            adapter.commit_prediction(
+                prediction_id="bad-p", observation_id="bad-q",
+                observation_payload={"q": "visible"}, model_version="e10-v0",
+                candidate_set_hash="candidate-hash", decision_status="PREDICT",
+                prediction="bad", confidence=1.5,
+            )
+        events = self.store.replay_episode("partial-failure")
+        self.assertEqual(
+            [event["event_type"] for event in events],
+            ["structure_version", "observation"],
+        )
+        with self.assertRaisesRegex(Exception, "fail-closed"):
+            adapter.replay()
 
 
 if __name__ == "__main__":
