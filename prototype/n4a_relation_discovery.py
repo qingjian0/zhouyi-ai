@@ -163,7 +163,7 @@ def _validate_case(case: RelationalCase) -> None:
 
 
 def _case_motifs(case: RelationalCase, *, max_nodes: int,
-                 max_subsets: int) -> tuple[dict[str, tuple[str, ...]], int]:
+                 max_subsets: int) -> tuple[dict[str, tuple[tuple[str, ...], bool]], int]:
     nodes = tuple(sorted(case.nodes, key=lambda node: node.node_id))
     ids = tuple(node.node_id for node in nodes)
     motifs: dict[str, tuple[str, ...]] = {}
