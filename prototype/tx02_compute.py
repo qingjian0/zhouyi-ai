@@ -174,6 +174,62 @@ def choose_abstention_threshold(probability_rows: Sequence[Sequence[float]],
     return best
 
 
+def choose_episode_abstention_threshold(
+        probability_episodes: Sequence[Sequence[Sequence[float]]],
+        target_episodes: Sequence[Sequence[int]], max_selective_risk: float,
+        confidence_z: float = 1.6448536269514722) -> dict:
+    """Calibrate whole-episode deferral using episode-level all-queries-correct risk."""
+    if len(probability_episodes) != len(target_episodes) or not target_episodes:
+        raise ValueError("probability_episodes and target_episodes must be equal and non-empty")
+    episode_confidences = []
+    episode_hits = []
+    for probability_rows, targets in zip(probability_episodes, target_episodes):
+        if not probability_rows or len(probability_rows) != len(targets):
+            raise ValueError("each episode must contain equal non-zero query/probability rows")
+        confidences = []
+        hits = []
+        for probs, target in zip(probability_rows, targets):
+            if not probs or type(target) is not int or not 0 <= target < len(probs):
+                raise ValueError("invalid episode target or probability row")
+            if any(not math.isfinite(p) or p < 0 or p > 1 for p in probs):
+                raise ValueError("invalid probability")
+            if abs(sum(probs) - 1.0) > 1e-6:
+                raise ValueError("probabilities must sum to one")
+            prediction = max(range(len(probs)), key=lambda i: probs[i])
+            confidences.append(max(probs))
+            hits.append(prediction == target)
+        episode_confidences.append(min(confidences))
+        episode_hits.append(all(hits))
+    binary_rows = tuple((confidence, 1.0 - confidence)
+                        for confidence in episode_confidences)
+    binary_targets = tuple(0 if hit else 1 for hit in episode_hits)
+    result = choose_abstention_threshold(
+        binary_rows, binary_targets, max_selective_risk, confidence_z
+    )
+    result["risk_unit"] = "episode_all_queries_correct"
+    result["episode_count"] = len(target_episodes)
+    return result
+
+
+def apply_episode_abstention(
+        probability_episodes: Sequence[Sequence[Sequence[float]]],
+        threshold: float) -> tuple[tuple[int, ...] | None, ...]:
+    """Accept all query predictions in an episode or defer the entire episode."""
+    if not math.isfinite(threshold):
+        raise ValueError("threshold must be finite")
+    decisions = []
+    for rows in probability_episodes:
+        if not rows:
+            raise ValueError("episodes must contain at least one query")
+        if any(not row for row in rows):
+            raise ValueError("probability rows must not be empty")
+        if min(max(row) for row in rows) < threshold:
+            decisions.append(None)
+        else:
+            decisions.append(tuple(max(range(len(row)), key=lambda i: row[i]) for row in rows))
+    return tuple(decisions)
+
+
 def risk_coverage_curve(probability_rows: Sequence[Sequence[float]],
                           targets: Sequence[int]) -> tuple[dict, ...]:
     """Return validation/test descriptive risk-coverage points at unique thresholds."""
