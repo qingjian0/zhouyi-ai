@@ -103,6 +103,12 @@ class ZPCMMemory:
                     self.db.execute("COMMIT")
                 except Exception:self.db.execute("ROLLBACK");raise
         return added
+    def sync_episode(self,protocol_store,*,episode_id:str,scope:str,learner_track:str,include_support_targets:bool=False)->int:
+        """Project the authoritative E09 episode log; repeated full scans are idempotent."""
+        if not isinstance(episode_id,str) or not episode_id.strip():raise ZPCMError("episode_id required")
+        events=protocol_store.replay_episode(episode_id)
+        return self.sync_protocol_events(events,scope=scope,learner_track=learner_track,
+                                         include_support_targets=include_support_targets)
     def retrieve(self,*,scope,query_terms:Sequence[str]=(),item_types:Sequence[str]=(),max_items=64,max_bytes=32768):
         if not isinstance(scope,str) or not scope.strip() or max_items<1 or max_bytes<1:raise ZPCMError("valid scope and positive budgets required")
         terms=tuple(t.casefold() for t in query_terms if isinstance(t,str) and t.strip())

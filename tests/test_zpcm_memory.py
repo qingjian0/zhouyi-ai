@@ -1,6 +1,7 @@
 import tempfile,unittest
 from pathlib import Path
 from prototype.zpcm_memory import ZPCMError,ZPCMMemory
+from prototype.shared_evidence_protocol import SQLiteEvidenceStore
 class Tests(unittest.TestCase):
  def setUp(self):
   self.tmp=tempfile.TemporaryDirectory();self.path=Path(self.tmp.name)/"m.db";self.m=ZPCMMemory(self.path)
@@ -31,4 +32,17 @@ class Tests(unittest.TestCase):
   self.m.append_item(item_id="large",item_type="episode",scope="s",content={"text":"x"*1000},source_event_id="large-src")
   p=self.m.retrieve(scope="s",max_bytes=64);self.assertEqual(p["item_count"],0);self.assertTrue(p["truncated"])
   self.m.close();self.m=ZPCMMemory(self.path);self.assertEqual(self.m.retrieve(scope="s")["item_count"],1)
+ def test_sync_episode_projects_authoritative_e09_event_log(self):
+  source=SQLiteEvidenceStore(Path(self.tmp.name)/"e09.db")
+  try:
+   source.append_event(episode_id="ep",event_id="obs-1",event_type="observation",
+       idempotency_key="obs-1",actor_role="runner",
+       payload={"observation_id":"o1","scope":"s","split":"SUPPORT"})
+   self.assertEqual(self.m.sync_episode(source,episode_id="ep",scope="s",learner_track="srok"),1)
+   self.assertEqual(self.m.sync_episode(source,episode_id="ep",scope="s",learner_track="srok"),0)
+   packet=self.m.retrieve(scope="s")
+   self.assertEqual(packet["item_count"],1)
+   self.assertEqual(packet["items"][0]["source_event_id"],"obs-1")
+  finally:source.close()
+
 if __name__=="__main__":unittest.main()
