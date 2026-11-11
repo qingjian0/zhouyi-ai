@@ -81,6 +81,34 @@ class SROKPrequentialTests(unittest.TestCase):
         finally:
             memory.close()
 
+    def test_resume_restores_model_pending_reveal_and_prediction_inputs(self):
+        adapter, runner, learner = self.adapter()
+        nodes1, target1 = make_episode(201)
+        first = adapter.predict_and_commit("obs-resume-1", (encode_srok_observation(nodes1),))
+        adapter.reveal(first["prediction_id"], target1)
+        adapter.revise(first["prediction_id"])
+
+        nodes2, target2 = make_episode(202)
+        pending = adapter.predict_and_commit("obs-resume-2", (encode_srok_observation(nodes2),))
+        adapter.reveal(pending["prediction_id"], target2)
+
+        self.store.close()
+        self.store = SQLiteEvidenceStore(Path(self.tmp.name) / "srok.sqlite3")
+        resumed = E09SharedProtocolAdapter.resume_srok(
+            self.store, episode_id="episode-SUPPORT-2-4096",
+            scope="srok/test", split="SUPPORT", learner_track="srok0",
+            version_prefix="srok0", learner_factory=SROKPrequentialLearner.from_snapshot,
+        )
+        self.assertEqual(resumed.runner.learner.snapshot(), learner.snapshot())
+        self.assertIn(pending["prediction_id"], resumed.runner._reveals)
+        self.assertEqual(
+            resumed.runner._predictions[pending["prediction_id"]].inputs,
+            (encode_srok_observation(nodes2),),
+        )
+        self.assertEqual(len(resumed.runner.ledger.records()), 26)
+        revision = resumed.revise(pending["prediction_id"])
+        self.assertEqual(revision["after_version_id"], "srok0-v3")
+
     def test_support_commit_reveal_and_batch_refit(self):
         adapter,runner,learner=self.adapter()
         nodes,target=make_episode(101)
