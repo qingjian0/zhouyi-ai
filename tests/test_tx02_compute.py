@@ -44,7 +44,7 @@ class TX02ComputeAndCalibrationTests(unittest.TestCase):
         self.assertEqual(sum(value is not None for value in decisions), 40)
     def test_episode_level_calibration_uses_episode_correctness_for_k3(self):
         correct = ((0.4, 0.35, 0.25), (0.4, 0.35, 0.25))
-        incorrect = ((0.4, 0.35, 0.25), (0.4, 0.35, 0.25))
+        incorrect = ((0.34, 0.33, 0.33), (0.34, 0.33, 0.33))
         probability_episodes = tuple(correct for _ in range(40)) + tuple(
             incorrect for _ in range(40)
         )
@@ -54,12 +54,12 @@ class TX02ComputeAndCalibrationTests(unittest.TestCase):
         chosen = choose_episode_abstention_threshold(
             probability_episodes, targets, 0.1
         )
-        self.assertEqual(chosen["accepted"], 80)
+        self.assertEqual(chosen["accepted"], 40)
         # All confidence ties are deliberately indivisible: no query-level leakage.
         decisions = apply_episode_abstention(
             probability_episodes, chosen["threshold"]
         )
-        self.assertEqual(len(decisions), 80)
+        self.assertEqual(sum(value is not None for value in decisions), 40)
     def test_validation_only_representation_selector(self):
         result = select_representation({
             "TERNARY": {"accuracy": 0.8, "nll": 0.6, "forward_macs": 900, "parameter_count": 100},
