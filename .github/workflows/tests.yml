@@ -2,9 +2,9 @@ name: tests
 
 on:
   push:
-    branches: [main]
+    branches: [main, integration/e12a6-lifecycle-interop-2026-11-11]
   pull_request:
-    branches: [main, integration/e09-v03-evidence-binding-2026-11-11]
+    branches: [main, integration/e12a6-lifecycle-interop-2026-11-11]
 
 jobs:
   unit-tests:
