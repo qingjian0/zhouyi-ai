@@ -75,8 +75,9 @@ def exact_hypergraph_automorphism_audit(
     """
     if not isinstance(max_candidate_bijections, int) or max_candidate_bijections < 1:
         raise AutomorphismOracleError("max_candidate_bijections must be positive")
+    policy_items = tuple(relation_symmetry)
     policies: dict[str, str] = {}
-    for item in relation_symmetry:
+    for item in policy_items:
         if item.relation_type in policies:
             raise AutomorphismOracleError("duplicate relation symmetry policy")
         policies[item.relation_type] = item.semantics
@@ -138,7 +139,7 @@ def exact_hypergraph_automorphism_audit(
 
     try:
         inferred = infer_hypergraph_roles(
-            state, tuple(relation_symmetry), max_rounds=max_rounds
+            state, policy_items, max_rounds=max_rounds
         )
     except HypergraphRoleInductionError as exc:
         raise AutomorphismOracleError(str(exc)) from exc
