@@ -48,7 +48,7 @@ def _normalize(prior: Mapping[str, float]) -> dict[str, float]:
            or not math.isfinite(v) or v < 0 for v in prior.values()):
         raise ValueError("prior weights must be finite and non-negative")
     total = sum(prior.values())
-    if total <= 0:
+    if not math.isfinite(total) or total <= 0:
         raise ValueError("prior must have positive mass")
     return {key: value / total for key, value in prior.items()}
 
@@ -187,6 +187,10 @@ class PrequentialExperimentLedger:
         self.spent = 0.0
 
     def commit(self, action: ExperimentAction) -> None:
+        if (not isinstance(action.action_id, str) or not action.action_id
+                or isinstance(action.cost, bool) or not isinstance(action.cost, (int, float))
+                or not math.isfinite(action.cost) or action.cost <= 0):
+            raise ValueError("committed action must have an ID and positive finite cost")
         if action.action_id in self.commits:
             raise ValueError("action already committed")
         table = likelihoods(
@@ -218,7 +222,7 @@ class PrequentialExperimentLedger:
                 "posterior": dict(self.posterior),
             })
             return {"status": "MISSING", "posterior": dict(self.posterior)}
-        if isinstance(outcome, bool) or outcome not in (0, 1, 2):
+        if isinstance(outcome, bool) or not isinstance(outcome, int) or outcome not in (0, 1, 2):
             raise ValueError("outcome must be 0, 1, 2, or None")
         commit = self.commits[action_id]
         row = {h: probs[str(outcome)] for h, probs in commit["likelihoods"].items()}
@@ -251,6 +255,16 @@ def run_episode(
     """Run a learner-facing episode; true mechanism is not returned to learner."""
     if policy not in {"active", "random", "fixed"}:
         raise ValueError("policy must be active, random, or fixed")
+    if (isinstance(budget, bool) or not isinstance(budget, (int, float))
+            or not math.isfinite(budget) or budget < 0):
+        raise ValueError("budget must be finite and non-negative")
+    if isinstance(max_steps, bool) or not isinstance(max_steps, int) or max_steps < 0:
+        raise ValueError("max_steps must be a non-negative integer")
+    if (isinstance(confidence_threshold, bool)
+            or not isinstance(confidence_threshold, (int, float))
+            or not math.isfinite(confidence_threshold)
+            or not 0 < confidence_threshold <= 1):
+        raise ValueError("confidence_threshold must be finite and in (0, 1]")
     actions = list(make_actions(include_interventions=include_interventions))
     remaining = {action.action_id: action for action in actions}
     ledger = PrequentialExperimentLedger(
