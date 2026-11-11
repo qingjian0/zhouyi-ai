@@ -1,8 +1,10 @@
 import unittest
 
+from prototype.znca_core import Evidence, Entity, ObservationEvent, Relation, RoleBinding
+
 from prototype.znca_dynamics import (
     DynamicsError, InfluenceTerm, RelationalDynamicsModel, SourceSlot,
-    StateSnapshot, TransitionExample,
+    StateSnapshot, TransitionExample, influence_term_from_relation,
 )
 
 
@@ -70,6 +72,30 @@ class RelationalDynamicsTests(unittest.TestCase):
             InfluenceTerm("bad", "r", (
                 SourceSlot("same", "a"), SourceSlot("same", "b")
             ), "z")
+
+    def test_n1_relation_compiles_to_role_preserving_operator(self):
+        relation = Relation(
+            "assertion-1", "enables",
+            (RoleBinding("agent", "a"), RoleBinding("target", "z"),
+             RoleBinding("condition", "b")),
+            ("evidence-1",), 1,
+        )
+        term = influence_term_from_relation(relation, target_role="target")
+        self.assertEqual(term.target, "z")
+        self.assertEqual(
+            {(slot.role, slot.state_key) for slot in term.sources},
+            {("agent", "a"), ("condition", "b")},
+        )
+        self.assertEqual(term.evidence_refs, ("evidence-1",))
+
+    def test_unknown_target_role_rejected_by_adapter(self):
+        relation = Relation(
+            "assertion-2", "enables",
+            (RoleBinding("agent", "a"), RoleBinding("target", "z")),
+            ("evidence-1",), 1,
+        )
+        with self.assertRaises(DynamicsError):
+            influence_term_from_relation(relation, target_role="missing")
 
     def test_state_values_are_bounded(self):
         with self.assertRaises(DynamicsError):
