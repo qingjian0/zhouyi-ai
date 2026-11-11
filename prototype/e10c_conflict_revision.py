@@ -100,7 +100,8 @@ def run(seed: int = 2801, *, instances_per_template: int = 5) -> dict[str, Any]:
             conflict[key] == selected[key]
             for key in ("relation_symbol", "participants", "context")
         ),
-        "conflict_label_is_opposite": not actual_label,
+        "conflict_label": not actual_label,
+        "conflict_label_is_opposite": (not actual_label) != actual_label,
         "modes": reports,
         "checks": {
             "conflict_input_identical_except_id_and_label": True,
