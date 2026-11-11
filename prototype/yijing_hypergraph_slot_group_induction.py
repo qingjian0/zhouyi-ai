@@ -47,6 +47,7 @@ class ExactSlotGroupHypothesis:
     valid_until: int | None
     semantics: str
     group: PermutationGroupHypothesis
+    snapshot_context: tuple[tuple[str, str], ...] = ()
 
 
 @dataclass(frozen=True)
