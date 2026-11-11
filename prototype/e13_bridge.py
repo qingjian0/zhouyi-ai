@@ -119,6 +119,8 @@ def validate_bridge(source: RelationalGraph, target: RelationalGraph,
     if not hypothesis.allow_many_to_one and len(set(relation_map.values())) != len(relation_map):
         reasons.append("RELATION_MAP_COLLISION")
 
+    if any(relation_map.get(x.source_relation) != x.target_relation for x in hypothesis.roles):
+        reasons.append("ROLE_TARGET_RELATION_MISMATCH")
     role_map = {(x.source_relation, x.source_role): x.target_role for x in hypothesis.roles}
     role_positions: dict[str, dict[int, int]] = {}
     expected_role_keys = set()
