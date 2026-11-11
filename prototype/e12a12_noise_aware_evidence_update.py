@@ -125,6 +125,7 @@ class SequentialEvidenceUpdater:
         self.executor_id, self.key_id, self.ledger = executor_id, key_id, ledger
         self.replay_guard = replay_guard or MeasurementReplayGuard()
         self._llr, self._count, self._receipt_ids = 0.0, 0, []
+        self._decision: EpistemicStatus | None = None
 
     @property
     def cumulative_log_likelihood_ratio(self):
@@ -135,6 +136,8 @@ class SequentialEvidenceUpdater:
         return self._count
 
     def update(self, receipt: SignedMeasurementReceipt) -> EvidenceUpdate:
+        if self._decision is not None:
+            raise ValueError("sequential test has crossed a stopping boundary")
         if receipt.status != MeasurementStatus.SELECT.value or not receipt.outcome:
             raise ValueError("only SELECT observations can update likelihood evidence")
         expected = {"executor_id": self.executor_id, "key_id": self.key_id,
@@ -170,6 +173,8 @@ class SequentialEvidenceUpdater:
         self.ledger.append(event)
         self._llr, self._count = next_llr, self._count + 1
         self._receipt_ids.append(receipt.receipt_id)
+        if status in (EpistemicStatus.SUPPORTED, EpistemicStatus.REFUTED_IN_SCOPE):
+            self._decision = status
         return EvidenceUpdate(evidence_id, self.model.model_digest, self.model.candidate_ref,
             self.model.scope_id, receipt.receipt_id, receipt.outcome, increment, self._llr,
             self._count, status, event_id)
