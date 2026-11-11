@@ -157,5 +157,35 @@ class LearnableSROKTests(unittest.TestCase):
             model.fit([], epochs=1)
 
 
+    def test_checkpoint_round_trip_preserves_model_state(self):
+        model = LearnableSROK(self.roles, feature_dim=3)
+        model.fit(make_training(71, 12), epochs=8, learning_rate=0.1)
+        raw = model.checkpoint_json()
+        restored = LearnableSROK.from_checkpoint_json(raw)
+        self.assertEqual(restored.roles, model.roles)
+        self.assertEqual(restored.feature_dim, model.feature_dim)
+        self.assertEqual(restored.weights, model.weights)
+        self.assertEqual(restored.training_steps, model.training_steps)
+        assignment = make_training(72, 1)[0].role_candidates
+        nodes = tuple(pool[0] for pool in assignment)
+        self.assertEqual(restored.score(nodes), model.score(nodes))
+        self.assertEqual(restored.checkpoint_json(), raw)
+
+    def test_checkpoint_rejects_tampered_weights(self):
+        import json
+        model = LearnableSROK(self.roles, feature_dim=3)
+        envelope = json.loads(model.checkpoint_json())
+        envelope["weights"][0] = 123.0
+        with self.assertRaisesRegex(LearnableSROKError, "digest mismatch"):
+            LearnableSROK.from_checkpoint_json(json.dumps(envelope))
+
+    def test_checkpoint_rejects_unknown_fields_and_bad_shape(self):
+        import json
+        model = LearnableSROK(self.roles, feature_dim=3)
+        envelope = json.loads(model.checkpoint_json())
+        envelope["unexpected"] = True
+        with self.assertRaisesRegex(LearnableSROKError, "fields do not match"):
+            LearnableSROK.from_checkpoint_json(json.dumps(envelope))
+
 if __name__ == "__main__":
     unittest.main()
