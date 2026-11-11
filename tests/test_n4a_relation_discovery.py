@@ -2,7 +2,7 @@ import json
 import unittest
 
 from prototype.n4a_relation_discovery import (
-    DiscoveryError, Edge, Node, RelationalCase, discover_relations,
+    DiscoveryError, Edge, Node, RelationalCase, discover_relations, matches_candidate,
 )
 
 
@@ -108,6 +108,31 @@ class N4ARelationDiscoveryTests(unittest.TestCase):
         ]
         self.assertEqual(len(target), 1)
         self.assertEqual(len(target[0].support_case_ids), 3)
+
+    def test_candidate_matching_is_scope_aware_and_budgeted(self):
+        cases = balanced_dataset()
+        result = discover_relations(
+            cases, min_train_support=3, min_validation_support=2,
+            min_validation_lift=0.1, max_nodes=3,
+        )
+        candidate = next(
+            c for c in result.candidates
+            if c.role_count == 3
+            and {role[0] for role in json.loads(c.signature)["roles"]}
+            == {"initiator", "mediator", "receiver"}
+        )
+        positive = make_case("match-positive", "validation", True)
+        negative = make_case("match-negative", "validation", False)
+        other_scope = RelationalCase(
+            "match-other-scope", positive.domain, "other-scope",
+            positive.partition, positive.outcome, positive.nodes, positive.edges,
+        )
+        self.assertTrue(matches_candidate(candidate, positive, max_nodes=3))
+        self.assertFalse(matches_candidate(candidate, negative, max_nodes=3))
+        self.assertFalse(matches_candidate(candidate, other_scope, max_nodes=3))
+        with self.assertRaises(DiscoveryError):
+            matches_candidate(candidate, positive, max_nodes=3,
+                              max_subsets_per_case=1)
 
     def test_counterexamples_are_retained(self):
         cases = balanced_dataset()
