@@ -186,7 +186,9 @@ class CandidateRegistryTests(unittest.TestCase):
     def test_stale_parent_prevents_commit_without_publishing(self):
         self.registry.submit_for_gate(self.bundle.bundle_id)
         self.registry.record_gate_receipt(make_receipt(self.bundle))
-        self.registry.active_version_refs = {"structure-v1-newer"}
+        self.registry.advance_version_projection(
+            ("structure-v1",), "structure-v1-newer"
+        )
         with self.assertRaises(VersionConflictError):
             self.registry.commit(self.bundle.bundle_id)
         self.assertEqual(self.registry.state_of("bundle-1"), LifecycleState.GATE_PASSED)
@@ -201,6 +203,15 @@ class CandidateRegistryTests(unittest.TestCase):
         self.assertEqual(self.registry.state_of("bundle-1"), LifecycleState.GATE_FAILED)
         with self.assertRaises(CandidateStateError):
             self.registry.commit(self.bundle.bundle_id)
+
+    def test_active_version_projection_is_read_only(self):
+        with self.assertRaises(AttributeError):
+            self.registry.active_version_refs = {"bypass"}
+
+    def test_returned_audit_events_cannot_mutate_internal_history(self):
+        event = self.registry.events[0]
+        event["details"] = {"tampered": True}
+        self.assertNotIn("details", self.registry.events[0])
 
     def test_lifecycle_events_are_append_only(self):
         self.registry.submit_for_gate(self.bundle.bundle_id)
