@@ -306,14 +306,20 @@ def evaluate_policy(
                     "spent": learner["spent"],
                     "steps": learner["steps"],
                 })
+        high_confidence = [e for e in episodes if e["confidence"] >= 0.95]
+        selective_accuracy = (
+            sum(e["correct"] for e in high_confidence) / len(high_confidence)
+            if high_confidence else None
+        )
         results[policy] = {
             "episodes": episodes,
             "accuracy": sum(e["correct"] for e in episodes) / len(episodes),
             "mean_cost": sum(e["spent"] for e in episodes) / len(episodes),
             "mean_steps": sum(e["steps"] for e in episodes) / len(episodes),
+            "high_confidence_coverage": len(high_confidence) / len(episodes),
+            "selective_accuracy_at_0_95": selective_accuracy,
             "high_confidence_error_rate": (
-                sum(not e["correct"] for e in episodes if e["confidence"] >= 0.95)
-                / max(1, sum(e["confidence"] >= 0.95 for e in episodes))
+                1.0 - selective_accuracy if selective_accuracy is not None else None
             ),
         }
     return {
