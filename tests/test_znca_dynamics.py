@@ -97,6 +97,15 @@ class RelationalDynamicsTests(unittest.TestCase):
         with self.assertRaises(DynamicsError):
             influence_term_from_relation(relation, target_role="missing")
 
+    def test_complemented_source_slot_supports_negation(self):
+        term = InfluenceTerm(
+            "not-a", "absence_enables",
+            (SourceSlot("condition", "a", True),), "z", 1, 4.0
+        )
+        model = RelationalDynamicsModel((term,), biases={"z": -2.0})
+        result = model.predict(snapshot(a=0, z=0)).as_dict()["z"]
+        self.assertGreater(result, 0.8)
+
     def test_state_values_are_bounded(self):
         with self.assertRaises(DynamicsError):
             snapshot(x=1.2)
