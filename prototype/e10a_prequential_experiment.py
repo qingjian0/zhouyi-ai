@@ -15,6 +15,7 @@ from pathlib import Path
 from typing import Any
 
 from prototype.e10a_finite_relational_learner import FiniteRelationalVersionSpace
+from prototype.e10a_subprocess_learner import SubprocessRelationalVersionSpace
 from prototype.e10a_object_disjoint import build_object_disjoint_task
 from prototype.e10a_prequential_ledger import PrequentialLedger
 from prototype.e10_shared_protocol_adapter import E10SharedProtocolAdapter
@@ -25,13 +26,19 @@ MODES = ("FROZEN", "BATCH_REFIT", "INCREMENTAL_FILTER")
 
 
 def run(seed: int = 17, *, mode: str = "INCREMENTAL_FILTER",
-        instances_per_template: int = 6) -> dict[str, Any]:
+        instances_per_template: int = 6,
+        learner_backend: str = "in_process") -> dict[str, Any]:
     if mode not in MODES:
         raise ValueError(f"mode must be one of {MODES}")
+    if learner_backend not in {"in_process", "subprocess"}:
+        raise ValueError("learner_backend must be in_process or subprocess")
     support, query, evaluator_truth = build_object_disjoint_task(
         seed, instances_per_template=instances_per_template
     )
-    learner = FiniteRelationalVersionSpace().fit(support)
+    learner = (
+        SubprocessRelationalVersionSpace() if learner_backend == "subprocess"
+        else FiniteRelationalVersionSpace()
+    ).fit(support)
     truth_by_id = {
         row["observation_id"]: row["valid"]
         for row in evaluator_truth["query_truth"]
@@ -145,6 +152,7 @@ def run(seed: int = 17, *, mode: str = "INCREMENTAL_FILTER",
             "task": "E10-A finite relational version-space prequential experiment",
             "seed": seed,
             "mode": mode,
+            "learner_backend": learner_backend,
             "generator": "e10a-object-disjoint-task-v1",
             "learner_dsl": "one categorical feature + unordered distinct role-value set + one context equality",
             "support_observations": len(support["observations"]),
@@ -172,6 +180,8 @@ def run(seed: int = 17, *, mode: str = "INCREMENTAL_FILTER",
             ],
         }
         store.close()
+        if learner_backend == "subprocess":
+            learner.close()
     return result
 
 
@@ -299,6 +309,7 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=17)
     parser.add_argument("--instances-per-template", type=int, default=6)
     parser.add_argument("--mode", choices=(*MODES, "all"), default="all")
+    parser.add_argument("--learner-backend", choices=("in_process", "subprocess"), default="in_process")
     parser.add_argument("--sweep", action="store_true")
     parser.add_argument("--seeds", type=int, default=10)
     parser.add_argument("--start-seed", type=int, default=17)
@@ -311,7 +322,8 @@ def main() -> None:
         result = run_all(args.seed, instances_per_template=args.instances_per_template)
     else:
         result = run(args.seed, mode=args.mode,
-                     instances_per_template=args.instances_per_template)
+                     instances_per_template=args.instances_per_template,
+                     learner_backend=args.learner_backend)
     print(json.dumps(result, indent=2, ensure_ascii=False) if args.json else result)
 
 
