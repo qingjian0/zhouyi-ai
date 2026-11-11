@@ -279,7 +279,7 @@ class LearnableSROK:
             self.score(ranked[0]) - self.score(ranked[1])
             if len(ranked) > 1 else math.inf
         )
-        if margin < abstain_margin:
+        if margin <= abstain_margin:
             return Prediction(
                 structures, True, "LOW_SCORE_MARGIN", expanded,
                 exhausted, sizes,
