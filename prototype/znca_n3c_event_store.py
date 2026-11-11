@@ -261,9 +261,11 @@ class SQLiteEventStore:
         return events
 
     def recover(self, initial_state: Mapping[str, str] | None = None) -> RecoveryResult:
-        """Rebuild canonical state; branch lifecycle events do not mutate it."""
+        """Rebuild canonical state and validate every compensation against history."""
         events = self.verify()
         state = dict(initial_state or {})
+        mutation_effects: dict[int, tuple[dict[str, object], dict[str, str]]] = {}
+        compensated: set[int] = set()
         for event in events:
             payload = event.payload
             if event.event_type in ("HypothesisCommitted", "BranchPromoted"):
@@ -274,20 +276,34 @@ class SQLiteEventStore:
                     for k, v in delta.items()
                 ):
                     raise IntegrityError(f"invalid state_delta at sequence {event.sequence}")
+                before = {
+                    key: ({"present": True, "value": state[key]} if key in state
+                          else {"present": False})
+                    for key in delta
+                }
                 state.update(delta)
+                mutation_effects[event.sequence] = (before, dict(delta))
             elif event.event_type == "CommitCompensated":
+                target = payload.get("target_sequence")
                 restore = payload.get("restore")
-                if not isinstance(restore, dict):
+                if not isinstance(target, int) or target <= 0 or not isinstance(restore, dict):
                     raise IntegrityError("invalid compensation restore payload")
+                if target in compensated or target not in mutation_effects:
+                    raise IntegrityError("compensation target is invalid or already compensated")
+                expected_restore, target_delta = mutation_effects[target]
+                if set(restore) != set(target_delta):
+                    raise IntegrityError("compensation must restore exactly the target keys")
+                for key, expected in expected_restore.items():
+                    if restore.get(key) != expected:
+                        raise IntegrityError("compensation restore does not match prior state")
+                    if state.get(key) != target_delta[key]:
+                        raise IntegrityError("compensation would overwrite a later canonical change")
                 for key, item in restore.items():
-                    if not isinstance(key, str) or not key.strip() or not isinstance(item, dict):
-                        raise IntegrityError("invalid compensation restore entry")
-                    if item.get("present") is True and isinstance(item.get("value"), str):
+                    if item["present"]:
                         state[key] = item["value"]
-                    elif item.get("present") is False:
-                        state.pop(key, None)
                     else:
-                        raise IntegrityError("invalid compensation restore value")
+                        state.pop(key, None)
+                compensated.add(target)
             elif event.event_type in (
                 "BranchCreated", "BranchDeltaRecorded", "BranchRejected",
             ):
