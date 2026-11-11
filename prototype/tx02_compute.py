@@ -118,11 +118,32 @@ def probability_metrics(probability_rows: Sequence[Sequence[float]],
             "brier_multiclass": brier / n, "ece_top_label_fixed_width": ece,
             "ece_bins": bins, "ece_bin_details": details}
 
+def wilson_upper_bound(errors: int, count: int, z: float = 1.959963984540054) -> float:
+    """One-sided Wilson score upper bound for a binomial error rate."""
+    if type(errors) is not int or type(count) is not int or count < 1 or not 0 <= errors <= count:
+        raise ValueError("require 0 <= errors <= count and count >= 1")
+    if not math.isfinite(z) or z <= 0:
+        raise ValueError("z must be finite and positive")
+    rate = errors / count
+    z2 = z * z
+    denominator = 1.0 + z2 / count
+    center = rate + z2 / (2.0 * count)
+    radius = z * math.sqrt(rate * (1.0 - rate) / count + z2 / (4.0 * count * count))
+    return min(1.0, (center + radius) / denominator)
+
+
 def choose_abstention_threshold(probability_rows: Sequence[Sequence[float]],
-        targets: Sequence[int], max_selective_risk: float) -> dict:
-    """Select maximum validation coverage under an empirical risk cap."""
+        targets: Sequence[int], max_selective_risk: float,
+        confidence_z: float = 1.959963984540054) -> dict:
+    """Maximize validation coverage subject to a one-sided Wilson risk bound.
+
+    This is a conservative finite-sample heuristic, not a distribution-free
+    guarantee under arbitrary dataset shift or adaptive repeated use.
+    """
     if not math.isfinite(max_selective_risk) or not 0 <= max_selective_risk <= 1:
         raise ValueError("max_selective_risk must be in [0,1]")
+    if not math.isfinite(confidence_z) or confidence_z <= 0:
+        raise ValueError("confidence_z must be finite and positive")
     if len(probability_rows) != len(targets) or not targets:
         raise ValueError("probability_rows and targets must have equal non-zero length")
     ranked = []
@@ -135,21 +156,23 @@ def choose_abstention_threshold(probability_rows: Sequence[Sequence[float]],
             raise ValueError("probabilities must sum to one")
         pred = max(range(len(probs)), key=lambda i: probs[i])
         ranked.append((max(probs), int(pred == target)))
-    ranked.sort(key=lambda x: x[0], reverse=True)
     best = {"threshold": math.nextafter(1.0, math.inf), "coverage": 0.0,
-            "selective_risk": None, "accepted": 0}
-    # Evaluate only complete confidence-tie groups. Otherwise applying >= threshold
-    # could accept more rows than the prefix used to estimate the selected risk.
+            "selective_risk": None, "risk_upper_bound": None, "accepted": 0,
+            "confidence_z": confidence_z, "risk_bound_method": "one_sided_wilson"}
     thresholds = sorted({confidence for confidence, _ in ranked}, reverse=True)
     for threshold in thresholds:
-        accepted = [(confidence, hit) for confidence, hit in ranked
-                    if confidence >= threshold]
+        accepted = [hit for confidence, hit in ranked if confidence >= threshold]
         count = len(accepted)
-        risk = 1.0 - sum(hit for _, hit in accepted) / count
-        if risk <= max_selective_risk:
+        errors = count - sum(accepted)
+        risk = errors / count
+        upper = wilson_upper_bound(errors, count, confidence_z)
+        if upper <= max_selective_risk:
             best = {"threshold": threshold, "coverage": count / len(ranked),
-                    "selective_risk": risk, "accepted": count}
+                    "selective_risk": risk, "risk_upper_bound": upper,
+                    "accepted": count, "confidence_z": confidence_z,
+                    "risk_bound_method": "one_sided_wilson"}
     return best
+
 
 def risk_coverage_curve(probability_rows: Sequence[Sequence[float]],
                           targets: Sequence[int]) -> tuple[dict, ...]:
