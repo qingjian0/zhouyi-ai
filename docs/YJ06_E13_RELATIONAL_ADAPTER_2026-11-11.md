@@ -3,6 +3,7 @@
 日期：2026-11-11  
 分支：`research/yj06-e13-lossless-relational-adapter-2026-11-11`  
 基于：YJ-05 PR #207
+E13 contract 来源：PR #154 的 `prototype/e13_contract.py`，当前以 pinned snapshot 随 PR 一起提供，避免依赖未合并 Draft 分支。后续 E13 contract 稳定合并后应删除快照并改为共享依赖。
 
 ## 1. 目的
 
