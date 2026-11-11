@@ -1,6 +1,6 @@
 # TX-02：多状态表示竞争与自主选择基准
 
-状态：TX-02A 协议 + 数据生成器实现；TX-02B-1 精确审计与 TX-02B-2 规则族隔离数据切分已实现；可训练 TX-02B 学习器尚未实现，尚无 TX-02 性能结果。已有 E02-B 固定三值规则学习器不等同于 TX-02B。  
+状态：TX-02A 协议 + 数据生成器实现；TX-02B-1 精确审计、TX-02B-2 规则族隔离切分、TX-02B-3 首个可训练 support-set MLP 已实现；尚无有效表示优劣性能结论。已有 E02-B 固定三值规则学习器不等同于 TX-02B。  
 关联：TX-01、E02-B、E02-D、E12、YF-02/YF-03。
 
 ## 1. 研究问题
@@ -130,3 +130,6 @@ TX-02A 通过只表示数据协议可用，不表示任何表示更优。每个�
 
 
 TX-02B-2 切分实现位于 [prototype/tx02_splits.py](../prototype/tx02_splits.py)，测试位于 `tests/test_tx02_splits.py`。该实现只建立规则族隔离与标签边界，尚未实现可训练模型或生成性能结果。
+
+
+TX-02B-3 最小可训练模型：`prototype/tx02_learners.py`。模型以 support-set 均值池化方式对候选评分，固定表示可选 BINARY / TERNARY / HYBRID / ONE_HOT / PERMUTED，LEARNED embedding 由交叉熵梯度更新。单测：`tests/test_tx02_learners.py`。当前为纯 Python 原型，不能把相同 hidden size 解释为参数/计算预算匹配。
