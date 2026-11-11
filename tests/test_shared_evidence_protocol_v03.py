@@ -58,7 +58,7 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
                 },
             ],
         )
-        self.assertEqual([r.sequence_no for r in receipts], [1, 2])
+        self.assertEqual([r.sequence_no for r in receipts], [1, 2, 3])
         events = self.store.replay_episode("ep")
         self.assertEqual([e["event_type"] for e in events], ["observation", "evidence_ingest", "structure_version"])
 
