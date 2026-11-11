@@ -9,9 +9,14 @@ from __future__ import annotations
 from dataclasses import dataclass
 import hashlib
 import math
-from typing import Iterable, Sequence
+from typing import Iterable, Protocol, Sequence
 
-from prototype.operator_induction import OperatorProgram, State
+
+State = tuple[float, ...]
+
+
+class PredictiveProgram(Protocol):
+    def apply(self, state: Sequence[float]) -> State: ...
 
 
 class IdentificationError(ValueError):
@@ -21,7 +26,7 @@ class IdentificationError(ValueError):
 @dataclass(frozen=True)
 class OperatorHypothesis:
     hypothesis_id: str
-    program: OperatorProgram
+    program: PredictiveProgram
 
     def predict(self, state: Sequence[float]) -> State:
         return self.program.apply(state)
