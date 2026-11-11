@@ -111,8 +111,9 @@ def validate_snapshot(snapshot: BranchSnapshot) -> None:
     if not isinstance(snapshot, BranchSnapshot):
         raise ValueError("snapshot must be BranchSnapshot")
     _text(snapshot.parent_state_ref, "parent_state_ref")
-    if not isinstance(snapshot.parent_state_hash, str) or len(snapshot.parent_state_hash) != 64:
-        raise ValueError("parent_state_hash must be a SHA-256 digest")
+    if (not isinstance(snapshot.parent_state_hash, str) or len(snapshot.parent_state_hash) != 64
+            or any(ch not in "0123456789abcdef" for ch in snapshot.parent_state_hash)):
+        raise ValueError("parent_state_hash must be a lowercase SHA-256 hex digest")
     _text(snapshot.branch_id, "branch_id")
     if isinstance(snapshot.base_version, bool) or not isinstance(snapshot.base_version, int) or snapshot.base_version < 0:
         raise ValueError("base_version must be a non-negative integer")
@@ -141,8 +142,14 @@ def validate_snapshot(snapshot: BranchSnapshot) -> None:
             raise ValueError("delta versions must increase beyond base_version")
         if event.causal_parent != previous_event:
             raise ValueError("causal_parent must reference the preceding event")
-        if event.before_hash is not None and (not isinstance(event.before_hash, str) or len(event.before_hash) != 64):
-            raise ValueError("before_hash must be a SHA-256 hex digest or None")
+        if event.before_hash is not None and (
+                not isinstance(event.before_hash, str) or len(event.before_hash) != 64
+                or any(ch not in "0123456789abcdef" for ch in event.before_hash)):
+            raise ValueError("before_hash must be a lowercase SHA-256 hex digest or None")
+        if not event.evidence_refs:
+            raise ValueError("every delta event requires at least one evidence or derivation reference")
+        if len(event.evidence_refs) != len(set(event.evidence_refs)):
+            raise ValueError("event evidence_refs must not contain duplicates")
         if event.operation in (DeltaOperation.ADD_NODE, DeltaOperation.ADD_RELATION,
                                DeltaOperation.ADD_HYPEREDGE, DeltaOperation.ADD_CONSTRAINT):
             if event.before_hash is not None:
