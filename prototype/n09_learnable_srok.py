@@ -127,14 +127,16 @@ class LearnableSROK:
             raise LearnableSROKError("max_expansions must be positive")
         assignments = []
         exhausted = False
+        expanded = 0
         for candidate in product(*pools):
-            if len({node.node_id for node in candidate}) != len(candidate):
-                continue
-            if len(assignments) >= max_expansions:
+            if expanded >= max_expansions:
                 exhausted = True
                 break
+            expanded += 1
+            if len({node.node_id for node in candidate}) != len(candidate):
+                continue
             assignments.append(tuple(candidate))
-        return assignments, exhausted
+        return assignments, exhausted, expanded
 
     def fit(
         self, examples: Iterable[TrainingExample], *, epochs: int = 80,
@@ -162,7 +164,7 @@ class LearnableSROK:
                     if not self._compatible(node, role):
                         raise LearnableSROKError("training pool violates role constraints")
                 pools.append(tuple(pool))
-            assignments, truncated = self._enumerate(
+            assignments, truncated, _expanded = self._enumerate(
                 pools, max_assignments_per_example
             )
             if truncated:
@@ -242,7 +244,7 @@ class LearnableSROK:
         sizes = tuple((role.name, len(pool)) for role, pool in zip(self.roles, pools))
         if any(not pool for pool in pools):
             return Prediction((), True, "NO_ROLE_CANDIDATES", 0, False, sizes)
-        assignments, exhausted = self._enumerate(pools, max_expansions)
+        assignments, exhausted, expanded = self._enumerate(pools, max_expansions)
         ranked = sorted(
             assignments,
             key=lambda assignment: (
@@ -265,16 +267,20 @@ class LearnableSROK:
             for assignment in ranked[:result_limit]
         )
         if not structures:
-            return Prediction((), True, "NO_VALID_ASSIGNMENT", 0, exhausted, sizes)
+            return Prediction(
+                (), True, "NO_VALID_ASSIGNMENT", expanded, exhausted, sizes
+            )
+        # Compute confidence from the actual top two found assignments before
+        # applying result_limit; result_limit=1 must not disable abstention.
         margin = (
-            structures[0].score - structures[1].score
-            if len(structures) > 1 else math.inf
+            ranked[0] and self.score(ranked[0]) - self.score(ranked[1])
+            if len(ranked) > 1 else math.inf
         )
         if margin < abstain_margin:
             return Prediction(
-                structures, True, "LOW_SCORE_MARGIN", len(assignments),
+                structures, True, "LOW_SCORE_MARGIN", expanded,
                 exhausted, sizes,
             )
         return Prediction(
-            structures, False, "ACCEPTED", len(assignments), exhausted, sizes
+            structures, False, "ACCEPTED", expanded, exhausted, sizes
         )
