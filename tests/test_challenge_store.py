@@ -1,5 +1,6 @@
 import tempfile
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from orchestrator.agents.execution_attestation import SandboxAttestation, sign_attestation
@@ -71,6 +72,32 @@ class ExecutionChallengeStoreTests(unittest.TestCase):
         reopened = ExecutionChallengeStore(self.path)
         with self.assertRaisesRegex(ValueError, "already been consumed"):
             self.verify(store=reopened)
+
+    def test_concurrent_consumption_is_atomic(self):
+        signed = self.make_signed()
+        def consume():
+            try:
+                self.store.verify_and_consume(
+                    signed, self.key, self.manifest, self.challenge,
+                    now="2026-11-11T03:01:00Z",
+                    expected_key_id="supervisor-v1",
+                )
+                return "accepted"
+            except ValueError as exc:
+                return str(exc)
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            results = list(pool.map(lambda _: consume(), range(2)))
+        self.assertEqual(results.count("accepted"), 1)
+        self.assertEqual(
+            sum("already been consumed" in result for result in results), 1
+        )
+
+    def test_challenge_object_rejects_malformed_fields(self):
+        from dataclasses import replace
+        with self.assertRaisesRegex(ValueError, "nonce"):
+            replace(self.challenge, nonce="not-a-nonce")
+        with self.assertRaisesRegex(ValueError, "manifest_digest"):
+            replace(self.challenge, manifest_digest="bad")
 
     def test_invalid_signature_does_not_consume_challenge(self):
         signed = self.make_signed()
