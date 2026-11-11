@@ -99,6 +99,29 @@ class E12A8ActiveMultiworldTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             select_action({"not-a-mechanism": 1.0}, make_actions(), 2.0)
 
+    def test_invalid_action_cost_and_non_integer_outcome_are_rejected(self):
+        from prototype.e12a8_active_multiworld import ExperimentAction
+        ledger = PrequentialExperimentLedger({"direct": 1.0})
+        invalid = ExperimentAction("bad", True, 0, 0, 0, float("nan"))
+        with self.assertRaises(ValueError):
+            ledger.commit(invalid)
+        action = make_actions()[0]
+        ledger.commit(action)
+        with self.assertRaises(ValueError):
+            ledger.reveal(action.action_id, 1.0)
+
+    def test_invalid_episode_limits_are_rejected(self):
+        world = SyntheticWorld("w", "direct")
+        for kwargs in (
+            {"budget": -1.0},
+            {"max_steps": -1},
+            {"confidence_threshold": 0.0},
+            {"confidence_threshold": 1.1},
+        ):
+            with self.subTest(kwargs=kwargs):
+                with self.assertRaises(ValueError):
+                    run_episode(world, **kwargs)
+
 
 if __name__ == "__main__":
     unittest.main()
