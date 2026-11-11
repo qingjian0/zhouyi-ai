@@ -247,7 +247,9 @@ class FiniteRelationalVersionSpace:
             status, prediction, confidence, agreement = (
                 "ABSTAIN_OOD_RELATION", None, None, None
             )
-        elif query_feature_keys - support_feature_keys or query_context_keys - support_context_keys:
+        elif (query_feature_keys - support_feature_keys
+              or query_context_keys - support_context_keys
+              or not (query_context_keys & support_context_keys)):
             status, prediction, confidence, agreement = (
                 "ABSTAIN_OOD_SCHEMA", None, None, None
             )
