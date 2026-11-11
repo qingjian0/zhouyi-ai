@@ -233,6 +233,7 @@ def run_episode(
         noise_probability=noise_probability,
     )
     rng = random.Random(seed)
+    environment_rng = random.Random(seed ^ 0x5A17C9E3)
     for _ in range(max_steps):
         affordable = [a for a in remaining.values() if a.cost <= budget - ledger.spent]
         if not affordable:
@@ -258,7 +259,10 @@ def run_episode(
             context=action.context,
             time=action.time,
         )
-        ledger.reveal(action.action_id, observation.y)
+        revealed_outcome = observation.y
+        if revealed_outcome is not None and environment_rng.random() < noise_probability:
+            revealed_outcome = (revealed_outcome + environment_rng.choice((1, 2))) % 3
+        ledger.reveal(action.action_id, revealed_outcome)
         del remaining[action.action_id]
         if max(ledger.posterior.values()) >= confidence_threshold:
             break
