@@ -170,13 +170,15 @@ def aggregate_runs(runs: list[dict]) -> dict:
 
 def run_sweep(cardinalities: tuple[int, ...] = (3,), support_sizes: tuple[int, ...] = (2, 4, 8),
               seeds: tuple[int, ...] = (11, 29, 47), episodes_per_rule: int = 1,
-              epochs: int = 5, hidden_size: int = 24,\n              parameter_matched: bool = True, parameter_budget: int | None = None) -> dict:
+              epochs: int = 5, hidden_size: int = 24,
+              parameter_matched: bool = True, parameter_budget: int | None = None) -> dict:
     conditions = []
     for k in cardinalities:
         for support in support_sizes:
             if not 1 <= support < k * k:
                 raise ValueError(f"support_size must be in [1, K*K): K={k}, support={support}")
-            runs = [run_condition(k, support, seed, episodes_per_rule, epochs, hidden_size,\n                                      parameter_matched, parameter_budget)
+            runs = [run_condition(k, support, seed, episodes_per_rule, epochs, hidden_size,
+                                      parameter_matched, parameter_budget)
                     for seed in seeds]
             conditions.append({
                 "cardinality": k, "support_size": support,
@@ -188,14 +190,16 @@ def run_sweep(cardinalities: tuple[int, ...] = (3,), support_sizes: tuple[int, .
         "configuration": {
             "cardinalities": list(cardinalities), "support_sizes": list(support_sizes),
             "seeds": list(seeds), "episodes_per_rule": episodes_per_rule,
-            "epochs": epochs, "hidden_size": hidden_size,\n            "parameter_matched": parameter_matched, "parameter_budget": parameter_budget,\n            "parameter_matched": parameter_matched, "parameter_budget": parameter_budget,
+            "epochs": epochs, "hidden_size": hidden_size,
+\n            "parameter_matched": parameter_matched, "parameter_budget": parameter_budget,
         },
         "conditions": conditions,
         "interpretation_limits": [
             "Locked-test scores are descriptive for this finite affine rule generator only.",
             "Rule coefficients are disjoint across train, validation and locked-test.",
             "Posterior audit is exact only within the TX-02A affine hypothesis class and its stated uniform prior.",
-            "Parameter matching is approximate: each family chooses the largest hidden size under a shared parameter budget; parameter deltas are reported. This is not compute matching.",\n            "FIXED_RANDOM and LEARNED share the same embedding dimension and initialization distribution; only LEARNED updates the embedding table.",
+            "Parameter matching is approximate: each family chooses the largest hidden size under a shared parameter budget; parameter deltas are reported. This is not compute matching.",
+            "FIXED_RANDOM and LEARNED share the same embedding dimension and initialization distribution; only LEARNED updates the embedding table.",
             "Validation is reported but no hyperparameter search or test-driven model selection is performed.",
             "Results do not establish natural-language or general-intelligence capability.",
         ],
