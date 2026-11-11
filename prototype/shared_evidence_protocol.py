@@ -145,11 +145,15 @@ class SQLiteEvidenceStore:
         elif event_type == "prediction_commit":
             required = {"prediction_id", "observation_id", "model_version", "learner_track", "decision_status"}
             if strict:
-                required |= {"query_id", "scope", "split"}
+                required |= {"query_id", "scope", "split", "interop_commit_digest"}
             if not required.issubset(payload):
                 raise ProtocolError(f"prediction_commit missing fields: {sorted(required - payload.keys())}")
             if not isinstance(payload["learner_track"], str) or not payload["learner_track"].strip():
                 raise ProtocolError("prediction_commit learner_track must be a non-empty string")
+            if strict:
+                digest = payload.get("interop_commit_digest")
+                if not isinstance(digest, str) or len(digest) != 64 or any(c not in "0123456789abcdef" for c in digest):
+                    raise ProtocolError("v0.3 prediction_commit requires a lowercase SHA-256 interop_commit_digest")
             if payload["decision_status"] not in {
                 "PREDICT", "ABSTAIN_AMBIGUOUS", "ABSTAIN_INCONSISTENT", "ABSTAIN_BUDGET"
             }:
@@ -171,7 +175,7 @@ class SQLiteEvidenceStore:
         elif event_type == "evidence_reveal":
             required = {"prediction_id", "learner_track", "target_or_feedback"}
             if strict:
-                required |= {"query_id", "scope", "split", "commit_digest"}
+                required |= {"query_id", "scope", "split", "commit_digest", "event_digest"}
             if not required.issubset(payload):
                 raise ProtocolError(f"evidence_reveal missing fields: {sorted(required - payload.keys())}")
             if not isinstance(payload["learner_track"], str) or not payload["learner_track"].strip():
@@ -191,8 +195,10 @@ class SQLiteEvidenceStore:
                 for field in ("query_id", "scope", "split"):
                     if payload.get(field) != committed.get(field):
                         raise ProtocolError(f"evidence_reveal {field} does not match prediction commit")
-                if payload["commit_digest"] != commit["payload_digest"]:
-                    raise ProtocolError("evidence_reveal commit_digest does not match committed event digest")
+                if payload["commit_digest"] != committed.get("interop_commit_digest"):
+                    raise ProtocolError("evidence_reveal commit_digest does not match CPG-EI semantic commit digest")
+                if payload["event_digest"] != commit["payload_digest"]:
+                    raise ProtocolError("evidence_reveal event_digest does not match durable event envelope digest")
         elif event_type == "structure_version":
             required = {"structure_id", "version_id", "kind", "definition", "parent_version_ids", "support_evidence_ids"}
             if not required.issubset(payload):
