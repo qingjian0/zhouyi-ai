@@ -141,3 +141,56 @@ PR #242  E09 signed verification receipt
 - 每个迁移项的源 SHA、目标 SHA、文件冲突、测试命令、测试结果、成熟度和回滚方式。
 
 只有逐项完成以上映射，才允许建立最终集成 PR；最终 PR 的目标必须是经过审计的集成分支，而不是直接改写 main。
+
+
+## 10. 第二轮代码级审计增量
+
+本节基于架构分支 `7416cea5a4dc1b83ae85154e782bbf965aea76ce` 的源码与测试文件检查。
+
+### 10.1 CSG-GCR typed partial pruning 已实现，旧文档状态滞后
+
+源码 `prototype/typed_csg_gcr.py` 已实现：
+
+- `_partial_typed_feasible`：只拒绝不可由后续扩展修复的单调矛盾；
+- `TypedCandidateCoordinator(enable_partial_pruning=True)`：默认启用 typed partial pruning；
+- 将 typed feasibility 与 branch-delta merge 检查作为有界协调器的 `partial_feasibility` 回调；
+- 保留完整集合上的 typed unifier 作为最终可行性权威；
+- 搜索预算耗尽仍显式返回 `BUDGET_EXHAUSTED`。
+
+`tests/test_typed_csg_gcr.py` 已包含两类关键验证：
+
+1. 对小型 proposal 集合穷举子集/超集，验证被剪枝的前缀不会在增加 proposal 后变成可行集合；
+2. 对比启用/关闭剪枝的候选、状态完全一致，并验证剪枝减少 expanded states。
+
+因此，旧文档 `CSG_GCR_TYPED_HYPEREDGE_BRIDGE_V0_1` 中“typed infeasible partial sets 尚未在 DFS 中剪枝”的限制已经被后续实现关闭；`CSG_GCR_MONOTONIC_PRUNING_V0_1` 的“exact-head CI pending”状态也需要按当前 PR #244 的 exact-head workflow 重新标记。PR #244 workflow run 43080177000 已完成且成功，job 为 unit-tests；PR 描述报告 336 项单元测试和 E01–E02-D 流程通过。该结论只覆盖该 exact head，不等于 R4 科学验证。
+
+### 10.2 当前端到端闭环的准确边界
+
+`tests/test_csg_gcr_e12a6_lifecycle_e2e.py` 与配套文档验证的是**单分支** typed candidate 路径：
+
+`Typed CSG-GCR → E09 reveal/commit/observation 验证 → E12-A6 lifecycle bundle → ZPCM 持久化 → 新实例 replay/recovery`
+
+该测试不能被表述为已验证多分支授权合并的完整生产闭环。跨分支结构合并、E09 授权、receipt 消费和 writer identity 是后续安全 PR #242–#245 的独立增量。
+
+### 10.3 E09 evidence 的 world-family 来源仍需收敛
+
+当前参考桥接函数 `resolve_e09_reveal` 接收调用方提供的 `world_family`；`ingest_typed_candidate` 也要求调用方传入 `world_family_by_evidence`，随后将其写入 E12-A6 Evidence DTO。当前 E09 reveal/commit/observation 链验证了 scope、learner track、split、query、commit digest 和事件谱系，但该 world-family 值本身并未从签名的 E09 事件字段或受信任服务端注册表中派生。
+
+这不应被误报为标签泄漏；它是**证据域归属的来源完整性缺口**。生产接口必须改为以下二者之一：
+
+- E09 authority 在受信任边界内从已验证的 episode/scope registry 派生 world-family；或
+- 将 world-family 纳入严格 schema 的已签名 observation/reveal envelope，并在 verifier 中逐事件校验一致性。
+
+禁止把 learner/candidate submitter 自报的 world-family 当作可信来源。measurement cost 也应明确其来源和授权边界。
+
+### 10.4 旧 in-process authorization resolver 的部署边界
+
+`resolve_branch_merge_authorization` 仍接收可调用的 `signature_verifier` 和可选 `now` 参数，适合作为参考实现/测试 seam，不应被部署成生产授权边界。生产路径必须走 E09 verifier service 的可信时钟、固定 issuer trust bundle、签名 receipt、audience/scope/expiry/nonce 验证，再由 E12-A6 writer 独立消费 receipt。
+
+### 10.5 更新后的工程优先级
+
+1. 修正上述两份 CSG-GCR 文档的成熟度/限制描述，避免文档落后于代码。
+2. 将 world-family 归属移入可信 E09 服务端元数据，增加伪造/错配负向测试。
+3. 对单分支端到端、跨分支授权合并、receipt 一次性消费、writer identity 持久化分别定义验收，禁止合并成一个模糊的“E2E passed”。
+4. 在同一 exact head 上运行全部 CSG-GCR、E09、E12-A6、ZPCM 测试和故障恢复测试。
+5. 然后再进行逐文件集成映射，不提前宣布生产级或联合训练就绪。
