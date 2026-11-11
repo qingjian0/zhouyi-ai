@@ -164,5 +164,5 @@ class ExactSlotGroupInductionTests(unittest.TestCase):
         self.assertTrue(all(item.group.generated_group for item in report.hypotheses))
 
 
-if __!name__ == "__main__":
+if __name__ == "__main__":
     unittest.main()
