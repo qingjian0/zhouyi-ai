@@ -13,6 +13,9 @@ from prototype.shared_evidence_protocol import (
     EVIDENCE_SPLITS, STRICT_PROTOCOL_VERSION, SQLiteEvidenceStore, digest_payload,
 )
 from prototype.e09_prequential import PrequentialRunner, PrequentialError
+from prototype.cpg_interop import (
+    EvidenceReveal, EvidenceSplit, PredictionCommit, canonical_json, validate_reveal_binding,
+)
 
 
 class E09ProtocolAdapterError(RuntimeError):
@@ -44,6 +47,8 @@ class E09SharedProtocolAdapter:
         self._failed = False
         self._committed_predictions: set[str] = set()
         self._commit_digests: dict[str, str] = {}
+        self._event_digests: dict[str, str] = {}
+        self._interop_commits: dict[str, PredictionCommit] = {}
         self._prediction_queries: dict[str, str] = {}
         self._reveals: dict[str, str] = {}
         self._version_id = f"e09-v{runner.model_version}"
@@ -117,8 +122,24 @@ class E09SharedProtocolAdapter:
                 protocol_version=STRICT_PROTOCOL_VERSION,
             )
             commit = self.runner.predict_and_commit(observation_id, input_values)
+            interop_commit = PredictionCommit(
+                commit_id=commit.prediction_id,
+                candidate_ref=f"e09-rule-set@{self._version_id}",
+                query_id=observation_id,
+                scope=self.scope,
+                input_digest=input_digest,
+                identifiable=commit.prediction is not None,
+                prediction_json=(
+                    canonical_json(self._jsonable(commit.prediction))
+                    if commit.prediction is not None else None
+                ),
+                abstention_reason=(
+                    None if commit.prediction is not None else "E09_NO_IDENTIFIABLE_PREDICTION"
+                ),
+            )
             prediction_payload = {
                 "prediction_id": commit.prediction_id,
+                "interop_commit_digest": interop_commit.commit_digest,
                 "observation_id": observation_id,
                 "query_id": observation_id,
                 "scope": self.scope,
@@ -146,7 +167,9 @@ class E09SharedProtocolAdapter:
                 protocol_version=STRICT_PROTOCOL_VERSION,
             )
             self._committed_predictions.add(commit.prediction_id)
-            self._commit_digests[commit.prediction_id] = prediction_receipt.payload_digest
+            self._commit_digests[commit.prediction_id] = interop_commit.commit_digest
+            self._event_digests[commit.prediction_id] = prediction_receipt.payload_digest
+            self._interop_commits[commit.prediction_id] = interop_commit
             self._prediction_queries[commit.prediction_id] = observation_id
             return {
                 "prediction_id": commit.prediction_id,
@@ -172,6 +195,16 @@ class E09SharedProtocolAdapter:
         try:
             reveal_id = f"reveal-{prediction_id}"
             event_id = f"{self.episode_id}:reveal:{reveal_id}"
+            interop_reveal = EvidenceReveal(
+                evidence_id=event_id,
+                commit_digest=self._commit_digests[prediction_id],
+                query_id=self._prediction_queries[prediction_id],
+                scope=self.scope,
+                split=EvidenceSplit(self.split.lower()),
+                outcome_json=canonical_json(self._jsonable(label)),
+                source_ref=event_id,
+            )
+            validate_reveal_binding(self._interop_commits[prediction_id], interop_reveal)
             self.store.reveal_evidence(
                 episode_id=self.episode_id,
                 event_id=event_id,
@@ -183,7 +216,8 @@ class E09SharedProtocolAdapter:
                     "query_id": self._prediction_queries[prediction_id],
                     "scope": self.scope,
                     "split": self.split,
-                    "commit_digest": self._commit_digests[prediction_id],
+                    "commit_digest": interop_reveal.commit_digest,
+                    "event_digest": self._event_digests[prediction_id],
                     "learner_track": self.learner_track,
                     "target_or_feedback": self._jsonable(label),
                     "reveal_source": source,
