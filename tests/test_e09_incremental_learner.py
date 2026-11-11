@@ -79,6 +79,8 @@ class IncrementalConjunctionLearnerTests(unittest.TestCase):
         seen = {}
 
         def reference_predict(query):
+            if len(seen.get(query, ())) > 1:
+                return None
             clean = {
                 inputs: next(iter(labels))
                 for inputs, labels in seen.items() if len(labels) == 1
