@@ -2,7 +2,7 @@ name: tests
 
 on:
   push:
-    branches: [main, research/e12a3-m0-composition-engine-2026-11-11, research/e12a6-lifecycle-contract-2026-11-11, research/e12a6-e02d-lifecycle-runner-2026-11-11, research/csl-e12-e09-integration-smoke-2026-11-11, research/shared-evidence-v03-implementation-2026-11-11, research/v03-track-scoped-structure-evidence-2026-11-11, research/evaluator-channel-v03-2026-11-11, research/challenge-release-policy-v03-2026-11-11]
+    branches: [main, research/e12a3-m0-composition-engine-2026-11-11, research/e12a6-lifecycle-contract-2026-11-11, research/e12a6-e02d-lifecycle-runner-2026-11-11, research/csl-e12-e09-integration-smoke-2026-11-11, research/shared-evidence-v03-implementation-2026-11-11, research/v03-track-scoped-structure-evidence-2026-11-11, research/evaluator-channel-v03-2026-11-11, research/challenge-release-policy-v03-2026-11-11, research/trusted-evidence-broker-contract-2026-11-11]
   pull_request:
     branches: [main, research/csl-e12-e09-integration-smoke-2026-11-11]
 
