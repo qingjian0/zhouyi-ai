@@ -147,6 +147,13 @@ class CandidateCoordinatorTests(unittest.TestCase):
         self.assertEqual(report.status, "NO_FEASIBLE_SET")
         self.assertEqual(report.candidates, ())
 
+    def test_combined_score_overflow_is_rejected(self):
+        with self.assertRaises(CoordinationError):
+            self.coordinator.coordinate([
+                self.proposal("p1", score=1e308),
+                self.proposal("p2", score=1e308),
+            ])
+
 
 if __name__ == "__main__":
     unittest.main()
