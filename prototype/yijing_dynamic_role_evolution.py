@@ -232,15 +232,20 @@ class DynamicRoleEvolution:
         for index, event in enumerate(events):
             key = (event.event_type, event.source_role_ids, event.target_role_ids)
             consecutive = 1
+            expected_step = event.to_step
             for later in events[index + 1:]:
                 later_key = (later.event_type, later.source_role_ids, later.target_role_ids)
-                if later_key == key and later.from_step == event.to_step:
+                if later.from_step < expected_step:
+                    continue
+                if later.from_step > expected_step:
+                    break
+                if later_key == key:
                     consecutive += 1
-                elif later.from_step > event.to_step:
+                    expected_step = later.to_step
+                else:
                     break
             if event.event_type == RoleEventType.DISSOLVE:
                 # Dissolution requires repeated complete-coverage absence.
-                prior = next((row for row in rows if row.step == event.from_step), None)
                 members = set(event.supporting_entity_ids)
                 absent_count = 0
                 for future in (row for row in rows if row.step >= event.to_step):
