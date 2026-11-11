@@ -77,8 +77,7 @@ class DriftMismatchTests(unittest.TestCase):
 
     def test_wrong_protocol_version_rejected(self):
         signer = MeasurementSigner("measurement-service", "key-1",
-            __import__("cryptography.hazmat.primitives.asymmetric.ed25519", fromlist=["Ed25519PrivateKey"]).Ed25519PrivateKey.generate(),
-            protocol_version="measurement-v2")
+            self.signer._MeasurementSigner__private_key, protocol_version="measurement-v2")
         ex = BudgetedMeasurementExecutor(signer, {"probe-v1":lambda t,p:("yes",0.2)},
             allowed_candidate_scopes={(CANDIDATE,SCOPE)}, budget=10)
         with self.assertRaises(ValueError):
