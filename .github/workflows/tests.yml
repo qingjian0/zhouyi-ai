@@ -16,7 +16,9 @@ jobs:
           python-version: "3.11"
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
-      - name: Run N4-A relational discovery tests\n        run: python -m unittest tests.test_n4a_relation_discovery -v\n      - name: Run E01 demonstration
+      - name: Run N4-A relational discovery tests
+        run: python -m unittest tests.test_n4a_relation_discovery -v
+      - name: Run E01 demonstration
         run: python -m prototype.e01_sparse_composition --json
       - name: Run E01-B five-seed evaluation
         run: python -m prototype.e01_multiseed --seeds 5 --start-seed 7 --json
