@@ -30,6 +30,7 @@ class SROKToCSGAdapterTests(unittest.TestCase):
         report = CandidateCoordinator().coordinate([left, right])
         best = report.candidates[0]
         self.assertEqual(best.proposal_ids, ("left", "right"))
+        self.assertEqual(best.candidate_kinds, ("amplifies", "causes"))
         self.assertEqual(best.bindings, (("x", "rain"), ("y", "flood"),
                                          ("z", "damage")))
         self.assertEqual(best.evidence_refs, ("ev-left", "ev-right"))
