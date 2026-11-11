@@ -42,7 +42,7 @@ jobs:
         run: python -m prototype.e02_ternary_learners --seeds 5 --start-seed 7 --json
       - name: Run E02-C hyperedge lifecycle tests
         run: python -m unittest tests.test_e02_edge_lifecycle -v
-      - name: Run E02-D held-out rule-family induction
+      - name: Run E02-D per-rule held-out-query identifiability
         run: python -m prototype.e02_rule_ood --seed 17 --support-size 6 --json
       - name: Run E02-D multi-seed support identifiability sweep
         run: python -m prototype.e02_rule_ood --sweep --seeds 100 --start-seed 100 --json
