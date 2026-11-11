@@ -981,5 +981,209 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
 
 
 
+    def test_candidate_lifecycle_validation_isolated_per_learner_track(self):
+        candidate = Candidate(candidate_id="shared", version=1, canonical_expression="a relates b",
+            proposer_family="relational", supporting_families=("relational",),
+            input_types=("entity", "entity"), operator="RELATES")
+        events = [
+            self.observation(),
+            {"event_id":"shared-version","event_type":"structure_version","payload":{
+                "structure_id":"shared","version_id":"shared@1","kind":"candidate",
+                "definition":candidate_definition_payload(candidate),
+                "parent_version_ids":[],"support_evidence_ids":[]}},
+        ]
+        for track in ("track-a", "track-b"):
+            events.append({"event_id":f"{track}-propose","event_type":"lifecycle_action","payload":{
+                "action_id":"propose","action_type":"propose","candidate_id":"shared","candidate_version":1,
+                "from_state":"observed","to_state":"proposed","evidence_refs":[],"cost":0.1,
+                "note":"track-local proposal","candidate_lineage_refs":[],"learner_track":track}})
+        events.append({"event_id":"track-a-discriminate","event_type":"lifecycle_action","payload":{
+            "action_id":"discriminate","action_type":"request_discrimination","candidate_id":"shared",
+            "candidate_version":1,"from_state":"proposed","to_state":"discrimination_pending",
+            "evidence_refs":[],"cost":0.1,"note":"track A only","candidate_lineage_refs":[],"learner_track":"track-a"}})
+        self.store.append_events(episode_id="ep",idempotency_key="track-isolated-actions",events=events)
+        projection = self.store.replay_projection("ep")
+        self.assertEqual(projection.track_candidate_objects["track-a"]["shared@1"].state,CandidateState.DISCRIMINATION_PENDING)
+        self.assertEqual(projection.track_candidate_objects["track-b"]["shared@1"].state,CandidateState.PROPOSED)
+        ledgers = projection.hydrate_lifecycle_ledgers()
+        self.assertEqual(ledgers["track-a"].candidates[("shared",1)].state,CandidateState.DISCRIMINATION_PENDING)
+        self.assertEqual(ledgers["track-b"].candidates[("shared",1)].state,CandidateState.PROPOSED)
+
+    def test_dependency_edges_are_persisted_projected_and_reopened(self):
+        def make_candidate(cid, expression):
+            return Candidate(candidate_id=cid, version=1, canonical_expression=expression,
+                proposer_family="relational", supporting_families=("relational",),
+                input_types=("number", "number"), operator="GT")
+        base = make_candidate("base", "x > y")
+        consumer = make_candidate("consumer", "x > y and z")
+        events = [self.observation()]
+        for cid, candidate in (("base", base), ("consumer", consumer)):
+            events.append({
+                "event_id": f"{cid}-version", "event_type": "structure_version",
+                "payload": {"structure_id": cid, "version_id": f"{cid}@1",
+                    "kind": "candidate", "definition": candidate_definition_payload(candidate),
+                    "parent_version_ids": [], "support_evidence_ids": []},
+            })
+            events.append({
+                "event_id": f"{cid}-propose", "event_type": "lifecycle_action",
+                "payload": {"action_id": f"{cid}-propose", "action_type": "propose",
+                    "candidate_id": cid, "candidate_version": 1,
+                    "from_state": "observed", "to_state": "proposed",
+                    "evidence_refs": [], "cost": 0.1, "note": "proposal",
+                    "candidate_lineage_refs": [], "learner_track": "track-a"},
+            })
+        events.append({
+            "event_id": "edge-base-consumer", "event_type": "dependency_added",
+            "payload": {"dependent_version_id": "consumer@1", "dependency_version_id": "base@1",
+                "learner_track": "track-a", "role": "uses", "impact_policy": "blocking", "evidence_refs": []},
+        })
+        receipts, projection = self.store.append_events_and_project(
+            episode_id="ep", idempotency_key="dependency-batch", events=events)
+        self.assertEqual(len(receipts), len(events))
+        self.assertEqual(len(projection.dependencies), 1)
+        self.assertEqual(projection.dependencies[0]["dependent_version_id"], "consumer@1")
+        self.assertEqual(projection.dependency_revalidation_queue, ())
+        digest = projection.digest
+        self.store.close()
+        self.store = SQLiteEvidenceStoreV03(self.db)
+        reopened = self.store.replay_projection("ep")
+        self.assertEqual(reopened.dependencies, projection.dependencies)
+        self.assertEqual(reopened.dependency_revalidation_queue, ())
+        self.assertEqual(reopened.digest, digest)
+
+    def test_dependency_rejects_unknown_endpoint_and_unbound_track(self):
+        candidate = Candidate(candidate_id="only-a", version=1, canonical_expression="x",
+            proposer_family="test", supporting_families=("test",), input_types=("number",), operator="IDENTITY")
+        self.store.append_events(episode_id="ep", idempotency_key="candidate-a", events=[
+            self.observation(),
+            {"event_id":"candidate-a","event_type":"structure_version","payload":{
+                "structure_id":"only-a","version_id":"only-a@1","kind":"candidate",
+                "definition":candidate_definition_payload(candidate),"parent_version_ids":[],"support_evidence_ids":[]}},
+            {"event_id":"candidate-a-propose","event_type":"lifecycle_action","payload":{
+                "action_id":"candidate-a-propose","action_type":"propose","candidate_id":"only-a","candidate_version":1,
+                "from_state":"observed","to_state":"proposed","evidence_refs":[],"cost":0.1,"note":"proposal",
+                "candidate_lineage_refs":[],"learner_track":"track-a"}},
+        ])
+        with self.assertRaises(MissingReference):
+            self.store.append_event(episode_id="ep",event_id="unknown-edge",event_type="dependency_added",
+                idempotency_key="unknown-edge",payload={"dependent_version_id":"only-a@1",
+                "dependency_version_id":"missing@1","learner_track":"track-a","role":"uses",
+                "impact_policy":"blocking","evidence_refs":[]})
+        other = Candidate(candidate_id="only-b", version=1, canonical_expression="y",
+            proposer_family="test", supporting_families=("test",), input_types=("number",), operator="IDENTITY")
+        self.store.append_events(episode_id="ep", idempotency_key="candidate-b", events=[
+            {"event_id":"candidate-b","event_type":"structure_version","payload":{
+                "structure_id":"only-b","version_id":"only-b@1","kind":"candidate",
+                "definition":candidate_definition_payload(other),"parent_version_ids":[],"support_evidence_ids":[]}},
+            {"event_id":"candidate-b-propose","event_type":"lifecycle_action","payload":{
+                "action_id":"candidate-b-propose","action_type":"propose","candidate_id":"only-b","candidate_version":1,
+                "from_state":"observed","to_state":"proposed","evidence_refs":[],"cost":0.1,"note":"proposal",
+                "candidate_lineage_refs":[],"learner_track":"track-a"}},
+        ])
+        with self.assertRaises(MissingReference):
+            self.store.append_event(episode_id="ep",event_id="unbound-track",event_type="dependency_added",
+                idempotency_key="unbound-track",payload={"dependent_version_id":"only-a@1",
+                "dependency_version_id":"only-b@1","learner_track":"track-b","role":"uses",
+                "impact_policy":"blocking","evidence_refs":[]})
+        self.assertEqual(len(self.store.replay_episode("ep")), 5)
+
+    def test_dependency_impact_policies_drive_track_local_queue(self):
+        def run_episode(episode_id, first_policy, edge_before_challenge=True):
+            events = [self.observation()]
+            train_event = self.ingest(evidence_id=f"{episode_id}-train")
+            train_event["payload"]["learner_track"] = "track-a"
+            events.append(train_event)
+            events.extend([
+                self.observation("obs-gate"),
+                {"event_id":f"{episode_id}-commit-gate","event_type":"prediction_commit","payload":{
+                    "prediction_id":f"{episode_id}-pred-gate","observation_id":"obs-gate",
+                    "model_version":"model-v1","learner_track":"track-a","decision_status":"PREDICT"}},
+                {"event_id":f"{episode_id}-reveal-gate","event_type":"evidence_reveal","payload":{
+                    "prediction_id":f"{episode_id}-pred-gate","learner_track":"track-a",
+                    "target_or_feedback":{"label":"gate"},"split_role":"gate_final"}},
+                self.observation("obs-locked"),
+                {"event_id":f"{episode_id}-commit-locked","event_type":"prediction_commit","payload":{
+                    "prediction_id":f"{episode_id}-pred-locked","observation_id":"obs-locked",
+                    "model_version":"model-v1","learner_track":"track-a","decision_status":"PREDICT"}},
+                {"event_id":f"{episode_id}-reveal-locked","event_type":"evidence_reveal","payload":{
+                    "prediction_id":f"{episode_id}-pred-locked","learner_track":"track-a",
+                    "target_or_feedback":{"label":"counterexample"},"split_role":"locked_test"}},
+            ])
+            for cid in ("root", "consumer", "leaf"):
+                candidate = Candidate(candidate_id=f"{episode_id}-{cid}", version=1,
+                    canonical_expression=f"{cid}(x)", proposer_family="test",
+                    supporting_families=("test",), input_types=("symbol",), operator="IDENTITY")
+                events.append({"event_id":f"{episode_id}-{cid}-version","event_type":"structure_version","payload":{
+                    "structure_id":candidate.candidate_id,"version_id":f"{candidate.candidate_id}@1",
+                    "kind":"candidate","definition":candidate_definition_payload(candidate),
+                    "parent_version_ids":[],"support_evidence_ids":[]}})
+                transitions = [
+                    ("propose","propose","observed","proposed",[]),
+                    ("discriminate","request_discrimination","proposed","discrimination_pending",[]),
+                    ("train","train_support","discrimination_pending","train_supported",[{"kind":"ingested","id":f"{episode_id}-train"}]),
+                    ("gate","gate_validate","train_supported","gate_validated",[{"kind":"revealed","id":f"{episode_id}-reveal-gate"}]),
+                ]
+                for aid, action_type, before, after, refs in transitions:
+                    events.append({"event_id":f"{episode_id}-{cid}-{aid}","event_type":"lifecycle_action","payload":{
+                        "action_id":f"{episode_id}-{cid}-{aid}","action_type":action_type,
+                        "candidate_id":candidate.candidate_id,"candidate_version":1,
+                        "from_state":before,"to_state":after,"evidence_refs":refs,
+                        "cost":0.1,"note":aid,"candidate_lineage_refs":[],"learner_track":"track-a"}})
+            root, consumer, leaf = (f"{episode_id}-{name}@1" for name in ("root","consumer","leaf"))
+            edges = [
+                {"event_id":f"{episode_id}-edge-consumer-root","event_type":"dependency_added","payload":{
+                    "dependent_version_id":consumer,"dependency_version_id":root,"learner_track":"track-a",
+                    "role":"uses","impact_policy":first_policy,"evidence_refs":[]}},
+                {"event_id":f"{episode_id}-edge-leaf-consumer","event_type":"dependency_added","payload":{
+                    "dependent_version_id":leaf,"dependency_version_id":consumer,"learner_track":"track-a",
+                    "role":"composes","impact_policy":"blocking","evidence_refs":[]}},
+            ]
+            challenge = {"event_id":f"{episode_id}-challenge-root","event_type":"lifecycle_action","payload":{
+                "action_id":f"{episode_id}-challenge-root","action_type":"challenge",
+                "candidate_id":f"{episode_id}-root","candidate_version":1,
+                "from_state":"gate_validated","to_state":"challenged",
+                "evidence_refs":[{"kind":"revealed","id":f"{episode_id}-reveal-locked"}],
+                "cost":0.2,"note":"locked counterexample","candidate_lineage_refs":[],"learner_track":"track-a"}}
+            events.extend(edges + [challenge] if edge_before_challenge else [challenge] + edges)
+            projection = self.store.append_events_and_project(
+                episode_id=episode_id, idempotency_key=f"{episode_id}-batch", events=events
+            )[1]
+            return {item["version_id"] for item in projection.dependency_revalidation_queue}
+
+        self.assertEqual(run_episode("blocking", "blocking"), {"blocking-consumer@1", "blocking-leaf@1"})
+        self.assertEqual(run_episode("review", "review"), {"review-consumer@1"})
+        self.assertEqual(run_episode("advisory", "advisory"), set())
+        # An edge created after the trigger cannot transmit the old trigger
+        # retroactively, but attaching it to an already challenged prerequisite
+        # creates a fresh trigger for that direct consumer only.
+        self.assertEqual(
+            run_episode("late-edge", "blocking", edge_before_challenge=False),
+            {"late-edge-consumer@1"},
+        )
+
+    def test_dependency_cycle_is_rejected_without_consuming_sequence(self):
+        events = [self.observation()]
+        for cid in ("left", "right"):
+            candidate = Candidate(candidate_id=cid, version=1, canonical_expression=cid,
+                proposer_family="test", supporting_families=("test",), input_types=("symbol",), operator="IDENTITY")
+            events.append({"event_id":f"{cid}-version","event_type":"structure_version","payload":{
+                "structure_id":cid,"version_id":f"{cid}@1","kind":"candidate",
+                "definition":candidate_definition_payload(candidate),"parent_version_ids":[],"support_evidence_ids":[]}})
+            events.append({"event_id":f"{cid}-propose","event_type":"lifecycle_action","payload":{
+                "action_id":f"{cid}-propose","action_type":"propose","candidate_id":cid,"candidate_version":1,
+                "from_state":"observed","to_state":"proposed","evidence_refs":[],"cost":0.1,"note":"proposal",
+                "candidate_lineage_refs":[],"learner_track":"e12"}})
+        events.append({"event_id":"left-to-right","event_type":"dependency_added","payload":{
+            "dependent_version_id":"left@1","dependency_version_id":"right@1","learner_track":"e12",
+            "role":"uses","impact_policy":"blocking","evidence_refs":[]}})
+        self.store.append_events(episode_id="ep",idempotency_key="first-edge",events=events)
+        with self.assertRaises(ProtocolError):
+            self.store.append_event(episode_id="ep",event_id="right-to-left",event_type="dependency_added",
+                idempotency_key="cycle-edge",payload={"dependent_version_id":"right@1",
+                "dependency_version_id":"left@1","learner_track":"e12","role":"uses",
+                "impact_policy":"blocking","evidence_refs":[]})
+        self.assertEqual(len(self.store.replay_episode("ep")),len(events))
+
+
 if __name__ == "__main__":
     unittest.main()
