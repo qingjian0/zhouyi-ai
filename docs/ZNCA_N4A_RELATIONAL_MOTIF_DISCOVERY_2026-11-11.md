@@ -38,7 +38,7 @@ N4-A 的问题是：不同领域中，是否反复出现具有相同抽象角色
 
 sum(C(n, k), k=2..min(max_nodes,n))
 
-每个子集规范化需要最多 max_nodes! 次角色顺序比较。通过 max_nodes、max_subsets_per_case 和 max_candidates 三个预算显式限制最坏开销。预算耗尽会在结果中报告，不得把部分枚举伪装成完整发现。
+每个子集规范化需要最多 max_nodes! 次角色顺序比较。通过 max_nodes、max_subsets_per_case 和 max_candidates 三个预算显式限制最坏开销。预算耗尽会在结果中报告，并丢弃该案例的全部部分枚举结果，不得把部分枚举伪装成完整发现。
 
 ## 证据纪律
 
@@ -48,6 +48,7 @@ sum(C(n, k), k=2..min(max_nodes,n))
 - scope 隔离不同任务上下文。
 - role_features 和 relation_family 当前由输入数据提供；N4-A 不会从原始文本自动理解或学习它们。
 - 表面实体名称不参与跨域匹配；这降低了词面依赖，但也使抽象角色标注质量成为关键风险。
+- 对称结构可能存在多个同样合法的角色对齐；实例会显式标记 mapping_ambiguous，不能将任意选出的一个排列当成唯一语义映射。
 - 当前 validation lift 是有限样本的描述统计，不是显著性检验或因果效应。
 - 候选不自动写入 canonical state，也不自动晋升为知识。
 
