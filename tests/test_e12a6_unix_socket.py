@@ -1,6 +1,8 @@
 import json
 import os
 import socket
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -88,6 +90,41 @@ class TestE12A6UnixSocketServer(unittest.TestCase):
     def test_refuses_insecure_parent_directory(self):
         os.chmod(self.root, 0o755)
         server = E12A6UnixSocketServer(self.path, lambda peer, req: {}, allowed_uids={os.getuid()})
+        with self.assertRaises(E12A6IPCError):
+            server.start()
+
+
+    def test_peer_credentials_identify_a_separate_client_process(self):
+        observed = []
+        with E12A6UnixSocketServer(
+            self.path,
+            lambda peer, req: observed.append(peer) or {"pid": peer.pid, "uid": peer.uid},
+            allowed_uids={os.getuid()},
+        ):
+            script = (
+                "import socket,sys; "
+                "s=socket.socket(socket.AF_UNIX,socket.SOCK_STREAM); "
+                "s.connect(sys.argv[1]); s.sendall(b'{\"probe\":true}\\n'); "
+                "print(s.recv(4096).decode(), end=''); s.close()"
+            )
+            child = subprocess.run(
+                [sys.executable, "-c", script, str(self.path)],
+                check=True, capture_output=True, text=True, timeout=5,
+            )
+            result = json.loads(child.stdout)
+            self.assertTrue(result["ok"])
+            self.assertEqual(result["result"]["pid"], child.pid)
+            self.assertEqual(result["result"]["uid"], os.getuid())
+            self.assertEqual(observed[0].pid, child.pid)
+
+    def test_rejects_symlink_parent_directory(self):
+        target = self.root / "target"
+        target.mkdir()
+        os.chmod(target, 0o700)
+        link = self.root / "linked"
+        link.symlink_to(target, target_is_directory=True)
+        path = link / "writer.sock"
+        server = E12A6UnixSocketServer(path, lambda peer, req: {}, allowed_uids={os.getuid()})
         with self.assertRaises(E12A6IPCError):
             server.start()
 
