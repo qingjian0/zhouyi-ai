@@ -138,6 +138,79 @@ class ZPCMMemory:
         return events
 
 
+    def _validate_authorization_consumption_batch(self, normalized, scope, authorization_uses):
+        if len(authorization_uses) != 1:
+            raise ZPCMError("one candidate bundle may consume exactly one authorization receipt")
+        receipt_id, nonce, auth_event_id, _ = authorization_uses[0]
+        payload_by_id = dict(normalized)
+        auth_payload = payload_by_id[auth_event_id]
+        body = auth_payload["body"]
+        candidate_rows = [
+            (event_id, payload) for event_id, payload in normalized
+            if payload.get("kind") == "candidate_registered"
+        ]
+        evidence_rows = [
+            (event_id, payload) for event_id, payload in normalized
+            if payload.get("kind") == "evidence_registered"
+        ]
+        if len(candidate_rows) != 1 or not evidence_rows:
+            raise ZPCMError("authorization consumption must share a batch with one candidate and its evidence")
+        candidate_event_id, candidate_payload = candidate_rows[0]
+        candidate = candidate_payload.get("body", {}).get("candidate")
+        if not isinstance(candidate, dict):
+            raise ZPCMError("authorized candidate event is malformed")
+        candidate_id, version = candidate.get("candidate_id"), candidate.get("version")
+        if (candidate_event_id != f"e12a6:candidate:{candidate_id}@{version}"
+                or body.get("candidate_id") != candidate_id
+                or body.get("candidate_version") != version
+                or candidate.get("state") != "OBSERVED"):
+            raise ZPCMError("authorization consumption candidate identity/state mismatch")
+        evidence_ids = candidate.get("evidence_ids")
+        if (not isinstance(evidence_ids, list) or not evidence_ids
+                or len(evidence_ids) != len(set(evidence_ids))
+                or set(evidence_ids) != set(body.get("evidence_refs", ()))):
+            raise ZPCMError("authorization receipt evidence set does not match candidate")
+        batch_evidence = {}
+        for event_id, payload in evidence_rows:
+            item = payload.get("body", {}).get("evidence")
+            if not isinstance(item, dict) or not isinstance(item.get("evidence_id"), str):
+                raise ZPCMError("authorized evidence event is malformed")
+            evidence_id = item["evidence_id"]
+            if event_id != f"e12a6:evidence:{evidence_id}" or evidence_id in batch_evidence:
+                raise ZPCMError("authorized evidence event ID mismatch or duplicate")
+            if item.get("episode_id") != body.get("episode_id"):
+                raise ZPCMError("authorized evidence episode mismatch")
+            batch_evidence[evidence_id] = item
+        if set(batch_evidence) != set(evidence_ids):
+            raise ZPCMError("authorization receipt requires every candidate evidence event in the same batch")
+        if (not set(body.get("authorization_evidence_refs", ())).issubset(set(evidence_ids))
+                or body.get("scope") != scope):
+            raise ZPCMError("authorization receipt scope/evidence binding mismatch")
+        try:
+            definition = json.loads(candidate["canonical_expression"])
+            merge = definition["branch_merge"]
+            issued = datetime.fromisoformat(body["receipt_issued_at"].replace("Z", "+00:00"))
+            expires = datetime.fromisoformat(body["receipt_expires_at"].replace("Z", "+00:00"))
+            consumed = datetime.fromisoformat(body["consumed_at"].replace("Z", "+00:00"))
+        except (TypeError, ValueError, KeyError) as exc:
+            raise ZPCMError("authorized candidate or receipt time binding is malformed") from exc
+        if (not isinstance(merge, dict)
+                or definition.get("schema") != "csg-gcr-typed-candidate-v1"
+                or merge.get("authorization_ref") != body.get("authorization_ref")
+                or set(definition.get("branch_ids", ())) != set(body.get("branch_ids", ()))
+                or set(merge.get("authorization_evidence_refs", ())) != set(body.get("authorization_evidence_refs", ()))
+                or body.get("parent_state_ref") not in candidate.get("parent_refs", ())
+                or issued.tzinfo is None or expires.tzinfo is None or consumed.tzinfo is None
+                or consumed < issued or consumed >= expires):
+            raise ZPCMError("authorization receipt does not bind the typed candidate merge")
+        if (not isinstance(body.get("issuer_id"), str) or not body["issuer_id"].strip()
+                or not isinstance(body.get("verifier_id"), str) or not body["verifier_id"].strip()
+                or not isinstance(body.get("authorization_event_digest"), str)
+                or len(body["authorization_event_digest"]) != 64):
+            raise ZPCMError("authorization receipt issuer/verifier/digest fields are invalid")
+        if normalized[-1][0] != auth_event_id:
+            raise ZPCMError("authorization consumption event must be last in its atomic bundle")
+
     def append_lifecycle_events(self, *, events: Sequence[dict[str, Any]], scope: str,
                                 expected_sequence: int) -> list[dict[str, Any]]:
         """Atomically append a complete lifecycle event bundle.
@@ -181,6 +254,8 @@ class ZPCMMemory:
                 nonces.add(nonce)
                 authorization_uses.append((receipt_id, nonce, event_id, scope))
             normalized.append((event_id, payload))
+        if authorization_uses:
+            self._validate_authorization_consumption_batch(normalized, scope, authorization_uses)
         with self.lock:
             self.db.execute("BEGIN IMMEDIATE")
             try:
