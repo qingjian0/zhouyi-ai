@@ -127,7 +127,7 @@ class AnalogyBridge:
                 raise ValueError(f"{field} must be sorted and unique")
             if len({left for left, _ in pairs}) != len(pairs):
                 raise ValueError(f"{field} source keys must be unique")
-            if len({right for _, right in pairs}) != len(pairs):
+            if field != "node_type_mapping" and len({right for _, right in pairs}) != len(pairs):
                 raise ValueError(f"{field} target values must be unique")
         for field in ("scope_conditions", "predicted_consequences", "counterexamples", "evidence_refs"):
             _sorted_unique(getattr(self, field), field)
