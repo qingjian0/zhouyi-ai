@@ -20,6 +20,7 @@
 4. **易象状态表征**：阴阳、四象、八卦、六十四卦、卦变及五行关系能否成为可学习、可证伪的状态与关系先验？
 5. **自组织与证据约束**：结构能否根据任务反馈更新，同时避免无证据的类比和自我强化？
 6. **并行推演**：多条候选组合路径能否并行评估，并由全局协调器进行证据整合？
+7. **多状态表示自主选择**：系统能否在二值、三值、混合和自主学习表示之间按任务选择，必要时提出新的状态基数？
 
 ## 架构边界
 
@@ -36,6 +37,15 @@
 - [数学理论 v0.3](docs/THEORY_v0.3.md)
 - [架构设计](docs/ARCHITECTURE.md)
 - [易象模块：可检验化设计](docs/YIXIANG_MODULE.md)
+- [太玄经三值结构 TX-01：可检验化研究设计](docs/TAIXUAN_TERNARY_COGNITION_TX01.md)
+- [TX-02 多状态表示竞争与自主选择基准](docs/TX02_MULTISTATE_REPRESENTATION_BENCHMARK.md)
+- [TX-02B / TX-02C 跨 Episode 学习器、公平对照与可辨识性协议](docs/TX02B_LEARNER_IDENTIFIABILITY_PROTOCOL.md)
+- [TX-02D 计算预算、校准与拒绝预测协议](docs/TX02D_COMPUTE_AND_SELECTIVE_PREDICTION.md)
+  - TX-02D-3 已接入 Runner：MAC 匹配、Bonferroni-Wilson 风险上界、Episode 级拒绝预测、配对外层种子分析，以及规则族隔离的表示选择/阈值校准双 Validation。
+- [TX-02D 计算与可信度量原型](prototype/tx02_compute.py)
+- [TX-02D 多状态表示与自适应实验驱动](prototype/tx02_experiment.py)
+- [TX-02B-2 规则族隔离切分原型](prototype/tx02_splits.py)
+- [TX-02B-3 可训练 support-set learner](prototype/tx02_learners.py)
 - [相关工作与文献](docs/RELATED_WORK.md)
 - [2026-11-10 研究增量报告](docs/RESEARCH_FINDINGS_2026-11-10.md)
 - [实验计划与验收标准](docs/EXPERIMENTS.md)
@@ -52,6 +62,10 @@
 - [E12-A1 类型化谓词原型](prototype/e12a1_typed_predicate_induction.py)
 - [E12-A1.1 证据溯源原型](prototype/e12a1p_evidence_provenance.py)
 - [E12-A2 主动观测选择器](prototype/e12a2_active_measurement.py)
+- [太玄经 81 首 / 9 赞 / 729 状态可逆编码原型](prototype/taixuan_ternary_encoding.py)
+- [TX-02A 跨状态基数 episode 生成器](prototype/tx02_multistate_benchmark.py)
+- [TX-02 多状态可逆编码器](prototype/tx02_state_encoders.py)
+- [TX-02 精确可辨识性审计器](prototype/tx02_identifiability.py)
 - [YF-01 动态观测策略原型](prototype/yinfu_active_observation.py)
 - [YF-03 三元反馈与关系反转原型](prototype/yinfu_interaction_dynamics.py)
 - [E12-A2-B 策略对照实验](prototype/e12a2b_policy_benchmark.py)
@@ -83,6 +97,12 @@ python -m prototype.e12a2b_policy_benchmark --seeds 20 --budget 4 --json
 python -m prototype.e12a2d_noisy_prior_stress --episodes 100 --budget 3 --json
 python -m prototype.yinfu_active_observation
 python -m prototype.yinfu_interaction_dynamics --horizon 8
+python -m prototype.taixuan_ternary_encoding
+python -m prototype.tx02_multistate_benchmark --episodes-per-cardinality 20 --support-size 2 --query-count 2
+python -m prototype.tx02_identifiability --cardinality 3 --support-size 2 --query-count 2 --symbol-mapping permuted
+python -m prototype.tx02_experiment --cardinalities 3 --support-sizes 2 4 8 --seeds 11 29 47 --json
+python -c "from prototype.tx02_splits import make_rule_disjoint_splits; print(make_rule_disjoint_splits(3).metadata)"
+python -m unittest tests.test_tx02_multistate_benchmark tests.test_tx02_state_encoders tests.test_tx02_identifiability tests.test_tx02_splits tests.test_tx02_learners -v
 ```
 
 ## 研究状态标记

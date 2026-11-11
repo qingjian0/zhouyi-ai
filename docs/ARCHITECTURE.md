@@ -37,12 +37,32 @@
 `path_id, assumptions, derived_claims, evidence_ids, contradictions, confidence, compute_cost`
 
 ### YixiangState
-`bits[6], trigram_lower, trigram_upper, transition, learned_embedding, prior_version`
+现有易象模块的固定二值字段只作为兼容性表示，不应成为全系统状态空间的上限。新增表示无关的接口：
+
+`StateRepresentation(id, family, cardinality, encoder_version, decoder_version, parameters, provenance)`
+
+`RepresentationCandidate(representation_id, task_context, expected_gain, uncertainty, compute_cost, evidence_ids)`
+
+`RepresentationDecision(selected_id, rejected_ids, defer_reason, validation_snapshot, policy_version)`
+
+候选 family 至少包括 BINARY、TERNARY、HYBRID、LEARNED、ONE_HOT、PERMUTED；cardinality 可为任意整数 K>=2。编码器必须声明有效码、无效码、未知状态和解码失败策略。
 
 ### EvidenceRecord
 `id, source, span, timestamp, reliability, supports, contradicts`
 
-所有 ID 应稳定；任何结论都应能回溯到产生它的单元、超边和证据记录。
+所有 ID 应稳定；任何结论都应能回溯到产生它的单元、超边和证据记录。表示决策也必须记录版本、证据和成本，以便重放与审计。
+
+## 多状态表示选择闭环（TX-02）
+
+1. **Propose**：并行提出二值、三值、混合、可学习和无先验表示。
+2. **Encode**：将同一批语义单元编码到候选表示中，保留来源和版本。
+3. **Evaluate**：在独立验证任务上测量预测质量、校准、泛化和资源成本。
+4. **Arbitrate**：全局协调器按任务选择表示；证据不足时返回 DEFER，而不是强制选择。
+5. **Monitor**：监测分布漂移、错误自信和负迁移。
+6. **Revise**：若选择失败，回退到安全基线并重新评估候选。
+7. **Audit**：记录候选、被拒绝选项、选择理由、验证快照和策略版本。
+
+禁止使用测试集标签进行表示选择。任何表示先验都可被拒绝；不允许把《周易》或《太玄经》中的象数映射写成不可修改的硬规则。
 
 ## 运行模式
 
