@@ -133,3 +133,15 @@ PR #227 verifies complete E09 event-envelope fingerprints before projecting evid
 PR #228 provides the first tested single-branch ingestion path across all four authorities. It verifies proposal evidence references against E09, requires explicit world-family context, stages evidence and candidate in E12-A6, and atomically appends both to ZPCM before installing the staged ledger. ZPCM rejects mixed partial batch replay. Raw labels remain only in E09.
 
 Cross-branch candidate ingestion is intentionally blocked until E09 can authenticate BranchMergeAuthorization issuer credentials. The current implementation is a trusted single-process SQLite reference path; distributed consensus, OS-level process isolation, authenticated IPC, and cross-process outbox remain open. Exact-head CI success is software validation, not scientific capability validation.
+
+
+## 10. End-to-end lifecycle transition and recovery validation (2026-11-11)
+
+| PR | Scope | Exact-head CI | Maturity/status |
+|---|---|---|---|
+| [#228](https://github.com/qingjian0/zhouyi-ai/pull/228) | Atomic CSG-GCR candidate + E09 evidence bundle | `43040120573` success at `8edf52c3` | Draft integration slice |
+| [#229](https://github.com/qingjian0/zhouyi-ai/pull/229) | End-to-end E12-A6 transitions and ZPCM restart/replay | `43040339295` success at `561ecc4e` | Draft integration validation |
+
+PR #229 proves the tested single-branch path can move a CSG-GCR candidate through E12-A6 lifecycle actions using split-appropriate E09 evidence and recover the exact final state/action history after reopening ZPCM. GATE_DEV cannot satisfy GATE_FINAL. Invalid transitions produce no persisted lifecycle action.
+
+This closes the current single-process reference integration path for one candidate lifecycle. It does not establish multi-process isolation, distributed transactionality, authenticated cross-branch authorization, or scientific validity of the induced relation.
