@@ -36,6 +36,15 @@ class SharedEvidenceProtocolTests(unittest.TestCase):
         )
 
 
+    def test_payload_vault_is_digest_bound_and_idempotent(self):
+        payload = {"inputs": ["canonical-input"]}
+        ref = digest_payload(payload)
+        self.assertTrue(self.store.put_payload(ref, payload))
+        self.assertFalse(self.store.put_payload(ref, payload))
+        self.assertEqual(self.store.get_payload(ref), payload)
+        with self.assertRaises(ValueError):
+            self.store.put_payload(ref, {"inputs": ["tampered"]})
+
     def test_journal_mode_avoids_known_pre_3513_wal_bug(self):
         if sqlite3.sqlite_version_info < (3, 51, 3):
             self.assertEqual(self.store.journal_mode, "DELETE")

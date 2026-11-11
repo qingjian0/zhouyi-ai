@@ -76,6 +76,12 @@ class SQLiteEvidenceStore:
         self._db.execute("PRAGMA synchronous=FULL")
         self._db.execute("PRAGMA foreign_keys=ON")
         self._db.executescript("""
+        CREATE TABLE IF NOT EXISTS payload_vault (
+            payload_ref TEXT PRIMARY KEY,
+            payload_json TEXT NOT NULL,
+            payload_digest TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        );
         CREATE TABLE IF NOT EXISTS events (
             episode_id TEXT NOT NULL,
             sequence_no INTEGER NOT NULL,
@@ -132,6 +138,48 @@ class SQLiteEvidenceStore:
     def close(self) -> None:
         with self._lock:
             self._db.close()
+
+    def put_payload(self, payload_ref: str, payload: Any) -> bool:
+        """Persist immutable observation input by its canonical content digest."""
+        if not isinstance(payload_ref, str) or payload_ref != digest_payload(payload):
+            raise ProtocolError("payload_ref must equal the canonical payload digest")
+        raw = canonical_json(payload)
+        with self._lock:
+            self._db.execute("BEGIN IMMEDIATE")
+            try:
+                row = self._db.execute(
+                    "SELECT payload_digest FROM payload_vault WHERE payload_ref=?",
+                    (payload_ref,),
+                ).fetchone()
+                if row is not None:
+                    if row["payload_digest"] != payload_ref:
+                        raise IdempotencyConflict("payload reference content mismatch")
+                    self._db.execute("COMMIT")
+                    return False
+                self._db.execute(
+                    "INSERT INTO payload_vault(payload_ref,payload_json,payload_digest,created_at) VALUES(?,?,?,?)",
+                    (payload_ref, raw, payload_ref, datetime.now(timezone.utc).isoformat()),
+                )
+                self._db.execute("COMMIT")
+                return True
+            except Exception:
+                self._db.execute("ROLLBACK")
+                raise
+
+    def get_payload(self, payload_ref: str) -> Any:
+        """Load and re-verify a previously persisted immutable payload."""
+        with self._lock:
+            row = self._db.execute(
+                "SELECT payload_json,payload_digest FROM payload_vault WHERE payload_ref=?",
+                (payload_ref,),
+            ).fetchone()
+        if row is None:
+            raise MissingReference(f"unknown payload reference: {payload_ref}")
+        payload = json.loads(row["payload_json"])
+        if row["payload_digest"] != payload_ref or digest_payload(payload) != payload_ref:
+            raise ProtocolError("payload vault digest verification failed")
+        return payload
+
 
     def _validate_semantics(self, episode_id: str, event_type: str, payload: dict[str, Any], protocol_version: str) -> None:
         strict = protocol_version == STRICT_PROTOCOL_VERSION

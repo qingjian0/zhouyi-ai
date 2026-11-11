@@ -7,12 +7,19 @@ integration, not evaluator/learner process isolation or crash-resume support.
 from __future__ import annotations
 
 import json
-from typing import Any, Sequence
+from typing import Any, Callable, Sequence
 
 from prototype.shared_evidence_protocol import (
     EVIDENCE_SPLITS, STRICT_PROTOCOL_VERSION, SQLiteEvidenceStore, digest_payload,
 )
-from prototype.e09_prequential import PrequentialRunner, PrequentialError
+from prototype.e09_prequential import (
+    PrequentialRunner, PrequentialError,
+    PredictionCommit as RunnerPredictionCommit,
+    EvidenceReveal as RunnerEvidenceReveal,
+    RevisionEvent as RunnerRevisionEvent,
+)
+from prototype.e09_evidence_ledger import EvidenceLedger
+from prototype.e09_counterexample_learner import Example
 from prototype.cpg_interop import (
     EvidenceReveal, EvidenceSplit, PredictionCommit, canonical_json, validate_reveal_binding,
 )
@@ -85,6 +92,204 @@ class E09SharedProtocolAdapter:
             ) from exc
 
     @staticmethod
+    def _restore_label(value: Any) -> Any:
+        return tuple(value) if isinstance(value, list) else value
+
+    @classmethod
+    def resume_srok(
+        cls, store: SQLiteEvidenceStore, *, episode_id: str, scope: str,
+        split: str, learner_track: str, version_prefix: str,
+        learner_factory: Callable[[dict[str, Any]], Any],
+        memory_projection: Any | None = None,
+    ) -> "E09SharedProtocolAdapter":
+        """Rebuild SROK/E09 in-memory state from durable events and checkpoints.
+
+        Requires episodes created with payload-vault and ledger-snapshot support.
+        Delivery is replayed at least once; E09 IDs and learner state make it
+        idempotent. This remains a trusted single-process recovery path.
+        """
+        events = store.replay_episode(episode_id)
+        structures = [
+            e for e in events
+            if e["event_type"] == "structure_version"
+            and e["payload"].get("learner_track") == learner_track
+        ]
+        if not structures:
+            raise E09ProtocolAdapterError("episode has no durable structure checkpoint")
+        latest = structures[-1]
+        latest_payload = latest["payload"]
+        definition = latest_payload.get("definition", {})
+        if "snapshot" not in definition or "ledger_snapshot" not in definition:
+            raise E09ProtocolAdapterError("episode predates resumable SROK checkpoint schema")
+        learner = learner_factory(definition["snapshot"])
+        ledger = EvidenceLedger()
+        ledger_snapshot = definition["ledger_snapshot"]
+        for record in ledger_snapshot.get("records", []):
+            ledger.append(
+                record["sample_id"],
+                Example(tuple(record["inputs"]), cls._restore_label(record["label"])),
+                source=record.get("source", ""),
+                source_id=record.get("source_id", ""),
+            )
+        runner = PrequentialRunner(learner, ledger, revision_mode=definition["revision_mode"])
+        version_id = latest_payload["version_id"]
+        try:
+            model_version = int(definition.get("runner_model_version") or version_id.rsplit("-v", 1)[1])
+        except (KeyError, ValueError, IndexError) as exc:
+            raise E09ProtocolAdapterError("invalid durable model version") from exc
+        runner.model_version = model_version
+
+        observations = {
+            e["payload"]["observation_id"]: e["payload"]
+            for e in events if e["event_type"] == "observation"
+        }
+        instance = cls.__new__(cls)
+        instance.runner = runner
+        instance.store = store
+        instance.episode_id = episode_id
+        instance.learner_track = learner_track
+        instance.scope = scope
+        instance.split = split
+        instance.structure_id = latest_payload["structure_id"]
+        instance.structure_kind = latest_payload["kind"]
+        instance.version_prefix = version_prefix
+        instance.memory_projection = memory_projection
+        instance._failed = False
+        instance._committed_predictions = set()
+        instance._commit_digests = {}
+        instance._event_digests = {}
+        instance._interop_commits = {}
+        instance._prediction_queries = {}
+        instance._reveals = {}
+        instance._version_id = version_id
+
+        for event in events:
+            if event["event_type"] != "prediction_commit":
+                continue
+            payload = event["payload"]
+            if payload.get("learner_track") != learner_track:
+                continue
+            prediction_id = payload["prediction_id"]
+            observation_id = payload["observation_id"]
+            observation = observations.get(observation_id)
+            if observation is None:
+                raise E09ProtocolAdapterError("prediction has no durable observation")
+            stored_input = store.get_payload(observation["payload_ref"])
+            inputs = tuple(stored_input["inputs"])
+            prediction = cls._restore_label(payload.get("prediction"))
+            model_number = int(payload["model_version"].rsplit("-model-", 1)[1])
+            step = int(payload.get("compute_cost", {}).get("step", 0))
+            runner._predictions[prediction_id] = RunnerPredictionCommit(
+                prediction_id, observation_id, inputs, model_number, prediction,
+                "PREDICT" if prediction is not None else "ABSTAIN", step,
+            )
+            interop = PredictionCommit(
+                commit_id=prediction_id,
+                candidate_ref=f"{instance.structure_id}@{version_prefix}-v{model_number}",
+                query_id=payload["query_id"],
+                scope=payload["scope"],
+                input_digest=observation["payload_ref"],
+                identifiable=prediction is not None,
+                prediction_json=canonical_json(cls._jsonable(prediction)) if prediction is not None else None,
+                abstention_reason=None if prediction is not None else "E09_NO_IDENTIFIABLE_PREDICTION",
+                episode_id=episode_id,
+                learner_track=learner_track,
+                split=EvidenceSplit(split.lower()),
+                model_version=payload["model_version"],
+            )
+            if interop.commit_digest != payload["interop_commit_digest"]:
+                raise E09ProtocolAdapterError("reconstructed prediction commit digest mismatch")
+            instance._committed_predictions.add(prediction_id)
+            instance._commit_digests[prediction_id] = interop.commit_digest
+            instance._event_digests[prediction_id] = event["payload_digest"]
+            instance._interop_commits[prediction_id] = interop
+            instance._prediction_queries[prediction_id] = observation_id
+            if hasattr(learner, "last_inference"):
+                learner.last_inference = dict(
+                    payload.get("compute_cost", {}).get("inference_report", {})
+                )
+
+        ledger_ids = {record.sample_id for record in ledger.records()}
+        reveal_event_to_prediction = {}
+        support_reveals = []
+        for event in events:
+            if event["event_type"] != "evidence_reveal":
+                continue
+            payload = event["payload"]
+            if payload.get("learner_track") != learner_track:
+                continue
+            prediction_id = payload["prediction_id"]
+            reveal_event_to_prediction[event["event_id"]] = prediction_id
+            if payload.get("split") != "SUPPORT":
+                continue
+            commit = runner._predictions.get(prediction_id)
+            if commit is None:
+                raise E09ProtocolAdapterError("support reveal has no prediction commit")
+            label = cls._restore_label(payload["target_or_feedback"])
+            if commit.observation_id not in ledger_ids:
+                ledger.append(commit.observation_id, Example(commit.inputs, label),
+                              source=payload.get("reveal_source", "feedback"))
+                ledger_ids.add(commit.observation_id)
+            reveal_id = f"reveal-{prediction_id}"
+            runner._reveals[prediction_id] = RunnerEvidenceReveal(
+                reveal_id, prediction_id, label, int(event["sequence_no"]),
+            )
+            instance._reveals[prediction_id] = event["event_id"]
+            support_reveals.append((event, prediction_id, reveal_id))
+
+        revised_reveal_ids = set()
+        for event in events:
+            if event["event_type"] != "revision":
+                continue
+            payload = event["payload"]
+            if payload.get("learner_track") != learner_track:
+                continue
+            trigger = (payload.get("trigger_evidence_ids") or [None])[0]
+            prediction_id = reveal_event_to_prediction.get(trigger)
+            if prediction_id is None:
+                raise E09ProtocolAdapterError("revision trigger reveal cannot be resolved")
+            reveal_id = f"reveal-{prediction_id}"
+            before = (payload.get("before_version_ids") or [version_id])[0]
+            after = (payload.get("after_version_ids") or [version_id])[0]
+            runner._revisions.append(RunnerRevisionEvent(
+                payload["revision_id"], reveal_id,
+                int(before.rsplit("-v", 1)[1]), int(after.rsplit("-v", 1)[1]),
+                "", "", payload["operation"], payload.get("training_example_count", 0),
+                payload.get("candidate_evaluations", 0), int(event["sequence_no"]),
+            ))
+            revised_reveal_ids.add(reveal_id)
+
+        # Crash window: structure snapshot was committed, but its following
+        # revision event was not. The structure's support_evidence_ids are the
+        # durable commit marker, so synthesize the in-memory dedupe record.
+        for structure in structures:
+            sp = structure["payload"]
+            for evidence_id in sp.get("support_evidence_ids", []):
+                prediction_id = reveal_event_to_prediction.get(evidence_id)
+                if prediction_id is None:
+                    continue
+                reveal_id = f"reveal-{prediction_id}"
+                if reveal_id in revised_reveal_ids:
+                    continue
+                before = (sp.get("parent_version_ids") or [version_id])[0]
+                after = sp["version_id"]
+                sd = sp.get("definition", {})
+                runner._revisions.append(RunnerRevisionEvent(
+                    f"recovered-{after}", reveal_id,
+                    int(before.rsplit("-v", 1)[1]), int(after.rsplit("-v", 1)[1]),
+                    "", "", sd.get("revision_mode", runner.REVISION_MODE),
+                    sd.get("training_example_count", 0),
+                    sd.get("candidate_evaluations", 0), int(structure["sequence_no"]),
+                ))
+                revised_reveal_ids.add(reveal_id)
+
+        completed_revisions = sum(bool(e["payload"].get("support_evidence_ids")) for e in structures)
+        runner.step = 1 + len(runner._predictions) + len(support_reveals) + completed_revisions
+        if memory_projection is not None:
+            instance._sync_memory()
+        return instance
+
+    @staticmethod
     def _jsonable(value: Any) -> Any:
         return json.loads(json.dumps(value, sort_keys=True, ensure_ascii=False, default=repr))
 
@@ -105,6 +310,9 @@ class E09SharedProtocolAdapter:
             "snapshot": snapshot,
             "bootstrap_training_examples": self.runner.learner.report.get("training_examples", 0),
             "bootstrap_is_pre_episode_evidence": True,
+            "ledger_snapshot": self.runner.ledger.snapshot(),
+            "runner_model_version": self.runner.model_version,
+            "runner_step": self.runner.step,
         }
         self.store.append_event(
             episode_id=self.episode_id,
@@ -129,6 +337,7 @@ class E09SharedProtocolAdapter:
         try:
             input_values = tuple(inputs)
             input_digest = digest_payload({"inputs": self._jsonable(input_values)})
+            self.store.put_payload(input_digest, {"inputs": self._jsonable(input_values)})
             observation_event_id = f"{self.episode_id}:observation:{observation_id}"
             # The durable observation is sequenced before the learner predicts.
             self.store.append_event(
@@ -305,6 +514,9 @@ class E09SharedProtocolAdapter:
                         "snapshot": snapshot,
                         "training_example_count": revision.training_example_count,
                         "candidate_evaluations": revision.candidate_evaluations,
+                        "ledger_snapshot": self.runner.ledger.snapshot(),
+                        "runner_model_version": self.runner.model_version,
+                        "runner_step": self.runner.step,
                     },
                     "parent_version_ids": [before_version],
                     "support_evidence_ids": [reveal_event_id],
