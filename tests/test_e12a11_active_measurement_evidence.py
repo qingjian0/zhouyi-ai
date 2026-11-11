@@ -83,6 +83,15 @@ class ActiveMeasurementEvidenceTests(unittest.TestCase):
         self.assertEqual(receipt.status, MeasurementStatus.EXECUTION_FAILED.value)
         self.assertEqual(ex.remaining_budget, 5)
 
+    def test_actual_cost_overrun_consumes_remaining_budget(self):
+        ex = BudgetedMeasurementExecutor(self.signer,
+            {"probe-v1": lambda target, params: ("observed", 4.0)},
+            allowed_candidate_scopes={("rule@1", "scope-a")}, budget=2)
+        receipt = ex.execute(request(estimated_cost=1, max_cost=5))
+        self.assertEqual(receipt.status, MeasurementStatus.BUDGET_EXHAUSTED.value)
+        self.assertEqual(receipt.actual_cost, 4.0)
+        self.assertEqual(ex.remaining_budget, 0.0)
+
     def test_failed_protocol_does_not_create_evidence(self):
         ex = BudgetedMeasurementExecutor(self.signer,
             {"probe-v1": lambda target, params: (_ for _ in ()).throw(RuntimeError())},
