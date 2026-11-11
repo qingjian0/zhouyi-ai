@@ -30,7 +30,7 @@ The cross-check tests are in `tests/test_xra_partition_crosscheck.py`.
   binary outcomes and transitions to any of the three states (216 worlds).
 - Compare both partition blocks and every ordered pair's equivalence status.
 - Run 500 seeded 4-state / 2-action worlds with three outcome values.
-- Check malformed and incomplete table rejection.
+- Check malformed and incomplete table rejection.\n- Verify immediate, delayed, shortest, and absent distinguishing witnesses.
 
 The two implementations share the mathematical definition of predictive
 bisimulation, but use different computational procedures. Agreement is a
