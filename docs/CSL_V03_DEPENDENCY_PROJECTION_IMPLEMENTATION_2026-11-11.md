@@ -48,4 +48,4 @@ This remains a single-process SQLite reference implementation. It does not provi
 
 ## Causal ordering invariant
 
-Invalidation propagation uses a causal graph snapshot at each trigger sequence. An edge can transmit a trigger only when its own `dependency_added` sequence is less than or equal to the lifecycle transition sequence that produced the trigger. Edges appended later remain part of the current graph but cannot retroactively invalidate a consumer for an earlier event. A regression test places the same blocking edges after the root challenge and requires an empty queue.
+Invalidation propagation uses a causal graph snapshot at each trigger sequence. An edge can transmit a trigger only when its own `dependency_added` sequence is less than or equal to the trigger sequence. Edges appended later cannot retroactively transmit an older trigger. However, adding a dependency to a prerequisite that is already non-eligible creates a new trigger at the edge's own sequence: the new direct consumer is queued, while propagation continues only across edges that already existed at that sequence. This distinguishes historical causality from current graph inconsistency.

@@ -1038,6 +1038,18 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                     "learner_track": track, "role": payload["role"],
                     "impact_policy": payload["impact_policy"], "evidence_refs": list(refs),
                 })
+                # Adding a new edge to an already non-eligible prerequisite is
+                # itself a fresh causal trigger at this event sequence. This
+                # queues the new direct consumer without replaying older
+                # triggers through edges that did not yet exist.
+                eligible_states = {
+                    CandidateState.GATE_VALIDATED.value,
+                    CandidateState.REUSED.value,
+                    CandidateState.SPECIALIZED.value,
+                }
+                prerequisite_state = track_candidates[track][dependency]["state"]
+                if prerequisite_state not in eligible_states:
+                    invalidation_sources.append((dependency, track, sequence))
             elif event_type == "revision":
                 rid = payload.get("revision_id")
                 if not isinstance(rid, str) or not rid or rid in revisions:

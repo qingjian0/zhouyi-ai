@@ -1153,9 +1153,13 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
         self.assertEqual(run_episode("blocking", "blocking"), {"blocking-consumer@1", "blocking-leaf@1"})
         self.assertEqual(run_episode("review", "review"), {"review-consumer@1"})
         self.assertEqual(run_episode("advisory", "advisory"), set())
-        # An edge created after the invalidation trigger cannot retroactively
-        # transmit that earlier trigger through the final projection.
-        self.assertEqual(run_episode("late-edge", "blocking", edge_before_challenge=False), set())
+        # An edge created after the trigger cannot transmit the old trigger
+        # retroactively, but attaching it to an already challenged prerequisite
+        # creates a fresh trigger for that direct consumer only.
+        self.assertEqual(
+            run_episode("late-edge", "blocking", edge_before_challenge=False),
+            {"late-edge-consumer@1"},
+        )
 
     def test_dependency_cycle_is_rejected_without_consuming_sequence(self):
         events = [self.observation()]
