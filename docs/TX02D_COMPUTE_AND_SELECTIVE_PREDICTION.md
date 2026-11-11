@@ -116,3 +116,22 @@ Runner 的 aggregate 新增：
 - 原 query-level selective risk 仍保留为诊断指标；episode-level 风险是更保守、相关性处理更合理的主要指标。
 
 这避免了 episode 内 query 伪独立，但不同 episode 仍可能共享规则族或其他生成因素；后续需要按隐藏规则族聚类或使用规则族级外层重采样。Wilson 上界仍不是分布漂移保证。
+
+
+## TX-02D-3：嵌套 Validation，隔离选择与校准
+
+此前同一组 Validation episode 同时用于：
+- 在表示家族间选择；
+- 为拒绝预测确定置信度阈值。
+
+这会让同一批标签同时承担模型选择与风险校准，增加适应验证集噪声的机会。
+
+现将 validation rule families 再拆为两个互斥子集：
+- `validation_selection`：只计算表示选择指标。
+- `validation_calibration`：只校准 query-level 与 episode-level abstention 阈值。
+
+两者按完整隐藏仿射系数三元组划分，不共享规则。Runner 仍可保留合并后的 `validation` 用于训练报告，但该合并集合不参与选择器或拒绝阈值计算。Locked-test 仍与 train/validation 完全规则隔离。
+
+每次运行现在报告 selection/calibration episode 数量。对 K=2 这样规则族较小的任务，两个子集都可能很小，Wilson 风险上界可能导致零覆盖；这是样本量不足的可见结果，不应通过读取 locked-test 或放松阈值来修饰。
+
+当前仍属于单次 nested holdout；要作强泛化结论，需增加独立外层 seed，并对隐藏规则族做 cluster-aware 重采样。
