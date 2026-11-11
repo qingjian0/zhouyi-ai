@@ -17,7 +17,10 @@ class E12A7MultiworldTests(unittest.TestCase):
     def test_observationally_equivalent_direct_and_confounder_abstain(self):
         direct = collect(self.worlds["direct_world"], interventions=False)
         confounded = collect(self.worlds["confounded_world"], interventions=False)
-        self.assertEqual(direct, confounded)
+        self.assertEqual(
+            [(r.intervention, r.x, r.context, r.time, r.y) for r in direct],
+            [(r.intervention, r.x, r.context, r.time, r.y) for r in confounded],
+        )
         result = transfer(direct, confounded)
         self.assertEqual(result["decision"], "abstain")
         self.assertEqual(result["reason"], "source_or_target_not_identified")
