@@ -13,7 +13,9 @@ sequence of typed edits. It does not clone the parent workspace:
 Each event carries a stable event ID, operation, target, expected before-hash,
 new value, evidence references, causal predecessor, and monotonically
 increasing branch-local version. Snapshots declare exact read/write sets,
-parent reference, base version, evidence union, and lineage.
+parent reference, canonical hash of the exact parent state, base version,
+evidence union, and lineage. Merge rejects a state whose canonical digest does
+not match the declared parent hash.
 
 ## Merge policy
 
