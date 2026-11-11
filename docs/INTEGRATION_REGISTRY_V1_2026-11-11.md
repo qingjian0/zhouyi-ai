@@ -121,3 +121,15 @@ PR #226 validates append-before-swap behavior, append-failure non-mutation, cras
 PR #227 verifies complete E09 event-envelope fingerprints before projecting evidence metadata. SUPPORT → TRAIN is an explicit mapping; GATE_DEV, GATE_FINAL, and LOCKED_TEST remain distinct. Raw revealed targets are not copied into E12-A6/ZPCM. This is a trusted-store integrity and linkage check, not operator authentication or process isolation.
 
 **Next P1 gate:** an atomic typed-candidate ingestion path that (1) projects the CSG-GCR candidate, (2) resolves and verifies each declared E09 reveal reference, and (3) appends candidate plus evidence events as one ZPCM transaction before swapping the E12-A6 ledger. Cross-branch authorization issuer verification remains separate and must fail closed until E09 provides a verifiable authorization contract.
+
+
+## 9. Atomic CSG-GCR → E09 → E12-A6 → ZPCM ingestion (2026-11-11)
+
+| PR | Scope | Exact-head CI | Maturity/status |
+|---|---|---|---|
+| [#227](https://github.com/qingjian0/zhouyi-ai/pull/227) | Strict E09 reveal verification and redacted E12-A6 evidence DTO | `43038677702` success at `6a4b0dce` | Draft integration slice |
+| [#228](https://github.com/qingjian0/zhouyi-ai/pull/228) | Atomic typed CSG-GCR candidate + verified E09 evidence bundle into E12-A6/ZPCM | `43039470802` success at `d68819c` | Draft integration slice |
+
+PR #228 provides the first tested single-branch ingestion path across all four authorities. It verifies proposal evidence references against E09, requires explicit world-family context, stages evidence and candidate in E12-A6, and atomically appends both to ZPCM before installing the staged ledger. ZPCM rejects mixed partial batch replay. Raw labels remain only in E09.
+
+Cross-branch candidate ingestion is intentionally blocked until E09 can authenticate BranchMergeAuthorization issuer credentials. The current implementation is a trusted single-process SQLite reference path; distributed consensus, OS-level process isolation, authenticated IPC, and cross-process outbox remain open. Exact-head CI success is software validation, not scientific capability validation.
