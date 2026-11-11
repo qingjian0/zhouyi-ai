@@ -296,8 +296,8 @@ class LearnableSROK:
 
 
     def _features_at_order(self, assignment: Sequence[Node], max_order: int) -> list[float]:
-        if isinstance(max_order, bool) or max_order not in (1, 2, 3):
-            raise LearnableSROKError("max_order must be 1, 2, or 3")
+        if isinstance(max_order, bool) or not isinstance(max_order, int) or max_order not in (1, 2, 3):
+            raise LearnableSROKError("max_order must be integer 1, 2, or 3")
         features = self._assignment_features(assignment)
         unary_end = self.feature_dim * len(self.roles)
         pair_end = unary_end + self.feature_dim * len(self.pairs)
@@ -324,8 +324,8 @@ class LearnableSROK:
         explicit triple terms. The same feature map and optimizer are used for
         every ablation, with inactive higher-order blocks zeroed.
         """
-        if isinstance(max_order, bool) or max_order not in (1, 2, 3):
-            raise LearnableSROKError("max_order must be 1, 2, or 3")
+        if isinstance(max_order, bool) or not isinstance(max_order, int) or max_order not in (1, 2, 3):
+            raise LearnableSROKError("max_order must be integer 1, 2, or 3")
         if isinstance(epochs, bool) or not isinstance(epochs, int) or epochs < 1:
             raise LearnableSROKError("epochs must be a positive integer")
         if (not math.isfinite(learning_rate) or learning_rate <= 0
@@ -335,7 +335,8 @@ class LearnableSROK:
         for example in examples:
             if not isinstance(example, LabeledStructure):
                 raise LearnableSROKError("examples must be LabeledStructure values")
-            if isinstance(example.label, bool) or example.label not in (0, 1):
+            if (isinstance(example.label, bool) or not isinstance(example.label, int)
+                    or example.label not in (0, 1)):
                 raise LearnableSROKError("binary labels must be integer 0 or 1")
             if len(example.assignment) != len(self.roles):
                 raise LearnableSROKError("assignment role count mismatch")
