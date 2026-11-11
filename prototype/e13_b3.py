@@ -1,9 +1,8 @@
 """E13-B3 bounded candidate discovery for explicit cross-domain bridges.
 
-This is a finite hypothesis enumerator, not a semantic oracle. It enumerates
-injective type/relation/role maps from declared graph schemas, then delegates
-all acceptance decisions to the independent B2 validator. Budget exhaustion
-returns no accepted candidates so a truncated search cannot masquerade as proof.
+This finite hypothesis enumerator is not a semantic oracle. It enumerates
+injective type/relation maps and target-role permutations, then delegates
+acceptance to the independent B2 validator. Budget exhaustion fails closed.
 """
 from __future__ import annotations
 
@@ -39,11 +38,10 @@ def enumerate_bridge_candidates(
     max_candidates: int = 10_000,
     provenance: str = "finite-schema-enumerator",
 ) -> CandidateSearchResult:
-    """Enumerate finite injective maps; preserve all valid hypotheses.
+    """Enumerate finite injective maps and validate every complete hypothesis.
 
-    The budget counts complete hypotheses passed to the validator. If another
-    candidate exists after the budget is consumed, the result is BUDGET_EXHAUSTED
-    and valid_candidates is empty (fail closed).
+    The budget counts complete hypotheses. If another hypothesis exists after
+    the budget is consumed, partial accepted candidates are withheld.
     """
     if max_candidates < 1:
         raise ValueError("max_candidates must be positive")
@@ -60,60 +58,61 @@ def enumerate_bridge_candidates(
         return CandidateSearchResult("NO_CANDIDATES", 0, (), 0, "TARGET_ROLE_SEMANTICS_UNSUPPORTED")
 
     type_options = tuple(_injective_maps(source_types, target_types))
+    target_schema_by_name = {s.relation_type: s for s in target_schemas}
     relation_options = []
     for mapping in _injective_maps(
         tuple(s.relation_type for s in source_schemas),
-        tuple(t.relation_type for t in target_schemas),
+        tuple(s.relation_type for s in target_schemas),
     ):
-        mapped = dict(mapping)
         if all(
-            next(s for s in source_schemas if s.relation_type == src).arity
-            == next(t for t in target_schemas if t.relation_type == dst).arity
+            ss.arity == target_schema_by_name[dst].arity
             for src, dst in mapping
+            for ss in source_schemas if ss.relation_type == src
         ):
             relation_options.append(mapping)
 
-    valid = []
+    valid: list[tuple[BridgeHypothesis, BridgeValidation]] = []
     examined = 0
     rejected = 0
     candidate_id = 0
 
-    # Each role permutation is a distinct structural hypothesis; the validator
-    # checks argument type patterns, symmetry, role coverage and graph instances.
-    role_option_sets = []
-    for ss in source_schemas:
-        role_option_sets.append(tuple(permutations(ss.role_names)))
+    for type_mapping in type_options:
+        for relation_mapping in relation_options:
+            relation_dict = dict(relation_mapping)
+            role_option_sets = []
+            for ss in source_schemas:
+                target_schema = target_schema_by_name[relation_dict[ss.relation_type]]
+                role_option_sets.append(tuple(permutations(target_schema.role_names)))
 
-    search_space = product(type_options, relation_options, *role_option_sets)
-    for combination in search_space:
-        if examined >= max_candidates:
-            return CandidateSearchResult(
-                "BUDGET_EXHAUSTED", examined, (), rejected,
-                "SEARCH_TRUNCATED_ACCEPTED_CANDIDATES_WITHHELD"
-            )
-        type_mapping, relation_mapping, *role_permutations = combination
-        relation_dict = dict(relation_mapping)
-        role_mapping = []
-        for ss, target_roles in zip(source_schemas, role_permutations):
-            target_relation = relation_dict[ss.relation_type]
-            for source_role, target_role in zip(ss.role_names, target_roles):
-                role_mapping.append((ss.relation_type, target_relation, source_role, target_role))
-        candidate_id += 1
-        hypothesis = propose_bridge(
-            f"e13-b3-{candidate_id}",
-            entity_types=type_mapping,
-            relations=relation_mapping,
-            roles=role_mapping,
-            contexts=context_maps,
-            provenance=provenance,
-            rationale="enumerated finite typed-role mapping; validation is separate",
-        )
-        result = validate_bridge(source, target, hypothesis)
-        examined += 1
-        if result.status == "VALID":
-            valid.append((hypothesis, result))
-        else:
-            rejected += 1
+            for role_permutations in product(*role_option_sets):
+                if examined >= max_candidates:
+                    return CandidateSearchResult(
+                        "BUDGET_EXHAUSTED", examined, (), rejected,
+                        "SEARCH_TRUNCATED_ACCEPTED_CANDIDATES_WITHHELD"
+                    )
+
+                role_mapping = []
+                for ss, target_roles in zip(source_schemas, role_permutations):
+                    target_relation = relation_dict[ss.relation_type]
+                    for source_role, target_role in zip(ss.role_names, target_roles):
+                        role_mapping.append((ss.relation_type, target_relation, source_role, target_role))
+
+                candidate_id += 1
+                hypothesis = propose_bridge(
+                    f"e13-b3-{candidate_id}",
+                    entity_types=type_mapping,
+                    relations=relation_mapping,
+                    roles=role_mapping,
+                    contexts=context_maps,
+                    provenance=provenance,
+                    rationale="enumerated finite typed-role mapping; validation is separate",
+                )
+                result = validate_bridge(source, target, hypothesis)
+                examined += 1
+                if result.status == "VALID":
+                    valid.append((hypothesis, result))
+                else:
+                    rejected += 1
 
     return CandidateSearchResult(
         "COMPLETE" if valid else "NO_VALID_CANDIDATES",
