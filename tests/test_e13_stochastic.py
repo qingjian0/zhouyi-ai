@@ -213,5 +213,110 @@ class E13StochasticCrossDomainMappingTests(unittest.TestCase):
         self.assertEqual(report.cases[0].status, "UNKNOWN_MAPPING_OR_CASE_ALIGNMENT")
 
 
+
+class E13StochasticTrajectoryMappingTests(unittest.TestCase):
+    def _feedback_systems(self):
+        from prototype.e13_stochastic import ProbabilisticTransitionRule
+        source = ProbabilisticTransitionSystem("positive-feedback", ("level",), ("step",), (
+            ProbabilisticTransitionRule("step", (("level", "low"),),
+                (((("level", "high"),), Fraction(1)),)),
+            ProbabilisticTransitionRule("step", (("level", "high"),),
+                (((("level", "high"),), Fraction(1)),)),
+        ))
+        target = ProbabilisticTransitionSystem("negative-feedback", ("pressure",), ("tick",), (
+            ProbabilisticTransitionRule("tick", (("pressure", "calm"),),
+                (((("pressure", "tense"),), Fraction(1)),)),
+            ProbabilisticTransitionRule("tick", (("pressure", "tense"),),
+                (((("pressure", "calm"),), Fraction(1)),)),
+        ))
+        mapping = StochasticKernelMap(
+            (("level", "pressure"),),
+            (("level", "low", "calm"), ("level", "high", "tense")),
+            (("step", "tick"),),
+        )
+        return source, target, mapping
+
+    def test_one_step_match_two_step_feedback_diverges(self):
+        from prototype.e13_stochastic import (
+            TrajectoryValidationCase, validate_cross_domain_trajectory,
+        )
+        source, target, mapping = self._feedback_systems()
+        one = validate_cross_domain_trajectory(
+            source, target, mapping,
+            TrajectoryValidationCase("one", (("level", "low"),),
+                                     (("pressure", "calm"),), ("step",))
+        )
+        two = validate_cross_domain_trajectory(
+            source, target, mapping,
+            TrajectoryValidationCase("two", (("level", "low"),),
+                                     (("pressure", "calm"),), ("step", "step"))
+        )
+        self.assertEqual(one.status, "PASS_ON_SUPPLIED_TRAJECTORY")
+        self.assertEqual(one.steps[1].total_variation_distance, Fraction(0))
+        self.assertEqual(two.status, "MISMATCH")
+        self.assertEqual(two.steps[1].total_variation_distance, Fraction(0))
+        self.assertEqual(two.steps[2].total_variation_distance, Fraction(1))
+
+    def test_identical_feedback_trajectory_passes_all_steps(self):
+        from prototype.e13_stochastic import (
+            TrajectoryValidationCase, validate_cross_domain_trajectory,
+        )
+        source, target, mapping = self._feedback_systems()
+        target_same = ProbabilisticTransitionSystem("target-same", ("pressure",), ("tick",), (
+            ProbabilisticTransitionRule("tick", (("pressure", "calm"),),
+                (((("pressure", "tense"),), Fraction(1)),)),
+            ProbabilisticTransitionRule("tick", (("pressure", "tense"),),
+                (((("pressure", "tense"),), Fraction(1)),)),
+        ))
+        report = validate_cross_domain_trajectory(
+            source, target_same, mapping,
+            TrajectoryValidationCase("same", (("level", "low"),),
+                                     (("pressure", "calm"),), ("step", "step", "step"))
+        )
+        self.assertEqual(report.status, "PASS_ON_SUPPLIED_TRAJECTORY")
+        self.assertTrue(all(step.total_variation_distance == 0 for step in report.steps))
+
+    def test_missing_target_transition_is_unknown(self):
+        from prototype.e13_stochastic import (
+            TrajectoryValidationCase, validate_cross_domain_trajectory,
+        )
+        source, target, mapping = self._feedback_systems()
+        partial_target = ProbabilisticTransitionSystem(
+            "partial", ("pressure",), ("tick",), (
+                ProbabilisticTransitionRule("tick", (("pressure", "calm"),),
+                    (((("pressure", "tense"),), Fraction(1)),)),
+            )
+        )
+        report = validate_cross_domain_trajectory(
+            source, partial_target, mapping,
+            TrajectoryValidationCase("missing", (("level", "low"),),
+                                     (("pressure", "calm"),), ("step", "step"))
+        )
+        self.assertEqual(report.status, "UNKNOWN_TARGET_TRANSITION_SUPPORT")
+
+    def test_initial_alignment_mismatch_is_unknown(self):
+        from prototype.e13_stochastic import (
+            TrajectoryValidationCase, validate_cross_domain_trajectory,
+        )
+        source, target, mapping = self._feedback_systems()
+        report = validate_cross_domain_trajectory(
+            source, target, mapping,
+            TrajectoryValidationCase("bad", (("level", "low"),),
+                                     (("pressure", "tense"),), ("step",))
+        )
+        self.assertEqual(report.status, "UNKNOWN_INITIAL_ALIGNMENT")
+
+    def test_multiple_action_sequences_are_independently_reported(self):
+        from prototype.e13_stochastic import compare_action_sequences
+        source, target, mapping = self._feedback_systems()
+        reports = compare_action_sequences(
+            source, target, mapping, "batch",
+            (("level", "low"),), (("pressure", "calm"),),
+            (("step",), ("step", "step"))
+        )
+        self.assertEqual(tuple(r.status for r in reports),
+                         ("PASS_ON_SUPPLIED_TRAJECTORY", "MISMATCH"))
+
+
 if __name__ == "__main__":
     unittest.main()
