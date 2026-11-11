@@ -135,3 +135,14 @@ Runner 的 aggregate 新增：
 每次运行现在报告 selection/calibration episode 数量。对 K=2 这样规则族较小的任务，两个子集都可能很小，Wilson 风险上界可能导致零覆盖；这是样本量不足的可见结果，不应通过读取 locked-test 或放松阈值来修饰。
 
 当前仍属于单次 nested holdout；要作强泛化结论，需增加独立外层 seed，并对隐藏规则族做 cluster-aware 重采样。
+
+
+### TX-02D-3B：拒绝阈值搜索的多重比较修正
+
+在同一 calibration set 上搜索多个置信度阈值，会产生阈值选择的多重比较问题。现对候选阈值数量使用 Bonferroni alpha 分配，再计算单侧 Wilson 上界：
+
+`alpha_per_threshold = (1 - confidence_level) / number_of_unique_thresholds`
+
+默认总体置信水平为 95%。每个阈值的 Wilson 上界使用相应更严格的正态临界值；只有上界不超过风险预算的阈值才可选。报告记录阈值假设数量、总体置信水平、z 值和 `bonferroni_one_sided_wilson` 方法。
+
+该修正控制的是阈值候选集合上的近似家族错误率，不解决 calibration episodes 之间共享隐藏规则造成的聚类相关性，也不是分布漂移保证。
