@@ -119,8 +119,10 @@ class CSGGCRAtomicIngestionTests(unittest.TestCase):
           "body":{"evidence":_evidence_to_dict(safe)}},expected_sequence=0)
         self.ledger=PersistentLifecycleLedger(self.memory,scope="csg-gcr/project")
         with self.assertRaises(LifecyclePersistenceError):
-            self.ledger.register_candidate_bundle(self.result and
-              adapt_typed_candidate(self.result,scope="world/test",grammar_version="v1").native_candidate,(safe,))
+            self.ledger.register_candidate_bundle(
+              adapt_typed_candidate(self.result,scope="world/test",grammar_version="v1").native_candidate,
+              (safe,),
+            )
 
 
 def resolve_for_test(store, ref):
