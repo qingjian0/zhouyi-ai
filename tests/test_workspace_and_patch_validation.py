@@ -30,7 +30,10 @@ class WorkspaceManagerTests(unittest.TestCase):
             outside.mkdir()
             workspace = manager.create("task")
             workspace.path.rmdir()
-            workspace.path.symlink_to(outside, target_is_directory=True)
+            try:
+                workspace.path.symlink_to(outside, target_is_directory=True)
+            except (OSError, NotImplementedError) as exc:
+                self.skipTest(f"symlink creation unavailable on this platform: {exc}")
             with self.assertRaisesRegex(ValueError, "symlink"):
                 manager.cleanup(workspace)
 
@@ -75,6 +78,12 @@ class PatchValidatorTests(unittest.TestCase):
                 + "--- a/a.txt\n+++ b/a.txt\n@@ -1 +1 @@\n-a\n+b\n"
             )
             with self.subTest(marker=marker), self.assertRaises(ValueError):
+                self.validator.validate(patch)
+
+    def test_rejects_windows_drive_ads_and_reserved_names(self):
+        for path in ("a/C:/Windows/system.ini", "a/file:stream", "a/NUL.txt", "a/trailing."):
+            patch = f"--- {path}\\n+++ b/ok.txt\\n@@ -1 +1 @@\\n-x\\n+y\\n"
+            with self.subTest(path=path), self.assertRaises(ValueError):
                 self.validator.validate(patch)
 
     def test_rejects_duplicate_paths_and_limits(self):
