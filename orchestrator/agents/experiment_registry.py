@@ -8,6 +8,7 @@ import hashlib
 import json
 import math
 import sqlite3
+from contextlib import contextmanager
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -154,7 +155,7 @@ class ExperimentRegistry:
     def __init__(self, path: str | Path) -> None:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        with self._connect() as db:
+        with self._session() as db:
             db.execute("""
                 CREATE TABLE IF NOT EXISTS experiments (
                     experiment_id TEXT PRIMARY KEY,
@@ -169,6 +170,16 @@ class ExperimentRegistry:
         db = sqlite3.connect(self.path, timeout=10.0)
         db.execute("PRAGMA busy_timeout = 10000")
         return db
+
+    @contextmanager
+    def _session(self):
+        """Commit/rollback transaction and always close the SQLite connection."""
+        db = self._connect()
+        try:
+            with db:
+                yield db
+        finally:
+            db.close()
 
     @staticmethod
     def _digest(payload: str) -> str:
