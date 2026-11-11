@@ -77,3 +77,8 @@ claims are truthful. Retain source observations and raw run logs for audit.
 - A favorable interval is not by itself proof of a theory.
 - A complete research decision still needs preregistration, multiple-testing
   control, power analysis, replication, and expert review.
+
+
+## Sign convention
+
+Every effect is computed as treatment minus baseline. `metric_direction` indicates whether higher or lower values are desirable; it never changes the numeric sign. Hypotheses must predict the raw numeric direction.
