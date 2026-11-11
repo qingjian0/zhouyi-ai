@@ -13,13 +13,18 @@ from prototype.e13_contextual_observation import (
 
 
 def system(name, a_outcome, b_outcome):
+    rules = []
+    for state in ("s", "u", "v"):
+        rules.append(ContextualTransitionRule(
+            (("mode", "fixed"),), "a", (("x", state),),
+            (((("x", a_outcome),), Fraction(1)),),
+        ))
+        rules.append(ContextualTransitionRule(
+            (("mode", "fixed"),), "b", (("x", state),),
+            (((("x", b_outcome),), Fraction(1)),),
+        ))
     return ContextualProbabilisticTransitionSystem(
-        name, ("x",), ("mode",), ("a", "b"), (
-            ContextualTransitionRule((("mode", "fixed"),), "a", (("x", "s"),),
-                ((((("x", a_outcome)),), Fraction(1)),)),
-            ContextualTransitionRule((("mode", "fixed"),), "b", (("x", "s"),),
-                ((((("x", b_outcome)),), Fraction(1)),)),
-        ),
+        name, ("x",), ("mode",), ("a", "b"), tuple(rules)
     )
 
 
@@ -65,7 +70,7 @@ class E13ContextualObservationTests(unittest.TestCase):
             candidates, (self.query,), self.initial, self.context
         )
         self.assertEqual(result.status, "SELECTED")
-        self.assertEqual(result.selected.pairwise_observation_tv_disagreement, Fraction(1))
+        self.assertEqual(result.selected.pairwise_observation_tv_disagreement, Fraction(1, 2))
 
     def test_joint_candidates_can_be_separated_by_sensor_choice(self):
         left, right = system("left", "u", "u"), system("right", "u", "v")
@@ -87,7 +92,7 @@ class E13ContextualObservationTests(unittest.TestCase):
             candidates, queries, self.initial, self.context
         )
         self.assertEqual(result.selected.query_id, "fine-query")
-        self.assertEqual(result.selected.pairwise_observation_tv_disagreement, Fraction(1))
+        self.assertEqual(result.selected.pairwise_observation_tv_disagreement, Fraction(1, 2))
 
     def test_missing_observation_support_is_unknown(self):
         incomplete = channel("incomplete", (("s", "s"), ("u", "u")))
