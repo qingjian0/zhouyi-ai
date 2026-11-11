@@ -103,3 +103,16 @@ Runner 的 aggregate 新增：
 2. 各表示虽然共享 hidden-size 选择预算，但不同编码维度带来的参数量、优化难度和训练更新效率仍不同；必须同时展示参数量与 wall-clock。
 3. 单一 validation split 既选择表示又校准拒绝阈值，会增加选择噪声。后续应引入 validation 内部拆分或 nested validation：一部分负责 family selection，另一部分负责 abstention calibration，outer locked-test 只做一次最终评估。
 4. Wilson 上界是单侧二项近似区间；对 episode 内相关 Query、重复使用验证集或分布漂移不构成保证。当前独立性单位尚需从 query 提升为 episode/规则族层级的 cluster-aware 风险估计。
+
+
+### TX-02D-2B：按 Episode 聚类的拒绝风险
+
+新增 episode-level 校准，避免把同一 episode 中多个相关 Query 当作独立伯努利样本：
+
+- 一个 episode 的置信度定义为该 episode 所有 Query 的 top-label confidence 最小值。
+- 一个 episode 只有在所有 Query 都预测正确时才记为成功；任一 Query 错误则记为 episode error。
+- 阈值以 episode 为统计单位，通过单侧 Wilson 上界限制 episode error risk。
+- 应用阈值时整组接受或整组 DEFER，不拆分同一 episode 内的 Query。
+- 原 query-level selective risk 仍保留为诊断指标；episode-level 风险是更保守、相关性处理更合理的主要指标。
+
+这避免了 episode 内 query 伪独立，但不同 episode 仍可能共享规则族或其他生成因素；后续需要按隐藏规则族聚类或使用规则族级外层重采样。Wilson 上界仍不是分布漂移保证。
