@@ -5,7 +5,7 @@ import json
 from datetime import datetime
 from dataclasses import dataclass, replace
 from threading import RLock
-from typing import Any
+from typing import Any, Mapping
 from prototype.e12a6_lifecycle_contract import Action, ActionType, Candidate, CandidateState, Evidence, LifecycleLedger, SplitRole
 from prototype.e09_verification_receipt import VerifiedE09VerificationReceipt
 from prototype.zpcm_memory import ZPCMMemory
