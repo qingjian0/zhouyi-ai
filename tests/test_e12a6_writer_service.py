@@ -222,27 +222,36 @@ class E12A6WriterServiceTests(unittest.TestCase):
         return reveal_ref
 
     def _make_proposals_and_snapshots(self):
-        x = VariableRef("world", "left-entity")
-        y = VariableRef("world", "right-entity")
+        x, y, z = (
+            VariableRef("world", "left-entity"),
+            VariableRef("world", "shared-entity"),
+            VariableRef("world", "right-entity"),
+        )
         left_edge = HyperedgeProposal(
             "edge-left", "parent-writer", "left", "supports",
-            (RoleBinding("subject", x, "entity-left", "Entity"),),
+            (
+                RoleBinding("source", x, "entity-left", "Entity"),
+                RoleBinding("target", y, "entity-shared", "Entity"),
+            ),
             (self.proposal_ref,),
         )
         right_edge = HyperedgeProposal(
-            "edge-right", "parent-writer", "right", "supports",
-            (RoleBinding("subject", y, "entity-right", "Entity"),),
+            "edge-right", "parent-writer", "right", "amplifies",
+            (
+                RoleBinding("source", y, "entity-shared", "Entity"),
+                RoleBinding("target", z, "entity-right", "Entity"),
+            ),
             (self.proposal_ref,),
         )
         left = TypedCandidateProposal(
             CandidateProposal("edge-left", "parent-writer", "left", (), (self.proposal_ref,),
                               score=2.0, candidate_kind="supports"),
-            left_edge, (VariableSpec(x, "Entity"),),
+            left_edge, (VariableSpec(x, "Entity"), VariableSpec(y, "Entity")),
         )
         right = TypedCandidateProposal(
             CandidateProposal("edge-right", "parent-writer", "right", (), (self.proposal_ref,),
-                              score=1.0, candidate_kind="supports"),
-            right_edge, (VariableSpec(y, "Entity"),),
+                              score=1.0, candidate_kind="amplifies"),
+            right_edge, (VariableSpec(y, "Entity"), VariableSpec(z, "Entity")),
         )
         base = {"node:left": {"value": 0}, "node:right": {"value": 0}}
         left_delta = BranchDelta(
