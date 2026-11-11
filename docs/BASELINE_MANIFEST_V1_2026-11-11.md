@@ -174,3 +174,13 @@ This closes the evidence-reference verification slice only. It does not authenti
 PR #228 adds a ZPCM all-new/all-replayed batch append contract and stages the candidate plus verified evidence on an E12-A6 ledger copy. It commits the full event bundle in one SQLite transaction, then swaps the staged ledger. Tests include second-insert rollback and crash-after-batch-commit replay. Cross-branch candidates are explicitly rejected until E09 authorization issuer verification exists.
 
 The P1 runtime now has a tested single-branch path from typed CSG-GCR proposal evidence references through E09 strict reveal verification, E12-A6 candidate/evidence registration, and ZPCM atomic persistence/replay. This remains a trusted single-process reference path; it is not a production multi-process or distributed transaction system. All PRs remain Draft and unmerged.
+
+
+## End-to-end lifecycle verification
+
+| PR | Exact head | Base | Exact-head workflow | Status |
+|---|---|---|---|---|
+| [#228](https://github.com/qingjian0/zhouyi-ai/pull/228) | `8edf52c3ee83bc8063d14d249a2edc7676f1e9d8` | #227 head `6a4b0dce8dd1255daaa613a2649796a07e37de85` | `43040120573` success | Draft; atomic CSG-GCR + E09 evidence ingestion |
+| [#229](https://github.com/qingjian0/zhouyi-ai/pull/229) | `561ecc4e51c5d2af39139cb367ec0d430571ec38` | #228 head `8edf52c3ee83bc8063d14d249a2edc7676f1e9d8` | `43040339295` success | Draft; end-to-end lifecycle transitions and restart/replay |
+
+PR #229 validates the full single-branch lifecycle: OBSERVED → PROPOSED → DISCRIMINATION_PENDING → TRAIN_SUPPORTED → GATE_VALIDATED → CHALLENGED. SUPPORT-derived TRAIN evidence, GATE_FINAL, and LOCKED_TEST are used only for their intended transitions. A negative test confirms GATE_DEV cannot satisfy GATE_FINAL and that rejected transitions do not append events. Restart restores the exact lifecycle state and action history from ZPCM.
