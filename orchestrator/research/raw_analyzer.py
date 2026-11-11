@@ -2,8 +2,8 @@
 
 The analyzer accepts one observation per scheduled task and never infers missing
 results. It compares treatment and baseline on matched track/seed/split/control
-and resource-budget keys. Positive effects always mean improvement according
-to metric_direction; predicted_direction is evaluated separately downstream.
+and resource-budget keys. Effects always retain the raw treatment-minus-baseline
+sign; metric_direction describes desirability, not a sign-flipping transform.
 """
 from __future__ import annotations
 
@@ -245,10 +245,9 @@ def analyze_raw_observations(
                             for item in pair.values())
             continue
         treatment, baseline = pair[treatment_condition], pair[baseline_condition]
-        # Positive is always an improvement, independent of raw metric polarity.
-        delta = (treatment["value"] - baseline["value"]
-                 if metric_direction == "higher"
-                 else baseline["value"] - treatment["value"])
+        # Preserve the conventional raw estimand: treatment minus baseline.
+        # Whether a positive effect is desirable is determined by metric_direction.
+        delta = treatment["value"] - baseline["value"]
         groups[(track, split, control, parameter_count, compute_budget)].append({
             "seed": seed, "delta": delta,
             "task_ids": [treatment["task_id"], baseline["task_id"]],

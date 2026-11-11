@@ -32,14 +32,17 @@ parameter count and compute budget match exactly. No interpolation or
 imputation is performed. Failed, missing, non-contrast and unmatched tasks
 are recorded as exclusions or missing IDs.
 
-The reported effect is oriented so positive means improvement:
+The reported effect always preserves the conventional raw estimand:
+`treatment metric - baseline metric`. It is never sign-flipped.
 
-- higher-is-better: treatment minus baseline
-- lower-is-better: baseline minus treatment
+- higher-is-better: a positive effect is desirable
+- lower-is-better: a negative effect is desirable
 
-The raw metric polarity (`metric_direction`) is distinct from the hypothesis
-effect direction (`effect_direction`). The evidence evaluator consumes the
-latter.
+The raw metric polarity (`metric_direction`) describes desirability; the
+hypothesis effect direction (`effect_direction`) describes the predicted
+numeric sign of treatment-minus-baseline. The evidence evaluator consumes the
+latter. A hypothesis predicting improved latency should therefore predict a
+negative effect, not a positive one.
 
 ## Statistics
 

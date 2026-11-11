@@ -81,7 +81,7 @@ class RawAnalyzerTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "duplicate task ID"):
             self.analyze(manifest=self.manifest + [self.manifest[0]])
 
-    def test_lower_is_better_reverses_delta(self):
+    def test_lower_is_better_preserves_raw_metric_sign(self):
         obs = [dict(x, metric="latency", metric_value=100 if x["task_id"].startswith("baseline") else 80)
                for x in self.observations]
         result = analyze_raw_observations(
@@ -89,7 +89,7 @@ class RawAnalyzerTests(unittest.TestCase):
             treatment_condition="treatment", baseline_condition="baseline",
             metric="latency", metric_direction="lower",
         )
-        self.assertGreater(result["evidence_rows"][0]["effect_mean"], 0)
+        self.assertLess(result["evidence_rows"][0]["effect_mean"], 0)
 
     def test_failed_tasks_are_not_used(self):
         obs = [dict(x) for x in self.observations]
