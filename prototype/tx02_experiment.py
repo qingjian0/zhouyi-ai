@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import random
 import statistics
 import time
 from dataclasses import asdict
@@ -16,10 +15,11 @@ from typing import Iterable
 
 from prototype.tx02_identifiability import audit_episode
 from prototype.tx02_learners import SetConditionedMLPLearner
+from prototype.tx02_state_encoders import build_codebook
 from prototype.tx02_multistate_benchmark import episode_to_dict
 from prototype.tx02_splits import EvaluationEpisode, make_rule_disjoint_splits
 
-FAMILIES = ("BINARY", "TERNARY", "HYBRID", "ONE_HOT", "LEARNED", "PERMUTED")
+FAMILIES = ("BINARY", "TERNARY", "HYBRID", "ONE_HOT", "LEARNED", "FIXED_RANDOM", "PERMUTED")
 
 
 def _metrics(predictions: list[tuple[int, ...]], episodes: Iterable[EvaluationEpisode],
@@ -72,8 +72,35 @@ def _metrics(predictions: list[tuple[int, ...]], episodes: Iterable[EvaluationEp
     }
 
 
+def model_parameter_count(family: str, cardinality: int, hidden_size: int,
+                           embedding_dim: int = 6) -> int:
+    if family in ("LEARNED", "FIXED_RANDOM"):
+        feature_dim = embedding_dim
+    else:
+        code_family = "PERMUTED" if family == "PERMUTED" else family
+        feature_dim = build_codebook(cardinality, code_family).dimension
+    trainable_embedding_count = cardinality * embedding_dim if family == "LEARNED" else 0
+    return trainable_embedding_count + hidden_size * (6 * feature_dim + 2) + 1
+
+
+def choose_hidden_size_for_budget(family: str, cardinality: int, target_parameters: int,
+                                  embedding_dim: int = 6,
+                                  max_hidden_size: int = 4096) -> tuple[int, int]:
+    if type(target_parameters) is not int or target_parameters < 1:
+        raise ValueError("target_parameters must be a positive integer")
+    candidates = [
+        (model_parameter_count(family, cardinality, hidden, embedding_dim), hidden)
+        for hidden in range(1, max_hidden_size + 1)
+    ]
+    # Prefer the largest model that does not exceed the target; if impossible,
+    # use the smallest model and expose the mismatch in the report.
+    under = [(count, hidden) for count, hidden in candidates if count <= target_parameters]
+    count, hidden = max(under, key=lambda pair: pair[0]) if under else min(candidates)
+    return hidden, count
+
+
 def run_condition(cardinality: int, support_size: int, seed: int,
-                  episodes_per_rule: int, epochs: int, hidden_size: int) -> dict:
+                  episodes_per_rule: int, epochs: int, hidden_size: int,\n                  parameter_matched: bool = True, parameter_budget: int | None = None) -> dict:
     splits = make_rule_disjoint_splits(
         cardinality=cardinality,
         episodes_per_rule=episodes_per_rule,
@@ -141,13 +168,13 @@ def aggregate_runs(runs: list[dict]) -> dict:
 
 def run_sweep(cardinalities: tuple[int, ...] = (3,), support_sizes: tuple[int, ...] = (2, 4, 8),
               seeds: tuple[int, ...] = (11, 29, 47), episodes_per_rule: int = 1,
-              epochs: int = 5, hidden_size: int = 24) -> dict:
+              epochs: int = 5, hidden_size: int = 24,\n              parameter_matched: bool = True, parameter_budget: int | None = None) -> dict:
     conditions = []
     for k in cardinalities:
         for support in support_sizes:
             if not 1 <= support < k * k:
                 raise ValueError(f"support_size must be in [1, K*K): K={k}, support={support}")
-            runs = [run_condition(k, support, seed, episodes_per_rule, epochs, hidden_size)
+            runs = [run_condition(k, support, seed, episodes_per_rule, epochs, hidden_size,\n                                      parameter_matched, parameter_budget)
                     for seed in seeds]
             conditions.append({
                 "cardinality": k, "support_size": support,
@@ -159,14 +186,14 @@ def run_sweep(cardinalities: tuple[int, ...] = (3,), support_sizes: tuple[int, .
         "configuration": {
             "cardinalities": list(cardinalities), "support_sizes": list(support_sizes),
             "seeds": list(seeds), "episodes_per_rule": episodes_per_rule,
-            "epochs": epochs, "hidden_size": hidden_size,
+            "epochs": epochs, "hidden_size": hidden_size,\n            "parameter_matched": parameter_matched, "parameter_budget": parameter_budget,
         },
         "conditions": conditions,
         "interpretation_limits": [
             "Locked-test scores are descriptive for this finite affine rule generator only.",
             "Rule coefficients are disjoint across train, validation and locked-test.",
             "Posterior audit is exact only within the TX-02A affine hypothesis class and its stated uniform prior.",
-            "Parameter counts and wall-clock time are reported; this initial sweep is not parameter- or compute-matched.",
+            "Parameter matching is approximate: each family chooses the largest hidden size under a shared parameter budget; parameter deltas are reported. This is not compute matching.",\n            "FIXED_RANDOM and LEARNED share the same embedding dimension and initialization distribution; only LEARNED updates the embedding table.",
             "Validation is reported but no hyperparameter search or test-driven model selection is performed.",
             "Results do not establish natural-language or general-intelligence capability.",
         ],
@@ -180,12 +207,12 @@ def main() -> None:
     parser.add_argument("--seeds", type=int, nargs="+", default=[11, 29, 47])
     parser.add_argument("--episodes-per-rule", type=int, default=1)
     parser.add_argument("--epochs", type=int, default=5)
-    parser.add_argument("--hidden-size", type=int, default=24)
+    parser.add_argument("--hidden-size", type=int, default=24)\n    parser.add_argument("--no-parameter-match", action="store_true")\n    parser.add_argument("--parameter-budget", type=int, default=None)
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
     result = run_sweep(tuple(args.cardinalities), tuple(args.support_sizes),
                        tuple(args.seeds), args.episodes_per_rule,
-                       args.epochs, args.hidden_size)
+                       args.epochs, args.hidden_size,\n                       not args.no_parameter_match, args.parameter_budget)
     print(json.dumps(result, ensure_ascii=False, indent=2) if args.json else {
         "protocol": result["protocol"], "configuration": result["configuration"],
         "conditions": [{
