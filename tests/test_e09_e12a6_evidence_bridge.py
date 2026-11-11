@@ -6,8 +6,9 @@ from pathlib import Path
 from prototype.e12a6_lifecycle_contract import SplitRole
 from prototype.e12a6_zpcm_persistence import PersistentLifecycleLedger
 from prototype.e09_e12a6_evidence_bridge import (
+    AUTHORIZATION_AUDIENCE, AUTHORIZATION_SIGNATURE_VERSION,
     E09EvidenceBindingError, register_e09_reveal, resolve_e09_reveal,
-    resolve_branch_merge_authorization,
+    branch_merge_authorization_signing_bytes, resolve_branch_merge_authorization,
 )
 from prototype.shared_evidence_protocol import STRICT_PROTOCOL_VERSION, SQLiteEvidenceStore
 from prototype.zpcm_memory import ZPCMMemory
@@ -123,6 +124,7 @@ class E09EvidenceBridgeTests(unittest.TestCase):
     def add_branch_authorization(self, evidence_ref, *, signature="sig-ok", branches=None):
         branches = ["left", "right"] if branches is None else branches
         event_id = "authorization-1"
+        sequence = self.e09.replay_episode(self.episode)[-1]["sequence_no"] + 1
         payload = {
             "authorization_id": event_id,
             "issuer_id": "issuer-1",
@@ -132,14 +134,30 @@ class E09EvidenceBridgeTests(unittest.TestCase):
             "evidence_refs": [evidence_ref],
             "issued_at": "2026-11-11T00:00:00+00:00",
             "expires_at": "2026-11-12T00:00:00+00:00",
-            "signature_algorithm": "ed25519",
+            "signature_algorithm": "Ed25519",
+            "signature_version": AUTHORIZATION_SIGNATURE_VERSION,
+            "audience": AUTHORIZATION_AUDIENCE,
+            "authorization_sequence": sequence,
             "signature": signature,
+        }
+        signing_event = {
+            "episode_id": self.episode,
+            "event_id": event_id,
+            "event_type": "branch_merge_authorization",
+            "protocol_version": STRICT_PROTOCOL_VERSION,
+            "payload_schema": "branch_merge_authorization@2",
+            "actor_role": "authorizer",
+            "causation_refs": [evidence_ref],
+            "integrity_metadata": {},
+            "payload": payload,
         }
         self.e09.append_event(
             episode_id=self.episode, event_id=event_id,
             event_type="branch_merge_authorization", idempotency_key=event_id,
             actor_role="authorizer", causation_refs=[evidence_ref],
-            payload=payload, protocol_version=STRICT_PROTOCOL_VERSION,
+            payload=payload, payload_schema="branch_merge_authorization@2",
+            integrity_metadata={}, expected_sequence=sequence - 1,
+            protocol_version=STRICT_PROTOCOL_VERSION,
         )
         return event_id
 
@@ -149,7 +167,7 @@ class E09EvidenceBridgeTests(unittest.TestCase):
         calls = []
         def verifier(issuer_id, algorithm, message, signature):
             calls.append((issuer_id, algorithm, message, signature))
-            return issuer_id == "issuer-1" and algorithm == "ed25519" and signature == "sig-ok"
+            return issuer_id == "issuer-1" and algorithm == "Ed25519" and signature == "sig-ok"
         permit = resolve_branch_merge_authorization(
             self.e09, episode_id=self.episode, authorization_ref=authorization_ref,
             parent_state_ref="parent-1", branch_ids=("left", "right"),
@@ -164,6 +182,7 @@ class E09EvidenceBridgeTests(unittest.TestCase):
         self.assertEqual(permit.verifier_id, "pinned-ed25519-keyring-v1")
         self.assertEqual(len(calls), 1)
         self.assertIn(b"parent_state_ref", calls[0][2])
+        self.assertIn(b"zhouyi:e09:branch-merge:v2", calls[0][2])
 
     def test_branch_merge_authorization_rejects_bad_signature_and_wrong_scope(self):
         evidence_ref = self.add_reveal()
