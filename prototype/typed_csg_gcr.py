@@ -7,7 +7,17 @@ persistence. Typed feasibility is checked before a candidate set is emitted.
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
-from typing import Iterable
+from typing import Iterable, Mapping
+
+from prototype.csg_branch_delta import (
+    BranchMergeAuthorization,
+    BranchSnapshot,
+    MergeResult,
+    MergeStatus,
+    canonical_hash,
+    merge_branch_deltas,
+    validate_merge_authorization,
+)
 
 from prototype.csg_gcr_coordinator import (
     CandidateCoordinator,
@@ -40,6 +50,8 @@ class TypedCandidateProposal:
 class TypedCoordinatedCandidate:
     coordinated: CoordinatedCandidate
     unification: UnificationResult
+    branch_merge: MergeResult | None = None
+    branch_merge_authorization_ref: str | None = None
 
 
 @dataclass(frozen=True)
@@ -51,6 +63,7 @@ class TypedCoordinationReport:
     rejected_typed_sets: int
     status: str
     pruned_partial_sets: int = 0
+    rejected_branch_merges: int = 0
 
 
 def _validate_pair(item: TypedCandidateProposal) -> None:
@@ -214,6 +227,10 @@ class TypedCandidateCoordinator:
         self,
         proposals: Iterable[TypedCandidateProposal],
         constraints: GlobalConstraints = GlobalConstraints(),
+        *,
+        base_state: Mapping[str, object] | None = None,
+        branch_snapshots: Iterable[BranchSnapshot] = (),
+        branch_merge_authorization: BranchMergeAuthorization | None = None,
     ) -> TypedCoordinationReport:
         if not isinstance(constraints, GlobalConstraints):
             raise CoordinationError("constraints must be GlobalConstraints")
@@ -225,18 +242,73 @@ class TypedCandidateCoordinator:
             raise CoordinationError("typed proposal IDs must be unique")
 
         by_id = {row.proposal.proposal_id: row for row in rows}
+        snapshots = tuple(branch_snapshots)
+        snapshot_by_branch: dict[str, BranchSnapshot] = {}
+        if snapshots:
+            if base_state is None or not isinstance(base_state, Mapping):
+                raise CoordinationError("branch snapshots require an explicit base_state mapping")
+            try:
+                base_digest = canonical_hash(base_state)
+            except ValueError as exc:
+                raise CoordinationError("base_state must be finite JSON-compatible data") from exc
+            for snapshot in snapshots:
+                if not isinstance(snapshot, BranchSnapshot):
+                    raise CoordinationError("branch_snapshots must contain BranchSnapshot")
+                if snapshot.branch_id in snapshot_by_branch:
+                    raise CoordinationError("branch snapshot IDs must be unique")
+                snapshot_by_branch[snapshot.branch_id] = snapshot
+            proposal_branches = {row.proposal.branch_id for row in rows}
+            if set(snapshot_by_branch) != proposal_branches:
+                raise CoordinationError("provide exactly one branch snapshot for every proposal branch")
+            for row in rows:
+                snapshot = snapshot_by_branch[row.proposal.branch_id]
+                if snapshot.parent_state_ref != row.proposal.parent_state_ref:
+                    raise CoordinationError("branch snapshot parent does not match its proposal")
+                if snapshot.parent_state_hash != base_digest:
+                    raise CoordinationError("branch snapshot digest does not match supplied base_state")
+            if len(snapshot_by_branch) > 1:
+                if branch_merge_authorization is None:
+                    raise CoordinationError("cross-branch composition requires an E09 authorization receipt")
+                parent_refs = {row.proposal.parent_state_ref for row in rows}
+                if len(parent_refs) != 1:
+                    raise CoordinationError("cross-branch composition requires one shared parent state")
+                try:
+                    validate_merge_authorization(
+                        branch_merge_authorization,
+                        next(iter(parent_refs)),
+                        tuple(sorted(snapshot_by_branch)),
+                    )
+                except ValueError as exc:
+                    raise CoordinationError(str(exc)) from exc
+        elif base_state is not None or branch_merge_authorization is not None:
+            raise CoordinationError("base_state and merge authorization require branch_snapshots")
+
+        def selected_branch_snapshots(selected_proposals: tuple[CandidateProposal, ...]):
+            return tuple(snapshot_by_branch[branch_id] for branch_id in sorted({
+                proposal.branch_id for proposal in selected_proposals
+            }))
+
         # Every typed candidate is represented by exactly one immutable edge.
         def partial_feasibility(selected_proposals: tuple[CandidateProposal, ...]) -> bool:
             selected_rows = tuple(by_id[item.proposal_id] for item in selected_proposals)
-            return _partial_typed_feasible(selected_rows)
+            if not _partial_typed_feasible(selected_rows):
+                return False
+            if snapshots:
+                merge = merge_branch_deltas(base_state, selected_branch_snapshots(selected_proposals))
+                if merge.status not in (MergeStatus.MERGED, MergeStatus.NO_OP):
+                    return False
+            return True
 
         raw = self._coordinator.coordinate(
             (row.proposal for row in rows),
             replace(constraints, result_limit=constraints.max_states),
-            partial_feasibility=partial_feasibility if self._enable_partial_pruning else None,
+            partial_feasibility=partial_feasibility if (
+                self._enable_partial_pruning and (snapshots or rows)
+            ) else None,
         )
         accepted = []
         rejected_typed = 0
+        rejected_branch_merges = 0
         for candidate in raw.candidates:
             selected = tuple(by_id[proposal_id] for proposal_id in candidate.proposal_ids)
             try:
@@ -252,7 +324,20 @@ class TypedCandidateCoordinator:
             # The unifier is the authority for typed evidence provenance.
             if result.evidence_refs != candidate.evidence_refs:
                 raise CoordinationError("typed and coordinator evidence provenance diverged")
-            accepted.append(TypedCoordinatedCandidate(candidate, result))
+            branch_merge = None
+            authorization_ref = None
+            if snapshots:
+                branch_merge = merge_branch_deltas(
+                    base_state, selected_branch_snapshots(tuple(row.proposal for row in selected))
+                )
+                if branch_merge.status not in (MergeStatus.MERGED, MergeStatus.NO_OP):
+                    rejected_branch_merges += 1
+                    continue
+                if len({row.proposal.branch_id for row in selected}) > 1:
+                    authorization_ref = branch_merge_authorization.authorization_ref
+            accepted.append(TypedCoordinatedCandidate(
+                candidate, result, branch_merge, authorization_ref
+            ))
 
         accepted.sort(key=lambda item: (
             -item.coordinated.score,
@@ -272,4 +357,5 @@ class TypedCandidateCoordinator:
                 else "NO_FEASIBLE_SET"
             ),
             pruned_partial_sets=raw.pruned_partial_sets,
+            rejected_branch_merges=rejected_branch_merges,
         )
