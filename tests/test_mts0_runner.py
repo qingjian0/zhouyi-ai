@@ -5,6 +5,7 @@ from prototype.mts0_runner import (
     EvidenceLedger,
     EvidenceSplit,
     run_mts0,
+    run_mts0_multiseed,
 )
 
 
@@ -117,6 +118,26 @@ class MTS0RunnerTests(unittest.TestCase):
         self.assertEqual(audit["evaluator_visible_locked_test_reveals"], 40)
         self.assertTrue(audit["prediction_batch_sealed_before_reveal"])
         self.assertTrue(audit["all_predictions_committed_before_reveal"])
+
+    def test_multiseed_runner_reports_mean_stddev_and_audits(self):
+        result = run_mts0_multiseed(
+            start_seed=20,
+            seed_count=3,
+            train_count=80,
+            locked_test_count=30,
+            epochs=30,
+        )
+        self.assertEqual(result["seed_count"], 3)
+        self.assertEqual(len(result["per_seed"]), 3)
+        self.assertIn("sample_stddev", result["summary"]["exact_match"])
+        self.assertTrue(all(
+            row["audit"]["all_predictions_committed_before_reveal"]
+            for row in result["per_seed"]
+        ))
+
+    def test_multiseed_requires_at_least_two_seeds(self):
+        with self.assertRaisesRegex(ValueError, "at least 2"):
+            run_mts0_multiseed(seed_count=1, train_count=5, locked_test_count=2)
 
     def test_runner_is_reproducible(self):
         first = run_mts0(seed=9, train_count=80, locked_test_count=30, epochs=30)
