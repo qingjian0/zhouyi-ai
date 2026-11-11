@@ -10,7 +10,6 @@ from prototype.e12a6_writer_runtime import (
     E12A6WriterRuntime,
     E12A6WriterRuntimeError,
 )
-from prototype.e12a6_writer_service import E12A6AuthenticatedWorkload
 
 
 class _Authenticator:
