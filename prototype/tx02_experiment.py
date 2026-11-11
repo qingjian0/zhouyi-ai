@@ -30,6 +30,7 @@ def _metrics(predictions: list[tuple[int, ...]], episodes: Iterable[EvaluationEp
     identifiable_correct = identifiable_total = 0
     bayes_sum = 0.0
     audited = 0
+    audited_query_count = 0
     for prediction, episode in zip(predictions, rows):
         episode_correct = True
         for qi, (guess, target) in enumerate(zip(prediction, episode.targets)):
@@ -51,6 +52,7 @@ def _metrics(predictions: list[tuple[int, ...]], episodes: Iterable[EvaluationEp
                     audited += 1
                     for qresult in audit["queries"]:
                         bayes_sum += qresult["bayes_optimal_accuracy"]
+                        audited_query_count += 1
                         if qresult["answer_identifiable"]:
                             qindex = qresult["query_index"]
                             identifiable_total += 1
@@ -64,9 +66,10 @@ def _metrics(predictions: list[tuple[int, ...]], episodes: Iterable[EvaluationEp
         ),
         "identifiable_query_count": identifiable_total,
         "mean_exact_posterior_bayes_accuracy": (
-            bayes_sum / (sum(len(e.inputs.queries) for e in rows)) if audited else None
+            bayes_sum / audited_query_count if audited_query_count else None
         ),
         "audited_episodes": audited,
+        "audited_query_count": audited_query_count,
         "query_count": total,
         "uniform_chance_accuracy": 1.0 / cardinality,
     }
