@@ -10,20 +10,6 @@ from prototype.e13_contextual_stochastic import (
 
 
 class E13ContextualMechanismTests(unittest.TestCase):
-    def _system(self, name, state_var, context_var, action, context_value,
-                next_low, next_high):
-        return ContextualProbabilisticTransitionSystem(name, (state_var,), (context_var,),
-            (action,), (
-                ContextualTransitionRule(((context_var, context_value),), action,
-                    ((state_var, "low"),), (
-                        (((state_var, next_low),), Fraction(1, 1)),
-                    )),
-                ContextualTransitionRule(((context_var, context_value),), action,
-                    ((state_var, "high"),), (
-                        (((state_var, next_high),), Fraction(1, 1)),
-                    )),
-            ))
-
     def test_same_state_action_has_context_dependent_transition(self):
         system = ContextualProbabilisticTransitionSystem("conditional", ("x",), ("weather",),
             ("act",), (
@@ -98,10 +84,13 @@ class E13ContextualMechanismTests(unittest.TestCase):
         report = validate_contextual_trajectory(source, target, mapping, wrong)
         self.assertEqual(report.status, "UNKNOWN_CONTEXT_ALIGNMENT")
 
-    def test_missing_context_support_is_unknown(self):
+    def test_missing_contextual_transition_support_is_unknown(self):
         source, target, mapping, case = self._mapped_systems()
         partial = ContextualProbabilisticTransitionSystem("partial", ("charge",), ("regime",),
-            ("drive",), ())
+            ("drive",), (
+                ContextualTransitionRule((("regime", "warm"),), "drive", (("charge", "full"),),
+                    (((("charge", "full"),), Fraction(1)),)),
+            ))
         report = validate_contextual_trajectory(source, partial, mapping, case)
         self.assertEqual(report.status, "UNKNOWN_TARGET_CONTEXT_SUPPORT")
 
