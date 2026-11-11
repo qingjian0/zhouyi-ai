@@ -2,7 +2,7 @@ import unittest
 
 from prototype.csg_gcr_coordinator import CandidateProposal, CoordinationError, GlobalConstraints
 from prototype.csg_branch_delta import (
-    BranchDelta, BranchMergeAuthorization, BranchSnapshot, DeltaOperation,
+    BranchDelta, BranchMergeAuthorization, VerifiedBranchMergeAuthorization, BranchSnapshot, DeltaOperation,
     MergeStatus, canonical_hash,
 )
 from prototype.typed_csg_gcr import (
@@ -150,6 +150,13 @@ class TypedCSGBridgeTests(unittest.TestCase):
             "s0", canonical_hash(base), branch, 0, (event,), (),
             (target,), (f"derivation:{branch}",), ("root", branch),
         )
+
+    def test_verified_authorization_capability_cannot_be_constructed_directly(self):
+        with self.assertRaisesRegex(TypeError, "must come from the E09 verifier"):
+            VerifiedBranchMergeAuthorization(
+                "fake", "s0", ("left", "right"), ("fake-evidence",),
+                "issuer", "a" * 64, "fake-keyring",
+            )
 
     def test_unverified_scope_receipt_is_rejected(self):
         base = {"node:a": {"value": 0}, "node:b": {"value": 0}}
