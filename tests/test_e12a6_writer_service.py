@@ -257,11 +257,11 @@ class E12A6WriterServiceTests(unittest.TestCase):
         )
         snapshots = (
             BranchSnapshot(
-                "parent-writer", canonical_hash(base), "left", 0, (left_delta,), (),
+                "parent-writer", canonical_hash(base), "left", 0, (left_delta,),
                 ("node:left",), ("node:left",), (self.branch_ref,), ("root", "left"),
             ),
             BranchSnapshot(
-                "parent-writer", canonical_hash(base), "right", 0, (right_delta,), (),
+                "parent-writer", canonical_hash(base), "right", 0, (right_delta,),
                 ("node:right",), ("node:right",), (self.branch_ref,), ("root", "right"),
             ),
         )
