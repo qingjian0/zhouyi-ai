@@ -81,3 +81,11 @@ PR #208 now provides a bounded R1 coordinator candidate, but its declared gaps r
 - The full tested transition path is OBSERVED → PROPOSED → DISCRIMINATION_PENDING → TRAIN_SUPPORTED → GATE_VALIDATED → CHALLENGED.
 - SUPPORT-derived TRAIN, GATE_FINAL, and LOCKED_TEST evidence remain distinct; GATE_DEV cannot satisfy GATE_FINAL.
 - Remaining gates: authenticated cross-branch authorization, OS-level evaluator/learner isolation, authenticated IPC, cross-process transactional outbox, and broader scientific/generalization validation. All integration PRs remain Draft and unmerged.
+
+
+## Lifecycle closure and cross-branch trust boundary (2026-11-11)
+
+- PR #229 exact head `561ecc4e51c5d2af39139cb367ec0d430571ec38`, workflow `43040339295`: success. End-to-end test covers candidate lifecycle transitions, split-role separation, raw-label redaction, and ZPCM restart/replay.
+- PR #230 exact head `541ba18d790fc2b713051d5489a7543e2205c3e1`, workflow `43050136136`: success. Cross-branch composition now requires a signed E09 authorization event verified through an injected trusted issuer keyring. Unsigned scope receipts fail closed.
+- Production security remains open: concrete public-key verifier deployment, key rotation/revocation, process isolation, authenticated IPC, and remote tamper-evident replication.
+- No large-scale language or joint cognition training yet. Next research gate is production-grade trust/process boundaries plus measurement of native composition quality, not parameter scaling.
