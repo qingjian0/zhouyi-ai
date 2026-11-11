@@ -1093,7 +1093,7 @@ The new runner connects the learner to E10's native ledger and the shared SQLite
 
 ### 20.4 Current validation
 
-PR #120 exact head `10368215a246c1d773048e7d260b2b8562fcebe9` has passed its unit-test step and the dedicated E10-A prequential experiment step in Run #42942627256 (https://github.com/qingjian0/zhouyi-ai/actions/runs/42942627256). The complete E01/E02 workflow was still running at the time of this note; do not claim full CI success yet.
+A static review found that passing the complete Query object table at every prediction step would expose future covariates. The runner now supplies only the current observation's participant records; a regression test verifies that a later observation referencing unseen object IDs cannot be evaluated with the current step's input. The updated exact head `cf78852ab0e3fdfe00dd493b9a7500a925f23ba8` has passed its unit-test step and the dedicated E10-A prequential experiment step in Run #42942890462 (https://github.com/qingjian0/zhouyi-ai/actions/runs/42942890462). The complete E01/E02 workflow is still running; do not claim full CI success yet.
 
 ### 20.5 Limits and next gates
 
