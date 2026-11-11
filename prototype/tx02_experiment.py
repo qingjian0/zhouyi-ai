@@ -1,8 +1,8 @@
-"""TX-02B-4 reproducible support-size and representation sweep.
+"""TX-02D reproducible support-size and representation sweep.
 
-The locked test is evaluated only after fitting on train and inspecting validation
-metrics. This runner records the exact affine-family audit beside model metrics;
-it does not claim compute-matched comparisons or representation superiority.
+The runner freezes validation-only selection and abstention before locked-test evaluation.
+It records compute proxies, calibration, exact affine-family audits and paired seed results;
+it does not claim representation superiority.
 """
 from __future__ import annotations
 
@@ -303,15 +303,44 @@ def aggregate_runs(runs: list[dict]) -> dict:
     adaptive_values = [
         r["adaptive_representation_locked_test"]["query_accuracy"] for r in runs
     ]
+    selected_families = [
+        r["validation_representation_selection"]["selected_family"] for r in runs
+    ]
     result["ADAPTIVE_VALIDATION_SELECTED"] = {
         "mean_query_accuracy": statistics.mean(adaptive_values),
         "stdev_query_accuracy": (
             statistics.stdev(adaptive_values) if len(adaptive_values) > 1 else 0.0
         ),
         "seed_count": len(adaptive_values),
-        "selected_families": [
-            r["validation_representation_selection"]["selected_family"] for r in runs
-        ],
+        "selected_families": selected_families,
+        "selection_frequency": {
+            family: selected_families.count(family) / len(selected_families)
+            for family in FAMILIES
+        },
+        "paired_differences_vs_fixed": {
+            family: {
+                "mean_accuracy_difference": statistics.mean([
+                    adaptive - fixed for adaptive, fixed in zip(
+                        adaptive_values,
+                        [r["families"][family]["locked_test"]["query_accuracy"] for r in runs],
+                    )
+                ]),
+                "stdev_accuracy_difference": (
+                    statistics.stdev([
+                        adaptive - r["families"][family]["locked_test"]["query_accuracy"]
+                        for adaptive, r in zip(adaptive_values, runs)
+                    ]) if len(runs) > 1 else 0.0
+                ),
+                "win_rate": sum(
+                    adaptive > r["families"][family]["locked_test"]["query_accuracy"]
+                    for adaptive, r in zip(adaptive_values, runs)
+                ) / len(runs),
+                "tie_rate": sum(
+                    adaptive == r["families"][family]["locked_test"]["query_accuracy"]
+                    for adaptive, r in zip(adaptive_values, runs)
+                ) / len(runs),
+            } for family in FAMILIES
+        },
     }
     return result
 
@@ -324,6 +353,12 @@ def run_sweep(cardinalities: tuple[int, ...] = (3,), support_sizes: tuple[int, .
               compute_matched: bool = False,
               forward_mac_budget: int | None = None,
               max_selective_risk: float = 0.20) -> dict:
+    if not cardinalities or not support_sizes or not seeds:
+        raise ValueError("cardinalities, support_sizes and seeds must be non-empty")
+    if len(set(seeds)) != len(seeds):
+        raise ValueError("seeds must be unique for independent outer-seed reporting")
+    if type(epochs) is not int or epochs < 1 or type(hidden_size) is not int or hidden_size < 1:
+        raise ValueError("epochs and hidden_size must be positive integers")
     conditions = []
     for k in cardinalities:
         for support in support_sizes:
