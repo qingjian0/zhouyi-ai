@@ -203,5 +203,14 @@ class E10AFiniteRelationalLearnerTests(unittest.TestCase):
         self.assertIsNone(result["prediction"])
 
 
+
+    def test_missing_context_schema_abstains_instead_of_predicting_negative(self):
+        learner = FiniteRelationalVersionSpace().fit(self.support)
+        row = copy.deepcopy(self.query["observations"][0])
+        row["context"] = []
+        result = learner.predict(row, self.objects_for(row))
+        self.assertEqual(result["decision_status"], "ABSTAIN_OOD_SCHEMA")
+        self.assertIsNone(result["prediction"])
+
 if __name__ == "__main__":
     unittest.main()
