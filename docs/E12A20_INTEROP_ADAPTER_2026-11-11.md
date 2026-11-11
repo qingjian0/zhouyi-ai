@@ -39,3 +39,8 @@ Focused tests cover:
 - BP inconsistency and budget exhaustion preservation.
 
 The shared contract is supplied by the parent CPG-EI v1 foundation branch. This PR is stacked and should be reviewed/merged only after that parent is available. No changes are made to `main`.
+
+
+## BP marginal preservation correction
+
+The adapter result now retains the original BP marginal tuple alongside the track-neutral `InferenceResult`. The shared DTO deliberately does not fabricate a joint hypothesis from marginals, but the adapter must not discard the marginal values themselves. Consumers can inspect per-variable distributions while still seeing `AMBIGUOUS` at the joint-hypothesis layer.
