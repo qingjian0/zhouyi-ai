@@ -13,9 +13,9 @@ class TypedHyperedgeUnifierTests(unittest.TestCase):
         self.y = VariableRef("worldline-A", "effect")
         self.z = VariableRef("worldline-A", "outcome")
         self.variables = (
-            VariableSpec(self.x, "Entity"),
-            VariableSpec(self.y, "Entity"),
-            VariableSpec(self.z, "Entity"),
+            VariableSpec(self.x, "Entity", required=False),
+            VariableSpec(self.y, "Entity", required=False),
+            VariableSpec(self.z, "Entity", required=False),
         )
 
     def edge(self, edge_id, relation, roles, *, branch="b1", evidence=(),
@@ -175,6 +175,15 @@ class TypedHyperedgeUnifierTests(unittest.TestCase):
             self.variables,
         )
         self.assertEqual(result.evidence_refs, ("source-a", "source-b"))
+
+    def test_required_unbound_variable_is_rejected(self):
+        with self.assertRaises(UnificationError):
+            unify_hyperedges(
+                [self.edge("e1", "r1", [
+                    RoleBinding("a", self.x, "one", "Entity"),
+                ])],
+                (VariableSpec(self.x, "Entity"), VariableSpec(self.y, "Entity")),
+            )
 
     def test_subtype_cycles_are_rejected(self):
         with self.assertRaises(UnificationError):
