@@ -47,3 +47,10 @@ YJ-09 now separates two comparison contracts:
 - `transition_signature`: temporal comparison; includes the entity bound to each role, because stable entity IDs are the correspondence mechanism across snapshots.
 
 This distinction prevents a role reassignment between same-typed entities from being mislabeled as persistence, while still allowing entity-renamed isomorphic schemas to share a structural signature. It assumes entity IDs are stable within an episode; cross-episode entity resolution remains out of scope.
+
+
+## YJ-09 ↔ E13 strict adapter
+
+The E13 contract already supports arbitrary relation arity, ordered named roles, argument types, participant lists, and provenance references. YJ-09 therefore adds an adapter rather than a duplicate shared graph contract. The adapter maps role bindings to `ORDERED_NAMED` schema slots, evidence IDs to provenance references, and edge context/attributes/validity bounds into reserved namespaces. Snapshot metadata remains in a versioned envelope.
+
+The adapter rejects mixed role/type signatures under one relation type, unsupported E13 evidence status, missing provenance, unknown context namespaces, unused schemas, and unsupported entity metadata. This is a lossless representation bridge for the supported subset, not a claim that E13 and YJ-09 inference semantics are equivalent.
