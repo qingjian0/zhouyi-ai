@@ -109,3 +109,15 @@ The #223 adapter is read-only: it creates a typed E12-A6 candidate projection bu
 PR #226 validates append-before-swap behavior, append-failure non-mutation, crash-after-append replay, idempotent action/revision retries, content conflicts, stale cursors, scope isolation, and payload digest integrity. Raw evidence outcome/provenance values are not copied into ZPCM lifecycle records; they are replaced by opaque references.
 
 **Remaining P1 work:** connect E09-verified evidence references to E12-A6 Evidence registration without bypassing split visibility; wire the typed CSG-GCR projection into PersistentLifecycleLedger as one supported ingestion path; then exercise the complete CSG-GCR → E09 evidence validation → E12-A6 transition → ZPCM persistence/restart flow. Cross-process evaluator/learner isolation, authenticated IPC, and transactional outbox remain separate gates. Full CI success validates software behavior and experiment scripts, not scientific validity or production readiness.
+
+
+## 8. E09 evidence bridge update (2026-11-11)
+
+| PR | Scope | Exact-head CI | Maturity/status |
+|---|---|---|---|
+| [#226](https://github.com/qingjian0/zhouyi-ai/pull/226) | E12-A6 lifecycle append/replay through ZPCM | `43037972184` success at `f4406ab` | Draft integration slice |
+| [#227](https://github.com/qingjian0/zhouyi-ai/pull/227) | Strict E09 observation/commit/reveal evidence binding into E12-A6 | `43038201790` success at `bc5114f` | Draft integration slice |
+
+PR #227 verifies complete E09 event-envelope fingerprints before projecting evidence metadata. SUPPORT → TRAIN is an explicit mapping; GATE_DEV, GATE_FINAL, and LOCKED_TEST remain distinct. Raw revealed targets are not copied into E12-A6/ZPCM. This is a trusted-store integrity and linkage check, not operator authentication or process isolation.
+
+**Next P1 gate:** an atomic typed-candidate ingestion path that (1) projects the CSG-GCR candidate, (2) resolves and verifies each declared E09 reveal reference, and (3) appends candidate plus evidence events as one ZPCM transaction before swapping the E12-A6 ledger. Cross-branch authorization issuer verification remains separate and must fail closed until E09 provides a verifiable authorization contract.
