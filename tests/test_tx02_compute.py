@@ -2,7 +2,8 @@ import unittest
 from prototype.tx02_compute import (
     apply_abstention, apply_episode_abstention, choose_abstention_threshold,
     choose_episode_abstention_threshold, choose_hidden_size_for_compute_budget,
-    estimate_forward_macs, probability_metrics, risk_coverage_curve, select_representation,\n    wilson_upper_bound,
+    estimate_forward_macs, probability_metrics, risk_coverage_curve, select_representation,
+    wilson_upper_bound,
 )
 class TX02ComputeAndCalibrationTests(unittest.TestCase):
     def test_forward_mac_formula_and_scaling(self):
