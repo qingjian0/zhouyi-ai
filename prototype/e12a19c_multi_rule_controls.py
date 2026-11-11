@@ -155,7 +155,8 @@ def _permuted(matrix, seed):
 def run_joint(train_examples: Iterable[Example], validation_examples: Iterable[Example],
               manifest: SplitManifest, *, structure_budget: Budget = Budget(),
               budget: JointBudget = JointBudget()) -> JointResult:
-    train, validation = tuple(train_examples), tuple(validation_examples)
+    train = tuple(sorted(train_examples, key=lambda row: row.observation_id))
+    validation = tuple(sorted(validation_examples, key=lambda row: row.observation_id))
     if not train or not validation:
         raise ValueError("train and validation must be non-empty")
     if len({r.observation_id for r in train}) != len(train) or len({r.observation_id for r in validation}) != len(validation):
