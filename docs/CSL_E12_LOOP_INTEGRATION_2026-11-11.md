@@ -286,3 +286,61 @@ Do not start large-model training before the CPU-scale loop is deterministic, le
 The next implementation target should be **CSL-0 + CSL-1**, not a new end-to-end neural model. First define one minimal typed contract and prove that existing E09/E12 records can pass through it without losing evidence lineage, phase separation, ambiguity, or track identity.
 
 This document is a research proposal. It does not claim that CSL, E12-Loop, or the cross-track architecture is implemented, validated, or superior to existing approaches.
+
+
+## 11.2 Branch-topology and compatibility audit (2026-11-11 follow-up)
+
+The phrase "existing implementation" must be interpreted as **an implementation on an isolated research branch**, not as code already integrated into `main` or automatically available to this CSL branch. At the time of this audit:
+
+| Component | Research PR / head | Availability and integration status |
+|---|---|---|
+| E12-A6 lifecycle contract | PR #96, `research/e12a6-lifecycle-contract-2026-11-11` | Python prototype and tests exist on a Draft PR; not in `main` |
+| E12-A6 × E02-D runner | PR #102, `research/e12a6-e02d-lifecycle-runner-2026-11-11` | Separate Draft PR based on the E12-A6 branch; finite-world runner and result report exist |
+| Shared SQLite evidence protocol | PR #94 / PR #99 | Isolated protocol implementation and conformance tests; not in `main` |
+| E09 adapter | PR #107, `research/e09-shared-protocol-mainline-validation-2026-11-11` | Adapter and tests exist on an isolated branch; the PR document reports a prior code-head workflow success, but this does not establish CSL integration or crash recovery |
+| E03-B | PR #19 | Preregistration only; no E03-B implementation or result |
+| CSL + E12-Loop | PR #108 | Design document only; no CSL implementation or conformance suite |
+
+### Corrected E12-A6 mapping boundary
+
+The E12-A6 enum is not a direct encoding of the proposed CSL semantic lifecycle. Its actual states are `OBSERVED`, `PROPOSED`, `DISCRIMINATION_PENDING`, `TRAIN_SUPPORTED`, `GATE_VALIDATED`, `REUSED`, `CHALLENGED`, `REVISED`, `SPECIALIZED`, `RETIRED`, and `REVALIDATION_PENDING`.
+
+Consequences:
+
+- CSL `UNDER_TEST`, `PROVISIONAL`, `ACTIVE`, and `SUSPENDED` are not existing E12-A6 states. They must remain derived semantic views or be explicitly justified as a versioned contract extension; do not silently add them to a second enum.
+- E12-A6 has no native `SPLIT` or `MERGED` action in the inspected contract. Those operations require explicit multi-child / multi-parent lineage semantics before CSL can claim to support them.
+- The E12-A6 transition validator constrains challenge to candidates in `GATE_VALIDATED` or `REUSED`, and requires `LOCKED_TEST` or `POST_DEPLOY` evidence. This is narrower than a generic "any contradiction challenges any structure" rule.
+- `REVISE` transitions a challenged version to `REVISED`; `create_revision` then creates a new version in `REVALIDATION_PENDING`. A CSL adapter must preserve this two-step lineage.
+- The ledger is in-memory. Its append-only action list is not a durable cross-track source of truth.
+
+Therefore, the previous semantic mapping table is conceptual, not a validated one-to-one mapping. CSL-0 should expose an adapter mapping table with explicit unsupported states and reject unsupported transitions rather than inventing them.
+
+### Corrected Shared Evidence Protocol boundary
+
+The inspected v0.1 reference store has five event types: `observation`, `prediction_commit`, `evidence_reveal`, `structure_version`, and `revision`. It enforces local transactional ordering, episode-local sequence numbers, idempotency, parent-version references, and reveal-before-revision checks. It is explicitly a single-process reference store, not a distributed broker or evaluator/learner security boundary.
+
+The E09 adapter branch documents a v0.2 integration slice with fail-closed behavior and fresh-episode-only operation. It does not reconstruct a live learner from replayed events. Its own documentation states that partial persistence/learner failures require stopping and later reconciliation. CSL must not describe this as crash-resumable learning.
+
+A new `lifecycle_action` event is **not yet an implemented compatibility feature**. Before adding it, compare PR #99's current envelope and PR #107's adapter expectations; then specify schema versioning, replay behavior, unknown-event handling, and migration tests. Do not assume the v0.1 five-event schema can accept an extra event type without coordinated changes.
+
+### Dependency integration rule
+
+CSL-0 implementation is blocked until its dependency set is pinned to exact commits and their tests are run together in one integration worktree/branch. The minimum dependency lock must include:
+1. E12-A6 lifecycle contract commit;
+2. E12-A6 × E02-D runner commit;
+3. Shared Evidence Protocol commit;
+4. E09 adapter commit;
+5. the E03-B preregistration commit, if E03 arbitration is included.
+
+The lock must record each upstream PR, head SHA, base SHA, and any cherry-pick/merge strategy. A PR existing is not equivalent to a dependency being integrated. Avoid merging entire research branches blindly: inspect their base chains and shared-file changes first, especially `prototype/e02_edge_lifecycle.py` and `prototype/shared_evidence_protocol.py`.
+
+### Updated implementation gates
+
+- **CSL-0A — dependency pinning:** exact SHAs and branch ancestry recorded; no source changes.
+- **CSL-0B — contract conformance:** test E12 state transitions, split-role gates, candidate version lineage, and unsupported CSL semantic states.
+- **CSL-0C — event-store conformance:** test the exact protocol version used by E09; verify replay determinism, idempotency, sequence ordering, and fail-closed partial failures.
+- **CSL-0D — adapter composition:** one episode runs E12 and E09 adapters against the same store without event-ID collision or semantic overloading.
+- **CSL-0E — dependency invalidation:** only after version/dependency identifiers exist; prove stale downstream structures are suspended or revalidated without mutating historical versions.
+- **CSL-1 — benchmark integration:** reuse E12-A6 × E02-D and E03-B components, but preserve their own preregistered split and locked-test contracts.
+
+No code implementation or empirical result is claimed by this follow-up audit.
