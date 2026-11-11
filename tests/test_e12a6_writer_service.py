@@ -111,7 +111,8 @@ class E12A6WriterServiceTests(unittest.TestCase):
 
         self.proposal_ref = self._add_reveal("proposal-left")
         self.proposal_ref_right = self._add_reveal("proposal-right")
-        self.branch_ref = self._add_reveal("branch")
+        self.branch_ref_left = self._add_reveal("branch-left")
+        self.branch_ref_right = self._add_reveal("branch-right")
         self.authorization_evidence_ref = self._add_reveal("authorization")
         self.e09_authority.issue_branch_merge_authorization(
             "authorizer-cert",
@@ -142,12 +143,13 @@ class E12A6WriterServiceTests(unittest.TestCase):
             learner_track=self.track,
             world_family_by_evidence={self.authorization_evidence_ref: "family-a"},
             candidate_evidence_refs=(
-                self.proposal_ref, self.proposal_ref_right, self.branch_ref, self.authorization_evidence_ref,
+                self.proposal_ref, self.proposal_ref_right, self.branch_ref_left, self.branch_ref_right, self.authorization_evidence_ref,
             ),
             candidate_evidence_world_family_by_ref={
                 self.proposal_ref: "family-a",
                 self.proposal_ref_right: "family-a",
-                self.branch_ref: "family-a",
+                self.branch_ref_left: "family-a",
+                self.branch_ref_right: "family-a",
                 self.authorization_evidence_ref: "family-a",
             },
         )
@@ -259,21 +261,21 @@ class E12A6WriterServiceTests(unittest.TestCase):
         left_delta = BranchDelta(
             "delta-left", DeltaOperation.UPDATE_ATTRIBUTE, "node:left",
             canonical_hash(base["node:left"]), {"value": 1},
-            (self.branch_ref,), None, 1,
+            (self.branch_ref_left,), None, 1,
         )
         right_delta = BranchDelta(
             "delta-right", DeltaOperation.UPDATE_ATTRIBUTE, "node:right",
             canonical_hash(base["node:right"]), {"value": 2},
-            (self.branch_ref,), None, 1,
+            (self.branch_ref_right,), None, 1,
         )
         snapshots = (
             BranchSnapshot(
                 "parent-writer", canonical_hash(base), "left", 0, (left_delta,),
-                (), ("node:left",), (self.branch_ref,), ("root", "left"),
+                (), ("node:left",), (self.branch_ref_left,), ("root", "left"),
             ),
             BranchSnapshot(
                 "parent-writer", canonical_hash(base), "right", 0, (right_delta,),
-                (), ("node:right",), (self.branch_ref,), ("root", "right"),
+                (), ("node:right",), (self.branch_ref_right,), ("root", "right"),
             ),
         )
         return (left, right), base, snapshots
@@ -303,7 +305,8 @@ class E12A6WriterServiceTests(unittest.TestCase):
         )
         self.assertNotIn("PRIVATE-proposal-left", str(events))
         self.assertNotIn("PRIVATE-proposal-right", str(events))
-        self.assertNotIn("PRIVATE-branch", str(events))
+        self.assertNotIn("PRIVATE-branch-left", str(events))
+        self.assertNotIn("PRIVATE-branch-right", str(events))
         self.assertNotIn("PRIVATE-authorization", str(events))
 
     def test_same_signed_receipt_retry_is_idempotent_within_ttl(self):
