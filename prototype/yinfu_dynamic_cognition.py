@@ -396,3 +396,222 @@ def run_synthetic_benchmark(*, seeds: int = 5, start_seed: int = 100) -> dict:
             "YF10 uses known finite graphs and an oracle with the same graph; no learned world model.",
         ],
     }
+
+
+@dataclass(frozen=True)
+class CompositionalRelationCandidate:
+    """A conjunction of literals over a sparse, possibly non-contiguous feature subset."""
+    relation_id: str
+    literals: tuple[tuple[str, str, float], ...]
+
+
+@dataclass(frozen=True)
+class CompositionalRelationScore:
+    candidate: CompositionalRelationCandidate
+    balanced_accuracy: float
+    positive_support: int
+    negative_support: int
+
+
+@dataclass(frozen=True)
+class RelationGateResult:
+    candidate: CompositionalRelationCandidate
+    balanced_accuracy: float | None
+    positive_support: int
+    negative_support: int
+    promoted: bool
+    reason: str
+
+
+def _validate_binary_rows(
+    rows: Sequence[Mapping[str, float]], labels: Sequence[int]
+) -> tuple[str, ...]:
+    if not rows or len(rows) != len(labels):
+        raise ValueError("rows and labels must be non-empty and equally sized")
+    if any(y not in (0, 1) for y in labels) or len(set(labels)) != 2:
+        raise ValueError("labels must contain both binary classes")
+    keys = tuple(sorted(rows[0]))
+    if not keys:
+        raise ValueError("at least one feature is required")
+    for row in rows:
+        if tuple(sorted(row)) != keys or any(
+            not isinstance(v, (int, float)) or isinstance(v, bool) or not math.isfinite(v)
+            for v in row.values()
+        ):
+            raise ValueError("all rows need identical finite numeric features")
+    return keys
+
+
+def _predict_compositional(
+    row: Mapping[str, float], candidate: CompositionalRelationCandidate
+) -> int:
+    for feature, direction, threshold in candidate.literals:
+        value = row[feature]
+        if direction == "ge" and value < threshold:
+            return 0
+        if direction == "le" and value > threshold:
+            return 0
+    return 1
+
+
+def discover_compositional_relations(
+    rows: Sequence[Mapping[str, float]],
+    labels: Sequence[int],
+    *,
+    max_order: int = 4,
+    max_candidates: int = 512,
+) -> tuple[CompositionalRelationScore, ...]:
+    """Propose sparse conjunctions, including non-contiguous feature subsets.
+
+    The grammar enumerates subsets rather than contiguous windows: for keys
+    (a,b,c,d,e), a candidate may use (a,b,c,e) and omit d. Thresholds are
+    medians estimated on Support only. Returned scores are discovery diagnostics;
+    candidates are not trusted until independently checked on Gate data.
+    """
+    keys = _validate_binary_rows(rows, labels)
+    if max_order < 2 or max_order > len(keys) or max_candidates < 1:
+        raise ValueError("invalid order or candidate budget")
+    candidates_by_order: dict[int, list[CompositionalRelationCandidate]] = {}
+    medians: dict[str, float] = {}
+    for feature in keys:
+        values = sorted(float(row[feature]) for row in rows)
+        mid = len(values) // 2
+        medians[feature] = (
+            values[mid] if len(values) % 2 else (values[mid - 1] + values[mid]) / 2.0
+        )
+    for order in range(2, max_order + 1):
+        bucket = []
+        for subset in itertools.combinations(keys, order):
+            for directions in itertools.product(("ge", "le"), repeat=order):
+                literals = tuple(
+                    (feature, direction, medians[feature])
+                    for feature, direction in zip(subset, directions)
+                )
+                signature = "|".join(
+                    f"{feature}:{direction}:{threshold:.12g}"
+                    for feature, direction, threshold in literals
+                )
+                bucket.append(CompositionalRelationCandidate(
+                    f"conjunction:{order}:{signature}", literals
+                ))
+        candidates_by_order[order] = bucket
+
+    # Round-robin across interaction orders prevents pairwise candidates from
+    # consuming the entire search budget before higher-order structures appear.
+    selected = []
+    cursor = 0
+    orders = sorted(candidates_by_order)
+    while len(selected) < max_candidates:
+        added = False
+        for order in orders:
+            bucket = candidates_by_order[order]
+            if cursor < len(bucket):
+                selected.append(bucket[cursor])
+                added = True
+                if len(selected) >= max_candidates:
+                    break
+        if not added:
+            break
+        cursor += 1
+
+    scored = []
+    for candidate in selected:
+        predictions = [_predict_compositional(row, candidate) for row in rows]
+        score = _balanced_accuracy(labels, predictions)
+        positive = sum(labels)
+        negative = len(labels) - positive
+        scored.append(CompositionalRelationScore(
+            candidate, score, positive, negative
+        ))
+    return tuple(sorted(
+        scored, key=lambda item: (-item.balanced_accuracy, item.candidate.relation_id)
+    ))
+
+
+def validate_compositional_relations(
+    candidates: Sequence[CompositionalRelationScore],
+    gate_rows: Sequence[Mapping[str, float]],
+    gate_labels: Sequence[int],
+    *,
+    min_gate_accuracy: float = 0.75,
+    min_class_support: int = 5,
+) -> tuple[RelationGateResult, ...]:
+    """Independently gate Support-selected candidates on untouched Gate episodes."""
+    if not 0.5 <= min_gate_accuracy <= 1.0 or min_class_support < 1:
+        raise ValueError("invalid Gate thresholds")
+    _validate_binary_rows(gate_rows, gate_labels)
+    positive = sum(gate_labels)
+    negative = len(gate_labels) - positive
+    results = []
+    for item in candidates:
+        if positive < min_class_support or negative < min_class_support:
+            results.append(RelationGateResult(
+                item.candidate, None, positive, negative, False,
+                "INSUFFICIENT_GATE_CLASS_SUPPORT"
+            ))
+            continue
+        predictions = [
+            _predict_compositional(row, item.candidate) for row in gate_rows
+        ]
+        accuracy = _balanced_accuracy(gate_labels, predictions)
+        promoted = accuracy >= min_gate_accuracy
+        results.append(RelationGateResult(
+            item.candidate, accuracy, positive, negative, promoted,
+            "GATE_PASSED" if promoted else "GATE_REJECTED"
+        ))
+    return tuple(sorted(
+        results,
+        key=lambda item: (
+            not item.promoted,
+            -(item.balanced_accuracy if item.balanced_accuracy is not None else -1.0),
+            item.candidate.relation_id,
+        ),
+    ))
+
+
+def advance_relation_lifecycle(
+    status: str,
+    *,
+    gate_accuracy: float | None,
+    counterexample_rate: float | None,
+    consecutive_failures: int = 0,
+    promote_at: float = 0.80,
+    retain_at: float = 0.65,
+    max_counterexample_rate: float = 0.20,
+    retire_after_failures: int = 2,
+) -> tuple[str, int]:
+    """Evidence-gated relation lifecycle; no candidate can self-promote."""
+    allowed = {"proposed", "active", "decaying", "retired"}
+    if status not in allowed:
+        raise ValueError("unknown relation lifecycle status")
+    if not 0.5 <= retain_at <= promote_at <= 1.0:
+        raise ValueError("invalid accuracy thresholds")
+    if not 0.0 <= max_counterexample_rate <= 1.0 or retire_after_failures < 1:
+        raise ValueError("invalid lifecycle thresholds")
+    if consecutive_failures < 0:
+        raise ValueError("consecutive_failures cannot be negative")
+    if gate_accuracy is None or counterexample_rate is None:
+        return status, consecutive_failures
+    if not 0.0 <= gate_accuracy <= 1.0 or not 0.0 <= counterexample_rate <= 1.0:
+        raise ValueError("evidence rates must be between zero and one")
+
+    good = (
+        gate_accuracy >= promote_at
+        and counterexample_rate <= max_counterexample_rate
+    )
+    retained = (
+        gate_accuracy >= retain_at
+        and counterexample_rate <= max_counterexample_rate
+    )
+    if status == "retired":
+        return "retired", consecutive_failures
+    if good:
+        return "active", 0
+    failures = consecutive_failures + 1
+    if status == "proposed":
+        return "proposed", failures
+    if status == "active":
+        return "decaying", failures
+    if failures >= retire_after_failures:
+        return "retired", failures
+    return "decaying", failures
