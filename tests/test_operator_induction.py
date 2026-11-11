@@ -54,6 +54,22 @@ class OperatorInductionTests(unittest.TestCase):
         self.assertTrue(all(item.train_accuracy == 1.0 for item in report.candidates))
         self.assertTrue(all(item.validation_accuracy == 0.0 for item in report.candidates))
 
+    def test_validation_labels_do_not_change_candidate_ranking(self):
+        inducer = OperatorInducer(2, max_depth=1, max_programs=100)
+        train = [Transition((0.0, 0.0), (0.0, 0.0))]
+        validation_a = [Transition((1.0, 2.0), (-1.0, 2.0))]
+        validation_b = [Transition((1.0, 2.0), (2.0, 1.0))]
+        first = inducer.discover(train, validation=validation_a, result_limit=100)
+        second = inducer.discover(train, validation=validation_b, result_limit=100)
+        self.assertEqual(
+            [item.program for item in first.candidates],
+            [item.program for item in second.candidates],
+        )
+        self.assertNotEqual(
+            [item.validation_support for item in first.candidates],
+            [item.validation_support for item in second.candidates],
+        )
+
     def test_program_composition_order_matters(self):
         state = (2.0, 5.0, 7.0)
         first = OperatorProgram((Primitive("swap", 0, 1), Primitive("neg", 0)))
