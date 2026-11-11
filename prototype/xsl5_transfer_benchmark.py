@@ -136,7 +136,7 @@ def evaluate(
         for case in items
     )
     selected = len(selected_predictions)
-    return Metrics(
+    metrics = Metrics(
         cases=len(items),
         valid_cases=valid_cases,
         no_transfer_cases=no_transfer,
@@ -152,6 +152,7 @@ def evaluate(
             abstained_correctly / no_transfer if no_transfer else 1.0
         ),
     )
+    return metrics, predictions
 
 
 def build_synthetic_suite(
