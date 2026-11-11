@@ -7,8 +7,9 @@ to learner processes.
 """
 from __future__ import annotations
 
+import secrets
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Protocol
 
 from prototype.e09_e12a6_evidence_bridge import resolve_branch_merge_authorization
@@ -117,6 +118,8 @@ class E09AuthorityService:
         *,
         authenticator: E09WorkloadAuthenticator,
         signer: E09GrantSigner,
+        clock: E09Clock | None = None,
+        max_grant_ttl: timedelta = timedelta(minutes=5),
     ) -> None:
         if not isinstance(store, SQLiteEvidenceStore):
             raise TypeError("store must be SQLiteEvidenceStore")
@@ -124,9 +127,13 @@ class E09AuthorityService:
             raise TypeError("authenticator must implement authenticate")
         if not callable(getattr(signer, "sign", None)):
             raise TypeError("signer must implement sign")
+        if not isinstance(max_grant_ttl, timedelta) or max_grant_ttl <= timedelta(0):
+            raise ValueError("max_grant_ttl must be a positive timedelta")
         self._store = store
         self._authenticator = authenticator
         self._signer = signer
+        self._clock = clock or SystemUTCClock()
+        self._max_grant_ttl = max_grant_ttl
 
     def _principal(self, credential: object, *, role: str, scope: str) -> E09AuthenticatedWorkload:
         if not isinstance(scope, str) or not scope.strip():
@@ -182,15 +189,13 @@ class E09AuthorityService:
         parent_state_ref: str,
         branch_ids: tuple[str, ...] | list[str],
         evidence_refs: tuple[str, ...] | list[str],
-        issued_at: str,
-        expires_at: str,
+        ttl: timedelta = timedelta(minutes=2),
+        authorization_id: str | None = None,
     ) -> EventReceipt:
         """Authenticate an authorizer, sign the exact next-sequence v2 envelope, append by CAS."""
         principal = self._principal(credential, role="authorizer", scope=scope)
         for name, value in (
-            ("episode_id", episode_id), ("authorization_id", authorization_id),
-            ("parent_state_ref", parent_state_ref), ("issued_at", issued_at),
-            ("expires_at", expires_at),
+            ("episode_id", episode_id), ("parent_state_ref", parent_state_ref),
         ):
             if not isinstance(value, str) or not value.strip():
                 raise E09AuthorizationError(f"{name} must be a non-empty string")
@@ -202,15 +207,30 @@ class E09AuthorityService:
             if len(values) != len(set(values)):
                 raise E09AuthorizationError(f"{name} must be unique")
 
+        if not isinstance(ttl, timedelta) or ttl <= timedelta(0) or ttl > self._max_grant_ttl:
+            raise E09AuthorizationError("grant TTL is outside authority policy")
+        current = self._clock.now()
+        if not isinstance(current, datetime) or current.tzinfo is None:
+            raise E09AuthenticationError("authority clock must return a timezone-aware datetime")
+        current = current.astimezone(timezone.utc)
+        issued_at = current.isoformat()
+        expires_at = (current + ttl).isoformat()
+        if authorization_id is None:
+            auth_id = "e09-authz-" + secrets.token_hex(16)
+        elif isinstance(authorization_id, str) and authorization_id.strip():
+            auth_id = authorization_id
+        else:
+            raise E09AuthorizationError("authorization_id must be a non-empty string")
+
         prior_events = self._store.replay_episode(episode_id)
         sequence = (prior_events[-1]["sequence_no"] if prior_events else 0) + 1
         event_metadata = _identity_metadata(principal)
         payload = {
-            "authorization_id": authorization_id,
+            "authorization_id": auth_id,
             "issuer_id": principal.issuer_id,
             "scope": scope,
             "parent_state_ref": parent_state_ref,
-            "branch_ids": list(branch_ids),
+            "branch_ids": sorted(branch_ids),
             "evidence_refs": list(evidence_refs),
             "issued_at": issued_at,
             "expires_at": expires_at,
@@ -221,7 +241,7 @@ class E09AuthorityService:
         }
         signing_event = {
             "episode_id": episode_id,
-            "event_id": authorization_id,
+            "event_id": auth_id,
             "event_type": "branch_merge_authorization",
             "protocol_version": STRICT_PROTOCOL_VERSION,
             "payload_schema": "branch_merge_authorization@2",
@@ -240,9 +260,9 @@ class E09AuthorityService:
         payload["signature"] = signature
         return self._store.append_event(
             episode_id=episode_id,
-            event_id=authorization_id,
+            event_id=auth_id,
             event_type="branch_merge_authorization",
-            idempotency_key=authorization_id,
+            idempotency_key=auth_id,
             payload=payload,
             actor_role="authorizer",
             causation_refs=evidence_refs,
