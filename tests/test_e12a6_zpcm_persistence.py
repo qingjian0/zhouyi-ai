@@ -173,7 +173,8 @@ class PersistentLifecycleTests(unittest.TestCase):
         self.store = PersistentLifecycleLedger(self.memory, scope="project-a")
         self.assertEqual(self.store.snapshot(), before)
         replay = self.store.register_candidate_bundle(
-            candidate_item, (evidence_item,), authorization_receipt=receipt, consumed_at=now,
+            candidate_item, (evidence_item,), authorization_receipt=receipt,
+            consumed_at=now + timedelta(seconds=10),
         )
         self.assertTrue(replay.replayed)
         self.assertTrue(replay.authorization.replayed)
