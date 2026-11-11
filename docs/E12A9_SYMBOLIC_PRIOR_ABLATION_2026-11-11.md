@@ -64,3 +64,41 @@
 2. 检查 shuffled control 的严格熵匹配、潜在结果共享和 evaluator/learner 隔离。
 3. 扩展为 held-out 因子组合与跨世界族迁移。
 4. 再单独研究太玄三值表示和阴符时位/势的动作提议先验；不得把表示基数、假设先验和动作策略混成一个传统模式。
+
+
+## 8. 首轮 100-seed 结果（探索性）
+
+CI run #42943357235 在代码头 3280d0c508b0556b0d8bdbfce064207500877bbc 完成，8 项单元测试通过，100 seeds × 4 世界族 × 5 先验臂的基准成功执行。完整 JSON 指标保存在该 workflow job log 中。
+
+| 世界族 | 先验臂 | MAP 准确率 | 实际熵下降（bits） | 高置信错误率 |
+|---|---|---:|---:|---:|
+| aligned | uniform | 0.34 | 1.062 | 0.00 |
+| aligned | yijing_factorized | 0.48 | 0.788 | 0.00 |
+| aligned | shuffled_mapping | 0.45 | 0.877 | 0.20 |
+| uniform | uniform | 0.39 | 1.062 | 0.00 |
+| uniform | yijing_factorized | 0.43 | 0.584 | 0.00 |
+| uniform | random | 0.47 | 0.872 | 0.08 |
+| misaligned | uniform | 0.51 | 1.062 | 0.00 |
+| misaligned | yijing_factorized | 0.31 | 0.380 | 0.00 |
+| misaligned | anti_aligned | 0.51 | 0.905 | 0.00 |
+| permuted | uniform | 0.54 | 1.062 | 0.00 |
+| permuted | yijing_factorized | 0.28 | 0.615 | 0.00 |
+| permuted | shuffled_mapping | 0.57 | 1.023 | 0.05 |
+
+所有确定性先验臂平均成本为 2.20、平均两次测量；random 臂平均成本约 2.23。表中只摘录关键对照，完整 20 个世界族×先验臂结果以 workflow log 为准。
+
+### 结果解释
+
+1. 在 aligned 世界族中，结构先验准确率比 uniform 高 14 个百分点，但实际熵下降更低（0.788 vs 1.062 bits）。这是准确率与信息收敛指标不一致的信号，不能只挑准确率宣称全面改善。
+2. 在 misaligned 与 permuted 世界族中，结构先验明显受损：准确率分别为 0.31、0.28，而 uniform 为 0.51、0.54。
+3. shuffled mapping 在 aligned 条件下也达到 0.45，接近结构臂的 0.48；在 permuted 条件下反而达到 0.57。现有实验不能把收益归因于易象映射的特殊语义。
+4. 初步结论是强烈的任务分布依赖性：预设结构与真实候选分布匹配时可能改善 MAP 判断，但错配时会伤害表现。当前没有证据支持普遍优势或传统映射的独特优势。
+5. 该首轮试验未完整执行 E12-A3 预注册协议：缺少严格零信息 F5、held-out 机制族、Brier/log-loss 校准和世界块置信区间。因此它是探索性 E12-A9 smoke benchmark，不是 confirmatory result，也不能代替 PR #71 的 A3-P 审核。
+
+## 9. 下一轮必须补齐
+
+- 增加零信息候选组，验证所有先验都保持歧义，不得先验制造确定答案。
+- 加入 Brier score、log loss、校准误差与后验 regret，避免 MAP accuracy 单指标误导。
+- 采用真正 held-out 的因素组合/机制族，并执行 paired world-seed bootstrap 置信区间。
+- 明确区分候选先验 P、似然/表示先验 L、动作/转移先验 T；本轮只改 P。
+- 检验 prior tempering / rejection：当新证据与先验冲突时，系统是否能降低先验权重，而非锁定错误结构。
