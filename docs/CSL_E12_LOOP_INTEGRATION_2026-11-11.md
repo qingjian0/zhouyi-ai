@@ -419,3 +419,21 @@ E12 revision creation is a compound operation: the prior candidate transitions t
 Protocol v0.3 should therefore provide an append_events batch API that validates and appends a causally ordered event batch inside one SQLite transaction. For a revision batch, the required order is: new structure_version (parent references resolve), lifecycle_action records for the state transitions, then revision (before/after version references and trigger evidence resolve). If any member fails validation, the entire batch rolls back. The event IDs and idempotency keys must make retrying the whole batch safe without accepting a partially duplicated revision.
 
 The batch validator must validate against both the pre-batch database state and earlier events in the same batch. It must reject forward references, duplicate IDs, invalid event ordering, unsupported schema versions, and evidence-role mismatches. This is a stronger requirement than the current single-event append transaction and is a prerequisite for crash-consistent lifecycle revisions.
+
+
+## 11.4 E12 + E09 integration-smoke CI result
+
+The isolated two-parent integration commit used by PR #113 (`f982d12c555b2f2254248faa4371a7f3d1ab113c`) completed GitHub Actions successfully.
+
+- Workflow run: 42941694334 — completed / success.
+- Duplicate push-triggered run: 42941684593 — completed / success.
+- Job: unit-tests — success.
+- Full unittest discovery — success.
+- E12-A3-M0 focused tests and smoke test — success.
+- E01 demonstration and E01-B / E01-C evaluation steps — success.
+- E02-A, E02-B, E02-C steps — success.
+- E12-A6 × E02-D lifecycle runner and focused tests — success.
+- E02-D held-out evaluation and 100-seed support-identifiability sweep — success.
+- E12-A6 result artifact was uploaded successfully (artifact name: e12a6-e02d-lifecycle-seed17).
+
+Interpretation: this is positive evidence that the selected E12 and E09 code trees coexist in one checkout and pass the workflow's included tests/evaluations. It does not test the proposed protocol v0.3 events, CSL adapter, atomic lifecycle persistence, replay reducer, or E03-B arbitration. The integration PR remains Draft and unmerged.
