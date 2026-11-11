@@ -22,8 +22,11 @@ class E12A9EvidenceBridgeTests(unittest.TestCase):
         self.assertGreaterEqual(batch.wilson_lower_bound, 0.80)
 
     def test_counterexample_contradicts_deterministic_candidate(self):
-        rows = self._evaluations(10)
-        rows[-1] = replace(rows[-1], gold_label=2, correct=False)
+        rows = self._evaluations(9)
+        support = ((0,0,1),(1,0,0),(0,1,2),(1,1,1),(2,0,2),(0,2,0))
+        commit = run_learner_process("real-counterexample", support, (2,2))
+        verdict = Evaluator({"real-counterexample": 2}).evaluate(commit)
+        rows.append(bind_verdict("rule@1", "z3-affine", commit, verdict))
         batch = aggregate_evidence(rows)
         self.assertEqual(batch.epistemic_status, EpistemicStatus.CONTRADICTED)
         self.assertEqual(batch.error_count, 1)
@@ -39,7 +42,7 @@ class E12A9EvidenceBridgeTests(unittest.TestCase):
             bind_verdict("rule@1", "scope", commit, replace(verdict, commit_digest="0"*64))
 
     def test_inconsistent_correctness_flag_is_rejected(self):
-        commit = run_learner_process("bad-flag", ((0,0,1),(1,0,0)), (2,2))
+        commit = run_learner_process("bad-flag", ((0,0,1),(1,0,0),(0,1,2),(1,1,1),(2,0,2),(0,2,0)), (2,2))
         verdict = Evaluator({"bad-flag": 1}).evaluate(commit)
         with self.assertRaises(ValueError):
             bind_verdict("rule@1", "scope", commit, replace(verdict, correct=not verdict.correct))
