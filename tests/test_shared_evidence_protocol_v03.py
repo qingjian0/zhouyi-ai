@@ -5,7 +5,10 @@ from pathlib import Path
 from prototype.shared_evidence_protocol import MissingReference, ProtocolError, SQLiteEvidenceStore, canonical_json, digest_payload
 from prototype.shared_evidence_protocol_v03 import (
     BatchConflict, ProjectionRecoveryRequired, SQLiteEvidenceStoreV03,
+    candidate_definition_payload,
 )
+from prototype.e12a6_lifecycle_contract import Candidate, CandidateState
+
 
 
 class SharedEvidenceProtocolV03Tests(unittest.TestCase):
@@ -566,6 +569,68 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
         recovered = self.store.replay_projection("ep")
         self.assertIn("obs-durable", recovered.observations)
         self.assertEqual(recovered.last_sequence, 1)
+
+
+
+    def test_typed_candidate_definition_round_trips_to_e12_candidate(self):
+        candidate = Candidate(
+            candidate_id="relation:greater-than", version=1,
+            canonical_expression="x > y", proposer_family="relational",
+            supporting_families=("relational", "residual"),
+            input_types=("number", "number"), operator="GT",
+            conditions=("both_inputs_observed",), uncertainty=0.35,
+            complexity=2, proposal_cost=0.15,
+        )
+        self.store.append_events(
+            episode_id="ep", idempotency_key="typed-candidate",
+            events=[
+                {
+                    "event_id": "candidate-v1", "event_type": "structure_version",
+                    "payload": {
+                        "structure_id": candidate.candidate_id,
+                        "version_id": "relation:greater-than@1",
+                        "kind": "candidate",
+                        "definition": candidate_definition_payload(candidate),
+                        "parent_version_ids": [], "support_evidence_ids": [],
+                    },
+                },
+                {
+                    "event_id": "candidate-propose", "event_type": "lifecycle_action",
+                    "payload": {
+                        "action_id": "candidate-propose", "action_type": "propose",
+                        "candidate_id": candidate.candidate_id, "candidate_version": 1,
+                        "from_state": "observed", "to_state": "proposed",
+                        "evidence_refs": [], "cost": 0.1, "note": "propose",
+                        "candidate_lineage_refs": [], "learner_track": "e12",
+                    },
+                },
+            ],
+        )
+        projection = self.store.replay_projection("ep")
+        restored = projection.candidate_objects["relation:greater-than@1"]
+        self.assertIsInstance(restored, Candidate)
+        self.assertEqual(restored.candidate_id, candidate.candidate_id)
+        self.assertEqual(restored.canonical_expression, candidate.canonical_expression)
+        self.assertEqual(restored.supporting_families, candidate.supporting_families)
+        self.assertEqual(restored.input_types, candidate.input_types)
+        self.assertEqual(restored.conditions, candidate.conditions)
+        self.assertEqual(restored.uncertainty, candidate.uncertainty)
+        self.assertEqual(restored.complexity, candidate.complexity)
+        self.assertEqual(restored.proposal_cost, candidate.proposal_cost)
+        self.assertEqual(restored.state, CandidateState.PROPOSED)
+
+    def test_typed_candidate_definition_rejects_missing_semantic_fields(self):
+        with self.assertRaises(ProtocolError):
+            self.store.append_event(
+                episode_id="ep", event_id="bad-candidate", event_type="structure_version",
+                idempotency_key="bad-candidate",
+                payload={
+                    "structure_id": "candidate", "version_id": "candidate@1",
+                    "kind": "candidate",
+                    "definition": {"schema": "candidate_definition@1", "canonical_expression": "x>y"},
+                    "parent_version_ids": [], "support_evidence_ids": [],
+                },
+            )
 
 
 
