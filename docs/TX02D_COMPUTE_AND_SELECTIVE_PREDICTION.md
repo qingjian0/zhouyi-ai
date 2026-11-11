@@ -30,12 +30,12 @@ choose_abstention_threshold 在 validation 概率和标签上选择满足经验 
 
 ## 当前边界
 
-这是 TX-02D 的计算账本和校准工具基础，尚未接入完整实验 runner，也没有实现 validation 驱动的表示选择器。尚无任何表示优劣结论。
+TX-02D-0 的计算账本和校准工具现已接入实验 Runner，具体流程见下方 TX-02D-1。当前尚无任何表示优劣结论。
 
 
 ## Validation-only representation arbitration
 
-The module also provides select_representation(). It consumes only per-family validation metrics and deterministically ranks by higher validation accuracy, lower NLL, lower forward-MAC estimate, lower parameter count, then family name. The selector must run before any locked-test labels are inspected. This is a baseline arbitration policy, not a learned meta-controller; its selection can overfit a small validation set and should be evaluated across independent outer seeds or nested splits.
+The module also provides select_representation(). It consumes only per-family validation metrics and deterministically ranks by higher validation accuracy, lower NLL, lower forward-MAC estimate, lower parameter count, then family name. The selector is frozen before any locked-test labels are inspected. This is a baseline arbitration policy, not a learned meta-controller; its selection can overfit a small validation set and should be evaluated across independent outer seeds or nested splits.
 
 
 ## TX-02D-1：接入完整实验 Runner
@@ -45,7 +45,7 @@ The module also provides select_representation(). It consumes only per-family va
 1. **计算匹配模式**：`compute_matched=True` 时，以共同 forward-MAC budget 选择各表示的最大合法隐藏层宽度；与参数匹配互斥。CLI 使用 `--compute-match`，可用 `--forward-mac-budget` 覆盖默认预算。
 2. **概率评估**：每种表示均输出 Validation 和 Locked-test 的 accuracy、NLL、Brier、ECE。
 3. **拒绝预测**：每种表示的阈值仅由 Validation 选择；Locked-test 报告 coverage、selective risk、deferred 数量及 risk-coverage 曲线。
-4. **自适应表示**：使用各表示的 Validation accuracy、NLL、forward-MAC、参数量选择一个家族；随后仅对这个已选家族读取 Locked-test 指标。
+4. **自适应表示**：先完成所有候选的 Validation 评估并冻结选择结果，再评估固定表示基线与已选策略；任何 Locked-test 指标都不会反馈给选择器。
 5. **固定表示对照**：多种子 aggregate 同时报告每种固定表示与 `ADAPTIVE_VALIDATION_SELECTED` 的测试表现及所选家族。
 
 ### 运行方式
