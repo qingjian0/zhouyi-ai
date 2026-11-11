@@ -786,7 +786,7 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                         continue  # the semantic validator reports the missing reference
                     trigger_payload = json.loads(trigger["payload_json"])
                     if trigger_payload.get("split_role") in EVALUATOR_ONLY_SPLIT_ROLES and actor != "evaluator":
-                        raise ProtocolError("evaluator-only evidence may only trigger evaluator-side revision records")
+                        raise ProtocolError("cannot use evaluator-only evidence for non-evaluator revision records")
                     if trigger_payload.get("split_role") in LEARNER_SUPPORT_ROLES and actor == "evaluator":
                         raise ProtocolError("evaluator actor cannot consume learner feedback as a learner revision")
             if not isinstance(spec["idempotency_key"], str) or not spec["idempotency_key"].strip():
