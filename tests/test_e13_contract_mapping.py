@@ -51,7 +51,11 @@ class ContractTests(unittest.TestCase):
 
     def test_rejects_missing_schema_and_wrong_arity(self):
         with self.assertRaises(ContractError):
-            RelationalGraph((Entity("a", "claim"),), (), ())
+            RelationalGraph(
+                (Entity("a", "claim"),),
+                (),
+                (RelationInstance("orphan", "missing_schema", ("a",)),),
+            )
         with self.assertRaises(ContractError):
             RelationalGraph(
                 (Entity("a", "claim"),),
