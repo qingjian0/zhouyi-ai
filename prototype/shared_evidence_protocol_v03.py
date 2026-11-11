@@ -12,6 +12,7 @@ import math
 from datetime import datetime, timezone
 from typing import Any, Iterable, Sequence
 
+from prototype.e12a6_lifecycle_contract import ActionType, CandidateState, SplitRole, _TRANSITIONS
 from prototype.shared_evidence_protocol import (
     EVENT_TYPES as V02_EVENT_TYPES,
     PROTOCOL_VERSION as V02_PROTOCOL_VERSION,
@@ -27,20 +28,11 @@ from prototype.shared_evidence_protocol import (
 
 PROTOCOL_VERSION = "0.3"
 EVENT_TYPES = V02_EVENT_TYPES | {"evidence_ingest", "lifecycle_action"}
-SPLIT_ROLES = {"support", "train", "gate_dev", "gate_final", "locked_test", "post_deploy"}
-CHALLENGE_ROLES = {"locked_test", "post_deploy"}
-SUPPORT_ROLES = {"support", "train", "gate_dev", "gate_final"}
-ACTION_TYPES = {
-    "propose", "request_discrimination", "train_support", "gate_validate",
-    "reuse", "challenge", "revise", "specialize", "retire",
-    "request_revalidation", "register_revision", "revalidate",
-    "measure", "compose", "predict", "abstain",
-}
-CANDIDATE_STATES = {
-    "observed", "proposed", "discrimination_pending", "train_supported",
-    "gate_validated", "reused", "challenged", "revised", "specialized",
-    "retired", "revalidation_pending",
-}
+SPLIT_ROLES = {role.value for role in SplitRole}
+CHALLENGE_ROLES = {SplitRole.LOCKED_TEST.value, SplitRole.POST_DEPLOY.value}
+SUPPORT_ROLES = {SplitRole.SUPPORT.value, SplitRole.TRAIN.value, SplitRole.GATE_DEV.value, SplitRole.GATE_FINAL.value}
+ACTION_TYPES = {action.value for action in ActionType}
+CANDIDATE_STATES = {state.value for state in CandidateState}
 
 
 class BatchConflict(ProtocolError):
@@ -176,7 +168,6 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                     raise ProtocolError("lifecycle_action cannot cite evidence from another learner_track")
             # Reuse E12-A6's canonical transition table; do not fork its legal
             # transition semantics in the protocol layer.
-            from prototype.e12a6_lifecycle_contract import ActionType, CandidateState, _TRANSITIONS
             action = ActionType(payload["action_type"])
             allowed = _TRANSITIONS.get(action, set())
             if allowed:
