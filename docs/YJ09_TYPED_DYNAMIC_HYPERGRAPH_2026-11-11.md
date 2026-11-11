@@ -37,3 +37,13 @@
 ## v0.1 测试范围
 
 单元测试验证类型契约、n 元原子性、角色顺序敏感、实体重命名不变、未知实体拒绝、证据唯一性、动态持续性、关系转化和完整覆盖门控。通过这些测试只说明数据结构和确定性状态机满足软件契约，不证明学会了高阶认知或现实语义。
+
+
+## Schema identity versus temporal identity
+
+YJ-09 now separates two comparison contracts:
+
+- `structural_signature`: alpha-invariant schema comparison; excludes concrete entity IDs but preserves named role slots and entity types.
+- `transition_signature`: temporal comparison; includes the entity bound to each role, because stable entity IDs are the correspondence mechanism across snapshots.
+
+This distinction prevents a role reassignment between same-typed entities from being mislabeled as persistence, while still allowing entity-renamed isomorphic schemas to share a structural signature. It assumes entity IDs are stable within an episode; cross-episode entity resolution remains out of scope.
