@@ -1117,6 +1117,63 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
             actions=tuple(actions), revisions=revisions,
         )
 
+    def replay_learner_projection(self, episode_id: str, learner_track: str) -> dict[str, Any]:
+        """Track-scoped learner view. This is not a security boundary against raw DB access."""
+        if not isinstance(learner_track, str) or not learner_track.strip():
+            raise ProtocolError("learner_track must be non-empty")
+        projection = self.replay_projection(episode_id)
+        predictions = {k: v for k, v in projection.predictions.items() if v.get("learner_track") == learner_track}
+        observations = {v["observation_id"] for v in predictions.values()}
+        evidence = {k: v for k, v in projection.evidence.items() if v.get("learner_track") == learner_track}
+        structures = {k: v for k, v in projection.structures.items() if v.get("learner_track") in (None, learner_track)}
+        candidates = {k: v for k, v in projection.candidates.items() if v.get("learner_track") in (None, learner_track)}
+        actions = [v for v in projection.actions if v.get("learner_track") == learner_track]
+        return {"episode_id": episode_id, "learner_track": learner_track, "last_sequence": projection.last_sequence,
+            "observations": {k: projection.observations[k] for k in sorted(observations) if k in projection.observations},
+            "predictions": {k: predictions[k] for k in sorted(predictions)},
+            "evidence": {k: evidence[k] for k in sorted(evidence)},
+            "structures": {k: structures[k] for k in sorted(structures)},
+            "candidates": {k: candidates[k] for k in sorted(candidates)}, "actions": actions,
+            "track_candidate_objects": {learner_track: {k: _candidate_to_payload(v) for k, v in sorted(projection.track_candidate_objects.get(learner_track, {}).items())}},
+            "track_action_objects": {learner_track: [_action_to_payload(a) for a in projection.track_action_objects.get(learner_track, ())]}}
+
+    def replay_evaluator_projection(self, episode_id: str) -> dict[str, Any]:
+        """Revalidate frozen candidate/commit/reveal links and expose labels to evaluator only."""
+        events = self.replay_episode(episode_id)
+        freezes, commits, evaluations = {}, {}, {}
+        for event in events:
+            kind, payload = event["event_type"], event["payload"]
+            if kind == "candidate_set_freeze":
+                versions = payload.get("candidate_version_ids")
+                if not isinstance(versions, list) or not versions or versions != sorted(set(versions)):
+                    raise ProtocolError("replay candidate freeze has invalid candidate version ordering")
+                snapshot = []
+                for version_id in versions:
+                    item = next((e for e in events if e["event_type"] == "structure_version" and e["payload"].get("version_id") == version_id), None)
+                    if item is None or item["payload"].get("kind") != "candidate":
+                        raise MissingReference("replay candidate freeze references missing/non-candidate version")
+                    if item["payload"].get("learner_track") not in (None, payload["learner_track"]):
+                        raise ProtocolError("replay candidate freeze crosses learner tracks")
+                    snapshot.append({"version_id": version_id, "payload_digest": item["payload_digest"]})
+                expected = digest_payload({"learner_track": payload["learner_track"], "evaluation_role": payload["evaluation_role"], "candidates": snapshot})
+                if expected != payload.get("candidate_set_digest"):
+                    raise ProtocolError("replay candidate freeze digest mismatch")
+                freezes[payload["freeze_id"]] = payload
+            elif kind == "prediction_commit":
+                commits[payload["prediction_id"]] = payload
+            elif kind == "evaluation_reveal":
+                frozen, committed = freezes.get(payload.get("freeze_id")), commits.get(payload.get("prediction_id"))
+                if frozen is None or committed is None:
+                    raise MissingReference("replay evaluation reveal lacks prior freeze or prediction")
+                identity = (frozen["learner_track"], frozen["evaluation_role"], frozen["candidate_set_digest"])
+                actual = (payload.get("learner_track"), payload.get("evaluation_role"), payload.get("candidate_set_digest"))
+                if identity != actual or (committed.get("candidate_set_freeze_id"), committed.get("learner_track"), committed.get("evaluation_role"), committed.get("candidate_set_digest")) != (payload.get("freeze_id"), *actual):
+                    raise ProtocolError("replay evaluation reveal does not match frozen committed prediction")
+                if payload["prediction_id"] in evaluations:
+                    raise ProtocolError("replay has duplicate evaluation reveals for one prediction")
+                evaluations[payload["prediction_id"]] = {"event_id": event["event_id"], "sequence_no": event["sequence_no"], **payload}
+        return {"episode_id": episode_id, "freezes": freezes, "evaluations": evaluations}
+
     @staticmethod
     def _candidate_version_number(version_id: str) -> int:
         try:
