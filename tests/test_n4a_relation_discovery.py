@@ -156,8 +156,10 @@ class N4ARelationDiscoveryTests(unittest.TestCase):
                 Node(prefix + "b", "surface-b", ("same-role",)),
             )
             edges = (
-                Edge(prefix + "a", prefix + "b", "mutual"),
-                Edge(prefix + "b", prefix + "a", "mutual"),
+                (
+                    Edge(prefix + "a", prefix + "b", "mutual"),
+                    Edge(prefix + "b", prefix + "a", "mutual"),
+                ) if outcome else ()
             )
             return RelationalCase(
                 case_id, "domain", "symmetry", partition, outcome, nodes, edges
