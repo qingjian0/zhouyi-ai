@@ -98,10 +98,10 @@ class HypergraphState:
 
 
 def structural_signature(edge: Hyperedge, state: HypergraphState) -> tuple:
-    """Alpha-invariant signature retaining ordered semantic role slots.
+    """Alpha-invariant schema signature retaining ordered semantic role slots.
 
-    Concrete entity IDs and edge IDs are excluded. Role names and entity types
-    are retained, so swapping actor/recipient is not treated as equivalent.
+    Concrete entity IDs and edge IDs are excluded; role names and entity types
+    remain. This is suitable for schema comparison, not temporal identity.
     """
     types = state.entity_types()
     return (
@@ -111,6 +111,18 @@ def structural_signature(edge: Hyperedge, state: HypergraphState) -> tuple:
         edge.attributes,
         edge.valid_from is not None,
         edge.valid_until is not None,
+    )
+
+
+def transition_signature(edge: Hyperedge) -> tuple:
+    """Identity-aware signature for temporal comparison across snapshots."""
+    return (
+        edge.relation_type,
+        tuple((binding.role, binding.entity_id) for binding in edge.bindings),
+        edge.context,
+        edge.attributes,
+        edge.valid_from,
+        edge.valid_until,
     )
 
 
@@ -200,7 +212,7 @@ class DynamicHypergraphEvolution:
                 if len(new_to_old[new_id]) != 1:
                     continue
                 left, right = old[old_id], new[new_id]
-                if structural_signature(left, before) == structural_signature(right, after):
+                if transition_signature(left) == transition_signature(right):
                     kind = "PERSIST"
                 else:
                     kind = "TRANSFORM"
