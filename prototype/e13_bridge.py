@@ -26,7 +26,6 @@ class RelationMap:
 @dataclass(frozen=True)
 class RoleMap:
     source_relation: str
-    target_relation: str
     source_role: str
     target_role: str
 
@@ -69,7 +68,7 @@ def _unique_mapping(pairs: Iterable[tuple[str, str]], label: str, allow_many_to_
 
 def propose_bridge(
     hypothesis_id: str, *, entity_types: Iterable[tuple[str, str]],
-    relations: Iterable[tuple[str, str]], roles: Iterable[tuple[str, str, str, str]],
+    relations: Iterable[tuple[str, str]], roles: Iterable[tuple[str, str, str]],
     contexts: Iterable[tuple[str, str]] = (), provenance: str, rationale: str,
     allow_many_to_one: bool = False,
 ) -> BridgeHypothesis:
@@ -119,8 +118,6 @@ def validate_bridge(source: RelationalGraph, target: RelationalGraph,
     if not hypothesis.allow_many_to_one and len(set(relation_map.values())) != len(relation_map):
         reasons.append("RELATION_MAP_COLLISION")
 
-    if any(relation_map.get(x.source_relation) != x.target_relation for x in hypothesis.roles):
-        reasons.append("ROLE_TARGET_RELATION_MISMATCH")
     role_map = {(x.source_relation, x.source_role): x.target_role for x in hypothesis.roles}
     role_positions: dict[str, dict[int, int]] = {}
     expected_role_keys = set()
