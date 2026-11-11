@@ -1,0 +1,123 @@
+{
+  "schema_version": "yj01-operator-registry-v0",
+  "status": "research_reference_only",
+  "semantic_policy": "operator families share contracts, not meanings; traditional claims are versioned hypotheses, not universal laws",
+  "result_statuses": [
+    "APPLIED",
+    "NOT_APPLICABLE",
+    "NEED_CONTEXT",
+    "NEED_EVIDENCE",
+    "CONFLICT",
+    "UNKNOWN"
+  ],
+  "operators": [
+    {
+      "name": "YY_COMPLEMENT",
+      "family": "yin_yang",
+      "inputs": [
+        "DualAxis",
+        "DualState",
+        "DualState"
+      ],
+      "output": "candidate",
+      "requires": [
+        "axis_id",
+        "domain",
+        "functional_constraint",
+        "evidence"
+      ],
+      "scope": "task-local complementarity hypothesis"
+    },
+    {
+      "name": "WX_INFLUENCE",
+      "family": "wuxing",
+      "inputs": [
+        "InfluenceEdge",
+        "Context",
+        "float"
+      ],
+      "output": "directed_effect",
+      "requires": [
+        "source_phase",
+        "target_phase",
+        "relation",
+        "conditions",
+        "interpretation_version",
+        "evidence"
+      ],
+      "scope": "versioned conditional directed influence"
+    },
+    {
+      "name": "YAO_BIND_POSITION",
+      "family": "yao_position",
+      "inputs": [
+        "YaoLine",
+        "expected_position"
+      ],
+      "output": "position_binding",
+      "requires": [
+        "polarity",
+        "position_1_to_6",
+        "role",
+        "interpretation_version",
+        "evidence"
+      ],
+      "scope": "ordered role-position binding"
+    },
+    {
+      "name": "BIAN_BIT_FLIP_BASELINE",
+      "family": "bian_transition",
+      "inputs": [
+        "BianState",
+        "positions",
+        "trigger"
+      ],
+      "output": "state_delta",
+      "requires": [
+        "binary_state",
+        "unique_positions",
+        "trigger",
+        "evidence"
+      ],
+      "scope": "limited bit-flip baseline; not complete bian theory"
+    },
+    {
+      "name": "SHIWEI_CONDITION",
+      "family": "shiwei",
+      "inputs": [
+        "Context",
+        "required_fields"
+      ],
+      "output": "scoped_context",
+      "requires": [
+        "explicit_required_context_fields",
+        "evidence"
+      ],
+      "scope": "context scoping; no inferred calendar law"
+    },
+    {
+      "name": "XIANG_MAP",
+      "family": "xiang_analogy",
+      "inputs": [
+        "source_relations",
+        "target_relations",
+        "XiangMapping"
+      ],
+      "output": "partial_structure_mapping",
+      "requires": [
+        "type_compatibility",
+        "role_compatibility",
+        "target_domain_evidence"
+      ],
+      "scope": "partial structure mapping; no entity fact transfer"
+    }
+  ],
+  "invariants": [
+    "provenance retained",
+    "unknown is not zero",
+    "inapplicable operators must abstain",
+    "interpretation versions explicit",
+    "no cross-domain fact transfer",
+    "bounded deterministic reference behavior"
+  ]
+}
