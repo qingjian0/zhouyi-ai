@@ -36,3 +36,36 @@ choose_abstention_threshold 在 validation 概率和标签上选择满足经验 
 ## Validation-only representation arbitration
 
 The module also provides select_representation(). It consumes only per-family validation metrics and deterministically ranks by higher validation accuracy, lower NLL, lower forward-MAC estimate, lower parameter count, then family name. The selector must run before any locked-test labels are inspected. This is a baseline arbitration policy, not a learned meta-controller; its selection can overfit a small validation set and should be evaluated across independent outer seeds or nested splits.
+
+
+## TX-02D-1：接入完整实验 Runner
+
+`prototype/tx02_experiment.py` 已将基础工具接入 train/validation/locked-test 流程：
+
+1. **计算匹配模式**：`compute_matched=True` 时，以共同 forward-MAC budget 选择各表示的最大合法隐藏层宽度；与参数匹配互斥。CLI 使用 `--compute-match`，可用 `--forward-mac-budget` 覆盖默认预算。
+2. **概率评估**：每种表示均输出 Validation 和 Locked-test 的 accuracy、NLL、Brier、ECE。
+3. **拒绝预测**：每种表示的阈值仅由 Validation 选择；Locked-test 报告 coverage、selective risk、deferred 数量及 risk-coverage 曲线。
+4. **自适应表示**：使用各表示的 Validation accuracy、NLL、forward-MAC、参数量选择一个家族；随后仅对这个已选家族读取 Locked-test 指标。
+5. **固定表示对照**：多种子 aggregate 同时报告每种固定表示与 `ADAPTIVE_VALIDATION_SELECTED` 的测试表现及所选家族。
+
+### 运行方式
+
+参数量匹配（默认）：
+
+```bash
+python -m prototype.tx02_experiment --cardinalities 3 --support-sizes 2 4 --seeds 11 29 47 --json
+```
+
+forward-MAC 匹配：
+
+```bash
+python -m prototype.tx02_experiment --cardinalities 3 --support-sizes 2 4 --seeds 11 29 47 --compute-match --json
+```
+
+### 关键解释边界
+
+- MAC budget 是每个 episode 的前向代理预算；训练总代理按 train episode 数、epoch 数和每 episode MAC 估算，**不计反向传播**。
+- 各家族的实际 MAC 可能因整数隐藏层宽度而低于预算；报告 delta，不声称精确相等。
+- Validation 选择器目前是单次 holdout 上的确定性仲裁规则，不是可学习的元控制器。其结果可能对 validation 采样噪声敏感；必须跨独立外层 seed 报告选择频率与泛化表现。
+- Locked-test risk-coverage 曲线只作最终描述；阈值不在 test 上调节。
+- 这仍是有限仿射规则族合成实验，不代表自然语言或通用智能表现。
