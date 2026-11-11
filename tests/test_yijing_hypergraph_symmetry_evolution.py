@@ -98,6 +98,12 @@ class SymmetryEvolutionTests(unittest.TestCase):
         with self.assertRaises(SymmetryEvolutionError):
             analyze_symmetry_evolution([obs("same", 0, S3), obs("same", 1, C2)])
 
+    def test_group_validation_budget_fails_closed(self):
+        with self.assertRaises(SymmetryEvolutionError):
+            analyze_symmetry_evolution(
+                [obs("s0", 0, S3)], max_group_validation_operations=35
+            )
+
     def test_hysteresis_threshold_is_validated(self):
         with self.assertRaises(SymmetryEvolutionError):
             analyze_symmetry_evolution([obs("s0", 0, S3)], min_consecutive_target_snapshots=0)
