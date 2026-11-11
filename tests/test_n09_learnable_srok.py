@@ -122,6 +122,22 @@ class LearnableSROKTests(unittest.TestCase):
         self.assertTrue(result.budget_exhausted)
         self.assertEqual(result.expanded_assignments, 2)
 
+    def test_rejects_duplicate_ids_inside_training_role_pool(self):
+        model = LearnableSROK(self.roles, feature_dim=3)
+        duplicate = Node(
+            "same", "r0", (1.0, 0.0, 0.0), frozenset({"eligible"})
+        )
+        example = TrainingExample(
+            role_candidates=(
+                (duplicate, duplicate),
+                (Node("b", "r1", (0.0, 1.0, 0.0), frozenset({"eligible"})),),
+                (Node("c", "r2", (0.0, 0.0, 1.0), frozenset({"eligible"})),),
+            ),
+            target_ids=("same", "b", "c"),
+        )
+        with self.assertRaises(LearnableSROKError):
+            model.fit([example], epochs=1)
+
     def test_rejects_duplicate_ids_and_invalid_training(self):
         model = LearnableSROK(self.roles, feature_dim=3)
         duplicate = Node("same", "r0", (1.0, 0.0, 0.0))
