@@ -217,9 +217,9 @@ The oracle is evaluator-side only. It must not be passed into learner-visible ta
 
 ### Remaining gates
 
-- XRA-1b: add a task manifest and independent exact partition enumerator / cross-check for tiny worlds.
-- XRA-1c: evidence-bounded MERGE / SPLIT / UNRESOLVED reference protocol added in `prototype/xra_partition_decision.py`; tests and runtime validation pending.
-- XRA-1d: freeze task-manifest/evidence provenance and connect E12-A8 action selection to competing partition hypotheses.
+- XRA-1b: independent exact partition cross-check and distinguishing witnesses added; execution pending.
+- XRA-1c: deterministic evidence-bounded MERGE / SPLIT / UNRESOLVED reference protocol added; execution pending.
+- XRA-1d: public task manifest, evidence provenance validator, and learner-side EIG/cost challenge scheduler added; tests pending. E12-A8 benchmark integration remains open.
 - XRA-1e: add binary, ternary, generic, shuffled, and anti-aligned proposal families.
 - XRA-1f: add context drift and revalidation using the existing lifecycle adapter.
 
@@ -243,3 +243,22 @@ minimum paired repetitions, and UNRESOLVED otherwise. MERGE is explicitly
 scoped to the tested interface and horizon. This is not a stochastic
 confidence procedure and is not yet integrated with task-manifest validation
 or E12-A8.
+
+
+## 15. XRA-1d implementation note
+
+Added:
+- `prototype/xra_task_manifest.py` and `tests/test_xra_task_manifest.py`
+- `prototype/xra_challenge_scheduler.py` and `tests/test_xra_challenge_scheduler.py`
+- `docs/XRA1D_TASK_MANIFEST_PROVENANCE_ACTIVE_CHALLENGE_2026-11-11.md`
+
+The public manifest is allow-listed and versioned. Evidence provenance rejects
+task/episode/split/representation/schema mismatches. A recursive leakage
+guard rejects known evaluator-only keys. The challenge scheduler chooses
+among learner-predicted action outcomes using one-step mutual information
+per declared cost, respects the remaining budget, and can abstain.
+
+These are reference implementations only. Tests have not been executed.
+Dataset-wide split disjointness, global trial uniqueness, evaluator/learner
+process isolation, stochastic calibration, and E12-A8 integration remain
+open. Adaptive K training remains blocked.
