@@ -357,7 +357,59 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
         return row["event_id"]
 
     def _validate_semantics(self, episode_id: str, event_type: str, payload: dict[str, Any]) -> None:
-        if event_type == "evidence_ingest":
+        if event_type == "candidate_set_freeze":
+            required = {"freeze_id", "learner_track", "evaluation_role", "candidate_version_ids", "candidate_set_digest"}
+            if not required.issubset(payload):
+                raise ProtocolError(f"candidate_set_freeze missing fields: {sorted(required - payload.keys())}")
+            freeze_id, track, role = payload["freeze_id"], payload["learner_track"], payload["evaluation_role"]
+            if not isinstance(freeze_id, str) or not freeze_id.strip() or not isinstance(track, str) or not track.strip():
+                raise ProtocolError("candidate_set_freeze requires non-empty freeze_id and learner_track")
+            if role not in EVALUATION_ROLES:
+                raise ProtocolError("candidate_set_freeze has invalid evaluation_role")
+            versions = payload["candidate_version_ids"]
+            if not isinstance(versions, list) or not versions or versions != sorted(set(versions)):
+                raise ProtocolError("candidate_version_ids must be non-empty, unique and sorted")
+            snapshot = []
+            for version_id in versions:
+                row = self._event_by_payload_id(episode_id, "structure_version", "version_id", version_id)
+                if row is None:
+                    raise MissingReference(f"candidate freeze references unknown version: {version_id}")
+                candidate = json.loads(row["payload_json"])
+                if candidate.get("kind") != "candidate" or candidate.get("learner_track") not in (None, track):
+                    raise ProtocolError("candidate freeze references a non-candidate or cross-track version")
+                snapshot.append({"version_id": version_id, "payload_digest": row["payload_digest"]})
+            expected = digest_payload({"learner_track": track, "evaluation_role": role, "candidates": snapshot})
+            if payload["candidate_set_digest"] != expected:
+                raise ProtocolError("candidate_set_digest does not match durable candidate snapshot")
+            if self._event_by_payload_id(episode_id, "candidate_set_freeze", "freeze_id", freeze_id):
+                raise ProtocolError("duplicate candidate_set_freeze freeze_id")
+        elif event_type == "prediction_commit":
+            freeze_id = payload.get("candidate_set_freeze_id")
+            if freeze_id is not None:
+                row = self._event_by_payload_id(episode_id, "candidate_set_freeze", "freeze_id", freeze_id)
+                if row is None:
+                    raise MissingReference("prediction commit requires a prior candidate_set_freeze")
+                frozen = json.loads(row["payload_json"])
+                if (payload.get("learner_track"), payload.get("evaluation_role"), payload.get("candidate_set_digest")) != (frozen["learner_track"], frozen["evaluation_role"], frozen["candidate_set_digest"]):
+                    raise ProtocolError("prediction commit does not match frozen candidate set, track and role")
+            super()._validate_semantics(episode_id, event_type, payload)
+        elif event_type == "evaluation_reveal":
+            required = {"evaluation_id", "freeze_id", "prediction_id", "learner_track", "evaluation_role", "candidate_set_digest", "target"}
+            if not required.issubset(payload):
+                raise ProtocolError(f"evaluation_reveal missing fields: {sorted(required - payload.keys())}")
+            freeze_row = self._event_by_payload_id(episode_id, "candidate_set_freeze", "freeze_id", payload["freeze_id"])
+            commit_row = self._event_by_payload_id(episode_id, "prediction_commit", "prediction_id", payload["prediction_id"])
+            if freeze_row is None or commit_row is None:
+                raise MissingReference("evaluation_reveal requires prior candidate freeze and prediction commit")
+            frozen, commit = json.loads(freeze_row["payload_json"]), json.loads(commit_row["payload_json"])
+            identity = (frozen["learner_track"], frozen["evaluation_role"], frozen["candidate_set_digest"])
+            if (payload["learner_track"], payload["evaluation_role"], payload["candidate_set_digest"]) != identity:
+                raise ProtocolError("evaluation_reveal does not match frozen candidate set")
+            if (commit.get("candidate_set_freeze_id"), commit.get("learner_track"), commit.get("evaluation_role"), commit.get("candidate_set_digest")) != (payload["freeze_id"], payload["learner_track"], payload["evaluation_role"], payload["candidate_set_digest"]):
+                raise ProtocolError("evaluation_reveal does not match committed prediction")
+            if self._event_by_payload_id(episode_id, "evaluation_reveal", "prediction_id", payload["prediction_id"]):
+                raise ProtocolError("prediction already has an evaluation_reveal")
+        elif event_type == "evidence_ingest":
             required = {"evidence_id", "split_role", "outcome_ref", "source_provenance", "learner_track"}
             if not required.issubset(payload):
                 raise ProtocolError(f"evidence_ingest missing fields: {sorted(required - payload.keys())}")
