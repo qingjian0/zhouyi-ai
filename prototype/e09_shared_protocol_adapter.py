@@ -9,7 +9,9 @@ from __future__ import annotations
 import json
 from typing import Any, Sequence
 
-from prototype.shared_evidence_protocol import SQLiteEvidenceStore, digest_payload
+from prototype.shared_evidence_protocol import (
+    EVIDENCE_SPLITS, STRICT_PROTOCOL_VERSION, SQLiteEvidenceStore, digest_payload,
+)
 from prototype.e09_prequential import PrequentialRunner, PrequentialError
 
 
@@ -21,19 +23,27 @@ class E09SharedProtocolAdapter:
     LEARNER_TRACK = "e09"
 
     def __init__(self, runner: PrequentialRunner, store: SQLiteEvidenceStore,
-                 *, episode_id: str, learner_track: str = LEARNER_TRACK) -> None:
+                 *, episode_id: str, scope: str, split: str = "SUPPORT",
+                 learner_track: str = LEARNER_TRACK) -> None:
         if not isinstance(episode_id, str) or not episode_id.strip():
             raise ValueError("episode_id must be non-empty")
         if not isinstance(learner_track, str) or not learner_track.strip():
             raise ValueError("learner_track must be non-empty")
+        if not isinstance(scope, str) or not scope.strip():
+            raise ValueError("scope must be non-empty")
+        if split not in EVIDENCE_SPLITS:
+            raise ValueError(f"split must be one of {sorted(EVIDENCE_SPLITS)}")
         if runner.model_version < 1:
             raise PrequentialError("bootstrap the E09 runner before attaching the adapter")
         self.runner = runner
         self.store = store
         self.episode_id = episode_id
         self.learner_track = learner_track
+        self.scope = scope
+        self.split = split
         self._failed = False
         self._committed_predictions: set[str] = set()
+        self._commit_digests: dict[str, str] = {}
         self._reveals: dict[str, str] = {}
         self._version_id = f"e09-v{runner.model_version}"
         if self.store.replay_episode(self.episode_id):
@@ -97,14 +107,21 @@ class E09SharedProtocolAdapter:
                 actor_role="runner",
                 payload={
                     "observation_id": observation_id,
+                    "query_id": observation_id,
+                    "scope": self.scope,
+                    "split": self.split,
                     "payload_ref": input_digest,
                     "feature_schema_version": "e09-categorical-input-v1",
                 },
+                protocol_version=STRICT_PROTOCOL_VERSION,
             )
             commit = self.runner.predict_and_commit(observation_id, input_values)
             prediction_payload = {
                 "prediction_id": commit.prediction_id,
                 "observation_id": observation_id,
+                "query_id": observation_id,
+                "scope": self.scope,
+                "split": self.split,
                 "model_version": f"e09-model-{commit.model_version}",
                 "learner_track": self.learner_track,
                 "candidate_set_hash": digest_payload(self._snapshot()),
@@ -118,15 +135,17 @@ class E09SharedProtocolAdapter:
                 },
             }
             prediction_event_id = f"{self.episode_id}:prediction:{commit.prediction_id}"
-            self.store.commit_prediction(
+            prediction_receipt = self.store.commit_prediction(
                 episode_id=self.episode_id,
                 event_id=prediction_event_id,
                 idempotency_key=prediction_event_id,
                 actor_role="learner",
                 causation_refs=[observation_event_id],
                 payload=prediction_payload,
+                protocol_version=STRICT_PROTOCOL_VERSION,
             )
             self._committed_predictions.add(commit.prediction_id)
+            self._commit_digests[commit.prediction_id] = prediction_receipt.payload_digest
             return {
                 "prediction_id": commit.prediction_id,
                 "observation_id": observation_id,
@@ -159,17 +178,25 @@ class E09SharedProtocolAdapter:
                 causation_refs=[f"{self.episode_id}:prediction:{prediction_id}"],
                 payload={
                     "prediction_id": prediction_id,
+                    "query_id": prediction_id.rsplit(":", 1)[-1],
+                    "scope": self.scope,
+                    "split": self.split,
+                    "commit_digest": self._commit_digests[prediction_id],
                     "learner_track": self.learner_track,
                     "target_or_feedback": self._jsonable(label),
                     "reveal_source": source,
                 },
+                protocol_version=STRICT_PROTOCOL_VERSION,
             )
             # Source IDs remain in E09's provenance ledger, not learner-facing
             # protocol payloads; the protocol has no evaluator-only field ACL.
-            self.runner.reveal(
-                prediction_id, label, source=source, source_id=source_id
-            )
-            self._reveals[prediction_id] = event_id
+            # Only SUPPORT evidence may enter the learner's update path.
+            # Gate/test labels are recorded for evaluator-side scoring only.
+            if self.split == "SUPPORT":
+                self.runner.reveal(
+                    prediction_id, label, source=source, source_id=source_id
+                )
+                self._reveals[prediction_id] = event_id
             return event_id
         except Exception as exc:
             self._failed = True
