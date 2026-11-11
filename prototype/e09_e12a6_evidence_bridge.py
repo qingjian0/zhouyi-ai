@@ -6,11 +6,13 @@ raw target_or_feedback into the E12-A6 Evidence DTO.
 from __future__ import annotations
 
 import math
-from typing import Any
+from datetime import datetime, timezone
+from typing import Any, Callable
 
+from prototype.csg_branch_delta import VerifiedBranchMergeAuthorization
 from prototype.e12a6_lifecycle_contract import Evidence, SplitRole
 from prototype.e12a6_zpcm_persistence import LifecycleEventReceipt, PersistentLifecycleLedger
-from prototype.shared_evidence_protocol import STRICT_PROTOCOL_VERSION, SQLiteEvidenceStore, digest_payload
+from prototype.shared_evidence_protocol import STRICT_PROTOCOL_VERSION, SQLiteEvidenceStore, canonical_json, digest_payload
 
 
 class E09EvidenceBindingError(ValueError):
@@ -174,3 +176,126 @@ def register_e09_reveal(
         raise TypeError("ledger must be PersistentLifecycleLedger")
     evidence = resolve_e09_reveal(store, **kwargs)
     return evidence, ledger.register_evidence(evidence)
+
+
+def resolve_branch_merge_authorization(
+    store: SQLiteEvidenceStore,
+    *,
+    episode_id: str,
+    authorization_ref: str,
+    parent_state_ref: str,
+    branch_ids: tuple[str, ...],
+    scope: str,
+    learner_track: str,
+    world_family_by_evidence: dict[str, str],
+    signature_verifier: Callable[[str, str, bytes, str], bool],
+    verifier_id: str,
+    now: datetime | None = None,
+) -> VerifiedBranchMergeAuthorization:
+    """Authenticate a scoped branch-merge grant from an immutable E09 event.
+
+    signature_verifier must be backed by an out-of-band trusted issuer keyring
+    (normally pinned public keys). It receives issuer ID, algorithm, canonical
+    signed bytes and signature. E09 event hashing alone is not authentication.
+    """
+    for name, value in (("episode_id", episode_id), ("authorization_ref", authorization_ref),
+                        ("parent_state_ref", parent_state_ref), ("scope", scope),
+                        ("learner_track", learner_track), ("verifier_id", verifier_id)):
+        if not isinstance(value, str) or not value.strip():
+            raise E09EvidenceBindingError(f"{name} must be a non-empty string")
+    if not isinstance(branch_ids, (tuple, list)) or not branch_ids:
+        raise E09EvidenceBindingError("branch_ids must be a non-empty sequence")
+    if any(not isinstance(value, str) or not value.strip() for value in branch_ids):
+        raise E09EvidenceBindingError("branch_ids must contain non-empty strings")
+    if len(set(branch_ids)) != len(branch_ids):
+        raise E09EvidenceBindingError("branch_ids must be unique")
+    if not isinstance(world_family_by_evidence, dict):
+        raise E09EvidenceBindingError("world_family_by_evidence must be a mapping")
+    if not callable(signature_verifier):
+        raise E09EvidenceBindingError("signature_verifier must be callable")
+
+    try:
+        events = store.replay_episode(episode_id)
+    except Exception as exc:
+        raise E09EvidenceBindingError(f"cannot replay E09 episode: {exc}") from exc
+    matches = [event for event in events if event.get("event_id") == authorization_ref]
+    if len(matches) != 1:
+        raise E09EvidenceBindingError("authorization_ref must identify exactly one E09 event")
+    event = matches[0]
+    _verify_event_envelope(event)
+    if event.get("event_type") != "branch_merge_authorization":
+        raise E09EvidenceBindingError("authorization_ref is not a branch_merge_authorization event")
+    if event.get("protocol_version") != STRICT_PROTOCOL_VERSION or event.get("actor_role") != "authorizer":
+        raise E09EvidenceBindingError("authorization must be a strict v0.3 authorizer event")
+
+    payload = event.get("payload")
+    if not isinstance(payload, dict):
+        raise E09EvidenceBindingError("authorization payload is malformed")
+    issuer_id = payload.get("issuer_id")
+    if payload.get("authorization_id") != authorization_ref:
+        raise E09EvidenceBindingError("authorization event ID and authorization_id differ")
+    if payload.get("scope") != scope or payload.get("parent_state_ref") != parent_state_ref:
+        raise E09EvidenceBindingError("authorization scope or parent state does not match")
+    authorized_branches = payload.get("branch_ids")
+    if not isinstance(authorized_branches, list) or set(authorized_branches) != set(branch_ids):
+        raise E09EvidenceBindingError("authorization branch set must exactly match selected branches")
+    evidence_refs = payload.get("evidence_refs")
+    if not isinstance(evidence_refs, list) or not evidence_refs or len(set(evidence_refs)) != len(evidence_refs):
+        raise E09EvidenceBindingError("authorization evidence_refs must be non-empty and unique")
+    if event.get("causation_refs") != evidence_refs:
+        raise E09EvidenceBindingError("authorization causation refs must exactly match its evidence refs")
+    if set(world_family_by_evidence) != set(evidence_refs):
+        raise E09EvidenceBindingError("every authorization evidence ref requires explicit world-family context")
+    if any(not isinstance(value, str) or not value.strip() for value in world_family_by_evidence.values()):
+        raise E09EvidenceBindingError("world-family context values must be non-empty strings")
+
+    try:
+        issued = datetime.fromisoformat(payload["issued_at"].replace("Z", "+00:00"))
+        expires = datetime.fromisoformat(payload["expires_at"].replace("Z", "+00:00"))
+    except (KeyError, AttributeError, ValueError) as exc:
+        raise E09EvidenceBindingError("authorization timestamps are malformed") from exc
+    if issued.tzinfo is None or expires.tzinfo is None or expires <= issued:
+        raise E09EvidenceBindingError("authorization timestamps must be timezone-aware and ordered")
+    current = now or datetime.now(timezone.utc)
+    if current.tzinfo is None:
+        raise E09EvidenceBindingError("verification time must be timezone-aware")
+    if current < issued or current >= expires:
+        raise E09EvidenceBindingError("branch merge authorization is not currently valid")
+
+    for ref in evidence_refs:
+        reveal = next((item for item in events if item.get("event_id") == ref), None)
+        if reveal is None or reveal.get("sequence_no", 0) >= event.get("sequence_no", 0):
+            raise E09EvidenceBindingError("authorization evidence must be prior E09 events")
+        resolve_e09_reveal(
+            store, episode_id=episode_id, evidence_ref=ref, scope=scope,
+            learner_track=learner_track, world_family=world_family_by_evidence[ref],
+        )
+
+    signed_payload = {key: value for key, value in payload.items() if key != "signature"}
+    signed_bytes = canonical_json({
+        "episode_id": episode_id,
+        "event_id": authorization_ref,
+        "payload": signed_payload,
+    }).encode("utf-8")
+    algorithm = payload.get("signature_algorithm")
+    signature = payload.get("signature")
+    if not isinstance(issuer_id, str) or not issuer_id.strip():
+        raise E09EvidenceBindingError("authorization issuer_id is missing")
+    if not isinstance(algorithm, str) or not algorithm.strip() or not isinstance(signature, str) or not signature:
+        raise E09EvidenceBindingError("authorization signature metadata is missing")
+    try:
+        valid = signature_verifier(issuer_id, algorithm, signed_bytes, signature)
+    except Exception as exc:
+        raise E09EvidenceBindingError("trusted issuer signature verifier failed") from exc
+    if valid is not True:
+        raise E09EvidenceBindingError("branch merge authorization signature is invalid or issuer is untrusted")
+
+    return VerifiedBranchMergeAuthorization(
+        authorization_ref=authorization_ref,
+        parent_state_ref=parent_state_ref,
+        branch_ids=tuple(sorted(branch_ids)),
+        evidence_refs=tuple(evidence_refs),
+        issuer_id=issuer_id,
+        event_digest=event["payload_digest"],
+        verifier_id=verifier_id,
+    )
