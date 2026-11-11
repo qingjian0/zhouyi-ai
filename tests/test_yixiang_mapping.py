@@ -63,8 +63,9 @@ class XSL2CandidateMappingTests(unittest.TestCase):
             node_type_mapping=(("actor", "agent"), ("system", "agent")),
             relation_mapping=(("acts_on", "controls"),))
         self.assertTrue(result.search_complete)
-        self.assertEqual(len(result.candidates), 1)
-        self.assertEqual(result.candidates[0].validation.status, BridgeStatus.STRUCTURALLY_PRESERVED)
+        self.assertEqual(len(result.candidates), 2)
+        statuses = {candidate.validation.status for candidate in result.candidates}
+        self.assertEqual(statuses, {BridgeStatus.STRUCTURALLY_PRESERVED, BridgeStatus.COUNTEREXAMPLE})
 
 
 if __name__ == "__main__":
