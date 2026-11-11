@@ -36,6 +36,7 @@ class E09VerificationReceiptTests(unittest.TestCase):
             "scope": "world/receipt-test",
             "parent_state_ref": "parent-001",
             "branch_ids": ["branch-a", "branch-b"],
+            "authorization_evidence_refs": [evidence_id],
             "evidence_refs": [evidence_id],
             "issuer_id": "issuer-authority",
             "authorization_event_digest": "a" * 64,
@@ -74,6 +75,7 @@ class E09VerificationReceiptTests(unittest.TestCase):
             expected_parent_state_ref=self.receipt["parent_state_ref"],
             expected_branch_ids=("branch-a", "branch-b"),
             expected_evidence_refs=tuple(self.receipt["evidence_refs"]),
+            expected_authorization_evidence_refs=tuple(self.receipt["authorization_evidence_refs"]),
         )
 
     def test_valid_receipt_returns_typed_redacted_evidence(self):
