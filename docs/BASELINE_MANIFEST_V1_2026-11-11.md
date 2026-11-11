@@ -150,3 +150,15 @@ PR #223 head `1e23b23c515e3b339c52850d98ba9981176495b5`, base PR #222 head `4416
 PR #226 reuses the existing ZPCM memory_events append-only table and adds a dedicated, unbounded lifecycle replay API. It does not use bounded semantic retrieval for event restoration. Lifecycle mutations are validated on a staged E12-A6 ledger, durably appended, and only then swapped into memory. Restart replays the event stream through the existing E12-A6 LifecycleLedger. Evidence outcome/provenance values are replaced with opaque references in lifecycle persistence; E09 remains evidence payload authority.
 
 The validated boundary is a trusted single-process SQLite reference implementation. It does not provide distributed consensus, OS-level process isolation, authenticated E09 evidence/branch authorization, or a cross-process transactional outbox. PR #226 remains Draft and is not merged to main.
+
+
+## E09 evidence binding continuation
+
+| PR | Exact head | Base | Exact-head workflow | Status |
+|---|---|---|---|---|
+| [#226](https://github.com/qingjian0/zhouyi-ai/pull/226) | `f4406ab9e9a8eb89329d767bfe5e11cef10964ee` | #223 head `1e23b23c515e3b339c52850d98ba9981176495b5` | `43037972184` success | Draft; ZPCM lifecycle append/replay and E12-A6 transactional adapter |
+| [#227](https://github.com/qingjian0/zhouyi-ai/pull/227) | `bc5114f846464c366469f08da82b1fd37c1479ef` | #226 head `f4406ab9e9a8eb89329d767bfe5e11cef10964ee` | `43038201790` success | Draft; strict E09 reveal-chain verification and redacted E12-A6 evidence projection |
+
+PR #227 recomputes the E09 event-envelope fingerprint for observation, prediction commit, and reveal before projection. It requires the evaluator reveal role, strict v0.3, exact scope/track/query/split linkage, sequence ordering, semantic commit digest, durable commit-envelope digest, and causation reference. E09 SUPPORT maps explicitly to E12-A6 TRAIN; GATE_DEV/GATE_FINAL/LOCKED_TEST remain separate. World family is caller-supplied rather than inferred.
+
+This closes the evidence-reference verification slice only. It does not authenticate the E09 database operator, validate BranchMergeAuthorization issuer credentials, or yet provide one atomic ingestion operation combining a typed CSG-GCR candidate with all its E09-verified evidence.
