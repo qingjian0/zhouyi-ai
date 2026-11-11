@@ -19,7 +19,6 @@ class SymmetryEvolutionError(ValueError):
 
 
 class SymmetryEventType(str, Enum):
-    PERSIST = "PERSIST"
     SYMMETRY_BREAK = "SYMMETRY_BREAK"
     SYMMETRY_EXPAND = "SYMMETRY_EXPAND"
     RECONFIGURE = "RECONFIGURE"
@@ -61,9 +60,16 @@ def _compose(left: tuple[int, ...], right: tuple[int, ...]) -> tuple[int, ...]:
     return tuple(left[right[index]] for index in range(len(left)))
 
 
-def _validate_group(group: tuple[tuple[int, ...], ...], arity: int) -> None:
+def _validate_group(
+    group: tuple[tuple[int, ...], ...], arity: int, max_operations: int
+) -> int:
     if not group or len(group) != len(set(group)):
         raise SymmetryEvolutionError("each exact group must be non-empty and duplicate-free")
+    operations = len(group) * len(group)
+    if operations > max_operations:
+        raise SymmetryEvolutionError(
+            "exact group validation exceeds max_group_validation_operations"
+        )
     identity = tuple(range(arity))
     members = set(group)
     if identity not in members:
@@ -77,6 +83,7 @@ def _validate_group(group: tuple[tuple[int, ...], ...], arity: int) -> None:
         for other in members:
             if _compose(item, other) not in members:
                 raise SymmetryEvolutionError("exact group is not composition-closed")
+    return operations
 
 
 def _lineage_key(row: ExactSlotGroupObservation) -> tuple:
@@ -103,8 +110,6 @@ def _change_type(
     before: frozenset[tuple[int, ...]],
     after: frozenset[tuple[int, ...]],
 ) -> SymmetryEventType:
-    if before == after:
-        return SymmetryEventType.PERSIST
     if after < before:
         return SymmetryEventType.SYMMETRY_BREAK
     if before < after:
@@ -116,6 +121,7 @@ def analyze_symmetry_evolution(
     observations: Iterable[ExactSlotGroupObservation],
     *,
     min_consecutive_target_snapshots: int = 2,
+    max_group_validation_operations: int = 1_000_000,
 ) -> SymmetryEvolutionReport:
     """Analyze ordered exact slot-group snapshots with persistence hysteresis.
 
@@ -131,6 +137,11 @@ def analyze_symmetry_evolution(
             or min_consecutive_target_snapshots < 1):
         raise SymmetryEvolutionError("min_consecutive_target_snapshots must be positive")
 
+    if (not isinstance(max_group_validation_operations, int)
+            or isinstance(max_group_validation_operations, bool)
+            or max_group_validation_operations < 1):
+        raise SymmetryEvolutionError("max_group_validation_operations must be positive")
+
     rows = tuple(observations)
     if not rows:
         raise SymmetryEvolutionError("at least one exact slot-group observation is required")
@@ -139,6 +150,7 @@ def analyze_symmetry_evolution(
         raise SymmetryEvolutionError("observation evidence IDs must be non-empty and unique")
 
     lineages: dict[tuple, list[ExactSlotGroupObservation]] = defaultdict(list)
+    validation_operations = 0
     for row in rows:
         if row.arity < 2 or len(row.slot_frame) != row.arity:
             raise SymmetryEvolutionError("slot frame must match relation arity")
@@ -146,7 +158,10 @@ def analyze_symmetry_evolution(
             raise SymmetryEvolutionError("entity type frame must match relation arity")
         if row.step < 0:
             raise SymmetryEvolutionError("snapshot step must be non-negative")
-        _validate_group(row.exact_group, row.arity)
+        validation_operations += _validate_group(
+            row.exact_group, row.arity,
+            max_group_validation_operations - validation_operations,
+        )
         lineages[_lineage_key(row)].append(row)
 
     events: list[SymmetryEvolutionEvent] = []
@@ -190,9 +205,9 @@ def analyze_symmetry_evolution(
 
             before_group = frozenset(before.exact_group)
             after_group = frozenset(after.exact_group)
-            event_type = _change_type(before_group, after_group)
-            if event_type == SymmetryEventType.PERSIST:
+            if before_group == after_group:
                 continue
+            event_type = _change_type(before_group, after_group)
 
             support = 0
             for candidate in ordered[index + 1:]:
