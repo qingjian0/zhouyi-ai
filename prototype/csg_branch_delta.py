@@ -67,6 +67,7 @@ class BranchDelta:
 @dataclass(frozen=True)
 class BranchSnapshot:
     parent_state_ref: str
+    parent_state_hash: str
     branch_id: str
     base_version: int
     delta_events: tuple[BranchDelta, ...]
@@ -110,6 +111,8 @@ def validate_snapshot(snapshot: BranchSnapshot) -> None:
     if not isinstance(snapshot, BranchSnapshot):
         raise ValueError("snapshot must be BranchSnapshot")
     _text(snapshot.parent_state_ref, "parent_state_ref")
+    if not isinstance(snapshot.parent_state_hash, str) or len(snapshot.parent_state_hash) != 64:
+        raise ValueError("parent_state_hash must be a SHA-256 digest")
     _text(snapshot.branch_id, "branch_id")
     if isinstance(snapshot.base_version, bool) or not isinstance(snapshot.base_version, int) or snapshot.base_version < 0:
         raise ValueError("base_version must be a non-negative integer")
@@ -192,9 +195,11 @@ def merge_branch_deltas(base_state: Mapping[str, Any],
     try:
         if not isinstance(base_state, Mapping):
             raise ValueError("base_state must be a mapping")
-        state = dict(base_state)
-        for key in state:
+        state = {}
+        for key, value in base_state.items():
             _text(key, "base state key")
+            # Validate and detach nested mutable values from caller-owned objects.
+            state[key] = json.loads(_canonical_json(value))
         if not snapshots:
             return MergeResult(MergeStatus.NO_OP, tuple(sorted(state.items())), (), ())
         for snap in snapshots:
@@ -204,10 +209,14 @@ def merge_branch_deltas(base_state: Mapping[str, Any],
             return MergeResult(MergeStatus.REJECTED, tuple(sorted(state.items())), (), (),
                                "branch IDs must be unique in one merge request")
         parents = {s.parent_state_ref for s in snapshots}
+        parent_hashes = {s.parent_state_hash for s in snapshots}
         versions = {s.base_version for s in snapshots}
-        if len(parents) != 1 or len(versions) != 1:
+        if len(parents) != 1 or len(parent_hashes) != 1 or len(versions) != 1:
             return MergeResult(MergeStatus.REJECTED, tuple(sorted(state.items())), (), (),
-                               "all branches must share the exact parent state and base version")
+                               "all branches must share the exact parent identity, hash and base version")
+        if canonical_hash(state) != next(iter(parent_hashes)):
+            return MergeResult(MergeStatus.STALE, tuple(sorted(state.items())), (), (),
+                               "base_state does not match the declared immutable parent hash")
         all_events: dict[str, BranchDelta] = {}
         target_writers: dict[str, dict[str, set[str]]] = {}
         for snap in snapshots:
@@ -239,10 +248,17 @@ def merge_branch_deltas(base_state: Mapping[str, Any],
             reason = _apply_event(state, event)
             if reason:
                 status = MergeStatus.STALE if "before_hash" in reason else MergeStatus.CONFLICT
-                return MergeResult(status, tuple(sorted(dict(base_state).items())), tuple(applied),
+                return MergeResult(status, tuple(sorted(state.items())), tuple(applied),
                                    (event.target_ref,), reason)
             applied.append(event.event_id)
         status = MergeStatus.MERGED if applied else MergeStatus.NO_OP
         return MergeResult(status, tuple(sorted(state.items())), tuple(applied), ())
     except (TypeError, ValueError) as exc:
-        return MergeResult(MergeStatus.REJECTED, tuple(sorted(dict(base_state).items())), (), (), str(exc))
+        safe_state = ()
+        if isinstance(base_state, Mapping):
+            try:
+                safe_state = tuple(sorted((key, json.loads(_canonical_json(value)))
+                                          for key, value in base_state.items()))
+            except (TypeError, ValueError):
+                safe_state = ()
+        return MergeResult(MergeStatus.REJECTED, safe_state, (), (), str(exc))
