@@ -4,7 +4,7 @@ from pathlib import Path
 
 from prototype.e09_counterexample_learner import CounterexampleRuleLearner, Example
 from prototype.e09_incremental_learner import IncrementalConjunctionLearner
-from prototype.e09_prequential import PrequentialRunner
+from prototype.e09_prequential import PrequentialError, PrequentialRunner
 from prototype.e09_shared_protocol_adapter import E09SharedProtocolAdapter
 from prototype.shared_evidence_protocol import SQLiteEvidenceStore
 
@@ -28,7 +28,7 @@ class E09SharedProtocolAdapterTests(unittest.TestCase):
         self.store.close()
         self.tmp.cleanup()
 
-    def make_adapter(self, mode):
+    def make_adapter(self, mode, split="SUPPORT"):
         if mode == "INCREMENTAL_INDEX":
             learner = IncrementalConjunctionLearner(DOMAINS, min_support=2)
         else:
@@ -36,7 +36,7 @@ class E09SharedProtocolAdapterTests(unittest.TestCase):
         runner = PrequentialRunner(learner, revision_mode=mode)
         runner.bootstrap(BOOTSTRAP)
         return E09SharedProtocolAdapter(
-            runner, self.store, episode_id=f"episode-{mode}", scope="e09/test"
+            runner, self.store, episode_id=f"episode-{mode}", scope="e09/test", split=split
         )
 
     def test_incremental_arm_persists_full_causal_chain(self):
@@ -90,12 +90,11 @@ class E09SharedProtocolAdapterTests(unittest.TestCase):
         self.assertEqual(commit["decision_status"], "PREDICT")
  
     def test_locked_gate_reveal_is_not_delivered_to_learner(self):
-        adapter = self.make_adapter("INCREMENTAL_INDEX")
-        adapter.split = "LOCKED_TEST"
+        adapter = self.make_adapter("INCREMENTAL_INDEX", split="LOCKED_TEST")
         commit = adapter.predict_and_commit("obs-locked", (0, 0, 2))
         adapter.reveal(commit["prediction_id"], "no")
         self.assertEqual(adapter.score()["revealed_observations"], 0)
-        with self.assertRaises(Exception):
+        with self.assertRaises(PrequentialError):
             adapter.revise(commit["prediction_id"])
         reveal = next(
             e for e in adapter.replay() if e["event_type"] == "evidence_reveal"
