@@ -124,6 +124,15 @@ class MultiStepDynamicsTests(unittest.TestCase):
         self.assertEqual(selection.status, "SELECTED")
         self.assertEqual(selection.selected.disagreement, 1.0)
 
+    def test_incomplete_observed_trajectory_does_not_create_false_contradiction(self):
+        update = update_trajectory_version_space(
+            self.source, (self.mapping,), (("phase", "low"),),
+            TrajectoryQuery("incomplete", ("tick",)),
+            rollout(self.target, (("stage", "quiet"),), ("advance", "missing")),
+        )
+        self.assertEqual(update.status, "REJECTED_INCOMPLETE_EVIDENCE")
+        self.assertEqual(update.retained_candidate_ids, ())
+
     def test_observed_target_trajectory_updates_candidate_version_space(self):
         alternative = TransitionMap(
             "alternative",
