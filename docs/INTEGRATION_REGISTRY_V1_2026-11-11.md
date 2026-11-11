@@ -91,3 +91,21 @@ The canonical branch and SHA values are in [BASELINE_MANIFEST](BASELINE_MANIFEST
 - **#213 → #215** is a separate YJ-07/YJ-08 research stack. Neither is a prerequisite for the P1 runtime closure.
 
 All these PRs were Draft at audit time. GitHub reporting `mergeable=true` is not sufficient for approval. Each stack must be rebased or otherwise reconciled against its actual parent head, then tested as a combined exact head.
+
+
+## 7. CSG-GCR lifecycle persistence stack (2026-11-11)
+
+| PR | Scope | Exact-head CI | Maturity/status |
+|---|---|---|---|
+| [#217](https://github.com/qingjian0/zhouyi-ai/pull/217) | Typed hyperedge unification bridge into CSG-GCR | `43027843058` success | Draft integration slice |
+| [#218](https://github.com/qingjian0/zhouyi-ai/pull/218) | Immutable branch delta and deterministic merge | `43030468165` success | Draft integration slice |
+| [#221](https://github.com/qingjian0/zhouyi-ai/pull/221) | Monotonic partial feasibility pruning | `43031651288` success | Draft integration slice |
+| [#222](https://github.com/qingjian0/zhouyi-ai/pull/222) | Typed CSG-GCR ↔ Branch Delta bridge | `43032951104` success | Draft integration slice |
+| [#223](https://github.com/qingjian0/zhouyi-ai/pull/223) | Typed CSG-GCR → E12-A6 OBSERVED projection | `43034178683` success | Draft integration slice |
+| [#226](https://github.com/qingjian0/zhouyi-ai/pull/226) | E12-A6 lifecycle append/replay persistence through ZPCM | `43036878778` success | Draft integration slice |
+
+The #223 adapter is read-only: it creates a typed E12-A6 candidate projection but does not apply lifecycle actions. PR #226 adds the durable lifecycle event path and reconstructs state by replaying through E12-A6. E12-A6 remains lifecycle authority; ZPCM remains durable event-history authority; E09 remains evidence payload and authorization authority.
+
+PR #226 validates append-before-swap behavior, append-failure non-mutation, crash-after-append replay, idempotent action/revision retries, content conflicts, stale cursors, scope isolation, and payload digest integrity. Raw evidence outcome/provenance values are not copied into ZPCM lifecycle records; they are replaced by opaque references.
+
+**Remaining P1 work:** connect E09-verified evidence references to E12-A6 Evidence registration without bypassing split visibility; wire the typed CSG-GCR projection into PersistentLifecycleLedger as one supported ingestion path; then exercise the complete CSG-GCR → E09 evidence validation → E12-A6 transition → ZPCM persistence/restart flow. Cross-process evaluator/learner isolation, authenticated IPC, and transactional outbox remain separate gates. Full CI success validates software behavior and experiment scripts, not scientific validity or production readiness.
