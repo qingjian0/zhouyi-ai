@@ -83,3 +83,29 @@ A PR is not integrated merely because it merges cleanly. Each integration slice 
 ## Recommended merge policy
 
 Keep main stable. Merge only small, independently reviewed integration slices after parent dependencies are available and CI passes. Do not merge all research branches in one batch: the repository contains stacked PRs with differing base branches, protocol versions and validation boundaries.
+
+
+## E09 v0.2 / E12-A6 binding gap audit
+
+The current E09 shared SQLite protocol and its E09 adapter are useful durable-runner prototypes, but they do not yet satisfy the v1 cross-track evidence contract.
+
+Observed gaps in the current research implementation:
+
+- E09 v0.2 `evidence_reveal` records prediction ID, learner track and target/feedback, but does not carry the shared contract's explicit `scope`, `split`, or prediction-commit digest binding.
+- E09 observation and prediction events do not currently provide a complete, explicit `query_id + scope + split` tuple for a cross-track `EvidenceReveal`.
+- The E09 adapter appends an evaluator-role reveal and then calls the learner's `reveal()` in the same trusted runner process. The protocol's actor role is metadata, not an authorization boundary; this is not learner/evaluator isolation.
+- The E09 adapter currently rejects non-empty episodes on construction. Replay is available for audit, but live runner reconstruction / crash-resume is not implemented.
+- E12-A6 `Evidence` carries episode, world family, split role, observation ID and model version, but not a mandatory prediction ID, learner-track ID or commit digest. An observation can have commits from multiple learner tracks, so matching only by observation ID is ambiguous.
+
+### Required E09 v0.3 integration gate
+
+Before adapting E09 reveals into the shared `EvidenceReveal` DTO:
+
+1. Extend the durable event schema with explicit query/observation binding, scope, split role, learner track and prediction-commit digest.
+2. Validate that reveal query, scope, split and commit digest match exactly one earlier prediction commit in the same episode and learner track.
+3. Keep legacy v0.1/v0.2 replay readable; do not reinterpret old events as if missing split/scope fields were known.
+4. Add a real evaluator/learner process boundary and an authenticated evidence channel. A split label or actor-role string inside one process is not sufficient.
+5. Add crash recovery or deterministic runner reconstruction before claiming resumable online learning.
+6. Extend E12-A6 evidence linkage with an explicit prediction reference (or an unambiguous protocol event reference) rather than guessing from observation ID.
+
+Until these gates pass, E09 should remain a branch-local learner + durable-runner adapter. The CPG-EI v1 adapter must not manufacture split labels, commit digests or learner-track bindings from incomplete metadata.
