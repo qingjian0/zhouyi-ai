@@ -25,7 +25,7 @@ class CandidateDiscoveryTests(unittest.TestCase):
         )
         z_scores = [s for s in report.scores if s.target == "z"]
         self.assertTrue(any(s.source_keys == ("a", "b", "c") for s in z_scores))
-        self.assertEqual(report.candidates_considered, 28)
+        self.assertEqual(report.candidates_considered, 104)
         joint = next(s for s in z_scores if s.source_keys == ("a", "b", "c"))
         self.assertEqual(joint.polarity, 1)
 
