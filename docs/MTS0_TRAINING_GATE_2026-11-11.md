@@ -44,14 +44,21 @@ python -m prototype.mts0_runner --seed 7 --train-samples 1200 --test-samples 400
 
 | 门 | 验收标准 | 当前状态 |
 |---|---|---|
-| T0 可执行 | 单命令训练并输出 JSON | 已实现，待 CI |
-| T1 确定性 | 固定 seed/config 输出一致 | 已实现单测，待 CI |
-| T2 先提交后揭示 | 全部预测提交数等于锁定揭示数 | 已实现单测，待 CI |
-| T3 标签隔离策略 | learner/selector 看不到 locked-test | 仅同进程策略测试 |
-| T4 证据绑定 | reveal 绑定 commit digest、query、scope | 已实现单测，待 CI |
+| T0 可执行 | 单命令训练并输出 JSON | 已实现；MTS-0 smoke step 成功 |
+| T1 确定性 | 固定 seed/config 输出一致 | 单测通过 |
+| T2 先提交后揭示 | 全部预测提交数等于锁定揭示数 | sealed-batch 单测通过，smoke 成功 |
+| T3 标签隔离策略 | learner/selector 看不到 locked-test | 同进程策略测试通过；非安全边界 |
+| T4 证据绑定 | reveal 绑定 commit digest、query、scope | 单测通过 |
 | T5 独立审计 | evaluator 独立进程/服务 | 未实现 |
-| T6 多种子报告 | 至少 5 seeds，均值/标准差及逐 seed 结果 | 已实现 5-seed API 与测试，待 CI/实际运行 |
+| T6 多种子报告 | 至少 5 seeds，均值/标准差及逐 seed 结果 | 5-seed API 测试通过；小样本 CI 运行，不代表完整基准 |
 | T7 OOD 验证 | entity/composition/rule-family/domain OOD | 下一步 |
+
+## 已验证的 CI 记录
+
+- Run 42982760405：完整 tests workflow 成功。
+- 单元测试成功，MTS-0 prequential smoke experiment 成功。
+- E01/E02 既有实验步骤全部成功。
+- 5-seed API 的小样本单元测试通过；正式报告仍需更大样本、多种子失败案例与 OOD 切分。
 
 ## 下一阶段
 
