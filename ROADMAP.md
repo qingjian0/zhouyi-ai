@@ -53,3 +53,12 @@ PR #208 now provides a bounded R1 coordinator candidate, but its declared gaps r
 - Evidence outcome/provenance strings are replaced with opaque references in lifecycle persistence. E09 remains the authority for evidence payloads and split visibility.
 - Both PRs remain Draft and unmerged. This does not yet complete P1.
 - Next: bind E09-verified evidence into E12-A6 without exposing LOCKED_TEST labels, connect the CSG-GCR projection to the persistent ledger, and test the full end-to-end restart path. Process isolation, authenticated IPC, and transactional outbox remain outstanding.
+
+
+## P1 E09 evidence binding progress (2026-11-11)
+
+- PR #226 exact head f4406ab9e9a8eb89329d767bfe5e11cef10964ee passed full workflow 43037972184.
+- PR #227 exact head bc5114f846464c366469f08da82b1fd37c1479ef passed full workflow 43038201790.
+- E09 evidence references are now checked against strict observation → prediction commit → reveal event chains, including envelope digests, scope/track/split binding, event order, and causation.
+- SUPPORT maps to E12-A6 TRAIN; GATE_DEV, GATE_FINAL, and LOCKED_TEST remain isolated. Raw labels are not copied into lifecycle persistence.
+- Both PRs remain Draft. Next: atomically ingest a typed CSG-GCR candidate and its verified E09 evidence into PersistentLifecycleLedger/ZPCM; reject cross-branch merges until authorization issuer verification exists.
