@@ -1,10 +1,14 @@
 import tempfile
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 
 from prototype.e12a6_lifecycle_contract import SplitRole
 from prototype.e12a6_zpcm_persistence import PersistentLifecycleLedger
-from prototype.e09_e12a6_evidence_bridge import E09EvidenceBindingError, register_e09_reveal, resolve_e09_reveal
+from prototype.e09_e12a6_evidence_bridge import (
+    E09EvidenceBindingError, register_e09_reveal, resolve_e09_reveal,
+    resolve_branch_merge_authorization,
+)
 from prototype.shared_evidence_protocol import STRICT_PROTOCOL_VERSION, SQLiteEvidenceStore
 from prototype.zpcm_memory import ZPCMMemory
 
@@ -115,6 +119,86 @@ class E09EvidenceBridgeTests(unittest.TestCase):
             resolve_e09_reveal(self.e09,episode_id=self.episode,evidence_ref=ref,
               scope=self.scope,learner_track=self.track,world_family=self.world)
 
+
+    def add_branch_authorization(self, evidence_ref, *, signature="sig-ok", branches=None):
+        branches = ["left", "right"] if branches is None else branches
+        event_id = "authorization-1"
+        payload = {
+            "authorization_id": event_id,
+            "issuer_id": "issuer-1",
+            "scope": self.scope,
+            "parent_state_ref": "parent-1",
+            "branch_ids": branches,
+            "evidence_refs": [evidence_ref],
+            "issued_at": "2026-11-11T00:00:00+00:00",
+            "expires_at": "2026-11-12T00:00:00+00:00",
+            "signature_algorithm": "ed25519",
+            "signature": signature,
+        }
+        self.e09.append_event(
+            episode_id=self.episode, event_id=event_id,
+            event_type="branch_merge_authorization", idempotency_key=event_id,
+            actor_role="authorizer", causation_refs=[evidence_ref],
+            payload=payload, protocol_version=STRICT_PROTOCOL_VERSION,
+        )
+        return event_id
+
+    def test_branch_merge_authorization_requires_trusted_signature_and_exact_scope(self):
+        evidence_ref = self.add_reveal()
+        authorization_ref = self.add_branch_authorization(evidence_ref)
+        calls = []
+        def verifier(issuer_id, algorithm, message, signature):
+            calls.append((issuer_id, algorithm, message, signature))
+            return issuer_id == "issuer-1" and algorithm == "ed25519" and signature == "sig-ok"
+        permit = resolve_branch_merge_authorization(
+            self.e09, episode_id=self.episode, authorization_ref=authorization_ref,
+            parent_state_ref="parent-1", branch_ids=("left", "right"),
+            scope=self.scope, learner_track=self.track,
+            world_family_by_evidence={evidence_ref: self.world},
+            signature_verifier=verifier, verifier_id="pinned-ed25519-keyring-v1",
+            now=datetime(2026, 11, 11, 12, tzinfo=timezone.utc),
+        )
+        self.assertEqual(permit.issuer_id, "issuer-1")
+        self.assertEqual(permit.branch_ids, ("left", "right"))
+        self.assertEqual(permit.evidence_refs, (evidence_ref,))
+        self.assertEqual(permit.verifier_id, "pinned-ed25519-keyring-v1")
+        self.assertEqual(len(calls), 1)
+        self.assertIn(b"parent_state_ref", calls[0][2])
+
+    def test_branch_merge_authorization_rejects_bad_signature_and_wrong_scope(self):
+        evidence_ref = self.add_reveal()
+        authorization_ref = self.add_branch_authorization(evidence_ref)
+        common = dict(
+            episode_id=self.episode, authorization_ref=authorization_ref,
+            parent_state_ref="parent-1", branch_ids=("left", "right"),
+            scope=self.scope, learner_track=self.track,
+            world_family_by_evidence={evidence_ref: self.world},
+            verifier_id="pinned-keyring-v1",
+            now=datetime(2026, 11, 11, 12, tzinfo=timezone.utc),
+        )
+        with self.assertRaisesRegex(E09EvidenceBindingError, "signature"):
+            resolve_branch_merge_authorization(
+                self.e09, **common,
+                signature_verifier=lambda issuer, alg, message, signature: False,
+            )
+        with self.assertRaisesRegex(E09EvidenceBindingError, "parent state"):
+            resolve_branch_merge_authorization(
+                self.e09, **{**common, "parent_state_ref": "wrong-parent"},
+                signature_verifier=lambda *args: True,
+            )
+
+    def test_expired_branch_merge_authorization_is_rejected(self):
+        evidence_ref = self.add_reveal()
+        authorization_ref = self.add_branch_authorization(evidence_ref)
+        with self.assertRaisesRegex(E09EvidenceBindingError, "not currently valid"):
+            resolve_branch_merge_authorization(
+                self.e09, episode_id=self.episode, authorization_ref=authorization_ref,
+                parent_state_ref="parent-1", branch_ids=("left", "right"),
+                scope=self.scope, learner_track=self.track,
+                world_family_by_evidence={evidence_ref: self.world},
+                signature_verifier=lambda *args: True, verifier_id="test-keyring",
+                now=datetime(2026, 11, 13, tzinfo=timezone.utc),
+            )
 
 if __name__ == "__main__":
     unittest.main()
