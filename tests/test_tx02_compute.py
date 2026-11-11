@@ -22,6 +22,14 @@ class TX02ComputeAndCalibrationTests(unittest.TestCase):
         self.assertGreater(result["brier_multiclass"], 0)
         with self.assertRaises(ValueError):
             probability_metrics(((0.2, 0.2),), (0,))
+    def test_risk_coverage_curve_groups_equal_confidence(self):
+        curve = risk_coverage_curve(
+            ((0.9, 0.1), (0.9, 0.1), (0.6, 0.4)),
+            (0, 1, 0),
+        )
+        self.assertEqual(curve[-1]["accepted"], 2)
+        self.assertEqual(curve[-1]["coverage"], 2 / 3)
+        self.assertEqual(curve[-1]["selective_risk"], 0.5)
     def test_validation_threshold_and_defer(self):
         probs = ((0.95, 0.05), (0.55, 0.45), (0.51, 0.49))
         chosen = choose_abstention_threshold(probs, (0, 1, 0), 0.0)
