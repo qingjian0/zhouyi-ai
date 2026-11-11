@@ -30,7 +30,7 @@ class AutomorphismGroupBridgeTests(unittest.TestCase):
             (make_edge("e", "joint", ("a", "b", "c")),),
         )
         policy = (RelationSymmetry("joint", "UNORDERED"),)
-        audit = exact_hypergraph_automorphism_audit(graph, policy)
+        audit = exact_hypergraph_automorphism_audit(graph, policy, include_automorphism_mappings=True)
         induced = derive_slot_permutation_evidence(graph, audit, policy)
         evidence = group_evidence_by_relation(induced)["joint"]
         self.assertEqual(len({item.permutation for item in evidence}), 6)
