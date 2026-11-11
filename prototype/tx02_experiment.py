@@ -191,9 +191,6 @@ def run_condition(cardinality: int, support_size: int, seed: int,
             validation_probs, validation_targets, max_selective_risk
         )
         test_probs, test_targets = _collect_probabilities(learner, splits.locked_test)
-        predictions = [tuple(max(range(len(row)), key=lambda i: row[i])
-                             for row in [test_probs[j:j+1][0]])
-                       for j in range(0, len(test_probs), 1)]
         # Rebuild episode-shaped predictions for the existing audit helper.
         cursor = 0
         episode_predictions = []
@@ -205,6 +202,7 @@ def run_condition(cardinality: int, support_size: int, seed: int,
                 for offset in range(count)
             ))
             cursor += count
+        predictions = episode_predictions
         metrics = _metrics(episode_predictions, splits.locked_test, cardinality)
         test_probability_metrics = probability_metrics(test_probs, test_targets)
         deferred = apply_abstention(test_probs, abstention["threshold"])
@@ -286,6 +284,19 @@ def aggregate_runs(runs: list[dict]) -> dict:
                 r["families"][family]["fit"]["parameter_count"] for r in runs
             ],
         }
+    adaptive_values = [
+        r["adaptive_representation_locked_test"]["query_accuracy"] for r in runs
+    ]
+    result["ADAPTIVE_VALIDATION_SELECTED"] = {
+        "mean_query_accuracy": statistics.mean(adaptive_values),
+        "stdev_query_accuracy": (
+            statistics.stdev(adaptive_values) if len(adaptive_values) > 1 else 0.0
+        ),
+        "seed_count": len(adaptive_values),
+        "selected_families": [
+            r["validation_representation_selection"]["selected_family"] for r in runs
+        ],
+    }
     return result
 
 
@@ -370,7 +381,7 @@ def main() -> None:
         args.episodes_per_rule,
         args.epochs,
         args.hidden_size,
-        not args.no_parameter_match,
+        not args.no_parameter_match and not args.compute_match,
         args.parameter_budget,
         args.compute_match,
         args.forward_mac_budget,
