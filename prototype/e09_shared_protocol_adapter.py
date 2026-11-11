@@ -274,9 +274,9 @@ class E09SharedProtocolAdapter:
                 actor_role="learner",
                 causation_refs=[reveal_event_id],
                 payload={
-                    "structure_id": "e09-rule-set",
+                    "structure_id": self.structure_id,
                     "version_id": after_version,
-                    "kind": "rule_set",
+                    "kind": self.structure_kind,
                     "definition": {
                         "revision_mode": revision.operation,
                         "snapshot_digest": digest_payload(snapshot),

@@ -57,7 +57,11 @@ class SROKPrequentialTests(unittest.TestCase):
         events=adapter.replay()
         self.assertEqual([e["event_type"] for e in events],
             ["structure_version","observation","prediction_commit","evidence_reveal","structure_version","revision"])
+        self.assertEqual(events[0]["payload"]["structure_id"],"srok0-role-model")
+        self.assertEqual(events[0]["payload"]["kind"],"learnable_role_binding_model")
         self.assertEqual(events[2]["payload"]["learner_track"],"srok0")
+        self.assertEqual(events[4]["payload"]["structure_id"],"srok0-role-model")
+        self.assertEqual(events[4]["payload"]["kind"],"learnable_role_binding_model")
         self.assertEqual(events[2]["payload"]["prediction"],list(target))
         self.assertEqual(events[3]["event_id"],reveal_id)
         self.assertEqual(adapter.score()["revealed_observations"],1)
