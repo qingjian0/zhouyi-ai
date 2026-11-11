@@ -147,7 +147,7 @@ class N4ARelationDiscoveryTests(unittest.TestCase):
             min_validation_support=2, max_nodes=4,
             max_subsets_per_case=1,
         )
-        self.assertGreater(result.motifs_over_budget, 0)
+        self.assertGreater(result.cases_over_budget, 0)
 
     def test_rejects_duplicate_case_ids_and_invalid_partitions(self):
         case = make_case("dup", "train", True)
