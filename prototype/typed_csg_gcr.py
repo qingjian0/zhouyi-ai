@@ -22,6 +22,7 @@ from prototype.typed_hypergraph_unifier import (
     UnificationConstraints,
     UnificationError,
     UnificationResult,
+    VariableRef,
     VariableSpec,
     unify_hyperedges,
 )
@@ -49,6 +50,7 @@ class TypedCoordinationReport:
     rejected_conflicts: int
     rejected_typed_sets: int
     status: str
+    pruned_partial_sets: int = 0
 
 
 def _validate_pair(item: TypedCandidateProposal) -> None:
@@ -100,6 +102,94 @@ def _merge_contract(rows: tuple[TypedCandidateProposal, ...]):
     )
 
 
+def _partial_typed_feasible(rows: tuple[TypedCandidateProposal, ...]) -> bool:
+    """Return False only for typed contradictions that no extension can repair.
+
+    Deliberately does not prune unresolved role requirements or type mismatches:
+    a later proposal may supply a missing role or add a subtype edge. It does
+    prune immutable variable declaration conflicts, member identity conflicts,
+    empty temporal intersections, subtype cycles, and already-resolved
+    equality/inequality contradictions.
+    """
+    try:
+        variables, constraints = _merge_contract(rows)
+        declared = {spec.ref for spec in variables}
+
+        # Variable declaration conflicts are rejected by _merge_contract and
+        # cannot be repaired by adding more proposals.
+        del declared
+
+        starts = []
+        ends = []
+        member_ids: dict[VariableRef, set[str]] = {}
+        for row in rows:
+            edge = row.hyperedge
+            if (edge.active_from is not None and edge.active_until is not None
+                    and edge.active_from >= edge.active_until):
+                return False
+            if edge.active_from is not None:
+                starts.append(edge.active_from)
+            if edge.active_until is not None:
+                ends.append(edge.active_until)
+            roles = [binding.role for binding in edge.roles]
+            if len(roles) != len(set(roles)):
+                return False
+            for binding in edge.roles:
+                member_ids.setdefault(binding.variable, set()).add(binding.member_id)
+        if any(len(values) > 1 for values in member_ids.values()):
+            return False
+        if starts and ends and max(starts) >= min(ends):
+            return False
+
+        # A cycle in the currently declared subtype graph cannot be removed
+        # by extending that graph.
+        parents: dict[str, set[str]] = {}
+        for child, parent in constraints.subtype_of:
+            parents.setdefault(child, set()).add(parent)
+        visiting: set[str] = set()
+        visited: set[str] = set()
+
+        def visit(node: str) -> bool:
+            if node in visiting:
+                return False
+            if node in visited:
+                return True
+            visiting.add(node)
+            for parent in parents.get(node, ()):
+                if not visit(parent):
+                    return False
+            visiting.remove(node)
+            visited.add(node)
+            return True
+
+        if any(not visit(node) for node in tuple(parents)):
+            return False
+
+        # Only evaluate equality/inequality relations whose endpoints are
+        # already declared. Missing endpoints may be declared by a future row.
+        roots = {ref: ref for ref in (spec.ref for spec in variables)}
+
+        def find(ref: VariableRef) -> VariableRef:
+            while roots[ref] != ref:
+                roots[ref] = roots[roots[ref]]
+                ref = roots[ref]
+            return ref
+
+        for relation in constraints.equal:
+            if relation.left in roots and relation.right in roots:
+                left, right = find(relation.left), find(relation.right)
+                if left != right:
+                    low, high = sorted((left, right))
+                    roots[high] = low
+        for relation in constraints.not_equal:
+            if relation.left in roots and relation.right in roots:
+                if find(relation.left) == find(relation.right):
+                    return False
+        return True
+    except (UnificationError, TypeError, ValueError):
+        return False
+
+
 class TypedCandidateCoordinator:
     """Apply typed hyperedge constraints inside bounded CSG-GCR search.
 
@@ -110,8 +200,10 @@ class TypedCandidateCoordinator:
     valid candidates were found.
     """
 
-    def __init__(self, coordinator: CandidateCoordinator | None = None) -> None:
+    def __init__(self, coordinator: CandidateCoordinator | None = None, *,
+                 enable_partial_pruning: bool = True) -> None:
         self._coordinator = coordinator or CandidateCoordinator()
+        self._enable_partial_pruning = enable_partial_pruning
 
     def coordinate(
         self,
@@ -129,9 +221,14 @@ class TypedCandidateCoordinator:
 
         by_id = {row.proposal.proposal_id: row for row in rows}
         # Every typed candidate is represented by exactly one immutable edge.
+        def partial_feasibility(selected_proposals: tuple[CandidateProposal, ...]) -> bool:
+            selected_rows = tuple(by_id[item.proposal_id] for item in selected_proposals)
+            return _partial_typed_feasible(selected_rows)
+
         raw = self._coordinator.coordinate(
             (row.proposal for row in rows),
             replace(constraints, result_limit=constraints.max_states),
+            partial_feasibility=partial_feasibility if self._enable_partial_pruning else None,
         )
         accepted = []
         rejected_typed = 0
@@ -169,4 +266,5 @@ class TypedCandidateCoordinator:
                 else "COMPLETE" if accepted
                 else "NO_FEASIBLE_SET"
             ),
+            pruned_partial_sets=raw.pruned_partial_sets,
         )
