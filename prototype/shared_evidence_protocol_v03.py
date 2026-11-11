@@ -141,11 +141,19 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                 raise ProtocolError("lifecycle_action action_id must be non-empty")
             if payload["action_type"] not in ACTION_TYPES:
                 raise ProtocolError("unknown E12-A6 ActionType wire value")
-            if payload["from_state"] not in CANDIDATE_STATES or payload["to_state"] not in CANDIDATE_STATES:
+            from_state, to_state = payload["from_state"], payload["to_state"]
+            if (from_state is None) != (to_state is None):
+                raise ProtocolError("from_state and to_state must both be null or both be present")
+            if from_state is not None and (from_state not in CANDIDATE_STATES or to_state not in CANDIDATE_STATES):
                 raise ProtocolError("unknown E12-A6 CandidateState wire value")
-            if not isinstance(payload["candidate_id"], str) or not payload["candidate_id"].strip():
+            candidate_id, candidate_version = payload["candidate_id"], payload["candidate_version"]
+            if (candidate_id is None) != (candidate_version is None):
+                raise ProtocolError("candidate_id and candidate_version must be paired")
+            if candidate_id is not None and (not isinstance(candidate_id, str) or not candidate_id.strip()):
                 raise ProtocolError("candidate_id must be non-empty")
-            if isinstance(payload["candidate_version"], bool) or not isinstance(payload["candidate_version"], int) or payload["candidate_version"] < 1:
+            if candidate_version is not None and (
+                isinstance(candidate_version, bool) or not isinstance(candidate_version, int) or candidate_version < 1
+            ):
                 raise ProtocolError("candidate_version must be a positive integer")
             if not isinstance(payload["learner_track"], str) or not payload["learner_track"].strip():
                 raise ProtocolError("lifecycle_action learner_track must be non-empty")
@@ -166,19 +174,26 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
             # transition semantics in the protocol layer.
             from prototype.e12a6_lifecycle_contract import ActionType, CandidateState, _TRANSITIONS
             action = ActionType(payload["action_type"])
-            transition = (CandidateState(payload["from_state"]), CandidateState(payload["to_state"]))
-            if transition not in _TRANSITIONS.get(action, set()):
-                raise ProtocolError("transition is not permitted by the E12-A6 contract")
-            latest = self._db.execute(
-                "SELECT payload_json FROM events WHERE episode_id=? AND event_type='lifecycle_action' "
-                "AND json_extract(payload_json, '$.candidate_id')=? "
-                "AND json_extract(payload_json, '$.candidate_version')=? "
-                "ORDER BY sequence_no DESC LIMIT 1",
-                (episode_id, payload["candidate_id"], payload["candidate_version"]),
-            ).fetchone()
-            current_state = "observed" if latest is None else json.loads(latest["payload_json"])["to_state"]
-            if current_state != payload["from_state"]:
-                raise ProtocolError(f"stale lifecycle transition: current={current_state}, from={payload['from_state']}")
+            allowed = _TRANSITIONS.get(action, set())
+            if allowed:
+                if from_state is None:
+                    raise ProtocolError("this E12-A6 action requires an explicit state transition")
+                transition = (CandidateState(from_state), CandidateState(to_state))
+                if transition not in allowed:
+                    raise ProtocolError("transition is not permitted by the E12-A6 contract")
+            elif from_state is not None:
+                raise ProtocolError("non-transition E12-A6 action must not change candidate state")
+            if candidate_id is not None and from_state is not None:
+                latest = self._db.execute(
+                    "SELECT payload_json FROM events WHERE episode_id=? AND event_type='lifecycle_action' "
+                    "AND json_extract(payload_json, '$.candidate_id')=? "
+                    "AND json_extract(payload_json, '$.candidate_version')=? "
+                    "ORDER BY sequence_no DESC LIMIT 1",
+                    (episode_id, candidate_id, candidate_version),
+                ).fetchone()
+                current_state = "observed" if latest is None else json.loads(latest["payload_json"])["to_state"]
+                if current_state != from_state:
+                    raise ProtocolError(f"stale lifecycle transition: current={current_state}, from={from_state}")
             duplicate = self._db.execute(
                 "SELECT 1 FROM events WHERE episode_id=? AND event_type='lifecycle_action' "
                 "AND json_extract(payload_json, '$.action_id')=?",
@@ -190,7 +205,7 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                 "train_supported": {"train"},
                 "gate_validated": {"gate_final"},
                 "challenged": CHALLENGE_ROLES,
-            }.get(payload["to_state"])
+            }.get(to_state)
             if required_role:
                 roles = set()
                 for ref in payload["evidence_refs"]:
