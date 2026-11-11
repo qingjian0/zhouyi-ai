@@ -207,14 +207,23 @@ Purpose: test whether discovered partitions preserve reusable structure.
 
 ## 12. Staged implementation
 
-- XRA-1a: define a task manifest and evaluator-only equivalence oracle for deterministic finite worlds.
-- XRA-1b: implement exact partition signatures and a baseline enumerator for tiny state spaces.
+### XRA-1a — deterministic evaluator oracle (implemented; execution pending)
+
+Added:
+- `prototype/xra_partition.py`: exact partition refinement for complete finite deterministic state/action tables. It groups states only when all declared actions produce equal immediate outcomes and transition into the same final partition blocks.
+- `tests/test_xra_partition.py`: equivalent-state merging, backward propagation of future distinctions, action discrimination, deterministic block ordering, incomplete-table rejection, invalid-target rejection, and unhashable-outcome rejection.
+
+The oracle is evaluator-side only. It must not be passed into learner-visible task payloads. It is an exact finite deterministic bisimulation-style partitioner, not an approximate stochastic abstraction learner.
+
+### Remaining gates
+
+- XRA-1b: add a task manifest and independent exact partition enumerator / cross-check for tiny worlds.
 - XRA-1c: implement MERGE / SPLIT / UNRESOLVED with held-out challenge evidence.
 - XRA-1d: connect E12-A8 action selection to competing partition hypotheses.
 - XRA-1e: add binary, ternary, generic, shuffled, and anti-aligned proposal families.
 - XRA-1f: add context drift and revalidation using the existing lifecycle adapter.
 
-Do not begin the adaptive K selector until the evaluator oracle, leakage boundary, and exact small-world baseline are validated.
+The adaptive K selector remains blocked until the evaluator oracle, leakage boundary, and exact small-world cross-check are validated.
 
 ## 13. Current scientific claim
 
