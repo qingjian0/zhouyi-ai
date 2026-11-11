@@ -34,7 +34,7 @@ For exact finite version spaces, BATCH_REFIT and INCREMENTAL_FILTER should produ
 7. Persist a new structure version and revision referencing that reveal.
 8. Continue sequentially.
 
-The harness runs in one process. Its data-flow discipline is not an OS security boundary.
+The original harness runs in one process. An optional subprocess backend now runs the learner in a separate Python process over bounded JSONL IPC: Support is sent once, then each prediction/update receives only the current observation and its participant objects. The evaluator retains Query truth in the parent and reveals one label only after the prediction commit. The learner-visible Support payload is whitelisted and omits the evaluator-side mechanism fingerprint. The child is launched with isolated Python mode, a reduced environment, closed inherited file descriptors, and stdout-only protocol framing. This is a process/data-flow boundary, not a security sandbox: the child still has the same OS user privileges and is not denied filesystem or network access.
 
 ## Metrics
 
@@ -57,9 +57,9 @@ Reports coverage, selective accuracy, strict accuracy with abstentions counted w
 - This is not open-world concept discovery, relation-family OOD, or general operator invention.
 - Role order is not identifiable from the shuffled participant observations.
 - BATCH_REFIT and INCREMENTAL_FILTER are expected to be predictively equivalent under this fixed candidate universe.
-- No process isolation, hidden-truth noninterference security guarantee, or crash-safe resume.
+- The subprocess backend provides process separation and a tested serialized-input canary, but not OS sandboxing, privilege separation, filesystem/network denial, cryptographic noninterference, or crash-safe resume.
 - No superiority claim over neural, program-synthesis, or other symbolic baselines.
 
 ## Next gate
 
-The ten-seed sweep is now wired into CI (`--sweep --seeds 10 --start-seed 100`). Next, add a phase-gated evaluator/learner subprocess boundary with serialized-input canaries, then test E10-B transfer to renamed attributes, unseen objects, and hard negatives. Operator synthesis should wait until those transfer tests and matched baselines exist.
+The ten-seed sweep is wired into CI (`--sweep --seeds 10 --start-seed 100`). A subprocess learner backend and hidden-truth input canary are now included; the next security gate is an OS-level sandbox/privilege profile and adversarial IPC tests. Then test E10-B transfer to renamed attributes, unseen objects, and hard negatives. Operator synthesis should wait until those transfer tests and matched baselines exist.
