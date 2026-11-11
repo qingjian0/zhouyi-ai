@@ -18,7 +18,7 @@ class TrustedEvidenceBrokerContractTests(unittest.TestCase):
             "evidence": {"e-1": {"evidence_id": "e-1", "outcome": "visible-support"}},
             "structures": {"s-1": {"version_id": "s-1@1"}},
             "candidates": {"s-1@1": {"candidate_id": "s-1", "state": "train_supported"}},
-            "actions": [],
+            "actions": [{"action_id": "a-1", "event_id": "private-event", "sequence_no": 9, "to_state": "proposed"}],
             "released_challenges": [{
                 "challenge_id": "c-1",
                 "observation_id": "obs-1",
@@ -35,6 +35,7 @@ class TrustedEvidenceBrokerContractTests(unittest.TestCase):
         self.assertNotIn("last_sequence", payload)
         self.assertNotIn("sequence_no", str(payload))
         self.assertEqual(payload["released_challenges"][0]["challenge_id"], "c-1")
+        self.assertEqual(payload["actions"][0], {"action_id": "a-1", "to_state": "proposed"})
 
     def test_snapshot_fails_closed_on_nested_evaluator_fields(self):
         projection = self.projection()
