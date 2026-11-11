@@ -38,6 +38,7 @@ def authorized_candidate():
 
 def verified_receipt(evidence_item=None, *, receipt_id="receipt-1", nonce="nonce-1"):
     item = evidence_item or evidence()
+    item = replace(item, outcome=f"opaque-e09-evidence-ref:{item.evidence_id}",\n                   provenance="opaque-e09-event-digest:" + "b" * 64)
     now = datetime(2026, 11, 12, 0, 30, tzinfo=timezone.utc)
     return VerifiedE09VerificationReceipt(
         receipt_id=receipt_id,
@@ -188,7 +189,7 @@ class PersistentLifecycleTests(unittest.TestCase):
             "parent_state_ref": "parent-1",
             "branch_ids": ["left", "right"],
             "branch_merge": {
-                "authorization_ref": "grant-2",
+                "authorization_ref": "grant-1",
                 "authorization_evidence_refs": ["train-1"],
             },
         }
