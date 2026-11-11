@@ -18,8 +18,9 @@
 - 主路线：非 Transformer 原生认知；Transformer 保留为可选语言接口和对照基线。
 - P0 架构规范已合入 E09 集成分支，main 保持不变。
 - P1 已集成 SROK-0 确定性组合内核与 N0.10 可学习评分器；候选池截断已作为独立不完整状态报告。
-- SROK→E12-A6 生命周期适配器 PR #191 正在 CI 验证。
-- P1 尚未完成：SROK 预测尚未接入 E09 持久 commit/reveal 和 support-only revision；ZPCM/工作集也未与 SROK 形成端到端恢复闭环。
+- SROK-0、N0.10 可学习评分器、候选池截断报告、SROK→E12-A6 生命周期投影、SROK→E09 prequential loop 已进入 E09 集成分支；相关完整 CI 均通过。
+- 当前已打通可信单进程参考闭环：SROK 预测 → E09 durable commit → SUPPORT reveal → batch refit → 版本事件持久化；LOCKED_TEST 不进入学习更新。
+- P1 仍未完成：ZPCM/工作集的认知记忆投影、CSG-GCR 全局协调接入、进程级 evaluator/learner 隔离、崩溃恢复与事务 outbox 尚未完成。
 - N0.10 当前训练数据有 unary 捷径，不能宣称三阶/高阶能力已验证；先完成 pairwise-preserving 高阶必要性基准。
 - 不立即启动大规模语言模型预训练。下一阶段仍以 P1 为主线。
 
