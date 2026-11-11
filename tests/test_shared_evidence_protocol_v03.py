@@ -160,5 +160,19 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
 
 
 
+    def test_single_event_retry_preserves_v02_idempotency_behavior(self):
+        first = self.store.append_event(
+            episode_id="ep", event_id="first-event", event_type="observation",
+            idempotency_key="same-key", payload={"observation_id": "obs-1"},
+        )
+        retry = self.store.append_event(
+            episode_id="ep", event_id="different-event-id", event_type="observation",
+            idempotency_key="same-key", payload={"observation_id": "obs-1"},
+        )
+        self.assertTrue(retry.replayed)
+        self.assertEqual((retry.event_id, retry.sequence_no), (first.event_id, first.sequence_no))
+
+
+
 if __name__ == "__main__":
     unittest.main()
