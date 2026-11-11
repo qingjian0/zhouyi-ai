@@ -541,9 +541,9 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                     raise ProtocolError(f"dependency_added {field} must be non-empty")
             if dependent == dependency:
                 raise ProtocolError("dependency_added cannot create a self-dependency")
-            if payload["role"] not in {item.value for item in DependencyRole}:
+            if not isinstance(payload["role"], str) or payload["role"] not in {item.value for item in DependencyRole}:
                 raise ProtocolError("dependency_added has an unknown DependencyRole")
-            if payload["impact_policy"] not in {item.value for item in DependencyImpactPolicy}:
+            if not isinstance(payload["impact_policy"], str) or payload["impact_policy"] not in {item.value for item in DependencyImpactPolicy}:
                 raise ProtocolError("dependency_added has an unknown impact policy")
             refs = payload["evidence_refs"]
             if not isinstance(refs, list) or len({canonical_json(x) for x in refs}) != len(refs):
@@ -991,6 +991,8 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                     "cost": payload.get("cost"), "note": payload.get("note", ""),
                 })
             elif event_type == "dependency_added":
+                if set(payload) != {"dependent_version_id", "dependency_version_id", "learner_track", "role", "impact_policy", "evidence_refs"}:
+                    raise ProtocolError(f"dependency event has unknown or missing fields: {event_id}")
                 dependent, dependency, track = payload.get("dependent_version_id"), payload.get("dependency_version_id"), payload.get("learner_track")
                 if not all(isinstance(value, str) and value for value in (dependent, dependency, track)):
                     raise ProtocolError(f"invalid dependency identity during replay: {event_id}")

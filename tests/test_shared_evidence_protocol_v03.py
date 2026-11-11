@@ -1047,6 +1047,70 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
                 "impact_policy":"blocking","evidence_refs":[]})
         self.assertEqual(len(self.store.replay_episode("ep")), 3)
 
+    def test_dependency_impact_policies_drive_track_local_queue(self):
+        def run_episode(episode_id, first_policy):
+            events = [self.observation()]
+            events.append(self.ingest(evidence_id=f"{episode_id}-train"))
+            events.extend([
+                self.observation("obs-gate"),
+                {"event_id":f"{episode_id}-commit-gate","event_type":"prediction_commit","payload":{
+                    "prediction_id":f"{episode_id}-pred-gate","observation_id":"obs-gate",
+                    "model_version":"model-v1","learner_track":"track-a","decision_status":"PREDICT"}},
+                {"event_id":f"{episode_id}-reveal-gate","event_type":"evidence_reveal","payload":{
+                    "prediction_id":f"{episode_id}-pred-gate","learner_track":"track-a",
+                    "target_or_feedback":{"label":"gate"},"split_role":"gate_final"}},
+                self.observation("obs-locked"),
+                {"event_id":f"{episode_id}-commit-locked","event_type":"prediction_commit","payload":{
+                    "prediction_id":f"{episode_id}-pred-locked","observation_id":"obs-locked",
+                    "model_version":"model-v1","learner_track":"track-a","decision_status":"PREDICT"}},
+                {"event_id":f"{episode_id}-reveal-locked","event_type":"evidence_reveal","payload":{
+                    "prediction_id":f"{episode_id}-pred-locked","learner_track":"track-a",
+                    "target_or_feedback":{"label":"counterexample"},"split_role":"locked_test"}},
+            ])
+            for cid in ("root", "consumer", "leaf"):
+                candidate = Candidate(candidate_id=f"{episode_id}-{cid}", version=1,
+                    canonical_expression=f"{cid}(x)", proposer_family="test",
+                    supporting_families=("test",), input_types=("symbol",), operator="IDENTITY")
+                events.append({"event_id":f"{episode_id}-{cid}-version","event_type":"structure_version","payload":{
+                    "structure_id":candidate.candidate_id,"version_id":f"{candidate.candidate_id}@1",
+                    "kind":"candidate","definition":candidate_definition_payload(candidate),
+                    "parent_version_ids":[],"support_evidence_ids":[]}})
+                transitions = [
+                    ("propose","propose","observed","proposed",[]),
+                    ("discriminate","request_discrimination","proposed","discrimination_pending",[]),
+                    ("train","train_support","discrimination_pending","train_supported",[{"kind":"ingested","id":f"{episode_id}-train"}]),
+                    ("gate","gate_validate","train_supported","gate_validated",[{"kind":"revealed","id":f"{episode_id}-reveal-gate"}]),
+                ]
+                for aid, action_type, before, after, refs in transitions:
+                    events.append({"event_id":f"{episode_id}-{cid}-{aid}","event_type":"lifecycle_action","payload":{
+                        "action_id":f"{episode_id}-{cid}-{aid}","action_type":action_type,
+                        "candidate_id":candidate.candidate_id,"candidate_version":1,
+                        "from_state":before,"to_state":after,"evidence_refs":refs,
+                        "cost":0.1,"note":aid,"candidate_lineage_refs":[],"learner_track":"track-a"}})
+            root, consumer, leaf = (f"{episode_id}-{name}@1" for name in ("root","consumer","leaf"))
+            events.extend([
+                {"event_id":f"{episode_id}-edge-consumer-root","event_type":"dependency_added","payload":{
+                    "dependent_version_id":consumer,"dependency_version_id":root,"learner_track":"track-a",
+                    "role":"uses","impact_policy":first_policy,"evidence_refs":[]}},
+                {"event_id":f"{episode_id}-edge-leaf-consumer","event_type":"dependency_added","payload":{
+                    "dependent_version_id":leaf,"dependency_version_id":consumer,"learner_track":"track-a",
+                    "role":"composes","impact_policy":"blocking","evidence_refs":[]}},
+                {"event_id":f"{episode_id}-challenge-root","event_type":"lifecycle_action","payload":{
+                    "action_id":f"{episode_id}-challenge-root","action_type":"challenge",
+                    "candidate_id=f"{episode_id}-root","candidate_version":1,
+                    "from_state":"gate_validated","to_state":"challenged",
+                    "evidence_refs":[{"kind":"revealed","id":f"{episode_id}-reveal-locked"}],
+                    "cost":0.2,"note":"locked counterexample","candidate_lineage_refs":[],"learner_track":"track-a"}},
+            ])
+            projection = self.store.append_events_and_project(
+                episode_id=episode_id, idempotency_key=f"{episode_id}-batch", events=events
+            )[1]
+            return {item["version_id"] for item in projection.dependency_revalidation_queue}
+
+        self.assertEqual(run_episode("blocking", "blocking"), {"blocking-consumer@1", "blocking-leaf@1"})
+        self.assertEqual(run_episode("review", "review"), {"review-consumer@1"})
+        self.assertEqual(run_episode("advisory", "advisory"), set())
+
     def test_dependency_cycle_is_rejected_without_consuming_sequence(self):
         events = [self.observation()]
         for cid in ("left", "right"):
