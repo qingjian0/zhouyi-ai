@@ -129,6 +129,12 @@ class E12A8ActiveMultiworldTests(unittest.TestCase):
         self.assertEqual(set(result["policies"]), {"active", "random", "fixed"})
         self.assertTrue(all(len(x["episodes"]) == 14 for x in result["policies"].values()))
 
+    def test_seeded_active_episode_is_reproducible(self):
+        world = SyntheticWorld("noisy", "direct", missing_every=5, noise_every=7)
+        first = run_episode(world, policy="active", budget=8.0, seed=19)
+        second = run_episode(world, policy="active", budget=8.0, seed=19)
+        self.assertEqual(first, second)
+
 
 if __name__ == "__main__":
     unittest.main()
