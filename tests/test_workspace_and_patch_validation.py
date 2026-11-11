@@ -81,9 +81,17 @@ class PatchValidatorTests(unittest.TestCase):
                 self.validator.validate(patch)
 
     def test_rejects_windows_drive_ads_and_reserved_names(self):
-        for path in ("a/C:/Windows/system.ini", "a/file:stream", "a/NUL.txt", "a/trailing."):
-            patch = f"--- {path}\\n+++ b/ok.txt\\n@@ -1 +1 @@\\n-x\\n+y\\n"
-            with self.subTest(path=path), self.assertRaises(ValueError):
+        valid = "--- a/normal.txt\n+++ b/normal.txt\n@@ -1 +1 @@\n-old\n+new\n"
+        self.assertEqual(self.validator.validate(valid).paths, ("normal.txt",))
+        cases = (
+            ("a/C:/Windows/system.ini", "portable"),
+            ("a/file:stream", "portable"),
+            ("a/NUL.txt", "reserved Windows"),
+            ("a/trailing.", "portable"),
+        )
+        for path, message in cases:
+            patch = f"--- {path}\n+++ b/ok.txt\n@@ -1 +1 @@\n-x\n+y\n"
+            with self.subTest(path=path), self.assertRaisesRegex(ValueError, message):
                 self.validator.validate(patch)
 
     def test_rejects_duplicate_paths_and_limits(self):
