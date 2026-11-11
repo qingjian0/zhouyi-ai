@@ -8,6 +8,7 @@ boundary between evaluator and learner processes.
 from __future__ import annotations
 
 import json
+import math
 from datetime import datetime, timezone
 from typing import Any, Iterable, Sequence
 
@@ -114,7 +115,7 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                 raise ProtocolError(f"evidence_ingest missing fields: {sorted(required - payload.keys())}")
             if not isinstance(payload["evidence_id"], str) or not payload["evidence_id"].strip():
                 raise ProtocolError("evidence_ingest evidence_id must be non-empty")
-            if payload["split_role"] not in {"train", "support"}:
+            if not isinstance(payload["split_role"], str) or payload["split_role"] not in {"train", "support"}:
                 raise ProtocolError("evidence_ingest is restricted to already-visible train/support evidence")
             if not isinstance(payload["learner_track"], str) or not payload["learner_track"].strip():
                 raise ProtocolError("evidence_ingest learner_track must be non-empty")
@@ -125,10 +126,11 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
             if self._event_by_payload_id(episode_id, "evidence_ingest", "evidence_id", payload["evidence_id"]):
                 raise ProtocolError("duplicate evidence_id in episode")
             observation_ref = payload.get("observation_ref")
-            if observation_ref is not None:
-                observation = self._event_by_id(episode_id, observation_ref)
-                if observation is None or observation["event_type"] != "observation":
-                    raise MissingReference("evidence_ingest observation_ref must reference a prior observation")
+            if not isinstance(observation_ref, str) or not observation_ref.strip():
+                raise ProtocolError("evidence_ingest requires an observation_ref")
+            observation = self._event_by_id(episode_id, observation_ref)
+            if observation is None or observation["event_type"] != "observation":
+                raise MissingReference("evidence_ingest observation_ref must reference a prior observation")
         elif event_type == "lifecycle_action":
             required = {
                 "action_id", "action_type", "candidate_id", "candidate_version",
@@ -159,8 +161,10 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                 raise ProtocolError("lifecycle_action learner_track must be non-empty")
             if not isinstance(payload["evidence_refs"], list) or not isinstance(payload["candidate_lineage_refs"], list):
                 raise ProtocolError("lifecycle_action evidence_refs and candidate_lineage_refs must be arrays")
-            if isinstance(payload["cost"], bool) or not isinstance(payload["cost"], (int, float)) or payload["cost"] < 0:
-                raise ProtocolError("lifecycle_action cost must be non-negative")
+            if len({canonical_json(x) for x in payload["evidence_refs"]}) != len(payload["evidence_refs"]):
+                raise ProtocolError("lifecycle_action evidence_refs must be unique")
+            if isinstance(payload["cost"], bool) or not isinstance(payload["cost"], (int, float)) or not math.isfinite(float(payload["cost"])) or payload["cost"] < 0:
+                raise ProtocolError("lifecycle_action cost must be finite and non-negative")
             if not isinstance(payload["note"], str):
                 raise ProtocolError("lifecycle_action note must be a string")
             for ref in payload["evidence_refs"]:
@@ -183,6 +187,20 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                     raise ProtocolError("transition is not permitted by the E12-A6 contract")
             elif from_state is not None:
                 raise ProtocolError("non-transition E12-A6 action must not change candidate state")
+            if candidate_id is None and from_state is not None:
+                raise ProtocolError("state transitions require a candidate reference")
+            if candidate_id is not None:
+                candidate_version_id = f"{candidate_id}@{candidate_version}"
+                candidate_row = self._event_by_payload_id(
+                    episode_id, "structure_version", "version_id", candidate_version_id
+                )
+                if candidate_row is None:
+                    raise MissingReference(f"lifecycle_action references unknown candidate version: {candidate_version_id}")
+            for lineage_ref in payload["candidate_lineage_refs"]:
+                if not isinstance(lineage_ref, str) or not lineage_ref:
+                    raise ProtocolError("candidate_lineage_refs must contain non-empty version IDs")
+                if self._event_by_payload_id(episode_id, "structure_version", "version_id", lineage_ref) is None:
+                    raise MissingReference(f"unknown candidate lineage version: {lineage_ref}")
             if candidate_id is not None and from_state is not None:
                 latest = self._db.execute(
                     "SELECT payload_json FROM events WHERE episode_id=? AND event_type='lifecycle_action' "
@@ -214,7 +232,10 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                     if row["event_type"] == "evidence_ingest":
                         roles.add(evidence_payload["split_role"])
                     else:
-                        roles.add(evidence_payload.get("split_role", "locked_test"))
+                        split_role = evidence_payload.get("split_role")
+                        if not isinstance(split_role, str):
+                            raise ProtocolError("revealed evidence used for lifecycle transitions must declare split_role")
+                        roles.add(split_role)
                 if not roles.intersection(required_role):
                     raise ProtocolError(f"{payload['to_state']} requires evidence role in {sorted(required_role)}")
         elif event_type == "structure_version":
