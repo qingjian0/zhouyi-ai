@@ -1,7 +1,7 @@
 import unittest
 
 from prototype.e13_contract import (
-    EvidenceStatus, RelationInstance, RelationSchema, RelationalGraph, RoleSemantics,
+    ContractError, EvidenceStatus, RelationInstance, RelationSchema, RelationalGraph, RoleSemantics,
 )
 from prototype.yijing_hypergraph_e13_adapter import (
     E13HypergraphEnvelope, HypergraphMappingError, from_e13, to_e13,
@@ -89,12 +89,8 @@ class HypergraphE13AdapterTests(unittest.TestCase):
             relation.context + (("foreign", "x"),), relation.evidence_status,
             relation.provenance_refs,
         )
-        with self.assertRaises(Exception):
-            from_e13(E13HypergraphEnvelope(
-                RelationalGraph(envelope.graph.entities, envelope.graph.schemas, (bad,)),
-                envelope.snapshot_context, envelope.step, envelope.evidence_id,
-                envelope.domain, envelope.coverage_complete,
-            ))
+        with self.assertRaises(ContractError):
+            RelationalGraph(envelope.graph.entities, envelope.graph.schemas, (bad,))
 
     def test_missing_provenance_is_rejected(self):
         envelope = to_e13(sample_state())
@@ -125,6 +121,7 @@ class HypergraphE13AdapterTests(unittest.TestCase):
         bad_schema = RelationSchema(
             schema.relation_type, schema.arity, schema.argument_types,
             RoleSemantics.ORDERED_POSITIONAL, symmetry="ASYMMETRIC",
+            context_keys=schema.context_keys,
         )
         with self.assertRaises(HypergraphMappingError):
             from_e13(E13HypergraphEnvelope(
