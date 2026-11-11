@@ -158,8 +158,6 @@ class CandidateCoordinator:
                 return False
             if any(candidate.proposal_id in item.excludes for item in selected):
                 return False
-            if any(item.proposal_id in candidate.requires for item in selected):
-                return False
             bindings: dict[str, str] = {}
             for item in (*selected, candidate):
                 for key, value in item.bindings:
