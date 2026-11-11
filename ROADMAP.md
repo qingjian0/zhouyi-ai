@@ -34,3 +34,8 @@
 ## 执行纪律
 
 每个阶段独立开分支、独立 CI、独立实验报告。未通过门槛不升级成熟度；失败实验保留，不通过修改指标制造成功。
+
+
+## Baseline reference correction (2026-11-11)
+
+The single source of truth for branch/commit identities is [BASELINE_MANIFEST](docs/BASELINE_MANIFEST_V1_2026-11-11.md). The E09 convergence source baseline is `e90f7eb210db456a541eb9f45ec39f64ebb934a5`. The recorded `8b0aa2a` Actions snapshot is historical and does not establish CI status for the current convergence branch HEAD. PR #202's crash-resume support is trusted single-process recovery only; process isolation, authenticated IPC, atomic cross-process outbox and end-to-end fault injection remain open P1 gates.
