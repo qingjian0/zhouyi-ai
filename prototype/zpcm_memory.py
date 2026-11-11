@@ -80,7 +80,7 @@ class ZPCMMemory:
                 if len(objects)==1:self.db.execute("UPDATE assertions SET status='ACTIVE' WHERE scope=? AND subject_id=? AND predicate=? AND status='CONTESTED'",(scope,row["subject_id"],row["predicate"]))
                 self.db.execute("COMMIT");return True
             except Exception:self.db.execute("ROLLBACK");raise
-    def sync_protocol_events(self,events:Iterable[dict],*,scope:str,learner_track:str,include_support_targets:bool=False)->int:
+    def sync_protocol_events(self,events:Iterable[dict],*,scope:str,learner_track:str)->int:
         if not scope.strip() or not learner_track.strip():raise ZPCMError("scope and learner track required")
         added=0
         for event in events:
@@ -89,7 +89,7 @@ class ZPCMMemory:
             if typ not in {"observation","prediction_commit","evidence_reveal","structure_version","revision"}:continue
             safe=dict(p)
             if typ=="evidence_reveal":
-                if safe.get("split")!="SUPPORT" or not include_support_targets:safe.pop("target_or_feedback",None)
+                safe.pop("target_or_feedback",None)
                 safe.pop("reveal_source",None)
             if typ=="structure_version" and isinstance(safe.get("definition"),dict):safe["definition"]={k:v for k,v in safe["definition"].items() if k!="snapshot"}
             safe.pop("raw_input",None)
@@ -103,12 +103,11 @@ class ZPCMMemory:
                     self.db.execute("COMMIT")
                 except Exception:self.db.execute("ROLLBACK");raise
         return added
-    def sync_episode(self,protocol_store,*,episode_id:str,scope:str,learner_track:str,include_support_targets:bool=False)->int:
+    def sync_episode(self,protocol_store,*,episode_id:str,scope:str,learner_track:str)->int:
         """Project the authoritative E09 episode log; repeated full scans are idempotent."""
         if not isinstance(episode_id,str) or not episode_id.strip():raise ZPCMError("episode_id required")
         events=protocol_store.replay_episode(episode_id)
-        return self.sync_protocol_events(events,scope=scope,learner_track=learner_track,
-                                         include_support_targets=include_support_targets)
+        return self.sync_protocol_events(events,scope=scope,learner_track=learner_track)
     def retrieve(self,*,scope,query_terms:Sequence[str]=(),item_types:Sequence[str]=(),max_items=64,max_bytes=32768):
         if not isinstance(scope,str) or not scope.strip() or max_items<1 or max_bytes<1:raise ZPCMError("valid scope and positive budgets required")
         terms=tuple(t.casefold() for t in query_terms if isinstance(t,str) and t.strip())

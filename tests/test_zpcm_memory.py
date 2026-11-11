@@ -14,7 +14,7 @@ class Tests(unittest.TestCase):
   self.assertEqual(self.m.sync_protocol_events(es,scope="s",learner_track="srok"),0)
   data=str(self.m.retrieve(scope="s",max_items=9));self.assertNotIn("SECRET",data);self.assertNotIn('"target_or_feedback": "yes"',data)
   self.assertTrue(self.m.verify_integrity()["ok"])
- def test_support_targets_require_explicit_opt_in(self):
+ def test_support_targets_are_always_redacted_from_memory_projection(self):
   e={"event_id":"e","event_type":"evidence_reveal","payload_digest":"d","payload":{"scope":"s","split":"SUPPORT","target_or_feedback":"answer","learner_track":"srok"}}
   self.m.sync_protocol_events([e],scope="s",learner_track="srok")
   self.assertNotIn("answer",str(self.m.retrieve(scope="s")))
