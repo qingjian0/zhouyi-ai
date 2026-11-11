@@ -22,12 +22,12 @@ def make_edge(edge_id, relation, participants, roles=None, attributes=()):
     )
 
 
-def observation(evidence_id, entities, edges, coverage_complete=True):
+def observation(evidence_id, entities, edges, coverage_complete=True, step=0, domain="synthetic"):
     state = HypergraphState(
         tuple(Entity(entity_id, entity_type) for entity_id, entity_type in entities),
-        tuple(edges), (), 0, evidence_id, "synthetic", coverage_complete,
+        tuple(edges), (), step, evidence_id, domain, coverage_complete,
     )
-    return HypergraphRoleObservation(state, evidence_id, "synthetic")
+    return HypergraphRoleObservation(state, evidence_id, domain)
 
 
 class ExactSlotGroupInductionTests(unittest.TestCase):
@@ -45,6 +45,20 @@ class ExactSlotGroupInductionTests(unittest.TestCase):
         self.assertEqual(default.automorphism_mappings, ())
         self.assertEqual(len(detailed.automorphism_mappings), detailed.automorphism_count)
         self.assertEqual(detailed.automorphism_count, 6)
+
+    def test_snapshot_step_and_domain_are_preserved(self):
+        row = observation(
+            "obs-temporal",
+            (("a", "node"), ("b", "node"), ("c", "node")),
+            (make_edge("target", "joint", ("a", "b", "c")),),
+            step=7,
+            domain="temporal-test",
+        )
+        report = induce_exact_slot_permutation_groups(
+            (row,), (RelationSymmetry("joint", "UNORDERED"),)
+        )
+        self.assertEqual(report.observation_groups[0].step, 7)
+        self.assertEqual(report.observation_groups[0].domain, "temporal-test")
 
     def test_unconstrained_unordered_edge_induces_s3(self):
         row = observation(
