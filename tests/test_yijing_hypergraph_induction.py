@@ -120,9 +120,27 @@ class TypedHypergraphTests(unittest.TestCase):
 
     def test_complete_absence_can_propose_dissolution(self):
         result = DynamicHypergraphEvolution(min_consecutive_transitions=1).analyze([
-            state(0, [edge()]), state(1, [], entities=("x", "y", "z"), complete=True)
+            state(0, [edge()]), state(1, [], entities=("a", "b", "c"), complete=True)
         ])
         self.assertIn("DISSOLVE", {x.kind for x in result.events})
+
+    def test_relation_can_dissolve_while_entities_remain(self):
+        result = DynamicHypergraphEvolution(min_consecutive_transitions=1).analyze([
+            state(0, [edge()]), state(1, [], entities=("a", "b", "c"), complete=True)
+        ])
+        dissolve = [x for x in result.events if x.kind == "DISSOLVE"]
+        self.assertEqual(len(dissolve), 1)
+        self.assertEqual(dissolve[0].status, "CONFIRMED")
+
+    def test_relation_reappearance_breaks_dissolution_hysteresis(self):
+        result = DynamicHypergraphEvolution(min_consecutive_transitions=2).analyze([
+            state(0, [edge()]),
+            state(1, [], entities=("a", "b", "c"), complete=True),
+            state(2, [edge()], entities=("a", "b", "c"), complete=True),
+        ])
+        dissolve = [x for x in result.events if x.kind == "DISSOLVE"]
+        self.assertEqual(len(dissolve), 1)
+        self.assertEqual(dissolve[0].status, "CANDIDATE")
 
     def test_multiple_relations_are_not_flattened(self):
         second = Hyperedge("h2", "joint-2",
