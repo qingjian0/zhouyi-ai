@@ -311,13 +311,15 @@ class SharedEvidenceProtocolTests(unittest.TestCase):
             protocol_version="0.3",
             payload={"prediction_id": "p1", "observation_id": "o1", "query_id": "q1",
                      "scope": "world/a", "split": "SUPPORT", "model_version": "m1",
+                     "interop_commit_digest": "a" * 64,
                      "learner_track": "e09", "decision_status": "PREDICT"},
         )
         reveal = self.store.reveal_evidence(
             episode_id="v03", event_id="reveal", idempotency_key="reveal",
             protocol_version="0.3",
             payload={"prediction_id": "p1", "query_id": "q1", "scope": "world/a",
-                     "split": "SUPPORT", "commit_digest": receipt.payload_digest,
+                     "split": "SUPPORT", "commit_digest": "a" * 64,
+                     "event_digest": receipt.payload_digest,
                      "learner_track": "e09", "target_or_feedback": "yes"},
         )
         self.assertEqual(reveal.sequence_no, 3)
@@ -358,6 +360,7 @@ class SharedEvidenceProtocolTests(unittest.TestCase):
                 protocol_version="0.3",
                 payload={"prediction_id": "p1", "query_id": "q1", "scope": "world/a",
                          "split": "SUPPORT", "commit_digest": "0" * 64,
+                         "event_digest": "a" * 64,
                          "learner_track": "e09", "target_or_feedback": "yes"},
             )
 
