@@ -90,3 +90,16 @@ Do not claim active selection wins without executed multi-seed results and uncer
 4. Compare myopic EIG/cost with two-step lookahead and random/fixed baselines.
 5. Add no-prior, random-prior, Yin/Yang partition, Taixuan ternary, shuffled, and anti-aligned proposal priors at matched compute.
 6. Add evaluator process isolation before using the benchmark as a security-sensitive claim.
+
+
+## Initial controlled run (20 seeds)
+
+The first focused workflow completed successfully on 2026-11-11. It evaluated 7 fixed synthetic world families × 20 seeds = 140 episodes per policy, with budget 12 and the configured symmetric ternary measurement-noise channel.
+
+| Policy | Accuracy | Mean cost | Mean steps | High-confidence error |
+|---|---:|---:|---:|---:|
+| Active EIG/cost | 96.43% | 2.46 | 2.04 | 3.57% |
+| Random | 92.14% | 5.71 | 3.87 | 6.15% |
+| Fixed order | 70.71% | 8.21 | 8.21 | 1.64% |
+
+These values are a preliminary controlled synthetic result, not a statistical generalization claim. The 20 seeds vary the measurement-noise realization and random policy; they do not create 20 independent world mechanisms. The seven world families remain hand-specified and fixed. Selective coverage is reported by the executable benchmark and must be examined alongside selective accuracy; low selective error alone is not sufficient.
