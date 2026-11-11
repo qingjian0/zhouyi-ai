@@ -2,7 +2,8 @@ import unittest
 
 from prototype.e13_dynamics import (
     TransitionContractError, TransitionMap, TransitionRule, TransitionSystem,
-    forecast_target_trajectory, observe_target_trajectory, rollout,
+    TrajectoryQuery, forecast_target_trajectory, observe_target_trajectory, rollout,
+    select_discriminating_trajectory, update_trajectory_version_space,
     validate_trajectory,
 )
 
@@ -104,6 +105,45 @@ class MultiStepDynamicsTests(unittest.TestCase):
         result = rollout(self.target, (("stage", "quiet"),), ("advance", "unknown"))
         self.assertEqual(result.status, "NO_TRANSITION")
         self.assertEqual(result.stopped_at_step, 1)
+
+    def test_active_trajectory_selection_uses_candidate_disagreement_without_target(self):
+        alternative = TransitionMap(
+            "alternative",
+            state_variables=(("phase", "stage"),),
+            state_values=(("phase", "low", "quiet"), ("phase", "high", "dormant")),
+            actions=(("tick", "advance"),),
+            provenance="independent alternative mapping",
+            rationale="test active selection between competing trajectory hypotheses",
+        )
+        selection = select_discriminating_trajectory(
+            self.source, (self.mapping, alternative),
+            (("phase", "low"),),
+            (TrajectoryQuery("one-step", ("tick",)),
+             TrajectoryQuery("two-step", ("tick", "tick"))),
+        )
+        self.assertEqual(selection.status, "SELECTED")
+        self.assertEqual(selection.selected.disagreement, 1.0)
+
+    def test_observed_target_trajectory_updates_candidate_version_space(self):
+        alternative = TransitionMap(
+            "alternative",
+            state_variables=(("phase", "stage"),),
+            state_values=(("phase", "low", "quiet"), ("phase", "high", "dormant")),
+            actions=(("tick", "advance"),),
+            provenance="independent alternative mapping",
+            rationale="test evidence-based trajectory candidate rejection",
+        )
+        observed = rollout(
+            self.target, (("stage", "quiet"),), ("advance",)
+        )
+        update = update_trajectory_version_space(
+            self.source, (self.mapping, alternative),
+            (("phase", "low"),), TrajectoryQuery("one-step", ("tick",)),
+            observed,
+        )
+        self.assertEqual(update.status, "UPDATED")
+        self.assertEqual(update.retained_candidate_ids, ("oscillator-map",))
+        self.assertEqual(update.rejected_candidate_ids, ("alternative",))
 
 
 if __name__ == "__main__":
