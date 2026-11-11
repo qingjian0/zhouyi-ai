@@ -1,6 +1,6 @@
 import unittest
 from fractions import Fraction
-from prototype.e13_stochastic import (
+from prototype.e13_stochastic import KernelValidationCase, StochasticKernelMap\nfrom prototype.e13_stochastic import (
     ObservationKernel, ObservationRule, ProbabilisticTransitionRule,
     ProbabilisticTransitionSystem, RiskAwareQuery, StochasticContractError,
     jensen_shannon_divergence, observation_distribution,
