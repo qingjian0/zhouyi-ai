@@ -293,7 +293,12 @@ class PersistentLifecycleLedger:
         with self._lock:
             if authorization_receipt is not None:
                 prior_use = self._consumed_receipts.get(authorization_receipt.receipt_id)
-                if prior_use is not None and prior_use != authorization_body:
+                nonce_used = any(
+                    body.get("nonce") == authorization_receipt.nonce
+                    for body in self._consumed_receipts.values()
+                )
+                if ((prior_use is not None and prior_use != authorization_body)
+                        or (nonce_used and prior_use is None)):
                     raise LifecyclePersistenceError("authorization receipt or nonce was already consumed")
             key = (candidate.candidate_id, candidate.version)
             old_candidate = self._ledger.candidates.get(key)
@@ -413,4 +418,5 @@ class PersistentLifecycleLedger:
             return {"schema_version":EVENT_SCHEMA,"scope":self.scope,"last_sequence":self._last_sequence,
               "candidates":[_candidate_to_dict(v) for _,v in sorted(self._ledger.candidates.items())],
               "evidence":[_evidence_to_dict(v) for _,v in sorted(self._ledger.evidence.items())],
-              "actions":[_action_to_dict(v) for v in self._ledger.actions],\n              "consumed_authorizations":[self._consumed_receipts[k] for k in sorted(self._consumed_receipts)]}
+              "actions":[_action_to_dict(v) for v in self._ledger.actions],
+              "consumed_authorizations":[self._consumed_receipts[k] for k in sorted(self._consumed_receipts)]}
