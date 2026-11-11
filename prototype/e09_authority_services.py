@@ -12,7 +12,7 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Protocol
 
-from prototype.e09_e12a6_evidence_bridge import resolve_branch_merge_authorization
+from prototype.e09_e12a6_evidence_bridge import resolve_branch_merge_authorization, resolve_e09_reveal
 from prototype.shared_evidence_protocol import (
     STRICT_PROTOCOL_VERSION,
     EventReceipt,
@@ -282,6 +282,8 @@ class E09VerifierService:
         signature_verifier: Callable[[str, str, bytes, str], bool],
         verifier_id: str,
         clock: E09Clock | None = None,
+        receipt_signer: E09GrantSigner | None = None,
+        receipt_ttl: timedelta = timedelta(minutes=1),
     ) -> None:
         if not isinstance(store, SQLiteEvidenceStore):
             raise TypeError("store must be SQLiteEvidenceStore")
@@ -292,7 +294,13 @@ class E09VerifierService:
         self._store = store
         self._signature_verifier = signature_verifier
         self.verifier_id = verifier_id
+        if receipt_signer is not None and not callable(getattr(receipt_signer, "sign", None)):
+            raise TypeError("receipt_signer must implement sign")
+        if not isinstance(receipt_ttl, timedelta) or receipt_ttl <= timedelta(0):
+            raise ValueError("receipt_ttl must be a positive timedelta")
         self._clock = clock or SystemUTCClock()
+        self._receipt_signer = receipt_signer
+        self._receipt_ttl = receipt_ttl
 
     def verify_branch_merge_authorization(self, **request: Any):
         """Verify with the service clock; caller-supplied now is rejected."""
@@ -308,3 +316,100 @@ class E09VerifierService:
             now=current,
             **request,
         )
+
+    def issue_verification_receipt(self, **request: Any) -> dict[str, Any]:
+        """Verify a grant and issue a signed receipt for all candidate evidence refs."""
+        if self._receipt_signer is None:
+            raise E09AuthorizationError("verifier receipt signer is not configured")
+        receipt_only_fields = {
+            "candidate_evidence_refs", "candidate_evidence_world_family_by_ref",
+        }
+        verification_request = {
+            key: value for key, value in request.items() if key not in receipt_only_fields
+        }
+        permit = self.verify_branch_merge_authorization(**verification_request)
+        current = self._clock.now()
+        if not isinstance(current, datetime) or current.tzinfo is None:
+            raise E09AuthenticationError("verifier clock must return a timezone-aware datetime")
+        current = current.astimezone(timezone.utc)
+        episode_id = request["episode_id"]
+        authorization_ref = request["authorization_ref"]
+        events = self._store.replay_episode(episode_id)
+        matches = [event for event in events if event.get("event_id") == authorization_ref]
+        if len(matches) != 1:
+            raise E09AuthenticationError("verified authorization event disappeared from E09 replay")
+        grant_payload = matches[0]["payload"]
+        grant_expiry = datetime.fromisoformat(grant_payload["expires_at"].replace("Z", "+00:00"))
+        expires_at = min(grant_expiry, current + self._receipt_ttl)
+        if expires_at <= current:
+            raise E09AuthorizationError("grant expires before a verifier receipt can be issued")
+
+        candidate_refs = request.get("candidate_evidence_refs", permit.evidence_refs)
+        if (not isinstance(candidate_refs, (tuple, list)) or not candidate_refs
+                or any(not isinstance(ref, str) or not ref.strip() for ref in candidate_refs)
+                or len(candidate_refs) != len(set(candidate_refs))):
+            raise E09AuthorizationError("candidate_evidence_refs must be a non-empty unique reference list")
+        all_evidence_refs = tuple(sorted(candidate_refs))
+        if not set(permit.evidence_refs).issubset(set(all_evidence_refs)):
+            raise E09AuthorizationError("candidate evidence refs must include all authorization evidence refs")
+        world_families = request.get(
+            "candidate_evidence_world_family_by_ref",
+            request.get("world_family_by_evidence"),
+        )
+        if not isinstance(world_families, dict) or set(world_families) != set(all_evidence_refs):
+            raise E09AuthorizationError("every candidate evidence ref requires explicit world-family context")
+
+        evidence = []
+        for ref in all_evidence_refs:
+            item = resolve_e09_reveal(
+                self._store,
+                episode_id=episode_id,
+                evidence_ref=ref,
+                scope=request["scope"],
+                learner_track=request["learner_track"],
+                world_family=world_families[ref],
+            )
+            evidence.append({
+                "evidence_id": item.evidence_id,
+                "episode_id": item.episode_id,
+                "world_family": item.world_family,
+                "split_role": item.split_role.value,
+                "observation_id": item.observation_id,
+                "outcome": item.outcome,
+                "model_version": item.model_version,
+                "measurement_cost": item.measurement_cost,
+                "prediction_commit_step": item.prediction_commit_step,
+                "label_visibility_step": item.label_visibility_step,
+                "provenance": item.provenance,
+            })
+
+        receipt = {
+            "schema_version": "e09_verification_receipt@1",
+            "receipt_id": secrets.token_hex(16),
+            "nonce": secrets.token_urlsafe(32),
+            "audience": "e12a6-lifecycle-writer",
+            "verifier_id": self.verifier_id,
+            "episode_id": episode_id,
+            "authorization_ref": authorization_ref,
+            "scope": request["scope"],
+            "parent_state_ref": request["parent_state_ref"],
+            "branch_ids": list(permit.branch_ids),
+            "authorization_evidence_refs": list(permit.evidence_refs),
+            "evidence_refs": list(all_evidence_refs),
+            "issuer_id": permit.issuer_id,
+            "authorization_event_digest": permit.event_digest,
+            "issued_at": current.isoformat(),
+            "expires_at": expires_at.isoformat(),
+            "evidence": evidence,
+            "signature_algorithm": "Ed25519",
+            "signature": "",
+        }
+        from prototype.e09_verification_receipt import verification_receipt_signing_bytes
+
+        signature = self._receipt_signer.sign(
+            self.verifier_id, verification_receipt_signing_bytes(receipt)
+        )
+        if not isinstance(signature, str) or not signature.strip():
+            raise E09AuthenticationError("verifier receipt signer returned an invalid signature")
+        receipt["signature"] = signature
+        return receipt
