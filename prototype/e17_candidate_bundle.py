@@ -228,6 +228,20 @@ def validate_candidate_bundle(bundle: CandidateBundle) -> None:
     ):
         _require_unique(getattr(bundle, field), field)
 
+    layers = {change.target_layer for change in bundle.changes}
+    expected_layer = {
+        BundleKind.MEASUREMENT_ONLY: ChangeLayer.MEASUREMENT,
+        BundleKind.PRIMITIVE_ONLY: ChangeLayer.PRIMITIVE,
+        BundleKind.RELATION_ONLY: ChangeLayer.RELATION,
+        BundleKind.MECHANISM_ONLY: ChangeLayer.MECHANISM,
+        BundleKind.PROGRAM_ONLY: ChangeLayer.PROGRAM,
+    }
+    if bundle.kind is BundleKind.CROSS_LAYER:
+        if len(layers) < 2:
+            raise CandidateContractError("CROSS_LAYER bundle must change at least two layers")
+    elif layers != {expected_layer[bundle.kind]}:
+        raise CandidateContractError("bundle kind does not match its change layers")
+
     change_ids = tuple(change.change_id for change in bundle.changes)
     _require_unique(change_ids, "change_ids")
     known_change_ids = set(change_ids)
@@ -374,8 +388,16 @@ class CandidateRegistry:
         LifecycleState.COMMITTED: set(),
     }
 
-    def __init__(self, active_version_refs: Iterable[str] = ()) -> None:
+    def __init__(
+        self,
+        active_version_refs: Iterable[str] = (),
+        trusted_gate_evaluator_ids: Iterable[str] = (),
+    ) -> None:
         self._active_version_refs = set(active_version_refs)
+        self._trusted_gate_evaluator_ids = frozenset(trusted_gate_evaluator_ids)
+        if any(not isinstance(item, str) or not item.strip()
+               for item in self._trusted_gate_evaluator_ids):
+            raise CandidateContractError("trusted gate evaluator ids must be non-empty strings")
         self._bundles: dict[str, CandidateBundle] = {}
         self._states: dict[str, LifecycleState] = {}
         self._receipts: dict[str, ValidationReceipt] = {}
@@ -475,6 +497,8 @@ class CandidateRegistry:
             raise CandidateContractError("receipt parent versions do not match bundle")
         if not receipt.evaluator_id or receipt.evaluator_id == bundle.proposer_id:
             raise CandidateContractError("gate evaluator must be distinct from proposer")
+        if receipt.evaluator_id not in self._trusted_gate_evaluator_ids:
+            raise CandidateContractError("gate evaluator is not in the trusted evaluator allowlist")
         if not receipt.evaluation_partition_id:
             raise CandidateContractError("evaluation partition id is required")
         if receipt.independent_gate is not True:
