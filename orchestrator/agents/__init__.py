@@ -8,9 +8,12 @@ from .provider import (
     invoke_provider,
 )
 from .artifact_store import ArtifactRef, ArtifactStore, FileArtifactStore
+from .workspace import Workspace, WorkspaceManager
+from .patch_validation import PatchValidator, ValidatedPatch
 
 __all__ = [
     "AgentArtifact", "AgentRegistry", "AgentRequest", "AgentResult", "EvidenceRef",
     "AgentProvider", "ProviderBudget", "ProviderRequest", "ProviderResponse",
     "invoke_provider", "ArtifactRef", "ArtifactStore", "FileArtifactStore",
+    "Workspace", "WorkspaceManager", "PatchValidator", "ValidatedPatch",
 ]
