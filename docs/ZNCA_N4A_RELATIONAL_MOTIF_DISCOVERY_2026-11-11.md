@@ -69,3 +69,11 @@ N4-A 是有界关系子图枚举与证据门控原型，不是神经网络，不
 3. 增加关系方向反转、缺失边、跨步跳跃和高阶超边的类象变换。
 4. 建立合成可控任务和真实跨领域任务，比较 pairwise、motif、hypergraph 和 NAR iterative refinement 基线。
 5. 测量 CPU、峰值 RSS、枚举预算耗尽率和增量更新成本。
+
+## 研究依据与架构取舍
+
+- Khalid & Schockaert, ICLR 2025, [Systematic Relational Reasoning With Epistemic Graph Neural Networks](https://proceedings.iclr.cc/paper_files/paper/2025/hash/6590cb829f5ffef50050f3e5845fbb4c-Abstract-Conference.html)：指出普通 GNN 在需要更长推理链的系统泛化任务上存在限制，并强调多条关系路径的信息聚合。对本项目的启示是：关系状态不能只存局部相邻边，后续推演要显式处理多路径证据和认知不确定性。
+- Marra et al., 2025, [Relational Reasoning Networks](https://doi.org/10.1016/j.knosys.2024.112822)：在潜在空间中联合表示常量、ground atoms 及其更高阶关系。对本项目的启示是：未来需要“关系之间的关系”与超边，而不是把所有知识压平为实体二元边。
+- Lee et al., EMNLP 2018, [Deterministic Non-Autoregressive Neural Sequence Modeling by Iterative Refinement](https://aclanthology.org/D18-1149/)：通过多轮迭代细化进行非自回归生成，报告特定任务上较快解码，但并未消除依赖恢复问题。对本项目的启示是：候选可并行提出，但必须通过结构约束、跨候选交互和迭代修正恢复依赖，不能假设所有元素独立。
+
+这些论文提供的是可借鉴机制与已知限制，不是 N4-A 的实验结果，也不能证明本项目方案优于 Transformer。
