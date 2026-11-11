@@ -284,10 +284,18 @@ class FiniteRelationalVersionSpace:
             relation = row["relation_symbol"]
             all_evidence = [item for item in self._evidence_rows
                             if item["relation_symbol"] == relation]
-            after = tuple(rule for rule in self._universe.get(relation, ())
-                          if all(self._matches(rule, item, self._objects) == item["outcome"]
-                                 for item in all_evidence))
-            operations = len(self._universe.get(relation, ())) * len(all_evidence)
+            retained = []
+            operations = 0
+            for rule in self._universe.get(relation, ()):
+                consistent = True
+                for item in all_evidence:
+                    operations += 1
+                    if self._matches(rule, item, self._objects) != item["outcome"]:
+                        consistent = False
+                        break
+                if consistent:
+                    retained.append(rule)
+            after = tuple(retained)
 
         self._versions[row["relation_symbol"]] = after
         changed = set(before) != set(after)
