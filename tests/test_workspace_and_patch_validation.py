@@ -94,6 +94,18 @@ class PatchValidatorTests(unittest.TestCase):
             with self.subTest(path=path), self.assertRaisesRegex(ValueError, message):
                 self.validator.validate(patch)
 
+    def test_rejects_mismatched_git_header_paths(self):
+        patch = (
+            "diff --git a/other.txt b/other.txt\n"
+            "--- a/actual.txt\n+++ b/actual.txt\n@@ -1 +1 @@\n-old\n+new\n"
+        )
+        with self.assertRaisesRegex(ValueError, "do not match"):
+            self.validator.validate(patch)
+
+        missing_pair = "diff --git a/file.txt b/file.txt\n"
+        with self.assertRaisesRegex(ValueError, "missing"):
+            self.validator.validate(missing_pair)
+
     def test_rejects_duplicate_paths_and_limits(self):
         one = "--- a/a.txt\n+++ b/a.txt\n@@ -1 +1 @@\n-a\n+b\n"
         with self.assertRaisesRegex(ValueError, "duplicate"):
