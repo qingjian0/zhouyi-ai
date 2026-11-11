@@ -271,10 +271,14 @@ class PersistentLifecycleTests(unittest.TestCase):
                 "body": receipt_body,
             }},
         ]
-        with self.assertRaises(ZPCMError):
-            self.memory.append_lifecycle_events(
-                events=events, scope="project-a", expected_sequence=3,
-            )
+        second_connection = ZPCMMemory(self.path)
+        try:
+            with self.assertRaises(ZPCMError):
+                second_connection.append_lifecycle_events(
+                    events=events, scope="project-a", expected_sequence=3,
+                )
+        finally:
+            second_connection.close()
         self.assertEqual(len(self.memory.replay_lifecycle_events(scope="project-a")), 3)
 
     def test_expired_receipt_is_not_consumed(self):
