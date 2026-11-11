@@ -74,6 +74,7 @@ def exact_predictive_partition(
     state_set = set(state_values)
     if any(next_state not in state_set for next_state in transitions.values()):
         raise ValueError("every transition target must be a declared state")
+    state_index = {state: index for index, state in enumerate(state_values)}
 
     # Begin with the coarsest partition; refine until no block can be split.
     block_ids = (0,) * len(state_values)
@@ -82,7 +83,7 @@ def exact_predictive_partition(
         signatures = tuple(
             tuple(
                 (outcomes[(state, action)],
-                 block_ids[state_values.index(transitions[(state, action)])])
+                 block_ids[state_index[transitions[(state, action)]]])
                 for action in action_values
             )
             for state in state_values
