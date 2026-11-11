@@ -251,7 +251,8 @@ class SQLiteEvidenceStore:
             required = {
                 "authorization_id", "issuer_id", "scope", "parent_state_ref",
                 "branch_ids", "evidence_refs", "issued_at", "expires_at",
-                "signature_algorithm", "signature",
+                "signature_algorithm", "signature_version", "audience",
+                "authorization_sequence", "signature",
             }
             if not strict:
                 raise ProtocolError("branch merge authorization requires strict E09 v0.3")
@@ -259,6 +260,19 @@ class SQLiteEvidenceStore:
                 raise ProtocolError(
                     f"branch_merge_authorization missing fields: {sorted(required - payload.keys())}"
                 )
+            if payload["signature_algorithm"] != "Ed25519":
+                raise ProtocolError("branch_merge_authorization requires Ed25519")
+            if payload["signature_version"] != "E09-AUTHZ-SIG-V2":
+                raise ProtocolError("branch_merge_authorization requires E09-AUTHZ-SIG-V2")
+            if payload["audience"] != "e12a6-lifecycle":
+                raise ProtocolError("branch_merge_authorization audience is invalid")
+            current_sequence = self._db.execute(
+                "SELECT COALESCE(MAX(sequence_no), 0) FROM events WHERE episode_id=?",
+                (episode_id,),
+            ).fetchone()[0]
+            sequence = payload["authorization_sequence"]
+            if isinstance(sequence, bool) or not isinstance(sequence, int) or sequence != current_sequence + 1:
+                raise ProtocolError("authorization_sequence must equal the next durable event sequence")
             for field in ("authorization_id", "issuer_id", "scope", "parent_state_ref",
                           "signature_algorithm", "signature"):
                 if not isinstance(payload[field], str) or not payload[field].strip():
