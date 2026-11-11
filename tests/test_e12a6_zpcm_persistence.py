@@ -178,6 +178,17 @@ class PersistentLifecycleTests(unittest.TestCase):
         self.assertTrue(replay.replayed)
         self.assertTrue(replay.authorization.replayed)
 
+    def test_receipt_backed_candidate_requires_same_receipt_on_replay(self):
+        evidence_item = evidence()
+        receipt = verified_receipt(evidence_item)
+        now = datetime(2026, 11, 12, 0, 30, tzinfo=timezone.utc)
+        candidate_item = authorized_candidate()
+        self.store.register_candidate_bundle(
+            candidate_item, (evidence_item,), authorization_receipt=receipt, consumed_at=now,
+        )
+        with self.assertRaises(LifecyclePersistenceError):
+            self.store.register_candidate_bundle(candidate_item, (evidence_item,))
+
     def test_same_receipt_or_nonce_cannot_authorize_another_candidate(self):
         evidence_item = evidence()
         receipt = verified_receipt(evidence_item)
