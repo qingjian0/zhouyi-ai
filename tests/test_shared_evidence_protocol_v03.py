@@ -1264,5 +1264,67 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
             ])
 
 
+    def test_learner_projection_hides_legacy_locked_test_reveals(self):
+        self.store.append_events(episode_id="legacy-lock", idempotency_key="commit", events=[
+            self.observation("legacy-lock-obs"),
+            {"event_id": "legacy-lock-pred", "event_type": "prediction_commit", "payload": {
+                "prediction_id": "legacy-lock-pred", "observation_id": "legacy-lock-obs",
+                "model_version": "m1", "learner_track": "track-lock", "decision_status": "PREDICT",
+            }},
+        ])
+        self.store.append_events(episode_id="legacy-lock", idempotency_key="locked-reveal", events=[
+            {"event_id": "legacy-lock-reveal", "event_type": "evidence_reveal", "payload": {
+                "prediction_id": "legacy-lock-pred", "learner_track": "track-lock",
+                "target_or_feedback": {"label": "SECRET_OLD_LABEL"}, "split_role": "locked_test",
+            }},
+        ])
+        learner = self.store.replay_learner_projection("legacy-lock", "track-lock")
+        self.assertEqual(learner["evidence"], {})
+        self.assertNotIn("SECRET_OLD_LABEL", canonical_json(learner))
+        self.assertEqual(learner["last_sequence"], 2)
+
+    def test_v03_structure_cannot_use_locked_test_reveal_as_support(self):
+        self.store.append_events(episode_id="no-locked-support", idempotency_key="setup", events=[
+            self.observation("no-locked-obs"),
+            {"event_id": "no-locked-pred", "event_type": "prediction_commit", "payload": {
+                "prediction_id": "no-locked-pred", "observation_id": "no-locked-obs",
+                "model_version": "m1", "learner_track": "track-lock", "decision_status": "PREDICT",
+            }},
+            {"event_id": "no-locked-reveal", "event_type": "evidence_reveal", "payload": {
+                "prediction_id": "no-locked-pred", "learner_track": "track-lock",
+                "target_or_feedback": "SECRET", "split_role": "locked_test",
+            }},
+        ])
+        with self.assertRaisesRegex(ProtocolError, "must be learner-visible"):
+            self.store.append_events(episode_id="no-locked-support", idempotency_key="bad-structure", events=[
+                {"event_id": "bad-supported-structure", "event_type": "structure_version", "payload": {
+                    "structure_id": "bad-rule", "version_id": "bad-rule@1", "kind": "candidate",
+                    "definition": {"rule": "x"}, "learner_track": "track-lock",
+                    "parent_version_ids": [], "support_evidence_ids": [{"kind": "revealed", "id": "no-locked-reveal"}],
+                }},
+            ])
+
+    def test_v03_revision_cannot_consume_locked_test_reveal(self):
+        self.store.append_events(episode_id="no-locked-revision", idempotency_key="setup", events=[
+            self.observation("no-revision-obs"),
+            {"event_id": "no-revision-pred", "event_type": "prediction_commit", "payload": {
+                "prediction_id": "no-revision-pred", "observation_id": "no-revision-obs",
+                "model_version": "m1", "learner_track": "track-lock", "decision_status": "PREDICT",
+            }},
+            {"event_id": "no-revision-reveal", "event_type": "evidence_reveal", "payload": {
+                "prediction_id": "no-revision-pred", "learner_track": "track-lock",
+                "target_or_feedback": "SECRET", "split_role": "locked_test",
+            }},
+        ])
+        with self.assertRaisesRegex(ProtocolError, "cannot use evaluator-only"):
+            self.store.append_events(episode_id="no-locked-revision", idempotency_key="bad-revision", events=[
+                {"event_id": "bad-revision", "event_type": "revision", "payload": {
+                    "revision_id": "bad-revision", "operation": "BATCH_REFIT",
+                    "trigger_evidence_ids": ["no-revision-reveal"],
+                    "before_version_ids": [], "after_version_ids": [], "learner_track": "track-lock",
+                }},
+            ])
+
+
 if __name__ == "__main__":
     unittest.main()
