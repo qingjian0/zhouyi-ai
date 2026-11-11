@@ -59,7 +59,10 @@ class TypedHyperedgeUnifierTests(unittest.TestCase):
                 RoleBinding("object", other, "storm", "Event"),
             ])],
             (*self.variables, VariableSpec(other, "Entity")),
-            UnificationConstraints(equal=(VariableRelation(self.x, other),)),
+            UnificationConstraints(
+                equal=(VariableRelation(self.x, other),),
+                subtype_of=(("Event", "Entity"),),
+            ),
         )
         merged = next(item for item in result.variables if self.x in item.refs)
         self.assertIn(other, merged.refs)
