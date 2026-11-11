@@ -122,6 +122,7 @@ def run(seed: int = 17, *, mode: str = "INCREMENTAL_FILTER",
                 "observation_id": observation["observation_id"],
                 "decision_status": prediction["decision_status"],
                 "prediction": prediction["prediction"],
+                "agreement_score": prediction["agreement_score"],
                 "target": label,
                 "correct_when_covered": (
                     prediction["prediction"] is label
