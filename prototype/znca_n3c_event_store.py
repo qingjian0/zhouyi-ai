@@ -119,19 +119,21 @@ class SQLiteEventStore:
 
     @property
     def version(self) -> int:
-        row = self._connection.execute(
-            "SELECT version FROM znca_streams WHERE stream_id = ?",
-            (self.stream_id,),
-        ).fetchone()
-        return int(row[0])
+        with self._lock:
+            row = self._connection.execute(
+                "SELECT version FROM znca_streams WHERE stream_id = ?",
+                (self.stream_id,),
+            ).fetchone()
+            return int(row[0])
 
     @property
     def last_hash(self) -> str:
-        row = self._connection.execute(
-            "SELECT last_hash FROM znca_streams WHERE stream_id = ?",
-            (self.stream_id,),
-        ).fetchone()
-        return str(row[0])
+        with self._lock:
+            row = self._connection.execute(
+                "SELECT last_hash FROM znca_streams WHERE stream_id = ?",
+                (self.stream_id,),
+            ).fetchone()
+            return str(row[0])
 
     def append(self, *, expected_version: int, transaction_id: str,
                event_type: str, payload: Mapping[str, object]) -> StoredEvent:
@@ -228,12 +230,13 @@ class SQLiteEventStore:
     def events(self, after_sequence: int = 0) -> tuple[StoredEvent, ...]:
         if not isinstance(after_sequence, int) or after_sequence < 0:
             raise EventStoreError("after_sequence must be non-negative")
-        rows = self._connection.execute(
-            """SELECT sequence, transaction_id, event_type, payload_json,
-                      previous_hash, event_hash FROM znca_events
-               WHERE stream_id = ? AND sequence > ? ORDER BY sequence""",
-            (self.stream_id, after_sequence),
-        ).fetchall()
+        with self._lock:
+            rows = self._connection.execute(
+                """SELECT sequence, transaction_id, event_type, payload_json,
+                          previous_hash, event_hash FROM znca_events
+                   WHERE stream_id = ? AND sequence > ? ORDER BY sequence""",
+                (self.stream_id, after_sequence),
+            ).fetchall()
         return tuple(StoredEvent(self.stream_id, int(r[0]), str(r[1]), str(r[2]),
                                  str(r[3]), str(r[4]), str(r[5])) for r in rows)
 
