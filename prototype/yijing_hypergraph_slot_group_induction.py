@@ -131,6 +131,10 @@ def induce_exact_slot_permutation_groups(
 
     for observation in rows:
         state = observation.state
+        if state.coverage_complete is not True:
+            raise ExactSlotGroupInductionError(
+                "complete coverage is required for exact slot-group induction"
+            )
         try:
             audit = exact_hypergraph_automorphism_audit(
                 state,
