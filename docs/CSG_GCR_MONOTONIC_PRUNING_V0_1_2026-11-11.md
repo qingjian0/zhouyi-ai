@@ -1,7 +1,7 @@
 # CSG-GCR Monotonic Partial Feasibility v0.1
 
 Date: 2026-11-11
-Status: research integration prototype; exact-head CI pending.
+Status: implemented in the typed CSG-GCR bridge; exact-head unit-test workflow passed on PR #244 head (run 43080177000). R1/R3 integration evidence only; not an R4 scientific capability claim.
 
 ## Problem
 
@@ -46,7 +46,7 @@ These omissions are intentional to avoid false negatives.
   that no pruned subset becomes feasible after adding proposals.
 - Differential tests compare pruned and unpruned typed results under a
   sufficiently large search budget.
-- Exact-head CI is required before promotion.
+- The exact PR #244 head workflow completed successfully (run 43080177000; unit-tests job). Re-run the full workflow after any source change or rebase.
 
 ## Boundaries
 
