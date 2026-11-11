@@ -57,7 +57,7 @@ def run_learner_process(episode_id: str, support: Sequence[Sequence[int]], query
               "query": list(map(int, query))}
     completed = subprocess.run(
         [python_executable, "-m", "prototype.e12a8_learner_worker"],
-        input=_canonical(public), capture_output=True, check=True, text=True)
+        input=_canonical(public).decode("utf-8"), capture_output=True, check=True, text=True)
     return PredictionCommit.from_worker_payload(json.loads(completed.stdout))
 
 class Evaluator:
