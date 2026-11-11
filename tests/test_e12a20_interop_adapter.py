@@ -92,6 +92,8 @@ class E12A20InteropAdapterTests(unittest.TestCase):
         self.assertEqual(adapted.inference.status, InferenceStatus.AMBIGUOUS)
         self.assertEqual(adapted.inference.ranked_hypothesis_refs, ())
         self.assertEqual(adapted.inference.evidence_refs, ("ev-1",))
+        self.assertEqual(adapted.marginals, source.marginals)
+        self.assertEqual(adapted.marginals[0].probabilities[0], ("a", 0.7))
 
     def test_bp_budget_and_inconsistency_statuses_are_preserved(self):
         exhausted = BPResult("BUDGET_EXHAUSTED", (), 0, 0, 100, 0, float("inf"), ())
