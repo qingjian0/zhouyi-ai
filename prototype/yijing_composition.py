@@ -6,7 +6,7 @@ preconditions, evidence and context must still be checked by each operator.
 """
 from __future__ import annotations
 
-from collections import Counter
+from collections import Counter, deque
 from dataclasses import dataclass
 from typing import Iterable, Mapping, Sequence
 
@@ -62,16 +62,15 @@ class CompositionPlanner:
         plans: list[OperatorPlan] = []
         explored = 0
         exhausted = False
-
-        def visit(
-            available: Counter[str],
-            path: tuple[str, ...],
-            used: frozenset[str],
-        ) -> None:
-            nonlocal explored, exhausted
+        # Breadth-first search makes the first returned plan minimal in
+        # operator count. This prevents unrelated applicable operators from
+        # being inserted into a valid path merely because DFS explored them.
+        queue = deque([(initial, (), frozenset())])
+        while queue:
             if len(plans) >= max_plans or explored >= max_states:
                 exhausted = True
-                return
+                break
+            available, path, used = queue.popleft()
             explored += 1
             if path and available[target_type] > initial[target_type]:
                 plans.append(OperatorPlan(
@@ -82,10 +81,9 @@ class CompositionPlanner:
                     )),
                     target_type=target_type,
                 ))
-                return
+                continue
             if len(path) >= max_depth:
-                return
-
+                continue
             for name in sorted(self.registry):
                 if name in used:
                     continue
@@ -94,12 +92,8 @@ class CompositionPlanner:
                     continue
                 next_available = available.copy()
                 next_available[contract.output_type] += 1
-                visit(next_available, path + (name,), used | {name})
-                if len(plans) >= max_plans or explored >= max_states:
-                    exhausted = True
-                    return
+                queue.append((next_available, path + (name,), used | {name}))
 
-        visit(initial, (), frozenset())
         return PlanningReport(tuple(plans), explored, exhausted)
 
     def parallel_frontier(self, input_types: Iterable[str]) -> tuple[str, ...]:
