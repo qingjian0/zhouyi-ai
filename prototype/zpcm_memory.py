@@ -166,7 +166,7 @@ class ZPCMMemory:
         if (candidate_event_id != f"e12a6:candidate:{candidate_id}@{version}"
                 or body.get("candidate_id") != candidate_id
                 or body.get("candidate_version") != version
-                or candidate.get("state") != "OBSERVED"):
+                or candidate.get("state") != "observed"):
             raise ZPCMError("authorization consumption candidate identity/state mismatch")
         evidence_ids = candidate.get("evidence_ids")
         if (not isinstance(evidence_ids, list) or not evidence_ids
