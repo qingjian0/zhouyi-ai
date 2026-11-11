@@ -421,3 +421,149 @@ def validate_stochastic_kernel_mapping(
     else:
         status = "PASS_ON_SUPPLIED_CASES"
     return KernelValidationReport(status, tuple(case_results))
+
+
+
+@dataclass(frozen=True)
+class TrajectoryValidationCase:
+    case_id: str
+    source_initial: State
+    target_initial: State
+    source_actions: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class TrajectoryStepComparison:
+    step: int
+    total_variation_distance: Fraction | None
+    status: str
+
+
+@dataclass(frozen=True)
+class CrossDomainTrajectoryReport:
+    case_id: str
+    status: str
+    steps: tuple[TrajectoryStepComparison, ...]
+
+
+def _map_state_distribution(
+    distribution: tuple[tuple[State, Fraction], ...],
+    mapping: StochasticKernelMap,
+) -> tuple[tuple[State, Fraction], ...] | None:
+    merged: dict[State, Fraction] = {}
+    for state, probability in distribution:
+        mapped = map_source_state(state, mapping)
+        if mapped is None:
+            return None
+        merged[mapped] = merged.get(mapped, Fraction(0)) + probability
+    return tuple(sorted(merged.items()))
+
+
+def _propagate_mapped_source(
+    source: ProbabilisticTransitionSystem,
+    initial: State,
+    source_actions: tuple[str, ...],
+    mapping: StochasticKernelMap,
+):
+    source_history = propagate_latent_distribution(source, initial, source_actions)
+    mapped_history = []
+    for distribution in source_history:
+        mapped = _map_state_distribution(distribution, mapping)
+        if mapped is None:
+            return None
+        mapped_history.append(mapped)
+    return tuple(mapped_history)
+
+
+def validate_cross_domain_trajectory(
+    source: ProbabilisticTransitionSystem,
+    target: ProbabilisticTransitionSystem,
+    mapping: StochasticKernelMap,
+    case: TrajectoryValidationCase,
+    *,
+    max_total_variation: Fraction = Fraction(0),
+) -> CrossDomainTrajectoryReport:
+    """Compare mapped source and target distributions at every action-sequence step.
+
+    A PASS is bounded to this initial state and action sequence. It is not a
+    proof of global equivalence or of causal identification.
+    """
+    threshold = _prob(max_total_variation)
+    _validate_kernel_map(source, target, mapping)
+    if not case.case_id:
+        raise StochasticContractError("TRAJECTORY_CASE_ID_REQUIRED")
+    mapped_initial = map_source_state(case.source_initial, mapping)
+    if mapped_initial is None or mapped_initial != _state(case.target_initial):
+        return CrossDomainTrajectoryReport(
+            case.case_id, "UNKNOWN_INITIAL_ALIGNMENT", ()
+        )
+    action_map = dict(mapping.source_to_target_actions)
+    if any(action not in action_map for action in case.source_actions):
+        return CrossDomainTrajectoryReport(
+            case.case_id, "UNKNOWN_ACTION_MAPPING", ()
+        )
+    try:
+        source_history = _propagate_mapped_source(
+            source, case.source_initial, case.source_actions, mapping
+        )
+    except StochasticContractError as exc:
+        if str(exc) == "MISSING_TRANSITION_ROW":
+            return CrossDomainTrajectoryReport(
+                case.case_id, "UNKNOWN_SOURCE_TRANSITION_SUPPORT", ()
+            )
+        raise
+    if source_history is None:
+        return CrossDomainTrajectoryReport(
+            case.case_id, "UNKNOWN_SOURCE_VALUE_MAPPING", ()
+        )
+    try:
+        target_history = propagate_latent_distribution(
+            target, case.target_initial,
+            tuple(action_map[action] for action in case.source_actions)
+        )
+    except StochasticContractError as exc:
+        if str(exc) == "MISSING_TRANSITION_ROW":
+            return CrossDomainTrajectoryReport(
+                case.case_id, "UNKNOWN_TARGET_TRANSITION_SUPPORT", ()
+            )
+        raise
+    comparisons = []
+    for step, (source_dist, target_dist) in enumerate(zip(source_history, target_history)):
+        distance = total_variation_distance(source_dist, target_dist)
+        comparisons.append(TrajectoryStepComparison(
+            step, distance, "PASS" if distance <= threshold else "MISMATCH"
+        ))
+    status = (
+        "MISMATCH" if any(item.status == "MISMATCH" for item in comparisons)
+        else "PASS_ON_SUPPLIED_TRAJECTORY"
+    )
+    return CrossDomainTrajectoryReport(case.case_id, status, tuple(comparisons))
+
+
+def compare_action_sequences(
+    source: ProbabilisticTransitionSystem,
+    target: ProbabilisticTransitionSystem,
+    mapping: StochasticKernelMap,
+    initial_case_id: str,
+    source_initial: State,
+    target_initial: State,
+    action_sequences: Iterable[tuple[str, ...]],
+    *,
+    max_total_variation: Fraction = Fraction(0),
+) -> tuple[CrossDomainTrajectoryReport, ...]:
+    """Evaluate declared action sequences independently; no sequence is inferred."""
+    reports = []
+    seen = set()
+    for index, actions in enumerate(action_sequences):
+        if actions in seen:
+            raise StochasticContractError("DUPLICATE_ACTION_SEQUENCE")
+        seen.add(actions)
+        reports.append(validate_cross_domain_trajectory(
+            source, target, mapping,
+            TrajectoryValidationCase(
+                f"{initial_case_id}:{index}", source_initial,
+                target_initial, tuple(actions)
+            ),
+            max_total_variation=max_total_variation,
+        ))
+    return tuple(reports)
