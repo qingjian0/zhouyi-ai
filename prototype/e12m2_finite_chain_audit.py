@@ -9,6 +9,7 @@ from math import comb
 from prototype.e12m2_exact_state_audit import (
     _switch_transition_counts,
     enumerate_degree_realizations,
+    audit_small_state_space,
 )
 
 
@@ -108,6 +109,9 @@ def run_finite_chain_convergence(
     states = enumerate_degree_realizations(row_degrees, item_degrees)
     if not states:
         raise ValueError("degree margins have no realizations")
+    state_audit = audit_small_state_space(row_degrees, item_degrees)
+    if not state_audit["connected"]:
+        raise ValueError("finite-chain stationary solve requires a connected fixed-margin state space")
     matrix = _transition_matrix(states)
     stationary = exact_stationary_distribution(matrix)
     if any(value != Fraction(1, len(states)) for value in stationary):
