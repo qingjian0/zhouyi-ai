@@ -181,6 +181,21 @@ def compare_symmetry_groups(
         raise PermutationGroupError("group arities must match")
     for item in old + new:
         _validate_permutation(item, arity)
+
+    def validate_subgroup(group: tuple[tuple[int, ...], ...]) -> None:
+        members = set(group)
+        identity = tuple(range(arity))
+        if identity not in members:
+            raise PermutationGroupError("each symmetry group must contain identity")
+        for left in members:
+            if _inverse(left) not in members:
+                raise PermutationGroupError("symmetry group must contain inverses")
+            for right in members:
+                if _compose(left, right) not in members:
+                    raise PermutationGroupError("symmetry group must be closed under composition")
+
+    validate_subgroup(old)
+    validate_subgroup(new)
     old_set, new_set = set(old), set(new)
     if old_set == new_set:
         relation = "UNCHANGED"
