@@ -7,7 +7,9 @@ runner, not passed to the learner. This is data-flow discipline, not OS isolatio
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import statistics
 import tempfile
 from pathlib import Path
 from typing import Any
@@ -133,6 +135,12 @@ def run(seed: int = 17, *, mode: str = "INCREMENTAL_FILTER",
             })
 
         total = len(prediction_rows)
+        final_snapshot = learner.snapshot()
+        final_spaces = final_snapshot["version_spaces"]
+        final_space_hashes = {
+            relation: hashlib.sha256(json.dumps(rules, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")).hexdigest()
+            for relation, rules in sorted(final_spaces.items())
+        }
         result = {
             "task": "E10-A finite relational version-space prequential experiment",
             "seed": seed,
@@ -146,13 +154,13 @@ def run(seed: int = 17, *, mode: str = "INCREMENTAL_FILTER",
             "strict_accuracy_abstentions_count_wrong": correct / total if total else 0.0,
             "abstention_rate": abstentions / total if total else 0.0,
             "revision_count_with_version_space_change": revisions,
-            "candidate_generation_evaluations": learner.snapshot()["report"]["candidate_generation_evaluations"],
+            "candidate_generation_evaluations": final_snapshot["report"]["candidate_generation_evaluations"],
             "prediction_rule_match_operations": prediction_rule_match_operations,
             "candidate_update_operations": update_operations,
             "final_version_space_counts": {
-                key: len(value)
-                for key, value in learner.snapshot()["version_spaces"].items()
+                key: len(value) for key, value in final_spaces.items()
             },
+            "final_version_space_hashes": final_space_hashes,
             "persisted_event_count": len(adapter.replay()),
             "prediction_trace": prediction_rows,
             "limitations": [
@@ -178,8 +186,8 @@ def run_all(seed: int = 17, *, instances_per_template: int = 6) -> dict[str, Any
         "arms": results,
         "comparisons": {
             "incremental_equals_batch_final_version_space": (
-                results[1]["final_version_space_counts"]
-                == results[2]["final_version_space_counts"]
+                results[1]["final_version_space_hashes"]
+                == results[2]["final_version_space_hashes"]
             ),
             "frozen_candidate_update_operations": results[0]["candidate_update_operations"],
             "batch_candidate_update_operations": results[1]["candidate_update_operations"],
@@ -188,18 +196,122 @@ def run_all(seed: int = 17, *, instances_per_template: int = 6) -> dict[str, Any
     }
 
 
+def _distribution(values: list[float]) -> dict[str, float | int | None]:
+    clean = [float(value) for value in values if value is not None]
+    if not clean:
+        return {"n": 0, "mean": None, "median": None, "population_stddev": None,
+                "min": None, "max": None}
+    return {
+        "n": len(clean),
+        "mean": statistics.fmean(clean),
+        "median": statistics.median(clean),
+        "population_stddev": statistics.pstdev(clean),
+        "min": min(clean),
+        "max": max(clean),
+    }
+
+
+def run_sweep(start_seed: int = 17, *, seeds: int = 10,
+              instances_per_template: int = 6) -> dict[str, Any]:
+    """Run all update arms across consecutive seeds and summarize distributions."""
+    if not isinstance(seeds, int) or isinstance(seeds, bool) or seeds < 1:
+        raise ValueError("seeds must be a positive integer")
+    seed_results = [
+        run_all(start_seed + offset, instances_per_template=instances_per_template)
+        for offset in range(seeds)
+    ]
+    metrics = (
+        "coverage", "selective_accuracy",
+        "strict_accuracy_abstentions_count_wrong", "abstention_rate",
+        "revision_count_with_version_space_change",
+        "candidate_generation_evaluations",
+        "prediction_rule_match_operations", "candidate_update_operations",
+    )
+    arm_summaries = {}
+    for mode in MODES:
+        arm_rows = [
+            next(arm for arm in item["arms"] if arm["mode"] == mode)
+            for item in seed_results
+        ]
+        arm_summaries[mode] = {
+            metric: _distribution([row[metric] for row in arm_rows])
+            for metric in metrics
+        }
+        arm_summaries[mode]["final_version_space_counts"] = [
+            row["final_version_space_counts"] for row in arm_rows
+        ]
+        arm_summaries[mode]["final_version_space_hashes"] = [
+            row["final_version_space_hashes"] for row in arm_rows
+        ]
+
+    per_seed_checks = [
+        {
+            "seed": item["seed"],
+            "batch_equals_incremental_exact_version_space": (
+                item["arms"][1]["final_version_space_hashes"]
+                == item["arms"][2]["final_version_space_hashes"]
+            ),
+            "batch_update_operations": item["comparisons"]["batch_candidate_update_operations"],
+            "incremental_update_operations": item["comparisons"]["incremental_candidate_update_operations"],
+        }
+        for item in seed_results
+    ]
+    batch_total = sum(
+        item["comparisons"]["batch_candidate_update_operations"] for item in seed_results
+    )
+    incremental_total = sum(
+        item["comparisons"]["incremental_candidate_update_operations"] for item in seed_results
+    )
+    return {
+        "experiment": "E10-A multi-seed object-disjoint prequential finite-DSL sweep",
+        "start_seed": start_seed,
+        "seeds": seeds,
+        "instances_per_template": instances_per_template,
+        "arms": arm_summaries,
+        "comparisons": {
+            "batch_equals_incremental_exact_version_space_all_seeds": all(
+                row["batch_equals_incremental_exact_version_space"]
+                for row in per_seed_checks
+            ),
+            "per_seed": per_seed_checks,
+            "aggregate_incremental_to_batch_update_operation_ratio": (
+                incremental_total / batch_total if batch_total else None
+            ),
+            "aggregate_batch_update_operations": batch_total,
+            "aggregate_incremental_update_operations": incremental_total,
+            "interpretation": (
+                "Exact-space equality is an invariant check. Operation ratios compare "
+                "measured candidate/example checks; they do not imply accuracy superiority."
+            ),
+        },
+        "seed_results": seed_results,
+        "limitations": [
+            "Seeds are consecutive deterministic generator seeds, not a proof of population-level performance.",
+            "The finite DSL remains matched to the synthetic generator family.",
+            "No neural or program-synthesis baseline is included in this sweep.",
+            "The runner remains same-process; this is not evaluator/learner security isolation.",
+        ],
+    }
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--seed", type=int, default=17)
     parser.add_argument("--instances-per-template", type=int, default=6)
     parser.add_argument("--mode", choices=(*MODES, "all"), default="all")
+    parser.add_argument("--sweep", action="store_true")
+    parser.add_argument("--seeds", type=int, default=10)
+    parser.add_argument("--start-seed", type=int, default=17)
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
-    result = (
-        run_all(args.seed, instances_per_template=args.instances_per_template)
-        if args.mode == "all"
-        else run(args.seed, mode=args.mode, instances_per_template=args.instances_per_template)
-    )
+    if args.sweep:
+        result = run_sweep(args.start_seed, seeds=args.seeds,
+                           instances_per_template=args.instances_per_template)
+    elif args.mode == "all":
+        result = run_all(args.seed, instances_per_template=args.instances_per_template)
+    else:
+        result = run(args.seed, mode=args.mode,
+                     instances_per_template=args.instances_per_template)
     print(json.dumps(result, indent=2, ensure_ascii=False) if args.json else result)
 
 
