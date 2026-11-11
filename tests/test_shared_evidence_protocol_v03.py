@@ -791,5 +791,119 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
 
 
 
+    def test_hydrate_lifecycle_ledger_replays_candidate_and_typed_train_evidence(self):
+        candidate = Candidate(
+            candidate_id="primitive-ledger", version=1,
+            canonical_expression="x > y", proposer_family="relational",
+            supporting_families=("relational",), input_types=("number", "number"),
+            operator="GT", evidence_ids=("train-ledger",),
+        )
+        evidence = Evidence(
+            evidence_id="train-ledger", episode_id="ep",
+            world_family="finite-rule-world", split_role=SplitRole.TRAIN,
+            observation_id="obs-1", outcome="positive", model_version="dataset-v1",
+            measurement_cost=0.1, provenance="dataset:train",
+        )
+        ingest = self.ingest(evidence_id="train-ledger")
+        ingest["payload"]["evidence_definition"] = evidence_definition_payload(evidence)
+        actions = []
+        transitions = [
+            ("propose", "propose", "observed", "proposed", []),
+            ("discriminate", "request_discrimination", "proposed", "discrimination_pending", []),
+            ("train", "train_support", "discrimination_pending", "train_supported",
+             [{"kind": "ingested", "id": "train-ledger"}]),
+        ]
+        for aid, action_type, before, after, refs in transitions:
+            actions.append({
+                "event_id": f"event-{aid}", "event_type": "lifecycle_action",
+                "payload": {
+                    "action_id": aid, "action_type": action_type,
+                    "candidate_id": candidate.candidate_id, "candidate_version": 1,
+                    "from_state": before, "to_state": after,
+                    "evidence_refs": refs, "cost": 0.1, "note": aid,
+                    "candidate_lineage_refs": [], "learner_track": "e12",
+                },
+            })
+        self.store.append_events(
+            episode_id="ep", idempotency_key="full-ledger-hydration",
+            events=[
+                self.observation(), ingest,
+                {
+                    "event_id": "candidate-ledger", "event_type": "structure_version",
+                    "payload": {
+                        "structure_id": candidate.candidate_id, "version_id": "primitive-ledger@1",
+                        "kind": "candidate", "definition": candidate_definition_payload(candidate),
+                        "parent_version_ids": [],
+                        "support_evidence_ids": [{"kind": "ingested", "id": "train-ledger"}],
+                    },
+                },
+                *actions,
+            ],
+        )
+        projection = self.store.replay_projection("ep")
+        ledgers = projection.hydrate_lifecycle_ledgers()
+        self.assertEqual(set(ledgers), {"e12"})
+        ledger = ledgers["e12"]
+        self.assertEqual(
+            ledger.candidates[(candidate.candidate_id, 1)].state,
+            CandidateState.TRAIN_SUPPORTED,
+        )
+        self.assertEqual(ledger.evidence["train-ledger"], evidence)
+        self.assertEqual([action.action_id for action in ledger.actions],
+                         ["propose", "discriminate", "train"])
+
+    def test_hydration_keeps_candidate_state_isolated_per_learner_track(self):
+        candidate = Candidate(
+            candidate_id="shared-primitive", version=1,
+            canonical_expression="a relates_to b", proposer_family="relational",
+            supporting_families=("relational",), input_types=("entity", "entity"),
+            operator="RELATES_TO",
+        )
+        self.store.append_events(
+            episode_id="ep", idempotency_key="track-isolation",
+            events=[
+                self.observation(),
+                {
+                    "event_id": "shared-candidate", "event_type": "structure_version",
+                    "payload": {
+                        "structure_id": candidate.candidate_id, "version_id": "shared-primitive@1",
+                        "kind": "candidate", "definition": candidate_definition_payload(candidate),
+                        "parent_version_ids": [], "support_evidence_ids": [],
+                    },
+                },
+                {
+                    "event_id": "track-a-propose", "event_type": "lifecycle_action",
+                    "payload": {
+                        "action_id": "track-a-propose", "action_type": "propose",
+                        "candidate_id": candidate.candidate_id, "candidate_version": 1,
+                        "from_state": "observed", "to_state": "proposed",
+                        "evidence_refs": [], "cost": 0.1, "note": "track A",
+                        "candidate_lineage_refs": [], "learner_track": "track-a",
+                    },
+                },
+                {
+                    "event_id": "track-b-measure", "event_type": "lifecycle_action",
+                    "payload": {
+                        "action_id": "track-b-measure", "action_type": "measure",
+                        "candidate_id": candidate.candidate_id, "candidate_version": 1,
+                        "from_state": None, "to_state": None,
+                        "evidence_refs": [], "cost": 0.0, "note": "track B",
+                        "candidate_lineage_refs": [], "learner_track": "track-b",
+                    },
+                },
+            ],
+        )
+        ledgers = self.store.replay_projection("ep").hydrate_lifecycle_ledgers()
+        self.assertEqual(
+            ledgers["track-a"].candidates[(candidate.candidate_id, 1)].state,
+            CandidateState.PROPOSED,
+        )
+        self.assertEqual(
+            ledgers["track-b"].candidates[(candidate.candidate_id, 1)].state,
+            CandidateState.OBSERVED,
+        )
+
+
+
 if __name__ == "__main__":
     unittest.main()
