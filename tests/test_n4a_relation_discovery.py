@@ -229,7 +229,7 @@ class N4ARelationDiscoveryTests(unittest.TestCase):
             min_validation_support=2, min_validation_lift=0.0,
             max_nodes=3, max_subsets_per_case=1,
         )
-        self.assertGreater(result.motifs_over_budget, 0)
+        self.assertGreater(result.cases_over_budget, 0)
         self.assertFalse(result.candidates)
 
 
