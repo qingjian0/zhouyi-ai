@@ -3,6 +3,8 @@ import unittest
 from prototype.yinfu_dynamic_cognition import (
     Transition, detect_change_point, enumerate_paths,
     generate_relation_candidates, learn_contextual_reversal, run_synthetic_benchmark,
+    discover_compositional_relations, validate_compositional_relations,
+    advance_relation_lifecycle,
 )
 
 
@@ -91,6 +93,85 @@ class YinfuDynamicCognitionTests(unittest.TestCase):
     def test_yf10_rejects_cycles_and_invalid_cost(self):
         with self.assertRaises(ValueError):
             enumerate_paths([Transition("a", "b", 1.0, -1.0)], start="a")
+
+
+    def test_yf11_discovers_non_contiguous_high_order_relation_and_gates_it(self):
+        import itertools
+        features = ("a", "b", "c", "d", "e")
+        rows = [
+            dict(zip(features, values))
+            for values in itertools.product((0.0, 1.0), repeat=5)
+        ]
+        labels = [int(row["a"] * row["b"] * row["c"] * row["e"] == 1.0)
+                  for row in rows]
+        candidates = discover_compositional_relations(
+            rows, labels, max_order=4, max_candidates=512
+        )
+        target = next(
+            item for item in candidates
+            if tuple(literal[0] for literal in item.candidate.literals)
+            == ("a", "b", "c", "e")
+        )
+        self.assertEqual(len(target.candidate.literals), 4)
+        self.assertGreaterEqual(target.balanced_accuracy, 0.99)
+        gate = validate_compositional_relations(
+            [target], rows, labels, min_gate_accuracy=0.99, min_class_support=2
+        )
+        self.assertTrue(gate[0].promoted)
+        self.assertEqual(gate[0].reason, "GATE_PASSED")
+
+    def test_yf11_rejects_gate_overfit_and_abstains_on_weak_support(self):
+        rows = [{"a": float(i % 2), "b": float((i // 2) % 2)}
+                for i in range(16)]
+        labels = [int(row["a"] == 1.0 and row["b"] == 1.0) for row in rows]
+        candidate = discover_compositional_relations(
+            rows, labels, max_order=2, max_candidates=32
+        )[0]
+        gate_rows = [{"a": float(i % 2), "b": float((i // 2) % 2)}
+                     for i in range(4)]
+        gate_labels = [0, 0, 0, 1]
+        rejected = validate_compositional_relations(
+            [candidate], gate_rows, gate_labels,
+            min_gate_accuracy=0.99, min_class_support=2
+        )
+        self.assertFalse(rejected[0].promoted)
+        weak = validate_compositional_relations(
+            [candidate], gate_rows, [0, 0, 0, 0], min_class_support=2
+        )
+        self.assertEqual(weak[0].reason, "INSUFFICIENT_GATE_CLASS_SUPPORT")
+
+    def test_yf12_relation_lifecycle_requires_repeated_evidence(self):
+        self.assertEqual(
+            advance_relation_lifecycle(
+                "proposed", gate_accuracy=0.9, counterexample_rate=0.0
+            ),
+            ("active", 0),
+        )
+        self.assertEqual(
+            advance_relation_lifecycle(
+                "active", gate_accuracy=0.5, counterexample_rate=0.5
+            ),
+            ("decaying", 1),
+        )
+        self.assertEqual(
+            advance_relation_lifecycle(
+                "decaying", gate_accuracy=0.5, counterexample_rate=0.5,
+                consecutive_failures=1,
+            ),
+            ("retired", 2),
+        )
+        self.assertEqual(
+            advance_relation_lifecycle(
+                "retired", gate_accuracy=1.0, counterexample_rate=0.0
+            ),
+            ("retired", 0),
+        )
+        self.assertEqual(
+            advance_relation_lifecycle(
+                "active", gate_accuracy=None, counterexample_rate=None
+            ),
+            ("active", 0),
+        )
 
 
 if __name__ == "__main__":
