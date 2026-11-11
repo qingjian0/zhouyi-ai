@@ -178,6 +178,7 @@ class TypedCSGBridgeTests(unittest.TestCase):
             "node:a": {"value": 1}, "node:b": {"value": 2},
         })
         self.assertEqual(combined.branch_merge_authorization_ref, "e09-permit-1")
+        self.assertEqual(combined.branch_merge_authorization_evidence_refs, ("e09:decision-77",))
 
     def test_cross_branch_merge_requires_explicit_authorization(self):
         base = {"node:a": {"value": 0}, "node:b": {"value": 0}}
