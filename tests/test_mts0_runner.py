@@ -20,8 +20,17 @@ class EvidenceLedgerTests(unittest.TestCase):
             prediction=(0, 2),
         )
 
-    def test_reveal_must_follow_commit(self):
-        with self.assertRaises(ValueError):
+    def test_reveal_requires_sealed_batch_and_existing_commit(self):
+        with self.assertRaisesRegex(ValueError, "must be sealed"):
+            self.ledger.reveal(
+                evidence_id="e1",
+                commit_id="c1",
+                scope="world-a",
+                split=EvidenceSplit.SUPPORT,
+                outcome=(0, 2),
+            )
+        self.ledger.seal_commits()
+        with self.assertRaisesRegex(ValueError, "existing prediction commit"):
             self.ledger.reveal(
                 evidence_id="e1",
                 commit_id="missing",
@@ -30,7 +39,16 @@ class EvidenceLedgerTests(unittest.TestCase):
                 outcome=(0, 2),
             )
 
+    def test_commit_is_rejected_after_batch_is_sealed(self):
+        self.ledger.seal_commits()
+        with self.assertRaisesRegex(ValueError, "after the commit phase is sealed"):
+            self.ledger.commit(
+                commit_id="c2", query_id="q2", scope="world-a",
+                input_payload={}, model_version="model-1", prediction=(1,),
+            )
+
     def test_reveal_binds_scope_and_commit_digest(self):
+        self.ledger.seal_commits()
         with self.assertRaises(ValueError):
             self.ledger.reveal(
                 evidence_id="e1",
@@ -56,6 +74,7 @@ class EvidenceLedgerTests(unittest.TestCase):
             )
 
     def test_locked_test_visibility_is_evaluator_only(self):
+        self.ledger.seal_commits()
         self.ledger.reveal(
             evidence_id="locked",
             commit_id="c1",
@@ -68,6 +87,7 @@ class EvidenceLedgerTests(unittest.TestCase):
         self.assertEqual(len(self.ledger.visible_reveals(ConsumerRole.EVALUATOR)), 1)
 
     def test_support_is_visible_to_learner_and_selector(self):
+        self.ledger.seal_commits()
         self.ledger.reveal(
             evidence_id="support",
             commit_id="c1",
@@ -95,6 +115,7 @@ class MTS0RunnerTests(unittest.TestCase):
         self.assertEqual(audit["learner_visible_locked_test_reveals"], 0)
         self.assertEqual(audit["selector_visible_locked_test_reveals"], 0)
         self.assertEqual(audit["evaluator_visible_locked_test_reveals"], 40)
+        self.assertTrue(audit["prediction_batch_sealed_before_reveal"])
         self.assertTrue(audit["all_predictions_committed_before_reveal"])
 
     def test_runner_is_reproducible(self):
