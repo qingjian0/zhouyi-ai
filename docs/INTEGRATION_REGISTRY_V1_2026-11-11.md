@@ -73,3 +73,13 @@ XSL、E10、E13、太玄、阴符等研究线必须正交化；先定义任务�
 - 关键学习结果必须有预注册 split、独立 evaluator 和锁定测试集。
 - 资源成本和失败案例必须报告。
 - 未验证 PR 保持 Draft；不因数量或日期批量合并。
+
+
+## 5. CSG-GCR executable slice update (2026-11-11)
+
+A bounded reference coordinator has been added on `integration/csg-gcr-executable-slice-2026-11-11`:
+- `prototype/csg_gcr_coordinator.py`: immutable proposal coordination with parent-state isolation, binding compatibility, explicit requires/excludes, global hard constraints, deterministic ranking and bounded search.
+- `tests/test_csg_gcr_coordinator.py`: focused contract tests.
+- `docs/CSG_GCR_EXECUTABLE_SLICE_V0_1_2026-11-11.md`: ownership and maturity limits.
+
+Provisional maturity: R1 candidate, pending exact PR-head CI. This is not the full PR #164 design: semantic deduplication, typed hyperedge unification, branch-delta merge, Pareto/diversity selection, E09 integration, E12-A6 lifecycle adaptation and ZPCM persistence remain unimplemented. No lifecycle authority is added; E12-A6 remains sole owner.
