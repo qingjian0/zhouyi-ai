@@ -38,3 +38,6 @@ For each group change, count consecutive snapshots in which the target group rem
 ## Tests
 
 Persistent symmetry break, transient candidate, expansion, incomparable-group reconfiguration, context/domain boundaries, persistence, non-contiguous step values, duplicate steps/evidence, invalid group, and threshold validation.
+
+
+Validation branch note: this copy is used only for repository CI and must not be merged.
