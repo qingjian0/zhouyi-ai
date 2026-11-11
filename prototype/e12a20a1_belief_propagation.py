@@ -17,11 +17,12 @@ class BPBudget:
     max_iterations: int = 100
     max_message_updates: int = 100_000
     max_factor_entries: int = 100_000
+    max_factor_evaluations: int = 1_000_000
     tolerance: float = 1e-10
     damping: float = 0.5
 
     def __post_init__(self):
-        for name in ("max_iterations", "max_message_updates", "max_factor_entries"):
+        for name in ("max_iterations", "max_message_updates", "max_factor_entries", "max_factor_evaluations"):
             value = getattr(self, name)
             if isinstance(value, bool) or not isinstance(value, int) or value < 1:
                 raise ValueError(name + " must be a positive integer")
@@ -44,6 +45,7 @@ class BPResult:
     iterations: int
     message_updates: int
     factor_entries: int
+    factor_evaluations: int
     max_message_delta: float
     evidence_refs: tuple[str, ...]
 
@@ -107,9 +109,13 @@ def infer_beliefs(problem: Problem, *, budget: BPBudget = BPBudget()) -> BPResul
         math.prod(len(variables[var_id].domain) for var_id in factor.variable_ids)
         for factor in problem.factors
     )
+    factor_evaluations_per_iteration = sum(
+        len(factor.variable_ids) * math.prod(len(variables[var_id].domain) for var_id in factor.variable_ids)
+        for factor in problem.factors
+    )
     evidence_refs = tuple(sorted({ref for factor in problem.factors for ref in factor.evidence_refs}))
-    if factor_entries > budget.max_factor_entries:
-        return BPResult("BUDGET_EXHAUSTED", (), 0, 0, factor_entries, math.inf, evidence_refs)
+    if factor_entries > budget.max_factor_entries or factor_evaluations_per_iteration > budget.max_factor_evaluations:
+        return BPResult("BUDGET_EXHAUSTED", (), 0, 0, factor_entries, 0, math.inf, evidence_refs)
 
     variable_neighbors = {
         variable_id: tuple(factor_id for factor_id, edge_variable in edges if edge_variable == variable_id)
@@ -131,11 +137,13 @@ def infer_beliefs(problem: Problem, *, budget: BPBudget = BPBudget()) -> BPResul
     updates_per_iteration = 2 * len(edges)
     iterations = 0
     updates = 0
+    factor_evaluations = 0
     max_delta = math.inf
     status = "ITERATION_LIMIT"
 
     for iteration in range(1, budget.max_iterations + 1):
-        if updates + updates_per_iteration > budget.max_message_updates:
+        if (updates + updates_per_iteration > budget.max_message_updates
+                or factor_evaluations + factor_evaluations_per_iteration > budget.max_factor_evaluations):
             status = "BUDGET_EXHAUSTED"
             break
         next_vf = {}
@@ -185,6 +193,7 @@ def infer_beliefs(problem: Problem, *, budget: BPBudget = BPBudget()) -> BPResul
         vf, fv = next_vf, next_fv
         iterations = iteration
         updates += updates_per_iteration
+        factor_evaluations += factor_evaluations_per_iteration
         if max_delta <= budget.tolerance:
             status = "CONVERGED"
             break
@@ -207,4 +216,4 @@ def infer_beliefs(problem: Problem, *, budget: BPBudget = BPBudget()) -> BPResul
     if inconsistent:
         status = "INCONSISTENT_MESSAGES"
     return BPResult(status, tuple(marginals), iterations, updates,
-                    factor_entries, max_delta, evidence_refs)
+                    factor_entries, factor_evaluations, max_delta, evidence_refs)
