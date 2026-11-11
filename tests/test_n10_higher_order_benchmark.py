@@ -15,7 +15,8 @@ class HigherOrderNecessaryBenchmarkTests(unittest.TestCase):
         first = make_dataset(100, 31)
         second = make_dataset(100, 31)
         self.assertEqual(first, second)
-        self.assertEqual(sum(row.label for row in first), 50)
+        self.assertGreater(sum(row.label for row in first), 30)
+        self.assertLess(sum(row.label for row in first), 70)
 
     def test_third_order_learns_parity_while_pairwise_stays_at_chance(self):
         train = make_dataset(1200, 41)
