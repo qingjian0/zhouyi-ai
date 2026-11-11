@@ -104,8 +104,8 @@ class E10APrequentialExperimentTests(unittest.TestCase):
         self.assertNotEqual(evaluator_truth["query_truth"], altered_truth["query_truth"])
 
         with SubprocessRelationalVersionSpace() as first, SubprocessRelationalVersionSpace() as second:
-            first.fit(support)
-            second.fit(support)
+            first.fit(learner_support)
+            second.fit(learner_support)
             prediction_a = first.predict(observation, current_objects)
             prediction_b = second.predict(observation, current_objects)
         self.assertEqual(prediction_a, prediction_b)
