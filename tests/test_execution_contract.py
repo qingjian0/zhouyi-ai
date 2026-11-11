@@ -102,7 +102,8 @@ class ExecutionContractTests(unittest.TestCase):
         )
         with self.assertRaisesRegex(ValueError, "different manifest"):
             validate_execution_record(other, record)
-\n    def test_execution_record_validates_observed_usage(self):
+
+    def test_execution_record_validates_observed_usage(self):
         record = ExecutionRecord(
             manifest_digest(self.manifest), "c" * 64, "runner-local",
             "completed", 0, "2026-11-11T03:02:00Z",
