@@ -119,23 +119,23 @@ def _split(rows, fraction):
 
 
 def _present(row, shape, center_type, arms):
+    """Require the full multiset of arms, including repeated signatures."""
+    required = Counter(arms)
     types = {n.node_id: n.node_type for n in row.nodes}
     if shape == "FORK":
         for center in row.nodes:
             if center.node_type != center_type: continue
-            sigs = []
-            for e in row.edges:
-                if e.source == center.node_id:
-                    sigs.append((e.relation, types[e.target], e.transition))
-            if all(arm in sigs for arm in arms): return True
+            sigs = Counter((e.relation, types[e.target], e.transition)
+                           for e in row.edges if e.source == center.node_id)
+            if all(sigs[arm] >= count for arm, count in required.items()):
+                return True
     else:
         for center in row.nodes:
             if center.node_type != center_type: continue
-            sigs = []
-            for e in row.edges:
-                if e.target == center.node_id:
-                    sigs.append((e.relation, types[e.source], e.transition))
-            if all(arm in sigs for arm in arms): return True
+            sigs = Counter((e.relation, types[e.source], e.transition)
+                           for e in row.edges if e.target == center.node_id)
+            if all(sigs[arm] >= count for arm, count in required.items()):
+                return True
     return False
 
 
