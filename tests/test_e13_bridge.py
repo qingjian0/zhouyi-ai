@@ -84,5 +84,22 @@ class CrossDomainBridgeTests(unittest.TestCase):
             self.hypothesis(provenance="")
 
 
+    def test_explicit_role_mapping_can_realign_argument_positions(self):
+        target_schema = RelationSchema(
+            "transfers_energy", 2, ("consumer", "bio_supplier"),
+            RoleSemantics.ORDERED_NAMED, ("recipient", "provider"),
+            symmetry="ASYMMETRIC", context_keys=("field",)
+        )
+        reordered_target = RelationalGraph(
+            (Entity("ta", "bio_supplier"), Entity("tb", "consumer")),
+            (target_schema,),
+            (RelationInstance("tr2", "transfers_energy", ("tb", "ta"),
+                              (("field", "thermal"),)),)
+        )
+        result = validate_bridge(self.source, reordered_target, self.hypothesis())
+        self.assertEqual(result.status, "VALID")
+        self.assertEqual(result.matched_relation_pairs, (("sr", "tr2"),))
+
+
 if __name__ == "__main__":
     unittest.main()
