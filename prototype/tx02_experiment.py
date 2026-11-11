@@ -220,6 +220,7 @@ def run_condition(cardinality: int, support_size: int, seed: int,
         trained[family] = {
             "learner": learner, "fit": fit, "hidden_size": selected_hidden_size,
             "train_seconds": train_seconds, "validation_metrics": validation_metrics,
+            "calibration_metrics": calibration_metrics,
             "validation_abstention": threshold,
             "validation_episode_abstention": episode_threshold,
             "episode_macs": episode_macs,
