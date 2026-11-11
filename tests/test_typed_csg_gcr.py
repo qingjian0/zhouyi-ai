@@ -54,10 +54,12 @@ class TypedCSGBridgeTests(unittest.TestCase):
     def test_type_conflict_rejects_combination(self):
         x = VariableRef("wl", "x")
         rows = [
-            self.make("e1", "r1", [RoleBinding("a", x, "m1", "Animal")],
-                      [VariableSpec(x, "Entity")], evidence=("a",)),
-            self.make("e2", "r2", [RoleBinding("b", x, "m2", "Vehicle")],
-                      [VariableSpec(x, "Entity")], evidence=("b",)),
+            self.make("e1", "r1", [RoleBinding("a", x, "same-member", "Animal")],
+                      [VariableSpec(x, "Entity")], evidence=("a",),
+                      constraints=UnificationConstraints(subtype_of=(("Animal", "Entity"),))),
+            self.make("e2", "r2", [RoleBinding("b", x, "same-member", "Vehicle")],
+                      [VariableSpec(x, "Entity")], evidence=("b",),
+                      constraints=UnificationConstraints(subtype_of=(("Vehicle", "Entity"),)),
         ]
         report = TypedCandidateCoordinator().coordinate(rows)
         self.assertGreater(report.rejected_typed_sets, 0)
@@ -80,9 +82,10 @@ class TypedCSGBridgeTests(unittest.TestCase):
     def test_conflicting_variable_declarations_reject_combination(self):
         x = VariableRef("wl", "x")
         rows = [
-            self.make("e1", "r1", [RoleBinding("a", x, "m", "Entity")],
-                      [VariableSpec(x, "Entity")]),
-            self.make("e2", "r2", [RoleBinding("b", x, "m", "Entity")],
+            self.make("e1", "r1", [RoleBinding("a", x, "m", "Event")],
+                      [VariableSpec(x, "Entity")],
+                      constraints=UnificationConstraints(subtype_of=(("Event", "Entity"),))),
+            self.make("e2", "r2", [RoleBinding("b", x, "m", "Event")],
                       [VariableSpec(x, "Event")]),
         ]
         report = TypedCandidateCoordinator().coordinate(rows)
