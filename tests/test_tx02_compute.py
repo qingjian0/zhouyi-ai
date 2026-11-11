@@ -1,7 +1,7 @@
 import unittest
 from prototype.tx02_compute import (
     apply_abstention, choose_abstention_threshold, choose_hidden_size_for_compute_budget,
-    estimate_forward_macs, probability_metrics,
+    estimate_forward_macs, probability_metrics, select_representation,
 )
 class TX02ComputeAndCalibrationTests(unittest.TestCase):
     def test_forward_mac_formula_and_scaling(self):
@@ -27,6 +27,16 @@ class TX02ComputeAndCalibrationTests(unittest.TestCase):
         chosen = choose_abstention_threshold(probs, (0, 1, 0), 0.0)
         self.assertEqual(chosen["accepted"], 1)
         self.assertEqual(apply_abstention(probs, chosen["threshold"]), (0, None, None))
+    def test_validation_only_representation_selector(self):
+        result = select_representation({
+            "TERNARY": {"accuracy": 0.8, "nll": 0.6, "forward_macs": 900, "parameter_count": 100},
+            "ONE_HOT": {"accuracy": 0.8, "nll": 0.5, "forward_macs": 1100, "parameter_count": 120},
+            "BINARY": {"accuracy": 0.7, "nll": 0.4, "forward_macs": 500, "parameter_count": 80},
+        })
+        self.assertEqual(result["selected_family"], "ONE_HOT")
+        self.assertEqual(result["selection_source"], "validation_only")
+        with self.assertRaises(ValueError):
+            select_representation({})
     def test_invalid_risk_rejected(self):
         with self.assertRaises(ValueError):
             choose_abstention_threshold(((0.5, 0.5),), (0,), 1.1)
