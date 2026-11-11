@@ -651,8 +651,8 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                 if trigger is None or trigger["event_type"] != "evidence_reveal":
                     raise MissingReference(f"revision trigger must reference a prior reveal: {trigger_id}")
                 trigger_payload = json.loads(trigger["payload_json"])
-                if trigger_payload.get("split_role") not in LEARNER_SUPPORT_ROLES:
-                    raise ProtocolError("revision cannot use evaluator-only or unclassified evidence as learner feedback")
+                if trigger_payload.get("split_role") not in LEARNER_SUPPORT_ROLES | EVALUATOR_ONLY_SPLIT_ROLES:
+                    raise ProtocolError("revision trigger has an unsupported evidence role")
                 trigger_tracks.add(trigger_payload.get("learner_track", "legacy"))
             if len(trigger_tracks) > 1:
                 raise ProtocolError("revision cannot combine trigger evidence from different learner_tracks")
@@ -779,6 +779,16 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                 raise ProtocolError("challenge_release_policy actor_role must be policy_authority")
             if event_type == "challenge_release" and actor != "release_policy":
                 raise ProtocolError("challenge_release actor_role must be release_policy")
+            if event_type == "revision":
+                for trigger_id in payload.get("trigger_evidence_ids", []):
+                    trigger = self._event_by_id(episode_id, trigger_id)
+                    if trigger is None:
+                        continue  # the semantic validator reports the missing reference
+                    trigger_payload = json.loads(trigger["payload_json"])
+                    if trigger_payload.get("split_role") in EVALUATOR_ONLY_SPLIT_ROLES and actor != "evaluator":
+                        raise ProtocolError("evaluator-only evidence may only trigger evaluator-side revision records")
+                    if trigger_payload.get("split_role") in LEARNER_SUPPORT_ROLES and actor == "evaluator":
+                        raise ProtocolError("evaluator actor cannot consume learner feedback as a learner revision")
             if not isinstance(spec["idempotency_key"], str) or not spec["idempotency_key"].strip():
                 raise ProtocolError("event idempotency_key must be non-empty")
             spec["fingerprint"] = _fingerprint(spec)
@@ -1115,8 +1125,13 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                     if item is None:
                         raise ProtocolError(f"revision trigger evidence is unavailable: {trigger}")
                     if row["protocol_version"] == "0.3":
-                        if item.get("split_role") not in LEARNER_SUPPORT_ROLES:
-                            raise ProtocolError(f"v0.3 revision cannot consume evaluator-only evidence: {trigger}")
+                        role = item.get("split_role")
+                        if role in EVALUATOR_ONLY_SPLIT_ROLES and row["actor_role"] != "evaluator":
+                            raise ProtocolError(f"v0.3 evaluator-only revision trigger has a non-evaluator actor: {trigger}")
+                        if role in LEARNER_SUPPORT_ROLES and row["actor_role"] == "evaluator":
+                            raise ProtocolError(f"v0.3 evaluator revision cannot consume learner feedback: {trigger}")
+                        if role not in LEARNER_SUPPORT_ROLES | EVALUATOR_ONLY_SPLIT_ROLES:
+                            raise ProtocolError(f"v0.3 revision trigger has an unsupported evidence role: {trigger}")
                     elif item.get("split_role") not in CHALLENGE_ROLES:
                         raise ProtocolError(f"legacy revision trigger is not locked/post-deploy evidence: {trigger}")
                     trigger_tracks.add(item.get("learner_track", "legacy"))
