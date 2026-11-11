@@ -1,6 +1,6 @@
 # TX-02B：跨 Episode 可训练学习器与可辨识性协议
 
-状态：TX-02B-1 精确可辨识性审计器已实现并通过 CI；TX-02B 可训练学习器尚未实现，尚无性能结果。
+状态：TX-02B-1 精确可辨识性审计、TX-02B-2 规则隔离切分、TX-02B-3 可训练 support-set MLP 已实现；TX-02B-4 实验驱动已加入，正式多种子结果仍需在 CI/研究运行环境中执行并审计。
 关联：TX-02A、TX-02B-0、E02-B、E02-D。
 
 ## 1. 本轮代码审计结论
@@ -144,7 +144,7 @@ python -m unittest tests.test_tx02_identifiability -v
 - TX-02D：在验证集上训练表示选择器，并加入 DEFER / fallback。
 - TX-02E：未知 K、非均匀状态划分、噪声和规则族外测试。
 
-**当前结论：** E02-B 是固定三值规则诊断；TX-02B-1 精确审计器及生成器真值覆盖测试已通过 CI run #85（156 tests passed）；TX-02B 可训练学习器尚未实现。下一步进入 support 难度扫描与跨 episode learner。
+**当前结论：** E02-B 是固定三值规则诊断；TX-02B-1/2/3 已分别提供精确审计、规则隔离切分和首个可训练学习器。TX-02B-4 实验 runner 已加入，下一步执行多种子 support 扫描、审计结果与表示性能对照；在真实运行前不作表示优劣结论。
 
 
 ## 10. TX-02B-2 首批实现：规则族隔离与标签隔离
@@ -190,3 +190,24 @@ python -m unittest tests.test_tx02_learners -v
 ```
 
 **当前状态：** TX-02B-3 已有统一的最小预测接口和首个可训练 support-set learner；仍需完成端到端训练曲线、support 难度扫描、预算匹配和 locked-test 实验。
+
+
+## 12. TX-02B-4：可复现实验驱动（2026-11-11）
+
+实现：`prototype/tx02_experiment.py`；测试：`tests/test_tx02_experiment.py`。
+
+- 对 BINARY、TERNARY、HYBRID、ONE_HOT、LEARNED、PERMUTED 六类表示运行同一规则隔离切分。
+- 支持按 K、support_size 和随机种子扫描；默认示例 K=3、support={2,4,8}、三个种子。
+- 训练仅接收 train labels；validation labels 仅用于报告验证准确率；locked-test labels 只在训练完成后由 evaluator 计算指标。
+- 对 locked-test 每个 episode 调用 exact identifiability auditor，报告 identifiable-query accuracy 与仿射规则族内的 Bayes-optimal query accuracy。
+- 按 canonical/permuted 分层，并报告参数量、更新次数、训练耗时、query accuracy、episode exact match。
+- 输出每个条件的多种子均值和标准差。
+
+运行：
+
+```bash
+python -m prototype.tx02_experiment --cardinalities 3 --support-sizes 2 4 8 --seeds 11 29 47 --json
+python -m unittest tests.test_tx02_experiment -v
+```
+
+**重要限制：** 当前 runner 是首轮可复现实验驱动，不是公平性最终版本。不同编码的参数量不同，训练耗时受 Python 实现和运行环境影响；没有实现 parameter-matched / compute-matched 搜索，也没有把 LEARNED 与同维度 fixed-random embedding 分开。因此即使某表示得分更高，也只能视为该配置下的初步观察，不能归因于三值理论或符号几何。验证集当前只报告，不做自动超参数选择；locked-test 不用于选模型。
