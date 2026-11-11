@@ -142,7 +142,7 @@ def infer_beliefs(problem: Problem, *, budget: BPBudget = BPBudget()) -> BPResul
         next_fv = {}
 
         # Variable -> factor messages, all read from the previous iteration.
-        for variable_id, factor_id in edges:
+        for factor_id, variable_id in edges:
             variable = variables[variable_id]
             incoming = [fv[(other_factor, variable_id)]
                         for other_factor in variable_neighbors[variable_id]
