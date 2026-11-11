@@ -27,6 +27,7 @@ class CandidateProposal:
     excludes: tuple[str, ...] = ()
     score: float = 0.0
     cost: int = 1
+    candidate_kind: str = "UNSPECIFIED"
 
 
 @dataclass(frozen=True)
@@ -44,6 +45,7 @@ class CoordinatedCandidate:
     parent_state_ref: str
     proposal_ids: tuple[str, ...]
     branch_ids: tuple[str, ...]
+    candidate_kinds: tuple[str, ...]
     bindings: tuple[tuple[str, str], ...]
     evidence_refs: tuple[str, ...]
     score: float
@@ -87,7 +89,7 @@ def _validate_pairs(values: tuple[tuple[str, str], ...], field: str) -> None:
 def _validate_proposal(proposal: CandidateProposal) -> None:
     if not isinstance(proposal, CandidateProposal):
         raise CoordinationError("all proposals must be CandidateProposal")
-    for field in ("proposal_id", "parent_state_ref", "branch_id"):
+    for field in ("proposal_id", "parent_state_ref", "branch_id", "candidate_kind"):
         _require_text(getattr(proposal, field), field)
     _validate_pairs(proposal.bindings, "bindings")
     for field in ("evidence_refs", "requires", "excludes"):
@@ -187,6 +189,7 @@ class CandidateCoordinator:
                 return
             proposal_ids = tuple(sorted(selected_ids))
             branches = tuple(sorted({item.branch_id for item in selected}))
+            kinds = tuple(sorted({item.candidate_kind for item in selected}))
             evidence = tuple(sorted({
                 ref for item in selected for ref in item.evidence_refs
             }))
@@ -200,6 +203,7 @@ class CandidateCoordinator:
                 parent_state_ref=selected[0].parent_state_ref,
                 proposal_ids=proposal_ids,
                 branch_ids=branches,
+                candidate_kinds=kinds,
                 bindings=tuple(sorted(merged.items())),
                 evidence_refs=evidence,
                 score=combined_score,
