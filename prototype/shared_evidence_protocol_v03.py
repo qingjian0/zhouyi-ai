@@ -725,7 +725,8 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                 if definition is not None:
                     evidence_objects[eid] = _evidence_from_definition(
                         evidence_id=eid, episode_id=episode_id,
-                        split_role=payload["split_role"], observation_id=observation["observation_id"],
+                        split_role=payload["split_role"],
+                        observation_id=next(k for k, value in observations.items() if value["event_id"] == observation_ref),
                         definition=definition, prediction_commit_step=None,
                         label_visibility_step=None,
                     )
