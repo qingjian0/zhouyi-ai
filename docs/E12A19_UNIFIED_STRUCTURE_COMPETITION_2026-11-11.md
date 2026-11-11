@@ -139,3 +139,26 @@ A19 完成协议与软件测试，不等于完成大规模模型训练，也不�
 - 当前未实现多随机种子汇总、置信区间、多重比较校正、OOD split 套件或正式 locked-test 解封流程。
 
 因此，首版仅证明三类结构能够进入同一个可复现的候选评估接口。任何家族的 validation 优势都只是探索性结果，不能据此宣布胜出。
+
+## 12. A19-B：惰性候选生成与共享特征缓存
+
+A19-B 修正了首版搜索预算的一个重要缺陷：首版先构造完整候选全集，再按 max_candidates_per_family 截断，因此候选数量预算没有约束候选生成内存和枚举成本。
+
+当前实现改为：
+- 稀疏合取使用惰性组合迭代器；
+- 路径与分叉/汇合签名按训练集特征提取后确定性排序；
+- 每个 family 最多物化 max_candidates_per_family + 1 个候选，额外的一个只用于判断是否截断；
+- generated_candidate_count 表示本轮实际物化的候选数，若候选空间未耗尽则它是下界，不再伪装成完整全集大小；
+- candidate_space_exhausted 显式区分搜索自然结束与预算截断。
+
+图结构特征现在对每条 train/validation observation 只提取一次，之后候选匹配使用缓存的 frozenset membership，不再为每个候选重复 DFS 或遍历边。所有 family 共享同一份 feature index，feature_signatures_indexed 记录实际索引规模。
+
+新增 max_feature_signatures 硬预算。特征索引超限时 fail closed 并返回明确错误，不会静默丢弃结构特征或让不同 family 获得不公平的特征子集。predicate evaluation budget 继续按候选完整扫描 train + validation 所需的谓词检查次数预留；若预算不足则不启动该候选。
+
+A19-B 仍未解决的事项：
+- graph signature union/sort 本身仍需持有训练集观察到的不同签名集合；max_feature_signatures 限制其总规模，但不是外部排序算法。
+- 单个候选只用一条规则；多规则联合、随机语法、置换标签语法仍在后续阶段。
+- feature cache 以 observation_id 索引，输入 ID 唯一性检查是其安全前提。
+- 当前复杂度仍是字节数代理，不是通用 prefix code。
+
+本轮新增测试覆盖：候选只物化到预算上限加一个哨兵、feature cache 被三个 family 共享、特征预算超限时 fail closed。
