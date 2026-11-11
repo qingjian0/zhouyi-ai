@@ -53,3 +53,5 @@ Zhouyi-AI 以**非序列中心认知计算**为顶层原则：内部认知以类
 每项能力必须标明假设、设计、实现、实验结果或发布状态。CI 通过不等于科学有效；研究分支存在不等于主线集成；可检索长记忆不等于原生长上下文。所有架构主张都接受公平基线、消融、OOD、资源成本和失败案例检验。
 
 许可与引用要求见 [LICENSE](LICENSE) 与 [RELATED_WORK.md](docs/RELATED_WORK.md)。
+
+- [Canonical branch/commit baseline manifest](docs/BASELINE_MANIFEST_V1_2026-11-11.md)
