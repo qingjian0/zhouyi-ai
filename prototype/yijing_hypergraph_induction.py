@@ -247,12 +247,11 @@ class DynamicHypergraphEvolution:
                 emit("EMERGE", (), (new_id,), {b.entity_id for b in new[new_id].bindings})
             for old_id in sorted(set(old) - set(old_to_new)):
                 members = {b.entity_id for b in old[old_id].bindings}
-                present = {e.entity_id for e in after.entities}
-                if members & present:
-                    continue
                 if not after.coverage_complete:
                     incomplete += 1
                     continue
+                # Closed-world relation coverage, not entity disappearance:
+                # all participants may remain while the n-ary relation ends.
                 emit("DISSOLVE", (old_id,), (), members)
 
             keys_by_transition[before.step] = emitted
@@ -273,8 +272,14 @@ class DynamicHypergraphEvolution:
                 count = 0
                 members = set(event.shared_entity_ids)
                 for future in (row for row in rows if row.step >= event.to_step):
-                    present = {entity.entity_id for entity in future.entities}
-                    if not future.coverage_complete or members & present:
+                    if not future.coverage_complete:
+                        break
+                    related = any(
+                        len(members & {binding.entity_id for binding in candidate.bindings})
+                        >= self.min_shared_entities
+                        for candidate in future.hyperedges
+                    )
+                    if related:
                         break
                     count += 1
             else:
