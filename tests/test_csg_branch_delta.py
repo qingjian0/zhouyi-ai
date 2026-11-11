@@ -7,12 +7,12 @@ from prototype.csg_branch_delta import (
 
 
 class BranchDeltaTests(unittest.TestCase):
-    def event(self, event_id, op, target, before, value, version=1, parent=None):
+    def event(self, event_id, op, target, before, value, version=8, parent=None):
         return BranchDelta(event_id, op, target, before, value, (), parent, version)
 
     def snap(self, branch, events, reads=()):
         return BranchSnapshot("parent-1", branch, 7, tuple(events), tuple(reads),
-                              tuple(e.target_ref for e in events),
+                              tuple(sorted({e.target_ref for e in events})),
                               tuple(sorted({r for e in events for r in e.evidence_refs})),
                               ("root", branch))
 
