@@ -2,7 +2,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from prototype.shared_evidence_protocol import MissingReference, ProtocolError, SQLiteEvidenceStore
+from prototype.shared_evidence_protocol import MissingReference, ProtocolError, SQLiteEvidenceStore, canonical_json, digest_payload
 from prototype.shared_evidence_protocol_v03 import (
     BatchConflict, SQLiteEvidenceStoreV03,
 )
@@ -497,6 +497,45 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
                     "candidate_lineage_refs": [], "learner_track": "e12",
                 },
             )
+
+
+
+    def test_projection_preserves_v01_implicit_legacy_track_without_rewriting_event(self):
+        self.store.append_events(
+            episode_id="ep", idempotency_key="legacy",
+            events=[
+                self.observation("legacy-observation"),
+                {
+                    "event_id": "legacy-prediction", "event_type": "prediction_commit",
+                    "payload": {
+                        "prediction_id": "legacy-pred", "observation_id": "legacy-observation",
+                        "model_version": "m0", "learner_track": "legacy",
+                        "decision_status": "PREDICT",
+                    },
+                },
+            ],
+        )
+        row = self.store._db.execute(
+            "SELECT sequence_no, payload_json FROM events WHERE episode_id='ep' AND event_id='legacy-prediction'"
+        ).fetchone()
+        old_payload = __import__("json").loads(row["payload_json"])
+        old_payload.pop("learner_track")
+        digest = digest_payload({
+            "event_type": "prediction_commit", "payload_schema": "prediction_commit@1",
+            "payload": old_payload, "actor_role": "runner", "causation_refs": [],
+            "integrity_metadata": {},
+        })
+        self.store._db.execute(
+            "UPDATE events SET protocol_version='0.1', payload_json=?, payload_digest=? "
+            "WHERE episode_id='ep' AND sequence_no=?",
+            (canonical_json(old_payload), digest, row["sequence_no"]),
+        )
+        projection = self.store.replay_projection("ep")
+        self.assertEqual(projection.predictions["legacy-pred"]["learner_track"], "legacy")
+        stored = self.store._db.execute(
+            "SELECT payload_json FROM events WHERE episode_id='ep' AND event_id='legacy-prediction'"
+        ).fetchone()[0]
+        self.assertNotIn("learner_track", stored)
 
 
 
