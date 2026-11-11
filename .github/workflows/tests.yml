@@ -2,9 +2,9 @@ name: tests
 
 on:
   push:
-    branches: [main, research/znca-n3b-isolated-hypothesis-arena-2026-11-11, research/znca-n3c-durable-event-store-2026-11-11, research/znca-n3d-counterfactual-branches-2026-11-11]
+    branches: [main, research/znca-n3b-isolated-hypothesis-arena-2026-11-11, research/znca-n3c-durable-event-store-2026-11-11, research/znca-n3d-counterfactual-branches-2026-11-11, research/znca-n4a-relational-motif-discovery-2026-11-11]
   pull_request:
-    branches: [main, integration/cpg-ei-v1-foundation-2026-11-11, integration/e12a20-interop-adapter-2026-11-11, research/mobile-million-context-architecture-2026-11-11, research/znca-n3-event-driven-architecture-2026-11-11, research/znca-n3b-isolated-hypothesis-arena-2026-11-11, research/znca-n3c-durable-event-store-2026-11-11]
+    branches: [main, integration/cpg-ei-v1-foundation-2026-11-11, integration/e12a20-interop-adapter-2026-11-11, research/mobile-million-context-architecture-2026-11-11, research/znca-n3-event-driven-architecture-2026-11-11, research/znca-n3b-isolated-hypothesis-arena-2026-11-11, research/znca-n3c-durable-event-store-2026-11-11, research/znca-n3d-counterfactual-branches-2026-11-11]
 
 jobs:
   unit-tests:
@@ -16,7 +16,7 @@ jobs:
           python-version: "3.11"
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
-      - name: Run E01 demonstration
+      - name: Run N4-A relational discovery tests\n        run: python -m unittest tests.test_n4a_relation_discovery -v\n      - name: Run E01 demonstration
         run: python -m prototype.e01_sparse_composition --json
       - name: Run E01-B five-seed evaluation
         run: python -m prototype.e01_multiseed --seeds 5 --start-seed 7 --json
