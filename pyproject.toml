@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "Research prototypes for Combinatorial Parallel Generation & Epistemic Intelligence"
 requires-python = ">=3.10"
 license = { text = "MIT" }
-dependencies = []
+dependencies = ["cryptography>=42.0.0"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
