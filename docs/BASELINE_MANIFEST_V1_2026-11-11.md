@@ -90,7 +90,7 @@ The bridge filters completed bounded CSG-GCR candidate sets through the typed un
 
 | PR | Base | Head | Scope | Status |
 |---|---|---|---|---|
-| [#217](https://github.com/qingjian0/zhouyi-ai/pull/217) | #208 branch at `5f886df` | typed bridge branch at `ecc20f3` | Typed hyperedge unifier wired to bounded CSG-GCR candidate-set filtering | Draft; syntax error found in earlier CI and corrected at `ecc20f3`; exact corrected-head CI pending |
-| [#218](https://github.com/qingjian0/zhouyi-ai/pull/218) | #217 corrected head at `ecc20f3` | branch-delta stack at `164e28b` | Immutable parent references, typed append-only deltas, stale/read-write/write-write conflict checks, idempotent replay | Draft; exact-head CI in progress at audit time |
+| [#217](https://github.com/qingjian0/zhouyi-ai/pull/217) | #208 branch at `5f886df` | typed bridge branch at `ecc20f3` | Typed hyperedge unifier wired to bounded CSG-GCR candidate-set filtering | Draft; syntax correction at `ecc20f3` verified by workflow run 43027843058 (unit-tests and full prototype evaluation job success) |
+| [#218](https://github.com/qingjian0/zhouyi-ai/pull/218) | #217 corrected head at `ecc20f3` | branch-delta stack at `164e28b` | Immutable parent references, typed append-only deltas, stale/read-write/write-write conflict checks, idempotent replay | Draft; initial run 43028239730 exposed fixture version errors (8 failures); fixtures corrected and payload deep-immutability added through `408e9e4`; latest-head CI pending |
 
 PR #218 is stacked on PR #217 and inherits the #208 dependency. Neither PR is independently mergeable to main as a complete architecture slice. The branch-delta kernel validates structural edit compatibility only; it does not own E09 evidence, E12-A6 lifecycle, or ZPCM persistence. Exact-head CI and review remain mandatory.
