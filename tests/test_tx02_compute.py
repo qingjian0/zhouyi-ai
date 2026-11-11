@@ -1,7 +1,7 @@
 import unittest
 from prototype.tx02_compute import (
     apply_abstention, choose_abstention_threshold, choose_hidden_size_for_compute_budget,
-    estimate_forward_macs, probability_metrics, risk_coverage_curve, select_representation,
+    estimate_forward_macs, probability_metrics, risk_coverage_curve, select_representation,\n    wilson_upper_bound,
 )
 class TX02ComputeAndCalibrationTests(unittest.TestCase):
     def test_forward_mac_formula_and_scaling(self):
@@ -30,11 +30,18 @@ class TX02ComputeAndCalibrationTests(unittest.TestCase):
         self.assertEqual(curve[1]["accepted"], 2)
         self.assertEqual(curve[1]["coverage"], 2 / 3)
         self.assertEqual(curve[1]["selective_risk"], 0.5)
-    def test_validation_threshold_and_defer(self):
-        probs = ((0.95, 0.05), (0.55, 0.45), (0.51, 0.49))
-        chosen = choose_abstention_threshold(probs, (0, 1, 0), 0.0)
-        self.assertEqual(chosen["accepted"], 1)
-        self.assertEqual(apply_abstention(probs, chosen["threshold"]), (0, None, None))
+    def test_wilson_upper_bound_and_validation_threshold(self):
+        self.assertGreater(wilson_upper_bound(0, 1), 0.7)
+        self.assertLess(wilson_upper_bound(0, 40), 0.1)
+        probs = tuple((0.95, 0.05) for _ in range(40)) + tuple(
+            (0.55, 0.45) for _ in range(40)
+        )
+        targets = (0,) * 40 + (1,) * 40
+        chosen = choose_abstention_threshold(probs, targets, 0.1)
+        self.assertEqual(chosen["accepted"], 40)
+        self.assertLessEqual(chosen["risk_upper_bound"], 0.1)
+        decisions = apply_abstention(probs, chosen["threshold"])
+        self.assertEqual(sum(value is not None for value in decisions), 40)
     def test_validation_only_representation_selector(self):
         result = select_representation({
             "TERNARY": {"accuracy": 0.8, "nll": 0.6, "forward_macs": 900, "parameter_count": 100},
