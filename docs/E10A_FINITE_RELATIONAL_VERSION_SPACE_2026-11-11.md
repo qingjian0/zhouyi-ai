@@ -12,7 +12,7 @@ For each opaque relation symbol, the learner searches rules of the form:
 
 The role-value set is permutation-invariant because participant order is shuffled and the generator's role mapping is evaluator-only. The learner therefore does not claim to identify ordered semantic roles.
 
-Candidate rules are generated from Support object attributes and Support context values only. The candidate version space is filtered by Support labels. Query observations are label-blind and are predicted only when all surviving hypotheses agree; otherwise the learner abstains.
+Candidate rules are generated from Support object attributes and Support context values only. Compute telemetry distinguishes initial candidate-generation evaluations, per-prediction rule-match evaluations, and actual update-time candidate/example checks (including early-exit behavior in batch refit). The candidate version space is filtered by Support labels. Query observations are label-blind and are predicted only when all surviving hypotheses agree; otherwise the learner abstains.
 
 ## Update arms
 
