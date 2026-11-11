@@ -25,7 +25,7 @@ For each group change, count consecutive snapshots in which the target group rem
 - YJ-10.4 observations now preserve step and domain metadata.
 - A lineage is identified by relation type, arity, slot frame, entity-type frame, and symmetry policy.
 - Context, attributes, validity interval, and domain are environmental conditions. A change emits a boundary event.
-- Each exact group is checked for identity, inverse closure, and composition closure.
+- Each exact group is checked for identity, inverse closure, and composition closure under a hard operation budget. Persistence is represented by the absence of a change event, not a separate emitted event.
 - Multiple observations in one lineage at the same step fail closed.
 
 ## Limits
