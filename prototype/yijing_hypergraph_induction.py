@@ -20,8 +20,10 @@ class Entity:
     entity_type: str
 
     def __post_init__(self) -> None:
-        if not self.entity_id or not self.entity_type:
-            raise HypergraphError("entity_id and entity_type are required")
+        if not isinstance(self.entity_id, str) or not self.entity_id.strip():
+            raise HypergraphError("entity_id must be a non-empty string")
+        if not isinstance(self.entity_type, str) or not self.entity_type.strip():
+            raise HypergraphError("entity_type must be a non-empty string")
 
 
 @dataclass(frozen=True, order=True)
@@ -30,8 +32,10 @@ class RoleBinding:
     entity_id: str
 
     def __post_init__(self) -> None:
-        if not self.role or not self.entity_id:
-            raise HypergraphError("role and entity_id are required")
+        if not isinstance(self.role, str) or not self.role.strip():
+            raise HypergraphError("role must be a non-empty string")
+        if not isinstance(self.entity_id, str) or not self.entity_id.strip():
+            raise HypergraphError("entity_id must be a non-empty string")
 
 
 @dataclass(frozen=True)
@@ -46,23 +50,36 @@ class Hyperedge:
     attributes: tuple[tuple[str, str], ...] = ()
 
     def __post_init__(self) -> None:
-        if not self.edge_id or not self.relation_type:
-            raise HypergraphError("edge_id and relation_type are required")
+        if not isinstance(self.edge_id, str) or not self.edge_id.strip():
+            raise HypergraphError("edge_id must be a non-empty string")
+        if not isinstance(self.relation_type, str) or not self.relation_type.strip():
+            raise HypergraphError("relation_type must be a non-empty string")
         if len(self.bindings) < 2:
             raise HypergraphError("a hyperedge requires at least two role bindings")
         roles = [b.role for b in self.bindings]
         if len(roles) != len(set(roles)):
             raise HypergraphError("role names must be unique within a hyperedge")
-        if len(set(self.evidence_ids)) != len(self.evidence_ids) or not self.evidence_ids:
-            raise HypergraphError("hyperedges require unique evidence IDs")
-        if tuple(sorted(self.context)) != self.context:
-            raise HypergraphError("context must be sorted")
-        if tuple(sorted(self.attributes)) != self.attributes:
-            raise HypergraphError("attributes must be sorted")
-        if self.valid_from is not None and self.valid_from < 0:
-            raise HypergraphError("valid_from must be non-negative")
+        if (not self.evidence_ids
+                or any(not isinstance(item, str) or not item.strip() for item in self.evidence_ids)
+                or len(set(self.evidence_ids)) != len(self.evidence_ids)):
+            raise HypergraphError("hyperedges require unique non-empty evidence IDs")
+        for pairs, label in ((self.context, "context"), (self.attributes, "attributes")):
+            keys = [key for key, _ in pairs]
+            if any(not isinstance(key, str) or not key.strip() for key in keys):
+                raise HypergraphError(f"{label} keys must be non-empty strings")
+            if any(not isinstance(value, str) for _, value in pairs):
+                raise HypergraphError(f"{label} values must be strings")
+            if len(keys) != len(set(keys)):
+                raise HypergraphError(f"{label} keys must be unique")
+            if tuple(sorted(pairs)) != pairs:
+                raise HypergraphError(f"{label} must be sorted")
+        if self.valid_from is not None and (
+            not isinstance(self.valid_from, int) or self.valid_from < 0
+        ):
+            raise HypergraphError("valid_from must be a non-negative integer")
         if self.valid_until is not None and (
-            self.valid_from is None or self.valid_until <= self.valid_from
+            not isinstance(self.valid_until, int)
+            or self.valid_from is None or self.valid_until <= self.valid_from
         ):
             raise HypergraphError("valid_until must be greater than valid_from")
 
@@ -78,14 +95,23 @@ class HypergraphState:
     coverage_complete: bool = False
 
     def __post_init__(self) -> None:
-        if self.step < 0:
-            raise HypergraphError("step must be non-negative")
-        if not self.evidence_id or not self.domain:
-            raise HypergraphError("snapshot evidence_id and domain are required")
+        if not isinstance(self.step, int) or self.step < 0:
+            raise HypergraphError("step must be a non-negative integer")
+        if not isinstance(self.evidence_id, str) or not self.evidence_id.strip():
+            raise HypergraphError("snapshot evidence_id is required")
+        if not isinstance(self.domain, str) or not self.domain.strip():
+            raise HypergraphError("snapshot domain is required")
         ids = [e.entity_id for e in self.entities]
         edge_ids = [e.edge_id for e in self.hyperedges]
         if len(ids) != len(set(ids)) or len(edge_ids) != len(set(edge_ids)):
             raise HypergraphError("entity and hyperedge IDs must be unique")
+        context_keys = [key for key, _ in self.context]
+        if any(not isinstance(key, str) or not key.strip() for key in context_keys):
+            raise HypergraphError("snapshot context keys must be non-empty strings")
+        if any(not isinstance(value, str) for _, value in self.context):
+            raise HypergraphError("snapshot context values must be strings")
+        if len(context_keys) != len(set(context_keys)):
+            raise HypergraphError("snapshot context keys must be unique")
         if tuple(sorted(self.context)) != self.context:
             raise HypergraphError("snapshot context must be sorted")
         known = set(ids)
