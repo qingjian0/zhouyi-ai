@@ -16,6 +16,7 @@ from prototype.e09_authority_services import (
     E09VerifierService,
 )
 from prototype.e09_ed25519_keyring import E09Ed25519IssuerKeyring
+from prototype.e09_verification_receipt import verify_e09_verification_receipt
 from prototype.shared_evidence_protocol import STRICT_PROTOCOL_VERSION, SQLiteEvidenceStore
 
 
@@ -45,6 +46,17 @@ class _FixedClock:
 
     def now(self):
         return self.current
+
+
+class _NamedSigner:
+    def __init__(self, private_key, key_id):
+        self.private_key = private_key
+        self.key_id = key_id
+
+    def sign(self, issuer_id, message):
+        if issuer_id != self.key_id:
+            raise ValueError("unexpected signer key ID")
+        return base64.b64encode(self.private_key.sign(message)).decode("ascii")
 
 
 def _identity(workload_id, issuer_id, roles, scopes):
@@ -188,6 +200,42 @@ class E09AuthorityServiceTests(unittest.TestCase):
         )
         self.assertEqual(permit.issuer_id, "issuer-authority")
         self.assertEqual(permit.verifier_id, self.keyring.verifier_id)
+
+    def test_verifier_issues_signed_redacted_cross_process_receipt(self):
+        reveal_ref = self._prior_prediction()
+        self.authority.issue_branch_merge_authorization(
+            "authorizer-cert", episode_id=self.episode, authorization_id="grant-receipt",
+            scope=self.scope, parent_state_ref="parent-1", branch_ids=["left", "right"],
+            evidence_refs=[reveal_ref], ttl=timedelta(minutes=45),
+        )
+        verifier_private = Ed25519PrivateKey.generate()
+        verifier_public = verifier_private.public_key().public_bytes(
+            encoding=serialization.Encoding.Raw,
+            format=serialization.PublicFormat.Raw,
+        )
+        verifier = E09VerifierService(
+            self.store, signature_verifier=self.keyring.verify,
+            verifier_id=self.keyring.verifier_id,
+            clock=_FixedClock(datetime(2026, 11, 12, 0, 30, tzinfo=timezone.utc)),
+            receipt_signer=_NamedSigner(verifier_private, self.keyring.verifier_id),
+        )
+        receipt = verifier.issue_verification_receipt(
+            episode_id=self.episode, authorization_ref="grant-receipt",
+            parent_state_ref="parent-1", branch_ids=("left", "right"),
+            scope=self.scope, learner_track=self.track,
+            world_family_by_evidence={reveal_ref: "family-a"},
+        )
+        receipt_keyring = E09Ed25519IssuerKeyring({self.keyring.verifier_id: verifier_public})
+        verified = verify_e09_verification_receipt(
+            receipt, signature_verifier=receipt_keyring.verify,
+            trusted_verifier_id=self.keyring.verifier_id,
+            now=datetime(2026, 11, 12, 0, 30, 30, tzinfo=timezone.utc),
+            expected_scope=self.scope, expected_parent_state_ref="parent-1",
+            expected_branch_ids=("left", "right"), expected_evidence_refs=(reveal_ref,),
+        )
+        self.assertEqual(verified.authorization_ref, "grant-receipt")
+        self.assertEqual(verified.evidence[0].outcome, f"opaque-e09-evidence-ref:{reveal_ref}")
+        self.assertNotIn("target_or_feedback", receipt["evidence"][0])
 
     def test_caller_cannot_supply_verification_time(self):
         verifier = E09VerifierService(
