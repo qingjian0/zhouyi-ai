@@ -18,13 +18,13 @@ It binds:
 - fixed audience e12a6-lifecycle-writer;
 - verifier identity / trust-bundle fingerprint;
 - episode and original authorization event reference;
-- scope, parent state, exact branch IDs and evidence references;
+- scope, parent state, exact branch IDs, the grant-bound authorization evidence subset and the complete candidate evidence set;
 - issuer ID and original authorization event digest;
 - server-issued time interval;
 - redacted E12-A6 Evidence DTOs;
 - Ed25519 signature algorithm and signature.
 
-The receipt expiry is capped by both the original grant expiry and the verifier's configured receipt TTL. The verifier creates issue/expiry timestamps from its own clock. The caller cannot set the receipt's validity interval.
+The receipt expiry is capped by both the original grant expiry and the verifier's configured receipt TTL. The authorization evidence references must be a subset of the full candidate evidence set; all candidate evidence DTOs are resolved and redacted by the verifier. The verifier creates issue/expiry timestamps from its own clock. The caller cannot set the receipt's validity interval.
 
 ## Writer-side verification
 
@@ -33,7 +33,7 @@ verify_e09_verification_receipt validates:
 1. exact closed schema and fixed audience;
 2. trusted verifier ID and Ed25519 signature;
 3. timezone-aware issue/expiry interval against writer time;
-4. exact scope, parent, branch and evidence bindings supplied by the writer;
+4. exact scope, parent, branch, authorization-evidence and complete candidate-evidence bindings supplied by the writer;
 5. one DTO per evidence reference, with exact DTO field set;
 6. evidence episode identity, valid E12-A6 types and mandatory redaction of outcome/provenance.
 
