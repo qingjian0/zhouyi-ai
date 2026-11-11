@@ -11,7 +11,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from prototype.csg_branch_delta import BranchDelta, BranchSnapshot, DeltaOperation, canonical_hash
 from prototype.csg_gcr_coordinator import CandidateProposal
 from prototype.csg_gcr_e12a6_ingestion import ingest_typed_candidate
-from prototype.e09_e12a6_evidence_bridge import resolve_branch_merge_authorization
+from prototype.e09_e12a6_evidence_bridge import (AUTHORIZATION_AUDIENCE, AUTHORIZATION_SIGNATURE_VERSION, branch_merge_authorization_signing_bytes, resolve_branch_merge_authorization)
 from prototype.e09_ed25519_keyring import E09Ed25519IssuerKeyring
 from prototype.e12a6_zpcm_persistence import PersistentLifecycleLedger
 from prototype.shared_evidence_protocol import (
@@ -106,18 +106,31 @@ class E09Ed25519CrossBranchTests(unittest.TestCase):
             "issued_at": "2026-11-11T00:00:00+00:00",
             "expires_at": "2026-11-12T00:00:00+00:00",
             "signature_algorithm": "Ed25519",
+            "signature_version": AUTHORIZATION_SIGNATURE_VERSION,
+            "audience": AUTHORIZATION_AUDIENCE,
+            "authorization_sequence": self.e09.replay_episode(self.episode)[-1]["sequence_no"] + 1,
         }
-        signed_bytes = canonical_json({
-            "episode_id": self.episode,
-            "event_id": authorization_ref,
+        signing_event = {
+            "episode_id": self.episode, "event_id": authorization_ref,
+            "event_type": "branch_merge_authorization",
+            "protocol_version": STRICT_PROTOCOL_VERSION,
+            "payload_schema": "branch_merge_authorization@2",
+            "actor_role": "authorizer",
+            "causation_refs": [grant_evidence],
+            "integrity_metadata": {"policy": "branch-merge-v2"},
             "payload": unsigned,
-        }).encode("utf-8")
-        signature = base64.b64encode(self.private.sign(signed_bytes)).decode("ascii")
+        }
+        signature = base64.b64encode(
+            self.private.sign(branch_merge_authorization_signing_bytes(signing_event))
+        ).decode("ascii")
         self.e09.append_event(
             episode_id=self.episode, event_id=authorization_ref,
             event_type="branch_merge_authorization", idempotency_key=authorization_ref,
             actor_role="authorizer", causation_refs=[grant_evidence],
             payload={**unsigned, "signature": signature},
+            payload_schema="branch_merge_authorization@2",
+            integrity_metadata={"policy": "branch-merge-v2"},
+            expected_sequence=unsigned["authorization_sequence"] - 1,
             protocol_version=STRICT_PROTOCOL_VERSION,
         )
 
