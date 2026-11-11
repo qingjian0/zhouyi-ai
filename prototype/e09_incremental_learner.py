@@ -102,6 +102,11 @@ class IncrementalConjunctionLearner:
 
     def predict(self, inputs: Sequence[Value]) -> Label | None:
         values = self._validate_inputs(inputs)
+        # A directly contested observation is quarantined. Broader clean
+        # patterns must not override contradictory evidence for this exact row.
+        known_labels = self._labels_by_input.get(values)
+        if known_labels is not None and len(known_labels) > 1:
+            return None
         labels = set()
         for pattern_tuple in self._matching_patterns(values):
             pattern = tuple(pattern_tuple)
