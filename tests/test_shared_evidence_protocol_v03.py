@@ -85,7 +85,7 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
                         "event_id": "structure-first", "event_type": "structure_version",
                         "payload": {
                             "structure_id": "s", "version_id": "v1", "kind": "rule",
-                            "definition": {}, "parent_version_ids": [],
+                            "definition": {}, "learner_track": "e12", "parent_version_ids": [],
                             "support_evidence_ids": [{"kind": "ingested", "id": "late"}],
                         },
                     },
@@ -497,7 +497,7 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
                     "payload": {
                         "structure_id": "primitive-set", "version_id": "v1",
                         "kind": "primitive", "definition": {"predicate": "x>y"},
-                        "parent_version_ids": [],
+                        "learner_track": "e12", "parent_version_ids": [],
                         "support_evidence_ids": [{"kind": "ingested", "id": "train-1"}],
                     },
                 },
@@ -761,7 +761,7 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
                         "structure_id": candidate.candidate_id,
                         "version_id": "relation:supported@1", "kind": "candidate",
                         "definition": candidate_definition_payload(candidate),
-                        "parent_version_ids": [],
+                        "learner_track": "e12", "parent_version_ids": [],
                         "support_evidence_ids": [{"kind": "ingested", "id": "train-1"}],
                     },
                 },
