@@ -129,15 +129,26 @@ class N4ARelationDiscoveryTests(unittest.TestCase):
         with self.assertRaises(DiscoveryError):
             discover_relations([invalid])
 
-    def test_requires_explicit_abstract_role_features(self):
-        case = make_case("bad-role", "train", True)
-        bad_nodes = (Node("x", "thing", ()),) + case.nodes[1:]
-        invalid = RelationalCase(
+    def test_structural_roles_can_be_inferred_and_mixed_inputs_rejected(self):
+        case = make_case("untyped", "train", True)
+        untyped_nodes = tuple(
+            Node(node.node_id, node.surface_type, ()) for node in case.nodes
+        )
+        untyped = RelationalCase(
             case.case_id, case.domain, case.scope, case.partition,
-            case.outcome, bad_nodes, case.edges,
+            case.outcome, untyped_nodes, case.edges,
+        )
+        inferred = discover_relations([untyped], min_train_support=1,
+                                       min_validation_support=1)
+        self.assertEqual(inferred.cases_seen, 1)
+
+        mixed_nodes = (Node("x", "thing", ("named-role",)),) + untyped_nodes[1:]
+        mixed = RelationalCase(
+            "mixed", case.domain, case.scope, case.partition,
+            case.outcome, mixed_nodes, case.edges,
         )
         with self.assertRaises(DiscoveryError):
-            discover_relations([invalid])
+            discover_relations([mixed])
 
     def test_rejects_unconnected_and_missing_endpoint_edges(self):
         case = make_case("bad-edge", "train", True)
