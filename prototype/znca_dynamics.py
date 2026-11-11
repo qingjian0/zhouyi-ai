@@ -41,6 +41,7 @@ class StateSnapshot:
 class SourceSlot:
     role: str
     state_key: str
+    complement: bool = False
 
     def __post_init__(self) -> None:
         if not self.role.strip() or not self.state_key.strip():
@@ -141,7 +142,8 @@ class RelationalDynamicsModel:
         try:
             result = 1.0
             for slot in term.sources:
-                result *= state[slot.state_key]
+                value = state[slot.state_key]
+                result *= (1.0 - value) if slot.complement else value
             return result
         except KeyError as exc:
             raise DynamicsError(f"missing source state: {exc.args[0]}") from exc
