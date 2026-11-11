@@ -66,7 +66,6 @@ class ExactSlotGroupObservation:
     step: int = 0
     domain: str = ""
     snapshot_context: tuple[tuple[str, str], ...] = ()
-    snapshot_context: tuple[tuple[str, str], ...] = ()
 
 
 @dataclass(frozen=True)
