@@ -39,14 +39,18 @@ class HostProbeSnapshot:
             raise ValueError("kernel_release must be non-empty text")
         if not isinstance(self.facts, tuple):
             raise ValueError("facts must be a tuple")
-        names = [name for name, _ in self.facts]
-        if len(set(names)) != len(names):
-            raise ValueError("fact names must be unique")
-        for name, fact in self.facts:
+        names = []
+        for entry in self.facts:
+            if not isinstance(entry, tuple) or len(entry) != 2:
+                raise ValueError("each fact entry must be a (name, ProbeFact) pair")
+            name, fact = entry
             if not isinstance(name, str) or not name:
                 raise ValueError("fact names must be non-empty text")
             if not isinstance(fact, ProbeFact):
                 raise ValueError("facts must contain ProbeFact values")
+            names.append(name)
+        if len(set(names)) != len(names):
+            raise ValueError("fact names must be unique")
 
     def fact(self, name: str) -> ProbeFact:
         for key, value in self.facts:
