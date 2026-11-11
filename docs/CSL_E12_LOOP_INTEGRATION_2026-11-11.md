@@ -410,3 +410,12 @@ The replay reducer must reproduce candidate/evidence/action state exactly, inclu
 ### Updated dependency verdict
 
 PR #113 can test that E12 and E09 source trees coexist and their existing suites pass. It cannot validate the missing evidence_ingest / lifecycle_action semantics because those are not implemented. The next implementation slice should be a protocol v0.3 compatibility RFC plus conformance tests, not a direct CSL adapter against v0.2.
+
+
+### Compound revision atomicity refinement
+
+E12 revision creation is a compound operation: the prior candidate transitions to REVISED, a new candidate version is registered as REVALIDATION_PENDING with parent lineage, and a revision record must reference both the before and after versions plus the triggering revealed evidence. These cannot safely be emitted as unrelated append_event calls.
+
+Protocol v0.3 should therefore provide an append_events batch API that validates and appends a causally ordered event batch inside one SQLite transaction. For a revision batch, the required order is: new structure_version (parent references resolve), lifecycle_action records for the state transitions, then revision (before/after version references and trigger evidence resolve). If any member fails validation, the entire batch rolls back. The event IDs and idempotency keys must make retrying the whole batch safe without accepting a partially duplicated revision.
+
+The batch validator must validate against both the pre-batch database state and earlier events in the same batch. It must reject forward references, duplicate IDs, invalid event ordering, unsupported schema versions, and evidence-role mismatches. This is a stronger requirement than the current single-event append transaction and is a prerequisite for crash-consistent lifecycle revisions.
