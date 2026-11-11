@@ -162,13 +162,34 @@ def forecast_record(candidate_id: str, query: InterventionQuery,
     return CandidateForecast(candidate_id, query.query_id, _canonical(response))
 
 
-def select_mechanism_query(source: MechanismModel, target: MechanismModel,
+@dataclass(frozen=True)
+class MechanismValidation:
+    status: str
+    predicted: MechanismResponse | None
+    observed: MechanismResponse | None
+    reason: str | None = None
+
+
+def validate_mechanism_query(source: MechanismModel, target: MechanismModel,
+                             mapping: MechanismMap,
+                             query: InterventionQuery) -> MechanismValidation:
+    """Compare a locked candidate prediction with the independent target response."""
+    predicted = forecast_target_response(source, mapping, query)
+    observed = observe_target_response(target, mapping, query)
+    if predicted is None or observed is None:
+        return MechanismValidation("UNKNOWN", predicted, observed, "MISSING_OR_UNMAPPED_RESPONSE")
+    if predicted != observed:
+        return MechanismValidation("REJECTED", predicted, observed, "INTERVENTION_RESPONSE_MISMATCH")
+    return MechanismValidation("VALID_FOR_QUERY", predicted, observed)
+
+
+def select_mechanism_query(source: MechanismModel,
                            mappings: tuple[MechanismMap, ...],
                            queries: tuple[InterventionQuery, ...]) -> QuerySelection:
-    """Use the existing B3-D selector over complete candidate forecasts.
+    """Select by candidate disagreement without accepting the target simulator.
 
-    Target outcomes are intentionally not read during query selection. They
-    are consulted only after a query is selected by candidate disagreement.
+    The target environment is deliberately absent from this function's
+    signature, making target-outcome leakage structurally harder.
     """
     forecasts = []
     for query in queries:
