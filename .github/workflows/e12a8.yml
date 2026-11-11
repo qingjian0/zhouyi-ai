@@ -1,0 +1,20 @@
+name: E12-A8 active multi-world experiment loop (validation mirror)
+
+on:
+  push:
+    branches: [research/e12a8-active-multiworld-ci-validation-2026-11-11]
+  pull_request:
+    branches: [main]
+
+jobs:
+  e12a8:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run E12-A8 focused tests
+        run: python -m unittest tests.test_e12a8_active_multiworld -v
+      - name: Run 20-seed active/random/fixed benchmark
+        run: python -m prototype.e12a8_active_multiworld --json --seeds 20 --budget 12
