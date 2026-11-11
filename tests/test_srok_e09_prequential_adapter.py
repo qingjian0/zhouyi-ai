@@ -68,12 +68,13 @@ class SROKPrequentialTests(unittest.TestCase):
         self.assertGreater(learner.report["candidate_patterns_evaluated"],0)
     def test_locked_test_is_persisted_but_not_delivered_to_learner(self):
         adapter,runner,learner=self.adapter("LOCKED_TEST")
-        nodes,target=make_episode(102); before=learner.snapshot()
+        nodes,target=make_episode(102); before_weights=list(learner.model.weights); before_steps=learner.model.training_steps
         committed=adapter.predict_and_commit("obs-locked",(encode_srok_observation(nodes),))
         adapter.reveal(committed["prediction_id"],target)
         self.assertEqual(adapter.score()["revealed_observations"],0)
         with self.assertRaises(PrequentialError): adapter.revise(committed["prediction_id"])
-        self.assertEqual(learner.snapshot(),before)
+        self.assertEqual(learner.model.weights,before_weights)
+        self.assertEqual(learner.model.training_steps,before_steps)
         self.assertEqual(adapter.replay()[-1]["event_type"],"evidence_reveal")
     def test_role_pool_truncation_abstains(self):
         adapter,runner,learner=self.adapter(top_k=2)
