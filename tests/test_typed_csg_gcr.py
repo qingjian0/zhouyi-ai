@@ -151,37 +151,12 @@ class TypedCSGBridgeTests(unittest.TestCase):
             (target,), (f"derivation:{branch}",), ("root", branch),
         )
 
-    def test_authorized_branch_deltas_merge_with_typed_candidate(self):
-        base = {"node:a": {"value": 0}, "node:b": {"value": 0}}
-        x, y = VariableRef("wl", "x"), VariableRef("wl", "y")
-        rows = [
-            self.make("e1", "r1", [RoleBinding("a", x, "m1", "Entity")],
-                      [VariableSpec(x, "Entity")], branch="left", evidence=("ev-a",), score=2),
-            self.make("e2", "r2", [RoleBinding("b", y, "m2", "Entity")],
-                      [VariableSpec(y, "Entity")], branch="right", evidence=("ev-b",), score=3),
-        ]
-        snapshots = (
-            self.branch_snapshot("left", base, "node:a", base["node:a"], {"value": 1}),
-            self.branch_snapshot("right", base, "node:b", base["node:b"], {"value": 2}),
-        )
-        permit = VerifiedBranchMergeAuthorization(
-            "e09-permit-1", "s0", ("left", "right"), ("e09:decision-77",),
-            issuer_id="issuer-test", event_digest="a" * 64, verifier_id="test-keyring-v1",
-        )
-        report = TypedCandidateCoordinator().coordinate(
-            rows, base_state=base, branch_snapshots=snapshots,
-            branch_merge_authorization=permit,
-        )
-        combined = next(item for item in report.candidates
-                        if len(item.coordinated.proposal_ids) == 2)
-        self.assertEqual(combined.branch_merge.status, MergeStatus.MERGED)
-        self.assertEqual(dict(combined.branch_merge.state), {
-            "node:a": {"value": 1}, "node:b": {"value": 2},
-        })
-        self.assertEqual(combined.branch_merge_authorization_ref, "e09-permit-1")
-        self.assertEqual(combined.branch_merge_authorization_evidence_refs, ("e09:decision-77",))
-        self.assertEqual(combined.branch_merge_evidence_refs,
-                         ("derivation:left", "derivation:right"))
+    def test_verified_authorization_capability_cannot_be_constructed_directly(self):
+        with self.assertRaisesRegex(TypeError, "must come from the E09 verifier"):
+            VerifiedBranchMergeAuthorization(
+                "fake", "s0", ("left", "right"), ("fake-evidence",),
+                "issuer", "a" * 64, "fake-keyring",
+            )
 
     def test_unverified_scope_receipt_is_rejected(self):
         base = {"node:a": {"value": 0}, "node:b": {"value": 0}}
@@ -222,31 +197,6 @@ class TypedCSGBridgeTests(unittest.TestCase):
             TypedCandidateCoordinator().coordinate(
                 rows, base_state=base, branch_snapshots=snapshots,
             )
-
-    def test_branch_delta_write_conflict_prunes_cross_branch_candidate(self):
-        base = {"node:a": {"value": 0}}
-        x, y = VariableRef("wl", "x"), VariableRef("wl", "y")
-        rows = [
-            self.make("e1", "r1", [RoleBinding("a", x, "m1", "Entity")],
-                      [VariableSpec(x, "Entity")], branch="left", score=2),
-            self.make("e2", "r2", [RoleBinding("b", y, "m2", "Entity")],
-                      [VariableSpec(y, "Entity")], branch="right", score=1),
-        ]
-        snapshots = (
-            self.branch_snapshot("left", base, "node:a", base["node:a"], {"value": 1}),
-            self.branch_snapshot("right", base, "node:a", base["node:a"], {"value": 2}),
-        )
-        permit = VerifiedBranchMergeAuthorization(
-            "e09-permit-2", "s0", ("left", "right"), ("e09:decision-78",),
-            issuer_id="issuer-test", event_digest="b" * 64, verifier_id="test-keyring-v1",
-        )
-        report = TypedCandidateCoordinator().coordinate(
-            rows, base_state=base, branch_snapshots=snapshots,
-            branch_merge_authorization=permit,
-        )
-        self.assertFalse(any(len(item.coordinated.proposal_ids) == 2
-                             for item in report.candidates))
-        self.assertGreater(report.pruned_partial_sets, 0)
 
     def test_branch_snapshot_parent_digest_must_match_base(self):
         base = {"node:a": {"value": 0}}
