@@ -93,7 +93,7 @@ class BranchDeltaTests(unittest.TestCase):
 
     def test_add_existing_target_conflicts(self):
         e = self.event("a1", DeltaOperation.ADD_NODE, "n", None, {})
-        self.assertEqual(merge_branch_deltas({"n": 1}, (self.snap("a", [e]),)).status,
+        self.assertEqual(merge_branch_deltas({"n": 1}, (self.snap("a", [e], base={"n": 1}),)).status,
                          MergeStatus.CONFLICT)
 
 
