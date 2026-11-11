@@ -59,7 +59,7 @@ class TypedCSGBridgeTests(unittest.TestCase):
                       constraints=UnificationConstraints(subtype_of=(("Animal", "Entity"),))),
             self.make("e2", "r2", [RoleBinding("b", x, "same-member", "Vehicle")],
                       [VariableSpec(x, "Entity")], evidence=("b",),
-                      constraints=UnificationConstraints(subtype_of=(("Vehicle", "Entity"),)),
+                      constraints=UnificationConstraints(subtype_of=(("Vehicle", "Entity"),))),
         ]
         report = TypedCandidateCoordinator().coordinate(rows)
         self.assertGreater(report.rejected_typed_sets, 0)
