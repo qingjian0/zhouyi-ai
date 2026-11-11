@@ -45,3 +45,8 @@ If append fails, the live in-memory ledger is unchanged. If the process terminat
 ## Validation
 
 Tests cover exact state restoration after reopen, idempotent action retry, action-ID content conflicts, invalid transition rejection before append, append failure atomicity, crash-after-append recovery, stale stream cursors, scope isolation, and digest tampering.
+
+
+## Evidence payload minimization
+
+The persistence adapter does not serialize Evidence.outcome or Evidence.provenance verbatim. These fields are replaced in the lifecycle stream with opaque evidence/provenance references derived from the evidence ID. Split role, episode, observation, model-version, timing, and identity metadata remain available to E12-A6. This prevents a lifecycle persistence event from becoming a second channel for raw LOCKED_TEST or POST_DEPLOY labels. E09 remains the authority for the underlying evidence payload.
