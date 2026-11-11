@@ -290,13 +290,7 @@ class FiniteRelationalVersionSpace:
             operations = len(self._universe.get(relation, ())) * len(all_evidence)
 
         self._versions[row["relation_symbol"]] = after
-        before_ids = {item.as_dict()["feature_key"] + "|" +
-                      "|".join(item.role_values) + "|" + item.context_key + "|" +
-                      item.context_value for item in before}
-        after_ids = {item.as_dict()["feature_key"] + "|" +
-                     "|".join(item.role_values) + "|" + item.context_key + "|" +
-                     item.context_value for item in after}
-        changed = before_ids != after_ids
+        changed = set(before) != set(after)
         self._report.update({
             "revealed_observations": len(self._evidence_rows) - len(self._support_rows),
             "consistent_candidate_count": sum(len(items) for items in self._versions.values()),
