@@ -358,17 +358,29 @@ def run_mts0_multiseed(
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--seed", type=int, default=7)
+    parser.add_argument("--seeds", type=int, default=0,
+                        help="Run a multi-seed evaluation; 0 runs one seed.")
+    parser.add_argument("--start-seed", type=int, default=7)
     parser.add_argument("--train-samples", type=int, default=1200)
     parser.add_argument("--test-samples", type=int, default=400)
     parser.add_argument("--epochs", type=int, default=180)
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
-    result = run_mts0(
-        seed=args.seed,
-        train_count=args.train_samples,
-        locked_test_count=args.test_samples,
-        epochs=args.epochs,
-    )
+    if args.seeds:
+        result = run_mts0_multiseed(
+            start_seed=args.start_seed,
+            seed_count=args.seeds,
+            train_count=args.train_samples,
+            locked_test_count=args.test_samples,
+            epochs=args.epochs,
+        )
+    else:
+        result = run_mts0(
+            seed=args.seed,
+            train_count=args.train_samples,
+            locked_test_count=args.test_samples,
+            epochs=args.epochs,
+        )
     print(json.dumps(result, ensure_ascii=False, indent=2) if args.json else result)
 
 
