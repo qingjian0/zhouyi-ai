@@ -219,6 +219,11 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                 )
                 if candidate_row is None:
                     raise MissingReference(f"lifecycle_action references unknown candidate version: {candidate_version_id}")
+                candidate_structure = json.loads(candidate_row["payload_json"])
+                if candidate_structure.get("structure_id") != candidate_id:
+                    raise ProtocolError("lifecycle_action candidate_id does not match structure_version structure_id")
+                if payload["candidate_lineage_refs"] != candidate_structure.get("parent_version_ids", []):
+                    raise ProtocolError("lifecycle_action candidate_lineage_refs must match its structure_version parent lineage")
             for lineage_ref in payload["candidate_lineage_refs"]:
                 if not isinstance(lineage_ref, str) or not lineage_ref:
                     raise ProtocolError("candidate_lineage_refs must contain non-empty version IDs")
@@ -525,6 +530,12 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                 candidate_key = f"{cid}@{version}" if cid is not None else None
                 if candidate_key is not None and candidate_key not in candidates:
                     raise MissingReference(f"lifecycle action references missing candidate: {candidate_key}")
+                if candidate_key is not None:
+                    candidate = candidates[candidate_key]
+                    if candidate.get("candidate_id") != cid:
+                        raise ProtocolError("replayed lifecycle candidate_id does not match structure identity")
+                    if payload.get("candidate_lineage_refs", []) != candidate.get("parent_version_ids", []):
+                        raise ProtocolError("replayed candidate lineage differs from its structure version")
                 resolved = []
                 for ref in payload.get("evidence_refs", []):
                     item = resolve_evidence(ref)
