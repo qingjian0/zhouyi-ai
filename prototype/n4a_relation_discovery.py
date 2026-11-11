@@ -56,6 +56,7 @@ class MotifInstance:
 @dataclass(frozen=True)
 class RelationCandidate:
     candidate_id: str
+    scope: str
     signature: str
     role_count: int
     support_case_ids: tuple[str, ...]
@@ -241,6 +242,22 @@ def _case_motifs(case: RelationalCase, *, max_nodes: int,
     return motifs, 0
 
 
+def matches_candidate(
+    candidate: RelationCandidate, case: RelationalCase, *,
+    max_nodes: int = 4, max_subsets_per_case: int = 20_000,
+) -> bool:
+    """Check exact structural motif presence inside the candidate's scope."""
+    _validate_case(case)
+    if case.scope != candidate.scope:
+        return False
+    motifs, exceeded = _case_motifs(
+        case, max_nodes=max_nodes, max_subsets=max_subsets_per_case
+    )
+    if exceeded:
+        raise DiscoveryError("case motif budget exhausted; match is unknown")
+    return candidate.signature in motifs
+
+
 def discover_relations(
     cases: Iterable[RelationalCase],
     *,
@@ -332,7 +349,7 @@ def discover_relations(
         train_total = len(train_pos) + len(train_neg)
         posterior = (len(train_pos) + 1) / (train_total + 2)
         candidates.append(RelationCandidate(
-            candidate_id=candidate_id, signature=signature,
+            candidate_id=candidate_id, scope=scope, signature=signature,
             role_count=record["role_count"],
             support_case_ids=tuple(sorted(train_pos)),
             counterexample_case_ids=tuple(sorted(train_neg)),
