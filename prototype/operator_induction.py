@@ -201,9 +201,11 @@ class OperatorInducer:
                 validation_total=len(valid) if valid else None,
             ))
         truncated = total_programs > examined
+        # Validation labels are reporting-only. Never use them to rank,
+        # select, or prune candidate programs; doing so would turn the
+        # validation set into a model-selection set and leak evaluation data.
         candidates.sort(key=lambda item: (
             len(item.program.steps),
-            -1 if item.validation_support is None else -item.validation_support,
             str(item.program),
         ))
         return InductionReport(
