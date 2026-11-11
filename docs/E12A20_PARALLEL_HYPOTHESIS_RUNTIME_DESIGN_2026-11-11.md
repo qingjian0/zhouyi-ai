@@ -154,7 +154,9 @@ HARD 因子违反时直接判为 INFEASIBLE，不通过有限大惩罚伪装成�
 ### A20-1：多假设竞争图
 目标能力：SUPPORTS / CONTRADICTS / REFINES / ALTERNATIVE、假设 lineage、证据去重和局部冲突传播。
 
-前置基础已实现 A20-1 同步 Sum-Product 信念传播：复用 A20-0 因子语义，在 log-space 更新变量/因子消息，具备 damping、收敛判据和硬预算。当前是单进程同步参考实现，不等于多核并行；多假设关系图、消息调度并行化和有环图可靠性评估仍待实现。
+前置基础已实现同步 Sum-Product 信念传播：复用 A20-0 因子语义，在 log-space 更新变量/因子消息，具备 damping、收敛判据和硬预算。核心完整 CI #42954798842 已通过；精确边缘校准基准仍在 CI 验证。当前是单进程同步参考实现，不等于多核并行。
+
+**A20-2 类型化假设关系图已提交首版**：显式区分证据节点与假设节点，支持 SUPPORTS、CONTRADICTS、REFINES、ALTERNATIVE、DERIVED_FROM；按 query/scope 隔离，拒绝跨 scope 证据迁移和 lineage cycle。该图只建立结构关系，不排序、不裁决真伪，也不把 evidence reference 本身当作已验证证据。
 
 ### A20-2：结构语法接入
 - A16/A17/A18/A19 候选规则适配成因子模板；
