@@ -28,6 +28,12 @@ class RoleEventType(str, Enum):
     DISSOLVE = "DISSOLVE"
 
 
+class EvolutionStatus(str, Enum):
+    CANDIDATE = "CANDIDATE"
+    CONFIRMED = "CONFIRMED"
+    UNCERTAIN = "UNCERTAIN"
+
+
 @dataclass(frozen=True)
 class EpisodeSnapshot:
     episode_id: str
@@ -61,6 +67,8 @@ class RoleEvent:
     context_changed: bool
     intervention_pair: tuple[str | None, str | None]
     confidence: float
+    status: EvolutionStatus = EvolutionStatus.CANDIDATE
+    consecutive_support: int = 1
 
 
 @dataclass(frozen=True)
@@ -95,9 +103,10 @@ class DynamicRoleEvolution:
         min_confidence: float = 0.5,
         max_rounds: int = 3,
         max_events: int = 512,
+        min_consecutive_transitions: int = 2,
     ) -> None:
-        if min_shared_entities < 1 or max_events < 1:
-            raise RoleEvolutionError("entity support and event budgets must be positive")
+        if min_shared_entities < 1 or max_events < 1 or min_consecutive_transitions < 1:
+            raise RoleEvolutionError("entity support, persistence and event budgets must be positive")
         if not 0.0 <= min_confidence <= 1.0:
             raise RoleEvolutionError("min_confidence must be within [0, 1]")
         if not 0 <= max_rounds <= 8:
@@ -106,6 +115,7 @@ class DynamicRoleEvolution:
         self.min_confidence = min_confidence
         self.max_rounds = max_rounds
         self.max_events = max_events
+        self.min_consecutive_transitions = min_consecutive_transitions
 
     def analyze(self, snapshots: Iterable[EpisodeSnapshot]) -> EvolutionReport:
         rows = tuple(snapshots)
@@ -215,7 +225,52 @@ class DynamicRoleEvolution:
                     skipped, incomplete_absence, True,
                 )
 
+        # Hysteresis: an event is confirmed only when the same lineage event
+        # recurs over adjacent transitions. A one-step topology fluctuation
+        # remains a candidate rather than changing the durable role lineage.
+        finalized: list[RoleEvent] = []
+        for index, event in enumerate(events):
+            key = (event.event_type, event.source_role_ids, event.target_role_ids)
+            consecutive = 1
+            for later in events[index + 1:]:
+                later_key = (later.event_type, later.source_role_ids, later.target_role_ids)
+                if later_key == key and later.from_step == event.to_step:
+                    consecutive += 1
+                elif later.from_step > event.to_step:
+                    break
+            if event.event_type == RoleEventType.DISSOLVE:
+                # Dissolution requires repeated complete-coverage absence.
+                prior = next((row for row in rows if row.step == event.from_step), None)
+                members = set(event.supporting_entity_ids)
+                absent_count = 0
+                for future in (row for row in rows if row.step >= event.to_step):
+                    present = {node.entity_id for node in future.state.nodes}
+                    if not future.coverage_complete or members & present:
+                        break
+                    absent_count += 1
+                consecutive = max(consecutive, absent_count)
+            status = (
+                EvolutionStatus.CONFIRMED
+                if consecutive >= self.min_consecutive_transitions
+                else EvolutionStatus.CANDIDATE
+            )
+            finalized.append(RoleEvent(
+                event_type=event.event_type,
+                episode_id=event.episode_id,
+                from_step=event.from_step,
+                to_step=event.to_step,
+                source_role_ids=event.source_role_ids,
+                target_role_ids=event.target_role_ids,
+                supporting_entity_ids=event.supporting_entity_ids,
+                evidence_ids=event.evidence_ids,
+                domain=event.domain,
+                context_changed=event.context_changed,
+                intervention_pair=event.intervention_pair,
+                confidence=event.confidence,
+                status=status,
+                consecutive_support=consecutive,
+            ))
         return EvolutionReport(
-            tuple(events), len(rows), len(rows) - 1, skipped,
+            tuple(finalized), len(rows), len(rows) - 1, skipped,
             incomplete_absence, False,
         )
