@@ -101,3 +101,66 @@ def greatest_bisimulation_partition(
         related_pairs=frozenset(relation),
         elimination_rounds=rounds,
     )
+
+
+
+def shortest_distinguishing_sequence(
+    states: Sequence[State],
+    actions: Sequence[Action],
+    outcomes: Mapping[tuple[State, Action], Outcome],
+    transitions: Mapping[tuple[State, Action], State],
+    left: State,
+    right: State,
+) -> tuple[Action, ...] | None:
+    """Return a shortest action sequence that separates two states.
+
+    The sequence is a witness: applying it from both states yields different
+    observable outcome traces. Return None exactly when the pair is in the
+    greatest predictive-bisimulation relation. Breadth-first search over
+    ordered state pairs guarantees minimum action length.
+    """
+    state_values = tuple(states)
+    action_values = tuple(actions)
+    if left not in state_values or right not in state_values:
+        raise KeyError("both queried states must belong to states")
+    # Reuse the independent oracle's strict finite-world validation.
+    partition = greatest_bisimulation_partition(
+        state_values, action_values, outcomes, transitions
+    )
+    if (left, right) in partition.related_pairs:
+        return None
+
+    from collections import deque
+
+    start = (left, right)
+    queue = deque([start])
+    parent: dict[
+        tuple[State, State],
+        tuple[tuple[State, State], Action] | None
+    ] = {start: None}
+
+    while queue:
+        pair = queue.popleft()
+        first, second = pair
+        for action in action_values:
+            if outcomes[(first, action)] != outcomes[(second, action)]:
+                suffix = []
+                cursor = pair
+                while parent[cursor] is not None:
+                    previous, used_action = parent[cursor]
+                    suffix.append(used_action)
+                    cursor = previous
+                suffix.reverse()
+                suffix.append(action)
+                return tuple(suffix)
+
+            successor = (
+                transitions[(first, action)],
+                transitions[(second, action)],
+            )
+            if successor not in parent:
+                parent[successor] = (pair, action)
+                queue.append(successor)
+
+    # A pair classified as distinguishable must have a finite witness.
+    raise AssertionError("distinguishable pair has no finite action witness")
