@@ -129,7 +129,11 @@ def derive_structural_role_features(
                 encoded.encode("utf-8")
             ).hexdigest()
         labels = updated
-    return {node_id: (label,) for node_id, label in labels.items()}
+    return {
+        node.node_id: tuple(sorted(node.role_features or ("untyped",)))
+        + ("wl:" + labels[node.node_id],)
+        for node in nodes
+    }
 
 
 def _canonical_motif(nodes: tuple[Node, ...], edges: tuple[Edge, ...],
