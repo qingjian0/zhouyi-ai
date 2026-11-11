@@ -8,7 +8,7 @@
 ## 项目状态（2026-11-11）
 
 - **主线状态：** main 仍是保守的 M1/M2 基线，不代表全部研究分支的最新进度。
-- **研究进展：** E02–E12 已有大量独立研究分支和草稿 PR，覆盖原语发现、关系归纳、概念重构、证据学习、并行假设推理、易象/太玄/阴符表示研究。
+- **研究进展：** E02–E13 已有大量独立研究分支和草稿 PR，覆盖原语发现、关系归纳、概念重构、证据学习、并行假设推理、易象/太玄/阴符表示研究。
 - **集成状态：** 多数成果仍是 branch-local 原型或协议；不能把它们描述为已集成的统一运行系统。
 - **模型状态：** 尚无规模化 CPG-EI 模型，也没有证明优于 Transformer 的结果。
 - **当前集成工作：** [CPG-EI v1 收敛基础](docs/CPG_EI_V1_CONVERGENCE_FOUNDATION_2026-11-11.md)，定义跨研究线接口、状态所有权和验收门槛。
@@ -39,6 +39,7 @@
 - [架构设计](docs/ARCHITECTURE.md)
 - [易象模块：可检验化设计](docs/YIXIANG_MODULE.md)
 - [第三轮：易象多维类象、五行历史分层与关系映射原型](docs/YIXIANG_TYPED_ANALOGY_AND_FIVE_PHASES_RESEARCH_2026-11-11.md)
+- [E13：结构发现—类象迁移—主动验证联合闭环](docs/E13_JOINT_STRUCTURE_ANALOGY_DISCOVERY_LOOP_2026-11-11.md)
 - [相关工作与文献](docs/RELATED_WORK.md)
 - [2026-11-10 研究增量报告](docs/RESEARCH_FINDINGS_2026-11-10.md)
 - [实验计划与验收标准](docs/EXPERIMENTS.md)
