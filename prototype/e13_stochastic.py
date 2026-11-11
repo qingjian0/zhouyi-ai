@@ -260,3 +260,163 @@ def select_risk_aware_query(queries: Iterable[RiskAwareQuery],
     if not accepted:
         return RiskQuerySelection("NO_SAFE_QUERY", None, (), tuple(rejected))
     return RiskQuerySelection("SELECTED", accepted[0], tuple(accepted), tuple(rejected))
+
+
+
+@dataclass(frozen=True)
+class StochasticKernelMap:
+    """Explicit source-to-target vocabulary map; no inferred renaming is allowed."""
+    source_to_target_variables: tuple[tuple[str, str], ...]
+    source_to_target_values: tuple[tuple[str, str, str], ...]
+    source_to_target_actions: tuple[tuple[str, str], ...]
+
+
+@dataclass(frozen=True)
+class KernelValidationCase:
+    case_id: str
+    source_state: State
+    source_action: str
+    target_state: State
+    target_action: str
+
+
+@dataclass(frozen=True)
+class KernelCaseResult:
+    case_id: str
+    status: str
+    total_variation_distance: Fraction | None
+    source_prediction: tuple[tuple[State, Fraction], ...] | None
+    target_prediction: tuple[tuple[State, Fraction], ...] | None
+
+
+@dataclass(frozen=True)
+class KernelValidationReport:
+    status: str
+    cases: tuple[KernelCaseResult, ...]
+
+
+def _validate_kernel_map(source: ProbabilisticTransitionSystem,
+                         target: ProbabilisticTransitionSystem,
+                         mapping: StochasticKernelMap) -> None:
+    variable_map = dict(mapping.source_to_target_variables)
+    action_map = dict(mapping.source_to_target_actions)
+    if (len(variable_map) != len(mapping.source_to_target_variables)
+            or set(variable_map) != set(source.state_variables)
+            or set(variable_map.values()) != set(target.state_variables)
+            or len(set(variable_map.values())) != len(variable_map)):
+        raise StochasticContractError("VARIABLE_MAP_MUST_BE_COMPLETE_BIJECTION")
+    if (len(action_map) != len(mapping.source_to_target_actions)
+            or set(action_map) != set(source.actions)
+            or not set(action_map.values()).issubset(set(target.actions))
+            or len(set(action_map.values())) != len(action_map)):
+        raise StochasticContractError("ACTION_MAP_MUST_BE_COMPLETE_INJECTION")
+    value_keys = [(var, value) for var, value, _ in mapping.source_to_target_values]
+    if len(set(value_keys)) != len(value_keys):
+        raise StochasticContractError("DUPLICATE_VALUE_MAPPING")
+    for source_var, target_var in variable_map.items():
+        mapped_values = [target_value for var, _, target_value
+                         in mapping.source_to_target_values if var == source_var]
+        if len(set(mapped_values)) != len(mapped_values):
+            raise StochasticContractError("VALUE_MAP_MUST_BE_INJECTIVE_PER_VARIABLE")
+        if not target_var:
+            raise StochasticContractError("EMPTY_TARGET_VARIABLE")
+
+
+def map_source_state(source_state: State, mapping: StochasticKernelMap) -> State | None:
+    variable_map = dict(mapping.source_to_target_variables)
+    value_map = {(var, source_value): target_value
+                 for var, source_value, target_value in mapping.source_to_target_values}
+    mapped = []
+    for variable, value in source_state:
+        if variable not in variable_map or (variable, value) not in value_map:
+            return None
+        mapped.append((variable_map[variable], value_map[(variable, value)]))
+    if len(mapped) != len(variable_map):
+        return None
+    return tuple(sorted(mapped))
+
+
+def map_source_transition_distribution(
+    source: ProbabilisticTransitionSystem,
+    source_state: State,
+    source_action: str,
+    mapping: StochasticKernelMap,
+) -> tuple[tuple[State, Fraction], ...] | None:
+    action_map = dict(mapping.source_to_target_actions)
+    outcomes = source.transition(source_state, source_action)
+    if outcomes is None or source_action not in action_map:
+        return None
+    mapped = []
+    for next_state, probability in outcomes:
+        mapped_state = map_source_state(next_state, mapping)
+        if mapped_state is None:
+            return None
+        mapped.append((mapped_state, probability))
+    merged: dict[State, Fraction] = {}
+    for state, probability in mapped:
+        merged[state] = merged.get(state, Fraction(0)) + probability
+    return tuple(sorted(merged.items()))
+
+
+def total_variation_distance(
+    left: tuple[tuple[State, Fraction], ...],
+    right: tuple[tuple[State, Fraction], ...],
+) -> Fraction:
+    p, q = dict(left), dict(right)
+    return sum((abs(p.get(state, Fraction(0)) - q.get(state, Fraction(0)))
+                for state in set(p) | set(q)), Fraction(0)) / 2
+
+
+def validate_stochastic_kernel_mapping(
+    source: ProbabilisticTransitionSystem,
+    target: ProbabilisticTransitionSystem,
+    mapping: StochasticKernelMap,
+    cases: Iterable[KernelValidationCase],
+    *,
+    max_total_variation: Fraction = Fraction(0),
+) -> KernelValidationReport:
+    """Validate explicit kernel mappings on supplied held-out intervention rows.
+
+    PASS means agreement only on these cases, not global causal equivalence.
+    Missing support/mappings produce UNKNOWN, never a fabricated mismatch/pass.
+    """
+    threshold = _prob(max_total_variation)
+    _validate_kernel_map(source, target, mapping)
+    case_results = []
+    seen = set()
+    for case in cases:
+        if not case.case_id or case.case_id in seen:
+            raise StochasticContractError("KERNEL_CASE_IDS_MUST_BE_UNIQUE_AND_NONEMPTY")
+        seen.add(case.case_id)
+        mapped_initial = map_source_state(case.source_state, mapping)
+        mapped_action = dict(mapping.source_to_target_actions).get(case.source_action)
+        if mapped_initial is None or mapped_action is None or mapped_initial != _state(case.target_state) or mapped_action != case.target_action:
+            case_results.append(KernelCaseResult(
+                case.case_id, "UNKNOWN_MAPPING_OR_CASE_ALIGNMENT", None, None, None
+            ))
+            continue
+        source_prediction = map_source_transition_distribution(
+            source, case.source_state, case.source_action, mapping
+        )
+        target_prediction = target.transition(case.target_state, case.target_action)
+        if source_prediction is None or target_prediction is None:
+            case_results.append(KernelCaseResult(
+                case.case_id, "UNKNOWN_MISSING_SUPPORT_OR_VALUE_MAP", None,
+                source_prediction, target_prediction
+            ))
+            continue
+        distance = total_variation_distance(source_prediction, target_prediction)
+        case_results.append(KernelCaseResult(
+            case.case_id,
+            "PASS" if distance <= threshold else "MISMATCH",
+            distance, source_prediction, target_prediction
+        ))
+    if not case_results:
+        status = "NO_VALIDATION_CASES"
+    elif any(item.status == "MISMATCH" for item in case_results):
+        status = "MISMATCH"
+    elif any(item.status.startswith("UNKNOWN") for item in case_results):
+        status = "INCOMPLETE"
+    else:
+        status = "PASS_ON_SUPPLIED_CASES"
+    return KernelValidationReport(status, tuple(case_results))
