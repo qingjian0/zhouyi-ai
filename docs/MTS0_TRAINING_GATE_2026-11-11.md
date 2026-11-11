@@ -50,13 +50,13 @@ python -m prototype.mts0_runner --seed 7 --train-samples 1200 --test-samples 400
 | T3 标签隔离策略 | learner/selector 看不到 locked-test | 仅同进程策略测试 |
 | T4 证据绑定 | reveal 绑定 commit digest、query、scope | 已实现单测，待 CI |
 | T5 独立审计 | evaluator 独立进程/服务 | 未实现 |
-| T6 多种子报告 | 至少 5 seeds，均值/标准差及失败案例 | 下一步 |
+| T6 多种子报告 | 至少 5 seeds，均值/标准差及逐 seed 结果 | 已实现 5-seed API 与测试，待 CI/实际运行 |
 | T7 OOD 验证 | entity/composition/rule-family/domain OOD | 下一步 |
 
 ## 下一阶段
 
 1. 在 CI 中执行全量单测和 MTS-0 smoke run。
-2. 增加 5-seed runner，报告均值、标准差、每种子结果。
+2. 运行 5-seed runner，保存真实结果、失败案例和资源成本。
 3. 建立严格组合 OOD 和机制族 OOD 数据生成器。
 4. 增加固定预算对照：随机、邻接、线性学习器、符号 oracle。
 5. 把 evaluator 拆为独立进程，检查数据访问权限。
