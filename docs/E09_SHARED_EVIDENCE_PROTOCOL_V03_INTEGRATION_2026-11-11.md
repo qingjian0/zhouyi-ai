@@ -14,14 +14,15 @@ For a strict prediction cycle:
 1. `observation` carries `observation_id`, `query_id`, `scope` and `split`.
 2. `prediction_commit` repeats the same query/scope/split tuple and must reference a prior v0.3 observation with an exact match.
 3. The committed event receipt exposes the immutable event-envelope digest. Protocol version is included in the idempotency fingerprint, so a v0.2 retry cannot silently replay as v0.3.
-4. `evidence_reveal` repeats query/scope/split, learner track and prediction ID, and carries `commit_digest` equal to the exact committed event digest.
-5. A reveal cannot bind to a legacy event, another scope, another split, another query or a different committed payload.
+4. The prediction event carries `interop_commit_digest`, computed from the canonical CPG-EI `PredictionCommit` DTO.
+5. `evidence_reveal` repeats query/scope/split and learner track, carries `commit_digest` equal to the CPG-EI semantic digest, and carries `event_digest` equal to the SQLite event-envelope digest.
+6. The store validates both digests independently. A reveal cannot bind to a legacy event, another scope, another split, another query, a different semantic prediction or a different durable event.
 
 Allowed split labels are `SUPPORT`, `GATE_DEV`, `GATE_FINAL` and `LOCKED_TEST`. Labels are metadata and validation inputs, not an authentication boundary.
 
 ## E09 adapter behavior
 
-The E09 adapter now requires an explicit scope and records query/scope/split on observations and commits. Reveals include the exact prediction-commit digest.
+The E09 adapter now requires an explicit scope and records query/scope/split on observations and commits. It maps each E09 prediction to the shared CPG-EI `PredictionCommit` DTO and each reveal to `EvidenceReveal`, validates the DTO binding, and persists both the semantic commit digest and the independent SQLite event-envelope digest.
 
 Only `SUPPORT` reveals are passed to the E09 learner's update path. Gate and locked-test reveals are persisted but not delivered to the learner, and therefore cannot trigger an E09 revision through this adapter. This is a code-path safeguard inside one trusted process, not process isolation.
 
