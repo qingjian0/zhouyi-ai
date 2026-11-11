@@ -65,6 +65,18 @@ class TypedHypergraphTests(unittest.TestCase):
         with self.assertRaises(HypergraphError):
             state(0, [edge()], entities=("a", "b"))
 
+    def test_duplicate_context_keys_are_rejected(self):
+        with self.assertRaises(HypergraphError):
+            Hyperedge("h", "joint", edge().bindings, ("ev",),
+                      (("phase", "one"), ("phase", "two")))
+
+    def test_duplicate_snapshot_context_keys_are_rejected(self):
+        with self.assertRaises(HypergraphError):
+            HypergraphState(
+                (Entity("a", "agent"),), (), (("world", "one"), ("world", "two")),
+                0, "ev", "test",
+            )
+
     def test_duplicate_snapshot_evidence_is_rejected(self):
         with self.assertRaises(HypergraphError):
             DynamicHypergraphEvolution().analyze([
