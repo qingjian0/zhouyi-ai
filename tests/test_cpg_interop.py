@@ -63,6 +63,19 @@ class CpgInteropTests(unittest.TestCase):
             validate_reveal_binding(commit, self.reveal(commit, split=EvidenceSplit.LOCKED_TEST))
 
 
+    def test_reveal_must_match_episode_track_and_split(self):
+        commit = self.commit()
+        with self.assertRaisesRegex(ValueError, "episode_id"):
+            validate_reveal_binding(commit, self.reveal(commit, episode_id="other"))
+        with self.assertRaisesRegex(ValueError, "learner_track"):
+            validate_reveal_binding(commit, self.reveal(commit, learner_track="other"))
+        with self.assertRaisesRegex(ValueError, "split"):
+            validate_reveal_binding(commit, self.reveal(commit, split=EvidenceSplit.LOCKED_TEST))
+
+    def test_abstained_is_distinct_from_unknown(self):
+        result = InferenceResult("q", "w", InferenceStatus.ABSTAINED, (), (), ())
+        self.assertEqual(result.status, InferenceStatus.ABSTAINED)
+
     def test_locked_test_is_not_visible_to_learner_or_selector(self):
         reveal = self.reveal(self.commit(), split=EvidenceSplit.LOCKED_TEST)
         self.assertFalse(evidence_visible_to(reveal, ConsumerRole.LEARNER))
