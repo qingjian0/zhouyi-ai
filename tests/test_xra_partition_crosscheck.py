@@ -3,7 +3,10 @@ import random
 import unittest
 
 from prototype.xra_partition import exact_predictive_partition
-from prototype.xra_partition_crosscheck import (\n    greatest_bisimulation_partition,\n    shortest_distinguishing_sequence,\n)
+from prototype.xra_partition_crosscheck import (
+    greatest_bisimulation_partition,
+    shortest_distinguishing_sequence,
+)
 
 
 def _tables(states, actions, outcomes_flat, targets_flat):
