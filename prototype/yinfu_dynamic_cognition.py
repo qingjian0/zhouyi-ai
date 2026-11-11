@@ -111,7 +111,7 @@ def generate_relation_candidates(
     """
     if len(rows) != len(labels) or not rows:
         raise ValueError("rows and labels must be non-empty and equally sized")
-    if any(y not in (0, 1) for y in labels) or len(set(labels)) != 2:
+    if any(isinstance(y, bool) or y not in (0, 1) for y in labels) or len(set(labels)) != 2:
         raise ValueError("labels must contain both binary classes")
     keys = tuple(sorted(rows[0]))
     if not keys or len(keys) > max_features or max_candidates < 1:
@@ -539,11 +539,13 @@ def validate_compositional_relations(
     """Independently gate Support-selected candidates on untouched Gate episodes."""
     if not 0.5 <= min_gate_accuracy <= 1.0 or min_class_support < 1:
         raise ValueError("invalid Gate thresholds")
-    _validate_binary_rows(gate_rows, gate_labels)
+    gate_keys = set(_validate_binary_rows(gate_rows, gate_labels))
     positive = sum(gate_labels)
     negative = len(gate_labels) - positive
     results = []
     for item in candidates:
+        if not set(literal[0] for literal in item.candidate.literals).issubset(gate_keys):
+            raise ValueError("Gate rows are missing candidate features")
         if positive < min_class_support or negative < min_class_support:
             results.append(RelationGateResult(
                 item.candidate, None, positive, negative, False,
@@ -605,7 +607,7 @@ def advance_relation_lifecycle(
     )
     if status == "retired":
         return "retired", consecutive_failures
-    if good:
+    if good or (status in {"active", "decaying"} and retained):
         return "active", 0
     failures = consecutive_failures + 1
     if status == "proposed":
