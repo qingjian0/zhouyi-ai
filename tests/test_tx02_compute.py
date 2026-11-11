@@ -1,6 +1,6 @@
 import unittest
 from prototype.tx02_compute import (
-    apply_abstention, choose_abstention_threshold, choose_hidden_size_for_compute_budget,
+    apply_abstention, apply_episode_abstention, choose_abstention_threshold,\n    choose_episode_abstention_threshold, choose_hidden_size_for_compute_budget,
     estimate_forward_macs, probability_metrics, risk_coverage_curve, select_representation,\n    wilson_upper_bound,
 )
 class TX02ComputeAndCalibrationTests(unittest.TestCase):
@@ -42,6 +42,24 @@ class TX02ComputeAndCalibrationTests(unittest.TestCase):
         self.assertLessEqual(chosen["risk_upper_bound"], 0.1)
         decisions = apply_abstention(probs, chosen["threshold"])
         self.assertEqual(sum(value is not None for value in decisions), 40)
+    def test_episode_level_calibration_uses_episode_correctness_for_k3(self):
+        correct = ((0.4, 0.35, 0.25), (0.4, 0.35, 0.25))
+        incorrect = ((0.4, 0.35, 0.25), (0.4, 0.35, 0.25))
+        probability_episodes = tuple(correct for _ in range(40)) + tuple(
+            incorrect for _ in range(40)
+        )
+        targets = tuple((0, 0) for _ in range(40)) + tuple(
+            (0, 1) for _ in range(40)
+        )
+        chosen = choose_episode_abstention_threshold(
+            probability_episodes, targets, 0.1
+        )
+        self.assertEqual(chosen["accepted"], 80)
+        # All confidence ties are deliberately indivisible: no query-level leakage.
+        decisions = apply_episode_abstention(
+            probability_episodes, chosen["threshold"]
+        )
+        self.assertEqual(len(decisions), 80)
     def test_validation_only_representation_selector(self):
         result = select_representation({
             "TERNARY": {"accuracy": 0.8, "nll": 0.6, "forward_macs": 900, "parameter_count": 100},
