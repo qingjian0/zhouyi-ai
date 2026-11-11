@@ -2,7 +2,7 @@ import unittest
 
 from prototype.yijing_operator_induction import Node, Relation, RelationalState
 from prototype.yijing_dynamic_role_evolution import (
-    DynamicRoleEvolution, EpisodeSnapshot, RoleEventType, RoleEvolutionError,
+    DynamicRoleEvolution, EpisodeSnapshot, EvolutionStatus, RoleEventType, RoleEvolutionError,
 )
 
 
@@ -88,6 +88,31 @@ class DynamicRoleEvolutionTests(unittest.TestCase):
             snap(0, state()), snap(1, state(1, split=True))
         ])
         self.assertTrue(all(e.confidence == 1.0 for e in report.events))
+
+    def test_single_transition_change_remains_candidate(self):
+        report = DynamicRoleEvolution().analyze([
+            snap(0, state()), snap(1, state(1, split=True)), snap(2, state(2))
+        ])
+        split_events = [e for e in report.events if e.event_type == RoleEventType.SPLIT]
+        self.assertTrue(split_events)
+        self.assertTrue(all(e.status == EvolutionStatus.CANDIDATE for e in split_events))
+
+    def test_repeated_role_persistence_is_confirmed(self):
+        report = DynamicRoleEvolution().analyze([
+            snap(0, state()), snap(1, state(1)), snap(2, state(2))
+        ])
+        first = next(e for e in report.events if e.event_type == RoleEventType.PERSIST and e.from_step == 0)
+        self.assertEqual(first.status, EvolutionStatus.CONFIRMED)
+        self.assertGreaterEqual(first.consecutive_support, 2)
+
+    def test_dissolution_requires_repeated_complete_absence(self):
+        empty = RelationalState((), (), ())
+        report = DynamicRoleEvolution().analyze([
+            snap(0, state()), snap(1, empty, complete=True), snap(2, empty, complete=True)
+        ])
+        dissolution = next(e for e in report.events if e.event_type == RoleEventType.DISSOLVE)
+        self.assertEqual(dissolution.status, EvolutionStatus.CONFIRMED)
+        self.assertGreaterEqual(dissolution.consecutive_support, 2)
 
     def test_duplicate_evidence_is_rejected(self):
         with self.assertRaises(RoleEvolutionError):
