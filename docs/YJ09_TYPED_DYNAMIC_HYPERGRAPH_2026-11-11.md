@@ -54,3 +54,8 @@ This distinction prevents a role reassignment between same-typed entities from b
 The E13 contract already supports arbitrary relation arity, ordered named roles, argument types, participant lists, and provenance references. YJ-09 therefore adds an adapter rather than a duplicate shared graph contract. The adapter maps role bindings to `ORDERED_NAMED` schema slots, evidence IDs to provenance references, and edge context/attributes/validity bounds into reserved namespaces. Snapshot metadata remains in a versioned envelope.
 
 The adapter rejects mixed role/type signatures under one relation type, unsupported E13 evidence status, missing provenance, unknown context namespaces, unused schemas, and unsupported entity metadata. This is a lossless representation bridge for the supported subset, not a claim that E13 and YJ-09 inference semantics are equivalent.
+
+
+### Dissolution semantics correction
+
+A hyperedge can dissolve while all of its participant entities remain present. Therefore `DISSOLVE` is gated by complete **relation/hyperedge coverage**, not by participant disappearance. Confirmation requires successive complete snapshots with no sufficiently overlapping hyperedge lineage; an incomplete snapshot or a reappearing related hyperedge breaks the confirmation run.
