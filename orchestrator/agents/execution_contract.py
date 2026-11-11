@@ -205,3 +205,40 @@ class ExecutionRecord:
             raise ValueError("output_bytes must be a non-negative integer")
         if self.output_artifact_digest is not None:
             _digest(self.output_artifact_digest, "output_artifact_digest")
+
+
+def validate_execution_record(
+    manifest: ExecutionManifest,
+    record: ExecutionRecord,
+) -> None:
+    """Check that a runner record is linked to and within a manifest budget.
+
+    This validates reported observations; it cannot prove that the runner
+    measured them honestly or enforced limits during execution.
+    """
+    if not isinstance(manifest, ExecutionManifest):
+        raise TypeError("manifest must be ExecutionManifest")
+    if not isinstance(record, ExecutionRecord):
+        raise TypeError("record must be ExecutionRecord")
+    if record.manifest_digest != manifest_digest(manifest):
+        raise ValueError("execution record belongs to a different manifest")
+    if record.patch_digest != manifest.patch_digest:
+        raise ValueError("execution record patch digest does not match manifest")
+    started = datetime.fromisoformat(record.started_at.replace("Z", "+00:00"))
+    finished = datetime.fromisoformat(record.finished_at.replace("Z", "+00:00"))
+    if finished < started:
+        raise ValueError("finished_at must not precede started_at")
+    elapsed = (finished - started).total_seconds()
+    limits = manifest.limits
+    if elapsed > limits.wall_time_seconds:
+        raise ValueError("reported wall time exceeds manifest limit")
+    if record.cpu_seconds > limits.cpu_cores * limits.wall_time_seconds:
+        raise ValueError("reported CPU time exceeds manifest limit")
+    if record.peak_memory_mb > limits.memory_mb:
+        raise ValueError("reported peak memory exceeds manifest limit")
+    if record.disk_written_mb > limits.disk_mb:
+        raise ValueError("reported disk writes exceed manifest limit")
+    if record.output_bytes > limits.max_output_bytes:
+        raise ValueError("reported output exceeds manifest limit")
+    if record.status == "completed" and record.exit_code != 0:
+        raise ValueError("completed execution must have exit_code 0")
