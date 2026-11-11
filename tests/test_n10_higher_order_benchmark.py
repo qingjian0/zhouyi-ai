@@ -12,7 +12,7 @@ class HigherOrderNecessaryBenchmarkTests(unittest.TestCase):
         )
 
     def test_data_is_reproducible_and_balanced(self):
-        first = make_dataset(100, 31)
+        first = make_dataset(104, 31)
         second = make_dataset(100, 31)
         self.assertEqual(first, second)
         self.assertGreater(sum(row.label for row in first), 30)
