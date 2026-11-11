@@ -38,6 +38,7 @@ class AutomorphismAudit:
     pairwise_true_negative: int
     wl_pairwise_precision: float
     wl_pairwise_recall: float
+    automorphism_mappings: tuple[tuple[tuple[str, str], ...], ...] = ()
 
 
 def _edge_multiset(state: HypergraphState, mapping: dict[str, str],
@@ -67,14 +68,17 @@ def exact_hypergraph_automorphism_audit(
     *,
     max_candidate_bijections: int = 100_000,
     max_rounds: int = 6,
+    include_automorphism_mappings: bool = False,
 ) -> AutomorphismAudit:
     """Enumerate all type-preserving entity bijections within a hard budget.
 
     The exact orbit partition is the ground truth for structural equivalence
     under this explicit contract. It is not semantic equivalence or causality.
     """
-    if not isinstance(max_candidate_bijections, int) or max_candidate_bijections < 1:
+    if not isinstance(max_candidate_bijections, int) or isinstance(max_candidate_bijections, bool) or max_candidate_bijections < 1:
         raise AutomorphismOracleError("max_candidate_bijections must be positive")
+    if not isinstance(include_automorphism_mappings, bool):
+        raise AutomorphismOracleError("include_automorphism_mappings must be boolean")
     policy_items = tuple(relation_symmetry)
     policies: dict[str, str] = {}
     for item in policy_items:
@@ -108,6 +112,7 @@ def exact_hypergraph_automorphism_audit(
     )
     orbits = {entity.entity_id: {entity.entity_id} for entity in state.entities}
     automorphism_count = 0
+    automorphism_mappings = []
     groups = [tuple(permutations(ids)) for _, ids in sorted(entities_by_type.items())]
     type_groups = [ids for _, ids in sorted(entities_by_type.items())]
 
@@ -118,6 +123,8 @@ def exact_hypergraph_automorphism_audit(
         if _edge_multiset(state, mapping, policies) != original:
             continue
         automorphism_count += 1
+        if include_automorphism_mappings:
+            automorphism_mappings.append(tuple(sorted(mapping.items())))
         for source_id, target_id in mapping.items():
             orbits[source_id].add(target_id)
 
@@ -182,4 +189,5 @@ def exact_hypergraph_automorphism_audit(
         pairwise_true_negative=tn,
         wl_pairwise_precision=precision,
         wl_pairwise_recall=recall,
+        automorphism_mappings=tuple(automorphism_mappings),
     )
