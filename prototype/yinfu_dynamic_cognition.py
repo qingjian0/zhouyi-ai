@@ -423,13 +423,9 @@ class RelationGateResult:
     reason: str
 
 
-def _validate_binary_rows(
-    rows: Sequence[Mapping[str, float]], labels: Sequence[int]
-) -> tuple[str, ...]:
-    if not rows or len(rows) != len(labels):
-        raise ValueError("rows and labels must be non-empty and equally sized")
-    if any(isinstance(y, bool) or y not in (0, 1) for y in labels) or len(set(labels)) != 2:
-        raise ValueError("labels must contain both binary classes")
+def _validate_feature_rows(rows: Sequence[Mapping[str, float]]) -> tuple[str, ...]:
+    if not rows:
+        raise ValueError("rows must be non-empty")
     keys = tuple(sorted(rows[0]))
     if not keys:
         raise ValueError("at least one feature is required")
@@ -440,6 +436,16 @@ def _validate_binary_rows(
         ):
             raise ValueError("all rows need identical finite numeric features")
     return keys
+
+
+def _validate_binary_rows(
+    rows: Sequence[Mapping[str, float]], labels: Sequence[int]
+) -> tuple[str, ...]:
+    if len(rows) != len(labels):
+        raise ValueError("rows and labels must be equally sized")
+    if any(isinstance(y, bool) or y not in (0, 1) for y in labels) or len(set(labels)) != 2:
+        raise ValueError("labels must contain both binary classes")
+    return _validate_feature_rows(rows)
 
 
 def _predict_compositional(
@@ -542,7 +548,11 @@ def validate_compositional_relations(
         or max_gate_candidates < 1):
         raise ValueError("invalid Gate thresholds")
     candidates = candidates[:max_gate_candidates]
-    gate_keys = set(_validate_binary_rows(gate_rows, gate_labels))
+    if len(gate_rows) != len(gate_labels) or any(
+        isinstance(y, bool) or y not in (0, 1) for y in gate_labels
+    ):
+        raise ValueError("Gate rows and binary labels must be equally sized")
+    gate_keys = set(_validate_feature_rows(gate_rows))
     positive = sum(gate_labels)
     negative = len(gate_labels) - positive
     results = []
