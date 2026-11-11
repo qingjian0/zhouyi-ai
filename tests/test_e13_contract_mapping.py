@@ -115,6 +115,26 @@ class ExactMappingTests(ContractTests):
         self.assertEqual(len(result.candidates), 2)
 
 
+
+    def test_unordered_relation_preserves_repeated_participant_multiplicity(self):
+        schema = RelationSchema(
+            "self_link", 2, ("node", "node"), RoleSemantics.UNORDERED,
+            symmetry="SYMMETRIC"
+        )
+        source = RelationalGraph(
+            (Entity("s", "node"),),
+            (schema,),
+            (RelationInstance("sr", "self_link", ("s", "s")),),
+        )
+        target = RelationalGraph(
+            (Entity("t", "node"),),
+            (schema,),
+            (RelationInstance("tr", "self_link", ("t", "t")),),
+        )
+        result = enumerate_exact_mappings(source, target)
+        self.assertEqual(result.status, "COMPLETE")
+        self.assertEqual(len(result.candidates), 1)
+
     def test_relation_correspondence_is_injective(self):
         schema = RelationSchema(
             "has", 1, ("node",), RoleSemantics.ORDERED_POSITIONAL
