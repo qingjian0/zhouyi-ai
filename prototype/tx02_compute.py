@@ -151,6 +151,40 @@ def choose_abstention_threshold(probability_rows: Sequence[Sequence[float]],
                     "selective_risk": risk, "accepted": count}
     return best
 
+def risk_coverage_curve(probability_rows: Sequence[Sequence[float]],
+                          targets: Sequence[int]) -> tuple[dict, ...]:
+    """Return validation/test descriptive risk-coverage points at unique thresholds."""
+    if len(probability_rows) != len(targets) or not targets:
+        raise ValueError("probability_rows and targets must have equal non-zero length")
+    ranked = []
+    for probs, target in zip(probability_rows, targets):
+        if not probs or type(target) is not int or not 0 <= target < len(probs):
+            raise ValueError("invalid probability row or target")
+        if any(not math.isfinite(p) or p < 0 or p > 1 for p in probs):
+            raise ValueError("invalid probability")
+        if abs(sum(probs) - 1.0) > 1e-6:
+            raise ValueError("probabilities must sum to one")
+        pred = max(range(len(probs)), key=lambda i: probs[i])
+        ranked.append((max(probs), int(pred == target)))
+    points = [{"threshold": 0.0, "coverage": 1.0,
+               "selective_risk": 1.0 - sum(hit for _, hit in ranked) / len(ranked),
+               "accepted": len(ranked)}]
+    for threshold in sorted({confidence for confidence, _ in ranked}, reverse=True):
+        accepted = [hit for confidence, hit in ranked if confidence >= threshold]
+        points.append({"threshold": threshold, "coverage": len(accepted) / len(ranked),
+                       "selective_risk": 1.0 - sum(accepted) / len(accepted),
+                       "accepted": len(accepted)})
+    # Remove duplicate full-coverage point when all confidence values equal 1.
+    unique = []
+    seen = set()
+    for point in points:
+        key = (point["coverage"], point["selective_risk"], point["threshold"])
+        if key not in seen:
+            unique.append(point)
+            seen.add(key)
+    return tuple(unique)
+
+
 def apply_abstention(probability_rows: Iterable[Sequence[float]],
                      threshold: float) -> tuple[int | None, ...]:
     if not math.isfinite(threshold):
