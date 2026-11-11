@@ -191,7 +191,7 @@ class ExperimentRegistry:
         payload = _canonical(spec.to_dict())
         digest = self._digest(payload)
         try:
-            with self._connect() as db:
+            with self._session() as db:
                 db.execute(
                     "INSERT INTO experiments (experiment_id, spec_json, spec_digest) VALUES (?, ?, ?)",
                     (spec.experiment_id, payload, digest),
@@ -205,7 +205,7 @@ class ExperimentRegistry:
             raise TypeError("result must be ExperimentResult")
         payload = _canonical(result.to_dict())
         digest = self._digest(payload)
-        with self._connect() as db:
+        with self._session() as db:
             row = db.execute(
                 "SELECT result_json FROM experiments WHERE experiment_id = ?",
                 (result.experiment_id,),
@@ -225,7 +225,7 @@ class ExperimentRegistry:
 
     def get_spec(self, experiment_id: str) -> ExperimentSpec:
         _require_text(experiment_id, "experiment_id")
-        with self._connect() as db:
+        with self._session() as db:
             row = db.execute(
                 "SELECT spec_json, spec_digest FROM experiments WHERE experiment_id = ?",
                 (experiment_id,),
@@ -238,7 +238,7 @@ class ExperimentRegistry:
 
     def get_result(self, experiment_id: str) -> ExperimentResult | None:
         _require_text(experiment_id, "experiment_id")
-        with self._connect() as db:
+        with self._session() as db:
             row = db.execute(
                 "SELECT result_json, result_digest FROM experiments WHERE experiment_id = ?",
                 (experiment_id,),
@@ -259,7 +259,7 @@ class ExperimentRegistry:
         )
 
     def list_experiment_ids(self) -> tuple[str, ...]:
-        with self._connect() as db:
+        with self._session() as db:
             rows = db.execute(
                 "SELECT experiment_id FROM experiments ORDER BY experiment_id"
             ).fetchall()
