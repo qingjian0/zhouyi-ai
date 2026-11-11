@@ -40,7 +40,8 @@ class TX02TrainableLearnerTests(unittest.TestCase):
             learner = SetConditionedMLPLearner(family, hidden_size=5, seed=7)
             learner.fit(self.bundle.train[:4], budget={"epochs": 1})
             self.assertFalse(learner.metadata()["trainable_embedding"])
-            if family != "FIXED_RANDOM":\n                self.assertIsNone(learner.metadata()["embedding_dim"])
+            if family != "FIXED_RANDOM":
+                self.assertIsNone(learner.metadata()["embedding_dim"])
 
     def test_fixed_random_embedding_is_unchanged_by_training(self):
         learner = SetConditionedMLPLearner(
