@@ -44,10 +44,12 @@ class E10AFiniteRelationalLearnerTests(unittest.TestCase):
             })
             if result["decision_status"] == "PREDICT":
                 self.assertIs(type(result["prediction"]), bool)
-                self.assertEqual(result["confidence"], 1.0)
+                self.assertIsNone(result["confidence"])
+                self.assertEqual(result["agreement_score"], 1.0)
             else:
                 self.assertIsNone(result["prediction"])
                 self.assertIsNone(result["confidence"])
+                self.assertIsNotNone(result["agreement_score"])
             statuses.add(result["decision_status"])
         self.assertEqual(self.query, query_before)
         self.assertNotIn("outcome", self.query["observations"][0])
