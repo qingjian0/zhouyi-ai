@@ -110,6 +110,27 @@ class ExactMappingTests(ContractTests):
         self.assertEqual(result.status, "COMPLETE")
         self.assertEqual(len(result.candidates), 2)
 
+
+    def test_relation_correspondence_is_injective(self):
+        schema = RelationSchema(
+            "has", 1, ("node",), RoleSemantics.ORDERED_POSITIONAL
+        )
+        source = RelationalGraph(
+            (Entity("s", "node"),),
+            (schema,),
+            (
+                RelationInstance("sr1", "has", ("s",)),
+                RelationInstance("sr2", "has", ("s",)),
+            ),
+        )
+        target = RelationalGraph(
+            (Entity("t", "node"),),
+            (schema,),
+            (RelationInstance("tr1", "has", ("t",)),),
+        )
+        result = enumerate_exact_mappings(source, target)
+        self.assertEqual(result.status, "NO_MAPPING")
+
     def test_budget_exhaustion_never_returns_truncated_candidates(self):
         schema = RelationSchema("r", 1, ("node",), RoleSemantics.ORDERED_POSITIONAL)
         source = RelationalGraph((Entity("s", "node"),), (schema,), ())
