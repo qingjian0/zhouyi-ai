@@ -106,6 +106,7 @@ c=(\alpha a+\beta b+\delta)\bmod K
 
 - TX-02A：建立跨 K、规范/随机置换双条件、支持/查询隔离的数据生成器与单元测试（已提交）。
 - TX-02B-0：建立 BINARY / TERNARY / HYBRID / ONE_HOT / LEARNED_INIT / PERMUTED 的可逆状态码本及单元测试（已提交；LEARNED_INIT 只是随机初始化码本，不是已训练嵌入）。
+- TX-02B-1：实现 TX-02A 仿射规则族内的精确假设枚举、逐查询后验和可辨识性审计器（已实现，待 CI 验收）。
 - TX-02B：实现统一接口的 BINARY / TERNARY / HYBRID / LEARNED / ONE_HOT 学习器。
 - TX-02C：完成容量与计算预算匹配、五种子以上的基线比较。
 - TX-02D：加入验证集门控与 DEFER_MORE_EVIDENCE 选择器。
@@ -116,6 +117,8 @@ TX-02A 通过只表示数据协议可用，不表示任何表示更优。每个�
 ## TX-02B 后续协议
 
 跨 episode 学习器、任务可辨识性、support 难度扫描、规则族隔离和公平预算要求见 [TX-02B 学习器与可辨识性协议](TX02B_LEARNER_IDENTIFIABILITY_PROTOCOL.md)。该协议特别区分固定规则的 E02-B 诊断实验与每个 episode 隐藏规则不同的 TX-02 任务。
+
+精确审计器实现位于 [prototype/tx02_identifiability.py](../prototype/tx02_identifiability.py)，测试位于 `tests/test_tx02_identifiability.py`。其 posterior 只对 TX-02A 仿射规则族及均匀系数/双射先验成立，不代表任意规则空间的无条件 Bayes 上界。
 
 ## 当前工程验收记录
 
