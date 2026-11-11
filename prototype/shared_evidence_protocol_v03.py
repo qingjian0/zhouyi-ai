@@ -707,6 +707,8 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                 "causation_refs": causation, "integrity_metadata": integrity,
                 "idempotency_key": raw.get("idempotency_key", f"{idempotency_key}:{index}"),
             }
+            if event_type == "evaluation_reveal" and actor != "evaluator":
+                raise ProtocolError("evaluation_reveal actor_role must be evaluator")
             if not isinstance(spec["idempotency_key"], str) or not spec["idempotency_key"].strip():
                 raise ProtocolError("event idempotency_key must be non-empty")
             spec["fingerprint"] = _fingerprint(spec)
