@@ -1341,7 +1341,7 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
                     "candidate_id": candidate.candidate_id, "candidate_version": 1,
                     "from_state": before, "to_state": after,
                     "evidence_refs": list(refs), "cost": 0.1, "note": action_id,
-                    "candidate_lineage_refs": [], "learner_track": "track-safe",
+                    "candidate_lineage_refs": [], "learner_track": "e12",
                 },
             }
         self.store.append_events(episode_id="state-leak", idempotency_key="all-events", events=[
@@ -1350,25 +1350,25 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
             self.observation("obs-lock-safe"),
             {"event_id": "pred-gate-safe", "event_type": "prediction_commit", "payload": {
                 "prediction_id": "pred-gate-safe", "observation_id": "obs-gate-safe",
-                "model_version": "m1", "learner_track": "track-safe", "decision_status": "PREDICT",
+                "model_version": "m1", "learner_track": "e12", "decision_status": "PREDICT",
             }},
             {"event_id": "pred-lock-safe", "event_type": "prediction_commit", "payload": {
                 "prediction_id": "pred-lock-safe", "observation_id": "obs-lock-safe",
-                "model_version": "m1", "learner_track": "track-safe", "decision_status": "PREDICT",
+                "model_version": "m1", "learner_track": "e12", "decision_status": "PREDICT",
             }},
             self.ingest(evidence_id="train-safe", role="train", observation_id="obs-train-safe"),
             {"event_id": "reveal-gate-safe", "event_type": "evidence_reveal", "payload": {
-                "prediction_id": "pred-gate-safe", "learner_track": "track-safe",
+                "prediction_id": "pred-gate-safe", "learner_track": "e12",
                 "target_or_feedback": "GATE_SECRET", "split_role": "gate_final",
             }},
             {"event_id": "reveal-lock-safe", "event_type": "evidence_reveal", "payload": {
-                "prediction_id": "pred-lock-safe", "learner_track": "track-safe",
+                "prediction_id": "pred-lock-safe", "learner_track": "e12",
                 "target_or_feedback": "LOCKED_SECRET", "split_role": "locked_test",
             }},
             {"event_id": "candidate-safe-structure", "event_type": "structure_version", "payload": {
                 "structure_id": candidate.candidate_id, "version_id": f"{candidate.candidate_id}@1",
                 "kind": "candidate", "definition": candidate_definition_payload(candidate),
-                "learner_track": "track-safe", "parent_version_ids": [], "support_evidence_ids": [],
+                "learner_track": "e12", "parent_version_ids": [], "support_evidence_ids": [],
             }},
             action("safe-propose", "safe-propose", "propose", "observed", "proposed"),
             action("safe-discriminate", "safe-discriminate", "request_discrimination", "proposed", "discrimination_pending"),
@@ -1376,7 +1376,7 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
             action("safe-gate", "safe-gate", "gate_validate", "train_supported", "gate_validated", [{"kind": "revealed", "id": "reveal-gate-safe"}]),
             action("safe-challenge", "safe-challenge", "challenge", "gate_validated", "challenged", [{"kind": "revealed", "id": "reveal-lock-safe"}]),
         ])
-        learner = self.store.replay_learner_projection("state-leak", "track-safe")
+        learner = self.store.replay_learner_projection("state-leak", "e12")
         learner_json = canonical_json(learner)
         self.assertNotIn("GATE_SECRET", learner_json)
         self.assertNotIn("LOCKED_SECRET", learner_json)
@@ -1384,7 +1384,7 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
         self.assertNotIn("safe-challenge", learner_json)
         self.assertEqual(learner["candidates"]["candidate-safe-view@1"]["state"], "train_supported")
         self.assertEqual(
-            learner["track_candidate_objects"]["track-safe"]["candidate-safe-view@1"]["state"],
+            learner["track_candidate_objects"]["e12"]["candidate-safe-view@1"]["state"],
             "train_supported",
         )
 
