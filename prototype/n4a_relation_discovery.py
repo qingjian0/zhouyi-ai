@@ -116,7 +116,7 @@ def derive_structural_role_features(
     }
     for _ in range(rounds):
         updated: dict[str, str] = {}
-        for node in nodes:
+        for node in active_nodes:
             incoming = sorted(
                 (edge.relation_family, labels[edge.source])
                 for edge in active_edges if edge.target == node.node_id
