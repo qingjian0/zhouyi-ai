@@ -38,6 +38,7 @@ class AutomorphismAudit:
     pairwise_true_negative: int
     wl_pairwise_precision: float
     wl_pairwise_recall: float
+    automorphism_mappings: tuple[tuple[tuple[str, str], ...], ...]
 
 
 def _edge_multiset(state: HypergraphState, mapping: dict[str, str],
@@ -108,6 +109,7 @@ def exact_hypergraph_automorphism_audit(
     )
     orbits = {entity.entity_id: {entity.entity_id} for entity in state.entities}
     automorphism_count = 0
+    automorphism_mappings = []
     groups = [tuple(permutations(ids)) for _, ids in sorted(entities_by_type.items())]
     type_groups = [ids for _, ids in sorted(entities_by_type.items())]
 
@@ -118,6 +120,7 @@ def exact_hypergraph_automorphism_audit(
         if _edge_multiset(state, mapping, policies) != original:
             continue
         automorphism_count += 1
+        automorphism_mappings.append(tuple(sorted(mapping.items())))
         for source_id, target_id in mapping.items():
             orbits[source_id].add(target_id)
 
@@ -182,4 +185,5 @@ def exact_hypergraph_automorphism_audit(
         pairwise_true_negative=tn,
         wl_pairwise_precision=precision,
         wl_pairwise_recall=recall,
+        automorphism_mappings=tuple(automorphism_mappings),
     )
