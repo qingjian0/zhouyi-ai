@@ -20,7 +20,7 @@ class EnumerationResult:
     search_complete: bool
     max_search_states: int
 
-def _validate_pairs(pairs, field):
+def _validate_pairs(pairs, field, *, require_unique_targets=True):
     if not isinstance(pairs, tuple):
         raise ValueError(f"{field} must be a tuple of pairs")
     if any(not isinstance(pair, tuple) or len(pair) != 2 for pair in pairs):
@@ -32,7 +32,7 @@ def _validate_pairs(pairs, field):
         raise ValueError(f"{field} must be sorted and unique")
     if len({left for left, _ in pairs}) != len(pairs):
         raise ValueError(f"{field} source keys must be unique")
-    if len({right for _, right in pairs}) != len(pairs):
+    if require_unique_targets and len({right for _, right in pairs}) != len(pairs):
         raise ValueError(f"{field} target values must be unique")
 
 def enumerate_candidate_bridges(
@@ -53,7 +53,7 @@ def enumerate_candidate_bridges(
         raise ValueError("source and target must be RelationalGraph values")
     if not isinstance(mapping_kind, MappingKind):
         raise ValueError("mapping_kind must be a MappingKind")
-    _validate_pairs(node_type_mapping, "node_type_mapping")
+    _validate_pairs(node_type_mapping, "node_type_mapping", require_unique_targets=False)
     _validate_pairs(relation_mapping, "relation_mapping")
     for name, value in (("min_mapped_relations", min_mapped_relations),
                         ("max_search_states", max_search_states),
