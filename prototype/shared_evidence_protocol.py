@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from contextlib import contextmanager
 import sqlite3
 import threading
 from dataclasses import dataclass
@@ -18,7 +19,7 @@ PROTOCOL_VERSION = "0.2"
 STRICT_PROTOCOL_VERSION = "0.3"
 EVIDENCE_SPLITS = {"SUPPORT", "GATE_DEV", "GATE_FINAL", "LOCKED_TEST"}
 LEGACY_LEARNER_TRACK = "legacy"
-EVENT_TYPES = {"observation", "prediction_commit", "evidence_reveal", "structure_version", "revision"}
+EVENT_TYPES = {"observation", "prediction_commit", "evidence_reveal", "structure_version", "revision", "memory_claim_asserted", "memory_claim_retracted"}
 
 
 class ProtocolError(ValueError):
@@ -199,6 +200,55 @@ class SQLiteEvidenceStore:
                     raise ProtocolError("evidence_reveal commit_digest does not match CPG-EI semantic commit digest")
                 if payload["event_digest"] != commit["payload_digest"]:
                     raise ProtocolError("evidence_reveal event_digest does not match durable event envelope digest")
+        elif event_type == "memory_claim_asserted":
+            required = {"claim_id", "subject", "predicate", "object", "valid_from", "epistemic_status", "evidence_refs"}
+            if not required.issubset(payload):
+                raise ProtocolError(f"memory_claim_asserted missing fields: {sorted(required - payload.keys())}")
+            for field in ("claim_id", "subject", "predicate", "epistemic_status"):
+                if not isinstance(payload[field], str) or not payload[field].strip():
+                    raise ProtocolError(f"memory_claim_asserted {field} must be non-empty")
+            valid_from = payload["valid_from"]
+            if isinstance(valid_from, bool) or not isinstance(valid_from, int) or valid_from < 0:
+                raise ProtocolError("memory_claim_asserted valid_from must be a non-negative integer")
+            valid_until = payload.get("valid_until")
+            if valid_until is not None and (isinstance(valid_until, bool) or not isinstance(valid_until, int) or valid_until < valid_from):
+                raise ProtocolError("memory_claim_asserted valid_until must be >= valid_from")
+            for name, refs, required_nonempty in (
+                ("evidence_refs", payload["evidence_refs"], True),
+                ("derivation_refs", payload.get("derivation_refs", []), False),
+                ("scope_conditions", payload.get("scope_conditions", []), False),
+            ):
+                if not isinstance(refs, list) or (required_nonempty and not refs) or any(not isinstance(ref, str) or "::" not in ref for ref in refs) or len(refs) != len(set(refs)):
+                    raise ProtocolError(f"memory_claim_asserted {name} must be a unique list of qualified event refs")
+            for ref in payload["evidence_refs"]:
+                source_episode, source_event = ref.split("::", 1)
+                row = self._db.execute("SELECT event_type FROM events WHERE episode_id=? AND event_id=?", (source_episode, source_event)).fetchone()
+                if row is None or row["event_type"] != "evidence_reveal":
+                    raise MissingReference(f"claim evidence must reference a prior evidence_reveal: {ref}")
+            for ref in payload.get("derivation_refs", []):
+                source_episode, source_event = ref.split("::", 1)
+                row = self._db.execute("SELECT event_type FROM events WHERE episode_id=? AND event_id=?", (source_episode, source_event)).fetchone()
+                if row is None or row["event_type"] != "memory_claim_asserted":
+                    raise MissingReference(f"claim derivation must reference a prior memory claim: {ref}")
+            prior_claim = self._db.execute(
+                "SELECT 1 FROM events WHERE episode_id=? AND event_type='memory_claim_asserted' AND json_extract(payload_json, '$.claim_id')=?",
+                (episode_id, payload["claim_id"]),
+            ).fetchone()
+            if prior_claim is not None:
+                raise ProtocolError("claim_id is already asserted in this memory episode")
+        elif event_type == "memory_claim_retracted":
+            if not isinstance(payload.get("claim_id"), str) or not payload["claim_id"].strip() or not isinstance(payload.get("reason"), str) or not payload["reason"].strip():
+                raise ProtocolError("memory_claim_retracted requires claim_id and reason")
+            prior_claim = self._db.execute(
+                "SELECT 1 FROM events WHERE episode_id=? AND event_type='memory_claim_asserted' AND json_extract(payload_json, '$.claim_id')=?",
+                (episode_id, payload["claim_id"]),
+            ).fetchone()
+            prior_retraction = self._db.execute(
+                "SELECT 1 FROM events WHERE episode_id=? AND event_type='memory_claim_retracted' AND json_extract(payload_json, '$.claim_id')=?",
+                (episode_id, payload["claim_id"]),
+            ).fetchone()
+            if prior_claim is None or prior_retraction is not None:
+                raise MissingReference("claim retraction requires one active prior assertion")
         elif event_type == "structure_version":
             required = {"structure_id", "version_id", "kind", "definition", "parent_version_ids", "support_evidence_ids"}
             if not required.issubset(payload):
@@ -301,6 +351,25 @@ class SQLiteEvidenceStore:
             except Exception:
                 self._db.execute("ROLLBACK")
                 raise
+
+    @contextmanager
+    def projection_transaction(self):
+        """Run a derived projection transaction on this store's canonical DB."""
+        with self._lock:
+            self._db.execute("BEGIN IMMEDIATE")
+            try:
+                yield self._db
+                self._db.execute("COMMIT")
+            except Exception:
+                self._db.execute("ROLLBACK")
+                raise
+
+    def install_projection_schema(self, sql: str) -> None:
+        """Install derived tables in the same database; never creates another event ledger."""
+        if not isinstance(sql, str) or not sql.strip():
+            raise ProtocolError("projection schema must be non-empty SQL")
+        with self._lock:
+            self._db.executescript(sql)
 
     def commit_prediction(self, **kwargs: Any) -> EventReceipt:
         return self.append_event(event_type="prediction_commit", **kwargs)
