@@ -73,6 +73,19 @@ class EvidenceLedger:
     def __init__(self) -> None:
         self._commits: dict[str, PredictionCommit] = {}
         self._reveals: dict[str, EvidenceReveal] = {}
+        self._commits_sealed = False
+
+    @property
+    def commits_sealed(self) -> bool:
+        return self._commits_sealed
+
+    def seal_commits(self) -> None:
+        """Close the prediction phase; reveals are forbidden before this point."""
+        if self._commits_sealed:
+            raise ValueError("prediction commits are already sealed")
+        if not self._commits:
+            raise ValueError("cannot seal an empty prediction batch")
+        self._commits_sealed = True
 
     @property
     def commits(self) -> tuple[PredictionCommit, ...]:
@@ -92,6 +105,8 @@ class EvidenceLedger:
         model_version: str,
         prediction: Iterable[int],
     ) -> PredictionCommit:
+        if self._commits_sealed:
+            raise ValueError("cannot add predictions after the commit phase is sealed")
         if not all(isinstance(x, str) and x.strip() for x in (commit_id, query_id, scope, model_version)):
             raise ValueError("commit identifiers, scope and model_version must be non-empty strings")
         if commit_id in self._commits:
@@ -122,6 +137,8 @@ class EvidenceLedger:
         split: EvidenceSplit,
         outcome: Iterable[int],
     ) -> EvidenceReveal:
+        if not self._commits_sealed:
+            raise ValueError("prediction batch must be sealed before any evidence reveal")
         if not isinstance(split, EvidenceSplit):
             raise ValueError("split must be an EvidenceSplit")
         if not isinstance(evidence_id, str) or not evidence_id.strip():
@@ -209,6 +226,9 @@ def run_mts0(
             prediction=prediction,
         )
 
+    # Seal the complete prediction batch before the evaluator can reveal any label.
+    ledger.seal_commits()
+
     # The evaluator receives labels only after every prediction is committed.
     for index, example in enumerate(locked_test):
         ledger.reveal(
@@ -244,7 +264,10 @@ def run_mts0(
             "learner_visible_locked_test_reveals": len(learner_reveals),
             "selector_visible_locked_test_reveals": len(selector_reveals),
             "evaluator_visible_locked_test_reveals": len(evaluator_reveals),
-            "all_predictions_committed_before_reveal": len(ledger.commits) == len(ledger.reveals),
+            "prediction_batch_sealed_before_reveal": ledger.commits_sealed,
+            "all_predictions_committed_before_reveal": (
+                ledger.commits_sealed and len(ledger.commits) == len(ledger.reveals)
+            ),
         },
         "learned_weights": weights,
         "limitations": [
