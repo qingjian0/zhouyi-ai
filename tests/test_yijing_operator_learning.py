@@ -159,6 +159,33 @@ class UnifiedOperatorLearningTests(unittest.TestCase):
                 record.candidate.candidate_id, rows, split=EvidenceSplit.VALIDATION
             )
 
+    def test_evidence_id_cannot_cross_validation_and_test(self):
+        record = self.discover_one()
+        self.loop.evaluate(
+            record.candidate.candidate_id,
+            [case(state(), changed(), "shared-id", EvidenceSplit.VALIDATION)],
+            split=EvidenceSplit.VALIDATION,
+        )
+        with self.assertRaises(LearningLoopError):
+            self.loop.evaluate(
+                record.candidate.candidate_id,
+                [case(state(), changed(), "shared-id", EvidenceSplit.TEST)],
+                split=EvidenceSplit.TEST,
+            )
+
+    def test_candidate_accumulates_evidence_across_discovery_batches(self):
+        loop = OperatorLearningCoordinator(min_support=2)
+        first = loop.propose([
+            case(state("growth"), changed(phase="growth"), "batch-a", EvidenceSplit.DISCOVERY)
+        ])[0]
+        second = loop.propose([
+            case(state("decline"), changed(phase="decline"), "batch-b", EvidenceSplit.DISCOVERY)
+        ])[0]
+        self.assertEqual(first.candidate.candidate_id, second.candidate.candidate_id)
+        self.assertEqual(second.candidate.version, 2)
+        self.assertEqual(second.candidate.evidence_ids, ("batch-a", "batch-b"))
+        self.assertEqual(second.candidate.status.value, "INTERVENTION_SUPPORTED")
+
 
 if __name__ == "__main__":
     unittest.main()
