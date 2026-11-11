@@ -82,12 +82,20 @@ class ExecutionChallengeStoreTests(unittest.TestCase):
 
     def test_manifest_or_challenge_binding_mismatch_is_rejected(self):
         from dataclasses import replace
-        changed = replace(self.challenge, target_branch="main")
-        with self.assertRaisesRegex(ValueError, "target branch"):
-            self.verify(challenge=changed)
         changed_manifest = ExecutionManifest(
             **{**self.manifest.__dict__, "seed": 8}
         )
+        forged_for_other_manifest = self.make_signed(
+            manifest_digest=manifest_digest(changed_manifest)
+        )
+        with self.assertRaisesRegex(ValueError, "manifest_digest"):
+            self.store.verify_and_consume(
+                forged_for_other_manifest, self.key, changed_manifest,
+                self.challenge, now="2026-11-11T03:01:00Z",
+            )
+        changed = replace(self.challenge, target_branch="main")
+        with self.assertRaisesRegex(ValueError, "target branch"):
+            self.verify(challenge=changed)
         with self.assertRaisesRegex(ValueError, "manifest"):
             self.store.verify_and_consume(
                 self.make_signed(), self.key, changed_manifest,
