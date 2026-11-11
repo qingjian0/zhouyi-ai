@@ -44,6 +44,7 @@ class E09SharedProtocolAdapter:
         self._failed = False
         self._committed_predictions: set[str] = set()
         self._commit_digests: dict[str, str] = {}
+        self._prediction_queries: dict[str, str] = {}
         self._reveals: dict[str, str] = {}
         self._version_id = f"e09-v{runner.model_version}"
         if self.store.replay_episode(self.episode_id):
@@ -146,6 +147,7 @@ class E09SharedProtocolAdapter:
             )
             self._committed_predictions.add(commit.prediction_id)
             self._commit_digests[commit.prediction_id] = prediction_receipt.payload_digest
+            self._prediction_queries[commit.prediction_id] = observation_id
             return {
                 "prediction_id": commit.prediction_id,
                 "observation_id": observation_id,
@@ -178,7 +180,7 @@ class E09SharedProtocolAdapter:
                 causation_refs=[f"{self.episode_id}:prediction:{prediction_id}"],
                 payload={
                     "prediction_id": prediction_id,
-                    "query_id": prediction_id.rsplit(":", 1)[-1],
+                    "query_id": self._prediction_queries[prediction_id],
                     "scope": self.scope,
                     "split": self.split,
                     "commit_digest": self._commit_digests[prediction_id],
