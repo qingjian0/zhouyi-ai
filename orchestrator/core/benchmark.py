@@ -1,6 +1,7 @@
 """Fair serial/parallel execution comparison for deterministic experiment handlers."""
 from __future__ import annotations
 
+import copy
 import hashlib
 import json
 import statistics
@@ -44,8 +45,18 @@ async def _execute_once(
     concurrency: int,
     checkpoint: Path,
 ) -> dict[str, Any]:
+    isolated_tasks = [
+        TaskSpec(
+            task_id=task.task_id,
+            handler=task.handler,
+            depends_on=task.depends_on,
+            payload=copy.deepcopy(task.payload),
+            max_retries=task.max_retries,
+        )
+        for task in tasks
+    ]
     scheduler = Scheduler(
-        TaskGraph(tasks), handlers,
+        TaskGraph(isolated_tasks), handlers,
         checkpoint=checkpoint, concurrency=concurrency,
     )
     started = time.perf_counter()
