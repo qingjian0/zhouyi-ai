@@ -51,6 +51,7 @@ class PredictionCommit:
     model_version: str
     prediction: tuple[int, ...]
     commit_digest: str
+    sequence: int
 
 
 @dataclass(frozen=True)
@@ -61,6 +62,7 @@ class EvidenceReveal:
     scope: str
     split: EvidenceSplit
     outcome: tuple[int, ...]
+    sequence: int
 
 
 class EvidenceLedger:
@@ -73,6 +75,7 @@ class EvidenceLedger:
     def __init__(self) -> None:
         self._commits: dict[str, PredictionCommit] = {}
         self._reveals: dict[str, EvidenceReveal] = {}
+        self._events: list[tuple[str, str]] = []
         self._commits_sealed = False
 
     @property
@@ -124,8 +127,11 @@ class EvidenceLedger:
             "model_version": model_version,
             "prediction": pred,
         }
-        record = PredictionCommit(**payload, commit_digest=digest(payload))
+        record = PredictionCommit(
+            **payload, commit_digest=digest(payload), sequence=len(self._events)
+        )
         self._commits[commit_id] = record
+        self._events.append(("commit", commit_id))
         return record
 
     def reveal(
@@ -162,8 +168,10 @@ class EvidenceLedger:
             scope=scope,
             split=split,
             outcome=target,
+            sequence=len(self._events),
         )
         self._reveals[evidence_id] = reveal
+        self._events.append(("reveal", evidence_id))
         return reveal
 
     def visible_reveals(self, role: ConsumerRole) -> tuple[EvidenceReveal, ...]:
