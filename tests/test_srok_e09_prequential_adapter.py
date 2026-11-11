@@ -2,7 +2,7 @@ import random, tempfile, unittest
 from pathlib import Path
 from prototype.e09_counterexample_learner import Example
 from prototype.e09_prequential import PrequentialError, PrequentialRunner
-from prototype.e09_shared_protocol_adapter import E09SharedProtocolAdapter
+from prototype.e09_shared_protocol_adapter import E09ProtocolAdapterError, E09SharedProtocolAdapter
 from prototype.n09_learnable_srok import Node, RoleSpec
 from prototype.shared_evidence_protocol import SQLiteEvidenceStore
 from prototype.srok_prequential_learner import SROKPrequentialLearner, encode_srok_observation
@@ -108,6 +108,34 @@ class SROKPrequentialTests(unittest.TestCase):
         self.assertEqual(len(resumed.runner.ledger.records()), 26)
         revision = resumed.revise(pending["prediction_id"])
         self.assertEqual(revision["after_version_id"], "srok0-v3")
+
+    def test_resume_recovers_structure_committed_before_revision_event(self):
+        adapter, runner, learner = self.adapter()
+        nodes, target = make_episode(303)
+        committed = adapter.predict_and_commit(
+            "obs-crash-window", (encode_srok_observation(nodes),)
+        )
+        adapter.reveal(committed["prediction_id"], target)
+        append_revision = self.store.append_revision
+        def fail_revision(**kwargs):
+            raise RuntimeError("simulated interruption after structure checkpoint")
+        self.store.append_revision = fail_revision
+        with self.assertRaises(E09ProtocolAdapterError):
+            adapter.revise(committed["prediction_id"])
+        self.store.append_revision = append_revision
+
+        self.store.close()
+        self.store = SQLiteEvidenceStore(Path(self.tmp.name) / "srok.sqlite3")
+        resumed = E09SharedProtocolAdapter.resume_srok(
+            self.store, episode_id="episode-SUPPORT-2-4096",
+            scope="srok/test", split="SUPPORT", learner_track="srok0",
+            version_prefix="srok0", learner_factory=SROKPrequentialLearner.from_snapshot,
+        )
+        self.assertEqual(resumed._version_id, "srok0-v2")
+        self.assertEqual(len(resumed.runner._revisions), 1)
+        self.assertTrue(resumed.runner._revisions[0].revision_id.startswith("recovered-"))
+        with self.assertRaises(E09ProtocolAdapterError):
+            resumed.revise(committed["prediction_id"])
 
     def test_support_commit_reveal_and_batch_refit(self):
         adapter,runner,learner=self.adapter()
