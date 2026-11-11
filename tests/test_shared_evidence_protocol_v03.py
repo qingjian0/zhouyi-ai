@@ -980,6 +980,35 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
             self.store.replay_projection("ep").hydrate_lifecycle_ledgers()
 
 
+
+    def test_candidate_lifecycle_validation_isolated_per_learner_track(self):
+        candidate = Candidate(candidate_id="shared", version=1, canonical_expression="a relates b",
+            proposer_family="relational", supporting_families=("relational",),
+            input_types=("entity", "entity"), operator="RELATES")
+        events = [
+            self.observation(),
+            {"event_id":"shared-version","event_type":"structure_version","payload":{
+                "structure_id":"shared","version_id":"shared@1","kind":"candidate",
+                "definition":candidate_definition_payload(candidate),
+                "parent_version_ids":[],"support_evidence_ids":[]}},
+        ]
+        for track in ("track-a", "track-b"):
+            events.append({"event_id":f"{track}-propose","event_type":"lifecycle_action","payload":{
+                "action_id":"propose","action_type":"propose","candidate_id":"shared","candidate_version":1,
+                "from_state":"observed","to_state":"proposed","evidence_refs":[],"cost":0.1,
+                "note":"track-local proposal","candidate_lineage_refs":[],"learner_track":track}})
+        events.append({"event_id":"track-a-discriminate","event_type":"lifecycle_action","payload":{
+            "action_id":"discriminate","action_type":"request_discrimination","candidate_id":"shared",
+            "candidate_version":1,"from_state":"proposed","to_state":"discrimination_pending",
+            "evidence_refs":[],"cost":0.1,"note":"track A only","candidate_lineage_refs":[],"learner_track":"track-a"}})
+        self.store.append_events(episode_id="ep",idempotency_key="track-isolated-actions",events=events)
+        projection = self.store.replay_projection("ep")
+        self.assertEqual(projection.track_candidate_objects["track-a"]["shared@1"].state,CandidateState.DISCRIMINATION_PENDING)
+        self.assertEqual(projection.track_candidate_objects["track-b"]["shared@1"].state,CandidateState.PROPOSED)
+        ledgers = projection.hydrate_lifecycle_ledgers()
+        self.assertEqual(ledgers["track-a"].candidates[("shared",1)].state,CandidateState.DISCRIMINATION_PENDING)
+        self.assertEqual(ledgers["track-b"].candidates[("shared",1)].state,CandidateState.PROPOSED)
+
     def test_dependency_edges_are_persisted_projected_and_reopened(self):
         def make_candidate(cid, expression):
             return Candidate(candidate_id=cid, version=1, canonical_expression=expression,

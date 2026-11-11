@@ -499,16 +499,18 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                     "SELECT payload_json FROM events WHERE episode_id=? AND event_type='lifecycle_action' "
                     "AND json_extract(payload_json, '$.candidate_id')=? "
                     "AND json_extract(payload_json, '$.candidate_version')=? "
+                    "AND json_extract(payload_json, '$.learner_track')=? "
                     "ORDER BY sequence_no DESC LIMIT 1",
-                    (episode_id, candidate_id, candidate_version),
+                    (episode_id, candidate_id, candidate_version, payload["learner_track"]),
                 ).fetchone()
                 current_state = "observed" if latest is None else json.loads(latest["payload_json"])["to_state"]
                 if current_state != from_state:
                     raise ProtocolError(f"stale lifecycle transition: current={current_state}, from={from_state}")
             duplicate = self._db.execute(
                 "SELECT 1 FROM events WHERE episode_id=? AND event_type='lifecycle_action' "
-                "AND json_extract(payload_json, '$.action_id')=?",
-                (episode_id, payload["action_id"]),
+                "AND json_extract(payload_json, '$.action_id')=? "
+                "AND json_extract(payload_json, '$.learner_track')=?",
+                (episode_id, payload["action_id"], payload["learner_track"]),
             ).fetchone()
             if duplicate:
                 raise ProtocolError("duplicate lifecycle action_id")
