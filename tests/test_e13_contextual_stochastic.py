@@ -57,7 +57,7 @@ class E13ContextualMechanismTests(unittest.TestCase):
                 ContextualTransitionRule((("regime", "warm"),), "drive", (("charge", "empty"),),
                     (((("charge", "full"),), Fraction(1)),)),
                 ContextualTransitionRule((("regime", "warm"),), "drive", (("charge", "full"),),
-                    (((("charge", "full"),), Fraction(1)),)),
+                    (((("charge", "empty"),), Fraction(1)),)),
             ))
         mapping = ContextualKernelMap(
             (("level", "charge"),),
