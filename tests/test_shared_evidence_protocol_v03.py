@@ -208,5 +208,160 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
 
 
 
+    def test_revision_batch_is_atomic_and_follows_e12_create_revision_order(self):
+        # Parent candidate starts at OBSERVED.
+        self.store.append_event(
+            episode_id="ep", event_id="candidate-v1", event_type="structure_version",
+            idempotency_key="candidate-v1",
+            payload={
+                "structure_id": "candidate", "version_id": "candidate@1",
+                "kind": "candidate", "definition": {"expression": "x>y"},
+                "parent_version_ids": [], "support_evidence_ids": [],
+            },
+        )
+
+        # Visible TRAIN evidence is ingested without fabricating a prediction/reveal.
+        self.store.append_events(
+            episode_id="ep", idempotency_key="train-evidence",
+            events=[self.observation("obs-train"), self.ingest(
+                evidence_id="train-1", role="train", observation_id="obs-train"
+            )],
+        )
+
+        def reveal(evidence_id, observation_id, prediction_id, role):
+            self.store.append_events(
+                episode_id="ep", idempotency_key=f"reveal-{evidence_id}",
+                events=[
+                    self.observation(observation_id),
+                    {
+                        "event_id": f"commit-{evidence_id}", "event_type": "prediction_commit",
+                        "payload": {
+                            "prediction_id": prediction_id, "observation_id": observation_id,
+                            "model_version": "test-model", "learner_track": "e12",
+                            "decision_status": "PREDICT",
+                        },
+                    },
+                    {
+                        "event_id": f"reveal-{evidence_id}", "event_type": "evidence_reveal",
+                        "payload": {
+                            "prediction_id": prediction_id, "learner_track": "e12",
+                            "target_or_feedback": {"result": "observed"},
+                            "split_role": role,
+                        },
+                    },
+                ],
+            )
+
+        reveal("gate", "obs-gate", "pred-gate", "gate_final")
+        reveal("locked", "obs-locked", "pred-locked", "locked_test")
+
+        def action(action_id, action_type, from_state, to_state, evidence_refs=(), lineage=()):
+            self.store.append_event(
+                episode_id="ep", event_id=f"event-{action_id}", event_type="lifecycle_action",
+                idempotency_key=f"key-{action_id}",
+                payload={
+                    "action_id": action_id, "action_type": action_type,
+                    "candidate_id": "candidate", "candidate_version": 1,
+                    "from_state": from_state, "to_state": to_state,
+                    "evidence_refs": list(evidence_refs), "cost": 0.1, "note": action_id,
+                    "candidate_lineage_refs": list(lineage), "learner_track": "e12",
+                },
+            )
+
+        action("propose", "propose", "observed", "proposed")
+        action("discriminate", "request_discrimination", "proposed", "discrimination_pending")
+        action("train", "train_support", "discrimination_pending", "train_supported",
+               [{"kind": "ingested", "id": "train-1"}])
+        action("gate", "gate_validate", "train_supported", "gate_validated",
+               [{"kind": "revealed", "id": "reveal-gate"}])
+        action("challenge", "challenge", "gate_validated", "challenged",
+               [{"kind": "revealed", "id": "reveal-locked"}])
+
+        parent_revise = {
+            "event_id": "revise-parent", "event_type": "lifecycle_action",
+            "payload": {
+                "action_id": "revise-parent", "action_type": "revise",
+                "candidate_id": "candidate", "candidate_version": 1,
+                "from_state": "challenged", "to_state": "revised",
+                "evidence_refs": [{"kind": "revealed", "id": "reveal-locked"}],
+                "cost": 0.2, "note": "revise after locked-test counterexample",
+                "candidate_lineage_refs": [], "learner_track": "e12",
+            },
+        }
+        child_version = {
+            "event_id": "candidate-v2", "event_type": "structure_version",
+            "payload": {
+                "structure_id": "candidate", "version_id": "candidate@2",
+                "kind": "candidate", "definition": {"expression": "x>y and z"},
+                "parent_version_ids": ["candidate@1"],
+                "support_evidence_ids": [{"kind": "ingested", "id": "train-1"}],
+            },
+        }
+        child_register = {
+            "event_id": "register-child", "event_type": "lifecycle_action",
+            "payload": {
+                "action_id": "register-child", "action_type": "register_revision",
+                "candidate_id": "candidate", "candidate_version": 2,
+                "from_state": "observed", "to_state": "revalidation_pending",
+                "evidence_refs": [{"kind": "revealed", "id": "reveal-locked"}],
+                "cost": 0.0, "note": "register revision child",
+                "candidate_lineage_refs": ["candidate@1"], "learner_track": "e12",
+            },
+        }
+        revision = {
+            "event_id": "revision-record", "event_type": "revision",
+            "payload": {
+                "revision_id": "revision-1", "operation": "revise",
+                "trigger_evidence_ids": ["reveal-locked"],
+                "before_version_ids": ["candidate@1"],
+                "after_version_ids": ["candidate@2"],
+            },
+        }
+
+        # Invalid final event must roll back all three preceding revision events.
+        bad_revision = {
+            **revision,
+            "payload": {**revision["payload"], "trigger_evidence_ids": ["missing-reveal"]},
+        }
+        with self.assertRaises(MissingReference):
+            self.store.append_events(
+                episode_id="ep", idempotency_key="revision-bad",
+                events=[parent_revise, child_version, child_register, bad_revision],
+            )
+        self.assertIsNone(self.store._event_by_payload_id("ep", "structure_version", "version_id", "candidate@2"))
+        latest = self.store._db.execute(
+            "SELECT payload_json FROM events WHERE episode_id='ep' AND event_type='lifecycle_action' "
+            "AND json_extract(payload_json, '$.candidate_id')='candidate' "
+            "AND json_extract(payload_json, '$.candidate_version')=1 ORDER BY sequence_no DESC LIMIT 1"
+        ).fetchone()
+        self.assertEqual(__import__("json").loads(latest["payload_json"])["to_state"], "challenged")
+
+        receipts = self.store.append_events(
+            episode_id="ep", idempotency_key="revision-good",
+            events=[parent_revise, child_version, child_register, revision],
+        )
+        self.assertEqual(len(receipts), 4)
+        self.assertEqual([r.sequence_no for r in receipts], list(range(receipts[0].sequence_no, receipts[0].sequence_no + 4)))
+        self.assertEqual(
+            self.store._db.execute(
+                "SELECT json_extract(payload_json, '$.to_state') FROM events "
+                "WHERE episode_id='ep' AND event_type='lifecycle_action' "
+                "AND json_extract(payload_json, '$.candidate_version')=1 "
+                "ORDER BY sequence_no DESC LIMIT 1"
+            ).fetchone()[0],
+            "revised",
+        )
+        self.assertEqual(
+            self.store._db.execute(
+                "SELECT json_extract(payload_json, '$.to_state') FROM events "
+                "WHERE episode_id='ep' AND event_type='lifecycle_action' "
+                "AND json_extract(payload_json, '$.candidate_version')=2 "
+                "ORDER BY sequence_no DESC LIMIT 1"
+            ).fetchone()[0],
+            "revalidation_pending",
+        )
+
+
+
 if __name__ == "__main__":
     unittest.main()
