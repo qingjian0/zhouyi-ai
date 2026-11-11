@@ -99,18 +99,14 @@ class OperatorLearningCoordinator:
     def __init__(
         self, *, min_support: int = 2, max_candidates: int = 256
     ) -> None:
+        self._min_support = min_support
         self._inducer = RelationalOperatorInducer(
             min_support=min_support, max_candidates=max_candidates
         )
         self._records: dict[str, CandidateRecord] = {}
-        self._discovery_ids: set[str] = set()
-        self._evaluation_ids: dict[EvidenceSplit, set[str]] = {
-            EvidenceSplit.VALIDATION: set(),
-            EvidenceSplit.TEST: set(),
-        }
+        self._evidence_ledger: dict[str, str] = {}
         self._tickets: dict[str, ExperimentQuery] = {}
         self._revealed_query_ids: set[str] = set()
-        self._revealed_evidence_ids: set[str] = set()
 
     @property
     def candidates(self) -> tuple[CandidateRecord, ...]:
@@ -125,21 +121,73 @@ class OperatorLearningCoordinator:
         ids = [case.evidence_id for case in rows]
         if any(not item for item in ids) or len(ids) != len(set(ids)):
             raise LearningLoopError("discovery evidence IDs must be non-empty and unique")
-        if self._discovery_ids.intersection(ids):
-            raise LearningLoopError("discovery evidence cannot be reused")
+        if any(item in self._evidence_ledger for item in ids):
+            raise LearningLoopError("evidence IDs cannot be reused across splits or events")
         report = self._inducer.discover(case.observation for case in rows)
         proposed = []
         for candidate in report.candidates:
-            if candidate.candidate_id in self._records:
-                continue
-            record = CandidateRecord(
-                candidate=candidate,
-                lifecycle=CandidateLifecycle.PROPOSED,
-                discovery_evidence_ids=candidate.evidence_ids,
-            )
+            prior = self._records.get(candidate.candidate_id)
+            if prior is not None:
+                prior_candidate = prior.candidate
+                common_patterns = tuple(sorted(
+                    set(prior_candidate.required_patterns)
+                    & set(candidate.required_patterns)
+                ))
+                prior_context = dict(prior_candidate.required_context)
+                next_context = dict(candidate.required_context)
+                common_context = tuple(sorted(
+                    (key, value) for key, value in prior_context.items()
+                    if next_context.get(key) == value
+                ))
+                evidence_ids = tuple(sorted(
+                    set(prior_candidate.evidence_ids) | set(candidate.evidence_ids)
+                ))
+                evidence_kinds = tuple(sorted(
+                    set(prior_candidate.evidence_kinds) | set(candidate.evidence_kinds),
+                    key=lambda item: item.value,
+                ))
+                domains = tuple(sorted(
+                    set(prior_candidate.domains) | set(candidate.domains)
+                ))
+                candidate = replace(
+                    candidate,
+                    version=prior_candidate.version + 1,
+                    required_patterns=common_patterns,
+                    required_context=common_context,
+                    evidence_ids=evidence_ids,
+                    evidence_kinds=evidence_kinds,
+                    domains=domains,
+                    status=(
+                        InductionStatus.INTERVENTION_SUPPORTED
+                        if EvidenceKind.INTERVENTIONAL in evidence_kinds
+                        and len(evidence_ids) >= self._min_support
+                        else InductionStatus.PROPOSED
+                    ),
+                )
+                lifecycle = (
+                    prior.lifecycle
+                    if prior.lifecycle in {
+                        CandidateLifecycle.SUSPENDED, CandidateLifecycle.REJECTED
+                    }
+                    else CandidateLifecycle.PROPOSED
+                )
+                record = replace(
+                    prior,
+                    candidate=candidate,
+                    lifecycle=lifecycle,
+                    discovery_evidence_ids=evidence_ids,
+                    validation_accuracy=None,
+                    validation_coverage=None,
+                )
+            else:
+                record = CandidateRecord(
+                    candidate=candidate,
+                    lifecycle=CandidateLifecycle.PROPOSED,
+                    discovery_evidence_ids=candidate.evidence_ids,
+                )
             self._records[candidate.candidate_id] = record
             proposed.append(record)
-        self._discovery_ids.update(ids)
+        self._evidence_ledger.update({item: EvidenceSplit.DISCOVERY.value for item in ids})
         return tuple(proposed)
 
     def evaluate(
@@ -159,11 +207,8 @@ class OperatorLearningCoordinator:
         ids = [case.evidence_id for case in rows]
         if any(not item for item in ids) or len(ids) != len(set(ids)):
             raise LearningLoopError("evaluation evidence IDs must be non-empty and unique")
-        if self._discovery_ids.intersection(ids):
-            raise LearningLoopError("discovery evidence cannot be reused for evaluation")
-        used = self._evaluation_ids[split]
-        if used.intersection(ids):
-            raise LearningLoopError("evaluation evidence cannot be reused within a split")
+        if any(item in self._evidence_ledger for item in ids):
+            raise LearningLoopError("evidence IDs cannot be reused across splits or events")
         candidate = self._records[candidate_id].candidate
         eligible = correct = 0
         abstained, incorrect = [], []
@@ -181,7 +226,7 @@ class OperatorLearningCoordinator:
                 correct += 1
             else:
                 incorrect.append(case.evidence_id)
-        used.update(ids)
+        self._evidence_ledger.update({item: split.value for item in ids})
         return CandidateEvaluation(
             candidate_id, split, len(rows), eligible, correct,
             tuple(sorted(abstained)), tuple(sorted(incorrect)),
@@ -256,8 +301,8 @@ class OperatorLearningCoordinator:
             raise LearningLoopError("outcome must answer a committed experiment")
         if query_id in self._revealed_query_ids:
             raise LearningLoopError("experiment outcome has already been revealed")
-        if not evidence_id or evidence_id in self._revealed_evidence_ids:
-            raise LearningLoopError("evidence_id must be non-empty and unique")
+        if not evidence_id or evidence_id in self._evidence_ledger:
+            raise LearningLoopError("evidence_id must be globally unique across all splits and events")
         observation = TransitionObservation(
             before=query.state,
             after=after,
@@ -297,7 +342,7 @@ class OperatorLearningCoordinator:
                 )
             self._records[candidate_id] = updated
         self._revealed_query_ids.add(query_id)
-        self._revealed_evidence_ids.add(evidence_id)
+        self._evidence_ledger[evidence_id] = "ACTIVE_INTERVENTION"
         return ExperimentFeedback(
             query_id, evidence_id, evidence_kind,
             tuple(sorted(matching)), tuple(sorted(contradicted)),
