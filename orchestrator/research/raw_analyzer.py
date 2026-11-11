@@ -140,9 +140,9 @@ def analyze_raw_observations(
             raise ValueError(f"{name} must be a non-empty string")
     if treatment_condition == baseline_condition:
         raise ValueError("treatment and baseline conditions must differ")
-    if metric_direction not in {"higher", "lower"}:
+    if not isinstance(metric_direction, str) or metric_direction not in {"higher", "lower"}:
         raise ValueError("metric_direction must be higher or lower")
-    if predicted_direction not in {"positive", "negative"}:
+    if not isinstance(predicted_direction, str) or predicted_direction not in {"positive", "negative"}:
         raise ValueError("predicted_direction must be positive or negative")
     if isinstance(min_seeds, bool) or not isinstance(min_seeds, int) or min_seeds < 2:
         raise ValueError("min_seeds must be an integer >= 2")
@@ -182,7 +182,7 @@ def analyze_raw_observations(
         seen.add(task_id)
         meta = manifest[task_id]
         split, control = raw["split"], raw["control"]
-        if split not in {"iid", "ood"} or control not in {"none", "shuffled", "random"}:
+        if (not isinstance(split, str) or split not in {"iid", "ood"} or not isinstance(control, str) or control not in {"none", "shuffled", "random"}):
             raise ValueError(f"{task_id}: unsupported split or control")
         if raw["metric"] != metric:
             raise ValueError(f"{task_id}: metric mismatch")
@@ -218,7 +218,7 @@ def analyze_raw_observations(
                              "preregistered": raw["preregistered"],
                              "split_source": raw["split_source"]}
 
-    groups: dict[tuple[str, str, str], list[dict[str, Any]]] = defaultdict(list)
+    groups: dict[tuple[str, str, str, int, float], list[dict[str, Any]]] = defaultdict(list)
     for key, pair in joined.items():
         track, seed, split, control, parameter_count, compute_budget = key
         if set(pair) != {treatment_condition, baseline_condition}:
@@ -230,7 +230,7 @@ def analyze_raw_observations(
         delta = (treatment["value"] - baseline["value"]
                  if metric_direction == "higher"
                  else baseline["value"] - treatment["value"])
-        groups[(track, split, control)].append({
+        groups[(track, split, control, parameter_count, compute_budget)].append({
             "seed": seed, "delta": delta,
             "task_ids": [treatment["task_id"], baseline["task_id"]],
             "preregistered": treatment["preregistered"] and baseline["preregistered"],
@@ -239,7 +239,7 @@ def analyze_raw_observations(
         })
 
     evidence_rows = []
-    for (track, split, control), pairs in sorted(groups.items()):
+    for (track, split, control, parameter_count, compute_budget), pairs in sorted(groups.items()):
         pairs.sort(key=lambda item: item["seed"])
         if len(pairs) < 2:
             excluded.extend({"task_id": task_id, "reason": "fewer_than_two_matched_seeds"}
@@ -252,7 +252,7 @@ def analyze_raw_observations(
         evidence_id = hashlib.sha256(_canonical({
             "task_set_digest": task_set_digest, "track": track, "split": split,
             "control": control, "treatment": treatment_condition,
-            "baseline": baseline_condition, "metric": metric,
+            "baseline": baseline_condition, "metric": metric, "parameter_count": parameter_count, "compute_budget": compute_budget,
         })).hexdigest()[:20]
         evidence_rows.append({
             "evidence_id": evidence_id, "track": track, "split": split,
@@ -268,8 +268,8 @@ def analyze_raw_observations(
             "effect_direction": predicted_direction,
             "split_source": pairs[0]["split_source"],
             "control_family": control,
-            "parameter_count": pairs[0]["parameter_count"],
-            "compute_budget": pairs[0]["compute_budget"],
+            "parameter_count": parameter_count,
+            "compute_budget": compute_budget,
             "confidence_level": float(confidence_level),
             "interval_method": "paired Student-t confidence interval",
         })
