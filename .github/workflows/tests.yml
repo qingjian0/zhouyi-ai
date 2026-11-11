@@ -2,9 +2,9 @@ name: tests
 
 on:
   push:
-    branches: [main, research/znca-n3b-isolated-hypothesis-arena-2026-11-11]
+    branches: [main, research/znca-n3b-isolated-hypothesis-arena-2026-11-11, research/znca-n3c-durable-event-store-2026-11-11]
   pull_request:
-    branches: [main, integration/cpg-ei-v1-foundation-2026-11-11, integration/e12a20-interop-adapter-2026-11-11, research/mobile-million-context-architecture-2026-11-11, research/znca-n3-event-driven-architecture-2026-11-11]
+    branches: [main, integration/cpg-ei-v1-foundation-2026-11-11, integration/e12a20-interop-adapter-2026-11-11, research/mobile-million-context-architecture-2026-11-11, research/znca-n3-event-driven-architecture-2026-11-11, research/znca-n3b-isolated-hypothesis-arena-2026-11-11]
 
 jobs:
   unit-tests:
