@@ -172,11 +172,20 @@ def run_joint(train_examples: Iterable[Example], validation_examples: Iterable[E
         raise ValueError("outcome outside manifest vocabulary")
 
     features, _ = _build_feature_index(train + validation, structure_budget)
+    streams = [iter(_candidate_stream(family, train, features, structure_budget))
+               for family in ("SPARSE_CONJUNCTION", "TYPED_PATH", "FORK_JOIN")]
     candidates = []
-    for family in ("SPARSE_CONJUNCTION", "TYPED_PATH", "FORK_JOIN"):
-        candidates.extend(list(__import__("itertools").islice(
-            _candidate_stream(family, train, features, structure_budget), budget.max_candidates + 1)))
-    candidates = candidates[:budget.max_candidates]
+    exhausted = [False] * len(streams)
+    while len(candidates) < budget.max_candidates and not all(exhausted):
+        for index, stream in enumerate(streams):
+            if len(candidates) >= budget.max_candidates:
+                break
+            if exhausted[index]:
+                continue
+            try:
+                candidates.append(next(stream))
+            except StopIteration:
+                exhausted[index] = True
     if not candidates:
         raise ValueError("no candidate rules available")
     x_train_all = _matrix(train, candidates, features)
