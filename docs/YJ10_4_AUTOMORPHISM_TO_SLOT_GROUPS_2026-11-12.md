@@ -15,7 +15,7 @@
 3. 将 stabilizer 对参与实体集合的作用映射到该超边的 slot index，得到槽位置换子群。
 4. 同一快照中 schema 相同的多条关系实例取群交集，采用保守的共同对称性。
 5. 多个 observation 之间仅在 relation type、arity、slot frame、entity-type frame、context、attributes、validity 和 symmetry policy 完全一致时聚合。
-6. 对每个候选置换，exact witness 给出兼容或冲突记录，再交给 YJ-10.3 统计支持和计算群闭包。
+6. 保留每个 observation 的精确槽位置换群，并按输入顺序比较相邻 observation，显式报告对称性破缺、扩张或重配置。\n7. 对跨 observation 的共同结构，再将每个候选置换的兼容/冲突记录交给 YJ-10.3 统计支持和计算共同子群。
 
 ## 关键数学性质
 
@@ -33,7 +33,7 @@
 
 ## 测试设计
 
-覆盖 mapping opt-in、无外部约束的 (S_3)、外部上下文约束出的 (C_2)、不对称上下文降为 identity、跨快照 (C_2	o 1) 对称性破缺、重复参与实体拒绝、slot frame 不一致隔离。
+覆盖 mapping opt-in、逐 observation 群保留与 transition 输出、无外部约束的 (S_3)、外部上下文约束出的 (C_2)、不对称上下文降为 identity、跨快照 (C_2	o 1) 对称性破缺、重复参与实体拒绝、slot frame 不一致隔离。
 
 ## 下一步
 
