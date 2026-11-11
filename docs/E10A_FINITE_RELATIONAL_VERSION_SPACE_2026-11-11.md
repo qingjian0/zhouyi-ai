@@ -83,4 +83,23 @@ This finding changes the next experiment: E10-B must include genuinely informati
 
 ## Next gate
 
-The ten-seed sweep passed as part of full workflow run #42943830809. The subprocess learner backend and hidden-truth input canary were added after that run; their validation is pending on the latest branch head. The next security gate is an OS-level sandbox/privilege profile, IPC timeouts, and adversarial framing tests. Then test E10-B transfer to renamed attributes, unseen objects, unseen contexts, support ablations, and hard negatives. Operator synthesis should wait until those transfer tests and matched baselines exist.
+The ten-seed sweep, subprocess learner backend, hidden-truth input canary, and full repository workflow all passed on latest E10-A head `e47a97d528d27f90a4c7c44dd80cc919899a41d6` in Run #42944371831. That run includes unit tests, E10-A experiment, subprocess backend, ten-seed sweep, and E01/E02 experiment gates. The next security gate is an OS-level sandbox/privilege profile, IPC timeouts, and adversarial framing tests. Then test E10-B transfer to renamed attributes, unseen objects, unseen contexts, support ablations, and hard negatives. Operator synthesis should wait until those transfer tests and matched baselines exist.
+
+
+## E10-B first gate: explicit OOD abstention and renaming invariance
+
+The learner now distinguishes three kinds of out-of-distribution input before voting:
+- `ABSTAIN_OOD_RELATION`: an unseen relation symbol.
+- `ABSTAIN_OOD_SCHEMA`: unseen attribute/context keys or participant records with no Support-known feature key.
+- `ABSTAIN_OOD_VALUE`: unseen categorical attribute or context values.
+
+This prevents a dangerous failure mode in which every known rule fails to match an unfamiliar input and the learner incorrectly turns that universal mismatch into a confident negative prediction.
+
+`prototype/e10b_transfer_experiment.py` evaluates:
+1. consistent global renaming of Support and Query feature/context keys (prediction invariance);
+2. Query-only renamed attributes (must abstain as OOD schema);
+3. Query-only unseen categorical values (must abstain as OOD value);
+4. Query-only unseen context values (must abstain as OOD value);
+5. Support-majority, deterministic-random, and evaluator-oracle upper-bound controls.
+
+The oracle is evaluator-only and is reported solely as an upper bound. OOD abstention is a safe rejection behavior, not successful extrapolation. The current stage does not yet establish semantic analogy, relation-family transfer, or open-world concept induction. CI runs this audit and its unit tests.
