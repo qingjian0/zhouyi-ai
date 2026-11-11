@@ -38,6 +38,7 @@
 - [数学理论 v0.3](docs/THEORY_v0.3.md)
 - [架构设计](docs/ARCHITECTURE.md)
 - [易象模块：可检验化设计](docs/YIXIANG_MODULE.md)
+- [第三轮：易象多维类象、五行历史分层与关系映射原型](docs/YIXIANG_TYPED_ANALOGY_AND_FIVE_PHASES_RESEARCH_2026-11-11.md)
 - [相关工作与文献](docs/RELATED_WORK.md)
 - [2026-11-10 研究增量报告](docs/RESEARCH_FINDINGS_2026-11-10.md)
 - [实验计划与验收标准](docs/EXPERIMENTS.md)
