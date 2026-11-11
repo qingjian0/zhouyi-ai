@@ -9,6 +9,8 @@ This is a small synthetic-reasoning prototype, not a language model.
 from __future__ import annotations
 from dataclasses import dataclass
 from itertools import combinations, product
+import hashlib
+import json
 import math
 from typing import Iterable, Sequence
 
@@ -399,3 +401,94 @@ class LearnableSROK:
         if not math.isfinite(score):
             raise LearnableSROKError("prediction score must be finite")
         return (1 if score >= 0.0 else 0), score
+
+
+    def checkpoint_json(self) -> str:
+        """Serialize deterministic model state with a content-addressed version."""
+        payload = {
+            "format": "zhouyi-ai.n10.learnable-srok",
+            "schema_version": 1,
+            "feature_dim": self.feature_dim,
+            "roles": [
+                {
+                    "name": role.name,
+                    "allowed_types": sorted(role.allowed_types),
+                    "required_tags": sorted(role.required_tags),
+                }
+                for role in self.roles
+            ],
+            "weights": self.weights,
+            "training_steps": self.training_steps,
+        }
+        canonical = json.dumps(
+            payload, sort_keys=True, separators=(",", ":"),
+            ensure_ascii=False, allow_nan=False,
+        )
+        envelope = dict(payload)
+        envelope["sha256"] = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+        return json.dumps(
+            envelope, sort_keys=True, indent=2,
+            ensure_ascii=False, allow_nan=False,
+        )
+
+    @classmethod
+    def from_checkpoint_json(cls, raw: str) -> "LearnableSROK":
+        """Load a checkpoint only after schema, digest, shape, and finiteness checks."""
+        try:
+            envelope = json.loads(raw)
+        except (TypeError, json.JSONDecodeError) as exc:
+            raise LearnableSROKError("checkpoint must be valid JSON") from exc
+        if not isinstance(envelope, dict):
+            raise LearnableSROKError("checkpoint root must be an object")
+        expected = {
+            "format", "schema_version", "feature_dim", "roles",
+            "weights", "training_steps", "sha256",
+        }
+        if set(envelope) != expected:
+            raise LearnableSROKError("checkpoint fields do not match schema")
+        supplied_digest = envelope.get("sha256")
+        payload = {key: value for key, value in envelope.items() if key != "sha256"}
+        canonical = json.dumps(
+            payload, sort_keys=True, separators=(",", ":"),
+            ensure_ascii=False, allow_nan=False,
+        )
+        actual_digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+        if (not isinstance(supplied_digest, str)
+                or supplied_digest != actual_digest):
+            raise LearnableSROKError("checkpoint digest mismatch")
+        if payload["format"] != "zhouyi-ai.n10.learnable-srok" or payload["schema_version"] != 1:
+            raise LearnableSROKError("unsupported checkpoint format or version")
+        feature_dim = payload["feature_dim"]
+        if isinstance(feature_dim, bool) or not isinstance(feature_dim, int) or feature_dim < 1:
+            raise LearnableSROKError("checkpoint feature_dim must be a positive integer")
+        raw_roles = payload["roles"]
+        if not isinstance(raw_roles, list) or len(raw_roles) < 2:
+            raise LearnableSROKError("checkpoint roles must be a list of at least two roles")
+        roles = []
+        for item in raw_roles:
+            if not isinstance(item, dict) or set(item) != {"name", "allowed_types", "required_tags"}:
+                raise LearnableSROKError("invalid checkpoint role schema")
+            if (not isinstance(item["name"], str) or not item["name"]
+                    or not isinstance(item["allowed_types"], list)
+                    or not isinstance(item["required_tags"], list)
+                    or any(not isinstance(x, str) or not x for x in item["allowed_types"] + item["required_tags"])):
+                raise LearnableSROKError("invalid checkpoint role values")
+            roles.append(RoleSpec(
+                item["name"], frozenset(item["allowed_types"]),
+                frozenset(item["required_tags"]),
+            ))
+        weights = payload["weights"]
+        if not isinstance(weights, list) or any(
+            isinstance(value, bool) or not isinstance(value, (int, float))
+            or not math.isfinite(value) for value in weights
+        ):
+            raise LearnableSROKError("checkpoint weights must be finite numbers")
+        steps = payload["training_steps"]
+        if isinstance(steps, bool) or not isinstance(steps, int) or steps < 0:
+            raise LearnableSROKError("checkpoint training_steps must be a non-negative integer")
+        model = cls(roles, feature_dim)
+        if len(weights) != len(model.weights):
+            raise LearnableSROKError("checkpoint weight shape mismatch")
+        model.weights = [float(value) for value in weights]
+        model.training_steps = steps
+        return model
