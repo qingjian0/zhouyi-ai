@@ -202,3 +202,14 @@ PR #229 verifies the full single-branch lifecycle through restart/replay and con
 PR #230 closes the earlier unsigned authorization gap. Plain BranchMergeAuthorization claims are no longer sufficient. Cross-branch composition requires an E09 v0.3 signed grant with exact parent/scope/branch set, prior verified evidence references and a valid expiry window. Signature verification is delegated to an injected trusted issuer-keyring verifier; test callbacks are not production cryptography.
 
 **Remaining gate:** deployable issuer trust configuration, public-key rotation/revocation, evaluator process isolation, authenticated IPC and remote tamper-evident replication are not implemented. Current E09/ZPCM stores remain trusted single-process SQLite reference components. All listed PRs remain Draft and unmerged.
+
+
+## P1 Ed25519 issuer verification milestone
+
+| PR | Exact head | Exact-head workflow | Result |
+|---|---|---|---|
+| #231 concrete Ed25519 keyring + real cross-branch E2E | `99249112754fb747a791c75205309313820501ed` | `43050925777` | success |
+
+PR #231 implements an immutable issuer→Ed25519 public-key keyring, Base64 signature verification, fail-closed unknown/revoked issuers, and deterministic verifier configuration fingerprints. Its integration test signs a strict E09 grant with an ephemeral private key, verifies it with the concrete keyring, composes two branch deltas, and atomically ingests the resulting typed candidate and verified E09 evidence into E12-A6/ZPCM.
+
+This validates the cryptographic interface and the single-process end-to-end reference path. It does not validate production key provisioning, secure configuration delivery, multi-key overlap/rotation orchestration, process isolation, authenticated IPC or remote anti-rollback storage.
