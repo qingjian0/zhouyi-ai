@@ -115,7 +115,7 @@ class PersistentLifecycleLedger:
                         "receipt_id", "nonce", "authorization_ref", "episode_id", "scope",
                         "parent_state_ref", "branch_ids", "authorization_evidence_refs",
                         "evidence_refs", "issuer_id", "verifier_id", "authorization_event_digest",
-                        "candidate_id", "candidate_version", "consumed_at",
+                        "receipt_issued_at", "receipt_expires_at", "candidate_id", "candidate_version", "consumed_at",
                     }
                     if set(body) != required:
                         raise LifecyclePersistenceError("authorization consumption has an invalid schema")
@@ -133,10 +133,14 @@ class PersistentLifecycleLedger:
                         raise LifecyclePersistenceError("authorization evidence does not cover candidate evidence")
                     if any(ref not in staged.evidence for ref in body["evidence_refs"]):
                         raise LifecyclePersistenceError("authorization consumed before evidence registration")
+                    if any(staged.evidence[ref].episode_id != body["episode_id"] for ref in body["evidence_refs"]):
+                        raise LifecyclePersistenceError("authorization receipt evidence episode mismatch")
                     try:
                         definition = json.loads(candidate.canonical_expression)
                         merge = definition["branch_merge"]
                         consumed_at = datetime.fromisoformat(body["consumed_at"].replace("Z", "+00:00"))
+                        receipt_issued_at = datetime.fromisoformat(body["receipt_issued_at"].replace("Z", "+00:00"))
+                        receipt_expires_at = datetime.fromisoformat(body["receipt_expires_at"].replace("Z", "+00:00"))
                     except (TypeError, ValueError, KeyError) as exc:
                         raise LifecyclePersistenceError("authorization candidate binding is malformed") from exc
                     if (not isinstance(merge, dict)
@@ -144,7 +148,9 @@ class PersistentLifecycleLedger:
                             or set(definition.get("branch_ids", ())) != set(body["branch_ids"])
                             or set(merge.get("authorization_evidence_refs", ())) != set(body["authorization_evidence_refs"])
                             or body["parent_state_ref"] not in candidate.parent_refs
-                            or consumed_at.tzinfo is None):
+                            or consumed_at.tzinfo is None or receipt_issued_at.tzinfo is None
+                            or receipt_expires_at.tzinfo is None
+                            or consumed_at < receipt_issued_at or consumed_at >= receipt_expires_at):
                         raise LifecyclePersistenceError("authorization consumption does not bind the candidate merge")
                     if event["event_id"] != f"e12a6:authorization-consumed:{receipt_id}":
                         raise LifecyclePersistenceError("authorization consumption event ID mismatch")
@@ -242,10 +248,16 @@ class PersistentLifecycleLedger:
                 raise LifecyclePersistenceError("authorization receipt scope does not match lifecycle ledger")
             if consumed_at < receipt.issued_at or consumed_at >= receipt.expires_at:
                 raise LifecyclePersistenceError("authorization receipt is not valid at consumption time")
-            if set(receipt.evidence_refs) != set(evidence_ids):
+            if (len(set(receipt.evidence_refs)) != len(receipt.evidence_refs)
+                    or set(receipt.evidence_refs) != set(evidence_ids)):
                 raise LifecyclePersistenceError("authorization receipt does not cover the candidate evidence bundle")
+            if (not set(receipt.authorization_evidence_refs).issubset(set(receipt.evidence_refs))
+                    or len(set(receipt.branch_ids)) != len(receipt.branch_ids)):
+                raise LifecyclePersistenceError("authorization receipt branch/evidence bindings are invalid")
             if {item.evidence_id for item in receipt.evidence} != set(evidence_ids):
                 raise LifecyclePersistenceError("authorization receipt evidence DTOs do not match bundle evidence")
+            if any(item.episode_id != receipt.episode_id for item in receipt.evidence):
+                raise LifecyclePersistenceError("receipt DTO episode differs from receipt")
             if any(item.episode_id != receipt.episode_id for item in safe_evidence):
                 raise LifecyclePersistenceError("candidate evidence episode differs from authorization receipt")
             try:
@@ -272,6 +284,8 @@ class PersistentLifecycleLedger:
                 "issuer_id": receipt.issuer_id,
                 "verifier_id": receipt.verifier_id,
                 "authorization_event_digest": receipt.authorization_event_digest,
+                "receipt_issued_at": receipt.issued_at.isoformat(),
+                "receipt_expires_at": receipt.expires_at.isoformat(),
                 "candidate_id": candidate.candidate_id,
                 "candidate_version": candidate.version,
                 "consumed_at": consumed_at.isoformat(),
