@@ -1,6 +1,6 @@
 # TX-02：多状态表示竞争与自主选择基准
 
-状态：TX-02A 协议 + 数据生成器实现；TX-02B 学习器尚未实现，尚无 TX-02 性能结果。已有 E02-B 固定三值规则学习器不等同于 TX-02B。  
+状态：TX-02A 协议 + 数据生成器实现；TX-02B-1 精确审计与 TX-02B-2 规则族隔离数据切分已实现；可训练 TX-02B 学习器尚未实现，尚无 TX-02 性能结果。已有 E02-B 固定三值规则学习器不等同于 TX-02B。  
 关联：TX-01、E02-B、E02-D、E12、YF-02/YF-03。
 
 ## 1. 研究问题
@@ -107,7 +107,8 @@ c=(\alpha a+\beta b+\delta)\bmod K
 - TX-02A：建立跨 K、规范/随机置换双条件、支持/查询隔离的数据生成器与单元测试（已提交）。
 - TX-02B-0：建立 BINARY / TERNARY / HYBRID / ONE_HOT / LEARNED_INIT / PERMUTED 的可逆状态码本及单元测试（已提交；LEARNED_INIT 只是随机初始化码本，不是已训练嵌入）。
 - TX-02B-1：实现 TX-02A 仿射规则族内的精确假设枚举、逐查询后验和可辨识性审计器（已实现，Research Python Tests run #85 通过，156 tests passed）。
-- TX-02B：实现统一接口的 BINARY / TERNARY / HYBRID / LEARNED / ONE_HOT 学习器。
+- TX-02B-2：规则系数三元组级 train/validation/locked-test 隔离与 LearnerInput/标签分离（首批实现已提交）。
+- TX-02B-3：实现统一接口的 BINARY / TERNARY / HYBRID / LEARNED / ONE_HOT 学习器。
 - TX-02C：完成容量与计算预算匹配、五种子以上的基线比较。
 - TX-02D：加入验证集门控与 DEFER_MORE_EVIDENCE 选择器。
 - TX-02E：测试未知 K、非均匀状态划分、噪声和规则类外泛化。
@@ -126,3 +127,6 @@ TX-02A 通过只表示数据协议可用，不表示任何表示更优。每个�
 - 结果：156 tests passed（15.275s），包含 8 项精确审计器测试及 K=2/3/4/5、canonical/permuted 生成器真值覆盖测试。
 - 较早 TX-01/TX-02A/B-0 验收：run #49，147 tests passed。
 - 该 CI 结果只验证代码与测试，不是表示学习效果或研究假设的实验结果。
+
+
+TX-02B-2 切分实现位于 [prototype/tx02_splits.py](../prototype/tx02_splits.py)，测试位于 `tests/test_tx02_splits.py`。该实现只建立规则族隔离与标签边界，尚未实现可训练模型或生成性能结果。
