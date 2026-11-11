@@ -128,3 +128,8 @@ PR #222 connects branch snapshots to typed CSG-GCR candidate results. Cross-bran
 ## PR #222 exact-head refresh
 
 PR #222 latest head is `44166f27f1b9892782080a312fc80a15c0e19f2b`, based on PR #221 head `7e65c22f7a3a01782d59306ada3401899134392e`. Workflow `43032951104` was running at audit time; the unit-test step had completed and the workflow had advanced to E01-B. Do not mark the latest head fully validated until the complete workflow concludes.
+
+
+## PR #222 exact-head validation result
+
+PR #222 head `44166f27f1b9892782080a312fc80a15c0e19f2b` completed workflow run `43032951104` with conclusion `success`. The run includes the repository unit-test and E01/E02 evaluation sequence. The typed candidate result preserves merged branch-delta evidence references and the E09 authorization reference/evidence references. This is still a Draft prototype adapter, not E09 cryptographic authorization, E12-A6 lifecycle integration, or ZPCM persistence.
