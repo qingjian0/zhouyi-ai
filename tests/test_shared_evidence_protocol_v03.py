@@ -634,5 +634,34 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
 
 
 
+    def test_typed_candidate_restores_evidence_ids_from_ingested_support(self):
+        candidate = Candidate(
+            candidate_id="relation:supported", version=1,
+            canonical_expression="a relates_to b", proposer_family="relational",
+            supporting_families=("relational",), input_types=("entity", "entity"),
+            operator="RELATES_TO", evidence_ids=("train-1",),
+        )
+        self.store.append_events(
+            episode_id="ep", idempotency_key="candidate-with-support",
+            events=[
+                self.observation(),
+                self.ingest(),
+                {
+                    "event_id": "candidate-supported", "event_type": "structure_version",
+                    "payload": {
+                        "structure_id": candidate.candidate_id,
+                        "version_id": "relation:supported@1", "kind": "candidate",
+                        "definition": candidate_definition_payload(candidate),
+                        "parent_version_ids": [],
+                        "support_evidence_ids": [{"kind": "ingested", "id": "train-1"}],
+                    },
+                },
+            ],
+        )
+        restored = self.store.replay_projection("ep").candidate_objects["relation:supported@1"]
+        self.assertEqual(restored.evidence_ids, ("train-1",))
+
+
+
 if __name__ == "__main__":
     unittest.main()
