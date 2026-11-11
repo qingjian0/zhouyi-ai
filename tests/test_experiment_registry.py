@@ -1,3 +1,4 @@
+import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
@@ -92,6 +93,17 @@ class ExperimentRegistryTests(unittest.TestCase):
                 metrics={"accuracy": float("nan")},
                 completed_at="2026-11-11T02:05:00+00:00",
             )
+
+    def test_spec_tampering_is_detected(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "db.sqlite3"
+            registry = ExperimentRegistry(path)
+            registry.register(make_spec())
+            with sqlite3.connect(path) as db:
+                db.execute("UPDATE experiments SET spec_json = ? WHERE experiment_id = ?",
+                           ('{"tampered":true}', "exp-001"))
+            with self.assertRaisesRegex(ValueError, "integrity"):
+                registry.get_spec("exp-001")
 
     def test_unknown_experiment_raises(self):
         with tempfile.TemporaryDirectory() as temp:
