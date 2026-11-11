@@ -79,8 +79,10 @@ class TrustedEvidenceBroker:
         if not cursor_secret or len(cursor_secret) < 32:
             raise ValueError("cursor_secret must contain at least 32 bytes")
         self.database_path = Path(database_path).resolve()
+        db_dir_created = not self.database_path.parent.exists()
         self.database_path.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-        os.chmod(self.database_path.parent, 0o700)
+        if db_dir_created:
+            os.chmod(self.database_path.parent, 0o700)
         if self.database_path.parent.stat().st_mode & 0o077:
             raise BrokerIPCError("database directory must be private to the broker service account")
         self.principals_by_uid = dict(principals_by_uid)
@@ -182,8 +184,13 @@ class BrokerUnixServer(socketserver.ThreadingUnixStreamServer):
             raise BrokerIPCError("Unix broker server currently requires Linux")
         self.socket_path = Path(socket_path)
         self.broker = broker
+        socket_dir_created = not self.socket_path.parent.exists()
         self.socket_path.parent.mkdir(parents=True, exist_ok=True, mode=0o750)
-        os.chmod(self.socket_path.parent, 0o750)
+        if socket_dir_created:
+            os.chmod(self.socket_path.parent, 0o750)
+        socket_dir_mode = self.socket_path.parent.stat().st_mode & 0o777
+        if socket_dir_mode & 0o007 or not socket_dir_mode & 0o010:
+            raise BrokerIPCError("socket directory must deny other users and allow the configured group to traverse")
         if self.socket_path.exists() or self.socket_path.is_symlink():
             raise BrokerIPCError("refusing to replace an existing socket path")
         super().__init__(str(self.socket_path), _BrokerRequestHandler)
