@@ -6,6 +6,7 @@ concept discovery and makes no claim about general semantic analogy.
 """
 from __future__ import annotations
 
+import copy
 import hashlib
 from typing import Any
 
@@ -123,6 +124,53 @@ def run(seed: int = 1701, *, instances_per_template: int = 4) -> dict[str, Any]:
         })
     context_rows = _predict(learner, context_observations, query["objects"])
 
+
+    # Attribute hard negatives by evaluator-only violation class.
+    truth_rows = {row["observation_id"]: row for row in truth_payload["query_truth"]}
+    grouped_ids: dict[str, list[str]] = {}
+    for observation_id, truth_row in truth_rows.items():
+        if not truth_row["valid"]:
+            grouped_ids.setdefault(truth_row["violation"] or "unspecified", []).append(observation_id)
+    hard_negative_metrics = {
+        violation: _score(
+            [native_by_id[observation_id] for observation_id in observation_ids],
+            truth,
+        )
+        for violation, observation_ids in sorted(grouped_ids.items())
+    }
+
+    # Remove positive Support evidence at controlled rates, keeping negatives.
+    ablation_results = {}
+    for relation_symbol in sorted({row["relation_symbol"] for row in support["observations"]}):
+        relation_positive_rows = sorted(
+            [row for row in support["observations"]
+             if row["relation_symbol"] == relation_symbol and row["outcome"]],
+            key=lambda row: row["observation_id"],
+        )
+        relation_query = [
+            row for row in query["observations"]
+            if row["relation_symbol"] == relation_symbol
+        ]
+        for keep_fraction in (0.5, 0.0):
+            keep_count = int(len(relation_positive_rows) * keep_fraction)
+            keep_ids = {row["observation_id"] for row in relation_positive_rows[:keep_count]}
+            ablated_support = copy.deepcopy(learner_support)
+            ablated_support["observations"] = [
+                row for row in ablated_support["observations"]
+                if row["relation_symbol"] != relation_symbol
+                or not row["outcome"]
+                or row["observation_id"] in keep_ids
+            ]
+            ablated_learner = FiniteRelationalVersionSpace().fit(ablated_support)
+            ablated_rows = _predict(
+                ablated_learner, relation_query, query["objects"]
+            )
+            ablation_results[f"{relation_symbol}:keep_positive_{keep_fraction:.1f}"] = {
+                "retained_positive_support": keep_count,
+                "original_positive_support": len(relation_positive_rows),
+                "query_metrics": _score(ablated_rows, truth),
+            }
+
     majority = sum(row["outcome"] for row in support["observations"])
     majority_total = len(support["observations"])
     majority_prediction = majority * 2 >= majority_total
@@ -157,6 +205,8 @@ def run(seed: int = 1701, *, instances_per_template: int = 4) -> dict[str, Any]:
             "metrics": _score(renamed_rows, truth),
             "prediction_invariance": renaming_agreement,
         },
+        "hard_negative_slices": hard_negative_metrics,
+        "support_positive_ablation": ablation_results,
         "query_only_shift": {
             "renamed_attribute_schema": _score(schema_rows, truth),
             "unseen_categorical_values": _score(value_rows, truth),
@@ -182,6 +232,8 @@ def run(seed: int = 1701, *, instances_per_template: int = 4) -> dict[str, Any]:
         "limitations": [
             "Consistent renaming tests symbol invariance, not semantic analogy.",
             "Query-only unseen values are deliberately treated as OOD and abstained on; no extrapolation is claimed.",
+            "Support ablations are deterministic stress tests, not a random-sampling estimate.",
+            "Hard-negative slices use evaluator-only violation categories solely for post-hoc scoring."
             "The finite DSL and generator remain synthetic and matched.",
             "No learned representation, neural baseline, or open-world operator induction is evaluated.",
         ],
