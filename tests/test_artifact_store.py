@@ -17,12 +17,14 @@ class FileArtifactStoreTests(unittest.TestCase):
             self.assertEqual(store.put(artifact), ref)
             self.assertTrue((Path(temp) / ref.digest[:2] / (ref.digest + ".json")).exists())
 
-    def test_different_content_has_different_digest(self):
+    def test_artifact_identity_and_content_are_part_of_digest(self):
         with tempfile.TemporaryDirectory() as temp:
             store = FileArtifactStore(temp)
             a = store.put(AgentArtifact("a", "note", {"x": 1}))
-            b = store.put(AgentArtifact("b", "note", {"x": 2}))
-            self.assertNotEqual(a.digest, b.digest)
+            same_content_different_id = store.put(AgentArtifact("b", "note", {"x": 1}))
+            different_content = store.put(AgentArtifact("c", "note", {"x": 2}))
+            self.assertNotEqual(a.digest, same_content_different_id.digest)
+            self.assertNotEqual(a.digest, different_content.digest)
 
     def test_size_limit(self):
         with tempfile.TemporaryDirectory() as temp:
