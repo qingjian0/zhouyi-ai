@@ -116,12 +116,22 @@ async def run_serial_parallel_benchmark(
     parallel_digests = {run["output_digest"] for run in parallel_runs}
     serial_median = statistics.median(x["wall_seconds"] for x in serial_runs)
     parallel_median = statistics.median(x["wall_seconds"] for x in parallel_runs)
+    all_succeeded = all(
+        run["failed"] == 0 and run["blocked"] == 0
+        and run["succeeded"] == run["task_count"]
+        for run in serial_runs + parallel_runs
+    )
+    equivalent = (
+        all(paired_equal) and len(serial_digests) == 1
+        and len(parallel_digests) == 1
+    )
     return {
         "schema_version": 1,
         "task_count": len(tasks),
         "repeats": repeats,
         "parallelism": parallelism,
-        "equivalent": all(paired_equal) and len(serial_digests) == 1 and len(parallel_digests) == 1,
+        "equivalent": equivalent,
+        "all_succeeded": all_succeeded,
         "paired_equivalence": paired_equal,
         "serial": {
             "median_wall_seconds": serial_median,
@@ -133,8 +143,9 @@ async def run_serial_parallel_benchmark(
         },
         "speedup": (serial_median / parallel_median) if parallel_median > 0 else None,
         "interpretation": (
-            "valid_for_speed_comparison" if all(paired_equal) and len(serial_digests) == 1
-            and len(parallel_digests) == 1 else "outputs_not_equivalent_or_not_repeatable"
+            "valid_for_speed_comparison" if equivalent and all_succeeded
+            else "task_failures_present" if equivalent
+            else "outputs_not_equivalent_or_not_repeatable"
         ),
         "notes": [
             "Speedup is descriptive wall-clock throughput, not evidence of improved reasoning quality.",
