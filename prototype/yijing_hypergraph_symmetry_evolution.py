@@ -99,6 +99,7 @@ def _lineage_key(row: ExactSlotGroupObservation) -> tuple:
 def _environment_key(row: ExactSlotGroupObservation) -> tuple:
     return (
         row.context,
+        row.snapshot_context,
         row.attributes,
         row.valid_from,
         row.valid_until,
@@ -180,6 +181,7 @@ def analyze_symmetry_evolution(
             transitions_seen += 1
             context_changed = (
                 before.context != after.context
+                or before.snapshot_context != after.snapshot_context
                 or before.attributes != after.attributes
                 or before.valid_from != after.valid_from
                 or before.valid_until != after.valid_until
