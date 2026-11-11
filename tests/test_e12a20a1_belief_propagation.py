@@ -58,6 +58,26 @@ class BeliefPropagationTests(unittest.TestCase):
         for _, probability in result.marginals[0].probabilities:
             self.assertAlmostEqual(probability, 1 / 3)
 
+    def test_non_lexicographic_factor_scope_order_is_respected(self):
+        problem = Problem(
+            (Variable("x", ("0", "1")), Variable("y", ("0", "1"))),
+            (Factor("ordered-pair", ("y", "x"), "SOFT",
+                    (( ("0", "0"), 0.0), (("1", "1"), 0.0),
+                     (("0", "1"), 3.0), (("1", "0"), 3.0)), default_cost=4.0),),
+        )
+        result = infer_beliefs(problem, budget=BPBudget(damping=1.0))
+        self.assertEqual(result.status, "CONVERGED")
+        exact = infer_exact(problem, budget=Budget(max_assignments=4, top_k=4))
+        weights = [__import__("math").exp(-item.energy) for item in exact.hypotheses]
+        normalizer = sum(weights)
+        expected = {"x": {"0": 0.0, "1": 0.0}, "y": {"0": 0.0, "1": 0.0}}
+        for hypothesis, weight in zip(exact.hypotheses, weights):
+            for variable_id, value in hypothesis.assignment:
+                expected[variable_id][value] += weight / normalizer
+        for marginal in result.marginals:
+            for value, probability in marginal.probabilities:
+                self.assertAlmostEqual(probability, expected[marginal.variable_id][value], places=10)
+
     def test_factor_table_budget_fails_closed(self):
         problem = Problem(
             (Variable("x", ("0", "1")), Variable("y", ("0", "1"))),
