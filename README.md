@@ -39,6 +39,7 @@
 - [易象模块：可检验化设计](docs/YIXIANG_MODULE.md)
 - [太玄经三值结构 TX-01：可检验化研究设计](docs/TAIXUAN_TERNARY_COGNITION_TX01.md)
 - [TX-02 多状态表示竞争与自主选择基准](docs/TX02_MULTISTATE_REPRESENTATION_BENCHMARK.md)
+- [TX-02B 跨 Episode 学习器与可辨识性协议](docs/TX02B_LEARNER_IDENTIFIABILITY_PROTOCOL.md)
 - [相关工作与文献](docs/RELATED_WORK.md)
 - [2026-11-10 研究增量报告](docs/RESEARCH_FINDINGS_2026-11-10.md)
 - [实验计划与验收标准](docs/EXPERIMENTS.md)
