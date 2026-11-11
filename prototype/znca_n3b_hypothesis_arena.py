@@ -59,8 +59,6 @@ class Hypothesis:
     def __post_init__(self) -> None:
         if not self.hypothesis_id.strip():
             raise ArenaError("hypothesis_id is required")
-        if self.status is not HypothesisStatus.PROPOSED:
-            raise ArenaError("new hypotheses must start as PROPOSED")
         if not self.read_set or not self.write_set:
             raise ArenaError("read_set and write_set must be non-empty")
         if self.base_version < 0:
@@ -116,6 +114,8 @@ class HypothesisArena:
         self._known_evidence.add(evidence_ref)
 
     def propose(self, hypothesis: Hypothesis) -> Hypothesis:
+        if hypothesis.status is not HypothesisStatus.PROPOSED:
+            raise ArenaError("new hypotheses must be PROPOSED")
         if hypothesis.hypothesis_id in self._hypotheses:
             raise ArenaError("hypothesis_id must be unique")
         if hypothesis.base_version != self._base.version:
