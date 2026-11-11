@@ -22,10 +22,10 @@ def make_edge(edge_id, relation, participants, roles=None, attributes=()):
     )
 
 
-def observation(evidence_id, entities, edges, coverage_complete=True, step=0, domain="synthetic"):
+def observation(evidence_id, entities, edges, coverage_complete=True, step=0, domain="synthetic", snapshot_context=()):
     state = HypergraphState(
         tuple(Entity(entity_id, entity_type) for entity_id, entity_type in entities),
-        tuple(edges), (), step, evidence_id, domain, coverage_complete,
+        tuple(edges), snapshot_context, step, evidence_id, domain, coverage_complete,
     )
     return HypergraphRoleObservation(state, evidence_id, domain)
 
@@ -59,6 +59,28 @@ class ExactSlotGroupInductionTests(unittest.TestCase):
         )
         self.assertEqual(report.observation_groups[0].step, 7)
         self.assertEqual(report.observation_groups[0].domain, "temporal-test")
+
+    def test_per_observation_metadata_and_global_context_are_preserved(self):
+        entities = (("a", "node"), ("b", "node"), ("c", "node"))
+        edges = (make_edge("target", "joint", ("a", "b", "c")),)
+        first = observation(
+            "first", entities, edges, step=3, domain="domain-a",
+            snapshot_context=(("phase", "early"),),
+        )
+        second = observation(
+            "second", entities, edges, step=8, domain="domain-b",
+            snapshot_context=(("phase", "late"),),
+        )
+        report = induce_exact_slot_permutation_groups(
+            (first, second), (RelationSymmetry("joint", "UNORDERED"),)
+        )
+        rows = {row.evidence_id: row for row in report.observation_groups}
+        self.assertEqual(rows["first"].step, 3)
+        self.assertEqual(rows["first"].domain, "domain-a")
+        self.assertEqual(rows["first"].snapshot_context, (("phase", "early"),))
+        self.assertEqual(rows["second"].step, 8)
+        self.assertEqual(rows["second"].domain, "domain-b")
+        self.assertEqual(rows["second"].snapshot_context, (("phase", "late"),))
 
     def test_unconstrained_unordered_edge_induces_s3(self):
         row = observation(
