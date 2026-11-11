@@ -128,6 +128,9 @@ class E12A8ActiveMultiworldTests(unittest.TestCase):
         self.assertEqual(result["world_count"], 7)
         self.assertEqual(set(result["policies"]), {"active", "random", "fixed"})
         self.assertTrue(all(len(x["episodes"]) == 14 for x in result["policies"].values()))
+        for metrics in result["policies"].values():
+            self.assertIn("high_confidence_coverage", metrics)
+            self.assertIn("selective_accuracy_at_0_95", metrics)
 
     def test_seeded_active_episode_is_reproducible(self):
         world = SyntheticWorld("noisy", "direct", missing_every=5, noise_every=7)
