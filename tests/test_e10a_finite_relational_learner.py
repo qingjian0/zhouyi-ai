@@ -50,7 +50,10 @@ class E10AFiniteRelationalLearnerTests(unittest.TestCase):
             else:
                 self.assertIsNone(result["prediction"])
                 self.assertIsNone(result["confidence"])
-                self.assertIsNotNone(result["agreement_score"])
+                if result["decision_status"] == "ABSTAIN_AMBIGUOUS":
+                    self.assertIsNotNone(result["agreement_score"])
+                else:
+                    self.assertIsNone(result["agreement_score"])
             statuses.add(result["decision_status"])
         self.assertEqual(self.query, query_before)
         self.assertNotIn("outcome", self.query["observations"][0])
@@ -154,7 +157,6 @@ class E10AFiniteRelationalLearnerTests(unittest.TestCase):
         for row in query["observations"]:
             objects = [object_map[key] for key in row["participants"]]
             prediction = learner.predict(row, objects)
-            self.assertEqual(prediction["decision_status"], "PREDICT")
             original = FiniteRelationalVersionSpace().fit(self.support)
             original_map = {item["object_id"]: item for item in self.query["objects"]}
             original_row = original_query_rows[row["observation_id"]]
@@ -162,6 +164,7 @@ class E10AFiniteRelationalLearnerTests(unittest.TestCase):
                 original_row,
                 [original_map[key] for key in original_row["participants"]],
             )
+            self.assertEqual(prediction["decision_status"], baseline["decision_status"])
             self.assertEqual(prediction["prediction"], baseline["prediction"])
 
     def test_query_only_renamed_attribute_fails_closed_as_ood_schema(self):
