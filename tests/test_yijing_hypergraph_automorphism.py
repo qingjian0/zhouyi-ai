@@ -67,6 +67,21 @@ class ExactHypergraphAutomorphismTests(unittest.TestCase):
         self.assertEqual(report.exact_orbits, (("a", "b", "c"),))
         self.assertEqual(report.wl_pairwise_recall, 1.0)
 
+    def test_undirected_path_has_two_partial_symmetry_orbits(self):
+        graph = state(
+            (("a", "node"), ("b", "node"), ("c", "node"), ("d", "node")),
+            (
+                edge("ab", "link", ("a", "b")),
+                edge("bc", "link", ("b", "c")),
+                edge("cd", "link", ("c", "d")),
+            ),
+        )
+        report = exact_hypergraph_automorphism_audit(
+            graph, (RelationSymmetry("link", "UNORDERED"),)
+        )
+        self.assertEqual(report.automorphism_count, 2)
+        self.assertEqual(report.exact_orbits, (("a", "d"), ("b", "c")))
+
     def test_directed_path_has_three_singleton_orbits(self):
         graph = state(
             (("a", "node"), ("b", "node"), ("c", "node")),
