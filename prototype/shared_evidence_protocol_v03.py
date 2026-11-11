@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 import math
+from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Iterable, Sequence
 
@@ -48,6 +49,37 @@ def _fingerprint(spec: dict[str, Any]) -> str:
         "causation_refs": spec["causation_refs"],
         "integrity_metadata": spec["integrity_metadata"],
     })
+
+
+
+@dataclass(frozen=True)
+class EpisodeProjection:
+    """Deterministic, disposable read model rebuilt exclusively from durable events."""
+    episode_id: str
+    last_sequence: int
+    observations: dict[str, dict[str, Any]]
+    predictions: dict[str, dict[str, Any]]
+    evidence: dict[str, dict[str, Any]]
+    structures: dict[str, dict[str, Any]]
+    candidates: dict[str, dict[str, Any]]
+    actions: tuple[dict[str, Any], ...]
+    revisions: dict[str, dict[str, Any]]
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "episode_id": self.episode_id, "last_sequence": self.last_sequence,
+            "observations": {k: self.observations[k] for k in sorted(self.observations)},
+            "predictions": {k: self.predictions[k] for k in sorted(self.predictions)},
+            "evidence": {k: self.evidence[k] for k in sorted(self.evidence)},
+            "structures": {k: self.structures[k] for k in sorted(self.structures)},
+            "candidates": {k: self.candidates[k] for k in sorted(self.candidates)},
+            "actions": list(self.actions),
+            "revisions": {k: self.revisions[k] for k in sorted(self.revisions)},
+        }
+
+    @property
+    def digest(self) -> str:
+        return digest_payload(self.to_dict())
 
 
 class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
@@ -370,6 +402,200 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
             except Exception:
                 self._db.execute("ROLLBACK")
                 raise
+
+
+    def replay_projection(self, episode_id: str) -> EpisodeProjection:
+        """Rebuild a read model from raw durable rows; never trusts cached state."""
+        with self._lock:
+            rows = self._db.execute(
+                "SELECT episode_id, sequence_no, event_id, event_type, protocol_version, payload_json, "
+                "payload_digest, actor_role, causation_refs_json, payload_schema, integrity_metadata_json "
+                "FROM events WHERE episode_id=? ORDER BY sequence_no", (episode_id,),
+            ).fetchall()
+        observations, predictions, evidence = {}, {}, {}
+        structures, candidates, revisions = {}, {}, {}
+        actions, action_ids, event_ids = [], set(), set()
+        previous_sequence = 0
+
+        def resolve_evidence(ref):
+            if isinstance(ref, dict):
+                return evidence.get(f"{ref.get('kind')}:{ref.get('id')}")
+            if isinstance(ref, str):
+                return evidence.get(f"revealed:{ref}") or evidence.get(f"ingested:{ref}")
+            return None
+
+        for row in rows:
+            sequence, event_id = int(row["sequence_no"]), row["event_id"]
+            if sequence != previous_sequence + 1:
+                raise ProtocolError(f"non-contiguous replay sequence: expected {previous_sequence + 1}, got {sequence}")
+            previous_sequence = sequence
+            if event_id in event_ids:
+                raise ProtocolError(f"duplicate event_id during replay: {event_id}")
+            event_ids.add(event_id)
+            payload = json.loads(row["payload_json"])
+            fingerprint = _fingerprint({
+                "event_type": row["event_type"], "payload_schema": row["payload_schema"],
+                "payload": payload, "actor_role": row["actor_role"],
+                "causation_refs": json.loads(row["causation_refs_json"]),
+                "integrity_metadata": json.loads(row["integrity_metadata_json"]),
+            })
+            if fingerprint != row["payload_digest"]:
+                raise ProtocolError(f"event digest mismatch during replay: {event_id}")
+            event_type = row["event_type"]
+
+            if event_type == "observation":
+                oid = payload.get("observation_id")
+                if not isinstance(oid, str) or not oid or oid in observations:
+                    raise ProtocolError(f"invalid or duplicate observation during replay: {event_id}")
+                observations[oid] = {"event_id": event_id, "sequence_no": sequence}
+            elif event_type == "prediction_commit":
+                pid, oid = payload.get("prediction_id"), payload.get("observation_id")
+                if not isinstance(pid, str) or pid in predictions or oid not in observations:
+                    raise ProtocolError(f"invalid prediction commit during replay: {event_id}")
+                predictions[pid] = {
+                    "event_id": event_id, "sequence_no": sequence, "observation_id": oid,
+                    "learner_track": payload.get("learner_track", "legacy"),
+                    "decision_status": payload.get("decision_status"),
+                }
+            elif event_type == "evidence_reveal":
+                pid = payload.get("prediction_id")
+                prediction = predictions.get(pid)
+                if prediction is None:
+                    raise MissingReference(f"replay reveal has no prior prediction: {event_id}")
+                track = payload.get("learner_track", "legacy")
+                if track != prediction["learner_track"]:
+                    raise ProtocolError(f"replay reveal crosses learner tracks: {event_id}")
+                evidence[f"revealed:{event_id}"] = {
+                    "evidence_id": event_id, "kind": "revealed", "event_id": event_id,
+                    "sequence_no": sequence, "split_role": payload.get("split_role"),
+                    "learner_track": track, "prediction_id": pid,
+                    "observation_id": prediction["observation_id"],
+                    "outcome_ref": digest_payload(payload.get("target_or_feedback")),
+                }
+            elif event_type == "evidence_ingest":
+                eid, observation_ref = payload.get("evidence_id"), payload.get("observation_ref")
+                observation = next((v for v in observations.values() if v["event_id"] == observation_ref), None)
+                key = f"ingested:{eid}"
+                if not isinstance(eid, str) or not eid or observation is None or key in evidence:
+                    raise MissingReference(f"replay ingest lacks identity/prior observation or duplicates evidence: {event_id}")
+                evidence[key] = {
+                    "evidence_id": eid, "kind": "ingested", "event_id": event_id,
+                    "sequence_no": sequence, "split_role": payload.get("split_role"),
+                    "learner_track": payload.get("learner_track"),
+                    "observation_ref": observation_ref, "outcome_ref": payload.get("outcome_ref"),
+                    "source_provenance": payload.get("source_provenance"),
+                }
+            elif event_type == "structure_version":
+                vid = payload.get("version_id")
+                if not isinstance(vid, str) or not vid or vid in structures:
+                    raise ProtocolError(f"invalid or duplicate structure version during replay: {event_id}")
+                parents = payload.get("parent_version_ids", [])
+                if not isinstance(parents, list) or any(parent not in structures for parent in parents):
+                    raise MissingReference(f"structure version has missing prior parent: {event_id}")
+                support_refs = payload.get("support_evidence_ids", [])
+                if not isinstance(support_refs, list):
+                    raise ProtocolError(f"structure support evidence must be an array: {event_id}")
+                support_ids = []
+                for ref in support_refs:
+                    item = resolve_evidence(ref)
+                    if item is None:
+                        raise MissingReference(f"structure version has missing prior support evidence: {event_id}")
+                    support_ids.append(item["evidence_id"])
+                structure = {
+                    "event_id": event_id, "sequence_no": sequence,
+                    "structure_id": payload.get("structure_id"), "version_id": vid,
+                    "kind": payload.get("kind"), "definition": payload.get("definition"),
+                    "parent_version_ids": list(parents), "support_evidence_ids": support_ids,
+                }
+                structures[vid] = structure
+                if payload.get("kind") == "candidate":
+                    candidates[vid] = {
+                        **structure, "candidate_id": payload.get("structure_id"),
+                        "candidate_version": self._candidate_version_number(vid),
+                        "state": CandidateState.OBSERVED.value,
+                    }
+            elif event_type == "lifecycle_action":
+                aid, track = payload.get("action_id"), payload.get("learner_track")
+                action_key = (track, aid)
+                if not isinstance(aid, str) or not aid or action_key in action_ids:
+                    raise ProtocolError(f"invalid or duplicate lifecycle action during replay: {event_id}")
+                action_ids.add(action_key)
+                action_type = ActionType(payload["action_type"])
+                cid, version = payload.get("candidate_id"), payload.get("candidate_version")
+                candidate_key = f"{cid}@{version}" if cid is not None else None
+                if candidate_key is not None and candidate_key not in candidates:
+                    raise MissingReference(f"lifecycle action references missing candidate: {candidate_key}")
+                resolved = []
+                for ref in payload.get("evidence_refs", []):
+                    item = resolve_evidence(ref)
+                    if item is None:
+                        raise MissingReference(f"lifecycle action references missing evidence: {ref}")
+                    if item.get("learner_track") and item["learner_track"] != track:
+                        raise ProtocolError("lifecycle action crosses learner tracks during replay")
+                    resolved.append(item)
+                from_state, to_state = payload.get("from_state"), payload.get("to_state")
+                allowed = _TRANSITIONS.get(action_type, set())
+                if allowed:
+                    if candidate_key is None or (CandidateState(from_state), CandidateState(to_state)) not in allowed:
+                        raise ProtocolError(f"invalid E12 transition during replay: {aid}")
+                    current = candidates[candidate_key]["state"]
+                    if current != from_state:
+                        raise ProtocolError(f"stale E12 transition during replay: {aid}, current={current}, from={from_state}")
+                    required_role = {
+                        CandidateState.TRAIN_SUPPORTED.value: {SplitRole.TRAIN.value},
+                        CandidateState.GATE_VALIDATED.value: {SplitRole.GATE_FINAL.value},
+                        CandidateState.CHALLENGED.value: CHALLENGE_ROLES,
+                    }.get(to_state)
+                    if required_role and not any(item.get("split_role") in required_role for item in resolved):
+                        raise ProtocolError(f"E12 transition lacks required evidence role: {aid}")
+                    candidates[candidate_key]["state"] = to_state
+                elif from_state is not None or to_state is not None:
+                    raise ProtocolError(f"non-transition E12 action changes state: {aid}")
+                for lineage_ref in payload.get("candidate_lineage_refs", []):
+                    if lineage_ref not in structures:
+                        raise MissingReference(f"lifecycle action has missing lineage: {lineage_ref}")
+                actions.append({
+                    "event_id": event_id, "sequence_no": sequence, "action_id": aid,
+                    "action_type": action_type.value, "candidate_key": candidate_key,
+                    "learner_track": track, "from_state": from_state, "to_state": to_state,
+                    "evidence_ids": [item["evidence_id"] for item in resolved],
+                    "candidate_lineage_refs": list(payload.get("candidate_lineage_refs", [])),
+                    "cost": payload.get("cost"), "note": payload.get("note", ""),
+                })
+            elif event_type == "revision":
+                rid = payload.get("revision_id")
+                if not isinstance(rid, str) or not rid or rid in revisions:
+                    raise ProtocolError(f"invalid or duplicate revision during replay: {event_id}")
+                triggers = payload.get("trigger_evidence_ids", [])
+                for trigger in triggers:
+                    item = evidence.get(f"revealed:{trigger}")
+                    if item is None or item.get("split_role") not in CHALLENGE_ROLES:
+                        raise ProtocolError(f"revision trigger is not locked/post-deploy evidence: {trigger}")
+                before, after = payload.get("before_version_ids", []), payload.get("after_version_ids", [])
+                if any(vid not in structures for vid in list(before) + list(after)):
+                    raise MissingReference(f"revision references missing structure version: {rid}")
+                revisions[rid] = {
+                    "event_id": event_id, "sequence_no": sequence, "operation": payload.get("operation"),
+                    "trigger_evidence_ids": list(triggers), "before_version_ids": list(before),
+                    "after_version_ids": list(after),
+                }
+
+        return EpisodeProjection(
+            episode_id=episode_id, last_sequence=previous_sequence,
+            observations=observations, predictions=predictions, evidence=evidence,
+            structures=structures, candidates=candidates, actions=tuple(actions), revisions=revisions,
+        )
+
+    @staticmethod
+    def _candidate_version_number(version_id: str) -> int:
+        try:
+            value = int(version_id.rsplit("@", 1)[1])
+        except (IndexError, ValueError):
+            raise ProtocolError(f"candidate version_id must end in @<positive integer>: {version_id}")
+        if value < 1:
+            raise ProtocolError(f"candidate version must be positive: {version_id}")
+        return value
+
 
     def append_event(
         self, *, episode_id: str, event_id: str, event_type: str, payload: dict[str, Any],
