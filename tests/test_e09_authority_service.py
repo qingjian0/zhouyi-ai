@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta, timezone
 
-import pytest
+import unittest
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from prototype.e09_authority_service import (
@@ -17,8 +17,9 @@ def _principal(roles=frozenset({"branch_merge_authorizer"})):
     return AuthenticatedPrincipal("workload://authority-1", "issuer-A", roles, "credential-7")
 
 
-def test_authority_authenticates_principal_and_signs_complete_v2_event(tmp_path):
-    store = SQLiteEvidenceStore(tmp_path / "authority.db")
+class E09AuthorityServiceTests(unittest.TestCase):
+    def test_authority_authenticates_principal_and_signs_complete_v2_event(self):
+        import tempfile\n        from pathlib import Path\n        with tempfile.TemporaryDirectory() as tmp:\n            store = SQLiteEvidenceStore(Path(tmp) / "authority.db")
     key = Ed25519PrivateKey.generate()
     now = datetime(2026, 11, 12, 10, 0, tzinfo=timezone.utc)
     authority = E09BranchMergeAuthority(
@@ -46,7 +47,7 @@ def test_authority_authenticates_principal_and_signs_complete_v2_event(tmp_path)
     store.close()
 
 
-def test_authority_rejects_missing_role_and_untrusted_principal(tmp_path):
+    def test_authority_rejects_missing_role_and_untrusted_principal(self):
     store = SQLiteEvidenceStore(tmp_path / "denied.db")
     key = Ed25519PrivateKey.generate()
     authority = E09BranchMergeAuthority(
@@ -62,7 +63,7 @@ def test_authority_rejects_missing_role_and_untrusted_principal(tmp_path):
     store.close()
 
 
-def test_authority_rejects_bad_clock_and_excessive_ttl(tmp_path):
+    def test_authority_rejects_bad_clock_and_excessive_ttl(self):
     store = SQLiteEvidenceStore(tmp_path / "clock.db")
     key = Ed25519PrivateKey.generate()
     authority = E09BranchMergeAuthority(
