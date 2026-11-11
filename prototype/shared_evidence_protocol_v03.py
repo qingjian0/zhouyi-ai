@@ -1243,7 +1243,7 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
             action for action in projection.track_action_objects.get(learner_track, ())
             if action.action_id in safe_action_ids
         )
-        visible_sequences = [item["sequence_no"] for item in observations.values() if isinstance(item, dict)]
+        visible_sequences = [projection.observations[key]["sequence_no"] for key in observations if key in projection.observations]
         visible_sequences.extend(item["sequence_no"] for item in predictions.values())
         visible_sequences.extend(item["sequence_no"] for item in evidence.values())
         visible_sequences.extend(item["sequence_no"] for item in structures.values())
