@@ -35,10 +35,16 @@ def run(seed: int = 17, *, mode: str = "INCREMENTAL_FILTER",
     support, query, evaluator_truth = build_object_disjoint_task(
         seed, instances_per_template=instances_per_template
     )
+    # Whitelist learner-visible Support fields. In particular, do not send
+    # mechanism_hash: it fingerprints evaluator-side latent mechanism metadata.
+    learner_support = {
+        key: support[key] for key in
+        ("schema_version", "phase", "objects", "observations")
+    }
     learner = (
         SubprocessRelationalVersionSpace() if learner_backend == "subprocess"
         else FiniteRelationalVersionSpace()
-    ).fit(support)
+    ).fit(learner_support)
     truth_by_id = {
         row["observation_id"]: row["valid"]
         for row in evaluator_truth["query_truth"]
