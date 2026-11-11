@@ -34,6 +34,10 @@ For two output-to-input permutations (p) then (q), the composed mapping is (p[q[
 - duplicate and boolean indices;
 - deterministic permutation composition.
 
+## Integration note
+
+The E13 contract distinguishes ORDERED_NAMED, ORDERED_POSITIONAL, UNORDERED and UNKNOWN role semantics. XSL-3 does not override those declarations: it proposes a separate, versioned transformation hypothesis that downstream validators must explicitly accept or reject. In particular, UNKNOWN is not permission to permute roles.
+
 ## Boundaries
 
 - A mathematically valid permutation is not evidence that a relation is symmetric.
