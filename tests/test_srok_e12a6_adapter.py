@@ -80,6 +80,13 @@ class SROKE12A6AdapterTests(unittest.TestCase):
                          second.native_candidate.candidate_id)
         self.assertNotEqual(first.raw_score, second.raw_score)
 
+    def test_single_role_candidate_is_rejected(self):
+        bad = ComposedCandidate("supports", (("source", "a"),), 0.5, ())
+        with self.assertRaisesRegex(ValueError, "at least two"):
+            adapt_composed_candidate(
+                bad, self.nodes, scope="world/test", grammar_version="srok-v1"
+            )
+
     def test_missing_member_is_rejected(self):
         bad = ComposedCandidate("supports", (("source", "missing"),), 0.5, ())
         with self.assertRaisesRegex(ValueError, "missing"):

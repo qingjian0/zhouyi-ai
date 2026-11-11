@@ -9,7 +9,7 @@ from dataclasses import dataclass
 import math
 from typing import Mapping
 
-from prototype.cpg_interop import digest_json
+from prototype.cpg_interop import canonical_json, digest_json
 from prototype.e12a6_interop_adapter import E12A6AdapterResult, adapt_candidate
 from prototype.e12a6_lifecycle_contract import Candidate, CandidateState
 from prototype.srok0_kernel import ComposedCandidate, Node
@@ -47,10 +47,12 @@ def adapt_composed_candidate(
         raise ValueError("scope must be a non-empty string")
     if not isinstance(grammar_version, str) or not grammar_version.strip():
         raise ValueError("grammar_version must be a non-empty string")
-    if not math.isfinite(composed.score):
-        raise ValueError("composed score must be finite")
-    if not composed.relation_type.strip() or not composed.role_bindings:
-        raise ValueError("composed candidate requires a relation type and role bindings")
+    if not isinstance(composed.score, (int, float)) or isinstance(composed.score, bool) or not math.isfinite(composed.score):
+        raise ValueError("composed score must be a finite number")
+    if not isinstance(composed.relation_type, str) or not composed.relation_type.strip():
+        raise ValueError("composed candidate requires a relation type")
+    if not isinstance(composed.role_bindings, tuple) or len(composed.role_bindings) < 2:
+        raise ValueError("composed candidate requires at least two ordered role bindings")
 
     role_names = [role for role, _ in composed.role_bindings]
     member_ids = [node_id for _, node_id in composed.role_bindings]
@@ -81,7 +83,7 @@ def adapt_composed_candidate(
             for (role, node_id), node in zip(composed.role_bindings, bound_nodes)
         ],
     }
-    canonical_expression = __import__("prototype.cpg_interop", fromlist=["canonical_json"]).canonical_json(definition)
+    canonical_expression = canonical_json(definition)
     candidate_id = "srok0:" + digest_json(definition)
     native = Candidate(
         candidate_id=candidate_id,
