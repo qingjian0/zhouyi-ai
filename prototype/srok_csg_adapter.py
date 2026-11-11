@@ -54,4 +54,5 @@ def proposal_from_srok(
         excludes=excludes,
         score=candidate.score,
         cost=cost,
+        candidate_kind=candidate.relation_type,
     )
