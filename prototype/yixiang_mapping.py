@@ -14,6 +14,8 @@ class AnalogyCandidate:
 @dataclass(frozen=True)
 class EnumerationResult:
     candidates: tuple[AnalogyCandidate, ...]
+    candidate_count: int
+    results_truncated: bool
     states_visited: int
     search_complete: bool
     max_search_states: int
@@ -46,11 +48,7 @@ def enumerate_candidate_bridges(
     max_search_states: int = 100_000,
     max_candidates: int = 256,
 ) -> EnumerationResult:
-    """Enumerate injective partial node mappings under explicit type/relation maps.
-
-    Each source node maps to one compatible target node or remains unmapped.
-    Target nodes cannot be reused. Budget exhaustion is explicit in the result.
-    """
+    """Enumerate injective partial node mappings under explicit type/relation maps."""
     if not isinstance(source, RelationalGraph) or not isinstance(target, RelationalGraph):
         raise ValueError("source and target must be RelationalGraph values")
     if not isinstance(mapping_kind, MappingKind):
@@ -139,5 +137,11 @@ def enumerate_candidate_bridges(
         -c.ordering_key[0], -c.ordering_key[1], -c.ordering_key[2],
         c.bridge.node_mapping,
     ))
-    return EnumerationResult(tuple(ordered[:max_candidates]), states_visited,
-                             not exhausted, max_search_states)
+    return EnumerationResult(
+        candidates=tuple(ordered[:max_candidates]),
+        candidate_count=len(ordered),
+        results_truncated=len(ordered) > max_candidates,
+        states_visited=states_visited,
+        search_complete=not exhausted,
+        max_search_states=max_search_states,
+    )
