@@ -153,7 +153,7 @@ A19-B 修正了首版搜索预算的一个重要缺陷：首版先构造完整�
 
 图结构特征现在对每条 train/validation observation 只提取一次，之后候选匹配使用缓存的 frozenset membership，不再为每个候选重复 DFS 或遍历边。所有 family 共享同一份 feature index，feature_signatures_indexed 记录实际索引规模。
 
-新增 max_feature_signatures 硬预算。特征索引超限时 fail closed 并返回明确错误，不会静默丢弃结构特征或让不同 family 获得不公平的特征子集。predicate evaluation budget 继续按候选完整扫描 train + validation 所需的谓词检查次数预留；若预算不足则不启动该候选。
+新增 max_feature_signatures 硬预算。特征索引超限时 fail closed 并返回明确错误，不会静默丢弃结构特征或让不同 family 获得不公平的特征子集。 预算在路径/分叉签名提取过程中逐步检查；稠密中心的二臂组合一旦超过剩余预算即提前终止，避免先构造完整的二次规模组合集合。predicate evaluation budget 继续按候选完整扫描 train + validation 所需的谓词检查次数预留；若预算不足则不启动该候选。
 
 A19-B 仍未解决的事项：
 - graph signature union/sort 本身仍需持有训练集观察到的不同签名集合；max_feature_signatures 限制其总规模，但不是外部排序算法。
@@ -161,4 +161,4 @@ A19-B 仍未解决的事项：
 - feature cache 以 observation_id 索引，输入 ID 唯一性检查是其安全前提。
 - 当前复杂度仍是字节数代理，不是通用 prefix code。
 
-本轮新增测试覆盖：候选只物化到预算上限加一个哨兵、feature cache 被三个 family 共享、特征预算超限时 fail closed。
+本轮新增测试覆盖：候选只物化到预算上限加一个哨兵、feature cache 被三个 family 共享、特征预算超限时 fail closed，并验证稠密分叉图会在组合生成中途提前终止。
