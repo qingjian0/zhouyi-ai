@@ -36,11 +36,33 @@ class TX02TrainableLearnerTests(unittest.TestCase):
         self.assertTrue(learner.metadata()["trainable_embedding"])
 
     def test_fixed_representations_have_no_trainable_symbol_table(self):
-        for family in ("BINARY", "TERNARY", "HYBRID", "ONE_HOT", "PERMUTED"):
+        for family in ("BINARY", "TERNARY", "HYBRID", "ONE_HOT", "FIXED_RANDOM", "PERMUTED"):
             learner = SetConditionedMLPLearner(family, hidden_size=5, seed=7)
             learner.fit(self.bundle.train[:4], budget={"epochs": 1})
             self.assertFalse(learner.metadata()["trainable_embedding"])
             self.assertIsNone(learner.metadata()["embedding_dim"])
+
+    def test_fixed_random_embedding_is_unchanged_by_training(self):
+        learner = SetConditionedMLPLearner(
+            "FIXED_RANDOM", hidden_size=8, embedding_dim=4, seed=17
+        )
+        learner._initialize(3)
+        before = tuple(tuple(row) for row in learner._codewords)
+        learner.fit(self.bundle.train[:8], budget={"epochs": 2})
+        after = tuple(tuple(row) for row in learner._codewords)
+        self.assertEqual(before, after)
+        self.assertFalse(learner.metadata()["trainable_embedding"])
+        self.assertEqual(learner.metadata()["embedding_dim"], 4)
+
+    def test_learned_and_fixed_random_start_from_same_embedding_table(self):
+        learned = SetConditionedMLPLearner("LEARNED", hidden_size=4, embedding_dim=5, seed=31)
+        fixed = SetConditionedMLPLearner("FIXED_RANDOM", hidden_size=4, embedding_dim=5, seed=31)
+        learned._initialize(3)
+        fixed._initialize(3)
+        self.assertEqual(
+            tuple(tuple(row) for row in learned._embeddings),
+            fixed._codewords,
+        )
 
     def test_fit_is_reproducible_for_same_seed_and_data(self):
         args = dict(family="TERNARY", hidden_size=6, learning_rate=0.01, seed=19)
