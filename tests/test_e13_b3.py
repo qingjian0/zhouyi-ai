@@ -7,7 +7,7 @@ from test_e13_bridge import make_graph
 class BridgeCandidateDiscoveryTests(unittest.TestCase):
     def setUp(self):
         self.source = make_graph("s", "thermal", True)
-        self.target = make_graph("t", "metabolic", False)
+        self.target = make_graph("t", "thermal", False)
 
     def test_enumerator_finds_explicitly_validated_bridge(self):
         result = enumerate_bridge_candidates(
