@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import PurePosixPath
+import re
 
 
 @dataclass(frozen=True)
@@ -86,11 +87,24 @@ class PatchValidator:
 
         lines = patch.splitlines()
         paths: list[str] = []
+        pending_git_paths: tuple[str, str] | None = None
         index = 0
         while index < len(lines):
             line = lines[index]
+            if line.startswith("diff --git "):
+                if pending_git_paths is not None:
+                    raise ValueError("diff --git header is missing its ---/+++ pair")
+                match = re.fullmatch(r"diff --git a/(.+) b/(.+)", line)
+                if not match:
+                    raise ValueError("quoted or malformed diff --git paths are rejected")
+                git_old = self._path("a/" + match.group(1), "a")
+                git_new = self._path("b/" + match.group(2), "b")
+                assert git_old is not None and git_new is not None
+                pending_git_paths = (git_old, git_new)
+                index += 1
+                continue
             if not line.startswith("--- "):
-                if line.startswith(("diff --git ", "index ", "+++ ", "@@ ", "+", "-", " ")):
+                if line.startswith(("index ", "+++ ", "@@ ", "+", "-", " ")):
                     index += 1
                     continue
                 raise ValueError(f"unexpected unified diff line at {index + 1}")
@@ -102,6 +116,10 @@ class PatchValidator:
             new_path = self._path(new_raw, "b")
             if old_path is None and new_path is None:
                 raise ValueError("a diff cannot add and delete /dev/null")
+            if pending_git_paths is not None:
+                if pending_git_paths != (old_path or new_path, new_path or old_path):
+                    raise ValueError("diff --git paths do not match ---/+++ headers")
+                pending_git_paths = None
             path = new_path if new_path is not None else old_path
             assert path is not None
             if path in paths:
@@ -109,6 +127,8 @@ class PatchValidator:
             paths.append(path)
             index += 2
 
+        if pending_git_paths is not None:
+            raise ValueError("diff --git header is missing its ---/+++ pair")
         if not paths:
             raise ValueError("patch contains no file changes")
         if len(paths) > self.max_files:
