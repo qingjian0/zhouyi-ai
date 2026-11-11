@@ -58,6 +58,7 @@ class InferenceStatus(str, Enum):
     AMBIGUOUS = "ambiguous"
     INCONSISTENT = "inconsistent"
     UNKNOWN = "unknown"
+    ABSTAINED = "abstained"
     BUDGET_EXHAUSTED = "budget_exhausted"
 
 @dataclass(frozen=True)
@@ -94,10 +95,22 @@ class PredictionCommit:
     identifiable: bool
     prediction_json: str | None = None
     abstention_reason: str | None = None
+    # Optional in the initial v1 DTO for backward compatibility; strict
+    # cross-track commits must populate all four context fields.
+    episode_id: str | None = None
+    learner_track: str | None = None
+    split: EvidenceSplit | None = None
+    model_version: str | None = None
 
     def __post_init__(self) -> None:
         for name in ("commit_id", "candidate_ref", "query_id", "scope"):
             _text(getattr(self, name), name)
+        for name in ("episode_id", "learner_track", "model_version"):
+            value = getattr(self, name)
+            if value is not None:
+                _text(value, name)
+        if self.split is not None and not isinstance(self.split, EvidenceSplit):
+            raise ValueError("split must be an EvidenceSplit")
         if not _SHA256_RE.fullmatch(self.input_digest):
             raise ValueError("input_digest must be a lowercase SHA-256 digest")
         if not isinstance(self.identifiable, bool):
@@ -121,6 +134,10 @@ class PredictionCommit:
             "input_digest": self.input_digest, "identifiable": self.identifiable,
             "prediction_json": self.prediction_json,
             "abstention_reason": self.abstention_reason,
+            "episode_id": self.episode_id,
+            "learner_track": self.learner_track,
+            "split": self.split.value if self.split is not None else None,
+            "model_version": self.model_version,
         })
 
 @dataclass(frozen=True)
@@ -132,23 +149,48 @@ class EvidenceReveal:
     split: EvidenceSplit
     outcome_json: str
     source_ref: str
+    episode_id: str | None = None
+    learner_track: str | None = None
 
     def __post_init__(self) -> None:
         for name in ("evidence_id", "query_id", "scope", "source_ref"):
             _text(getattr(self, name), name)
+        for name in ("episode_id", "learner_track"):
+            value = getattr(self, name)
+            if value is not None:
+                _text(value, name)
         if not _SHA256_RE.fullmatch(self.commit_digest):
             raise ValueError("commit_digest must be a lowercase SHA-256 digest")
         if not isinstance(self.split, EvidenceSplit):
             raise ValueError("split must be an EvidenceSplit")
         validate_canonical_json(self.outcome_json, "outcome_json")
 
-def validate_reveal_binding(commit: PredictionCommit, reveal: EvidenceReveal) -> None:
+def validate_reveal_binding(
+    commit: PredictionCommit,
+    reveal: EvidenceReveal,
+    *,
+    require_context: bool = False,
+) -> None:
+    if require_context:
+        if commit.episode_id is None or commit.learner_track is None or commit.split is None:
+            raise ValueError("strict prediction commit requires episode_id, learner_track and split")
+        if commit.model_version is None:
+            raise ValueError("strict prediction commit requires model_version")
+        if reveal.episode_id is None or reveal.learner_track is None:
+            raise ValueError("strict evidence reveal requires episode_id and learner_track")
     if reveal.commit_digest != commit.commit_digest:
         raise ValueError("evidence reveal does not match prediction commit")
     if reveal.query_id != commit.query_id:
         raise ValueError("evidence reveal query does not match prediction")
     if reveal.scope != commit.scope:
         raise ValueError("evidence reveal scope does not match prediction")
+    for field in ("episode_id", "learner_track"):
+        committed = getattr(commit, field)
+        revealed = getattr(reveal, field)
+        if committed is not None and revealed != committed:
+            raise ValueError(f"evidence reveal {field} does not match prediction")
+    if commit.split is not None and reveal.split is not commit.split:
+        raise ValueError("evidence reveal split does not match prediction")
 
 def evidence_visible_to(reveal: EvidenceReveal, role: ConsumerRole) -> bool:
     """Metadata policy only; actual isolation requires a process/service boundary."""
@@ -216,5 +258,5 @@ class InferenceResult:
                 raise ValueError("budget amounts must be non-negative integers")
         if self.status is InferenceStatus.IDENTIFIED and not self.ranked_hypothesis_refs:
             raise ValueError("identified result requires at least one hypothesis")
-        if self.status in (InferenceStatus.UNKNOWN, InferenceStatus.INCONSISTENT) and self.ranked_hypothesis_refs:
+        if self.status in (InferenceStatus.UNKNOWN, InferenceStatus.INCONSISTENT, InferenceStatus.ABSTAINED) and self.ranked_hypothesis_refs:
             raise ValueError("unknown/inconsistent result cannot rank hypotheses")
