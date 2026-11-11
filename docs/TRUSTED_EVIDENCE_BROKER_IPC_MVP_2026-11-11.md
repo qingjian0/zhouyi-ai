@@ -11,7 +11,7 @@ Status: experimental Linux-only learner-read MVP. Do not treat this as productio
 - The only exposed operation is learner `get_snapshot(episode_id)`; episode scope is checked against the authenticated principal policy.
 - Learner snapshots are serialized through the v0.1 allowlisted DTO. The cursor is an HMAC token over the visible snapshot and principal scope; global SQLite sequence numbers are not exported.
 - Database parent directory is forced to mode 0700, database file to 0600, socket directory to 0750 and socket to 0660. The socket directory's group must be configured for intended client access.
-- Requests and responses are size-bounded; authorization failures use a generic error response.
+- Requests and responses are size-bounded; each request has a five-second read timeout and the server caps concurrent clients at 32; authorization failures use a generic error response.
 
 ## Run
 
