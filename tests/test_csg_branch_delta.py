@@ -37,6 +37,14 @@ class BranchDeltaTests(unittest.TestCase):
         self.assertEqual(result.status, MergeStatus.MERGED)
         self.assertEqual(dict(result.state), {"n": 2})
 
+    def test_delta_payload_is_deeply_immutable(self):
+        source = {"nested": {"value": 1}}
+        e = self.event("a1", DeltaOperation.ADD_NODE, "n", None, source)
+        source["nested"]["value"] = 99
+        returned = e.after_value
+        returned["nested"]["value"] = 42
+        self.assertEqual(e.after_value, {"nested": {"value": 1}})
+
     def test_shared_parent_and_version_are_mandatory(self):
         a = self.snap("a", [])
         b = BranchSnapshot("other-parent", "b", 7, (), (), (), (), ("root", "b"))
