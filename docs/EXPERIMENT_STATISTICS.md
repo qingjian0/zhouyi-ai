@@ -43,3 +43,26 @@ experimental design is inadequate.
 - Run enough independent seeds based on a pre-study power analysis; three seeds are
   useful for smoke tests, not strong scientific evidence.
 - Preserve raw per-seed metrics and analysis configuration as versioned artifacts.
+
+
+## Paired sign-flip inference
+
+`paired_sign_flip_test` tests a zero-centered mean paired effect by flipping
+the signs of paired differences. It enumerates all sign assignments for small
+samples (up to the configured exact limit); larger samples use deterministic
+Monte Carlo and the plus-one p-value correction. The result records the method,
+number of permutations, and random seed.
+
+This test requires independent, exchangeable paired units under the null. A
+matching seed label alone does not establish that assumption. If seeds share
+training data, checkpoints, hyperparameter tuning, or other dependencies, the
+effective sample size may be lower and the test can be anti-conservative.
+The test is two-sided and should be pre-specified before examining outcomes.
+
+## Multiple comparisons
+
+`holm_bonferroni` computes step-down adjusted p-values for a declared family
+of metric/hypothesis tests. Define the family before inspecting results; do not
+add or remove metrics after seeing their p-values. Adjusted p-values control
+family-wise error under arbitrary dependence, but they do not repair biased
+datasets, invalid pairing, optional stopping, or an underpowered experiment.
