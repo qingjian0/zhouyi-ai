@@ -54,6 +54,7 @@ class TypedCoordinatedCandidate:
     branch_merge: MergeResult | None = None
     branch_merge_authorization_ref: str | None = None
     branch_merge_authorization_evidence_refs: tuple[str, ...] = ()
+    branch_merge_evidence_refs: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -335,6 +336,7 @@ class TypedCandidateCoordinator:
             branch_merge = None
             authorization_ref = None
             authorization_evidence_refs: tuple[str, ...] = ()
+            branch_evidence_refs: tuple[str, ...] = ()
             if snapshots:
                 branch_merge = merge_branch_deltas(
                     base_state, selected_branch_snapshots(tuple(row.proposal for row in selected))
@@ -342,12 +344,18 @@ class TypedCandidateCoordinator:
                 if branch_merge.status not in (MergeStatus.MERGED, MergeStatus.NO_OP):
                     rejected_branch_merges += 1
                     continue
+                selected_snapshots = selected_branch_snapshots(
+                    tuple(row.proposal for row in selected)
+                )
+                branch_evidence_refs = tuple(sorted({
+                    ref for snapshot in selected_snapshots for ref in snapshot.evidence_refs
+                }))
                 if len({row.proposal.branch_id for row in selected}) > 1:
                     authorization_ref = branch_merge_authorization.authorization_ref
                     authorization_evidence_refs = branch_merge_authorization.evidence_refs
             accepted.append(TypedCoordinatedCandidate(
                 candidate, result, branch_merge, authorization_ref,
-                authorization_evidence_refs,
+                authorization_evidence_refs, branch_evidence_refs,
             ))
 
         accepted.sort(key=lambda item: (
