@@ -42,7 +42,9 @@ class ZNCACoreTests(unittest.TestCase):
     def test_temporal_validity(self):
         self.state.apply(ObservationEvent(
             "event-2", 5, retract_assertion_ids=("r1",)))
-        self.assertEqual(len(self.state.query(RelationQuery("trusts"))), 1)
+        result = self.state.query(RelationQuery("trusts"))
+        self.assertEqual(result.status, QueryStatus.FOUND)
+        self.assertEqual(len(result.relations), 1)
 
     def test_retraction_preserves_original_event(self):
         self.state.apply(ObservationEvent(
