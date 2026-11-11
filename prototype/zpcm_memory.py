@@ -114,7 +114,7 @@ class ZPCMMemory:
                 return {"sequence":seq,"payload_digest":digest(payload),"replayed":replay}
             except sqlite3.IntegrityError as exc:
                 self.db.execute("ROLLBACK")
-                raise ZPCMError("authorization receipt ID or nonce was already consumed") from exc
+                raise ZPCMError("lifecycle event database integrity error") from exc
             except Exception:
                 self.db.execute("ROLLBACK")
                 raise
@@ -298,6 +298,9 @@ class ZPCMMemory:
                     })
                 self.db.execute("COMMIT")
                 return receipts
+            except sqlite3.IntegrityError as exc:
+                self.db.execute("ROLLBACK")
+                raise ZPCMError("authorization receipt ID or nonce was already consumed") from exc
             except Exception:
                 self.db.execute("ROLLBACK")
                 raise
