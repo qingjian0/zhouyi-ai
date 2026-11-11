@@ -1,7 +1,7 @@
 """Durable E12-A6 lifecycle ledger backed by ZPCM's append-only event log."""
 from __future__ import annotations
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from threading import RLock
 from typing import Any
 from prototype.e12a6_lifecycle_contract import Action, ActionType, Candidate, CandidateState, Evidence, LifecycleLedger, SplitRole
@@ -124,14 +124,22 @@ class PersistentLifecycleLedger:
             return self._commit(eid,payload,staged)
 
     def register_evidence(self,evidence: Evidence) -> LifecycleEventReceipt:
-        eid=f"e12a6:evidence:{evidence.evidence_id}"
-        payload={"schema_version":EVENT_SCHEMA,"kind":"evidence_registered","body":{"evidence":_evidence_to_dict(evidence)}}
+        # E12-A6 needs split/provenance metadata for transition validation, not
+        # the target value itself. Persist an opaque reference instead of a
+        # label that may originate from LOCKED_TEST or POST_DEPLOY evidence.
+        safe_evidence = replace(
+            evidence,
+            outcome=f"opaque-evidence-ref:{evidence.evidence_id}",
+            provenance=f"opaque-provenance-ref:{evidence.evidence_id}",
+        )
+        eid=f"e12a6:evidence:{safe_evidence.evidence_id}"
+        payload={"schema_version":EVENT_SCHEMA,"kind":"evidence_registered","body":{"evidence":_evidence_to_dict(safe_evidence)}}
         with self._lock:
-            old=self._ledger.evidence.get(evidence.evidence_id)
+            old=self._ledger.evidence.get(safe_evidence.evidence_id)
             if old is not None:
-                if old!=evidence or self._event_payloads.get(eid)!=payload: raise LifecyclePersistenceError("evidence ID content conflict")
+                if old!=safe_evidence or self._event_payloads.get(eid)!=payload: raise LifecyclePersistenceError("evidence ID content conflict")
                 r=self._receipts[eid]; return LifecycleEventReceipt(r.event_id,r.sequence,r.payload_digest,True)
-            staged=deepcopy(self._ledger); staged.add_evidence(evidence)
+            staged=deepcopy(self._ledger); staged.add_evidence(safe_evidence)
             return self._commit(eid,payload,staged)
 
     def apply(self,action: Action) -> LifecycleEventReceipt:
@@ -151,6 +159,16 @@ class PersistentLifecycleLedger:
             if k in args: args[k]=tuple(args[k])
         eid=f"e12a6:revision:{candidate_id}@{version+1}"
         with self._lock:
+            existing=self._ledger.candidates.get((candidate_id,version+1))
+            if existing is not None:
+                recorded={"candidate_id":candidate_id,"version":version,**args}
+                recorded={k:list(v) if isinstance(v,tuple) else v for k,v in recorded.items()}
+                expected={"schema_version":EVENT_SCHEMA,"kind":"revision_created",
+                  "body":{"arguments":recorded,"candidate":_candidate_to_dict(existing)}}
+                if self._event_payloads.get(eid)!=expected:
+                    raise LifecyclePersistenceError("revision identity reused with different content")
+                r=self._receipts[eid]
+                return existing,LifecycleEventReceipt(r.event_id,r.sequence,r.payload_digest,True)
             staged=deepcopy(self._ledger); made=staged.create_revision(candidate_id,version,**args)
             recorded={"candidate_id":candidate_id,"version":version,**args}
             recorded={k:list(v) if isinstance(v,tuple) else v for k,v in recorded.items()}
