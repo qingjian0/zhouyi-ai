@@ -125,6 +125,7 @@ class E10AFiniteRelationalLearnerTests(unittest.TestCase):
     def test_consistent_global_renaming_of_attributes_and_context_preserves_predictions(self):
         support = copy.deepcopy(self.support)
         query = copy.deepcopy(self.query)
+        original_query_rows = {row["observation_id"]: row for row in self.query["observations"]}
         feature_keys = {
             key for obj in support["objects"]
             for key, _ in obj["attributes"]
@@ -156,9 +157,10 @@ class E10AFiniteRelationalLearnerTests(unittest.TestCase):
             self.assertEqual(prediction["decision_status"], "PREDICT")
             original = FiniteRelationalVersionSpace().fit(self.support)
             original_map = {item["object_id"]: item for item in self.query["objects"]}
+            original_row = original_query_rows[row["observation_id"]]
             baseline = original.predict(
-                row,
-                [original_map[key] for key in row["participants"]],
+                original_row,
+                [original_map[key] for key in original_row["participants"]],
             )
             self.assertEqual(prediction["prediction"], baseline["prediction"])
 
