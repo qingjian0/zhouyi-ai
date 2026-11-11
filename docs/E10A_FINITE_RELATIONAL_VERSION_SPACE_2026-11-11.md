@@ -103,5 +103,7 @@ This prevents a dangerous failure mode in which every known rule fails to match 
 3. Query-only unseen categorical values (must abstain as OOD value);
 4. Query-only unseen context values (must abstain as OOD value);
 5. Support-majority, deterministic-random, and evaluator-oracle upper-bound controls.
+6. Post-hoc hard-negative slices by evaluator-only violation class.
+7. Deterministic removal of 50% and 100% of positive Support evidence per relation, retaining negative Support examples.
 
-The oracle is evaluator-only and is reported solely as an upper bound. OOD abstention is a safe rejection behavior, not successful extrapolation. The current stage does not yet establish semantic analogy, relation-family transfer, or open-world concept induction. CI runs this audit and its unit tests.
+The oracle is evaluator-only and is reported solely as an upper bound. OOD abstention is a safe rejection behavior, not successful extrapolation. The current stage does not yet establish semantic analogy, relation-family transfer, or open-world concept induction. Positive-support ablation tests whether evidence reduction increases ambiguity or failure; hard-negative slices expose which violation types remain difficult. These are diagnostic stress tests, not population estimates. CI runs this audit and its unit tests.
