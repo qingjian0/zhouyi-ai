@@ -56,3 +56,18 @@ The #212 base commit is an ancestor of #208 head; comparison shows #208 is one c
 ## CSG-GCR implementation boundary
 
 PR #208 is an R1 candidate bounded coordinator. Its own scope records the following as not yet implemented: canonical semantic deduplication, typed hyperedge unification, incremental branch deltas and structural merge, Pareto/diversity selection, E09 integration, E12-A6 lifecycle adaptation and ZPCM persistence. PR #212 supplies a standalone typed-unification reference kernel, but its own specification states that CSG-GCR does not yet call it. Therefore PR #212 does not close the typed-unification integration gate.
+
+
+## Code-level CSG-GCR review
+
+Inspected PR #208 source and tests, plus PR #212 source and tests:
+
+- `CandidateCoordinator` is a deterministic bounded depth-first subset search. It validates immutable proposals, parent-state consistency, string-key binding conflicts, explicit requires/excludes, cardinality/cost/state budgets, and emits an explicit `BUDGET_EXHAUSTED` status.
+- Its binding contract remains `(string key, string value)`; branch IDs are labels, not persisted branch-delta objects. The implementation does not yet provide semantic deduplication, typed role/type unification, branch-delta merge/recombination, Pareto selection or diversity control.
+- `proposal_from_srok` requires caller-supplied role-to-variable string mappings. It does not retain member types or construct the typed hyperedge contract.
+- PR #212 adds a separate namespaced `VariableRef` / `VariableSpec` / `RoleBinding` unifier with subtype checks, equality/inequality constraints, role requirements, common temporal intersection and evidence-reference preservation. It is a reference kernel only; its own document explicitly says CSG-GCR is not wired to call it.
+- Therefore the next code gate is not another independent coordinator: it is a typed SROK→hyperedge proposal adapter, a CSG-GCR validation hook using the typed unifier, and differential/negative tests proving that typed conflicts are rejected without dropping evidence provenance. The adapter must preserve parent-state and branch semantics and must not infer semantic identity from equal labels alone.
+
+## Exact-head CI observation
+
+At audit time, PR #206 head was `6e14c4a9c2363b15d46eee0bbff4417a4907ea6a`. No PR-triggered workflow run or combined status check was returned for that exact commit. An intermediate head `c907478` had a tests workflow reported in progress, but that is not evidence of CI success on the final head. No local test suite was executed during this audit.
