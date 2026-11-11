@@ -59,6 +59,10 @@ class Hypothesis:
     def __post_init__(self) -> None:
         if not self.hypothesis_id.strip():
             raise ArenaError("hypothesis_id is required")
+        if self.status is not HypothesisStatus.PROPOSED:
+            raise ArenaError("new hypotheses must start as PROPOSED")
+        if not self.read_set or not self.write_set:
+            raise ArenaError("read_set and write_set must be non-empty")
         if self.base_version < 0:
             raise ArenaError("base_version must be non-negative")
         for name, values in (("read_set", self.read_set), ("write_set", self.write_set),
@@ -72,6 +76,9 @@ class Hypothesis:
             raise ArenaError("state_delta keys must be sorted and unique")
         if set(delta_keys) != set(self.write_set):
             raise ArenaError("state_delta keys must exactly match write_set")
+        if any(not key.strip() or not isinstance(value, str) or not value.strip()
+               for key, value in self.state_delta):
+            raise ArenaError("state_delta keys and values must be non-empty strings")
 
 
 @dataclass(frozen=True)
@@ -93,7 +100,7 @@ class HypothesisArena:
         if any(not ref.strip() for ref in self._known_evidence):
             raise ArenaError("evidence refs must be non-empty")
         self._hypotheses: dict[str, Hypothesis] = {}
-        self._committed: list[Hypothesis] = {}
+        self._committed: list[Hypothesis] = []
         self._results: dict[str, CommitResult] = {}
 
     @property
