@@ -1190,5 +1190,79 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
             ])
 
 
+    def test_policy_gated_challenge_release_exposes_only_minimal_label_free_payload(self):
+        self.store.append_events(episode_id="release-ep", idempotency_key="setup", events=[
+            self.observation("release-obs"),
+            {"event_id": "release-candidate", "event_type": "structure_version", "payload": {
+                "structure_id": "release-rule", "version_id": "release-rule@1", "kind": "candidate",
+                "definition": {"rule": "a>b"}, "learner_track": "track-r",
+                "parent_version_ids": [], "support_evidence_ids": [],
+            }},
+        ])
+        row = self.store._db.execute(
+            "SELECT payload_digest FROM events WHERE episode_id=? AND event_id=?",
+            ("release-ep", "release-candidate"),
+        ).fetchone()
+        freeze_digest = digest_payload({
+            "learner_track": "track-r", "evaluation_role": "GATE_DEV",
+            "candidates": [{"version_id": "release-rule@1", "payload_digest": row["payload_digest"]}],
+        })
+        policy = {
+            "policy_id": "policy-r1", "learner_track": "track-r",
+            "allowed_evaluation_roles": ["GATE_DEV"],
+            "allowed_challenge_kinds": ["RECONSIDER"],
+            "max_releases": 1,
+        }
+        policy["policy_digest"] = digest_payload(policy)
+        challenge = {
+            "challenge_id": "challenge-r1", "policy_id": "policy-r1",
+            "source_evaluation_id": "eval-r1", "source_prediction_id": "pred-r1",
+            "learner_track": "track-r", "challenge_kind": "RECONSIDER",
+            "observation_id": "release-obs",
+        }
+        challenge["challenge_digest"] = digest_payload({
+            k: challenge[k] for k in ("challenge_id", "policy_id", "learner_track", "challenge_kind", "observation_id")
+        })
+        self.store.append_events(episode_id="release-ep", idempotency_key="eval-and-release", events=[
+            {"event_id": "release-freeze", "event_type": "candidate_set_freeze", "payload": {
+                "freeze_id": "release-freeze", "learner_track": "track-r", "evaluation_role": "GATE_DEV",
+                "candidate_version_ids": ["release-rule@1"], "candidate_set_digest": freeze_digest,
+            }},
+            {"event_id": "release-commit", "event_type": "prediction_commit", "payload": {
+                "prediction_id": "pred-r1", "observation_id": "release-obs", "model_version": "m1",
+                "learner_track": "track-r", "decision_status": "PREDICT",
+                "candidate_set_freeze_id": "release-freeze", "evaluation_role": "GATE_DEV",
+                "candidate_set_digest": freeze_digest,
+            }},
+            {"event_id": "release-eval", "event_type": "evaluation_reveal", "actor_role": "evaluator", "payload": {
+                "evaluation_id": "eval-r1", "freeze_id": "release-freeze", "prediction_id": "pred-r1",
+                "learner_track": "track-r", "evaluation_role": "GATE_DEV",
+                "candidate_set_digest": freeze_digest, "target": "SECRET_GROUND_TRUTH",
+            }},
+            {"event_id": "release-policy", "event_type": "challenge_release_policy", "actor_role": "policy_authority", "payload": policy},
+            {"event_id": "release-challenge", "event_type": "challenge_release", "actor_role": "release_policy", "payload": challenge},
+        ])
+        learner = self.store.replay_learner_projection("release-ep", "track-r")
+        evaluator = self.store.replay_evaluator_projection("release-ep")
+        learner_json = canonical_json(learner)
+        self.assertNotIn("SECRET_GROUND_TRUTH", learner_json)
+        self.assertNotIn("eval-r1", learner_json)
+        self.assertEqual(learner["released_challenges"], [{
+            "challenge_id": "challenge-r1", "observation_id": "release-obs", "challenge_kind": "RECONSIDER",
+        }])
+        self.assertEqual(evaluator["evaluations"]["pred-r1"]["target"], "SECRET_GROUND_TRUTH")
+        self.assertEqual(evaluator["released_challenges"]["challenge-r1"]["source_evaluation_id"], "eval-r1")
+
+    def test_challenge_release_rejects_raw_label_fields(self):
+        with self.assertRaisesRegex(ProtocolError, "forbidden or missing fields"):
+            self.store.append_events(episode_id="release-forbidden", idempotency_key="forbidden", events=[
+                {"event_id": "forbidden-challenge", "event_type": "challenge_release", "actor_role": "release_policy", "payload": {
+                    "challenge_id": "bad", "policy_id": "policy", "source_evaluation_id": "eval",
+                    "source_prediction_id": "pred", "learner_track": "track", "challenge_kind": "RECONSIDER",
+                    "observation_id": "obs", "challenge_digest": "0" * 64, "target": "DO_NOT_LEAK",
+                }},
+            ])
+
+
 if __name__ == "__main__":
     unittest.main()
