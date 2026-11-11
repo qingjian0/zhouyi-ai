@@ -63,6 +63,19 @@ class E09SharedProtocolAdapterTests(unittest.TestCase):
         )
         reveal = next(e for e in events if e["event_type"] == "evidence_reveal")
         self.assertEqual(reveal["event_id"], reveal_event_id)
+        prediction_event = next(e for e in events if e["event_type"] == "prediction_commit")
+        self.assertEqual(
+            reveal["payload"]["commit_digest"],
+            prediction_event["payload"]["interop_commit_digest"],
+        )
+        self.assertEqual(
+            reveal["payload"]["event_digest"],
+            prediction_event["payload_digest"],
+        )
+        self.assertNotEqual(
+            reveal["payload"]["commit_digest"],
+            reveal["payload"]["event_digest"],
+        )
         structure = [e for e in events if e["event_type"] == "structure_version"][-1]
         self.assertEqual(structure["payload"]["parent_version_ids"], ["e09-v1"])
         self.assertEqual(structure["payload"]["support_evidence_ids"], [reveal_event_id])
