@@ -52,7 +52,7 @@ class TX02ExperimentTests(unittest.TestCase):
             runs.append({"families": {
                 family: {"locked_test": {"query_accuracy": value},
                          "fit": {"parameter_count": 10}}
-                for family in ("BINARY", "TERNARY", "HYBRID", "ONE_HOT", "LEARNED", "PERMUTED")
+                for family in ("BINARY", "TERNARY", "HYBRID", "ONE_HOT", "LEARNED", "FIXED_RANDOM", "PERMUTED")
             }})
         result = aggregate_runs(runs)
         self.assertEqual(result["TERNARY"]["mean_query_accuracy"], 0.5)
