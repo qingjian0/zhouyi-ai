@@ -108,6 +108,7 @@ class E09Ed25519CrossBranchTests(unittest.TestCase):
             "signature_algorithm": "Ed25519",
             "signature_version": AUTHORIZATION_SIGNATURE_VERSION,
             "audience": AUTHORIZATION_AUDIENCE,
+            "authorization_sequence": self.e09.replay_episode(self.episode)[-1]["sequence_no"] + 1,
         }
         signing_event = {
             "episode_id": self.episode, "event_id": authorization_ref,
@@ -129,6 +130,7 @@ class E09Ed25519CrossBranchTests(unittest.TestCase):
             payload={**unsigned, "signature": signature},
             payload_schema="branch_merge_authorization@2",
             integrity_metadata={"policy": "branch-merge-v2"},
+            expected_sequence=unsigned["authorization_sequence"] - 1,
             protocol_version=STRICT_PROTOCOL_VERSION,
         )
 
