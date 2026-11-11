@@ -51,12 +51,21 @@ class XSL2CandidateMappingTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "max_search_states"):
             enumerate_candidate_bridges(self.source, self.target, max_search_states=True, **self.kwargs)
 
-    def test_rejects_non_injective_type_map(self):
-        with self.assertRaisesRegex(ValueError, "target values must be unique"):
-            enumerate_candidate_bridges(self.source, self.target,
-                node_type_mapping=(("actor", "controller"), ("system", "controller")),
-                relation_mapping=self.kwargs["relation_mapping"],
-                mapping_kind=MappingKind.RELATION)
+    def test_distinct_source_types_may_share_target_supertype(self):
+        source = RelationalGraph("source-shared-type",
+            tuple(sorted((Node("a", "actor"), Node("b", "system")))),
+            (Relation("acts_on", ("a", "b")),))
+        target = RelationalGraph("target-shared-type",
+            tuple(sorted((Node("x", "agent"), Node("y", "agent")))),
+            (Relation("controls", ("x", "y")),))
+        result = enumerate_candidate_bridges(source, target,
+            mapping_kind=MappingKind.RELATION,
+            node_type_mapping=(("actor", "agent"), ("system", "agent")),
+            relation_mapping=(("acts_on", "controls"),))
+        self.assertTrue(result.search_complete)
+        self.assertEqual(len(result.candidates), 1)
+        self.assertEqual(result.candidates[0].validation.status, BridgeStatus.STRUCTURALLY_PRESERVED)
+
 
 if __name__ == "__main__":
     unittest.main()
