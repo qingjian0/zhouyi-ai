@@ -2,7 +2,7 @@ import unittest
 
 from prototype.csg_gcr_coordinator import CandidateProposal, CoordinationError, GlobalConstraints
 from prototype.csg_branch_delta import (
-    BranchDelta, BranchMergeAuthorization, BranchSnapshot, DeltaOperation,
+    BranchDelta, BranchMergeAuthorization, VerifiedBranchMergeAuthorization, BranchSnapshot, DeltaOperation,
     MergeStatus, canonical_hash,
 )
 from prototype.typed_csg_gcr import (
@@ -164,8 +164,9 @@ class TypedCSGBridgeTests(unittest.TestCase):
             self.branch_snapshot("left", base, "node:a", base["node:a"], {"value": 1}),
             self.branch_snapshot("right", base, "node:b", base["node:b"], {"value": 2}),
         )
-        permit = BranchMergeAuthorization(
+        permit = VerifiedBranchMergeAuthorization(
             "e09-permit-1", "s0", ("left", "right"), ("e09:decision-77",),
+            issuer_id="issuer-test", event_digest="a" * 64, verifier_id="test-keyring-v1",
         )
         report = TypedCandidateCoordinator().coordinate(
             rows, base_state=base, branch_snapshots=snapshots,
@@ -181,6 +182,28 @@ class TypedCSGBridgeTests(unittest.TestCase):
         self.assertEqual(combined.branch_merge_authorization_evidence_refs, ("e09:decision-77",))
         self.assertEqual(combined.branch_merge_evidence_refs,
                          ("derivation:left", "derivation:right"))
+
+    def test_unverified_scope_receipt_is_rejected(self):
+        base = {"node:a": {"value": 0}, "node:b": {"value": 0}}
+        x, y = VariableRef("wl", "x"), VariableRef("wl", "y")
+        rows = [
+            self.make("e1", "r1", [RoleBinding("a", x, "m1", "Entity")],
+                      [VariableSpec(x, "Entity")], branch="left"),
+            self.make("e2", "r2", [RoleBinding("b", y, "m2", "Entity")],
+                      [VariableSpec(y, "Entity")], branch="right"),
+        ]
+        snapshots = (
+            self.branch_snapshot("left", base, "node:a", base["node:a"], {"value": 1}),
+            self.branch_snapshot("right", base, "node:b", base["node:b"], {"value": 2}),
+        )
+        unverified = BranchMergeAuthorization(
+            "forged-ref", "s0", ("left", "right"), ("e09:fake-evidence",),
+        )
+        with self.assertRaisesRegex(CoordinationError, "signature-verified"):
+            TypedCandidateCoordinator().coordinate(
+                rows, base_state=base, branch_snapshots=snapshots,
+                branch_merge_authorization=unverified,
+            )
 
     def test_cross_branch_merge_requires_explicit_authorization(self):
         base = {"node:a": {"value": 0}, "node:b": {"value": 0}}
@@ -213,8 +236,9 @@ class TypedCSGBridgeTests(unittest.TestCase):
             self.branch_snapshot("left", base, "node:a", base["node:a"], {"value": 1}),
             self.branch_snapshot("right", base, "node:a", base["node:a"], {"value": 2}),
         )
-        permit = BranchMergeAuthorization(
+        permit = VerifiedBranchMergeAuthorization(
             "e09-permit-2", "s0", ("left", "right"), ("e09:decision-78",),
+            issuer_id="issuer-test", event_digest="b" * 64, verifier_id="test-keyring-v1",
         )
         report = TypedCandidateCoordinator().coordinate(
             rows, base_state=base, branch_snapshots=snapshots,
