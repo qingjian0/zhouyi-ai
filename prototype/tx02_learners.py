@@ -1,4 +1,4 @@
-"""TX-02B-3 trainable set-conditioned relation learner.
+"""TX-02B-3/02C set-conditioned relation learner.
 
 A small pure-Python MLP scores each (support triple, query, candidate) tuple.
 Scores are pooled over the support set, then normalized across the shuffled
@@ -38,7 +38,7 @@ class SetConditionedMLPLearner:
         learning_rate: float = 0.03,
         seed: int = 0,
     ) -> None:
-        if family not in ("BINARY", "TERNARY", "HYBRID", "ONE_HOT", "LEARNED", "PERMUTED"):
+        if family not in ("BINARY", "TERNARY", "HYBRID", "ONE_HOT", "LEARNED", "FIXED_RANDOM", "PERMUTED"):
             raise ValueError("unknown representation family")
         if type(hidden_size) is not int or hidden_size < 1:
             raise ValueError("hidden_size must be a positive integer")
@@ -69,14 +69,19 @@ class SetConditionedMLPLearner:
                 raise ValueError("one learner instance supports exactly one cardinality")
             return
         self._cardinality = cardinality
-        if self.family == "LEARNED":
+        if self.family in ("LEARNED", "FIXED_RANDOM"):
             d = self.embedding_dim
             scale = 1.0 / math.sqrt(d)
-            self._embeddings = [
-                [self._rng.uniform(-scale, scale) for _ in range(d)]
+            table = tuple(
+                tuple(self._rng.uniform(-scale, scale) for _ in range(d))
                 for _ in range(cardinality)
-            ]
-            self._codewords = None
+            )
+            if self.family == "LEARNED":
+                self._embeddings = [list(row) for row in table]
+                self._codewords = None
+            else:
+                self._embeddings = None
+                self._codewords = table
             feature_dim = d
         else:
             code_family = "PERMUTED" if self.family == "PERMUTED" else self.family
@@ -295,7 +300,7 @@ class SetConditionedMLPLearner:
             "family": self.family,
             "cardinality": self._cardinality,
             "hidden_size": self.hidden_size,
-            "embedding_dim": self.embedding_dim if self.family == "LEARNED" else None,
+            "embedding_dim": self.embedding_dim if self.family in ("LEARNED", "FIXED_RANDOM") else None,
             "trainable_embedding": self._trainable_embeddings,
             "parameter_count": self.parameter_count,
             "updates": self._updates,
