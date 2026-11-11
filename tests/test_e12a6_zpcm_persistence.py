@@ -195,6 +195,7 @@ class PersistentLifecycleTests(unittest.TestCase):
         candidate_item = authorized_candidate()
         self.store.register_candidate_bundle(
             candidate_item, (evidence_item,), authorization_receipt=receipt, consumed_at=now,
+            writer_identity=writer_identity(),
         )
         with self.assertRaises(LifecyclePersistenceError):
             self.store.register_candidate_bundle(candidate_item, (evidence_item,))
