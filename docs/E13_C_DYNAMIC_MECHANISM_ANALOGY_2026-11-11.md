@@ -30,14 +30,15 @@ E13-B 验证的是有限静态关系结构能否按显式类型、关系、角�
 4. **更新**：可把各候选对同一 query 的预测交给 E13-B3-D，先按预测分歧选择干预；执行后再按观测过滤版本空间。
 5. **矛盾**：若观测排除所有候选，报告 CONTRADICTION；不得把观测改写成支持最接近的候选。
 
-选择 query 时不得读取目标模型的实际响应；目标响应只在 query 锁定后用于验证。这是避免 evaluator 泄漏的最小边界。
+选择 query 时不得读取目标模型的实际响应；选择器函数签名不接收 target model。目标响应只在 query 锁定后由 `validate_mechanism_query` 读取并比较。这是避免 evaluator 泄漏的最小边界。
 
 ## 4. 原型 API
 
 - `forecast_target_response(source, mapping, query)`
 - `observe_target_response(target, mapping, query)`
 - `forecast_record(...)`
-- `select_mechanism_query(source, target, mappings, queries)`
+- `select_mechanism_query(source, mappings, queries)` — target simulator is intentionally absent from the signature.
+- `validate_mechanism_query(source, target, mapping, query)` — compares the locked forecast with the independent target response.
 
 原型是有限、确定性、表驱动 DSL。它验证的是“给定机制表和显式映射后的可预测性”，不是从原始数据自主发现因果结构。变量/值映射由外部提供，不能把它包装成自动发明。
 
