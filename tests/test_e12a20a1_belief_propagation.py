@@ -107,9 +107,9 @@ class BeliefPropagationTests(unittest.TestCase):
 
     def test_iteration_limit_is_not_reported_as_convergence(self):
         problem = Problem(
-            (Variable("x", ("0", "1")), Variable("y", ("0", "1"))),
-            (Factor("pair", ("x", "y"), "SOFT",
-                    ((("0", "0"), 0.0), (("1", "1"), 0.0)), default_cost=1.0),),
+            (Variable("x", ("0", "1")),),
+            (Factor("unary", ("x",), "SOFT",
+                    ((("0",), 1.0), (("1",), 0.0)), default_cost=2.0),),
         )
         result = infer_beliefs(problem, budget=BPBudget(max_iterations=1, damping=1.0, tolerance=1e-15))
         self.assertEqual(result.status, "ITERATION_LIMIT")
