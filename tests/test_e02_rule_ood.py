@@ -46,6 +46,9 @@ class E02RuleOODTests(unittest.TestCase):
     def test_run_reports_coverage_and_accuracy(self):
         result = run(seed=17, support_size=6)
         self.assertEqual(result["episodes"], 27)
+        self.assertEqual(result["task"], "Z3_affine_rule_identifiability_with_heldout_query")
+        self.assertTrue(any("not cross-family OOD transfer" in item
+                            for item in result["limitations"]))
         self.assertEqual(result["exact_lookup_baseline_coverage"], 0.0)
         self.assertAlmostEqual(result["uniform_random_expected_accuracy"], 1 / 3)
         self.assertGreaterEqual(result["identification_coverage"], 0.0)

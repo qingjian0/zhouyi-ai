@@ -135,7 +135,7 @@ class SQLiteEvidenceStore:
             if not isinstance(payload["learner_track"], str) or not payload["learner_track"].strip():
                 raise ProtocolError("prediction_commit learner_track must be a non-empty string")
             if payload["decision_status"] not in {
-                "PREDICT", "ABSTAIN_AMBIGUOUS", "ABSTAIN_INCONSISTENT", "ABSTAIN_BUDGET"
+                "PREDICT", "ABSTAIN_AMBIGUOUS", "ABSTAIN_INCONSISTENT", "ABSTAIN_BUDGET", "ABSTAIN_OOD_SCHEMA", "ABSTAIN_OOD_VALUE", "ABSTAIN_OOD_RELATION"
             }:
                 raise ProtocolError("invalid prediction decision_status")
             observation = self._db.execute(

@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main, research/e09-shared-protocol-mainline-validation-2026-11-11, research/e10-shared-protocol-adapter-2026-11-11]
+    branches: [main, research/e09-shared-protocol-mainline-validation-2026-11-11, research/e10-shared-protocol-adapter-2026-11-11, research/e10a-finite-relational-version-space-2026-11-11]
 
 jobs:
   unit-tests:
@@ -16,6 +16,22 @@ jobs:
           python-version: "3.11"
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
+      - name: Run E10-A finite relational prequential experiment
+        run: python -m prototype.e10a_prequential_experiment --seed 17 --json
+      - name: Run E10-A isolated learner process
+        run: python -m prototype.e10a_prequential_experiment --seed 101 --mode all --learner-backend subprocess --json
+      - name: Run E10-A ten-seed update-strategy sweep
+        run: python -m prototype.e10a_prequential_experiment --sweep --seeds 10 --start-seed 100 --json
+      - name: Run E10-B renamed-schema and OOD abstention audit
+        run: python -m prototype.e10b_transfer_experiment
+      - name: Run E10-B.2 multi-seed positive-support ablation curve
+        run: python -m prototype.e10b_ablation_curve --seeds 5 --start-seed 200
+      - name: Run E10-B.3 opaque relation identifiability boundary
+        run: python -m prototype.e10b_relation_ood_identifiability
+      - name: Run E10-C.1 contradictory evidence revision audit
+        run: python -m prototype.e10c_conflict_revision
+      - name: Run E10-C.2 single-rule concept-drift representability audit
+        run: python -m prototype.e10c_drift_representability
       - name: Run E01 demonstration
         run: python -m prototype.e01_sparse_composition --json
       - name: Run E01-B five-seed evaluation
@@ -30,7 +46,7 @@ jobs:
         run: python -m prototype.e02_ternary_learners --seeds 5 --start-seed 7 --json
       - name: Run E02-C hyperedge lifecycle tests
         run: python -m unittest tests.test_e02_edge_lifecycle -v
-      - name: Run E02-D held-out rule-family induction
+      - name: Run E02-D per-rule held-out-query identifiability
         run: python -m prototype.e02_rule_ood --seed 17 --support-size 6 --json
       - name: Run E02-D multi-seed support identifiability sweep
         run: python -m prototype.e02_rule_ood --sweep --seeds 100 --start-seed 100 --json

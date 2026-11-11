@@ -128,5 +128,23 @@ class E10APrequentialLedgerTests(unittest.TestCase):
             )
 
 
+
+    def test_ood_decision_statuses_are_valid_ledger_commits(self):
+        for index, status in enumerate((
+            "ABSTAIN_OOD_SCHEMA",
+            "ABSTAIN_OOD_VALUE",
+            "ABSTAIN_OOD_RELATION",
+        )):
+            ledger = PrequentialLedger(episode_id=f"ood-ledger-{index}")
+            event = ledger.commit_prediction(
+                prediction_id="p1",
+                observation_id="o1",
+                model_version="v1",
+                candidate_set_hash="candidates",
+                decision_status=status,
+                prediction=None,
+            )
+            self.assertEqual(event["decision_status"], status)
+
 if __name__ == "__main__":
     unittest.main()
