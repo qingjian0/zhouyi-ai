@@ -469,7 +469,7 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
             },
         }
         revision = {
-            "event_id": "revision-record", "event_type": "revision",
+            "event_id": "revision-record", "event_type": "revision", "actor_role": "evaluator",
             "payload": {
                 "revision_id": "revision-1", "operation": "revise",
                 "trigger_evidence_ids": ["reveal-locked"],
@@ -1108,7 +1108,7 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
                     "payload": {
                         "prediction_id": "pred-legacy", "learner_track": "e12",
                         "target_or_feedback": {"label": "positive"},
-                        "split_role": "locked_test",
+                        "split_role": "support",
                     },
                 },
                 {
@@ -1188,6 +1188,205 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
                     "candidate_version_ids": ["rule-b@1"], "candidate_set_digest": "0" * 64,
                 }},
             ])
+
+
+    def test_policy_gated_challenge_release_exposes_only_minimal_label_free_payload(self):
+        self.store.append_events(episode_id="release-ep", idempotency_key="setup", events=[
+            self.observation("release-obs"),
+            {"event_id": "release-candidate", "event_type": "structure_version", "payload": {
+                "structure_id": "release-rule", "version_id": "release-rule@1", "kind": "candidate",
+                "definition": {"rule": "a>b"}, "learner_track": "track-r",
+                "parent_version_ids": [], "support_evidence_ids": [],
+            }},
+        ])
+        row = self.store._db.execute(
+            "SELECT payload_digest FROM events WHERE episode_id=? AND event_id=?",
+            ("release-ep", "release-candidate"),
+        ).fetchone()
+        freeze_digest = digest_payload({
+            "learner_track": "track-r", "evaluation_role": "GATE_DEV",
+            "candidates": [{"version_id": "release-rule@1", "payload_digest": row["payload_digest"]}],
+        })
+        policy = {
+            "policy_id": "policy-r1", "learner_track": "track-r",
+            "allowed_evaluation_roles": ["GATE_DEV"],
+            "allowed_challenge_kinds": ["RECONSIDER"],
+            "max_releases": 1,
+        }
+        policy["policy_digest"] = digest_payload(policy)
+        challenge = {
+            "challenge_id": "challenge-r1", "policy_id": "policy-r1",
+            "source_evaluation_id": "eval-r1", "source_prediction_id": "pred-r1",
+            "learner_track": "track-r", "challenge_kind": "RECONSIDER",
+            "observation_id": "release-obs",
+        }
+        challenge["challenge_digest"] = digest_payload({
+            k: challenge[k] for k in ("challenge_id", "policy_id", "learner_track", "challenge_kind", "observation_id")
+        })
+        self.store.append_events(episode_id="release-ep", idempotency_key="eval-and-release", events=[
+            {"event_id": "release-freeze", "event_type": "candidate_set_freeze", "payload": {
+                "freeze_id": "release-freeze", "learner_track": "track-r", "evaluation_role": "GATE_DEV",
+                "candidate_version_ids": ["release-rule@1"], "candidate_set_digest": freeze_digest,
+            }},
+            {"event_id": "release-commit", "event_type": "prediction_commit", "payload": {
+                "prediction_id": "pred-r1", "observation_id": "release-obs", "model_version": "m1",
+                "learner_track": "track-r", "decision_status": "PREDICT",
+                "candidate_set_freeze_id": "release-freeze", "evaluation_role": "GATE_DEV",
+                "candidate_set_digest": freeze_digest,
+            }},
+            {"event_id": "release-eval", "event_type": "evaluation_reveal", "actor_role": "evaluator", "payload": {
+                "evaluation_id": "eval-r1", "freeze_id": "release-freeze", "prediction_id": "pred-r1",
+                "learner_track": "track-r", "evaluation_role": "GATE_DEV",
+                "candidate_set_digest": freeze_digest, "target": "SECRET_GROUND_TRUTH",
+            }},
+            {"event_id": "release-policy", "event_type": "challenge_release_policy", "actor_role": "policy_authority", "payload": policy},
+            {"event_id": "release-challenge", "event_type": "challenge_release", "actor_role": "release_policy", "payload": challenge},
+        ])
+        learner = self.store.replay_learner_projection("release-ep", "track-r")
+        evaluator = self.store.replay_evaluator_projection("release-ep")
+        learner_json = canonical_json(learner)
+        self.assertNotIn("SECRET_GROUND_TRUTH", learner_json)
+        self.assertNotIn("eval-r1", learner_json)
+        self.assertEqual(learner["released_challenges"], [{
+            "challenge_id": "challenge-r1", "observation_id": "release-obs", "challenge_kind": "RECONSIDER",
+        }])
+        self.assertEqual(evaluator["evaluations"]["pred-r1"]["target"], "SECRET_GROUND_TRUTH")
+        self.assertEqual(evaluator["released_challenges"]["challenge-r1"]["source_evaluation_id"], "eval-r1")
+
+    def test_challenge_release_rejects_raw_label_fields(self):
+        with self.assertRaisesRegex(ProtocolError, "forbidden or missing fields"):
+            self.store.append_events(episode_id="release-forbidden", idempotency_key="forbidden", events=[
+                {"event_id": "forbidden-challenge", "event_type": "challenge_release", "actor_role": "release_policy", "payload": {
+                    "challenge_id": "bad", "policy_id": "policy", "source_evaluation_id": "eval",
+                    "source_prediction_id": "pred", "learner_track": "track", "challenge_kind": "RECONSIDER",
+                    "observation_id": "obs", "challenge_digest": "0" * 64, "target": "DO_NOT_LEAK",
+                }},
+            ])
+
+
+    def test_learner_projection_hides_legacy_locked_test_reveals(self):
+        self.store.append_events(episode_id="legacy-lock", idempotency_key="commit", events=[
+            self.observation("legacy-lock-obs"),
+            {"event_id": "legacy-lock-pred", "event_type": "prediction_commit", "payload": {
+                "prediction_id": "legacy-lock-pred", "observation_id": "legacy-lock-obs",
+                "model_version": "m1", "learner_track": "track-lock", "decision_status": "PREDICT",
+            }},
+        ])
+        self.store.append_events(episode_id="legacy-lock", idempotency_key="locked-reveal", events=[
+            {"event_id": "legacy-lock-reveal", "event_type": "evidence_reveal", "payload": {
+                "prediction_id": "legacy-lock-pred", "learner_track": "track-lock",
+                "target_or_feedback": {"label": "SECRET_OLD_LABEL"}, "split_role": "locked_test",
+            }},
+        ])
+        learner = self.store.replay_learner_projection("legacy-lock", "track-lock")
+        self.assertEqual(learner["evidence"], {})
+        self.assertNotIn("SECRET_OLD_LABEL", canonical_json(learner))
+        self.assertEqual(learner["last_sequence"], 2)
+
+    def test_v03_structure_cannot_use_locked_test_reveal_as_support(self):
+        self.store.append_events(episode_id="no-locked-support", idempotency_key="setup", events=[
+            self.observation("no-locked-obs"),
+            {"event_id": "no-locked-pred", "event_type": "prediction_commit", "payload": {
+                "prediction_id": "no-locked-pred", "observation_id": "no-locked-obs",
+                "model_version": "m1", "learner_track": "track-lock", "decision_status": "PREDICT",
+            }},
+            {"event_id": "no-locked-reveal", "event_type": "evidence_reveal", "payload": {
+                "prediction_id": "no-locked-pred", "learner_track": "track-lock",
+                "target_or_feedback": "SECRET", "split_role": "locked_test",
+            }},
+        ])
+        with self.assertRaisesRegex(ProtocolError, "must be learner-visible"):
+            self.store.append_events(episode_id="no-locked-support", idempotency_key="bad-structure", events=[
+                {"event_id": "bad-supported-structure", "event_type": "structure_version", "payload": {
+                    "structure_id": "bad-rule", "version_id": "bad-rule@1", "kind": "candidate",
+                    "definition": {"rule": "x"}, "learner_track": "track-lock",
+                    "parent_version_ids": [], "support_evidence_ids": [{"kind": "revealed", "id": "no-locked-reveal"}],
+                }},
+            ])
+
+    def test_v03_revision_cannot_consume_locked_test_reveal(self):
+        self.store.append_events(episode_id="no-locked-revision", idempotency_key="setup", events=[
+            self.observation("no-revision-obs"),
+            {"event_id": "no-revision-pred", "event_type": "prediction_commit", "payload": {
+                "prediction_id": "no-revision-pred", "observation_id": "no-revision-obs",
+                "model_version": "m1", "learner_track": "track-lock", "decision_status": "PREDICT",
+            }},
+            {"event_id": "no-revision-reveal", "event_type": "evidence_reveal", "payload": {
+                "prediction_id": "no-revision-pred", "learner_track": "track-lock",
+                "target_or_feedback": "SECRET", "split_role": "locked_test",
+            }},
+        ])
+        with self.assertRaisesRegex(ProtocolError, "cannot use evaluator-only"):
+            self.store.append_events(episode_id="no-locked-revision", idempotency_key="bad-revision", events=[
+                {"event_id": "bad-revision", "event_type": "revision", "payload": {
+                    "revision_id": "bad-revision", "operation": "BATCH_REFIT",
+                    "trigger_evidence_ids": ["no-revision-reveal"],
+                    "before_version_ids": [], "after_version_ids": [], "learner_track": "track-lock",
+                }},
+            ])
+
+
+    def test_learner_projection_hides_evaluator_lifecycle_state_and_restores_safe_candidate_state(self):
+        candidate = Candidate(
+            candidate_id="candidate-safe-view", version=1,
+            canonical_expression="x > y", proposer_family="relational",
+            supporting_families=("relational",), input_types=("number", "number"),
+            operator="GT",
+        )
+        def action(event_id, action_id, action_type, before, after, refs=()):
+            return {
+                "event_id": event_id, "event_type": "lifecycle_action",
+                "payload": {
+                    "action_id": action_id, "action_type": action_type,
+                    "candidate_id": candidate.candidate_id, "candidate_version": 1,
+                    "from_state": before, "to_state": after,
+                    "evidence_refs": list(refs), "cost": 0.1, "note": action_id,
+                    "candidate_lineage_refs": [], "learner_track": "e12",
+                },
+            }
+        self.store.append_events(episode_id="state-leak", idempotency_key="all-events", events=[
+            self.observation("obs-train-safe"),
+            self.observation("obs-gate-safe"),
+            self.observation("obs-lock-safe"),
+            {"event_id": "pred-gate-safe", "event_type": "prediction_commit", "payload": {
+                "prediction_id": "pred-gate-safe", "observation_id": "obs-gate-safe",
+                "model_version": "m1", "learner_track": "e12", "decision_status": "PREDICT",
+            }},
+            {"event_id": "pred-lock-safe", "event_type": "prediction_commit", "payload": {
+                "prediction_id": "pred-lock-safe", "observation_id": "obs-lock-safe",
+                "model_version": "m1", "learner_track": "e12", "decision_status": "PREDICT",
+            }},
+            self.ingest(evidence_id="train-safe", role="train", observation_id="obs-train-safe"),
+            {"event_id": "reveal-gate-safe", "event_type": "evidence_reveal", "payload": {
+                "prediction_id": "pred-gate-safe", "learner_track": "e12",
+                "target_or_feedback": "GATE_SECRET", "split_role": "gate_final",
+            }},
+            {"event_id": "reveal-lock-safe", "event_type": "evidence_reveal", "payload": {
+                "prediction_id": "pred-lock-safe", "learner_track": "e12",
+                "target_or_feedback": "LOCKED_SECRET", "split_role": "locked_test",
+            }},
+            {"event_id": "candidate-safe-structure", "event_type": "structure_version", "payload": {
+                "structure_id": candidate.candidate_id, "version_id": f"{candidate.candidate_id}@1",
+                "kind": "candidate", "definition": candidate_definition_payload(candidate),
+                "learner_track": "e12", "parent_version_ids": [], "support_evidence_ids": [],
+            }},
+            action("safe-propose", "safe-propose", "propose", "observed", "proposed"),
+            action("safe-discriminate", "safe-discriminate", "request_discrimination", "proposed", "discrimination_pending"),
+            action("safe-train", "safe-train", "train_support", "discrimination_pending", "train_supported", [{"kind": "ingested", "id": "train-safe"}]),
+            action("safe-gate", "safe-gate", "gate_validate", "train_supported", "gate_validated", [{"kind": "revealed", "id": "reveal-gate-safe"}]),
+            action("safe-challenge", "safe-challenge", "challenge", "gate_validated", "challenged", [{"kind": "revealed", "id": "reveal-lock-safe"}]),
+        ])
+        learner = self.store.replay_learner_projection("state-leak", "e12")
+        learner_json = canonical_json(learner)
+        self.assertNotIn("GATE_SECRET", learner_json)
+        self.assertNotIn("LOCKED_SECRET", learner_json)
+        self.assertNotIn("safe-gate", learner_json)
+        self.assertNotIn("safe-challenge", learner_json)
+        self.assertEqual(learner["candidates"]["candidate-safe-view@1"]["state"], "train_supported")
+        self.assertEqual(
+            learner["track_candidate_objects"]["e12"]["candidate-safe-view@1"]["state"],
+            "train_supported",
+        )
 
 
 if __name__ == "__main__":

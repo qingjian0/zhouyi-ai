@@ -141,11 +141,13 @@ def _evidence_from_definition(
 
 
 PROTOCOL_VERSION = "0.3"
-EVENT_TYPES = V02_EVENT_TYPES | {"evidence_ingest", "lifecycle_action", "candidate_set_freeze", "evaluation_reveal"}
+EVENT_TYPES = V02_EVENT_TYPES | {"evidence_ingest", "lifecycle_action", "candidate_set_freeze", "evaluation_reveal", "challenge_release_policy", "challenge_release"}
 EVALUATION_ROLES = {"GATE_DEV", "GATE_FINAL", "LOCKED_TEST", "POST_DEPLOY_AUDIT"}
 SPLIT_ROLES = {role.value for role in SplitRole}
 CHALLENGE_ROLES = {SplitRole.LOCKED_TEST.value, SplitRole.POST_DEPLOY.value}
 SUPPORT_ROLES = {SplitRole.SUPPORT.value, SplitRole.TRAIN.value, SplitRole.GATE_DEV.value, SplitRole.GATE_FINAL.value}
+LEARNER_SUPPORT_ROLES = {SplitRole.SUPPORT.value, SplitRole.TRAIN.value, SplitRole.GATE_DEV.value}
+EVALUATOR_ONLY_SPLIT_ROLES = {SplitRole.GATE_FINAL.value, SplitRole.LOCKED_TEST.value, SplitRole.POST_DEPLOY.value}
 ACTION_TYPES = {action.value for action in ActionType}
 CANDIDATE_STATES = {state.value for state in CandidateState}
 
@@ -411,6 +413,63 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                 raise ProtocolError("evaluation_reveal does not match committed prediction")
             if self._event_by_payload_id(episode_id, "evaluation_reveal", "prediction_id", payload["prediction_id"]):
                 raise ProtocolError("prediction already has an evaluation_reveal")
+        elif event_type == "challenge_release_policy":
+            required = {"policy_id", "learner_track", "allowed_evaluation_roles", "allowed_challenge_kinds", "max_releases", "policy_digest"}
+            if set(payload) != required:
+                raise ProtocolError("challenge_release_policy must contain exactly the policy contract fields")
+            if not isinstance(payload["policy_id"], str) or not payload["policy_id"].strip():
+                raise ProtocolError("challenge release policy_id must be non-empty")
+            if not isinstance(payload["learner_track"], str) or not payload["learner_track"].strip():
+                raise ProtocolError("challenge release policy learner_track must be non-empty")
+            roles, kinds = payload["allowed_evaluation_roles"], payload["allowed_challenge_kinds"]
+            if not isinstance(roles, list) or not roles or any(not isinstance(r, str) or r not in EVALUATION_ROLES for r in roles) or roles != sorted(set(roles)):
+                raise ProtocolError("allowed_evaluation_roles must be a non-empty sorted unique role list")
+            allowed_kinds = {"RECONSIDER", "INSUFFICIENT_EVIDENCE", "BOUNDARY_CASE", "INVARIANCE_CHECK"}
+            if not isinstance(kinds, list) or not kinds or any(not isinstance(k, str) or k not in allowed_kinds for k in kinds) or kinds != sorted(set(kinds)):
+                raise ProtocolError("allowed_challenge_kinds must be a non-empty sorted unique challenge-kind list")
+            maximum = payload["max_releases"]
+            if isinstance(maximum, bool) or not isinstance(maximum, int) or maximum < 1:
+                raise ProtocolError("max_releases must be a positive integer")
+            expected = digest_payload({k: payload[k] for k in sorted(required - {"policy_digest"})})
+            if payload["policy_digest"] != expected:
+                raise ProtocolError("challenge release policy digest mismatch")
+            if self._event_by_payload_id(episode_id, "challenge_release_policy", "policy_id", payload["policy_id"]):
+                raise ProtocolError("duplicate challenge release policy_id")
+        elif event_type == "challenge_release":
+            required = {"challenge_id", "policy_id", "source_evaluation_id", "source_prediction_id", "learner_track", "challenge_kind", "observation_id", "challenge_digest"}
+            if set(payload) != required:
+                raise ProtocolError("challenge_release contains forbidden or missing fields; raw labels are not releasable")
+            for field in ("challenge_id", "policy_id", "source_evaluation_id", "source_prediction_id", "learner_track", "challenge_kind", "observation_id"):
+                if not isinstance(payload[field], str) or not payload[field].strip():
+                    raise ProtocolError(f"challenge_release {field} must be a non-empty string")
+            if self._event_by_payload_id(episode_id, "challenge_release", "challenge_id", payload["challenge_id"]):
+                raise ProtocolError("duplicate challenge_id")
+            policy_row = self._event_by_payload_id(episode_id, "challenge_release_policy", "policy_id", payload["policy_id"])
+            evaluation_row = self._event_by_payload_id(episode_id, "evaluation_reveal", "evaluation_id", payload["source_evaluation_id"])
+            if policy_row is None or evaluation_row is None:
+                raise MissingReference("challenge release requires a prior policy and evaluator record")
+            policy, evaluation = json.loads(policy_row["payload_json"]), json.loads(evaluation_row["payload_json"])
+            if payload["learner_track"] != policy["learner_track"] or payload["learner_track"] != evaluation["learner_track"]:
+                raise ProtocolError("challenge release crosses learner tracks")
+            if evaluation["evaluation_role"] not in policy["allowed_evaluation_roles"]:
+                raise ProtocolError("policy does not authorize release from this evaluation role")
+            if payload["challenge_kind"] not in policy["allowed_challenge_kinds"]:
+                raise ProtocolError("policy does not authorize this challenge kind")
+            commit_row = self._event_by_payload_id(episode_id, "prediction_commit", "prediction_id", payload["source_prediction_id"])
+            if commit_row is None or payload["source_prediction_id"] != evaluation["prediction_id"]:
+                raise MissingReference("challenge release must reference the evaluated committed prediction")
+            commit = json.loads(commit_row["payload_json"])
+            if payload["observation_id"] != commit["observation_id"]:
+                raise ProtocolError("released challenge observation must match the evaluated observation")
+            safe_content = {k: payload[k] for k in ("challenge_id", "policy_id", "learner_track", "challenge_kind", "observation_id")}
+            if payload["challenge_digest"] != digest_payload(safe_content):
+                raise ProtocolError("challenge_digest mismatch")
+            count = self._db.execute(
+                "SELECT COUNT(*) FROM events WHERE episode_id=? AND event_type='challenge_release' AND json_extract(payload_json, '$.policy_id')=?",
+                (episode_id, payload["policy_id"]),
+            ).fetchone()[0]
+            if count >= policy["max_releases"]:
+                raise ProtocolError("challenge release policy budget exhausted")
         elif event_type == "evidence_ingest":
             required = {"evidence_id", "split_role", "outcome_ref", "source_provenance", "learner_track"}
             if not required.issubset(payload):
@@ -592,6 +651,8 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                 if trigger is None or trigger["event_type"] != "evidence_reveal":
                     raise MissingReference(f"revision trigger must reference a prior reveal: {trigger_id}")
                 trigger_payload = json.loads(trigger["payload_json"])
+                if trigger_payload.get("split_role") not in LEARNER_SUPPORT_ROLES | EVALUATOR_ONLY_SPLIT_ROLES:
+                    raise ProtocolError("revision trigger has an unsupported evidence role")
                 trigger_tracks.add(trigger_payload.get("learner_track", "legacy"))
             if len(trigger_tracks) > 1:
                 raise ProtocolError("revision cannot combine trigger evidence from different learner_tracks")
@@ -635,9 +696,12 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                 evidence_row = self._resolve_evidence_ref(episode_id, evidence_ref)
                 if evidence_row is None:
                     raise MissingReference(f"unknown support evidence reference: {evidence_ref}")
-                evidence_track = json.loads(evidence_row["payload_json"]).get("learner_track", "legacy")
+                evidence_payload = json.loads(evidence_row["payload_json"])
+                evidence_track = evidence_payload.get("learner_track", "legacy")
                 if evidence_track != structure_track:
                     raise ProtocolError("structure_version cannot cite support evidence from another learner_track")
+                if evidence_payload.get("split_role") not in LEARNER_SUPPORT_ROLES:
+                    raise ProtocolError("structure_version support evidence must be learner-visible train/support/gate_dev evidence")
             if payload["kind"] == "candidate":
                 version_id = payload["version_id"]
                 structure_id = payload["structure_id"]
@@ -711,6 +775,20 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
             }
             if event_type == "evaluation_reveal" and actor != "evaluator":
                 raise ProtocolError("evaluation_reveal actor_role must be evaluator")
+            if event_type == "challenge_release_policy" and actor != "policy_authority":
+                raise ProtocolError("challenge_release_policy actor_role must be policy_authority")
+            if event_type == "challenge_release" and actor != "release_policy":
+                raise ProtocolError("challenge_release actor_role must be release_policy")
+            if event_type == "revision":
+                for trigger_id in payload.get("trigger_evidence_ids", []):
+                    trigger = self._event_by_id(episode_id, trigger_id)
+                    if trigger is None:
+                        continue  # the semantic validator reports the missing reference
+                    trigger_payload = json.loads(trigger["payload_json"])
+                    if trigger_payload.get("split_role") in EVALUATOR_ONLY_SPLIT_ROLES and actor != "evaluator":
+                        raise ProtocolError("cannot use evaluator-only evidence for non-evaluator revision records")
+                    if trigger_payload.get("split_role") in LEARNER_SUPPORT_ROLES and actor == "evaluator":
+                        raise ProtocolError("evaluator actor cannot consume learner feedback as a learner revision")
             if not isinstance(spec["idempotency_key"], str) or not spec["idempotency_key"].strip():
                 raise ProtocolError("event idempotency_key must be non-empty")
             spec["fingerprint"] = _fingerprint(spec)
@@ -950,6 +1028,8 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                     # every newly written v0.3 support-bearing structure is scoped.
                     if structure_track is not None and item.get("learner_track", "legacy") != structure_track:
                         raise ProtocolError(f"structure support crosses learner tracks during replay: {event_id}")
+                    if is_v03_structure and item.get("split_role") not in LEARNER_SUPPORT_ROLES:
+                        raise ProtocolError(f"v0.3 structure support is not learner-visible evidence: {event_id}")
                     support_ids.append(item["evidence_id"])
                 structure = {
                     "event_id": event_id, "sequence_no": sequence,
@@ -1042,8 +1122,18 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                 trigger_tracks = set()
                 for trigger in triggers:
                     item = evidence.get(f"revealed:{trigger}")
-                    if item is None or item.get("split_role") not in CHALLENGE_ROLES:
-                        raise ProtocolError(f"revision trigger is not locked/post-deploy evidence: {trigger}")
+                    if item is None:
+                        raise ProtocolError(f"revision trigger evidence is unavailable: {trigger}")
+                    if row["protocol_version"] == "0.3":
+                        role = item.get("split_role")
+                        if role in EVALUATOR_ONLY_SPLIT_ROLES and row["actor_role"] != "evaluator":
+                            raise ProtocolError(f"v0.3 evaluator-only revision trigger has a non-evaluator actor: {trigger}")
+                        if role in LEARNER_SUPPORT_ROLES and row["actor_role"] == "evaluator":
+                            raise ProtocolError(f"v0.3 evaluator revision cannot consume learner feedback: {trigger}")
+                        if role not in LEARNER_SUPPORT_ROLES | EVALUATOR_ONLY_SPLIT_ROLES:
+                            raise ProtocolError(f"v0.3 revision trigger has an unsupported evidence role: {trigger}")
+                    elif item.get("split_role") not in CHALLENGE_ROLES:
+                        raise ProtocolError(f"legacy revision trigger is not locked/post-deploy evidence: {trigger}")
                     trigger_tracks.add(item.get("learner_track", "legacy"))
                 if len(trigger_tracks) > 1:
                     raise ProtocolError("revision combines trigger evidence from different learner_tracks during replay")
@@ -1126,26 +1216,72 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
         if not isinstance(learner_track, str) or not learner_track.strip():
             raise ProtocolError("learner_track must be non-empty")
         projection = self.replay_projection(episode_id)
+        evaluator_view = self.replay_evaluator_projection(episode_id)
+        released_challenges = [
+            {k: item[k] for k in ("challenge_id", "observation_id", "challenge_kind")}
+            for item in evaluator_view["released_challenges"].values()
+            if item["learner_track"] == learner_track
+        ]
+        evaluator_evidence_ids = {
+            item["evidence_id"] for item in projection.evidence.values()
+            if item.get("split_role") in EVALUATOR_ONLY_SPLIT_ROLES
+        }
         predictions = {k: v for k, v in projection.predictions.items() if v.get("learner_track") == learner_track}
         observations = {v["observation_id"] for v in predictions.values()}
-        evidence = {k: v for k, v in projection.evidence.items() if v.get("learner_track") == learner_track}
-        structures = {k: v for k, v in projection.structures.items() if v.get("learner_track") in (None, learner_track)}
-        candidates = {k: v for k, v in projection.candidates.items() if v.get("learner_track") in (None, learner_track)}
-        actions = [v for v in projection.actions if v.get("learner_track") == learner_track]
-        return {"episode_id": episode_id, "learner_track": learner_track, "last_sequence": projection.last_sequence,
+        evidence = {
+            k: v for k, v in projection.evidence.items()
+            if v.get("learner_track") == learner_track and v.get("split_role") not in EVALUATOR_ONLY_SPLIT_ROLES
+        }
+        structures = {
+            k: v for k, v in projection.structures.items()
+            if v.get("learner_track") in (None, learner_track)
+            and not (set(v.get("support_evidence_ids", ())) & evaluator_evidence_ids)
+        }
+        candidates = {
+            k: v for k, v in projection.candidates.items()
+            if v.get("learner_track") in (None, learner_track)
+            and not (set(v.get("support_evidence_ids", ())) & evaluator_evidence_ids)
+        }
+        actions = [
+            v for v in projection.actions
+            if v.get("learner_track") == learner_track
+            and not (set(v.get("evidence_ids", ())) & evaluator_evidence_ids)
+        ]
+        safe_action_ids = {item["action_id"] for item in actions}
+        candidate_states = {key: CandidateState.OBSERVED.value for key in candidates}
+        for action in sorted(actions, key=lambda item: item["sequence_no"]):
+            if action.get("candidate_key") in candidate_states and action.get("to_state") is not None:
+                candidate_states[action["candidate_key"]] = action["to_state"]
+        candidates = {key: {**value, "state": candidate_states.get(key, CandidateState.OBSERVED.value)} for key, value in candidates.items()}
+        track_candidates = {}
+        for key, candidate in projection.track_candidate_objects.get(learner_track, {}).items():
+            if key in candidates:
+                track_candidates[key] = replace(candidate, state=CandidateState(candidate_states.get(key, CandidateState.OBSERVED.value)))
+        track_actions = tuple(
+            action for action in projection.track_action_objects.get(learner_track, ())
+            if action.action_id in safe_action_ids
+        )
+        visible_sequences = [projection.observations[key]["sequence_no"] for key in observations if key in projection.observations]
+        visible_sequences.extend(item["sequence_no"] for item in predictions.values())
+        visible_sequences.extend(item["sequence_no"] for item in evidence.values())
+        visible_sequences.extend(item["sequence_no"] for item in structures.values())
+        visible_sequences.extend(item["sequence_no"] for item in actions)
+        visible_sequences.extend(item["sequence_no"] for item in evaluator_view["released_challenges"].values() if item["learner_track"] == learner_track)
+        return {"episode_id": episode_id, "learner_track": learner_track, "last_sequence": max(visible_sequences, default=0),
             "observations": {k: projection.observations[k] for k in sorted(observations) if k in projection.observations},
             "predictions": {k: predictions[k] for k in sorted(predictions)},
             "evidence": {k: evidence[k] for k in sorted(evidence)},
             "structures": {k: structures[k] for k in sorted(structures)},
             "candidates": {k: candidates[k] for k in sorted(candidates)}, "actions": actions,
-            "track_candidate_objects": {learner_track: {k: _candidate_to_payload(v) for k, v in sorted(projection.track_candidate_objects.get(learner_track, {}).items())}},
-            "track_action_objects": {learner_track: [_action_to_payload(a) for a in projection.track_action_objects.get(learner_track, ())]}}
+            "released_challenges": released_challenges,
+            "track_candidate_objects": {learner_track: {k: _candidate_to_payload(v) for k, v in sorted(track_candidates.items())}},
+            "track_action_objects": {learner_track: [_action_to_payload(a) for a in track_actions]}}
 
     def replay_evaluator_projection(self, episode_id: str) -> dict[str, Any]:
         """Revalidate frozen candidate/commit/reveal links and expose labels to evaluator only."""
         self.replay_projection(episode_id)  # verifies every event digest and ordinary learner-side invariant
         events = self.replay_episode(episode_id)
-        freezes, commits, evaluations = {}, {}, {}
+        freezes, commits, evaluations, policies, released_challenges = {}, {}, {}, {}, {}
         for event in events:
             kind, payload = event["event_type"], event["payload"]
             if kind == "candidate_set_freeze":
@@ -1179,7 +1315,57 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                 if payload["prediction_id"] in evaluations:
                     raise ProtocolError("replay has duplicate evaluation reveals for one prediction")
                 evaluations[payload["prediction_id"]] = {"event_id": event["event_id"], "sequence_no": event["sequence_no"], **payload}
-        return {"episode_id": episode_id, "freezes": freezes, "evaluations": evaluations}
+            elif kind == "challenge_release_policy":
+                if event.get("actor_role") != "policy_authority":
+                    raise ProtocolError("replay challenge release policy actor_role must be policy_authority")
+                required = {"policy_id", "learner_track", "allowed_evaluation_roles", "allowed_challenge_kinds", "max_releases", "policy_digest"}
+                if set(payload) != required or payload["policy_id"] in policies:
+                    raise ProtocolError("replay challenge release policy has invalid shape or duplicate ID")
+                if (not isinstance(payload["learner_track"], str) or not payload["learner_track"].strip()
+                    or not isinstance(payload["allowed_evaluation_roles"], list)
+                    or not payload["allowed_evaluation_roles"]
+                    or any(not isinstance(r, str) or r not in EVALUATION_ROLES for r in payload["allowed_evaluation_roles"])
+                    or payload["allowed_evaluation_roles"] != sorted(set(payload["allowed_evaluation_roles"]))
+                    or not isinstance(payload["allowed_challenge_kinds"], list)
+                    or not payload["allowed_challenge_kinds"]
+                    or any(not isinstance(k, str) or k not in {"RECONSIDER", "INSUFFICIENT_EVIDENCE", "BOUNDARY_CASE", "INVARIANCE_CHECK"} for k in payload["allowed_challenge_kinds"])
+                    or payload["allowed_challenge_kinds"] != sorted(set(payload["allowed_challenge_kinds"]))
+                    or isinstance(payload["max_releases"], bool) or not isinstance(payload["max_releases"], int) or payload["max_releases"] < 1):
+                    raise ProtocolError("replay challenge release policy fields are invalid")
+                expected = digest_payload({k: payload[k] for k in sorted(required - {"policy_digest"})})
+                if expected != payload["policy_digest"]:
+                    raise ProtocolError("replay challenge release policy digest mismatch")
+                policies[payload["policy_id"]] = payload
+            elif kind == "challenge_release":
+                if event.get("actor_role") != "release_policy":
+                    raise ProtocolError("replay challenge_release actor_role must be release_policy")
+                required = {"challenge_id", "policy_id", "source_evaluation_id", "source_prediction_id", "learner_track", "challenge_kind", "observation_id", "challenge_digest"}
+                if set(payload) != required:
+                    raise ProtocolError("replay challenge_release contains forbidden or missing fields")
+                for field in ("challenge_id", "policy_id", "source_evaluation_id", "source_prediction_id", "learner_track", "challenge_kind", "observation_id"):
+                    if not isinstance(payload[field], str) or not payload[field].strip():
+                        raise ProtocolError(f"replay challenge_release {field} must be a non-empty string")
+                policy = policies.get(payload["policy_id"])
+                evaluation = next((v for v in evaluations.values() if v["evaluation_id"] == payload["source_evaluation_id"]), None)
+                if policy is None or evaluation is None:
+                    raise MissingReference("replay challenge release lacks prior policy or evaluation")
+                if payload["learner_track"] != policy["learner_track"] or payload["learner_track"] != evaluation["learner_track"]:
+                    raise ProtocolError("replay challenge release crosses learner tracks")
+                if evaluation["evaluation_role"] not in policy["allowed_evaluation_roles"] or payload["challenge_kind"] not in policy["allowed_challenge_kinds"]:
+                    raise ProtocolError("replay challenge release violates policy")
+                committed = commits.get(payload["source_prediction_id"])
+                if committed is None or evaluation["prediction_id"] != payload["source_prediction_id"] or committed.get("observation_id") != payload["observation_id"]:
+                    raise ProtocolError("replay challenge release does not match evaluated prediction observation")
+                safe_content = {k: payload[k] for k in ("challenge_id", "policy_id", "learner_track", "challenge_kind", "observation_id")}
+                if payload["challenge_digest"] != digest_payload(safe_content):
+                    raise ProtocolError("replay challenge digest mismatch")
+                if payload["challenge_id"] in released_challenges:
+                    raise ProtocolError("replay duplicate challenge_id")
+                if sum(1 for item in released_challenges.values() if item["policy_id"] == payload["policy_id"]) >= policy["max_releases"]:
+                    raise ProtocolError("replay challenge release policy budget exhausted")
+                released_challenges[payload["challenge_id"]] = {"event_id": event["event_id"], "sequence_no": event["sequence_no"], **payload}
+        return {"episode_id": episode_id, "freezes": freezes, "evaluations": evaluations,
+                "policies": policies, "released_challenges": released_challenges}
 
     @staticmethod
     def _candidate_version_number(version_id: str) -> int:
