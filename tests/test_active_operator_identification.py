@@ -140,8 +140,16 @@ class ActiveIdentificationTests(unittest.TestCase):
             [len(ids) for _, ids in second_partition],
         )
         self.assertEqual(
+            [output for output, _ in first_partition],
+            [(0.0,), (1.5,)],
+        )
+        self.assertEqual(
+            [output for output, _ in second_partition],
+            [(0.0,), (1.5,)],
+        )
+        self.assertEqual(
             [tuple(sorted(ids)) for _, ids in first_partition],
-            [("b", "c"), ("a",)],
+            [("a", "b"), ("c",)],
         )
         self.assertEqual(
             [tuple(sorted(ids)) for _, ids in second_partition],
