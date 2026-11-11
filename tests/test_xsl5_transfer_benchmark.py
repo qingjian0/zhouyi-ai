@@ -28,12 +28,15 @@ class XSL5TransferBenchmarkTests(unittest.TestCase):
         metrics, predictions = evaluate(build_synthetic_suite(), structural_baseline)
         self.assertEqual(metrics.correct_selected, 24)
         self.assertEqual(metrics.false_transfer, 24)
+        self.assertEqual(metrics.false_transfer_on_no_transfer_cases, 24)
+        self.assertEqual(metrics.negative_transfer_rate, 1.0)
         self.assertTrue(all(x.selected_candidate_id == "candidate-structural" for x in predictions))
 
     def test_perspective_selector_transfers_when_scoped_and_abstains_otherwise(self):
         metrics, predictions = evaluate(build_synthetic_suite(), perspective_aware_selector)
         self.assertEqual(metrics.correct_selected, 24)
         self.assertEqual(metrics.false_transfer, 0)
+        self.assertEqual(metrics.false_transfer_on_no_transfer_cases, 0)
         self.assertEqual(metrics.abstained_correctly, 24)
         self.assertEqual(metrics.coverage, 0.5)
         self.assertEqual(metrics.precision, 1.0)
@@ -54,6 +57,30 @@ class XSL5TransferBenchmarkTests(unittest.TestCase):
         )
         prediction = perspective_aware_selector(modified)
         self.assertIsNone(prediction.selected_candidate_id)
+
+    def test_evaluator_rejects_empty_candidates_and_unknown_gold_ids(self):
+        case = build_synthetic_suite(1, 1)[0]
+        empty = type(case)(
+            case.case_id, case.query_terms, case.query_relations,
+            case.context, (), frozenset()
+        )
+        with self.assertRaises(ValueError):
+            evaluate((empty,), lexical_baseline)
+        invalid_gold = type(case)(
+            case.case_id, case.query_terms, case.query_relations,
+            case.context, case.candidates, frozenset({"missing"})
+        )
+        with self.assertRaises(ValueError):
+            evaluate((invalid_gold,), lexical_baseline)
+
+    def test_evaluator_rejects_duplicate_case_ids(self):
+        case = build_synthetic_suite(1, 1)[0]
+        duplicate = type(case)(
+            case.case_id, case.query_terms, case.query_relations,
+            case.context, case.candidates, case.accepted_candidate_ids
+        )
+        with self.assertRaises(ValueError):
+            evaluate((case, duplicate), lexical_baseline)
 
     def test_empty_or_invalid_suite_size_rejected(self):
         with self.assertRaises(ValueError):
