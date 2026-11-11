@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from typing import Any, Iterable, Sequence
 
-from prototype.e12a6_lifecycle_contract import ActionType, CandidateState, SplitRole, _TRANSITIONS
+from prototype.e12a6_lifecycle_contract import ActionType, Candidate, CandidateState, SplitRole, _TRANSITIONS
 from prototype.shared_evidence_protocol import (
     EVENT_TYPES as V02_EVENT_TYPES,
     PROTOCOL_VERSION as V02_PROTOCOL_VERSION,
@@ -26,6 +26,72 @@ from prototype.shared_evidence_protocol import (
     canonical_json,
     digest_payload,
 )
+
+
+CANDIDATE_DEFINITION_SCHEMA = "candidate_definition@1"
+
+
+def candidate_definition_payload(candidate: Candidate) -> dict[str, Any]:
+    """Serialize the semantic definition fields of an E12 Candidate.
+
+    Identity, version, parent lineage, evidence references and lifecycle state
+    are supplied by the enclosing structure/action events, not duplicated here.
+    """
+    return {
+        "schema": CANDIDATE_DEFINITION_SCHEMA,
+        "canonical_expression": candidate.canonical_expression,
+        "proposer_family": candidate.proposer_family,
+        "supporting_families": list(candidate.supporting_families),
+        "input_types": list(candidate.input_types),
+        "operator": candidate.operator,
+        "conditions": list(candidate.conditions),
+        "uncertainty": candidate.uncertainty,
+        "complexity": candidate.complexity,
+        "proposal_cost": candidate.proposal_cost,
+    }
+
+
+def _candidate_from_definition(
+    *, candidate_id: str, version: int, definition: dict[str, Any],
+    parent_refs: Sequence[str], evidence_ids: Sequence[str], state: CandidateState,
+) -> Candidate:
+    if definition.get("schema") != CANDIDATE_DEFINITION_SCHEMA:
+        raise ProtocolError("unsupported candidate definition schema")
+    required = {
+        "canonical_expression", "proposer_family", "supporting_families",
+        "input_types", "operator",
+    }
+    if not required.issubset(definition):
+        raise ProtocolError(
+            f"candidate definition missing fields: {sorted(required - definition.keys())}"
+        )
+    for field in ("supporting_families", "input_types", "conditions"):
+        value = definition.get(field, [])
+        if not isinstance(value, list) or any(not isinstance(item, str) or not item.strip() for item in value):
+            raise ProtocolError(f"candidate definition {field} must be an array of non-empty strings")
+    for field in ("canonical_expression", "proposer_family", "operator"):
+        if not isinstance(definition.get(field), str) or not definition[field].strip():
+            raise ProtocolError(f"candidate definition {field} must be non-empty")
+    try:
+        return Candidate(
+            candidate_id=candidate_id,
+            version=version,
+            canonical_expression=definition["canonical_expression"],
+            proposer_family=definition["proposer_family"],
+            supporting_families=tuple(definition["supporting_families"]),
+            input_types=tuple(definition["input_types"]),
+            operator=definition["operator"],
+            conditions=tuple(definition.get("conditions", [])),
+            uncertainty=definition.get("uncertainty", 1.0),
+            complexity=definition.get("complexity", 1),
+            proposal_cost=definition.get("proposal_cost", 0.0),
+            parent_refs=tuple(parent_refs),
+            evidence_ids=tuple(evidence_ids),
+            state=state,
+        )
+    except (TypeError, ValueError, OverflowError) as exc:
+        raise ProtocolError(f"invalid typed candidate definition: {exc}") from exc
+
 
 PROTOCOL_VERSION = "0.3"
 EVENT_TYPES = V02_EVENT_TYPES | {"evidence_ingest", "lifecycle_action"}
@@ -70,6 +136,7 @@ class EpisodeProjection:
     evidence: dict[str, dict[str, Any]]
     structures: dict[str, dict[str, Any]]
     candidates: dict[str, dict[str, Any]]
+    candidate_objects: dict[str, Candidate]
     actions: tuple[dict[str, Any], ...]
     revisions: dict[str, dict[str, Any]]
 
@@ -284,6 +351,26 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
             for evidence_ref in payload["support_evidence_ids"]:
                 if self._resolve_evidence_ref(episode_id, evidence_ref) is None:
                     raise MissingReference(f"unknown support evidence reference: {evidence_ref}")
+            if payload["kind"] == "candidate":
+                version_id = payload["version_id"]
+                structure_id = payload["structure_id"]
+                try:
+                    version = int(version_id.rsplit("@", 1)[1])
+                except (IndexError, ValueError) as exc:
+                    raise ProtocolError("candidate version_id must end in @<positive integer>") from exc
+                if version < 1 or version_id != f"{structure_id}@{version}":
+                    raise ProtocolError("candidate version_id must match structure_id@version")
+                definition = payload["definition"]
+                if isinstance(definition, dict) and definition.get("schema") == CANDIDATE_DEFINITION_SCHEMA:
+                    resolved_support = [
+                        self._resolve_evidence_ref(episode_id, ref)["evidence_id"]
+                        for ref in payload["support_evidence_ids"]
+                    ]
+                    _candidate_from_definition(
+                        candidate_id=structure_id, version=version, definition=definition,
+                        parent_refs=payload["parent_version_ids"], evidence_ids=resolved_support,
+                        state=CandidateState.OBSERVED,
+                    )
         else:
             super()._validate_semantics(episode_id, event_type, payload)
 
@@ -540,10 +627,16 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                 }
                 structures[vid] = structure
                 if payload.get("kind") == "candidate":
+                    candidate_id = payload.get("structure_id")
+                    candidate_version = self._candidate_version_number(vid)
                     candidates[vid] = {
-                        **structure, "candidate_id": payload.get("structure_id"),
-                        "candidate_version": self._candidate_version_number(vid),
+                        **structure, "candidate_id": candidate_id,
+                        "candidate_version": candidate_version,
                         "state": CandidateState.OBSERVED.value,
+                        "definition_schema": (
+                            payload["definition"].get("schema")
+                            if isinstance(payload.get("definition"), dict) else None
+                        ),
                     }
             elif event_type == "lifecycle_action":
                 aid, track = payload.get("action_id"), payload.get("learner_track")
@@ -617,10 +710,24 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                     "after_version_ids": list(after),
                 }
 
+        candidate_objects = {}
+        for version_id, item in candidates.items():
+            definition = item.get("definition")
+            if isinstance(definition, dict) and definition.get("schema") == CANDIDATE_DEFINITION_SCHEMA:
+                candidate_objects[version_id] = _candidate_from_definition(
+                    candidate_id=item["candidate_id"],
+                    version=item["candidate_version"],
+                    definition=definition,
+                    parent_refs=item["parent_version_ids"],
+                    evidence_ids=item["support_evidence_ids"],
+                    state=CandidateState(item["state"]),
+                )
+
         return EpisodeProjection(
             episode_id=episode_id, last_sequence=previous_sequence,
             observations=observations, predictions=predictions, evidence=evidence,
-            structures=structures, candidates=candidates, actions=tuple(actions), revisions=revisions,
+            structures=structures, candidates=candidates, candidate_objects=candidate_objects,
+            actions=tuple(actions), revisions=revisions,
         )
 
     @staticmethod
