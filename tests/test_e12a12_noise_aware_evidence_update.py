@@ -37,7 +37,7 @@ class NoiseAwareEvidenceTests(unittest.TestCase):
         self.assertEqual(updates[-1].epistemic_status, EpistemicStatus.SUPPORTED)
         self.assertGreater(updates[-1].cumulative_log_likelihood_ratio, self.model.upper_threshold)
         with self.assertRaises(ValueError):
-            ex.execute(req(4))
+            self.updater.update(ex.execute(req(4)))
         self.assertEqual(self.updater.observation_count, 3)
 
     def test_repeated_alternative_consistent_observations_refute_in_scope(self):
