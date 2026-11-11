@@ -58,6 +58,9 @@ class CounterfactualBranchLedger:
         revision = 0
         canonical_hash = "0" * 64
         compensated: set[int] = set()
+        # Keep the exact pre/post image of each canonical mutation so replay
+        # can validate compensation events, not merely trust their payload.
+        mutation_effects: dict[int, tuple[dict[str, object], dict[str, str]]] = {}
         for event in self.store.verify():
             payload = event.payload
             if event.event_type in ("HypothesisCommitted", "BranchPromoted"):
@@ -68,7 +71,13 @@ class CounterfactualBranchLedger:
                     for k, v in delta.items()
                 ):
                     raise IntegrityError(f"invalid state_delta at sequence {event.sequence}")
+                before = {
+                    key: ({"present": True, "value": state[key]} if key in state
+                          else {"present": False})
+                    for key in delta
+                }
                 state.update(delta)
+                mutation_effects[event.sequence] = (before, dict(delta))
                 revision += 1
                 canonical_hash = event.event_hash
             elif event.event_type == "CommitCompensated":
@@ -76,17 +85,22 @@ class CounterfactualBranchLedger:
                 restore = payload.get("restore")
                 if not isinstance(target, int) or target <= 0 or not isinstance(restore, dict):
                     raise IntegrityError("invalid compensation event")
-                if target in compensated:
-                    raise IntegrityError("event compensated more than once")
+                if target in compensated or target not in mutation_effects:
+                    raise IntegrityError("compensation target is invalid or already compensated")
+                expected_restore, target_delta = mutation_effects[target]
+                if set(restore) != set(target_delta):
+                    raise IntegrityError("compensation must restore exactly the target keys")
+                for key, expected in expected_restore.items():
+                    item = restore.get(key)
+                    if item != expected:
+                        raise IntegrityError("compensation restore does not match prior state")
+                    if state.get(key) != target_delta[key]:
+                        raise IntegrityError("compensation would overwrite a later canonical change")
                 for key, item in restore.items():
-                    if not isinstance(key, str) or not key.strip() or not isinstance(item, dict):
-                        raise IntegrityError("invalid compensation restore entry")
-                    if item.get("present") is True and isinstance(item.get("value"), str):
+                    if item["present"]:
                         state[key] = item["value"]
-                    elif item.get("present") is False:
-                        state.pop(key, None)
                     else:
-                        raise IntegrityError("invalid compensation restore value")
+                        state.pop(key, None)
                 compensated.add(target)
                 revision += 1
                 canonical_hash = event.event_hash
