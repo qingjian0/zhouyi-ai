@@ -45,7 +45,9 @@ class E12A7MultiworldTests(unittest.TestCase):
         self.assertEqual(switch["candidates"], ["delayed_switch"])
 
     def test_noise_and_missingness_are_tolerated_within_error_budget(self):
-        result = identify(collect(self.worlds["noisy_missing_world"]))
+        rows = collect(self.worlds["noisy_missing_world"])
+        self.assertGreater(sum(row.noisy and row.y is not None for row in rows), 0)
+        result = identify(rows)
         self.assertEqual(result["status"], "identified")
         self.assertEqual(result["candidates"], ["direct"])
 
