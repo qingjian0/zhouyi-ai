@@ -223,11 +223,12 @@ class DynamicHypergraphEvolution:
                 break
 
         next_step = {a.step: b.step for a, b in zip(rows, rows[1:])}
+        previous_step = {b.step: a.step for a, b in zip(rows, rows[1:])}
         finalized = []
         for event in events:
             key = (event.kind, event.source_edge_ids, event.target_edge_ids)
             count = 1
-            cursor = event.to_step
+            cursor = event.from_step
             if event.kind == "DISSOLVE":
                 # Absence is supported by successive complete snapshots, not
                 # by repeating a transition event that cannot recur once gone.
@@ -239,6 +240,16 @@ class DynamicHypergraphEvolution:
                         break
                     count += 1
             else:
+                # Evaluate the whole contiguous run retrospectively: once a
+                # lineage has enough consecutive support, every transition
+                # in that run is confirmed, including its final observation.
+                while cursor in previous_step:
+                    prior = previous_step[cursor]
+                    if prior not in keys_by_transition or key not in keys_by_transition[prior]:
+                        break
+                    count += 1
+                    cursor = prior
+                cursor = event.to_step
                 while cursor in keys_by_transition and key in keys_by_transition[cursor] and cursor in next_step:
                     count += 1
                     cursor = next_step[cursor]
