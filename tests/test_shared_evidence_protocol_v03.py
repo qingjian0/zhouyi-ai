@@ -360,6 +360,83 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
             ).fetchone()[0],
             "revalidation_pending",
         )
+        projection = self.store.replay_projection("ep")
+        self.assertEqual(projection.candidates["candidate@1"]["state"], "revised")
+        self.assertEqual(projection.candidates["candidate@2"]["state"], "revalidation_pending")
+        self.assertEqual(projection.revisions["revision-1"]["before_version_ids"], ["candidate@1"])
+        self.assertEqual(projection.revisions["revision-1"]["after_version_ids"], ["candidate@2"])
+        before_digest = projection.digest
+        self.store.close()
+        self.store = SQLiteEvidenceStoreV03(self.db)
+        after = self.store.replay_projection("ep")
+        self.assertEqual(after.digest, before_digest)
+
+
+
+
+    def test_projection_replays_ingested_support_and_is_deterministic(self):
+        self.store.append_events(
+            episode_id="ep", idempotency_key="base",
+            events=[
+                self.observation(),
+                self.ingest(),
+                {
+                    "event_id": "structure-1", "event_type": "structure_version",
+                    "payload": {
+                        "structure_id": "primitive-set", "version_id": "v1",
+                        "kind": "primitive", "definition": {"predicate": "x>y"},
+                        "parent_version_ids": [],
+                        "support_evidence_ids": [{"kind": "ingested", "id": "train-1"}],
+                    },
+                },
+            ],
+        )
+        projection = self.store.replay_projection("ep")
+        self.assertEqual(projection.last_sequence, 3)
+        self.assertEqual(projection.evidence["ingested:train-1"]["split_role"], "train")
+        self.assertEqual(projection.structures["v1"]["support_evidence_ids"], ["train-1"])
+        digest = projection.digest
+        self.store.close()
+        self.store = SQLiteEvidenceStoreV03(self.db)
+        self.assertEqual(self.store.replay_projection("ep").digest, digest)
+
+    def test_projection_detects_durable_event_digest_tampering(self):
+        self.store.append_event(
+            episode_id="ep", event_id="obs", event_type="observation",
+            idempotency_key="obs", payload={"observation_id": "obs-1"},
+        )
+        self.store._db.execute(
+            "UPDATE events SET payload_json=? WHERE episode_id='ep' AND event_id='obs'",
+            ('{"observation_id":"tampered"}',),
+        )
+        with self.assertRaises(ProtocolError):
+            self.store.replay_projection("ep")
+
+    def test_projection_replays_v02_causal_evidence(self):
+        self.store.append_events(
+            episode_id="ep", idempotency_key="causal",
+            events=[
+                self.observation("obs-v02"),
+                {
+                    "event_id": "commit-v02", "event_type": "prediction_commit",
+                    "payload": {
+                        "prediction_id": "pred-v02", "observation_id": "obs-v02",
+                        "model_version": "m1", "learner_track": "legacy",
+                        "decision_status": "PREDICT",
+                    },
+                },
+                {
+                    "event_id": "reveal-v02", "event_type": "evidence_reveal",
+                    "payload": {
+                        "prediction_id": "pred-v02", "learner_track": "legacy",
+                        "target_or_feedback": {"label": 1}, "split_role": "locked_test",
+                    },
+                },
+            ],
+        )
+        projection = self.store.replay_projection("ep")
+        self.assertEqual(projection.predictions["pred-v02"]["observation_id"], "obs-v02")
+        self.assertEqual(projection.evidence["revealed:reveal-v02"]["split_role"], "locked_test")
 
 
 
