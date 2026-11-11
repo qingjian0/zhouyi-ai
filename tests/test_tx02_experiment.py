@@ -29,6 +29,10 @@ class TX02ExperimentTests(unittest.TestCase):
             self.assertLessEqual(count, target)
             self.assertEqual(count, model_parameter_count(family, 3, hidden, 6))
 
+    def test_budget_below_minimum_model_is_rejected(self):
+        with self.assertRaises(ValueError):
+            choose_hidden_size_for_budget("HYBRID", 3, 1, 6)
+
     def test_parameter_matched_sweep_reports_hidden_sizes_and_deltas(self):
         result = run_sweep(
             cardinalities=(2,), support_sizes=(1,), seeds=(5,),
