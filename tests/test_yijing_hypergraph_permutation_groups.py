@@ -77,6 +77,13 @@ class PartialPermutationGroupTests(unittest.TestCase):
         self.assertEqual(transition.to_group_order, 2)
         self.assertEqual(len(transition.removed_permutations), 4)
 
+    def test_non_group_input_fails_closed(self):
+        identity = (0, 1, 2)
+        swap01 = (1, 0, 2)
+        swap12 = (0, 2, 1)
+        with self.assertRaises(PermutationGroupError):
+            compare_symmetry_groups((identity, swap01), (identity, swap12))
+
     def test_group_expansion_and_reconfiguration(self):
         identity = (0, 1, 2)
         swap01 = (1, 0, 2)
