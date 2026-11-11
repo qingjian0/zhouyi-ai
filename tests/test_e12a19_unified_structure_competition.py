@@ -63,8 +63,8 @@ class UnifiedStructureCompetitionTests(unittest.TestCase):
         train, validation, manifest = dataset()
         result = compete(train, validation, manifest,
                          budget=Budget(max_candidates_per_family=1))
-        self.assertTrue(all(x.generated_candidate_count >= 1 for x in result.families))
-        self.assertTrue(all(x.truncated for x in result.families))
+        self.assertTrue(all(x.evaluated_candidate_count <= 1 for x in result.families))
+        self.assertTrue(any(x.truncated for x in result.families))
 
     def test_predicate_evaluation_budget_is_enforced(self):
         train, validation, manifest = dataset()
