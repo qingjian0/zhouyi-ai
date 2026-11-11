@@ -73,3 +73,8 @@ XSL、E10、E13、太玄、阴符等研究线必须正交化；先定义任务�
 - 关键学习结果必须有预注册 split、独立 evaluator 和锁定测试集。
 - 资源成本和失败案例必须报告。
 - 未验证 PR 保持 Draft；不因数量或日期批量合并。
+
+
+## 5. Canonical baseline and snapshot caveat (2026-11-11)
+
+Use [BASELINE_MANIFEST](BASELINE_MANIFEST_V1_2026-11-11.md) as the single authority for branch and commit identity. This registry is a dated maturity snapshot, not live branch metadata. In particular, the earlier #149 row reference to `50104ed` is historical; the selected convergence source baseline is `e90f7eb210db456a541eb9f45ec39f64ebb934a5`. PR #202's single-process crash-resume increment is recorded in the convergence execution audit and roadmap; it does not imply OS-level process isolation or an atomic cross-process outbox.
