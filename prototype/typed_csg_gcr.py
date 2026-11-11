@@ -197,15 +197,16 @@ def _partial_typed_feasible(rows: tuple[TypedCandidateProposal, ...]) -> bool:
 class TypedCandidateCoordinator:
     """Apply typed hyperedge constraints inside bounded CSG-GCR search.
 
-    The legacy coordinator enumerates candidate subsets under its explicit
-    search/cost/cardinality budgets. This bridge requests at most max_states
-    raw result sets, then rejects typed-infeasible sets and ranks only valid
-    survivors. A truncated raw search remains BUDGET_EXHAUSTED even if some
-    valid candidates were found.
+    The coordinator prunes only monotonic contradictions in typed prefixes.
+    The final unifier remains the authority for complete-set feasibility.
+    A truncated raw search remains BUDGET_EXHAUSTED even if valid candidates
+    were found. Set enable_partial_pruning=False for differential-oracle tests.
     """
 
     def __init__(self, coordinator: CandidateCoordinator | None = None, *,
                  enable_partial_pruning: bool = True) -> None:
+        if not isinstance(enable_partial_pruning, bool):
+            raise CoordinationError("enable_partial_pruning must be bool")
         self._coordinator = coordinator or CandidateCoordinator()
         self._enable_partial_pruning = enable_partial_pruning
 
