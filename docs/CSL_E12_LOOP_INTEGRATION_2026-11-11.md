@@ -361,3 +361,52 @@ Individual upstream workflow evidence inspected during this audit:
 These are separate branch-level runs. They do not establish that the four dependency branches work together in one combined checkout. PR #108's updated documentation commit has no associated PR workflow run; the document update is not a code or benchmark validation.
 
 The E09 adapter's reported earlier workflow success and the separately inspected PR #107 runs support its branch-local test status only. The fresh-episode-only and fail-closed limitations remain unchanged.
+
+
+## 11.3 Integration smoke findings and protocol v0.3 requirements
+
+A two-parent integration-smoke branch was assembled from the pinned E09 adapter head and E12-A6 × E02-D runner head. The E09 protocol source blob is byte-identical to PR #99's v0.2 protocol blob, so PR #99 does not need to be merged as a separate source dependency for this composition. The integration branch retains E09's protocol and adapter unchanged, overlays E12 code/tests/docs, and keeps a merged CI workflow. PR #113 is the isolated CI vehicle; its result must be read separately from the individual upstream PR runs.
+
+### Newly identified semantic mismatch: evidence identity and availability
+
+The existing protocol v0.2 structure_version.support_evidence_ids validator accepts only IDs of prior evidence_reveal events. The E12-A6 × E02-D runner, however, creates TRAIN support evidence as immediately visible labeled support records without a prediction-commit/reveal pair. Gate-Final and Locked-Test evidence do carry prediction-commit and label-visibility steps.
+
+Do not manufacture fake prediction commits for already visible TRAIN support. The correct temporal semantics differ:
+
+- TRAIN/bootstrap support: evidence is already available to the learner when the episode or candidate induction begins.
+- GATE_FINAL: the candidate makes a prediction first; the label is revealed afterward.
+- LOCKED_TEST / POST_DEPLOY: candidate decision is frozen before the label is revealed; only then can it challenge the active candidate.
+
+The current protocol's five-event schema cannot represent these evidence origins without overloading an event type or weakening its causal checks.
+
+### Minimal protocol v0.3 proposal
+
+Add two explicitly versioned event types:
+
+1. evidence_ingest: an already-visible labeled evidence record, restricted initially to TRAIN (and optionally an explicitly declared pre-episode bootstrap role). It has an immutable evidence ID, observation reference, split role, outcome/payload reference, source provenance, learner track, and visibility timestamp/sequence. It does not pretend that a prediction preceded its availability.
+2. lifecycle_action: a typed E12 lifecycle action with action ID/type, candidate ID/version, optional from/to states, evidence event references, cost, note, and candidate lineage reference. It preserves state transitions such as PROPOSE, GATE_VALIDATE, REUSE, CHALLENGE, RETIRE, MEASURE, and COMPOSE without inventing a new structure version for every state change.
+
+Required coordinated validator changes:
+
+- structure_version.support_evidence_ids may reference a prior evidence_ingest TRAIN event or a prior evidence_reveal event. Enforce role compatibility; do not allow LOCKED_TEST or POST_DEPLOY evidence to be ingested as learner-visible support before the locked decision.
+- revision.trigger_evidence_ids must remain restricted to revealed challenge evidence (LOCKED_TEST / POST_DEPLOY), not arbitrary ingested support.
+- lifecycle_action.evidence_refs must resolve to earlier evidence events, and action-specific transition validation must remain delegated to the E12-A6 contract (or a shared pure validator extracted from it).
+- Use explicit payload_schema versions, protocol-version negotiation, migration/replay tests, and fail-closed handling for unknown required event types.
+- Preserve old v0.1/v0.2 rows and their immutable payload digests. Do not rewrite historical rows to retrofit the new semantics.
+
+### Atomicity and replay requirement
+
+The current E12 LifecycleLedger.apply() mutates in-memory state and validates transitions; SQLite append is a separate transaction. A naive adapter that mutates the ledger and then appends an event can leave memory ahead of durable storage on persistence failure. An adapter that appends first can leave the durable log ahead of memory if the subsequent in-memory apply fails.
+
+CSL-0 must therefore make transition validation pure or stageable before persistence:
+
+1. validate the proposed action against an immutable ledger snapshot;
+2. append the event transactionally with an idempotency key derived from episode + learner track + action ID;
+3. apply the already-validated transition to the in-memory projection;
+4. on any mismatch or partial failure, fail closed and rebuild the projection from the durable event log before continuing.
+
+The replay reducer must reproduce candidate/evidence/action state exactly, including candidate revision creation and parent references. A restart test must compare the replayed projection digest with the pre-shutdown projection digest. Until this exists, SQLite durability must not be described as crash-resumable CSL.
+
+### Updated dependency verdict
+
+PR #113 can test that E12 and E09 source trees coexist and their existing suites pass. It cannot validate the missing evidence_ingest / lifecycle_action semantics because those are not implemented. The next implementation slice should be a protocol v0.3 compatibility RFC plus conformance tests, not a direct CSL adapter against v0.2.
