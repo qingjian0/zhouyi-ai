@@ -147,13 +147,9 @@ HARD 因子违反时直接判为 INFEASIBLE，不通过有限大惩罚伪装成�
 ## 8. 分阶段实现
 
 ### A20-0：最小离散约束引擎
-- 二值/三值变量；
-- unary/binary/ternary factors；
-- partial assignment；
-- hard/soft constraints；
-- deterministic synchronous update；
-- evidence trace；
-- budget and abstention。
+目标能力：二值/三值变量、unary/binary/ternary factors、partial assignment、hard/soft constraints、deterministic synchronous update、evidence trace、budget and abstention。
+
+当前已提交的 A20-0 仅实现其中的**有限域完整赋值精确枚举参考求解器**：支持 HARD/SOFT/EVIDENCE/PRIOR 因子、硬约束拒绝、证据引用、top-k、顺序不变性和预算耗尽状态。partial assignment、同步消息更新、近似推理和实际并行执行尚未实现。详见 [A20-0 实现说明](E12A20_0_FACTOR_GRAPH_REFERENCE_2026-11-11.md)。
 
 ### A20-1：多假设竞争图
 - SUPPORTS / CONTRADICTS / REFINES / ALTERNATIVE；
@@ -189,4 +185,4 @@ HARD 因子违反时直接判为 INFEASIBLE，不通过有限大惩罚伪装成�
 
 ## 10. 当前边界
 
-本文是架构设计，不是实现结果。当前 A19-C 仍是候选规则特征上的判别模型；A20 尚无可运行推理引擎。任何速度、泛化、认知能力提升都必须等待实现和对照实验。
+本文是架构设计，不是性能结果。A19-C 仍是候选规则特征上的判别模型；A20-0 已有小规模精确参考求解器，但尚无同步消息传递、近似推理或并行执行引擎。任何速度、泛化、认知能力提升都必须等待后续实现和对照实验。
