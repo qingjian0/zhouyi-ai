@@ -1056,12 +1056,14 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
                 idempotency_key="unbound-track",payload={"dependent_version_id":"only-a@1",
                 "dependency_version_id":"only-b@1","learner_track":"track-b","role":"uses",
                 "impact_policy":"blocking","evidence_refs":[]})
-        self.assertEqual(len(self.store.replay_episode("ep")), 3)
+        self.assertEqual(len(self.store.replay_episode("ep")), 5)
 
     def test_dependency_impact_policies_drive_track_local_queue(self):
         def run_episode(episode_id, first_policy):
             events = [self.observation()]
-            events.append(self.ingest(evidence_id=f"{episode_id}-train"))
+            train_event = self.ingest(evidence_id=f"{episode_id}-train")
+            train_event["payload"]["learner_track"] = "track-a"
+            events.append(train_event)
             events.extend([
                 self.observation("obs-gate"),
                 {"event_id":f"{episode_id}-commit-gate","event_type":"prediction_commit","payload":{
