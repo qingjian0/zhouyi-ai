@@ -106,10 +106,60 @@ class SROKPrequentialLearner:
                              "score_semantics":"uncalibrated_ranking_score"}
         return tuple(node_id for _,node_id in chosen.role_bindings)
 
+    @classmethod
+    def from_snapshot(cls, snapshot: dict) -> "SROKPrequentialLearner":
+        """Restore a validated learner checkpoint; caller owns event/ledger replay."""
+        if not isinstance(snapshot, dict) or snapshot.get("learner_type") != "srok_learnable_role_binding":
+            raise LearnableSROKError("unsupported SROK learner snapshot")
+        try:
+            roles = tuple(RoleSpec(
+                item["name"], frozenset(item.get("allowed_types", [])),
+                frozenset(item.get("required_tags", [])),
+            ) for item in snapshot["roles"])
+            learner = cls(
+                roles, snapshot["feature_dim"],
+                epochs=snapshot.get("epochs", 80),
+                learning_rate=snapshot.get("learning_rate", 0.2),
+                l2=snapshot.get("l2", 1e-4),
+                max_assignments_per_example=snapshot.get("max_assignments_per_example", 4096),
+                top_k_per_role=snapshot.get("top_k_per_role", 8),
+                max_expansions=snapshot.get("max_expansions", 4096),
+                result_limit=snapshot.get("result_limit", 5),
+                abstain_margin=snapshot.get("abstain_margin", 0.0),
+            )
+            weights = snapshot["weights"]
+            steps = snapshot["training_steps"]
+            report = snapshot["report"]
+            last = snapshot.get("last_inference", {"status": "NOT_RUN"})
+            if not isinstance(weights, list) or len(weights) != len(learner.model.weights):
+                raise LearnableSROKError("snapshot weight dimension mismatch")
+            if any(not isinstance(w, (int, float)) or isinstance(w, bool) or not math.isfinite(w) for w in weights):
+                raise LearnableSROKError("snapshot contains non-finite weights")
+            if isinstance(steps, bool) or not isinstance(steps, int) or steps < 0:
+                raise LearnableSROKError("invalid snapshot training step")
+            if not isinstance(report, dict) or not isinstance(last, dict):
+                raise LearnableSROKError("invalid snapshot report")
+            learner.model.weights = [float(w) for w in weights]
+            learner.model.training_steps = steps
+            learner.report = dict(report)
+            learner.last_inference = dict(last)
+            learner._cumulative_evaluations = int(report.get("candidate_patterns_evaluated", 0))
+            if learner._cumulative_evaluations < 0:
+                raise LearnableSROKError("invalid cumulative evaluation count")
+            return learner
+        except (KeyError, TypeError, ValueError) as exc:
+            if isinstance(exc, LearnableSROKError):
+                raise
+            raise LearnableSROKError("malformed SROK learner snapshot") from exc
+
     def snapshot(self) -> dict:
         return {"learner_type":"srok_learnable_role_binding",
                 "roles":[{"name":r.name,"allowed_types":sorted(r.allowed_types),
                           "required_tags":sorted(r.required_tags)} for r in self.roles],
                 "feature_dim":self.feature_dim,"weights":list(self.model.weights),
                 "training_steps":self.model.training_steps,"report":dict(self.report),
-                "last_inference":dict(self.last_inference)}
+                "last_inference":dict(self.last_inference),
+                "epochs":self.epochs,"learning_rate":self.learning_rate,"l2":self.l2,
+                "max_assignments_per_example":self.max_assignments_per_example,
+                "top_k_per_role":self.top_k_per_role,"max_expansions":self.max_expansions,
+                "result_limit":self.result_limit,"abstain_margin":self.abstain_margin}

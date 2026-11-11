@@ -45,6 +45,17 @@ class SROKPrequentialTests(unittest.TestCase):
             structure_id="srok0-role-model",structure_kind="learnable_role_binding_model",
             version_prefix="srok0")
         return adapter,runner,learner
+
+    def test_srok_learner_snapshot_round_trip_and_validation(self):
+        runner, learner = make_runner()
+        snapshot = learner.snapshot()
+        restored = SROKPrequentialLearner.from_snapshot(snapshot)
+        self.assertEqual(restored.snapshot(), snapshot)
+        broken = dict(snapshot)
+        broken["weights"] = [float("nan")]
+        with self.assertRaises(Exception):
+            SROKPrequentialLearner.from_snapshot(broken)
+
     def test_support_commit_reveal_and_batch_refit(self):
         adapter,runner,learner=self.adapter()
         nodes,target=make_episode(101)
