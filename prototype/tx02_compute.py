@@ -200,15 +200,31 @@ def choose_episode_abstention_threshold(
             hits.append(prediction == target)
         episode_confidences.append(min(confidences))
         episode_hits.append(all(hits))
-    binary_rows = tuple((confidence, 1.0 - confidence)
-                        for confidence in episode_confidences)
-    binary_targets = tuple(0 if hit else 1 for hit in episode_hits)
-    result = choose_abstention_threshold(
-        binary_rows, binary_targets, max_selective_risk, confidence_z
-    )
-    result["risk_unit"] = "episode_all_queries_correct"
-    result["episode_count"] = len(target_episodes)
-    return result
+    if not math.isfinite(max_selective_risk) or not 0 <= max_selective_risk <= 1:
+        raise ValueError("max_selective_risk must be in [0,1]")
+    if not math.isfinite(confidence_z) or confidence_z <= 0:
+        raise ValueError("confidence_z must be finite and positive")
+    best = {"threshold": math.nextafter(1.0, math.inf), "coverage": 0.0,
+            "selective_risk": None, "risk_upper_bound": None, "accepted": 0,
+            "confidence_z": confidence_z, "risk_bound_method": "one_sided_wilson",
+            "risk_unit": "episode_all_queries_correct",
+            "episode_count": len(target_episodes)}
+    for threshold in sorted(set(episode_confidences), reverse=True):
+        accepted_hits = [hit for confidence, hit
+                         in zip(episode_confidences, episode_hits)
+                         if confidence >= threshold]
+        count = len(accepted_hits)
+        errors = count - sum(accepted_hits)
+        risk = errors / count
+        upper = wilson_upper_bound(errors, count, confidence_z)
+        if upper <= max_selective_risk:
+            best = {"threshold": threshold, "coverage": count / len(target_episodes),
+                    "selective_risk": risk, "risk_upper_bound": upper,
+                    "accepted": count, "confidence_z": confidence_z,
+                    "risk_bound_method": "one_sided_wilson",
+                    "risk_unit": "episode_all_queries_correct",
+                    "episode_count": len(target_episodes)}
+    return best
 
 
 def apply_episode_abstention(
