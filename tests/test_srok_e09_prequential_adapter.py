@@ -99,7 +99,9 @@ class SROKPrequentialTests(unittest.TestCase):
             scope="srok/test", split="SUPPORT", learner_track="srok0",
             version_prefix="srok0", learner_factory=SROKPrequentialLearner.from_snapshot,
         )
-        self.assertEqual(resumed.runner.learner.snapshot(), learner.snapshot())
+        self.assertEqual(resumed.runner.learner.model.weights, learner.model.weights)
+        self.assertEqual(resumed.runner.learner.model.training_steps, learner.model.training_steps)
+        self.assertEqual(resumed.runner.learner.report, learner.report)
         self.assertIn(pending["prediction_id"], resumed.runner._reveals)
         self.assertEqual(
             resumed.runner._predictions[pending["prediction_id"]].inputs,
