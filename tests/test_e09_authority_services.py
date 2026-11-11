@@ -224,6 +224,8 @@ class E09AuthorityServiceTests(unittest.TestCase):
             parent_state_ref="parent-1", branch_ids=("left", "right"),
             scope=self.scope, learner_track=self.track,
             world_family_by_evidence={reveal_ref: "family-a"},
+            candidate_evidence_refs=[reveal_ref],
+            candidate_evidence_world_family_by_ref={reveal_ref: "family-a"},
         )
         receipt_keyring = E09Ed25519IssuerKeyring({self.keyring.verifier_id: verifier_public})
         verified = verify_e09_verification_receipt(
@@ -232,6 +234,7 @@ class E09AuthorityServiceTests(unittest.TestCase):
             now=datetime(2026, 11, 12, 0, 30, 30, tzinfo=timezone.utc),
             expected_scope=self.scope, expected_parent_state_ref="parent-1",
             expected_branch_ids=("left", "right"), expected_evidence_refs=(reveal_ref,),
+            expected_authorization_evidence_refs=(reveal_ref,),
         )
         self.assertEqual(verified.authorization_ref, "grant-receipt")
         self.assertEqual(verified.evidence[0].outcome, f"opaque-e09-evidence-ref:{reveal_ref}")
