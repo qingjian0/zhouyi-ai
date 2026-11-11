@@ -36,6 +36,14 @@ ACTION_TYPES = {action.value for action in ActionType}
 CANDIDATE_STATES = {state.value for state in CandidateState}
 
 
+class ProjectionRecoveryRequired(ProtocolError):
+    """A batch committed durably, but its derived projection could not be rebuilt."""
+
+    def __init__(self, receipts: tuple[EventReceipt, ...], message: str):
+        super().__init__(message)
+        self.committed_receipts = receipts
+
+
 class BatchConflict(ProtocolError):
     """A batch idempotency key was reused with different ordered content."""
 
@@ -408,6 +416,24 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                 self._db.execute("ROLLBACK")
                 raise
 
+
+    def append_events_and_project(
+        self, *, episode_id: str, events: Sequence[dict[str, Any]],
+        idempotency_key: str, expected_sequence: int | None = None,
+    ) -> tuple[tuple[EventReceipt, ...], EpisodeProjection]:
+        """Commit first, then derive a projection; never pretend post-commit failure rolled back."""
+        receipts = self.append_events(
+            episode_id=episode_id, events=events, idempotency_key=idempotency_key,
+            expected_sequence=expected_sequence,
+        )
+        try:
+            projection = self.replay_projection(episode_id)
+        except Exception as exc:
+            raise ProjectionRecoveryRequired(
+                receipts,
+                "event batch is committed; projection rebuild failed and must be retried from durable history",
+            ) from exc
+        return receipts, projection
 
     def replay_projection(self, episode_id: str) -> EpisodeProjection:
         """Rebuild a read model from raw durable rows; never trusts cached state."""
