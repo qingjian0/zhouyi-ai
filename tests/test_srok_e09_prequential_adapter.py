@@ -6,6 +6,7 @@ from prototype.e09_shared_protocol_adapter import E09SharedProtocolAdapter
 from prototype.n09_learnable_srok import Node, RoleSpec
 from prototype.shared_evidence_protocol import SQLiteEvidenceStore
 from prototype.srok_prequential_learner import SROKPrequentialLearner, encode_srok_observation
+from prototype.zpcm_memory import ZPCMMemory
 
 def make_episode(seed, candidates_per_role=2):
     rng=random.Random(seed); nodes=[]; target=[]
@@ -55,6 +56,30 @@ class SROKPrequentialTests(unittest.TestCase):
         broken["weights"] = [float("nan")]
         with self.assertRaises(Exception):
             SROKPrequentialLearner.from_snapshot(broken)
+
+    def test_e09_adapter_projects_full_protocol_lifecycle_to_zpcm(self):
+        memory = ZPCMMemory(Path(self.tmp.name) / "memory.sqlite3")
+        try:
+            runner, learner = make_runner()
+            adapter = E09SharedProtocolAdapter(
+                runner, self.store, episode_id="episode-zpcm", scope="srok/test",
+                split="SUPPORT", learner_track="srok0",
+                structure_id="srok0-role-model",
+                structure_kind="learnable_role_binding_model",
+                version_prefix="srok0", memory_projection=memory,
+            )
+            nodes, target = make_episode(105)
+            committed = adapter.predict_and_commit("obs-zpcm", (encode_srok_observation(nodes),))
+            adapter.reveal(committed["prediction_id"], target)
+            adapter.revise(committed["prediction_id"])
+            packet = memory.retrieve(scope="srok/test", max_items=32)
+            types = {item["item_type"] for item in packet["items"]}
+            self.assertTrue({"protocol:structure_version","protocol:observation",
+                "protocol:prediction_commit","protocol:evidence_reveal","protocol:revision"}.issubset(types))
+            self.assertNotIn(str(target), str(packet))
+            self.assertTrue(memory.verify_integrity()["ok"])
+        finally:
+            memory.close()
 
     def test_support_commit_reveal_and_batch_refit(self):
         adapter,runner,learner=self.adapter()

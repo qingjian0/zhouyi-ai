@@ -30,7 +30,8 @@ class E09SharedProtocolAdapter:
                  learner_track: str = LEARNER_TRACK,
                  structure_id: str = "e09-rule-set",
                  structure_kind: str = "rule_set",
-                 version_prefix: str = "e09") -> None:
+                 version_prefix: str = "e09",
+                 memory_projection: Any | None = None) -> None:
         if not isinstance(episode_id, str) or not episode_id.strip():
             raise ValueError("episode_id must be non-empty")
         if not isinstance(learner_track, str) or not learner_track.strip():
@@ -53,6 +54,7 @@ class E09SharedProtocolAdapter:
         self.structure_id = structure_id
         self.structure_kind = structure_kind
         self.version_prefix = version_prefix
+        self.memory_projection = memory_projection
         self._failed = False
         self._committed_predictions: set[str] = set()
         self._commit_digests: dict[str, str] = {}
@@ -66,6 +68,21 @@ class E09SharedProtocolAdapter:
                 "adapter currently requires a fresh episode; replay/resume is not implemented"
             )
         self._append_initial_structure()
+        self._sync_memory()
+
+    def _sync_memory(self) -> None:
+        if self.memory_projection is None:
+            return
+        try:
+            self.memory_projection.sync_episode(
+                self.store, episode_id=self.episode_id, scope=self.scope,
+                learner_track=self.learner_track,
+            )
+        except Exception as exc:
+            self._failed = True
+            raise E09ProtocolAdapterError(
+                f"ZPCM projection failed; E09 source events remain durable and replayable: {exc}"
+            ) from exc
 
     @staticmethod
     def _jsonable(value: Any) -> Any:
@@ -187,6 +204,7 @@ class E09SharedProtocolAdapter:
             self._event_digests[commit.prediction_id] = prediction_receipt.payload_digest
             self._interop_commits[commit.prediction_id] = interop_commit
             self._prediction_queries[commit.prediction_id] = observation_id
+            self._sync_memory()
             return {
                 "prediction_id": commit.prediction_id,
                 "observation_id": observation_id,
@@ -251,6 +269,7 @@ class E09SharedProtocolAdapter:
                     prediction_id, label, source=source, source_id=source_id
                 )
                 self._reveals[prediction_id] = event_id
+            self._sync_memory()
             return event_id
         except Exception as exc:
             self._failed = True
@@ -311,6 +330,7 @@ class E09SharedProtocolAdapter:
                 },
             )
             self._version_id = after_version
+            self._sync_memory()
             return {
                 "revision_id": revision.revision_id,
                 "operation": revision.operation,
