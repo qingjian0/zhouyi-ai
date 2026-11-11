@@ -11,6 +11,7 @@ import argparse
 import json
 import math
 import random
+from itertools import product
 from statistics import mean, stdev
 
 from prototype.n09_learnable_srok import (
@@ -22,13 +23,19 @@ from prototype.n09_learnable_srok import (
 
 
 def make_dataset(count: int, seed: int) -> list[LabeledStructure]:
-    if isinstance(count, bool) or not isinstance(count, int) or count < 1:
-        raise ValueError("count must be a positive integer")
+    if (isinstance(count, bool) or not isinstance(count, int)
+            or count < 1 or count % 8 != 0):
+        raise ValueError("count must be a positive multiple of 8")
     rng = random.Random(seed)
     roles = ("r0", "r1", "r2")
+    patterns = list(product((-1.0, 1.0), repeat=3))
+    values_list = []
+    while len(values_list) < count:
+        cycle = list(patterns)
+        rng.shuffle(cycle)
+        values_list.extend(cycle)
     data = []
-    for index in range(count):
-        values = tuple(float(rng.choice((-1, 1))) for _ in roles)
+    for index, values in enumerate(values_list[:count]):
         assignment = tuple(
             Node(
                 node_id=f"{seed}-{index}-{role}",
@@ -63,7 +70,7 @@ def evaluate(model: LearnableSROK, data: list[LabeledStructure],
     }
 
 
-def run_seed(seed: int, train_count: int = 3000, test_count: int = 1500,
+def run_seed(seed: int, train_count: int = 3000, test_count: int = 1504,
              epochs: int = 120) -> dict:
     roles = tuple(
         RoleSpec(name, frozenset({name}))
@@ -120,7 +127,7 @@ def history_loss(model: LearnableSROK, data: list[LabeledStructure],
 
 
 def run(seed_count: int = 5, start_seed: int = 7,
-        train_count: int = 3000, test_count: int = 1500,
+        train_count: int = 3000, test_count: int = 1504,
         epochs: int = 120) -> dict:
     if isinstance(seed_count, bool) or not isinstance(seed_count, int) or seed_count < 2:
         raise ValueError("seed_count must be at least 2")
@@ -171,7 +178,7 @@ def main() -> None:
     parser.add_argument("--seeds", type=int, default=5)
     parser.add_argument("--start-seed", type=int, default=7)
     parser.add_argument("--train-samples", type=int, default=3000)
-    parser.add_argument("--test-samples", type=int, default=1500)
+    parser.add_argument("--test-samples", type=int, default=1504)
     parser.add_argument("--epochs", type=int, default=120)
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
