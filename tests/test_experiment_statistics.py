@@ -1,6 +1,6 @@
 import unittest
 
-from orchestrator.agents.experiment_statistics import SeedMetric, compare_paired
+from orchestrator.agents.experiment_statistics import (\n    SeedMetric, compare_paired, holm_bonferroni, paired_sign_flip_test,\n)
 
 
 class PairedStatisticsTests(unittest.TestCase):
@@ -55,5 +55,31 @@ class PairedStatisticsTests(unittest.TestCase):
                            [SeedMetric(1, 2), SeedMetric(2, 3)], bootstrap_samples=10)
 
 
-if __name__ == "__main__":
+
+    def test_exact_sign_flip_test(self):
+        result = paired_sign_flip_test([1.0, 1.0, 1.0])
+        self.assertEqual(result.method, "exact_sign_flip")
+        self.assertEqual(result.permutations_evaluated, 8)
+        self.assertAlmostEqual(result.p_value, 0.25)
+
+    def test_monte_carlo_sign_flip_is_reproducible(self):
+        values = [1.0] * 21
+        first = paired_sign_flip_test(values, monte_carlo_samples=1000, random_seed=9)
+        second = paired_sign_flip_test(values, monte_carlo_samples=1000, random_seed=9)
+        self.assertEqual(first, second)
+        self.assertEqual(first.method, "monte_carlo_sign_flip")
+        self.assertGreater(first.p_value, 0.0)
+
+    def test_holm_bonferroni_adjustment(self):
+        adjusted = holm_bonferroni({"a": 0.01, "b": 0.04, "c": 0.03})
+        self.assertAlmostEqual(adjusted["a"], 0.03)
+        self.assertAlmostEqual(adjusted["b"], 0.06)
+        self.assertAlmostEqual(adjusted["c"], 0.06)
+
+    def test_invalid_p_values_rejected(self):
+        with self.assertRaisesRegex(ValueError, "between 0 and 1"):
+            holm_bonferroni({"bad": 1.2})
+        with self.assertRaisesRegex(ValueError, "non-empty"):
+            holm_bonferroni({})
+\nif __name__ == "__main__":
     unittest.main()
