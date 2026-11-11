@@ -26,6 +26,9 @@ YJ-06 提供一个严格的可逆映射子集：能无损映射则转换；遇�
 - E13 entity 缺少或包含额外的非 YJ role 属性，无法无损还原；
 - schema 不是有序、命名、非对称二元关系；
 - relation context 出现保留命名空间之外的字段；
+- relation attribute key 重复、空值或非字符串；
+- E13 relation evidence status/provenance 有非 UNKNOWN/非空值，因 YJ-04 无对应字段；
+- E13 entity role metadata 重复或缺失；
 - adapter 版本不匹配。
 
 ## 4. 不承诺的语义
@@ -37,7 +40,7 @@ YJ-06 提供一个严格的可逆映射子集：能无损映射则转换；遇�
 
 ## 5. 验收
 
-`tests/test_yijing_e13_adapter.py` 覆盖：
+`tests/test_yijing_e13_adapter.py` 共 11 项测试，覆盖：
 - 正向/反向 round-trip；
 - 无关系图的全局上下文保留；
 - relation type schema 歧义拒绝；
@@ -45,6 +48,9 @@ YJ-06 提供一个严格的可逆映射子集：能无损映射则转换；遇�
 - 非 YJ entity metadata 拒绝；
 - 非二元/无序 schema 拒绝；
 - relation context namespace；
-- adapter version。
+- adapter version；
+- 重复 relation attribute key；
+- 不可映射的 evidence/provenance metadata；
+- 重复 role metadata。
 
 只有 round-trip 和拒绝边界都通过，才可将其作为 E13 bridge adapter 的基础。它不是 E13 runtime 的全面集成。
