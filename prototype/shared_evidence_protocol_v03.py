@@ -215,9 +215,15 @@ class EpisodeProjection:
             track = item.get("learner_track")
             if track and item["evidence_id"] in self.evidence_objects:
                 evidence_by_track.setdefault(track, {})[item["evidence_id"]] = self.evidence_objects[item["evidence_id"]]
-        for track, candidates in self.track_candidate_objects.items():
-            ledger = LifecycleLedger()
+        tracks = (
+            set(self.track_candidate_objects)
+            | set(self.track_action_objects)
+            | set(evidence_by_track)
+        )
+        for track in sorted(tracks):
+            candidates = self.track_candidate_objects.get(track, {})
             track_evidence = evidence_by_track.get(track, {})
+            ledger = LifecycleLedger()
             for candidate in candidates.values():
                 missing = set(candidate.evidence_ids) - track_evidence.keys()
                 if missing:
@@ -228,12 +234,21 @@ class EpisodeProjection:
             for item in track_evidence.values():
                 ledger.add_evidence(item)
             for action in self.track_action_objects.get(track, ()):
+                if action.candidate_id is not None:
+                    key = (action.candidate_id, action.candidate_version)
+                    if key not in ledger.candidates:
+                        raise ProtocolError(
+                            f"cannot hydrate learner_track {track}: candidate {key} has no candidate_definition@1"
+                        )
                 missing = set(action.evidence_ids) - ledger.evidence.keys()
                 if missing:
                     raise ProtocolError(
                         f"cannot hydrate learner_track {track}: action has evidence without typed E12 definitions: {sorted(missing)}"
                     )
-                ledger.apply(action)
+                try:
+                    ledger.apply(action)
+                except (TypeError, ValueError) as exc:
+                    raise ProtocolError(f"cannot hydrate learner_track {track}: E12 ledger rejected replay: {exc}") from exc
             ledgers[track] = ledger
         return ledgers
 
