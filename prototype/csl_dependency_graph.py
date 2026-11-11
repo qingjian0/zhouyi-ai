@@ -114,11 +114,11 @@ class StructureDependencyGraph:
     def dependents_of(self,prerequisite,*,transitive=True):
         reverse={}
         for e in self._edges.values(): reverse.setdefault(e.dependency,set()).add(e.dependent)
-        found=set(); todo=deque(sorted(reverse.get(prerequisite,())))
+        found=[]; seen=set(); todo=deque(sorted(reverse.get(prerequisite,())))
         while todo:
             item=todo.popleft()
-            if item in found:continue
-            found.add(item)
+            if item in seen:continue
+            seen.add(item); found.append(item)
             if transitive:todo.extend(sorted(reverse.get(item,())))
         return tuple(found)
     def stale_dependencies(self):
