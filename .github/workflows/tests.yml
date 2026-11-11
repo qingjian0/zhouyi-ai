@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main, integration/cpg-ei-v1-foundation-2026-11-11]
+    branches: [main, integration/cpg-ei-v1-foundation-2026-11-11, integration/e12a20-interop-adapter-2026-11-11]
 
 jobs:
   unit-tests:
