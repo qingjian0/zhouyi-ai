@@ -201,6 +201,10 @@ class TrajectoryQuery:
     query_id: str
     actions: tuple[str, ...]
 
+    def __post_init__(self) -> None:
+        if not self.query_id:
+            raise TransitionContractError("QUERY_ID_REQUIRED")
+
 
 def _trajectory_digest(trajectory: Trajectory) -> str:
     payload = {
@@ -255,6 +259,12 @@ def update_trajectory_version_space(
     observed_target_trajectory: Trajectory,
 ) -> VersionSpaceUpdate:
     """Filter candidate mappings only after an independent target trajectory exists."""
+    candidate_ids = tuple(mapping.candidate_id for mapping in mappings)
+    if observed_target_trajectory.status != "COMPLETE":
+        return VersionSpaceUpdate(
+            "REJECTED_INCOMPLETE_EVIDENCE", (), tuple(sorted(set(candidate_ids))),
+            "OBSERVED_TARGET_TRAJECTORY_IS_INCOMPLETE",
+        )
     forecasts = trajectory_candidate_forecasts(
         source, mappings, source_initial_state, (query,)
     )
