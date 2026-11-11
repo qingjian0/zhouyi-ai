@@ -228,7 +228,7 @@ python -m unittest tests.test_tx02_experiment -v
 运行：
 
 ```bash
-python -m prototype.tx02_experiment --cardinalities 3 --support-sizes 2 4 8 --seeds 11 29 47 --parameter-match --json
+python -m prototype.tx02_experiment --cardinalities 3 --support-sizes 2 4 8 --seeds 11 29 47 --json
 ```
 
 CLI 默认启用参数预算匹配；若不指定 `--parameter-budget`，预算取该 K 和基础 hidden_size 下七种表示可训练参数量的最大值。由于 hidden size 为整数，实际参数量只能做到不超过预算的近似匹配，runner 会逐模型报告实际差额。
