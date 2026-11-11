@@ -364,10 +364,12 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
             freeze_id, track, role = payload["freeze_id"], payload["learner_track"], payload["evaluation_role"]
             if not isinstance(freeze_id, str) or not freeze_id.strip() or not isinstance(track, str) or not track.strip():
                 raise ProtocolError("candidate_set_freeze requires non-empty freeze_id and learner_track")
-            if role not in EVALUATION_ROLES:
+            if not isinstance(role, str) or role not in EVALUATION_ROLES:
                 raise ProtocolError("candidate_set_freeze has invalid evaluation_role")
             versions = payload["candidate_version_ids"]
-            if not isinstance(versions, list) or not versions or versions != sorted(set(versions)):
+            if (not isinstance(versions, list) or not versions
+                or any(not isinstance(v, str) or not v.strip() for v in versions)
+                or versions != sorted(set(versions))):
                 raise ProtocolError("candidate_version_ids must be non-empty, unique and sorted")
             snapshot = []
             for version_id in versions:
@@ -1141,6 +1143,7 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
 
     def replay_evaluator_projection(self, episode_id: str) -> dict[str, Any]:
         """Revalidate frozen candidate/commit/reveal links and expose labels to evaluator only."""
+        self.replay_projection(episode_id)  # verifies every event digest and ordinary learner-side invariant
         events = self.replay_episode(episode_id)
         freezes, commits, evaluations = {}, {}, {}
         for event in events:
