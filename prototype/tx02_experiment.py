@@ -16,7 +16,8 @@ from typing import Iterable
 from prototype.tx02_identifiability import audit_episode
 from prototype.tx02_learners import SetConditionedMLPLearner
 from prototype.tx02_compute import (
-    apply_abstention, apply_episode_abstention, choose_abstention_threshold,\n    choose_episode_abstention_threshold, choose_hidden_size_for_compute_budget,
+    apply_abstention, apply_episode_abstention, choose_abstention_threshold,
+    choose_episode_abstention_threshold, choose_hidden_size_for_compute_budget,
     estimate_forward_macs, probability_metrics, risk_coverage_curve, select_representation,
 )
 from prototype.tx02_state_encoders import build_codebook
