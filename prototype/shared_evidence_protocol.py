@@ -15,6 +15,8 @@ from pathlib import Path
 from typing import Any, Iterable
 
 PROTOCOL_VERSION = "0.2"
+STRICT_PROTOCOL_VERSION = "0.3"
+EVIDENCE_SPLITS = {"SUPPORT", "GATE_DEV", "GATE_FINAL", "LOCKED_TEST"}
 LEGACY_LEARNER_TRACK = "legacy"
 EVENT_TYPES = {"observation", "prediction_commit", "evidence_reveal", "structure_version", "revision"}
 
@@ -120,16 +122,30 @@ class SQLiteEvidenceStore:
           WHERE event_type='structure_version';
         """)
 
+    @staticmethod
+    def _validate_scope_split(payload: dict[str, Any], event_name: str) -> None:
+        if not isinstance(payload.get("scope"), str) or not payload["scope"].strip():
+            raise ProtocolError(f"v0.3 {event_name} requires a non-empty scope")
+        if payload.get("split") not in EVIDENCE_SPLITS:
+            raise ProtocolError(f"v0.3 {event_name} has an invalid evidence split")
+
     def close(self) -> None:
         with self._lock:
             self._db.close()
 
-    def _validate_semantics(self, episode_id: str, event_type: str, payload: dict[str, Any]) -> None:
+    def _validate_semantics(self, episode_id: str, event_type: str, payload: dict[str, Any], protocol_version: str) -> None:
+        strict = protocol_version == STRICT_PROTOCOL_VERSION
         if event_type == "observation":
             if not payload.get("observation_id"):
                 raise ProtocolError("observation requires observation_id")
+            if strict:
+                self._validate_scope_split(payload, "observation")
+                if not payload.get("query_id"):
+                    raise ProtocolError("v0.3 observation requires query_id")
         elif event_type == "prediction_commit":
             required = {"prediction_id", "observation_id", "model_version", "learner_track", "decision_status"}
+            if strict:
+                required |= {"query_id", "scope", "split"}
             if not required.issubset(payload):
                 raise ProtocolError(f"prediction_commit missing fields: {sorted(required - payload.keys())}")
             if not isinstance(payload["learner_track"], str) or not payload["learner_track"].strip():
@@ -139,25 +155,44 @@ class SQLiteEvidenceStore:
             }:
                 raise ProtocolError("invalid prediction decision_status")
             observation = self._db.execute(
-                "SELECT 1 FROM events WHERE episode_id=? AND event_type='observation' "
+                "SELECT payload_json, protocol_version FROM events WHERE episode_id=? AND event_type='observation' "
                 "AND json_extract(payload_json, '$.observation_id')=?",
                 (episode_id, payload["observation_id"]),
             ).fetchone()
             if observation is None:
                 raise MissingReference("prediction commit requires a prior observation event")
+            if strict:
+                observed = json.loads(observation["payload_json"])
+                if observation["protocol_version"] != STRICT_PROTOCOL_VERSION:
+                    raise ProtocolError("v0.3 prediction cannot bind to a legacy observation")
+                for field in ("query_id", "scope", "split"):
+                    if payload.get(field) != observed.get(field):
+                        raise ProtocolError(f"prediction_commit {field} does not match observation")
         elif event_type == "evidence_reveal":
-            if not {"prediction_id", "learner_track", "target_or_feedback"}.issubset(payload):
-                raise ProtocolError("evidence_reveal requires prediction_id, learner_track and target_or_feedback")
+            required = {"prediction_id", "learner_track", "target_or_feedback"}
+            if strict:
+                required |= {"query_id", "scope", "split", "commit_digest"}
+            if not required.issubset(payload):
+                raise ProtocolError(f"evidence_reveal missing fields: {sorted(required - payload.keys())}")
             if not isinstance(payload["learner_track"], str) or not payload["learner_track"].strip():
                 raise ProtocolError("evidence_reveal learner_track must be a non-empty string")
             commit = self._db.execute(
-                "SELECT 1 FROM events WHERE episode_id=? AND event_type='prediction_commit' "
+                "SELECT payload_json, payload_digest, protocol_version FROM events WHERE episode_id=? AND event_type='prediction_commit' "
                 "AND json_extract(payload_json, '$.prediction_id')=? "
                 "AND COALESCE(json_extract(payload_json, '$.learner_track'), 'legacy')=?",
                 (episode_id, payload["prediction_id"], payload["learner_track"]),
             ).fetchone()
             if commit is None:
                 raise MissingReference("reveal requires a previously committed prediction from the same learner_track")
+            if strict:
+                committed = json.loads(commit["payload_json"])
+                if commit["protocol_version"] != STRICT_PROTOCOL_VERSION:
+                    raise ProtocolError("v0.3 reveal cannot bind to a legacy prediction")
+                for field in ("query_id", "scope", "split"):
+                    if payload.get(field) != committed.get(field):
+                        raise ProtocolError(f"evidence_reveal {field} does not match prediction commit")
+                if payload["commit_digest"] != commit["payload_digest"]:
+                    raise ProtocolError("evidence_reveal commit_digest does not match committed event digest")
         elif event_type == "structure_version":
             required = {"structure_id", "version_id", "kind", "definition", "parent_version_ids", "support_evidence_ids"}
             if not required.issubset(payload):
@@ -201,12 +236,14 @@ class SQLiteEvidenceStore:
         self, *, episode_id: str, event_id: str, event_type: str, payload: dict[str, Any],
         idempotency_key: str, expected_sequence: int | None = None, actor_role: str = "runner",
         causation_refs: Iterable[str] = (), payload_schema: str | None = None,
-        integrity_metadata: dict[str, Any] | None = None,
+        integrity_metadata: dict[str, Any] | None = None, protocol_version: str = PROTOCOL_VERSION,
     ) -> EventReceipt:
         if not all(isinstance(x, str) and x for x in (episode_id, event_id, event_type, idempotency_key)):
             raise ProtocolError("episode_id, event_id, event_type and idempotency_key must be non-empty strings")
         if event_type not in EVENT_TYPES:
             raise ProtocolError(f"unsupported event_type: {event_type}")
+        if protocol_version not in {PROTOCOL_VERSION, STRICT_PROTOCOL_VERSION}:
+            raise ProtocolError(f"unsupported protocol_version: {protocol_version}")
         if not isinstance(payload, dict):
             raise ProtocolError("payload must be an object")
         payload_json = canonical_json(payload)
@@ -240,12 +277,12 @@ class SQLiteEvidenceStore:
                 ).fetchone()[0]
                 if expected_sequence is not None and expected_sequence != current:
                     raise SequenceConflict(f"expected sequence {expected_sequence}, current sequence is {current}")
-                self._validate_semantics(episode_id, event_type, payload)
+                self._validate_semantics(episode_id, event_type, payload, protocol_version)
                 seq = current + 1
                 created_at = datetime.now(timezone.utc).isoformat()
                 self._db.execute(
                     "INSERT INTO events VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                    (episode_id, seq, event_id, event_type, PROTOCOL_VERSION, payload_json, fingerprint,
+                    (episode_id, seq, event_id, event_type, protocol_version, payload_json, fingerprint,
                      actor_role, causation_refs_json, payload_schema, integrity_metadata_json, created_at),
                 )
                 self._db.execute(
