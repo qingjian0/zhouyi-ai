@@ -185,9 +185,11 @@ def run(seed: int = 17, *, mode: str = "INCREMENTAL_FILTER",
     return result
 
 
-def run_all(seed: int = 17, *, instances_per_template: int = 6) -> dict[str, Any]:
+def run_all(seed: int = 17, *, instances_per_template: int = 6,
+            learner_backend: str = "in_process") -> dict[str, Any]:
     results = [
-        run(seed, mode=mode, instances_per_template=instances_per_template)
+        run(seed, mode=mode, instances_per_template=instances_per_template,
+            learner_backend=learner_backend)
         for mode in MODES
     ]
     return {
@@ -319,7 +321,8 @@ def main() -> None:
         result = run_sweep(args.start_seed, seeds=args.seeds,
                            instances_per_template=args.instances_per_template)
     elif args.mode == "all":
-        result = run_all(args.seed, instances_per_template=args.instances_per_template)
+        result = run_all(args.seed, instances_per_template=args.instances_per_template,
+                         learner_backend=args.learner_backend)
     else:
         result = run(args.seed, mode=args.mode,
                      instances_per_template=args.instances_per_template,
