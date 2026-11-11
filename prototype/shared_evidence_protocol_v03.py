@@ -207,6 +207,14 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
             reveal = None
         return ingest or reveal
 
+    def _resolve_evidence_id(self, episode_id: str, ref: Any) -> str | None:
+        row = self._resolve_evidence_ref(episode_id, ref)
+        if row is None:
+            return None
+        if row["event_type"] == "evidence_ingest":
+            return json.loads(row["payload_json"])["evidence_id"]
+        return row["event_id"]
+
     def _validate_semantics(self, episode_id: str, event_type: str, payload: dict[str, Any]) -> None:
         if event_type == "evidence_ingest":
             required = {"evidence_id", "split_role", "outcome_ref", "source_provenance", "learner_track"}
@@ -363,7 +371,7 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                 definition = payload["definition"]
                 if isinstance(definition, dict) and definition.get("schema") == CANDIDATE_DEFINITION_SCHEMA:
                     resolved_support = [
-                        self._resolve_evidence_ref(episode_id, ref)["evidence_id"]
+                        self._resolve_evidence_id(episode_id, ref)
                         for ref in payload["support_evidence_ids"]
                     ]
                     _candidate_from_definition(
