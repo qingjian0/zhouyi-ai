@@ -5,9 +5,9 @@ from pathlib import Path
 from prototype.shared_evidence_protocol import MissingReference, ProtocolError, SQLiteEvidenceStore, canonical_json, digest_payload
 from prototype.shared_evidence_protocol_v03 import (
     BatchConflict, ProjectionRecoveryRequired, SQLiteEvidenceStoreV03,
-    candidate_definition_payload,
+    candidate_definition_payload, evidence_definition_payload,
 )
-from prototype.e12a6_lifecycle_contract import Candidate, CandidateState
+from prototype.e12a6_lifecycle_contract import Candidate, CandidateState, Evidence, SplitRole
 
 
 
@@ -660,6 +660,134 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
         )
         restored = self.store.replay_projection("ep").candidate_objects["relation:supported@1"]
         self.assertEqual(restored.evidence_ids, ("train-1",))
+
+
+
+    def test_typed_ingested_evidence_round_trips_to_e12_evidence(self):
+        evidence = Evidence(
+            evidence_id="train-typed", episode_id="ep",
+            world_family="finite-rule-world", split_role=SplitRole.TRAIN,
+            observation_id="obs-1", outcome="label=true",
+            model_version="dataset-v1", measurement_cost=0.25,
+            provenance="dataset:fixture-7",
+        )
+        ingest = self.ingest(evidence_id="train-typed")
+        ingest["payload"]["evidence_definition"] = evidence_definition_payload(evidence)
+        self.store.append_events(
+            episode_id="ep", idempotency_key="typed-ingest",
+            events=[self.observation(), ingest],
+        )
+        projection = self.store.replay_projection("ep")
+        restored = projection.evidence_objects["train-typed"]
+        self.assertEqual(restored, evidence)
+        self.assertEqual(projection.digest, self.store.replay_projection("ep").digest)
+
+    def test_typed_revealed_evidence_preserves_causal_visibility_steps(self):
+        expected = Evidence(
+            evidence_id="reveal-typed", episode_id="ep",
+            world_family="finite-rule-world", split_role=SplitRole.LOCKED_TEST,
+            observation_id="obs-locked", outcome=canonical_json({"label": "positive"}),
+            model_version="model-v7", measurement_cost=0.4,
+            prediction_commit_step=2, label_visibility_step=3,
+            provenance="evaluator:locked-test",
+        )
+        self.store.append_events(
+            episode_id="ep", idempotency_key="typed-reveal",
+            events=[
+                self.observation("obs-locked"),
+                {
+                    "event_id": "commit-typed", "event_type": "prediction_commit",
+                    "payload": {
+                        "prediction_id": "pred-typed", "observation_id": "obs-locked",
+                        "model_version": "model-v7", "learner_track": "e12",
+                        "decision_status": "PREDICT",
+                    },
+                },
+                {
+                    "event_id": "reveal-typed", "event_type": "evidence_reveal",
+                    "payload": {
+                        "prediction_id": "pred-typed", "learner_track": "e12",
+                        "target_or_feedback": {"label": "positive"},
+                        "split_role": "locked_test",
+                        "evidence_definition": evidence_definition_payload(expected),
+                    },
+                },
+            ],
+        )
+        projection = self.store.replay_projection("ep")
+        self.assertEqual(projection.evidence_objects["reveal-typed"], expected)
+        self.assertEqual(projection.evidence_objects["reveal-typed"].prediction_commit_step, 2)
+        self.assertEqual(projection.evidence_objects["reveal-typed"].label_visibility_step, 3)
+
+    def test_typed_revealed_evidence_rejects_model_version_mismatch(self):
+        self.store.append_events(
+            episode_id="ep", idempotency_key="bad-typed-reveal",
+            events=[
+                self.observation("obs-locked"),
+                {
+                    "event_id": "commit-typed", "event_type": "prediction_commit",
+                    "payload": {
+                        "prediction_id": "pred-typed", "observation_id": "obs-locked",
+                        "model_version": "model-v7", "learner_track": "e12",
+                        "decision_status": "PREDICT",
+                    },
+                },
+                {
+                    "event_id": "reveal-typed", "event_type": "evidence_reveal",
+                    "payload": {
+                        "prediction_id": "pred-typed", "learner_track": "e12",
+                        "target_or_feedback": {"label": "positive"},
+                        "split_role": "locked_test",
+                        "evidence_definition": {
+                            "schema": "evidence_definition@1",
+                            "world_family": "finite-rule-world",
+                            "outcome": canonical_json({"label": "positive"}),
+                            "model_version": "wrong-model",
+                        },
+                    },
+                },
+            ],
+        )
+        with self.assertRaises(ProtocolError):
+            self.store.replay_projection("ep")
+
+    def test_projection_hydrates_typed_e12_action_objects(self):
+        self.store.append_events(
+            episode_id="ep", idempotency_key="action-hydration",
+            events=[
+                self.observation(),
+                {
+                    "event_id": "candidate-v1", "event_type": "structure_version",
+                    "payload": {
+                        "structure_id": "candidate", "version_id": "candidate@1",
+                        "kind": "candidate",
+                        "definition": {
+                            "schema": "candidate_definition@1",
+                            "canonical_expression": "x > y", "proposer_family": "relational",
+                            "supporting_families": ["relational"], "input_types": ["number", "number"],
+                            "operator": "GT", "conditions": [], "uncertainty": 0.2,
+                            "complexity": 1, "proposal_cost": 0.1,
+                        },
+                        "parent_version_ids": [], "support_evidence_ids": [],
+                    },
+                },
+                {
+                    "event_id": "propose-event", "event_type": "lifecycle_action",
+                    "payload": {
+                        "action_id": "propose-candidate", "action_type": "propose",
+                        "candidate_id": "candidate", "candidate_version": 1,
+                        "from_state": "observed", "to_state": "proposed",
+                        "evidence_refs": [], "cost": 0.1, "note": "proposer",
+                        "candidate_lineage_refs": [], "learner_track": "e12",
+                    },
+                },
+            ],
+        )
+        projection = self.store.replay_projection("ep")
+        self.assertEqual(len(projection.action_objects), 1)
+        self.assertEqual(projection.action_objects[0].action_type.value, "propose")
+        self.assertEqual(projection.action_objects[0].from_state, CandidateState.OBSERVED)
+        self.assertEqual(projection.action_objects[0].to_state, CandidateState.PROPOSED)
 
 
 
