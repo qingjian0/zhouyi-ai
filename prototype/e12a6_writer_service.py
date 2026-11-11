@@ -202,7 +202,11 @@ class E12A6WriterService:
                 if set(item.coordinated.proposal_ids) == wanted
             ]
             if len(matches) != 1:
-                raise E12A6AuthorizationError("selected proposal set is not one unique feasible coordinator result")
+                available = [tuple(sorted(item.coordinated.proposal_ids)) for item in report.candidates]
+                raise E12A6AuthorizationError(
+                    f"selected proposal set is not one unique feasible coordinator result; "
+                    f"status={report.status}; available={available}"
+                )
             coordinated = matches[0]
 
         if coordinated.branch_merge is None:
