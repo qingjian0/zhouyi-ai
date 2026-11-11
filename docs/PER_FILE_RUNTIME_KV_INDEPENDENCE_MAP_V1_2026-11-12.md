@@ -109,3 +109,52 @@ SROK、typed hypergraph unification、CSG-GCR、E09/E12-A6/ZPCM 的已审阅代�
 Zhouyi-AI 已经具备“结构化、非 Token 中心”认知计算的若干真实组成部分，但还没有证据证明象数理/类象算子已经贯穿真实输入、组合推理、持续记忆和原生表达的完整运行链。
 
 下一阶段的主任务是：**把现有模块接成一条可运行、可复现、可消融、可恢复的结构认知闭环，并分别通过 K0/K1/K2 三层 KV Cache 独立性验收。**
+
+
+## 9. E12-A6 本地生产边界：PR #248 / #252 代码审计
+
+### 9.1 已有实现的分层
+
+| 层 | PR / 源码 | 已实现 | 未证明 |
+|---|---|---|---|
+| 单写者进程 | #248 `prototype/e12a6_writer_runtime.py` | POSIX `flock`；先锁后开 SQLite；目录 0700、DB/lock 0600；拒绝最终 DB 路径 symlink；锁随 runtime 生命周期持有 | 不认证 IPC；不阻止 root 或同 UID 进程；不提供 Windows 后端 |
+| 本地 IPC 传输 | #252 `prototype/e12a6_unix_socket.py` | Linux `SO_PEERCRED` 取 PID/UID/GID；UID allowlist；私有 socket 目录；请求大小/超时/重复 JSON key/额外 frame 校验 | 不负责 workload 身份映射；不解析 CSG-GCR 业务协议；不自动调用 writer service |
+| 业务授权 | #244/#245 `prototype/e12a6_writer_service.py` 及 receipt 链 | receipt 验签、绑定与一次性消费；writer identity 审计 | 尚未由 #252 的真实 UDS dispatcher 端到端接线验证 |
+| 部署隔离 | 专用 OS UID + 私有目录 + DB ACL | 文档给出部署要求 | 未证明 learner/runner 进程无法直接打开 E09/ZPCM 数据库；未证明同 UID 恶意进程隔离 |
+
+### 9.2 最关键的集成缺口：SO_PEERCRED 尚未接入 writer service
+
+PR #252 的 `E12A6UnixSocketServer` 接受任意 dispatcher callback。它把内核读取的 `E12A6PeerCredentials(pid, uid, gid)` 传给 callback，并在 transport 层检查 UID allowlist；但仓库当前 PR 改动没有提供一个生产 dispatcher，将 peer tuple 映射成 server-owned workload credential，再调用 `E12A6WriterRuntime.service.submit_authorized_merge_candidate`。
+
+现有测试证明的是：
+
+- 内核 peer credentials 与 JSON 中伪造的 pid/uid/gid 分离；
+- 非 allowlisted UID 不会进入 dispatcher；
+- framing、重复 key、长度、socket path 等 transport 约束。
+
+它**没有**证明：
+
+- UID/GID → workload principal 的映射来自服务端固定配置，而非请求 JSON；
+- dispatcher 只允许一个明确 operation/schema，并将 scope、branch、parent、evidence refs 交给 writer service 校验；
+- 从真实 UDS 请求到 receipt 验签、nonce 原子消费、durable writer audit event 的完整调用链；
+- 重启后该链路仍可正确 replay；
+- learner/runner OS account 无权读取或直接打开 writer 数据库。
+
+PR #252 exact head `ee13ffd9ca8a9b1a596a2c28a0c06f0b0e4691a7` 在本次检查时没有返回关联 workflow run；因此不能报告该 PR 的 CI 已通过。
+
+### 9.3 PR #248 的路径处理补强项
+
+`E12A6WriterProcessLock.acquire` 对父目录使用 `Path.stat()`，该调用会跟随父目录 symlink；runtime 对数据库路径的 `is_symlink()` 检查只覆盖最终路径组件。现有测试覆盖最终 lock/DB symlink，但没有覆盖 symlink parent path。
+
+当前文档要求父目录由专用 service UID 持有且为 0700，这降低了常规部署风险；但更强的路径边界应使用 `lstat()` 明确拒绝 symlink parent，并考虑基于已打开目录 FD 的 `openat/O_DIRECTORY/O_NOFOLLOW` 方式完成 lock/DB 创建与检查，避免路径组件替换竞态。此项是防御性加固建议，不是已证明的可利用漏洞。
+
+### 9.4 下一步最小集成验收
+
+1. 新增唯一生产 composition root：创建 `E12A6WriterRuntime`，再启动 UDS server；关闭顺序必须先停止/等待 IPC server，再关闭 writer runtime 和释放 flock。
+2. 提供显式 UID/GID → workload principal 配置表；peer credentials 是唯一身份输入，JSON 身份字段一律忽略或拒绝。
+3. dispatcher 实施 operation 与请求 schema allowlist；未知 operation/字段、重复 evidence refs、错误 scope、过期/重放 receipt 全部 fail closed。
+4. 增加真实集成测试：UDS client → kernel peer credentials → dispatcher → `E12A6WriterService` → receipt verification → nonce consume → persistent audit → process restart/replay。
+5. 在不同 OS 用户下验证 learner 无法访问 E09/ZPCM 文件；同时记录 root、同 UID、allowlisted UID compromise 的明确威胁模型。
+6. CI 至少覆盖 Linux IPC 集成测试；Windows 目标必须另行实现并验证锁/IPC backend，不能将 POSIX 通过结果外推到 Windows。
+
+**成熟度结论：** #248 提供单写者本地进程基线，#252 提供可复用的 Linux peer-authenticated transport primitive；二者尚未形成可验收的端到端生产 writer 服务。不要把“SO_PEERCRED 已实现”表述为“writer IPC 安全链已完成”。
