@@ -86,6 +86,16 @@ class LearnableSROKTests(unittest.TestCase):
         self.assertTrue(result.abstained)
         self.assertEqual(result.reason, "LOW_SCORE_MARGIN")
 
+    def test_exact_score_tie_abstains_at_zero_margin(self):
+        model = LearnableSROK(self.roles, feature_dim=3)
+        nodes = [
+            Node(f"{role}-{i}", role, (0.0, 0.0, 0.0), frozenset({"eligible"}))
+            for role in ("r0", "r1", "r2") for i in range(2)
+        ]
+        result = model.predict(nodes, top_k_per_role=2, result_limit=2)
+        self.assertTrue(result.abstained)
+        self.assertEqual(result.reason, "LOW_SCORE_MARGIN")
+
     def test_abstention_still_applies_when_result_limit_is_one(self):
         model = LearnableSROK(self.roles, feature_dim=3)
         nodes = [
