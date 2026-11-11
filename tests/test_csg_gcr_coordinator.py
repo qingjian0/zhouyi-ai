@@ -142,6 +142,34 @@ class CandidateCoordinatorTests(unittest.TestCase):
                 self.proposal("p1", cost=True)
             ])
 
+    def test_monotonic_partial_feasibility_prunes_prefixes(self):
+        rows = [
+            self.proposal("p1", bindings=(("x", "1"),), score=4),
+            self.proposal("p2", bindings=(("x", "2"),), score=3),
+            self.proposal("p3", bindings=(("y", "3"),), score=2),
+        ]
+        baseline = self.coordinator.coordinate(
+            rows, GlobalConstraints(max_states=100, result_limit=100)
+        )
+        pruned = self.coordinator.coordinate(
+            rows, GlobalConstraints(max_states=100, result_limit=100),
+            partial_feasibility=lambda selected: not (
+                len({dict(item.bindings).get("x") for item in selected
+                     if "x" in dict(item.bindings)}) > 1
+            ),
+        )
+        self.assertGreater(pruned.pruned_partial_sets, 0)
+        self.assertEqual(pruned.candidates, baseline.candidates)
+        self.assertEqual(pruned.status, baseline.status)
+        self.assertLess(pruned.expanded_states, baseline.expanded_states)
+
+    def test_partial_feasibility_must_return_bool(self):
+        with self.assertRaises(CoordinationError):
+            self.coordinator.coordinate(
+                [self.proposal("p1")],
+                partial_feasibility=lambda selected: "yes",
+            )
+
     def test_empty_input_returns_no_feasible_set(self):
         report = self.coordinator.coordinate([])
         self.assertEqual(report.status, "NO_FEASIBLE_SET")
