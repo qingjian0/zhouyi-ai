@@ -5,7 +5,7 @@ from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from prototype.e12a6_lifecycle_contract import Action,ActionType,Candidate,CandidateState,Evidence,SplitRole
-from prototype.e12a6_zpcm_persistence import LifecyclePersistenceError,PersistentLifecycleLedger
+from prototype.e12a6_zpcm_persistence import (EVENT_SCHEMA, LifecyclePersistenceError, PersistentLifecycleLedger, _candidate_to_dict, _evidence_to_dict, _safe_evidence)
 from prototype.e09_verification_receipt import VerifiedE09VerificationReceipt
 from prototype.zpcm_memory import ZPCMError,ZPCMMemory
 
@@ -219,6 +219,63 @@ class PersistentLifecycleTests(unittest.TestCase):
             self.store.register_candidate_bundle(
                 other, (evidence_item,), authorization_receipt=reused_nonce, consumed_at=now,
             )
+
+    def test_sqlite_unique_nonce_constraint_blocks_stale_second_writer(self):
+        first_evidence = evidence()
+        first_receipt = verified_receipt(first_evidence)
+        now = datetime(2026, 11, 12, 0, 30, tzinfo=timezone.utc)
+        self.store.register_candidate_bundle(
+            authorized_candidate(), (first_evidence,),
+            authorization_receipt=first_receipt, consumed_at=now,
+        )
+
+        second_evidence = replace(evidence(), evidence_id="train-2", observation_id="obs-2")
+        second_definition = {
+            "schema": "csg-gcr-typed-candidate-v1",
+            "parent_state_ref": "parent-1",
+            "branch_ids": ["left", "right"],
+            "branch_merge": {
+                "authorization_ref": "grant-2",
+                "authorization_evidence_refs": ["train-2"],
+            },
+        }
+        second_candidate = replace(
+            authorized_candidate(), candidate_id="rel:other",
+            canonical_expression=json.dumps(second_definition, sort_keys=True, separators=(",", ":")),
+            evidence_ids=("train-2",),
+        )
+        safe_second_evidence = _safe_evidence(second_evidence)
+        receipt_body = {
+            "receipt_id": "receipt-2", "nonce": "nonce-1",
+            "authorization_ref": "grant-2", "episode_id": "ep-1",
+            "scope": "project-a", "parent_state_ref": "parent-1",
+            "branch_ids": ["left", "right"], "authorization_evidence_refs": ["train-2"],
+            "evidence_refs": ["train-2"], "issuer_id": "issuer-A",
+            "verifier_id": "verifier-A", "authorization_event_digest": "c" * 64,
+            "receipt_issued_at": "2026-11-12T00:29:00+00:00",
+            "receipt_expires_at": "2026-11-12T00:31:00+00:00",
+            "candidate_id": "rel:other", "candidate_version": 1,
+            "consumed_at": "2026-11-12T00:30:00+00:00",
+        }
+        events = [
+            {"event_id": "e12a6:evidence:train-2", "payload": {
+                "schema_version": EVENT_SCHEMA, "kind": "evidence_registered",
+                "body": {"evidence": _evidence_to_dict(safe_second_evidence)},
+            }},
+            {"event_id": "e12a6:candidate:rel:other@1", "payload": {
+                "schema_version": EVENT_SCHEMA, "kind": "candidate_registered",
+                "body": {"candidate": _candidate_to_dict(second_candidate)},
+            }},
+            {"event_id": "e12a6:authorization-consumed:receipt-2", "payload": {
+                "schema_version": EVENT_SCHEMA, "kind": "authorization_consumed",
+                "body": receipt_body,
+            }},
+        ]
+        with self.assertRaises(ZPCMError):
+            self.memory.append_lifecycle_events(
+                events=events, scope="project-a", expected_sequence=3,
+            )
+        self.assertEqual(len(self.memory.replay_lifecycle_events(scope="project-a")), 3)
 
     def test_expired_receipt_is_not_consumed(self):
         evidence_item = evidence()
