@@ -27,6 +27,16 @@ class BranchDeltaTests(unittest.TestCase):
         self.assertEqual(dict(result.state), {"n:1": {"kind": "node", "x": 1}})
         self.assertEqual(result.applied_event_ids, ("a1", "b1"))
 
+    def test_sequential_same_branch_edits_are_applied_in_order(self):
+        base = {"n": 0}
+        first = self.event("a1", DeltaOperation.UPDATE_ATTRIBUTE, "n",
+                           canonical_hash(0), 1, version=8)
+        second = self.event("a2", DeltaOperation.UPDATE_ATTRIBUTE, "n",
+                            canonical_hash(1), 2, version=9, parent="a1")
+        result = merge_branch_deltas(base, (self.snap("a", [first, second]),))
+        self.assertEqual(result.status, MergeStatus.MERGED)
+        self.assertEqual(dict(result.state), {"n": 2})
+
     def test_shared_parent_and_version_are_mandatory(self):
         a = self.snap("a", [])
         b = BranchSnapshot("other-parent", "b", 7, (), (), (), (), ("root", "b"))
