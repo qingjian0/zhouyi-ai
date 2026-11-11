@@ -92,7 +92,7 @@ def infer_structural_roles(
                 entity_id=node_id,
                 role_id="role-" + colors[node_id],
                 entity_type=node.entity_type,
-                refinement_rounds if False else rounds_done,
+                rounds_done,
                 colors[node_id],
             )
             for node_id, node in nodes.items()
@@ -178,7 +178,6 @@ class StructuralSchemaInducer:
                 item.entity_id: item
                 for item in infer_structural_roles(row.state, max_rounds=self.max_rounds).assignments
             }
-            node_by_entity = {node.entity_id: node for node in row.state.nodes}
             seen_in_observation = set()
             for relation in row.state.relations:
                 source = role_by_entity[relation.source]
