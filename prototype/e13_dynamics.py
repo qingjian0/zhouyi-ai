@@ -6,7 +6,13 @@ mappings and trajectory comparison; it is not a general causal learner.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
 from typing import Iterable
+
+from .e13_b3_active import (
+    CandidateForecast, QuerySelection, VersionSpaceUpdate,
+    select_discriminating_query, update_version_space,
+)
 
 
 class TransitionContractError(ValueError):
@@ -188,3 +194,73 @@ def validate_trajectory(predicted: Trajectory,
                                         mismatch_step=index,
                                         reason="STATE_TRAJECTORY_MISMATCH")
     return TrajectoryValidation("VALID_FOR_TRAJECTORY", predicted, observed)
+
+
+@dataclass(frozen=True)
+class TrajectoryQuery:
+    query_id: str
+    actions: tuple[str, ...]
+
+
+def _trajectory_digest(trajectory: Trajectory) -> str:
+    payload = {
+        "status": trajectory.status,
+        "states": [[list(pair) for pair in state] for state in trajectory.states],
+        "stopped_at_step": trajectory.stopped_at_step,
+    }
+    return json.dumps(payload, sort_keys=True, separators=(",", ":"))
+
+
+def trajectory_candidate_forecasts(
+    source: TransitionSystem,
+    mappings: tuple[TransitionMap, ...],
+    source_initial_state: State,
+    queries: tuple[TrajectoryQuery, ...],
+) -> tuple[CandidateForecast, ...]:
+    """Forecast candidate trajectories without consulting a target system."""
+    forecasts = []
+    for query in queries:
+        for mapping in mappings:
+            predicted = forecast_target_trajectory(
+                source, mapping, source_initial_state, query.actions
+            )
+            if predicted.status == "COMPLETE":
+                forecasts.append(CandidateForecast(
+                    mapping.candidate_id, query.query_id,
+                    _trajectory_digest(predicted),
+                ))
+    return tuple(forecasts)
+
+
+def select_discriminating_trajectory(
+    source: TransitionSystem,
+    mappings: tuple[TransitionMap, ...],
+    source_initial_state: State,
+    queries: tuple[TrajectoryQuery, ...],
+) -> QuerySelection:
+    """Select an action sequence by candidate trajectory disagreement only."""
+    forecasts = trajectory_candidate_forecasts(
+        source, mappings, source_initial_state, queries
+    )
+    return select_discriminating_query(
+        (mapping.candidate_id for mapping in mappings), forecasts
+    )
+
+
+def update_trajectory_version_space(
+    source: TransitionSystem,
+    mappings: tuple[TransitionMap, ...],
+    source_initial_state: State,
+    query: TrajectoryQuery,
+    observed_target_trajectory: Trajectory,
+) -> VersionSpaceUpdate:
+    """Filter candidate mappings only after an independent target trajectory exists."""
+    forecasts = trajectory_candidate_forecasts(
+        source, mappings, source_initial_state, (query,)
+    )
+    return update_version_space(
+        (mapping.candidate_id for mapping in mappings),
+        forecasts,
+        query_id=query.query_id,
+        observed_outcome=_trajectory_digest(observed_target_trajectory),
+    )
