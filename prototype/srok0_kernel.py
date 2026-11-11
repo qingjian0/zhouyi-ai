@@ -57,6 +57,7 @@ class SearchReport:
     expanded_assignments: int
     valid_assignments: int
     budget_exhausted: bool
+    candidate_pool_truncated_roles: tuple[str, ...] = ()
 
 
 JointScorer = Callable[[tuple[Node, ...]], float]
@@ -99,7 +100,7 @@ class SparseRoleComposer:
             for tag in node.tags:
                 self._by_tag.setdefault(tag, set()).add(node.node_id)
 
-    def _pool(self, role: RoleSpec, limit: int) -> tuple[Node, ...]:
+    def _pool(self, role: RoleSpec, limit: int) -> tuple[tuple[Node, ...], bool]:
         if not isinstance(role.name, str) or not role.name.strip():
             raise SROKValidationError("role names must be non-empty")
         if any(not isinstance(value, str) or not value.strip() for value in role.allowed_types):
@@ -118,7 +119,7 @@ class SparseRoleComposer:
             (self._by_id[node_id] for node_id in eligible),
             key=lambda node: (-node.score, node.node_id),
         )
-        return tuple(ranked[:limit])
+        return tuple(ranked[:limit]), len(ranked) > limit
 
     @staticmethod
     def _validate_spec(spec: OperatorSpec) -> None:
@@ -154,14 +155,18 @@ class SparseRoleComposer:
         if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
             raise SROKValidationError("result limit must be a positive integer")
 
-        pools = tuple(
+        pool_results = tuple(
             self._pool(role, spec.max_candidates_per_role) for role in spec.roles
+        )
+        pools = tuple(result[0] for result in pool_results)
+        truncated_roles = tuple(
+            role.name for role, result in zip(spec.roles, pool_results) if result[1]
         )
         pool_sizes = tuple(
             (role.name, len(pool)) for role, pool in zip(spec.roles, pools)
         )
         if any(not pool for pool in pools):
-            return SearchReport((), pool_sizes, 0, 0, False)
+            return SearchReport((), pool_sizes, 0, 0, False, truncated_roles)
 
         # Each pool is sorted by descending node score. A heap enumerates
         # Cartesian index vectors in descending additive base-score order.
@@ -242,4 +247,5 @@ class SparseRoleComposer:
             expanded_assignments=expanded,
             valid_assignments=valid,
             budget_exhausted=bool(heap),
+            candidate_pool_truncated_roles=truncated_roles,
         )
