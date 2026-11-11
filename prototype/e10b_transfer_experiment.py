@@ -123,8 +123,7 @@ def run(seed: int = 1701, *, instances_per_template: int = 4) -> dict[str, Any]:
         })
     context_rows = _predict(learner, context_observations, query["objects"])
 
-    labels = [truth[row["observation_id"]] for row in query["observations"]]
-    majority = sum(truth[row["observation_id"]] for row in support["observations"])
+    majority = sum(row["outcome"] for row in support["observations"])
     majority_total = len(support["observations"])
     majority_prediction = majority * 2 >= majority_total
     majority_rows = [
