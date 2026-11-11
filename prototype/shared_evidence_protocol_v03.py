@@ -141,7 +141,8 @@ def _evidence_from_definition(
 
 
 PROTOCOL_VERSION = "0.3"
-EVENT_TYPES = V02_EVENT_TYPES | {"evidence_ingest", "lifecycle_action"}
+EVENT_TYPES = V02_EVENT_TYPES | {"evidence_ingest", "lifecycle_action", "candidate_set_freeze", "evaluation_reveal"}
+EVALUATION_ROLES = {"GATE_DEV", "GATE_FINAL", "LOCKED_TEST", "POST_DEPLOY_AUDIT"}
 SPLIT_ROLES = {role.value for role in SplitRole}
 CHALLENGE_ROLES = {SplitRole.LOCKED_TEST.value, SplitRole.POST_DEPLOY.value}
 SUPPORT_ROLES = {SplitRole.SUPPORT.value, SplitRole.TRAIN.value, SplitRole.GATE_DEV.value, SplitRole.GATE_FINAL.value}
