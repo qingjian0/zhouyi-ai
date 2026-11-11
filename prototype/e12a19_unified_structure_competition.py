@@ -265,8 +265,8 @@ def _metrics(rows, predictions, outcomes) -> Metrics:
         correct += int(max(probs, key=probs.get) == row.outcome)
         briers.append(sum((probs[o] - (1.0 if row.outcome == o else 0.0)) ** 2
                           for o in outcomes))
-    return Metrics(sum(losses) / len(losses), correct / len(rows),
-                   sum(briers) / len(briers))
+    return Metrics(math.fsum(losses) / len(losses), correct / len(rows),
+                   math.fsum(briers) / len(briers))
 
 
 def _score_candidate(candidate, train, validation, outcomes, budget):
