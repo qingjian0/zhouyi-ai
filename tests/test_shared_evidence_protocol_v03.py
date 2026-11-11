@@ -864,6 +864,15 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
         self.assertEqual(ledger.evidence["train-ledger"], evidence)
         self.assertEqual([action.action_id for action in ledger.actions],
                          ["propose", "discriminate", "train"])
+        first_digest = projection.digest
+        self.store.close()
+        self.store = SQLiteEvidenceStoreV03(self.db)
+        reopened = self.store.replay_projection("ep")
+        reopened_ledger = reopened.hydrate_lifecycle_ledgers()["e12"]
+        self.assertEqual(reopened.digest, first_digest)
+        self.assertEqual(dict(reopened_ledger.candidates), dict(reference.candidates))
+        self.assertEqual(dict(reopened_ledger.evidence), dict(reference.evidence))
+        self.assertEqual(reopened_ledger.actions, reference.actions)
 
     def test_hydration_keeps_candidate_state_isolated_per_learner_track(self):
         candidate = Candidate(
