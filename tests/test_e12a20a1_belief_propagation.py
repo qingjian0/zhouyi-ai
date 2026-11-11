@@ -1,6 +1,6 @@
 import unittest
 
-from prototype.e12a20_factor_graph import Factor, Problem, Variable
+from prototype.e12a20_factor_graph import Budget, Factor, Problem, Variable, infer as infer_exact
 from prototype.e12a20a1_belief_propagation import BPBudget, infer_beliefs
 
 
@@ -20,10 +20,16 @@ class BeliefPropagationTests(unittest.TestCase):
         )
         result = infer_beliefs(problem, budget=BPBudget(damping=1.0, tolerance=1e-12))
         self.assertEqual(result.status, "CONVERGED")
-        self.assertAlmostEqual(sum(p for _, p in result.marginals[0].probabilities), 1.0)
-        self.assertAlmostEqual(sum(p for _, p in result.marginals[1].probabilities), 1.0)
-        self.assertGreater(dict(result.marginals[0].probabilities)["1"],
-                           dict(result.marginals[0].probabilities)["0"])
+        exact = infer_exact(problem, budget=Budget(max_assignments=4, top_k=4))
+        weights = [__import__("math").exp(-hypothesis.energy) for hypothesis in exact.hypotheses]
+        normalizer = sum(weights)
+        exact_marginals = {"x": {"0": 0.0, "1": 0.0}, "y": {"0": 0.0, "1": 0.0}}
+        for hypothesis, weight in zip(exact.hypotheses, weights):
+            for variable_id, value in hypothesis.assignment:
+                exact_marginals[variable_id][value] += weight / normalizer
+        for marginal in result.marginals:
+            for value, probability in marginal.probabilities:
+                self.assertAlmostEqual(probability, exact_marginals[marginal.variable_id][value], places=10)
         self.assertEqual(result.evidence_refs, ("observation-1",))
 
     def test_hard_constraint_produces_zero_probability_for_forbidden_state(self):
@@ -36,6 +42,15 @@ class BeliefPropagationTests(unittest.TestCase):
         self.assertEqual(result.status, "CONVERGED")
         self.assertLess(dict(result.marginals[0].probabilities)["1"], 0.5)
         self.assertLess(dict(result.marginals[1].probabilities)["1"], 0.5)
+
+    def test_globally_impossible_unary_factor_is_explicit(self):
+        problem = Problem(
+            (Variable("x", ("0", "1")),),
+            (Factor("impossible", ("x",), "HARD",
+                    forbidden_assignments=(("0",), ("1",)), default_cost=None),),
+        )
+        result = infer_beliefs(problem, budget=BPBudget(damping=1.0))
+        self.assertEqual(result.status, "INCONSISTENT_MESSAGES")
 
     def test_isolated_variable_is_uniform(self):
         result = infer_beliefs(Problem((Variable("z", ("0", "1", "2")),), ()))
