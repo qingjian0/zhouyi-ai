@@ -106,7 +106,7 @@ c=(\alpha a+\beta b+\delta)\bmod K
 
 - TX-02A：建立跨 K、规范/随机置换双条件、支持/查询隔离的数据生成器与单元测试（已提交）。
 - TX-02B-0：建立 BINARY / TERNARY / HYBRID / ONE_HOT / LEARNED_INIT / PERMUTED 的可逆状态码本及单元测试（已提交；LEARNED_INIT 只是随机初始化码本，不是已训练嵌入）。
-- TX-02B-1：实现 TX-02A 仿射规则族内的精确假设枚举、逐查询后验和可辨识性审计器（已实现，待 CI 验收）。
+- TX-02B-1：实现 TX-02A 仿射规则族内的精确假设枚举、逐查询后验和可辨识性审计器（已实现，Research Python Tests run #85 通过，156 tests passed）。
 - TX-02B：实现统一接口的 BINARY / TERNARY / HYBRID / LEARNED / ONE_HOT 学习器。
 - TX-02C：完成容量与计算预算匹配、五种子以上的基线比较。
 - TX-02D：加入验证集门控与 DEFER_MORE_EVIDENCE 选择器。
@@ -122,8 +122,7 @@ TX-02A 通过只表示数据协议可用，不表示任何表示更优。每个�
 
 ## 当前工程验收记录
 
-- GitHub Actions workflow：Research Python Tests，run #49。
-- 验收 commit：`7cd72ffb56f2c8712e6d5b8c5aea9397989ce2cc`。
-- 结果：147 tests passed，完整单元测试套件成功。
-- 早期 run #36 暴露了两个测试夹具问题；修复后 run #49 全量通过。
+- TX-02B-1 验收：GitHub Actions Research Python Tests，run #85，head `370629f07ca1b5b673c99d4acde6442c36de64ec`。
+- 结果：156 tests passed（15.275s），包含 8 项精确审计器测试及 K=2/3/4/5、canonical/permuted 生成器真值覆盖测试。
+- 较早 TX-01/TX-02A/B-0 验收：run #49，147 tests passed。
 - 该 CI 结果只验证代码与测试，不是表示学习效果或研究假设的实验结果。
