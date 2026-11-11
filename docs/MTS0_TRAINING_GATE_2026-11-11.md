@@ -9,9 +9,10 @@
 1. 使用 support 样本训练模型。
 2. 对锁定测试输入生成预测。
 3. 将预测、输入摘要、模型版本和作用域写入不可变提交记录。
-4. 所有预测提交完成后才揭示测试标签。
-5. learner/selector 不可见 locked-test 标签；evaluator 可见。
-6. 记录可复现配置和审计计数。
+4. 显式封存整个预测批次；封存后禁止追加预测，封存前禁止揭示任何标签。
+5. 所有预测提交完成并封存后才揭示测试标签。
+6. learner/selector 不可见 locked-test 标签；evaluator 可见。
+7. 记录可复现配置和审计计数。
 
 ## 当前实现
 
@@ -29,7 +30,7 @@ python -m prototype.mts0_runner --seed 7 --train-samples 1200 --test-samples 400
 
 ## 证据与隔离边界
 
-`EvidenceLedger` 校验 commit/reveal 的 ID、scope、digest 绑定，并按角色过滤可见记录。当前实现位于同一 Python 进程中，**只是协议与逻辑测试，不构成安全隔离**。正式锁定测试必须迁移到独立 evaluator 进程或服务，learner 只拿到签名/不可伪造的提交回执，不能读取标签文件或评估数据库。
+`EvidenceLedger` 校验 commit/reveal 的 ID、scope、digest 绑定；通过显式 `seal_commits()` 强制预测批次先封存，封存后不可追加预测，封存前不可 reveal；并按角色过滤可见记录。当前实现位于同一 Python 进程中，**只是协议与逻辑测试，不构成安全隔离**。正式锁定测试必须迁移到独立 evaluator 进程或服务，learner 只拿到签名/不可伪造的提交回执，不能读取标签文件或评估数据库。
 
 ## 本阶段不证明什么
 
