@@ -150,6 +150,14 @@ class ActiveIdentificationTests(unittest.TestCase):
         self.assertEqual(len(identifier.observations), 0)
         self.assertEqual(len(identifier.hypotheses), 2)
 
+    def test_non_integral_experiment_budget_is_rejected(self):
+        with self.assertRaises(IdentificationError):
+            ActiveOperatorIdentifier(
+                [OperatorHypothesis("identity", SimpleProgram())],
+                [(1,)],
+                max_experiments=1.5,
+            )
+
     def test_nonfinite_tolerance_is_rejected(self):
         with self.assertRaises(IdentificationError):
             ActiveOperatorIdentifier(
