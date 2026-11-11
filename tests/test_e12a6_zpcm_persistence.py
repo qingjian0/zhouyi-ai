@@ -1,8 +1,12 @@
+import json
 import tempfile
 import unittest
+from dataclasses import replace
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from prototype.e12a6_lifecycle_contract import Action,ActionType,Candidate,CandidateState,Evidence,SplitRole
 from prototype.e12a6_zpcm_persistence import LifecyclePersistenceError,PersistentLifecycleLedger
+from prototype.e09_verification_receipt import VerifiedE09VerificationReceipt
 from prototype.zpcm_memory import ZPCMError,ZPCMMemory
 
 def candidate():
@@ -13,6 +17,47 @@ def evidence():
     return Evidence(evidence_id="train-1",episode_id="ep-1",world_family="finite-rule-world",
       split_role=SplitRole.TRAIN,observation_id="obs-1",outcome="true",model_version="model-0",
       prediction_commit_step=1,label_visibility_step=2)
+
+def authorized_candidate():
+    definition = {
+        "schema": "csg-gcr-typed-candidate-v1",
+        "parent_state_ref": "parent-1",
+        "branch_ids": ["left", "right"],
+        "branch_merge": {
+            "authorization_ref": "grant-1",
+            "authorization_evidence_refs": ["train-1"],
+        },
+    }
+    return replace(
+        candidate(),
+        canonical_expression=json.dumps(definition, sort_keys=True, separators=(",", ":")),
+        parent_refs=("parent-1",),
+        evidence_ids=("train-1",),
+    )
+
+
+def verified_receipt(evidence_item=None, *, receipt_id="receipt-1", nonce="nonce-1"):
+    item = evidence_item or evidence()
+    now = datetime(2026, 11, 12, 0, 30, tzinfo=timezone.utc)
+    return VerifiedE09VerificationReceipt(
+        receipt_id=receipt_id,
+        nonce=nonce,
+        episode_id="ep-1",
+        authorization_ref="grant-1",
+        scope="project-a",
+        parent_state_ref="parent-1",
+        branch_ids=("left", "right"),
+        authorization_evidence_refs=("train-1",),
+        evidence_refs=("train-1",),
+        issuer_id="issuer-A",
+        authorization_event_digest="a" * 64,
+        verifier_id="verifier-A",
+        issued_at=now - timedelta(minutes=1),
+        expires_at=now + timedelta(minutes=1),
+        evidence=(item,),
+    )
+
+
 def propose():
     return Action(action_id="propose-1",action_type=ActionType.PROPOSE,candidate_id="rel:greater-than",
       candidate_version=1,from_state=CandidateState.OBSERVED,to_state=CandidateState.PROPOSED)
@@ -106,6 +151,87 @@ class PersistentLifecycleTests(unittest.TestCase):
         self.assertEqual(one,two); self.assertTrue(receipt2.replayed)
         self.assertEqual(receipt1.sequence,receipt2.sequence)
         self.assertNotIn("locked-secret",str(self.memory.replay_lifecycle_events(scope="project-a")))
+    def test_authorization_receipt_consumed_atomically_and_survives_reopen(self):
+        candidate_item = authorized_candidate()
+        evidence_item = evidence()
+        receipt = verified_receipt(evidence_item)
+        now = datetime(2026, 11, 12, 0, 30, tzinfo=timezone.utc)
+        bundle = self.store.register_candidate_bundle(
+            candidate_item, (evidence_item,), authorization_receipt=receipt, consumed_at=now,
+        )
+        self.assertIsNotNone(bundle.authorization)
+        self.assertFalse(bundle.authorization.replayed)
+        self.assertEqual(
+            [event["payload"]["kind"] for event in self.memory.replay_lifecycle_events(scope="project-a")],
+            ["evidence_registered", "candidate_registered", "authorization_consumed"],
+        )
+        before = self.store.snapshot()
+        self.memory.close()
+        self.memory = ZPCMMemory(self.path)
+        self.store = PersistentLifecycleLedger(self.memory, scope="project-a")
+        self.assertEqual(self.store.snapshot(), before)
+        replay = self.store.register_candidate_bundle(
+            candidate_item, (evidence_item,), authorization_receipt=receipt, consumed_at=now,
+        )
+        self.assertTrue(replay.replayed)
+        self.assertTrue(replay.authorization.replayed)
+
+    def test_same_receipt_or_nonce_cannot_authorize_another_candidate(self):
+        evidence_item = evidence()
+        receipt = verified_receipt(evidence_item)
+        now = datetime(2026, 11, 12, 0, 30, tzinfo=timezone.utc)
+        self.store.register_candidate_bundle(
+            authorized_candidate(), (evidence_item,), authorization_receipt=receipt, consumed_at=now,
+        )
+        altered_definition = {
+            "schema": "csg-gcr-typed-candidate-v1",
+            "parent_state_ref": "parent-1",
+            "branch_ids": ["left", "right"],
+            "branch_merge": {
+                "authorization_ref": "grant-2",
+                "authorization_evidence_refs": ["train-1"],
+            },
+        }
+        other = replace(
+            authorized_candidate(),
+            candidate_id="rel:other",
+            canonical_expression=json.dumps(altered_definition, sort_keys=True, separators=(",", ":")),
+        )
+        with self.assertRaises(LifecyclePersistenceError):
+            self.store.register_candidate_bundle(
+                other, (evidence_item,), authorization_receipt=receipt, consumed_at=now,
+            )
+        reused_nonce = verified_receipt(evidence_item, receipt_id="receipt-2", nonce="nonce-1")
+        with self.assertRaises(LifecyclePersistenceError):
+            self.store.register_candidate_bundle(
+                other, (evidence_item,), authorization_receipt=reused_nonce, consumed_at=now,
+            )
+
+    def test_expired_receipt_is_not_consumed(self):
+        evidence_item = evidence()
+        receipt = verified_receipt(evidence_item)
+        with self.assertRaises(LifecyclePersistenceError):
+            self.store.register_candidate_bundle(
+                authorized_candidate(), (evidence_item,), authorization_receipt=receipt,
+                consumed_at=datetime(2026, 11, 12, 0, 32, tzinfo=timezone.utc),
+            )
+        self.assertEqual(self.store.snapshot()["candidates"], [])
+        self.assertEqual(self.memory.replay_lifecycle_events(scope="project-a"), [])
+
+    def test_receipt_consumption_append_failure_is_atomic(self):
+        before = self.store.snapshot()
+        original = self.memory.append_lifecycle_events
+        self.memory.append_lifecycle_events = lambda **kwargs: (_ for _ in ()).throw(ZPCMError("disk failure"))
+        with self.assertRaises(ZPCMError):
+            self.store.register_candidate_bundle(
+                authorized_candidate(), (evidence(),),
+                authorization_receipt=verified_receipt(),
+                consumed_at=datetime(2026, 11, 12, 0, 30, tzinfo=timezone.utc),
+            )
+        self.memory.append_lifecycle_events = original
+        self.assertEqual(self.store.snapshot(), before)
+        self.assertEqual(self.memory.replay_lifecycle_events(scope="project-a"), [])
+
     def test_replay_rejects_tampered_event_digest(self):
         self.store.register_candidate(candidate())
         self.memory.db.execute("UPDATE memory_events SET payload_json=? WHERE event_id=?",
