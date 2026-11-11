@@ -23,6 +23,7 @@ class DiscoveryError(ValueError):
 class CandidateScore:
     target: str
     source_keys: tuple[str, ...]
+    negated_keys: tuple[str, ...]
     polarity: int
     score: float
     support: int
@@ -59,9 +60,9 @@ def discover_candidates(
     """Rank interaction products by training-set residual association.
 
     For each target, the baseline is its training-set mean. Candidate features
-    are products of 1..max_arity distinct non-target state variables.
-    The absolute centered covariance ranks candidates. The sign proposes
-    promotion/inhibition. This is association, not causation.
+    are conjunctions of literals: each selected variable may be positive x
+    or complemented (1-x). The absolute centered covariance ranks candidates.
+    The sign proposes promotion/inhibition. This is association, not causation.
     """
     rows = tuple(examples)
     keys = _validate_examples(rows)
@@ -85,30 +86,41 @@ def discover_candidates(
         source_keys = [key for key in keys if key != target]
         for arity in range(1, min(max_arity, len(source_keys)) + 1):
             for combo in combinations(source_keys, arity):
-                if considered >= candidate_budget:
-                    exhausted = True
+                for mask in range(1 << arity):
+                    if considered >= candidate_budget:
+                        exhausted = True
+                        break
+                    considered += 1
+                    negated = tuple(
+                        key for index, key in enumerate(combo)
+                        if mask & (1 << index)
+                    )
+                    products = [
+                        math.prod(
+                            (1.0 - state[key]) if key in negated else state[key]
+                            for key in combo
+                        )
+                        for state in before
+                    ]
+                    mean_product = sum(products) / len(products)
+                    score = sum(
+                        (p - mean_product) * r
+                        for p, r in zip(products, residual)
+                    ) / len(rows)
+                    if abs(score) < min_abs_score:
+                        continue
+                    support = sum(1 for p in products if p > 0.0)
+                    ranked.append(CandidateScore(
+                        target, tuple(combo), negated,
+                        1 if score >= 0 else -1, abs(score), support,
+                    ))
+                if exhausted:
                     break
-                considered += 1
-                products = [
-                    math.prod(state[key] for key in combo)
-                    for state in before
-                ]
-                mean_product = sum(products) / len(products)
-                score = sum(
-                    (p - mean_product) * r
-                    for p, r in zip(products, residual)
-                ) / len(rows)
-                if abs(score) < min_abs_score:
-                    continue
-                support = sum(1 for p in products if p > 0.0)
-                ranked.append(CandidateScore(
-                    target, tuple(combo), 1 if score >= 0 else -1,
-                    abs(score), support,
-                ))
             if exhausted:
                 break
         ranked.sort(key=lambda item: (
-            -item.score, len(item.source_keys), item.source_keys, item.target
+            -item.score, len(item.source_keys), item.source_keys,
+            item.negated_keys, item.target
         ))
         selected.extend(ranked[:max_terms_per_target])
         if exhausted:
@@ -116,10 +128,10 @@ def discover_candidates(
 
     terms = tuple(
         InfluenceTerm(
-            term_id=f"n3:{item.target}:{'+'.join(item.source_keys)}",
+            term_id=f"n3:{item.target}:{'+'.join(('!' if key in item.negated_keys else '') + key for key in item.source_keys)}",
             relation_type="discovered_association",
             sources=tuple(
-                SourceSlot(f"source_{index}", key)
+                SourceSlot(f"source_{index}", key, key in item.negated_keys)
                 for index, key in enumerate(item.source_keys)
             ),
             target=item.target,
