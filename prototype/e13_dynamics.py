@@ -164,23 +164,14 @@ def observe_target_trajectory(target: TransitionSystem, mapping: TransitionMap,
                               target_initial_state: State,
                               source_actions: tuple[str, ...]) -> Trajectory:
     translated_actions = _translate_actions(source_actions, mapping)
-    translated_initial = _map_state(target_initial_state, _inverse_map(mapping))
-    if translated_actions is None or translated_initial is None:
+    canonical_initial = _canonical_state(target_initial_state)
+    if (translated_actions is None
+            or set(dict(canonical_initial)) != set(target.state_variables)):
         return Trajectory((), "UNMAPPED_INITIAL_OR_ACTION")
-    return rollout(target, translated_initial, translated_actions)
-
-
-def _inverse_map(mapping: TransitionMap) -> TransitionMap:
-    return TransitionMap(
-        candidate_id=mapping.candidate_id + ":inverse",
-        state_variables=tuple((target, source) for source, target in mapping.state_variables),
-        state_values=tuple((target_var, target_value, source_value)
-                           for source_var, source_value, target_value in mapping.state_values
-                           for target_var in (dict(mapping.state_variables)[source_var],)),
-        actions=tuple((target, source) for source, target in mapping.actions),
-        provenance="derived inverse mapping",
-        rationale="translate target initial state into source variable/value namespace",
-    )
+    # The target initial state is already expressed in the target namespace.
+    # Only actions are translated; applying the inverse map here would send
+    # source-named variables into the target simulator.
+    return rollout(target, canonical_initial, translated_actions)
 
 
 def validate_trajectory(predicted: Trajectory,
