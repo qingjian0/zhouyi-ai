@@ -57,14 +57,15 @@ class FileArtifactStore:
         self.max_artifact_bytes = max_artifact_bytes
 
     @staticmethod
-    def _canonical_content(content: Any) -> bytes:
+    def _canonical_artifact(artifact_id: str, kind: str, content: Any) -> bytes:
         try:
             encoded = json.dumps(
-                content, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+                {"artifact_id": artifact_id, "kind": kind, "content": content},
+                ensure_ascii=False, sort_keys=True, separators=(",", ":"),
                 allow_nan=False,
             ).encode("utf-8")
         except (TypeError, ValueError) as exc:
-            raise ValueError("artifact content must be finite JSON data") from exc
+            raise ValueError("artifact must contain finite JSON data") from exc
         return encoded
 
     def _path_for(self, digest: str) -> Path:
@@ -74,10 +75,12 @@ class FileArtifactStore:
     def put(self, artifact: AgentArtifact) -> ArtifactRef:
         if not isinstance(artifact, AgentArtifact):
             raise TypeError("artifact must be AgentArtifact")
-        content_bytes = self._canonical_content(artifact.content)
-        if len(content_bytes) > self.max_artifact_bytes:
+        canonical = self._canonical_artifact(
+            artifact.artifact_id, artifact.kind, artifact.content
+        )
+        if len(canonical) > self.max_artifact_bytes:
             raise ValueError("artifact exceeds max_artifact_bytes")
-        digest = hashlib.sha256(content_bytes).hexdigest()
+        digest = hashlib.sha256(canonical).hexdigest()
         ref = ArtifactRef(artifact.artifact_id, artifact.kind, digest)
         destination = self._path_for(digest)
         destination.parent.mkdir(parents=True, exist_ok=True)
@@ -124,10 +127,12 @@ class FileArtifactStore:
             raise ValueError("unsupported artifact envelope")
         if raw.get("artifact_id") != ref.artifact_id or raw.get("kind") != ref.kind:
             raise ValueError("artifact reference metadata does not match stored object")
-        content_bytes = self._canonical_content(raw.get("content"))
-        actual_digest = hashlib.sha256(content_bytes).hexdigest()
+        canonical = self._canonical_artifact(
+            raw.get("artifact_id"), raw.get("kind"), raw.get("content")
+        )
+        actual_digest = hashlib.sha256(canonical).hexdigest()
         if actual_digest != ref.digest or raw.get("digest") != ref.digest:
             raise ValueError("artifact integrity check failed")
-        if len(content_bytes) > self.max_artifact_bytes:
+        if len(canonical) > self.max_artifact_bytes:
             raise ValueError("stored artifact exceeds configured size limit")
         return AgentArtifact(ref.artifact_id, ref.kind, raw["content"])
