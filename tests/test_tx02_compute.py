@@ -42,6 +42,8 @@ class TX02ComputeAndCalibrationTests(unittest.TestCase):
         chosen = choose_abstention_threshold(probs, targets, 0.15)
         self.assertEqual(chosen["accepted"], 40)
         self.assertLessEqual(chosen["risk_upper_bound"], 0.15)
+        self.assertEqual(chosen["risk_bound_method"], "bonferroni_one_sided_wilson")
+        self.assertGreater(chosen["threshold_hypotheses"], 1)
         decisions = apply_abstention(probs, chosen["threshold"])
         self.assertEqual(sum(value is not None for value in decisions), 40)
     def test_episode_level_calibration_uses_episode_correctness_for_k3(self):
