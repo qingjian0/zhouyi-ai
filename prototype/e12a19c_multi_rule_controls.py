@@ -53,6 +53,7 @@ class Score:
 class JointResult:
     split_digest: str
     candidate_count: int
+    candidate_family_counts: tuple[tuple[str, int], ...]
     selected_rule_keys: tuple[str, ...]
     baseline: Score
     single_rule: Score
@@ -188,6 +189,8 @@ def run_joint(train_examples: Iterable[Example], validation_examples: Iterable[E
                 exhausted[index] = True
     if not candidates:
         raise ValueError("no candidate rules available")
+    family_counts = tuple((family, sum(candidate.family == family for candidate in candidates))
+                          for family in ("SPARSE_CONJUNCTION", "TYPED_PATH", "FORK_JOIN"))
     x_train_all = _matrix(train, candidates, features)
     x_valid_all = _matrix(validation, candidates, features)
     y_train = [r.outcome for r in train]
@@ -221,5 +224,5 @@ def run_joint(train_examples: Iterable[Example], validation_examples: Iterable[E
                    "weights": params[1], "bias": params[0], "steps": budget.gradient_steps,
                    "learning_rate": budget.learning_rate, "l2": budget.l2}
     fit_digest = hashlib.sha256(json.dumps(fit_payload, sort_keys=True, separators=(",", ":")).encode()).hexdigest()
-    return JointResult(manifest.digest, len(candidates), tuple(c.key for c in selected),
+    return JointResult(manifest.digest, len(candidates), family_counts, tuple(c.key for c in selected),
                        baseline, single, joint, null_score, params[1], null_params[1], fit_digest)
