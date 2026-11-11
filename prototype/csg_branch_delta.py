@@ -34,16 +34,34 @@ class MergeStatus(str, Enum):
     ERROR = "ERROR"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, init=False)
 class BranchDelta:
     event_id: str
     operation: DeltaOperation
     target_ref: str
     before_hash: str | None
-    after_value: Any
+    _after_value_json: str
     evidence_refs: tuple[str, ...]
     causal_parent: str | None
     version: int
+
+    def __init__(self, event_id: str, operation: DeltaOperation, target_ref: str,
+                 before_hash: str | None, after_value: Any,
+                 evidence_refs: tuple[str, ...], causal_parent: str | None,
+                 version: int) -> None:
+        object.__setattr__(self, "event_id", event_id)
+        object.__setattr__(self, "operation", operation)
+        object.__setattr__(self, "target_ref", target_ref)
+        object.__setattr__(self, "before_hash", before_hash)
+        object.__setattr__(self, "_after_value_json", _canonical_json(after_value))
+        object.__setattr__(self, "evidence_refs", tuple(evidence_refs))
+        object.__setattr__(self, "causal_parent", causal_parent)
+        object.__setattr__(self, "version", version)
+
+    @property
+    def after_value(self) -> Any:
+        # Return a fresh decoded object so callers cannot mutate the event.
+        return json.loads(self._after_value_json)
 
 
 @dataclass(frozen=True)
@@ -57,6 +75,10 @@ class BranchSnapshot:
     evidence_refs: tuple[str, ...]
     lineage: tuple[str, ...]
 
+    def __post_init__(self) -> None:
+        for field in ("delta_events", "read_set", "write_set", "evidence_refs", "lineage"):
+            object.__setattr__(self, field, tuple(getattr(self, field)))
+
 
 @dataclass(frozen=True)
 class MergeResult:
@@ -67,13 +89,16 @@ class MergeResult:
     reason: str = ""
 
 
-def canonical_hash(value: Any) -> str:
+def _canonical_json(value: Any) -> str:
     try:
-        payload = json.dumps(value, sort_keys=True, separators=(",", ":"),
-                             ensure_ascii=False, allow_nan=False)
+        return json.dumps(value, sort_keys=True, separators=(",", ":"),
+                          ensure_ascii=False, allow_nan=False)
     except (TypeError, ValueError) as exc:
         raise ValueError("delta values must be finite JSON-compatible data") from exc
-    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def canonical_hash(value: Any) -> str:
+    return hashlib.sha256(_canonical_json(value).encode("utf-8")).hexdigest()
 
 
 def _text(value: str, field: str) -> None:
