@@ -74,14 +74,16 @@ class RelationalGraph:
 
     def __post_init__(self) -> None:
         _text(self.graph_id, "graph_id")
-        if not isinstance(self.nodes, tuple) or not self.nodes:
-            raise ValueError("graph must contain a non-empty node tuple")
+        if not isinstance(self.nodes, tuple) or not self.nodes or any(not isinstance(node, Node) for node in self.nodes):
+            raise ValueError("graph must contain a non-empty tuple of Node values")
         if self.nodes != tuple(sorted(self.nodes)):
             raise ValueError("nodes must be sorted by (node_id, node_type)")
         node_ids = [node.node_id for node in self.nodes]
         if len(node_ids) != len(set(node_ids)):
             raise ValueError("node IDs must be unique")
-        if not isinstance(self.relations, tuple) or self.relations != tuple(sorted(self.relations)):
+        if not isinstance(self.relations, tuple) or any(not isinstance(relation, Relation) for relation in self.relations):
+            raise ValueError("relations must be a tuple of Relation values")
+        if self.relations != tuple(sorted(self.relations)):
             raise ValueError("relations must be a sorted tuple")
         if len(self.relations) != len(set(self.relations)):
             raise ValueError("duplicate relations are not allowed")
@@ -114,13 +116,15 @@ class AnalogyBridge:
             ("node_type_mapping", self.node_type_mapping),
             ("relation_mapping", self.relation_mapping),
         ):
-            if not isinstance(pairs, tuple) or pairs != tuple(sorted(set(pairs))):
-                raise ValueError(f"{field} must be a sorted, unique tuple of pairs")
+            if not isinstance(pairs, tuple):
+                raise ValueError(f"{field} must be a tuple of pairs")
             if any(not isinstance(pair, tuple) or len(pair) != 2 for pair in pairs):
                 raise ValueError(f"{field} entries must be pairs")
             for left, right in pairs:
                 _text(left, field)
                 _text(right, field)
+            if pairs != tuple(sorted(set(pairs))):
+                raise ValueError(f"{field} must be sorted and unique")
             if len({left for left, _ in pairs}) != len(pairs):
                 raise ValueError(f"{field} source keys must be unique")
             if len({right for _, right in pairs}) != len(pairs):
