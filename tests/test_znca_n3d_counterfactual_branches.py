@@ -155,6 +155,28 @@ class CounterfactualBranchLedgerTests(unittest.TestCase):
         self.assertEqual(self.ledger.projection().as_dict(),
                          {"temperature": "cold", "weather": "rain"})
 
+    def test_replay_rejects_forged_compensation_payload(self):
+        self.store.commit_hypothesis(
+            expected_version=0, transaction_id="legit", hypothesis_id="h-legit",
+            base_version=0, status="SUPPORTED", evidence_refs=("ev:legit",),
+            state_delta={"weather": "rain"},
+        )
+        # The low-level append API is intentionally generic. Projection must
+        # still reject a semantically invalid compensation event.
+        self.store.append(
+            expected_version=1, transaction_id="forged-comp",
+            event_type="CommitCompensated",
+            payload={
+                "target_sequence": 999, "reason": "forged",
+                "evidence_refs": ["ev:fake"],
+                "restore": {"weather": {"present": False}},
+            },
+        )
+        with self.assertRaises(Exception):
+            self.store.recover()
+        with self.assertRaises(Exception):
+            self.ledger.projection()
+
 
 if __name__ == "__main__":
     unittest.main()
