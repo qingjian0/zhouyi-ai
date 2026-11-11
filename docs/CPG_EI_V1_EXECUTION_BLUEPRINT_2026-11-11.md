@@ -224,3 +224,22 @@ MTS-0 不追求大模型能力，先证明闭环完整：
 CPG-EI v1 的第一目标不是“立刻做出比 Transformer 更强的模型”，而是先做出一个结构清楚、证据可信、能够独立运行、能够持续实验和安全演化的认知系统。
 
 最重要的工程原则：**先统一协议和状态所有权，再接入并行研究；先证明可观察、可复现的能力，再扩大模型规模；先保证证据隔离，再谈自主学习。**
+
+
+## 13. Post-blueprint integration audit (2026-11-11 05:00 UTC)
+
+The first adapter pass exposed additional issues that were not visible from isolated unit tests:
+
+1. **E12-A20 BP result retention:** the adapter correctly refused to fabricate a joint assignment from BP marginals, but initially discarded the actual marginal table. The adapter-specific result now retains `BPResult.marginals` while the shared joint-hypothesis status remains AMBIGUOUS. This is a data-preservation fix, not a new inference capability.
+2. **Prediction/reveal context:** the initial shared DTO did not include episode, learner track or split on the prediction side, so its generic validator could not enforce those dimensions. The DTO now has optional context fields for compatibility; strict E09 use populates them and calls strict validation, which rejects missing context and cross-context reveals. A future contract revision should make these fields mandatory for all v1 writers.
+3. **Evaluator metrics:** non-SUPPORT reveals were withheld from the learner, but the E09 runner's score method therefore did not score those rows. A read-only evaluator projection now computes per-split coverage and selective accuracy from the durable event log without adding labels to the learner's prequential ledger. This remains same-process and must not be described as security isolation.
+4. **Stacked branch drift:** PR #148's base branch advanced after its head was created. GitHub currently reports the PR as not mergeable; the dependency branch must be reconciled and retested before integration. Do not solve this by targeting main or force-updating a branch without an explicit lease.
+5. **MTS-0 smoke test gap:** the existing CSL/E12/E09 research branch contains individual tests and integration notes, but no single end-to-end MTS-0 test spanning candidate projection, inference, commit/reveal, revision and held-out transfer. The branch name and documentation should not be mistaken for a completed smoke harness.
+
+### Revised immediate sequence
+
+- Freeze the strict CPG-EI context semantics and keep v0.2 replay compatibility.
+- Verify the exact latest-head CI runs for PR #147 and #149.
+- Reconcile PR #148's stacked base/head divergence.
+- Add one deterministic MTS-0 end-to-end test with two learner tracks, SUPPORT-only update, evaluator-only gate scoring, explicit abstention, and a locked transfer evaluation.
+- Only after that, connect CSL and Hyper-Speed as orchestration layers; do not let either become a second lifecycle or evidence owner.
