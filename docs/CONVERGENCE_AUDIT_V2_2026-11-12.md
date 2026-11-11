@@ -223,3 +223,8 @@ PR #242  E09 signed verification receipt
 PR #245 将 workload ID、identity provider、authentication method 和 credential fingerprint 持久化到 authorization-consumed 事件，改善了可追责性和 replay 审计。它仍依赖部署时配置的 authenticator 真正从 mTLS peer certificate、Unix peer credentials 或等效 OS/workload 身份中派生 principal。若 authenticator 只是根据调用方可控字符串返回 principal，则身份仍只是应用层声明。
 
 部署验收必须验证真实 transport credential → authenticated principal → method/scope authorization → durable audit event 的端到端链路，并证明 learner worker 无法直接打开 E09/ZPCM 数据库文件。
+
+
+### 10.8 跟踪项
+
+已建立 [Issue #251](https://github.com/qingjian0/zhouyi-ai/issues/251)，专门修复 world-family/domain ID 的可信来源绑定。该 issue 的验收要求包含事件 schema/registry 来源、跨 observation/commit/reveal 一致性、拒绝调用方覆盖及负向测试。此 issue 尚未实现或关闭。
