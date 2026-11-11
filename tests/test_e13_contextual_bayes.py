@@ -53,7 +53,7 @@ class E13ContextualBayesianFilterTests(unittest.TestCase):
                                        ("miss", Fraction(3, 4)))))))
         init = initialize_observation_belief(
             (c1, c2), (("m1", Fraction(1, 2)), ("m2", Fraction(1, 2))),
-            ((("x", "s"), Fraction(1)),), self.context, "sensor", "start", "e0"
+            (((("x", "s"),), Fraction(1)),), self.context, "sensor", "start", "e0"
         )
         self.assertEqual(init.status, "UPDATED")
         update = advance_observation_belief(init.belief, "step", "sensor", "seen", "e1")
@@ -76,8 +76,8 @@ class E13ContextualBayesianFilterTests(unittest.TestCase):
                                                   (("sensor", perfect),))
         init = initialize_observation_belief(
             (candidate,), (("identity", Fraction(1)),),
-            ((("x", "zero"), Fraction(1, 2)),
-             (("x", "one"), Fraction(1, 2))),
+            (((("x", "zero"),), Fraction(1, 2)),
+             ((("x", "one"),), Fraction(1, 2))),
             self.context, "sensor", "zero", "e0"
         )
         self.assertEqual(init.status, "UPDATED")
@@ -96,7 +96,7 @@ class E13ContextualBayesianFilterTests(unittest.TestCase):
                                                   (("sensor", sensor),))
         init = initialize_observation_belief(
             (candidate,), (("partial", Fraction(1)),),
-            ((("x", "s"), Fraction(1)),), self.context,
+            (((("x", "s"),), Fraction(1)),), self.context,
             "sensor", "start", "e0"
         )
         update = advance_observation_belief(
@@ -116,7 +116,7 @@ class E13ContextualBayesianFilterTests(unittest.TestCase):
         candidate = BayesianObservationCandidate("m", system, (("sensor", sensor),))
         init = initialize_observation_belief(
             (candidate,), (("m", Fraction(1)),),
-            ((("x", "s"), Fraction(1)),), self.context,
+            (((("x", "s"),), Fraction(1)),), self.context,
             "sensor", "start", "e0"
         )
         update = advance_observation_belief(
@@ -132,7 +132,7 @@ class E13ContextualBayesianFilterTests(unittest.TestCase):
         candidate = BayesianObservationCandidate("m", system, (("sensor", sensor),))
         init = initialize_observation_belief(
             (candidate,), (("m", Fraction(1)),),
-            ((("x", "s"), Fraction(1)),), self.context,
+            (((("x", "s"),), Fraction(1)),), self.context,
             "sensor", "impossible", "e0"
         )
         self.assertEqual(init.status, "CONTRADICTION")
@@ -145,7 +145,7 @@ class E13ContextualBayesianFilterTests(unittest.TestCase):
         candidate = BayesianObservationCandidate("m", system, (("sensor", sensor),))
         init = initialize_observation_belief(
             (candidate,), (("m", Fraction(1)),),
-            ((("x", "s"), Fraction(1)),), self.context,
+            (((("x", "s"),), Fraction(1)),), self.context,
             "sensor", "start", "e0"
         )
         with self.assertRaisesRegex(ValueError, "DUPLICATE_EVIDENCE_ID"):
