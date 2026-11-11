@@ -66,6 +66,10 @@ jobs:
         run: python -m unittest tests.test_e12a20_factor_graph -v
       - name: Run E12-A20-1 synchronous belief propagation tests
         run: python -m unittest tests.test_e12a20a1_belief_propagation -v
+      - name: Run E12-A20-1 BP calibration tests
+        run: python -m unittest tests.test_e12a20a1_bp_calibration -v
+      - name: Run E12-A20-1 BP calibration benchmark
+        run: python -m prototype.e12a20a1_bp_calibration --seeds 5 --start-seed 7 --json
       - name: Run E12-A9 evidence bridge tests
         run: python -m unittest tests.test_e12a9_evidence_bridge -v
       - name: Run E12-A8 evaluator firewall tests
