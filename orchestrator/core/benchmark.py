@@ -1,7 +1,6 @@
 """Fair serial/parallel execution comparison for deterministic experiment handlers."""
 from __future__ import annotations
 
-import asyncio
 import hashlib
 import json
 import statistics
@@ -60,6 +59,9 @@ async def _execute_once(
         "failed": sum(x["status"] == "failed" for x in projection.values()),
         "blocked": sum(x["status"] == "blocked" for x in projection.values()),
         "output_digest": _digest(projection),
+        "per_task_output_digests": {
+            task_id: _digest(outcome) for task_id, outcome in projection.items()
+        },
         "outputs": projection,
     }
 
@@ -84,6 +86,16 @@ async def run_serial_parallel_benchmark(
 
     # Validate graph and handler coverage before starting the stopwatch.
     graph = TaskGraph(tasks)
+    task_set_digest = _digest([
+        {
+            "task_id": task.task_id,
+            "handler": task.handler,
+            "depends_on": list(task.depends_on),
+            "payload": task.payload,
+            "max_retries": task.max_retries,
+        }
+        for task in tasks
+    ])
     unknown = {task.handler for task in graph.tasks.values()} - handlers.keys()
     if unknown:
         raise ValueError(f"unregistered handlers: {sorted(unknown)}")
@@ -128,6 +140,7 @@ async def run_serial_parallel_benchmark(
     return {
         "schema_version": 1,
         "task_count": len(tasks),
+        "task_set_digest": task_set_digest,
         "repeats": repeats,
         "parallelism": parallelism,
         "equivalent": equivalent,
