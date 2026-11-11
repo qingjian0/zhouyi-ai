@@ -224,3 +224,21 @@ Do not claim protocol v0.3 complete until all of the following hold:
 - CI is green on a Draft PR based on the E12+E09 integration smoke commit.
 
 Until then, the accurate status is: **v0.3 proposed; v0.2 remains the only implemented protocol version**.
+
+
+## 11. Contract alignment correction (2026-11-11)
+
+A direct inspection of `prototype/e12a6_lifecycle_contract.py` found that its enum wire values are **lower-case**, not the upper-case display names used in some earlier prose above. The implementation must serialize the exact values below:
+
+- `SplitRole`: `support`, `train`, `gate_dev`, `gate_final`, `locked_test`, `post_deploy`.
+- `CandidateState`: `observed`, `proposed`, `discrimination_pending`, `train_supported`, `gate_validated`, `reused`, `challenged`, `revised`, `specialized`, `retired`, `revalidation_pending`.
+- `ActionType`: `propose`, `request_discrimination`, `train_support`, `gate_validate`, `reuse`, `challenge`, `revise`, `specialize`, `retire`, `request_revalidation`, `register_revision`, `revalidate`, `measure`, `compose`, `predict`, `abstain`.
+
+There is no `BOOTSTRAP` member in the current `SplitRole` enum. Bootstrap status must therefore be represented as provenance/episode metadata while retaining a valid existing split role (normally `train` or `support`), or be introduced through a separately versioned E12 contract change. Do not silently extend the enum in the protocol adapter.
+
+The exact E12 revision order is also now pinned by source inspection:
+1. Apply `revise` to the challenged parent, moving it to `revised`.
+2. Create the child candidate in `observed` with parent lineage.
+3. Apply `register_revision` to the child, moving it to `revalidation_pending`.
+
+A v0.3 revision batch must persist the corresponding parent lifecycle action, child structure-version event, child lifecycle action, and revision record in one SQLite transaction. The RFC's earlier illustrative order is superseded by this section.
