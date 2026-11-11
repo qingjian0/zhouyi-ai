@@ -138,3 +138,15 @@ PR #222 head `44166f27f1b9892782080a312fc80a15c0e19f2b` completed workflow run `
 ## PR #223 exact-head audit
 
 PR #223 head `1e23b23c515e3b339c52850d98ba9981176495b5`, base PR #222 head `44166f27f1b9892782080a312fc80a15c0e19f2b`. Workflow `43034178683` was running at audit time, currently in the unit-test step. The adapter creates an E12-A6 OBSERVED candidate and read-only CPG-EI projection; raw CSG-GCR score remains uncalibrated metadata and E12-A6 remains the only lifecycle authority.
+
+
+## PR #223 and #226 lifecycle persistence stack refresh
+
+| PR | Exact head | Base | Exact-head workflow | Status |
+|---|---|---|---|---|
+| [#223](https://github.com/qingjian0/zhouyi-ai/pull/223) | `1e23b23c515e3b339c52850d98ba9981176495b5` | #222 head `44166f27f1b9892782080a312fc80a15c0e19f2b` | `43034178683` success | Draft; read-only typed CSG-GCR → E12-A6 OBSERVED projection |
+| [#226](https://github.com/qingjian0/zhouyi-ai/pull/226) | `0a03c61382fcccc8b99ac5669cbfccef4167c606` | #223 head `1e23b23c515e3b339c52850d98ba9981176495b5` | `43036878778` success | Draft; E12-A6 lifecycle events persisted and replayed through ZPCM |
+
+PR #226 reuses the existing ZPCM memory_events append-only table and adds a dedicated, unbounded lifecycle replay API. It does not use bounded semantic retrieval for event restoration. Lifecycle mutations are validated on a staged E12-A6 ledger, durably appended, and only then swapped into memory. Restart replays the event stream through the existing E12-A6 LifecycleLedger. Evidence outcome/provenance values are replaced with opaque references in lifecycle persistence; E09 remains evidence payload authority.
+
+The validated boundary is a trusted single-process SQLite reference implementation. It does not provide distributed consensus, OS-level process isolation, authenticated E09 evidence/branch authorization, or a cross-process transactional outbox. PR #226 remains Draft and is not merged to main.
