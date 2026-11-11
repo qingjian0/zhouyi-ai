@@ -243,3 +243,12 @@ The first adapter pass exposed additional issues that were not visible from isol
 - Reconcile PR #148's stacked base/head divergence.
 - Add one deterministic MTS-0 end-to-end test with two learner tracks, SUPPORT-only update, evaluator-only gate scoring, explicit abstention, and a locked transfer evaluation.
 - Only after that, connect CSL and Hyper-Speed as orchestration layers; do not let either become a second lifecycle or evidence owner.
+
+
+## 14. Xiang–Shu–Li and structural analogy research
+
+A dedicated protocol now separates 象 (structured observation), 数 (state spaces and combinatorics), 理 (testable invariants and transition hypotheses), and 类象 (partial relation-preserving mappings across domains). It also defines orthogonal ablations for semantic cardinality, encoding radix, factorization, relation priors, transition priors and observation strategy.
+
+See `docs/XIANG_SHU_LI_CLASS_ANALOGY_PROTOCOL_2026-11-11.md`.
+
+This is a research protocol, not an implemented reasoning module. The next implementation gate is a small exact source/target graph-mapping oracle, followed by counterexample tests and held-out domain transfer. Traditional symbolic mappings remain defeasible priors and must be tested against random, learned, reversed and no-prior controls.
