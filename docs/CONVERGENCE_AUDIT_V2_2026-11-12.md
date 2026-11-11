@@ -228,3 +228,59 @@ PR #245 将 workload ID、identity provider、authentication method 和 credenti
 ### 10.8 跟踪项
 
 已建立 [Issue #251](https://github.com/qingjian0/zhouyi-ai/issues/251)，专门修复 world-family/domain ID 的可信来源绑定。该 issue 的验收要求包含事件 schema/registry 来源、跨 observation/commit/reveal 一致性、拒绝调用方覆盖及负向测试。此 issue 尚未实现或关闭。
+
+
+### 10.9 E09 严格事件 schema 与 authority 写入边界的进一步核验
+
+对 PR #245 exact head 的 `prototype/shared_evidence_protocol.py`、`prototype/e09_authority_services.py`、`prototype/e09_e12a6_evidence_bridge.py` 及对应测试进行逐段检查后，确认还有三个相互关联的契约缺口：
+
+1. **v0.3 当前是必填字段校验，不是严格字段闭集。** `_validate_semantics` 对 observation、prediction_commit、evidence_reveal 主要使用 `required.issubset(payload)`，没有按事件类型拒绝未知字段；`append_event` 在 strict v0.3 下也没有强制要求与事件类型匹配的版本化 `payload_schema`。因此不能把“strict v0.3”理解为完整的 allowlist schema。新增 domain 字段必须配套 schema 版本与显式字段集合，不能只加一个可选键。
+
+2. **Observation 尚无与 evaluator reveal 对等的窄 authority facade。** `E09AuthorityService.append_evidence_reveal` 会从 transport credential 认证 evaluator 身份并派生 actor_role，但 observation 测试和现有写入模式仍直接调用 `SQLiteEvidenceStore.append_event`（通常 actor_role 为 runner）。`SQLiteEvidenceStore` 的文档明确说明它是单进程 reference store，不是分布式 broker 或进程安全边界；其通用 append API 本身不会认证调用方。故 observation 的 domain provenance 不能仅靠“字段已进入 event digest”来证明来源可信。
+
+3. **Prediction Commit / Reveal 的 domain 绑定尚不存在。** 当前 v0.3 只强制 observation/commit/reveal 的 `query_id`、`scope`、`split` 一致；桥接解析器也只对这三项进行跨事件比较。现有 authority 测试没有尝试通过篡改 receipt request 的 world-family 来 relabel 一个已提交的 evidence ref。
+
+#### 推荐的最小可信数据流
+
+以 observation 作为证据域归属的唯一锚点，不让 learner 或 receipt caller 决定 domain：
+
+```
+authenticated observation producer
+    → E09 observation authority
+    → trusted, versioned scope/episode registry lookup
+    → immutable observation(domain_id, registry_id, registry_version)
+    → learner prediction_commit (domain_id must equal observation)
+    → evaluator evidence_reveal (domain_id must equal commit and observation)
+    → E09 verifier derives domain from replayed events only
+    → signed receipt(domain_id + provenance version)
+    → E12-A6 writer verifies receipt and consumes nonce
+```
+
+实现约束：
+
+- 新增窄的 observation authority 写入方法；domain 由服务端 registry 根据已认证 principal、episode、scope/query context 派生，不接受 learner/candidate submitter 的 domain override。
+- 若 registry 暂不可用，必须 fail closed；不得从调用方请求、模型预测、branch label 或旧 DTO 静默推断。
+- 为 observation、prediction_commit、evidence_reveal 定义明确的 v0.4 payload schema allowlist；domain 采用稳定 ID，而不是自由文本 world-family label。事件中同时记录 registry identity/version，保证 replay 可复现。
+- prediction_commit 和 evidence_reveal 只能携带与上游 observation 相同的 domain ID；store semantic validator 与 bridge resolver 双重校验。
+- receipt builder 从 E09 replay 的 observation event 派生 domain，拒绝 `world_family_by_evidence`、`candidate_evidence_world_family_by_ref` 等兼容输入；receipt 签入 domain ID、registry ID/version 和对应 observation/reveal digest。
+- 保留旧 v0.3 数据的显式迁移策略：旧事件无 domain 时只能标记为 `UNATTRIBUTED_LEGACY` 并禁止跨域授权/训练晋升，除非经受信任迁移任务重新归属；不得伪造历史字段或默认归到某一 family。
+- 生产部署还必须保证只有 E09 authority 能写 E09 数据库；通用 SQLite store 不得暴露给 learner/runner 进程。否则任何应用层 actor_role 或 registry 约束都可被绕过。
+
+#### 新增负向测试矩阵
+
+| 测试 | 预期 |
+|---|---|
+| learner 在 prediction_commit 中提交不同 domain_id | append 拒绝 |
+| evaluator reveal domain 与 commit 不一致 | append 拒绝 |
+| receipt 请求携带候选 world-family override | verifier 拒绝未知字段 |
+| receipt builder 遇到缺失 observation domain | fail closed |
+| observation domain 与 registry version 不匹配 | fail closed |
+| registry 不可用或版本已撤销 | fail closed / 明确迁移路径 |
+| 同 scope 下跨 episode / query 错绑 domain | 拒绝 |
+| strict v0.4 事件出现未知 payload 字段 | 拒绝 |
+| 旧 v0.3 事件尝试跨域授权 | 拒绝或显式 legacy quarantine |
+| 非 authority workload 直接写 observation | transport/service boundary 拒绝 |
+
+#### 当前成熟度判断
+
+这是**服务契约与可信来源设计缺口**，不是已证明的远程可利用漏洞。当前本地 reference store 明确不提供跨进程安全隔离；PR #242–#245 的签名、nonce 和 writer identity 改进不能代替 observation authority、domain provenance 或 OS/IPC 隔离。该设计应作为 #251 的实现前置审查，不应在没有 registry 数据模型和兼容策略的情况下直接对现有事件追加一个 `world_family` 字段。
