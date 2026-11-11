@@ -46,6 +46,9 @@ class E12A6AuthenticatedWorkload:
             value = getattr(self, field)
             if not isinstance(value, str) or not value.strip():
                 raise ValueError(f"{field} must be a non-empty string")
+        fingerprint = self.credential_fingerprint
+        if len(fingerprint) != 64 or any(char not in "0123456789abcdef" for char in fingerprint):
+            raise ValueError("credential_fingerprint must be lowercase SHA-256")
         for field in ("roles", "scopes"):
             values = getattr(self, field)
             if not isinstance(values, (set, frozenset, tuple, list)):
@@ -228,6 +231,12 @@ class E12A6WriterService:
             verified.evidence,
             authorization_receipt=verified,
             consumed_at=current,
+            writer_identity={
+                "workload_id": principal.workload_id,
+                "identity_provider": principal.identity_provider,
+                "authentication_method": principal.authentication_method,
+                "credential_fingerprint": principal.credential_fingerprint,
+            },
         )
         return E12A6WriterResult(
             projection=projection,
