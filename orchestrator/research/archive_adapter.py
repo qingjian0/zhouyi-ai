@@ -71,8 +71,14 @@ def evaluate_archived_evidence(
             raise ValueError(f"evidence_rows[{index}] seed count does not match observed seeds")
         if not isinstance(row["metric"], str) or not row["metric"].strip():
             raise ValueError(f"evidence_rows[{index}].metric must be non-empty")
-        if row["metric_direction"] != predicted_direction:
-            raise ValueError(f"evidence_rows[{index}] metric direction conflicts with hypothesis")
+        # New schema separates raw metric polarity from the hypothesized effect direction.
+        if "effect_direction" in row:
+            if row["effect_direction"] != predicted_direction:
+                raise ValueError(f"evidence_rows[{index}] effect direction conflicts with hypothesis")
+            if row["metric_direction"] not in {"higher", "lower"}:
+                raise ValueError(f"evidence_rows[{index}] metric direction must be higher or lower")
+        elif row["metric_direction"] != predicted_direction:
+            raise ValueError(f"evidence_rows[{index}] legacy metric direction conflicts with hypothesis")
         if not isinstance(row["split_source"], str) or not row["split_source"].strip():
             raise ValueError(f"evidence_rows[{index}].split_source is required")
         if row["split"] == "ood" and "ood" not in row["split_source"].lower():
