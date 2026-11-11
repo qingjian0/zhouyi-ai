@@ -41,6 +41,7 @@ class E10SharedProtocolAdapter:
         self._failed = False
         self._committed: set[str] = set()
         self._revealed: dict[str, str] = {}
+        self._reveal_event_ids: dict[str, str] = {}
         self._version_id = initial_version_id
         self._append_structure(
             version_id=initial_version_id,
@@ -192,6 +193,7 @@ class E10SharedProtocolAdapter:
                 reliability=reliability,
             )
             self._revealed[prediction_id] = event_id
+            self._reveal_event_ids[reveal_id] = event_id
             return event_id
         except Exception as exc:
             self._failed = True
@@ -208,14 +210,16 @@ class E10SharedProtocolAdapter:
         self._assert_healthy()
         if not isinstance(after_structure, dict):
             raise ValueError("after_structure must be an object")
+        if not isinstance(after_version_id, str) or not after_version_id.strip():
+            raise ValueError("after_version_id must be non-empty")
+        if not isinstance(before_version_ids, list) or self._version_id not in before_version_ids:
+            raise ValueError("before_version_ids must include the current E10 structure version")
+        if after_version_id == self._version_id:
+            raise ValueError("after_version_id must create a new structure version")
         try:
             reveal_event_ids = []
             for reveal_id in evidence_ids:
-                match = next(
-                    (event_id for prediction_id, event_id in self._revealed.items()
-                     if event_id.endswith(f":{reveal_id}")),
-                    None,
-                )
+                match = self._reveal_event_ids.get(reveal_id)
                 if match is None:
                     raise ValueError(f"unknown adapter reveal id: {reveal_id}")
                 reveal_event_ids.append(match)
