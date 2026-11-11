@@ -109,7 +109,11 @@ class E09SharedProtocolAdapter:
         idempotent. This remains a trusted single-process recovery path.
         """
         events = store.replay_episode(episode_id)
-        structures = [e for e in events if e["event_type"] == "structure_version"]
+        structures = [
+            e for e in events
+            if e["event_type"] == "structure_version"
+            and e["payload"].get("learner_track") == learner_track
+        ]
         if not structures:
             raise E09ProtocolAdapterError("episode has no durable structure checkpoint")
         latest = structures[-1]
@@ -200,6 +204,10 @@ class E09SharedProtocolAdapter:
             instance._event_digests[prediction_id] = event["payload_digest"]
             instance._interop_commits[prediction_id] = interop
             instance._prediction_queries[prediction_id] = observation_id
+            if hasattr(learner, "last_inference"):
+                learner.last_inference = dict(
+                    payload.get("compute_cost", {}).get("inference_report", {})
+                )
 
         ledger_ids = {record.sample_id for record in ledger.records()}
         reveal_event_to_prediction = {}
