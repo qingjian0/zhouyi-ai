@@ -25,7 +25,10 @@ class PersistentLifecycleTests(unittest.TestCase):
         self.memory.close(); self.tmp.cleanup()
     def test_registration_and_action_survive_reopen(self):
         self.store.register_candidate(candidate()); self.store.register_evidence(evidence()); self.store.apply(propose())
-        before=self.store.snapshot(); self.memory.close(); self.memory=ZPCMMemory(self.path)
+        before=self.store.snapshot()
+        self.assertNotIn("true", str(self.memory.replay_lifecycle_events(scope="project-a")))
+        self.assertIn("opaque-evidence-ref:train-1", str(before))
+        self.memory.close(); self.memory=ZPCMMemory(self.path)
         self.store=PersistentLifecycleLedger(self.memory,scope="project-a")
         self.assertEqual(self.store.snapshot(),before)
         self.assertEqual(self.store.ledger.candidates[("rel:greater-than",1)].state,CandidateState.PROPOSED)
@@ -64,6 +67,45 @@ class PersistentLifecycleTests(unittest.TestCase):
     def test_scope_isolation(self):
         self.store.register_candidate(candidate()); other=PersistentLifecycleLedger(self.memory,scope="project-b")
         self.assertEqual(other.snapshot()["candidates"],[]); self.assertEqual(len(self.store.snapshot()["candidates"]),1)
+    def test_revision_event_is_idempotent(self):
+        self.store.register_candidate(candidate())
+        revised=Action(action_id="propose",action_type=ActionType.PROPOSE,candidate_id="rel:greater-than",
+          candidate_version=1,from_state=CandidateState.OBSERVED,to_state=CandidateState.PROPOSED)
+        self.store.apply(revised)
+        # Exercise the revision contract using a small valid lifecycle sequence.
+        challenged=Action(action_id="discriminate",action_type=ActionType.REQUEST_DISCRIMINATION,
+          candidate_id="rel:greater-than",candidate_version=1,
+          from_state=CandidateState.PROPOSED,to_state=CandidateState.DISCRIMINATION_PENDING)
+        self.store.apply(challenged)
+        self.store.register_evidence(Evidence(evidence_id="train2",episode_id="ep-1",
+          world_family="finite-rule-world",split_role=SplitRole.TRAIN,observation_id="obs-2",
+          outcome="private-label",model_version="model-0"))
+        self.store.apply(Action(action_id="train",action_type=ActionType.TRAIN_SUPPORT,
+          candidate_id="rel:greater-than",candidate_version=1,evidence_ids=("train2",),
+          from_state=CandidateState.DISCRIMINATION_PENDING,to_state=CandidateState.TRAIN_SUPPORTED))
+        self.store.register_evidence(Evidence(evidence_id="gate",episode_id="ep-1",
+          world_family="finite-rule-world",split_role=SplitRole.GATE_FINAL,observation_id="obs-g",
+          outcome="gate-label",model_version="model-0"))
+        self.store.apply(Action(action_id="gate",action_type=ActionType.GATE_VALIDATE,
+          candidate_id="rel:greater-than",candidate_version=1,evidence_ids=("gate",),
+          from_state=CandidateState.TRAIN_SUPPORTED,to_state=CandidateState.GATE_VALIDATED))
+        self.store.register_evidence(Evidence(evidence_id="counter",episode_id="ep-1",
+          world_family="finite-rule-world",split_role=SplitRole.LOCKED_TEST,observation_id="obs-c",
+          outcome="locked-secret",model_version="model-0"))
+        self.store.apply(Action(action_id="challenge",action_type=ActionType.CHALLENGE,
+          candidate_id="rel:greater-than",candidate_version=1,evidence_ids=("counter",),
+          from_state=CandidateState.GATE_VALIDATED,to_state=CandidateState.CHALLENGED))
+        self.store.apply(Action(action_id="revise",action_type=ActionType.REVISE,
+          candidate_id="rel:greater-than",candidate_version=1,evidence_ids=("counter",),
+          from_state=CandidateState.CHALLENGED,to_state=CandidateState.REVISED))
+        args=dict(canonical_expression="x - y > 0",operator="THRESHOLD_DIFF",conditions=("threshold>=0",),
+          proposer_family="revision",supporting_families=("revision",),input_types=("number","number"),
+          complexity=3,proposal_cost=0.2,evidence_ids=("counter",))
+        one,receipt1=self.store.create_revision("rel:greater-than",1,**args)
+        two,receipt2=self.store.create_revision("rel:greater-than",1,**args)
+        self.assertEqual(one,two); self.assertTrue(receipt2.replayed)
+        self.assertEqual(receipt1.sequence,receipt2.sequence)
+        self.assertNotIn("locked-secret",str(self.memory.replay_lifecycle_events(scope="project-a")))
     def test_replay_rejects_tampered_event_digest(self):
         self.store.register_candidate(candidate())
         self.memory.db.execute("UPDATE memory_events SET payload_json=? WHERE event_id=?",
