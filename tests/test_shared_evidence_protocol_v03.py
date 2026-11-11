@@ -469,7 +469,7 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
             },
         }
         revision = {
-            "event_id": "revision-record", "event_type": "revision",
+            "event_id": "revision-record", "event_type": "revision", "actor_role": "evaluator",
             "payload": {
                 "revision_id": "revision-1", "operation": "revise",
                 "trigger_evidence_ids": ["reveal-locked"],
