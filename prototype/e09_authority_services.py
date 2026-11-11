@@ -318,10 +318,16 @@ class E09VerifierService:
         )
 
     def issue_verification_receipt(self, **request: Any) -> dict[str, Any]:
-        """Verify an E09 grant and issue a short-lived signed cross-process receipt."""
+        """Verify a grant and issue a signed receipt for all candidate evidence refs."""
         if self._receipt_signer is None:
             raise E09AuthorizationError("verifier receipt signer is not configured")
-        permit = self.verify_branch_merge_authorization(**request)
+        receipt_only_fields = {
+            "candidate_evidence_refs", "candidate_evidence_world_family_by_ref",
+        }
+        verification_request = {
+            key: value for key, value in request.items() if key not in receipt_only_fields
+        }
+        permit = self.verify_branch_merge_authorization(**verification_request)
         current = self._clock.now()
         if not isinstance(current, datetime) or current.tzinfo is None:
             raise E09AuthenticationError("verifier clock must return a timezone-aware datetime")
@@ -338,11 +344,23 @@ class E09VerifierService:
         if expires_at <= current:
             raise E09AuthorizationError("grant expires before a verifier receipt can be issued")
 
-        world_families = request.get("world_family_by_evidence")
-        if not isinstance(world_families, dict):
-            raise E09AuthorizationError("world_family_by_evidence is required for receipt evidence")
+        candidate_refs = request.get("candidate_evidence_refs", permit.evidence_refs)
+        if (not isinstance(candidate_refs, (tuple, list)) or not candidate_refs
+                or any(not isinstance(ref, str) or not ref.strip() for ref in candidate_refs)
+                or len(candidate_refs) != len(set(candidate_refs))):
+            raise E09AuthorizationError("candidate_evidence_refs must be a non-empty unique reference list")
+        all_evidence_refs = tuple(sorted(candidate_refs))
+        if not set(permit.evidence_refs).issubset(set(all_evidence_refs)):
+            raise E09AuthorizationError("candidate evidence refs must include all authorization evidence refs")
+        world_families = request.get(
+            "candidate_evidence_world_family_by_ref",
+            request.get("world_family_by_evidence"),
+        )
+        if not isinstance(world_families, dict) or set(world_families) != set(all_evidence_refs):
+            raise E09AuthorizationError("every candidate evidence ref requires explicit world-family context")
+
         evidence = []
-        for ref in permit.evidence_refs:
+        for ref in all_evidence_refs:
             item = resolve_e09_reveal(
                 self._store,
                 episode_id=episode_id,
@@ -376,7 +394,8 @@ class E09VerifierService:
             "scope": request["scope"],
             "parent_state_ref": request["parent_state_ref"],
             "branch_ids": list(permit.branch_ids),
-            "evidence_refs": list(permit.evidence_refs),
+            "authorization_evidence_refs": list(permit.evidence_refs),
+            "evidence_refs": list(all_evidence_refs),
             "issuer_id": permit.issuer_id,
             "authorization_event_digest": permit.event_digest,
             "issued_at": current.isoformat(),
@@ -394,4 +413,3 @@ class E09VerifierService:
             raise E09AuthenticationError("verifier receipt signer returned an invalid signature")
         receipt["signature"] = signature
         return receipt
-
