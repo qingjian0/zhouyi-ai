@@ -229,22 +229,27 @@ class FiniteRelationalVersionSpace:
         candidate_payload = [item.as_dict() for item in candidates]
         candidate_hash = _hash(candidate_payload)
         if not candidates:
-            status, prediction, confidence = "ABSTAIN_INCONSISTENT", None, None
+            status, prediction, confidence, agreement = (
+                "ABSTAIN_INCONSISTENT", None, None, None
+            )
         else:
             votes = [self._matches(rule, row, objects) for rule in candidates]
             positives = sum(votes)
             negatives = len(votes) - positives
+            agreement = max(positives, negatives) / len(votes)
             if positives and negatives:
                 status, prediction, confidence = "ABSTAIN_AMBIGUOUS", None, None
             else:
                 status = "PREDICT"
                 prediction = positives == len(votes)
-                confidence = 1.0
+                # Version-space unanimity is not a calibrated probability.
+                confidence = None
         return {
             "observation_id": row["observation_id"],
             "decision_status": status,
             "prediction": prediction,
             "confidence": confidence,
+            "agreement_score": agreement,
             "candidate_set_hash": candidate_hash,
             "compute_cost": {
                 "candidate_count": len(candidates),
