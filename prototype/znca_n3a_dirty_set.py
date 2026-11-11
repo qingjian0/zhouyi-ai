@@ -59,9 +59,10 @@ def schedule_dirty_set(
     if max_nodes < 1:
         raise ValueError("max_nodes must be >= 1")
 
-    roots = sorted(set(event_touched_ids))
-    if any(not isinstance(node_id, str) or not node_id.strip() for node_id in roots):
+    raw_roots = tuple(event_touched_ids)
+    if any(not isinstance(node_id, str) or not node_id.strip() for node_id in raw_roots):
         raise ValueError("event-touched IDs must be non-empty strings")
+    roots = sorted(set(raw_roots))
 
     queue = deque((node_id, 0) for node_id in roots)
     queued = set(roots)
