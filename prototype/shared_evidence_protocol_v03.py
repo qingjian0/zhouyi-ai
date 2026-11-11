@@ -380,6 +380,18 @@ class SQLiteEvidenceStoreV03(SQLiteEvidenceStore):
                     raise ProtocolError("evidence definition measurement_cost must be finite and non-negative")
                 if not isinstance(typed_definition.get("provenance", ""), str):
                     raise ProtocolError("evidence definition provenance must be a string")
+                if not isinstance(typed_definition.get("model_version"), str) or not typed_definition["model_version"].strip():
+                    raise ProtocolError("evidence definition model_version must be non-empty")
+            super()._validate_semantics(episode_id, event_type, payload)
+            if typed_definition is not None:
+                commit = self._db.execute(
+                    "SELECT payload_json FROM events WHERE episode_id=? AND event_type='prediction_commit' "
+                    "AND json_extract(payload_json, '$.prediction_id')=?",
+                    (episode_id, payload["prediction_id"]),
+                ).fetchone()
+                committed_model = json.loads(commit["payload_json"])["model_version"]
+                if typed_definition["model_version"] != committed_model:
+                    raise ProtocolError("typed evidence model_version must match its prediction commit")
         elif event_type == "lifecycle_action":
             required = {
                 "action_id", "action_type", "candidate_id", "candidate_version",
