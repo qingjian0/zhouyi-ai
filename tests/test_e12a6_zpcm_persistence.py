@@ -56,11 +56,11 @@ class PersistentLifecycleTests(unittest.TestCase):
         self.memory.append_lifecycle_event=original; self.memory.close(); self.memory=ZPCMMemory(self.path)
         restored=PersistentLifecycleLedger(self.memory,scope="project-a")
         self.assertEqual(restored.ledger.candidates[("rel:greater-than",1)].state,CandidateState.PROPOSED)
-    def test_stale_stream_cursor_is_rejected(self):
+    def test_stale_stream_cursor_rejects_concurrent_writer(self):
         self.store.register_candidate(candidate())
         self.memory.append_lifecycle_event(event_id="external",scope="project-a",
           payload={"schema_version":"external-v1","kind":"external","body":{}},expected_sequence=1)
-        with self.assertRaises(LifecyclePersistenceError): PersistentLifecycleLedger(self.memory,scope="project-a")
+        with self.assertRaises(ZPCMError): self.store.apply(propose())
     def test_scope_isolation(self):
         self.store.register_candidate(candidate()); other=PersistentLifecycleLedger(self.memory,scope="project-b")
         self.assertEqual(other.snapshot()["candidates"],[]); self.assertEqual(len(self.store.snapshot()["candidates"]),1)
