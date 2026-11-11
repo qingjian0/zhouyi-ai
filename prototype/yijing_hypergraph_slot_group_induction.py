@@ -151,6 +151,10 @@ def induce_exact_slot_permutation_groups(
         groups_in_snapshot: dict[tuple, list[set[tuple[int, ...]]]] = defaultdict(list)
         for edge in state.hyperedges:
             semantics = policy_map[edge.relation_type]
+            # ORDERED relations provide positional context; the discovery target
+            # is a relation whose slot permutations are not fixed in advance.
+            if semantics != "UNORDERED":
+                continue
             participant_ids = tuple(binding.entity_id for binding in edge.bindings)
             if len(participant_ids) != len(set(participant_ids)):
                 raise ExactSlotGroupInductionError(
