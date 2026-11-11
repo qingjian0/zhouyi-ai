@@ -41,7 +41,7 @@ def _relation_match(source_relation, target_relation, schema, node_map) -> bool:
     mapped = tuple(node_map[item] for item in source_relation.participants)
     target = target_relation.participants
     if schema.role_semantics == RoleSemantics.UNORDERED:
-        return set(mapped) == set(target)
+        return sorted(mapped) == sorted(target)
     # UNKNOWN is conservatively treated as opaque positional slots, never as
     # named semantic roles and never as permission to permute participants.
     if schema.role_semantics in {
