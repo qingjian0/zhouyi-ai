@@ -10,7 +10,7 @@ from typing import Any
 
 from prototype.e12a6_lifecycle_contract import Evidence, SplitRole
 from prototype.e12a6_zpcm_persistence import LifecycleEventReceipt, PersistentLifecycleLedger
-from prototype.shared_evidence_protocol import STRICT_PROTOCOL_VERSION, SQLiteEvidenceStore
+from prototype.shared_evidence_protocol import STRICT_PROTOCOL_VERSION, SQLiteEvidenceStore, digest_payload
 
 
 class E09EvidenceBindingError(ValueError):
@@ -23,6 +23,25 @@ _SPLIT_ROLE = {
     "GATE_FINAL": SplitRole.GATE_FINAL,
     "LOCKED_TEST": SplitRole.LOCKED_TEST,
 }
+
+
+def _verify_event_envelope(event: dict[str, Any]) -> None:
+    """Recompute the E09 immutable event-envelope fingerprint."""
+    required = ("event_type", "protocol_version", "payload_schema", "payload",
+                "actor_role", "causation_refs", "integrity_metadata")
+    if any(key not in event for key in required):
+        raise E09EvidenceBindingError("E09 event envelope is incomplete")
+    expected = digest_payload({
+        "event_type": event["event_type"],
+        "protocol_version": event["protocol_version"],
+        "payload_schema": event["payload_schema"],
+        "payload": event["payload"],
+        "actor_role": event["actor_role"],
+        "causation_refs": event["causation_refs"],
+        "integrity_metadata": event["integrity_metadata"],
+    })
+    if expected != event.get("payload_digest"):
+        raise E09EvidenceBindingError("E09 event envelope digest verification failed")
 
 
 def resolve_e09_reveal(
@@ -63,6 +82,7 @@ def resolve_e09_reveal(
     reveal = reveals[0]
     if reveal.get("event_type") != "evidence_reveal":
         raise E09EvidenceBindingError("evidence_ref is not an E09 evidence_reveal event")
+    _verify_event_envelope(reveal)
     if reveal.get("protocol_version") != STRICT_PROTOCOL_VERSION:
         raise E09EvidenceBindingError("only strict E09 v0.3 reveal events are accepted")
     if reveal.get("actor_role") != "evaluator":
@@ -89,6 +109,7 @@ def resolve_e09_reveal(
     if len(commits) != 1:
         raise E09EvidenceBindingError("reveal must bind to exactly one prediction commit")
     commit = commits[0]
+    _verify_event_envelope(commit)
     cp = commit.get("payload")
     if commit.get("protocol_version") != STRICT_PROTOCOL_VERSION:
         raise E09EvidenceBindingError("prediction commit is not strict E09 v0.3")
@@ -113,6 +134,7 @@ def resolve_e09_reveal(
     if len(observations) != 1:
         raise E09EvidenceBindingError("prediction must bind to exactly one observation")
     observation = observations[0]
+    _verify_event_envelope(observation)
     op = observation.get("payload")
     if observation.get("protocol_version") != STRICT_PROTOCOL_VERSION:
         raise E09EvidenceBindingError("observation is not strict E09 v0.3")
