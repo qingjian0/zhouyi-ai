@@ -37,3 +37,8 @@ Only `SUPPORT` reveals are passed to the E09 learner's update path. Gate and loc
 ## Tests
 
 New tests cover strict commit/reveal binding, wrong digest rejection, mismatched split rejection, legacy-to-v0.3 binding rejection, and withholding locked-test labels from the learner. The existing v0.2 tests remain unchanged to protect backward compatibility.
+
+
+## E09 incremental learner conflict correction
+
+CI exposed a semantic inconsistency in the incremental conjunction learner: a directly contested input could still receive a prediction from a broader clean pattern. The learner now abstains when the queried input itself has contradictory labels, even if broader patterns would otherwise produce one label. The bootstrap-conflict test was updated to assert the same quarantine rule. This is a conservative identifiability policy, not a performance optimization.
