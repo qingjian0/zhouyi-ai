@@ -50,10 +50,13 @@ def ingest_typed_candidate(
         raise TypeError("coordinated must be TypedCoordinatedCandidate")
     if not isinstance(world_family_by_evidence, Mapping):
         raise TypeError("world_family_by_evidence must be a mapping")
-    costs = measurement_cost_by_evidence or {}
+    costs = {} if measurement_cost_by_evidence is None else measurement_cost_by_evidence
     if not isinstance(costs, Mapping):
         raise TypeError("measurement_cost_by_evidence must be a mapping")
 
+    for name, value in (("episode_id", episode_id), ("scope", scope), ("learner_track", learner_track)):
+        if not isinstance(value, str) or not value.strip():
+            raise CSGGCRIngestionError(f"{name} must be a non-empty string")
     branch_ids = tuple(coordinated.coordinated.branch_ids)
     if len(set(branch_ids)) > 1:
         raise CSGGCRIngestionError(
