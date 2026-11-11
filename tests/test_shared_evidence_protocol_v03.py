@@ -720,8 +720,9 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
         self.assertEqual(projection.evidence_objects["reveal-typed"].label_visibility_step, 3)
 
     def test_typed_revealed_evidence_rejects_model_version_mismatch(self):
-        self.store.append_events(
-            episode_id="ep", idempotency_key="bad-typed-reveal",
+        with self.assertRaises(ProtocolError):
+            self.store.append_events(
+                episode_id="ep", idempotency_key="bad-typed-reveal",
             events=[
                 self.observation("obs-locked"),
                 {
@@ -747,9 +748,7 @@ class SharedEvidenceProtocolV03Tests(unittest.TestCase):
                     },
                 },
             ],
-        )
-        with self.assertRaises(ProtocolError):
-            self.store.replay_projection("ep")
+            )
 
     def test_projection_hydrates_typed_e12_action_objects(self):
         self.store.append_events(
