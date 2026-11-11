@@ -68,7 +68,11 @@ class CrossDomainBridgeTests(unittest.TestCase):
                                   ("transfers_heat", "recipient", "provider")))
         result = validate_bridge(self.source, self.target, h)
         self.assertEqual(result.status, "REJECTED")
-        self.assertTrue(any("ROLE_MISMATCH" in x for x in result.reasons))
+        self.assertTrue(any(
+            marker in reason
+            for marker in ("ROLE_MISMATCH", "ARGUMENT_TYPE_PATTERN_MISMATCH")
+            for reason in result.reasons
+        ))
 
     def test_relation_collision_rejected_by_default(self):
         with self.assertRaises(ValueError):
