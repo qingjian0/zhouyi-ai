@@ -52,6 +52,7 @@ class Metrics:
     selected: int
     correct_selected: int
     false_transfer: int
+    false_transfer_on_no_transfer_cases: int
     abstained_correctly: int
     coverage: float
     precision: float
@@ -114,10 +115,27 @@ def evaluate(
     predictor,
 ) -> tuple[Metrics, tuple[Prediction, ...]]:
     items = tuple(cases)
+    case_ids = [case.case_id for case in items]
+    if len(set(case_ids)) != len(case_ids):
+        raise ValueError("case_id values must be unique")
+    for case in items:
+        if not case.candidates:
+            raise ValueError(f"{case.case_id}: at least one candidate is required")
+        candidate_ids = [candidate.candidate_id for candidate in case.candidates]
+        if len(set(candidate_ids)) != len(candidate_ids):
+            raise ValueError(f"{case.case_id}: candidate_id values must be unique")
+        if not case.accepted_candidate_ids.issubset(set(candidate_ids)):
+            raise ValueError(f"{case.case_id}: accepted candidate is not in candidate set")
     predictions = tuple(predictor(case) for case in items)
     by_id = {prediction.case_id: prediction for prediction in predictions}
-    if len(by_id) != len(items):
-        raise ValueError("case_id values must be unique")
+    if len(by_id) != len(items) or set(by_id) != set(case_ids):
+        raise ValueError("predictor must return exactly one prediction per input case")
+    for case in items:
+        selected_id = by_id[case.case_id].selected_candidate_id
+        if selected_id is not None and selected_id not in {
+            candidate.candidate_id for candidate in case.candidates
+        }:
+            raise ValueError(f"{case.case_id}: predictor selected an unknown candidate")
     valid_cases = sum(bool(case.accepted_candidate_ids) for case in items)
     no_transfer = len(items) - valid_cases
     selected_predictions = [
@@ -130,6 +148,12 @@ def evaluate(
         for case, prediction in selected_predictions
     )
     false_transfer = len(selected_predictions) - correct
+    false_transfer_on_no_transfer_cases = sum(
+        prediction.selected_candidate_id is not None
+        and not case.accepted_candidate_ids
+        for case in items
+        for prediction in (by_id[case.case_id],)
+    )
     abstained_correctly = sum(
         by_id[case.case_id].selected_candidate_id is None
         and not case.accepted_candidate_ids
@@ -143,11 +167,15 @@ def evaluate(
         selected=selected,
         correct_selected=correct,
         false_transfer=false_transfer,
+        false_transfer_on_no_transfer_cases=false_transfer_on_no_transfer_cases,
         abstained_correctly=abstained_correctly,
         coverage=selected / len(items) if items else 0.0,
         precision=correct / selected if selected else 0.0,
         recall=correct / valid_cases if valid_cases else 0.0,
-        negative_transfer_rate=false_transfer / selected if selected else 0.0,
+        # Denominator is all no-transfer opportunities, not all selected outputs.
+        negative_transfer_rate=(
+            false_transfer_on_no_transfer_cases / no_transfer if no_transfer else 0.0
+        ),
         abstention_accuracy=(
             abstained_correctly / no_transfer if no_transfer else 1.0
         ),
@@ -226,6 +254,7 @@ def metrics_as_dict(metrics: Metrics) -> dict[str, int | float]:
         "selected": metrics.selected,
         "correct_selected": metrics.correct_selected,
         "false_transfer": metrics.false_transfer,
+        "false_transfer_on_no_transfer_cases": metrics.false_transfer_on_no_transfer_cases,
         "abstained_correctly": metrics.abstained_correctly,
         "coverage": round(metrics.coverage, 4),
         "precision": round(metrics.precision, 4),
