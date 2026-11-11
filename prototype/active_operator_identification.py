@@ -96,6 +96,7 @@ class ActiveOperatorIdentifier:
         self._max_experiments = max_experiments
         self._tolerance = tolerance
         self._observations: list[Observation] = []
+        self._rejected_observations: list[Observation] = []
         self._records: list[ExperimentRecord] = []
         self._issued: dict[State, ExperimentCandidate] = {}
         self._used_inputs: set[State] = set()
@@ -114,6 +115,10 @@ class ActiveOperatorIdentifier:
     @property
     def observations(self) -> tuple[Observation, ...]:
         return tuple(self._observations)
+
+    @property
+    def rejected_observations(self) -> tuple[Observation, ...]:
+        return tuple(self._rejected_observations)
 
     @property
     def records(self) -> tuple[ExperimentRecord, ...]:
@@ -167,7 +172,7 @@ class ActiveOperatorIdentifier:
         return tuple(ranked)
 
     def choose_experiment(self) -> ExperimentCandidate | None:
-        if len(self._records) >= self._max_experiments:
+        if len(self._records) + len(self._issued) - len(self._records) >= self._max_experiments:
             return None
         ranked = self.rank_experiments()
         if not ranked:
@@ -188,25 +193,25 @@ class ActiveOperatorIdentifier:
         output = self._state(after)
         if not source_id:
             raise IdentificationError("source_id must be non-empty")
-        issued = self._issued.get(state)
-        if issued is None:
+        if state not in self._issued:
             raise IdentificationError("observation must answer an issued experiment")
-        for prior in self._observations:
+        for prior in self._observations + self._rejected_observations:
             if self._same(prior.before, state):
                 if self._same(prior.after, output):
                     raise IdentificationError("experiment input was already observed")
                 raise IdentificationError("conflicting outcome for an observed input")
 
+        observation = Observation(state, output, source_id)
         survivors = tuple(
             hypothesis for hypothesis in self._hypotheses
             if self._same(hypothesis.predict(state), output)
         )
         if not survivors:
+            self._rejected_observations.append(observation)
             raise IdentificationError(
-                "no hypothesis explains the observation; preserve evidence and revise grammar"
+                "no hypothesis explains the observation; counterexample preserved, revise grammar"
             )
         self._hypotheses = survivors
-        observation = Observation(state, output, source_id)
         self._observations.append(observation)
         ids = tuple(item.hypothesis_id for item in survivors)
         self._records.append(ExperimentRecord(
