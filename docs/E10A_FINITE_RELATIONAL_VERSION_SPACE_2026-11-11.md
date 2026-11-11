@@ -38,7 +38,7 @@ The harness runs in one process. Its data-flow discipline is not an OS security 
 
 ## Metrics
 
-Reports coverage, selective accuracy, strict accuracy with abstentions counted wrong, abstention rate, version-space changes, candidate-update operations, final version-space sizes, and durable event count. It preserves per-query prediction traces.
+Reports coverage, selective accuracy, strict accuracy with abstentions counted wrong, abstention rate, version-space changes, candidate-update operations, final version-space sizes, and durable event count. It preserves per-query prediction traces. Each run now emits canonical SHA-256 digests of the complete final rule sets (not only their counts), allowing exact equivalence checks between update arms. `run_sweep` evaluates all three arms across consecutive seeds and reports per-seed results plus mean, median, population standard deviation, minimum, and maximum for key metrics; it also reports the aggregate incremental-to-batch update-operation ratio.
 
 ## Tests
 
@@ -62,4 +62,4 @@ Reports coverage, selective accuracy, strict accuracy with abstentions counted w
 
 ## Next gate
 
-Run multi-seed evaluation, report per-seed distributions and candidate budget usage, then implement a phase-gated evaluator/learner subprocess boundary. Only after that should E10-B class analogy and operator synthesis be added.
+The ten-seed sweep is now wired into CI (`--sweep --seeds 10 --start-seed 100`). Next, add a phase-gated evaluator/learner subprocess boundary with serialized-input canaries, then test E10-B transfer to renamed attributes, unseen objects, and hard negatives. Operator synthesis should wait until those transfer tests and matched baselines exist.
