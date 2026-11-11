@@ -23,7 +23,7 @@
 ## 运行
 
 ```bash
-python -m unittest tests.test_mts0_runner -v
+python -m unittest discover -s tests -p 'test_mts0_runner.py' -v
 python -m prototype.mts0_runner --seed 7 --train-samples 1200 --test-samples 400 --epochs 180 --json
 ```
 
