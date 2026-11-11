@@ -3,7 +3,7 @@ import unittest
 from prototype.e13_causal import (
     InterventionQuery, MechanismContractError, MechanismMap, MechanismModel,
     MechanismRule, MechanismResponse, forecast_target_response,
-    observe_target_response, select_mechanism_query,
+    observe_target_response, select_mechanism_query, validate_mechanism_query,
 )
 
 
@@ -94,12 +94,27 @@ class DynamicMechanismTests(unittest.TestCase):
             outcome_value_map=(("warmer", "depleted"), ("cooler", "energized")),
         )
         selection = select_mechanism_query(
-            self.source, self.target, (correct, flipped),
-            (self.query_more, self.query_less),
+            self.source, (correct, flipped), (self.query_more, self.query_less),
         )
         self.assertEqual(selection.status, "SELECTED")
         self.assertIn(selection.selected.query_id, ("q-more", "q-less"))
         self.assertEqual(selection.selected.disagreement, 1.0)
+
+    def test_selected_candidate_is_checked_against_target_only_after_selection(self):
+        mapping = self.mapping()
+        result = validate_mechanism_query(
+            self.source, self.target, mapping, self.query_more
+        )
+        self.assertEqual(result.status, "VALID_FOR_QUERY")
+        reversed_target = MechanismModel(
+            "reversed", ("supplier", "consumer"),
+            (MechanismRule("supplier", "more", "consumer", "depleted", 1, (("stage", "active"),)),),
+        )
+        rejected = validate_mechanism_query(
+            self.source, reversed_target, mapping, self.query_more
+        )
+        self.assertEqual(rejected.status, "REJECTED")
+        self.assertEqual(rejected.reason, "INTERVENTION_RESPONSE_MISMATCH")
 
 
 if __name__ == "__main__":
