@@ -193,7 +193,8 @@ class E09Ed25519CrossBranchTests(unittest.TestCase):
         self.assertNotIn("PRIVATE_LEFT", str(durable))
         self.assertNotIn("PRIVATE_RIGHT", str(durable))
         self.assertNotIn("PRIVATE_GRANT_SUPPORT", str(durable))
-        self.assertEqual(ingestion.receipt.event_ids[-1].startswith("e12a6:candidate:"), True)
+        self.assertTrue(ingestion.receipt.candidate.event_id.startswith("e12a6:candidate:"))
+        self.assertEqual(len(ingestion.receipt.evidence), 2)
 
     def test_unknown_and_revoked_issuers_fail_closed(self):
         message = b"canonical authorization bytes"
