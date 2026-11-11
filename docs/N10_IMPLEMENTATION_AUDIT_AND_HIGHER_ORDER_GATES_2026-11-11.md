@@ -100,6 +100,6 @@ N0.11 应优先完成高阶必要数据生成器、candidate-set evaluator、una
 - unary + pairwise + triple；
 - 完整三阶模型屏蔽 triple 特征块后的归因干预。
 
-训练 API 已在 N0.10 scorer 中新增 `fit_binary` / `predict_binary`，所有角色类型约束仍为确定性硬约束。CI 将使用 5 个种子、每种子 3,000 训练 / 1,500 测试样本，并保存结果 Artifact。
+训练 API 已在 N0.10 scorer 中新增 `fit_binary` / `predict_binary`，所有角色类型约束仍为确定性硬约束。CI 将使用 5 个种子、每种子 3,000 训练 / 1,504 测试样本，按完整 8 种三元特征组合周期平衡采样，并保存结果 Artifact。
 
 **状态：代码已提交到 N0.10 后续分支，尚未取得当前新提交的 CI 结果。** 即使该基准通过，也只证明模型能拟合已知合成奇偶关系并呈现预期低阶/高阶消融差异，不证明真实语义推理、规则族 OOD 或架构优势。详细协议见 [N0.10 高阶必要性基准](N10_HIGHER_ORDER_NECESSARY_BENCHMARK_2026-11-12.md)。
