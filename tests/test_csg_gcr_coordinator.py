@@ -144,18 +144,17 @@ class CandidateCoordinatorTests(unittest.TestCase):
 
     def test_monotonic_partial_feasibility_prunes_prefixes(self):
         rows = [
-            self.proposal("p1", bindings=(("x", "1"),), score=4),
-            self.proposal("p2", bindings=(("x", "2"),), score=3),
-            self.proposal("p3", bindings=(("y", "3"),), score=2),
+            self.proposal("p1", bindings=(("x", "2"),), score=4),
+            self.proposal("p2", bindings=(("y", "3"),), score=3),
+            self.proposal("p3", bindings=(("x", "1"),), score=2),
         ]
-        baseline = self.coordinator.coordinate(
-            rows, GlobalConstraints(max_states=100, result_limit=100)
-        )
+        limits = GlobalConstraints(required_bindings=(("x", "1"),),
+                                   max_states=100, result_limit=100)
+        baseline = self.coordinator.coordinate(rows, limits)
         pruned = self.coordinator.coordinate(
-            rows, GlobalConstraints(max_states=100, result_limit=100),
-            partial_feasibility=lambda selected: not (
-                len({dict(item.bindings).get("x") for item in selected
-                     if "x" in dict(item.bindings)}) > 1
+            rows, limits,
+            partial_feasibility=lambda selected: all(
+                dict(item.bindings).get("x", "1") == "1" for item in selected
             ),
         )
         self.assertGreater(pruned.pruned_partial_sets, 0)
