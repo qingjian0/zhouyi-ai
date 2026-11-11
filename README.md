@@ -40,6 +40,7 @@
 - [太玄经三值结构 TX-01：可检验化研究设计](docs/TAIXUAN_TERNARY_COGNITION_TX01.md)
 - [TX-02 多状态表示竞争与自主选择基准](docs/TX02_MULTISTATE_REPRESENTATION_BENCHMARK.md)
 - [TX-02B 跨 Episode 学习器与可辨识性协议](docs/TX02B_LEARNER_IDENTIFIABILITY_PROTOCOL.md)
+- [TX-02B-2 规则族隔离切分原型](prototype/tx02_splits.py)
 - [相关工作与文献](docs/RELATED_WORK.md)
 - [2026-11-10 研究增量报告](docs/RESEARCH_FINDINGS_2026-11-10.md)
 - [实验计划与验收标准](docs/EXPERIMENTS.md)
@@ -94,7 +95,8 @@ python -m prototype.yinfu_interaction_dynamics --horizon 8
 python -m prototype.taixuan_ternary_encoding
 python -m prototype.tx02_multistate_benchmark --episodes-per-cardinality 20 --support-size 2 --query-count 2
 python -m prototype.tx02_identifiability --cardinality 3 --support-size 2 --query-count 2 --symbol-mapping permuted
-python -m unittest tests.test_tx02_multistate_benchmark tests.test_tx02_state_encoders tests.test_tx02_identifiability -v
+python -c "from prototype.tx02_splits import make_rule_disjoint_splits; print(make_rule_disjoint_splits(3).metadata)"
+python -m unittest tests.test_tx02_multistate_benchmark tests.test_tx02_state_encoders tests.test_tx02_identifiability tests.test_tx02_splits -v
 ```
 
 ## 研究状态标记
