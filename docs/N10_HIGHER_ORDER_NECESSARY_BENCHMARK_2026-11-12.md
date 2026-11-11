@@ -1,6 +1,6 @@
 # N0.10 高阶必要性基准：三元奇偶关系
 
-状态：新增可执行诊断基准；等待当前分支 CI 执行结果。  
+状态：新增可执行诊断基准；当前头完整 CI 已通过。  
 代码：`prototype/n10_higher_order_benchmark.py`  
 测试：`tests/test_n10_higher_order_benchmark.py`
 
@@ -41,3 +41,12 @@ CI 将对五个种子执行正式样本规模运行，并保存 JSON Artifact。
 - 它证明的是该显式三阶特征模型能拟合三元奇偶信号，而低阶特征在此分布下缺少标签信息。
 - 它不证明开放域高阶推理、语义理解、因果发现、易象先验有效或 CPG-EI 优于 Transformer/GNN。
 - 需要继续做保留二元投影的结构扰动、对象/规则族 OOD、参数与计算预算匹配对照。
+
+
+## CI 验收记录
+
+- Exact head: `8dd89ab73ea798635c18f6432a60afbcf736834a`
+- Workflow run: https://github.com/qingjian0/zhouyi-ai/actions/runs/43094303391
+- 全仓库单测通过；五种子 parity 基准步骤通过；JSON Artifact `n10-higher-order-results` 已生成。
+- CI 检查：完整三阶模型平均准确率不低于 0.95；低阶模型与三阶模型屏蔽 triple 后的平均准确率均在 0.40–0.60。
+- 这是一组预设实现验收阈值，不是独立领域泛化或模型优越性结论。
