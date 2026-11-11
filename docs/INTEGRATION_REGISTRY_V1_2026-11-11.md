@@ -78,3 +78,16 @@ XSL、E10、E13、太玄、阴符等研究线必须正交化；先定义任务�
 ## 5. Canonical baseline and snapshot caveat (2026-11-11)
 
 Use [BASELINE_MANIFEST](BASELINE_MANIFEST_V1_2026-11-11.md) as the single authority for branch and commit identity. This registry is a dated maturity snapshot, not live branch metadata. In particular, the earlier #149 row reference to `50104ed` is historical; the selected convergence source baseline is `e90f7eb210db456a541eb9f45ec39f64ebb934a5`. PR #202's single-process crash-resume increment is recorded in the convergence execution audit and roadmap; it does not imply OS-level process isolation or an atomic cross-process outbox.
+
+
+## 6. Live PR dependency audit (2026-11-11)
+
+The canonical branch and SHA values are in [BASELINE_MANIFEST](BASELINE_MANIFEST_V1_2026-11-11.md). The active PR graph is not a flat merge queue:
+
+- **#206** is the documentation/convergence line based on E09 `e90f7eb`.
+- **#208** is a separate CSG-GCR branch also based on E09, not on #206. It must be reviewed as a parallel integration candidate.
+- **#212** is stacked on an earlier #208 branch commit (`91f6ae4`); #208 head (`5f886df`) is one commit ahead. Its typed unification kernel is standalone and is not yet called by CSG-GCR.
+- **#185** is based on `main`, not E09. Reuse its CandidateBundle content/provenance/validation design only after removing its independent lifecycle authority or delegating lifecycle transitions to E12-A6.
+- **#213 → #215** is a separate YJ-07/YJ-08 research stack. Neither is a prerequisite for the P1 runtime closure.
+
+All these PRs were Draft at audit time. GitHub reporting `mergeable=true` is not sufficient for approval. Each stack must be rebased or otherwise reconciled against its actual parent head, then tested as a combined exact head.
