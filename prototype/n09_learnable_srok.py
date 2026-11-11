@@ -159,6 +159,9 @@ class LearnableSROK:
             for role, pool in zip(self.roles, example.role_candidates):
                 if not pool:
                     raise LearnableSROKError("training role pools must be non-empty")
+                pool_ids = [node.node_id for node in pool]
+                if len(pool_ids) != len(set(pool_ids)):
+                    raise LearnableSROKError("node IDs must be unique within each role pool")
                 for node in pool:
                     self._validate_node(node)
                     if not self._compatible(node, role):
@@ -273,7 +276,7 @@ class LearnableSROK:
         # Compute confidence from the actual top two found assignments before
         # applying result_limit; result_limit=1 must not disable abstention.
         margin = (
-            ranked[0] and self.score(ranked[0]) - self.score(ranked[1])
+            self.score(ranked[0]) - self.score(ranked[1])
             if len(ranked) > 1 else math.inf
         )
         if margin < abstain_margin:
