@@ -165,7 +165,19 @@ class EvidenceReveal:
             raise ValueError("split must be an EvidenceSplit")
         validate_canonical_json(self.outcome_json, "outcome_json")
 
-def validate_reveal_binding(commit: PredictionCommit, reveal: EvidenceReveal) -> None:
+def validate_reveal_binding(
+    commit: PredictionCommit,
+    reveal: EvidenceReveal,
+    *,
+    require_context: bool = False,
+) -> None:
+    if require_context:
+        if commit.episode_id is None or commit.learner_track is None or commit.split is None:
+            raise ValueError("strict prediction commit requires episode_id, learner_track and split")
+        if commit.model_version is None:
+            raise ValueError("strict prediction commit requires model_version")
+        if reveal.episode_id is None or reveal.learner_track is None:
+            raise ValueError("strict evidence reveal requires episode_id and learner_track")
     if reveal.commit_digest != commit.commit_digest:
         raise ValueError("evidence reveal does not match prediction commit")
     if reveal.query_id != commit.query_id:
