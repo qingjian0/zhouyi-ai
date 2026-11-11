@@ -48,3 +48,12 @@ CI exposed a semantic inconsistency in the incremental conjunction learner: a di
 
 - The E09 evidence-ledger adjudication summary treated a set of contested keys as a mapping and failed when producing the summary. It now reads labels from the canonical label index.
 - The incremental learner's full-recompute oracle now includes the explicit directly-contested-query abstention rule, so the test compares equivalent semantics rather than the older, weaker rule.
+
+
+## Context binding correction and evaluator-side scoring
+
+The shared `PredictionCommit` and `EvidenceReveal` DTOs now carry optional `episode_id`, `learner_track`, and split context (plus the prediction's model version). Existing constructors remain source-compatible, while the E09 v0.3 adapter populates these fields. The generic reveal validator now rejects cross-episode, cross-track, and cross-split bindings when context is present. The SQLite protocol independently enforces the same context against durable events.
+
+A separate `E09EvaluatorProjection` now computes split-aware coverage and selective accuracy directly from the durable event projection. It has no learner mutation API. In particular, LOCKED_TEST labels can be scored by the evaluator projection while the learner's own prequential score remains unchanged. This remains a same-process reference projection; it is not yet an OS/process security boundary.
+
+The CPG-EI inference status vocabulary also distinguishes `ABSTAINED` from `UNKNOWN`: a deliberate refusal to commit a hypothesis is not the same as a state for which the engine has no result.
