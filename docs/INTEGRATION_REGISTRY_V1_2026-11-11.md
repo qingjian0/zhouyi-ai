@@ -157,3 +157,14 @@ This closes the current single-process reference integration path for one candid
 PR #230 adds strict E09 v0.3 branch_merge_authorization events. It binds the authorization to episode/event identity, exact scope, parent state, branch set, evidence refs, validity interval and a signature checked by an injected trusted issuer-keyring verifier. Every evidence reference must resolve to a prior strict E09 reveal chain. The typed coordinator rejects plain unverified BranchMergeAuthorization values.
 
 The cryptographic trust root is intentionally injected; the repository does not ship a default keyring, private key or fake production verifier. A test callback only proves interface wiring. Production still needs a concrete public-key verifier, issuer key rotation/revocation, evaluator process isolation, authenticated IPC and remote tamper-evident replication.
+
+
+## 11. Concrete Ed25519 verification and cross-branch end-to-end ingestion
+
+[PR #231](https://github.com/qingjian0/zhouyi-ai/pull/231) exact head `99249112754fb747a791c75205309313820501ed`, workflow `43050925777`: success.
+
+The new `E09Ed25519IssuerKeyring` verifies real Ed25519 signatures from out-of-band 32-byte public keys, rejects unknown/revoked issuers and unsupported algorithms, and fingerprints the active keyring/revocation configuration. Key rotation replaces the immutable keyring; old signatures fail under the replacement key.
+
+An end-to-end test now signs an E09 authorization event, resolves it through the concrete keyring, merges two typed branch snapshots, and ingests the combined candidate plus verified evidence atomically into E12-A6/ZPCM. This closes the software reference-path gap between the signed grant verifier and cross-branch ingestion.
+
+Still not production-ready: public-key provisioning, deployment/rollback controls for keyring configuration, overlap windows and key IDs, issuer revocation distribution, E09 evaluator process isolation, authenticated IPC, and remote tamper-evident replication remain open.
