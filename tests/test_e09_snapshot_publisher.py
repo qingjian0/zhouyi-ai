@@ -12,6 +12,7 @@ from prototype.e09_snapshot_publisher import (
 from prototype.shared_evidence_protocol import (
     SQLiteEvidenceReader,
     SQLiteEvidenceStore,
+    digest_payload,
 )
 
 
@@ -30,12 +31,8 @@ class SQLiteEvidenceSnapshotPublisherTests(unittest.TestCase):
             idempotency_key="observation-1",
             payload={"observation_id": "observation-1", "scope": "world/test"},
         )
-        self.store.put_payload(
-            __import__("prototype.shared_evidence_protocol", fromlist=["digest_payload"]).digest_payload(
-                {"text": "private input"}
-            ),
-            {"text": "private input"},
-        )
+        payload = {"text": "private input"}
+        self.store.put_payload(digest_payload(payload), payload)
 
     def tearDown(self):
         self.store.close()
