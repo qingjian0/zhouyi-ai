@@ -246,6 +246,16 @@ class PersistentM2SemanticUnitStore:
         if not isinstance(candidate, SemanticUnitCandidate):
             raise TypeError("candidate must be SemanticUnitCandidate")
         with self._lock:
+            # Retry after a committed revision remains idempotent even though
+            # its predecessor is no longer the current version.
+            candidate_id = candidate.envelope.record_id
+            if candidate_id in self._versions:
+                if (self._digests[candidate_id] != record_digest(candidate)
+                        or candidate.envelope.derivation_refs.count(previous_record_id) != 1):
+                    raise SemanticUnitStoreError("candidate record_id is immutable")
+                receipt = self._receipts[candidate_id]
+                return SemanticUnitReceipt(receipt.event_id, receipt.sequence,
+                    receipt.payload_digest, receipt.record_digest, True)
             if previous_record_id not in self._versions:
                 raise SemanticUnitStoreError("revision predecessor does not exist")
             if previous_record_id in self._retracted or previous_record_id not in self._latest.values():
