@@ -270,7 +270,7 @@ class E09AuthorityServiceTests(unittest.TestCase):
                 scope=self.scope, learner_track=self.track,
                 world_family_by_evidence={reveal_ref: "attacker-family"},
                 candidate_evidence_refs=[reveal_ref],
-                candidate_evidence_world_family_by_ref={reveal_ref: "attacker-family"},
+                candidate_evidence_world_family_by_ref={reveal_ref: "family-a"},
             )
 
     def test_caller_cannot_supply_verification_time(self):
