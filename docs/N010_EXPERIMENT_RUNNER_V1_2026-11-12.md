@@ -40,7 +40,7 @@ The runner writes an integrity-checked model checkpoint after every epoch and a 
 - Locked-test labels are used only by the evaluator for final metrics.
 - Reports include exact-match accuracy, coverage, abstention, budget-exhaustion rate and covered accuracy.
 - Both exact product enumeration and bounded beam inference are evaluated with the same maximum expansion budget; beam width is recorded separately.
-- The dataset manifest records rule families by split. For an OOD claim, ensure the held-out family is absent from train/dev; the runner records provenance but does not silently enforce a particular family policy.
+- The dataset manifest records rule families by split. When a recognized N0.10 synthetic-generator sidecar is present, the runner verifies its dataset SHA-256, checks the declared family split against the actual JSONL rows, rejects locked-test family leakage, and embeds the full generation manifest into the checkpoint-bound dataset manifest. For arbitrary datasets without that sidecar, callers remain responsible for the OOD family policy.
 
 ## Resume semantics
 
