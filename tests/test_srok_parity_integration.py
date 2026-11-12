@@ -1,7 +1,7 @@
 """Integration tests: parity labels trained through LearnableSROK scoring.
 
 This composition-only suite deliberately bypasses role-wise retrieval.
-
+"""
 from itertools import product
 import random
 import unittest
