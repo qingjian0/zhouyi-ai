@@ -413,6 +413,7 @@ class E09AuthorityServiceTests(unittest.TestCase):
             "observer-cert", episode_id=self.episode, event_id=observation_event,
             idempotency_key=observation_event, observation_id=observation_id,
             query_id=observation_id, scope=self.scope, split="SUPPORT",
+            learner_track=self.track,
         )
         payload = {
             "prediction_id": "prediction-causal", "observation_id": observation_id,
