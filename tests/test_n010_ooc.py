@@ -2,6 +2,7 @@ import json
 import sqlite3
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 from prototype.n09_learnable_srok import RoleSpec
@@ -10,6 +11,7 @@ from prototype.n010_ooc import (
     N010StreamingDataset,
     evaluate_locked_test_ooc,
     run_experiment_ooc,
+    _sha256_file,
 )
 from prototype.n09_learnable_srok import LearnableSROKError
 
@@ -110,6 +112,20 @@ class N010OutOfCoreTests(unittest.TestCase):
             N010StreamingDataset(
                 self.train_dev, self.roles, 1, expected_splits=("train", "dev")
             )
+
+    def test_index_build_rejects_dataset_snapshot_change(self):
+        original_digest = _sha256_file(self.train_dev)
+        with patch(
+            "prototype.n010_ooc._sha256_file",
+            side_effect=[original_digest, "0" * 64],
+        ):
+            with self.assertRaisesRegex(
+                LearnableSROKError, "dataset changed after its streaming index was built"
+            ):
+                N010StreamingDataset(
+                    self.train_dev, self.roles, 1,
+                    expected_splits=("train", "dev"),
+                )
 
     def test_stream_fails_closed_if_dataset_changes_after_indexing(self):
         with N010StreamingDataset(
