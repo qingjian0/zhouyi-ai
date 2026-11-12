@@ -162,7 +162,7 @@ class CpgEiTransitionModel:
         self,
         examples: Sequence[Example],
         epochs: int = 120,
-        learning_rate: float = 0.35,
+        learning_rate: float = 2.1,
         l2: float = 1e-4,
         gate_l1: float = 1e-4,
         edge_group_l1: float = 0.0,
@@ -210,13 +210,13 @@ class CpgEiTransitionModel:
             for head_index, head in enumerate(self.weights):
                 grad = weight_gradients[head_index]
                 for j in range(len(head)):
-                    grad[j] = grad[j] / n + l2 * head[j]
+                    grad[j] = grad[j] / (n * 6.0) + (l2 / 6.0) * head[j]
                     head[j] -= learning_rate * grad[j]
             for gate_index in range(len(self.gate_logits)):
                 gate = gates[gate_index]
                 gate_gradients[gate_index] = (
-                    gate_gradients[gate_index] / n
-                    + gate_l1 * gate_derivatives[gate_index]
+                    gate_gradients[gate_index] / (n * 6.0)
+                    + (gate_l1 / 6.0) * gate_derivatives[gate_index]
                 )
                 self.gate_logits[gate_index] -= learning_rate * gate_gradients[gate_index]
 
@@ -233,14 +233,14 @@ class CpgEiTransitionModel:
                     group_norm_sum += norm
                     shrink = max(
                         0.0,
-                        1.0 - learning_rate * edge_group_l1 / max(norm, 1e-12),
+                        1.0 - learning_rate * (edge_group_l1 / 6.0) / max(norm, 1e-12),
                     )
                     for head_index in range(6):
                         self.weights[head_index][feature_index] *= shrink
             losses.append(
                 total_loss / (n * 6.0)
                 + gate_l1 * sum(gates) / 6.0
-                + edge_group_l1 * group_norm_sum
+                + (edge_group_l1 / 6.0) * group_norm_sum
             )
         return losses
 
