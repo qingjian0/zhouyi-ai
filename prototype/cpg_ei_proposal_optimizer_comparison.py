@@ -15,7 +15,7 @@ import math
 from collections import defaultdict
 from typing import Sequence
 
-from prototype.cpg_ei_mvp import evaluate
+from prototype.cpg_ei_mvp import CpgEiTransitionModel, evaluate
 from prototype.cpg_ei_joint_proposals import grow_relation_graph_joint_motifs
 from prototype.cpg_ei_selection_sweep import (
     DEFAULT_SEEDS,
@@ -82,9 +82,7 @@ def run_comparison(
             locked = make_examples(locked_states, triples)
             expected = exact_support(triples)
             for epochs, config in itertools.product(epochs_grid, configs):
-                model = __import__(
-                    "prototype.cpg_ei_mvp", fromlist=["CpgEiTransitionModel"]
-                ).CpgEiTransitionModel.create(active_relation_indices=set())
+                model = CpgEiTransitionModel.create(active_relation_indices=set())
                 result = grow_relation_graph_joint_motifs(
                     model,
                     train,
