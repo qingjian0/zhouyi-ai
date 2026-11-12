@@ -22,7 +22,7 @@ jobs:
       - name: Run five-seed, three-family proposal-selection sweep
         run: |
           mkdir -p benchmark-results
-          python -m prototype.cpg_ei_selection_sweep --epochs 12,120 --json | tee benchmark-results/cpg-ei-selection-sweep.json
+          python -m prototype.cpg_ei_selection_sweep --epochs 12,120 --oracle-epochs 500 --json | tee benchmark-results/cpg-ei-selection-sweep.json
       - name: Upload selection-sweep report
         uses: actions/upload-artifact@v4
         with:
