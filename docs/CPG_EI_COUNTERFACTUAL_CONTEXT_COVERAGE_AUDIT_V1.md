@@ -23,7 +23,7 @@ A context is the tuple of all input values except the variable being toggled. Th
 
 - Positive flips are direct evidence of influence in the corresponding observed contexts.
 - Zero flips with partial context coverage is inconclusive; unobserved contexts may contain conditional influence.
-- Full context coverage with zero flips is stronger evidence for irrelevance under deterministic complete binary observations, but must still be interpreted relative to label integrity and the assumed state representation.
+- Full context coverage with zero flips is classified as `observed_no_influence_full_context_coverage`; under deterministic complete binary observations this identifies irrelevance relative to the declared input representation. It is excluded from unresolved variables, but does not prove semantic irrelevance outside that representation.
 - This diagnostic does not itself infer conditional operators or repair support proposals.
 
 ## Regression fixtures
