@@ -255,6 +255,72 @@ class E09AuthorityService:
             raise E09AuthorizationError("Observation has no durable input payload reference")
         return self._store.get_payload(payload_ref)
 
+    def read_learner_episode(
+        self,
+        credential: object,
+        *,
+        episode_id: str,
+        scope: str,
+        learner_track: str,
+    ) -> list[dict[str, Any]]:
+        """Return a learner-safe, provenance-checked event projection for ZPCM sync."""
+        self._principal(credential, role="learner", scope=scope)
+        if not isinstance(learner_track, str) or not learner_track.strip():
+            raise E09AuthorizationError("learner_track must be a non-empty string")
+        events = self._store.replay_episode(episode_id)
+        expected_roles = {
+            "observation": "observer",
+            "prediction_commit": "learner",
+            "evidence_reveal": "evaluator",
+            "structure_version": "learner",
+            "revision": "learner",
+        }
+        projection: list[dict[str, Any]] = []
+        for event in events:
+            event_type = event.get("event_type")
+            if event_type not in expected_roles:
+                continue
+            payload = event.get("payload", {})
+            if payload.get("scope") != scope:
+                continue
+            event_track = payload.get("learner_track")
+            if event_track not in (None, learner_track):
+                continue
+            authenticated_workload = event.get("integrity_metadata", {}).get(
+                "authenticated_workload"
+            )
+            if (
+                event.get("actor_role") != expected_roles[event_type]
+                or not isinstance(authenticated_workload, dict)
+                or not isinstance(authenticated_workload.get("workload_id"), str)
+            ):
+                raise E09AuthorizationError(
+                    "learner replay encountered an event outside the authenticated role boundary"
+                )
+            safe_payload = dict(payload)
+            if event_type == "evidence_reveal":
+                safe_payload.pop("target_or_feedback", None)
+                safe_payload.pop("reveal_source", None)
+            if event_type == "structure_version":
+                definition = safe_payload.get("definition")
+                if isinstance(definition, dict):
+                    definition = dict(definition)
+                    definition.pop("snapshot", None)
+                    definition.pop("ledger_snapshot", None)
+                    safe_payload["definition"] = definition
+            safe_payload.pop("raw_input", None)
+            safe_payload.pop("target_or_feedback", None)
+            safe_payload.pop("reveal_source", None)
+            projection.append({
+                "event_id": event["event_id"],
+                "event_type": event_type,
+                "protocol_version": event.get("protocol_version"),
+                "sequence_no": event.get("sequence_no"),
+                "payload_digest": event.get("payload_digest"),
+                "payload": safe_payload,
+            })
+        return projection
+
     def read_support_feedback(
         self,
         credential: object,
