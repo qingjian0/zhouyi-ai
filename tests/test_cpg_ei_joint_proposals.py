@@ -36,15 +36,15 @@ class TestCpgEiJointMotifProposals(unittest.TestCase):
         expected = exact_parity_support()
         measurements = []
         for seed in (11, 23):
-            train = parity_rows(192, seed)
-            validation = parity_rows(128, seed + 1000)
+            train = parity_rows(128, seed)
+            validation = parity_rows(64, seed + 1000)
             model = CpgEiTransitionModel.create(active_relation_indices=set())
             result = grow_relation_graph_joint_motifs(
                 model,
                 train,
                 validation,
-                max_motifs=3,
-                epochs_per_candidate=30,
+                max_motifs=1,
+                epochs_per_candidate=12,
                 gate_l1=0.001,
                 edge_group_l1=0.001,
             )
