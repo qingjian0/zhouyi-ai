@@ -1,7 +1,12 @@
+import json
+import tempfile
 import unittest
+from pathlib import Path
 
 from prototype.cpg_ei_mixed_operator_data import generate_mixed_corpus
-from prototype.cpg_ei_mixed_operator_comparison import run_matched_comparison
+from prototype.cpg_ei_mixed_operator_comparison import (
+    run_matched_comparison, write_json_report,
+)
 
 
 class TestMatchedBaselineComparison(unittest.TestCase):
@@ -22,6 +27,15 @@ class TestMatchedBaselineComparison(unittest.TestCase):
             if metrics["families"]:
                 self.assertTrue(0.0 <= metrics["mean_locked_bit_accuracy"] <= 1.0)
                 self.assertTrue(0.0 <= metrics["mean_training_bit_accuracy"] <= 1.0)
+
+    def test_json_report_is_parseable_and_ends_with_newline(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "report.json"
+            report = {"ok": True, "value": 7}
+            write_json_report(report, path)
+            raw = path.read_text(encoding="utf-8")
+            self.assertTrue(raw.endswith("\\n"))
+            self.assertEqual(json.loads(raw), report)
 
     def test_deterministic_corpus_identity(self):
         first = generate_mixed_corpus(
