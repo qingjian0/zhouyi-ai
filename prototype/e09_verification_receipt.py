@@ -180,6 +180,10 @@ def verify_e09_verification_receipt(
                 or not math.isfinite(float(parsed.measurement_cost))
                 or parsed.measurement_cost < 0):
             raise E09VerificationReceiptError("receipt evidence measurement cost is invalid")
+        if any(not getattr(parsed, field) for field in (
+            "domain_id", "domain_registry_id", "domain_registry_version",
+        )):
+            raise E09VerificationReceiptError("receipt evidence lacks trusted domain registry provenance")
         evidence.append(parsed)
     if seen != set(refs):
         raise E09VerificationReceiptError("receipt evidence DTO set is incomplete")
