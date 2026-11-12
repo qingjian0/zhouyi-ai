@@ -1,6 +1,6 @@
 # CPG-EI multi-seed structure-discovery diagnostic
 
-Status: diagnostic harness; no cross-seed performance claim until exact-head CI output is inspected.
+Status: exact-head diagnostic completed; conclusions remain limited to the finite synthetic candidate universe.
 
 ## Scope
 
@@ -41,3 +41,16 @@ A second negative control independently permutes each training feature column ac
 ## Ten-seed reporting
 
 The CI diagnostic now uses ten fixed independent seed pairs and emits per-seed precision/recall, false discoveries, active-edge count and exact-support recovery, plus descriptive mean/standard deviation/minimum/maximum summaries. These are descriptive synthetic-benchmark statistics; no pass threshold or generalization claim is inferred from them.
+
+
+## Candidate-score normalization ablation (2026-11-12)
+
+Exact-head CI run #43201228903 succeeded on commit `0dc9c0a664485aac8f4e432a927dce07b47b034b` (5 tests). The paired five-seed comparison produced:
+
+| Metric | Raw score | Residual-norm normalized |
+|---|---:|---:|
+| Mean support recall | 0.5667 | 0.4667 |
+| Exact six-edge recovery | 0/5 | 0/5 |
+| Mean false discoveries | 0.8 | 0.8 |
+
+Validation bit accuracy was identical between the two modes for each paired seed. Normalization reduced the number of active edges but also reduced support recall; it did not improve exact recovery or false discoveries. **Decision: retain raw scoring as the default; keep normalization only as an explicit ablation option.** This five-seed result is diagnostic, not a universal ranking claim.
