@@ -152,5 +152,27 @@ class PersistentM2SemanticUnitStoreTests(unittest.TestCase):
             PersistentM2SemanticUnitStore(self.memory, self.resolver, scope="project-a")
 
 
+    def test_long_revision_chain_restores_reverse_root_index(self):
+        first = self.candidate("chain-000")
+        self.store.record_candidate(first)
+        previous = first.envelope.record_id
+        for index in range(1, 129):
+            record_id = f"chain-{index:03d}"
+            candidate = self.candidate(
+                record_id, predecessor=previous, confidence=0.5 + index / 256,
+            )
+            self.store.revise_candidate(previous, candidate)
+            previous = record_id
+        self.assertEqual(self.store._root_by_current, {previous: first.envelope.record_id})
+        self.memory.close()
+        self.memory = ZPCMMemory(self.memory_db)
+        restored = PersistentM2SemanticUnitStore(
+            self.memory, self.resolver, scope="project-a", replay_page_size=7,
+        )
+        self.assertEqual(restored._root_by_current, {previous: first.envelope.record_id})
+        self.assertEqual(len(restored.history), 129)
+        self.assertEqual(restored.candidates[first.envelope.record_id].envelope.record_id, previous)
+
+
 if __name__ == "__main__":
     unittest.main()
