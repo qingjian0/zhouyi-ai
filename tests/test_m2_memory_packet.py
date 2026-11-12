@@ -48,10 +48,12 @@ class MemoryPacketTests(unittest.TestCase):
 
     def test_byte_budget_is_hard_limit_and_does_not_emit_partial_item(self):
         candidate = self.candidate("large-record-id")
-        generous = build_memory_packet([candidate], self.query())
-        budget = max(1, generous.serialized_bytes - 1)
-        with self.assertRaises(MemoryPacketError):
-            build_memory_packet([candidate], self.query(byte_budget=budget))
+        empty = build_memory_packet([], self.query())
+        budget = empty.serialized_bytes + 20
+        packet = build_memory_packet([candidate], self.query(byte_budget=budget))
+        self.assertEqual(packet.items, ())
+        self.assertEqual(packet.completeness, PacketCompleteness.BUDGET_EXHAUSTED)
+        self.assertLessEqual(packet.serialized_bytes, budget)
 
     def test_scope_type_and_temporal_filters(self):
         rows = [
