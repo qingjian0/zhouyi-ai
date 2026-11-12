@@ -14,15 +14,30 @@ class TestSelectionOptimizerSweep(unittest.TestCase):
         self.assertEqual(report["split_sizes"], {
             "train": 40, "proposal_selection": 12, "locked_test": 12
         })
-        self.assertEqual(report["selection_metric"], "proposal_selection_bce_only")
+        self.assertEqual(
+            report["selection_metric"],
+            "candidate_ranking_bce_on_protocol_specific_partition",
+        )
+        self.assertEqual(report["ranking_partitions"], {
+            "proposal_split": "proposal", "legacy_train_ranked": "train"
+        })
         self.assertFalse(report["locked_and_ood_metrics_used_for_selection"])
         for row in report["records"]:
             self.assertEqual(row["train_examples"], 40)
             self.assertEqual(row["locked_test_examples"], 12)
             self.assertIn(row["selection_protocol"], ("proposal_split", "legacy_train_ranked"))
+            self.assertEqual(
+                row["candidate_ranking_partition"],
+                "proposal" if row["selection_protocol"] == "proposal_split" else "train",
+            )
+            self.assertTrue(math.isfinite(row["candidate_ranking_bce"]))
+            if row["selection_protocol"] == "proposal_split":
+                self.assertTrue(math.isfinite(row["proposal_selection_bce"]))
+            else:
+                self.assertIsNone(row["proposal_selection_bce"])
             for key in (
-                "proposal_selection_bce", "locked_test_bce",
-                "locked_test_bit_accuracy", "support_precision", "support_recall",
+                "locked_test_bce", "locked_test_bit_accuracy",
+                "support_precision", "support_recall",
             ):
                 self.assertTrue(math.isfinite(row[key]))
 
