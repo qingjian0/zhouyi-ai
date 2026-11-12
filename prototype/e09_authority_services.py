@@ -290,6 +290,13 @@ class E09AuthorityService:
         if len(matches) != 1:
             raise E09AuthorizationError("input read requires exactly one prior Observation")
         event = matches[0]
+        if "learner" in principal.roles:
+            self._require_learner_assignment(
+                principal,
+                episode_id=episode_id,
+                scope=scope,
+                learner_track=event.get("payload", {}).get("learner_track"),
+            )
         if (
             event.get("actor_role") != "observer"
             or event.get("payload", {}).get("scope") != scope
