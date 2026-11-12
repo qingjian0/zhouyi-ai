@@ -232,6 +232,53 @@ class E09SharedProtocolAdapterTests(unittest.TestCase):
         self.assertTrue(memory.verify_integrity()["ok"])
         memory.close()
 
+    def test_projection_failure_before_commit_replays_once(self):
+        projection_path = Path(self.tmp.name) / "zpcm-before-commit.sqlite3"
+        memory = ZPCMMemory(projection_path)
+        adapter = self.make_adapter(
+            "INCREMENTAL_INDEX", memory_projection=memory
+        )
+        commit = adapter.predict_and_commit("obs-projection-before-commit", (0, 0, 2))
+
+        def fail_before_commit(*args, **kwargs):
+            raise RuntimeError("simulated crash before ZPCM projection commit")
+
+        memory.sync_episode = fail_before_commit
+        with self.assertRaises(E09ProtocolAdapterError):
+            adapter.reveal(commit["prediction_id"], "no")
+        memory.sync_episode = ZPCMMemory.sync_episode.__get__(memory, ZPCMMemory)
+
+        reveal = next(
+            event for event in self.store.replay_episode(adapter.episode_id)
+            if event["event_type"] == "evidence_reveal"
+        )
+        item_id = "protocol:" + reveal["event_id"]
+        count = memory.db.execute(
+            "SELECT COUNT(*) FROM memory_items WHERE item_id=?", (item_id,)
+        ).fetchone()[0]
+        self.assertEqual(count, 0)
+
+        memory.sync_episode(
+            self.store, episode_id=adapter.episode_id,
+            scope="e09/test", learner_track="e09",
+        )
+        count = memory.db.execute(
+            "SELECT COUNT(*) FROM memory_items WHERE item_id=?", (item_id,)
+        ).fetchone()[0]
+        self.assertEqual(count, 1)
+
+        memory.close()
+        memory = ZPCMMemory(projection_path)
+        memory.sync_episode(
+            self.store, episode_id=adapter.episode_id,
+            scope="e09/test", learner_track="e09",
+        )
+        count = memory.db.execute(
+            "SELECT COUNT(*) FROM memory_items WHERE item_id=?", (item_id,)
+        ).fetchone()[0]
+        self.assertEqual(count, 1)
+        memory.close()
+
     def test_locked_test_is_scored_by_evaluator_projection_only(self):
         adapter = self.make_adapter("INCREMENTAL_INDEX", split="LOCKED_TEST")
         commit = adapter.predict_and_commit("obs-locked-score", (0, 0, 2))
