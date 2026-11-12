@@ -62,6 +62,27 @@ class Tests(unittest.TestCase):
       scope="scope-a",kind="candidate_registered",entity_id="legacy",entity_version=1)
   self.assertEqual(found["event_id"],"candidate:legacy@1")
 
+ def test_typed_projection_backfill_runs_only_when_schema_is_extended(self):
+  self.m._append("candidate:legacy@1","e12a6_lifecycle","scope-a",{
+   "kind":"candidate_registered","body":{"candidate":{"candidate_id":"legacy","version":1}}})
+  self.m.close()
+  self.m=ZPCMMemory(self.path)
+  found=self.m.db.execute(
+   "SELECT candidate_id,candidate_version FROM e12a6_lifecycle_event_projection WHERE event_id=?",
+   ("candidate:legacy@1",)).fetchone()
+  self.assertEqual(tuple(found),("legacy",1))
+  self.m.db.execute("""
+   CREATE TRIGGER reject_unnecessary_projection_rewrite
+   BEFORE UPDATE ON e12a6_lifecycle_event_projection
+   BEGIN SELECT RAISE(ABORT,'unexpected full projection backfill'); END
+  """)
+  self.m.close()
+  self.m=ZPCMMemory(self.path)
+  found=self.m.db.execute(
+   "SELECT candidate_id,candidate_version FROM e12a6_lifecycle_event_projection WHERE event_id=?",
+   ("candidate:legacy@1",)).fetchone()
+  self.assertEqual(tuple(found),("legacy",1))
+
  def test_generic_domain_events_share_the_authoritative_event_log(self):
   first=self.m.append_domain_event(event_type="m2_cognition",event_id="m2:obs:1",
       scope="project",payload={"kind":"observation","record_id":"obs-1"},expected_sequence=0)
@@ -373,5 +394,47 @@ class Tests(unittest.TestCase):
       "SELECT high_water_seq,checkpoint_digest FROM e12a6_authorization_projection_checkpoint WHERE singleton=1"
   ).fetchone()
   self.assertEqual(tuple(after),tuple(before))
+
+ def test_candidate_history_projection_indexes_action_ownership_and_streams_verified_events(self):
+  self.m.append_lifecycle_events(scope="scope-a",expected_sequence=0,events=[
+   {"event_id":"candidate:rule@1","payload":{"kind":"candidate_registered","body":{"candidate":{"candidate_id":"rule","version":1}}}},
+   {"event_id":"action:propose","payload":{"kind":"action_applied","body":{"action":{"action_id":"propose","candidate_id":"rule","candidate_version":1}}}},
+   {"event_id":"action:confirm","payload":{"kind":"action_applied","body":{"action":{"action_id":"confirm","candidate_id":"rule","candidate_version":1}}}},
+   {"event_id":"candidate:rule@2","payload":{"kind":"revision_created","body":{"arguments":{"candidate_id":"rule","version":1},"candidate":{"candidate_id":"rule","version":2}}}},
+  ])
+  rows=self.m.db.execute(
+   "SELECT kind,entity_id,candidate_id,candidate_version,action_id FROM e12a6_lifecycle_event_projection WHERE scope=? ORDER BY seq",
+   ("scope-a",),
+  ).fetchall()
+  self.assertEqual([(r["kind"],r["candidate_id"],r["candidate_version"]) for r in rows],[
+   ("candidate_registered","rule",1),("action_applied","rule",1),
+   ("action_applied","rule",1),("revision_created","rule",2)])
+  self.assertEqual([r["action_id"] for r in rows[1:3]],["propose","confirm"])
+  history=list(self.m.iter_lifecycle_candidate_history(
+   scope="scope-a",candidate_id="rule",candidate_version=1,page_size=1))
+  self.assertEqual([e["event_id"] for e in history],[
+   "candidate:rule@1","action:propose","action:confirm"])
+  revision=list(self.m.iter_lifecycle_candidate_history(
+   scope="scope-a",candidate_id="rule",candidate_version=2))
+  self.assertEqual([e["event_id"] for e in revision],["candidate:rule@2"])
+  plan=self.m.db.execute(
+   "EXPLAIN QUERY PLAN SELECT event_id FROM e12a6_lifecycle_event_projection "
+   "WHERE scope=? AND candidate_id=? AND candidate_version=? AND seq>? ORDER BY seq LIMIT ?",
+   ("scope-a","rule",1,0,10),
+  ).fetchall()
+  self.assertIn("e12a6_lifecycle_candidate_version_history",
+   " ".join(row["detail"] for row in plan))
+
+ def test_candidate_history_projection_backfills_typed_ownership(self):
+  self.m._append("legacy:action","e12a6_lifecycle","scope-a",{
+   "kind":"action_applied","body":{"action":{"action_id":"legacy-action",
+    "candidate_id":"legacy-rule","candidate_version":3}}})
+  self.m.close()
+  self.m=ZPCMMemory(self.path)
+  row=self.m.db.execute(
+   "SELECT candidate_id,candidate_version,action_id FROM e12a6_lifecycle_event_projection "
+   "WHERE event_id='legacy:action'"
+  ).fetchone()
+  self.assertEqual(tuple(row),("legacy-rule",3,"legacy-action"))
 
 if __name__=="__main__":unittest.main()

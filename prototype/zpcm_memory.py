@@ -117,6 +117,70 @@ class ZPCMMemory:
             event_id,payload_digest
         FROM memory_events WHERE event_type='e12a6_lifecycle';
         """)
+        # Add typed ownership columns without changing the authoritative event log.
+        projection_columns = {
+            row["name"] for row in self.db.execute(
+                "PRAGMA table_info(e12a6_lifecycle_event_projection)"
+            )
+        }
+        typed_projection_migration_needed = any(
+            column not in projection_columns
+            for column in ("candidate_id", "candidate_version", "action_id", "evidence_id")
+        )
+        for column, declaration in (
+            ("candidate_id", "TEXT"),
+            ("candidate_version", "INTEGER"),
+            ("action_id", "TEXT"),
+            ("evidence_id", "TEXT"),
+        ):
+            if column not in projection_columns:
+                self.db.execute(
+                    f"ALTER TABLE e12a6_lifecycle_event_projection ADD COLUMN {column} {declaration}"
+                )
+        if typed_projection_migration_needed:
+            self.db.execute(
+                "UPDATE e12a6_lifecycle_event_projection SET "
+                "candidate_id=COALESCE("
+                "json_extract((SELECT payload_json FROM memory_events WHERE event_id=e12a6_lifecycle_event_projection.event_id),'$.body.candidate.candidate_id'),"
+                "json_extract((SELECT payload_json FROM memory_events WHERE event_id=e12a6_lifecycle_event_projection.event_id),'$.body.arguments.candidate_id'),"
+                "json_extract((SELECT payload_json FROM memory_events WHERE event_id=e12a6_lifecycle_event_projection.event_id),'$.body.action.candidate_id'),"
+                "json_extract((SELECT payload_json FROM memory_events WHERE event_id=e12a6_lifecycle_event_projection.event_id),'$.body.candidate_id')),"
+                "candidate_version=COALESCE("
+                "json_extract((SELECT payload_json FROM memory_events WHERE event_id=e12a6_lifecycle_event_projection.event_id),'$.body.candidate.version'),"
+                "json_extract((SELECT payload_json FROM memory_events WHERE event_id=e12a6_lifecycle_event_projection.event_id),'$.body.action.candidate_version'),"
+                "json_extract((SELECT payload_json FROM memory_events WHERE event_id=e12a6_lifecycle_event_projection.event_id),'$.body.candidate_version'),"
+                "CASE WHEN kind='revision_created' THEN "
+                "json_extract((SELECT payload_json FROM memory_events WHERE event_id=e12a6_lifecycle_event_projection.event_id),'$.body.arguments.version')+1 END),"
+                "action_id=json_extract((SELECT payload_json FROM memory_events WHERE event_id=e12a6_lifecycle_event_projection.event_id),'$.body.action.action_id'),"
+                "evidence_id=json_extract((SELECT payload_json FROM memory_events WHERE event_id=e12a6_lifecycle_event_projection.event_id),'$.body.evidence.evidence_id')"
+            )
+            self.db.executescript("""
+        CREATE INDEX IF NOT EXISTS e12a6_lifecycle_candidate_version_history
+            ON e12a6_lifecycle_event_projection(scope,candidate_id,candidate_version,seq);
+        CREATE INDEX IF NOT EXISTS e12a6_lifecycle_action_lookup
+            ON e12a6_lifecycle_event_projection(scope,action_id);
+        CREATE INDEX IF NOT EXISTS e12a6_lifecycle_evidence_lookup
+            ON e12a6_lifecycle_event_projection(scope,evidence_id);
+        CREATE TRIGGER IF NOT EXISTS e12a6_lifecycle_typed_projection_insert
+        AFTER INSERT ON e12a6_lifecycle_event_projection
+        BEGIN
+            UPDATE e12a6_lifecycle_event_projection SET
+                candidate_id=COALESCE(
+                    json_extract((SELECT payload_json FROM memory_events WHERE event_id=NEW.event_id),'$.body.candidate.candidate_id'),
+                    json_extract((SELECT payload_json FROM memory_events WHERE event_id=NEW.event_id),'$.body.arguments.candidate_id'),
+                    json_extract((SELECT payload_json FROM memory_events WHERE event_id=NEW.event_id),'$.body.action.candidate_id'),
+                    json_extract((SELECT payload_json FROM memory_events WHERE event_id=NEW.event_id),'$.body.candidate_id')),
+                candidate_version=COALESCE(
+                    json_extract((SELECT payload_json FROM memory_events WHERE event_id=NEW.event_id),'$.body.candidate.version'),
+                    json_extract((SELECT payload_json FROM memory_events WHERE event_id=NEW.event_id),'$.body.action.candidate_version'),
+                    json_extract((SELECT payload_json FROM memory_events WHERE event_id=NEW.event_id),'$.body.candidate_version'),
+                    CASE WHEN NEW.kind='revision_created' THEN
+                        json_extract((SELECT payload_json FROM memory_events WHERE event_id=NEW.event_id),'$.body.arguments.version')+1 END),
+                action_id=json_extract((SELECT payload_json FROM memory_events WHERE event_id=NEW.event_id),'$.body.action.action_id'),
+                evidence_id=json_extract((SELECT payload_json FROM memory_events WHERE event_id=NEW.event_id),'$.body.evidence.evidence_id')
+            WHERE seq=NEW.seq;
+        END;
+        """)
         checkpoint_columns = {
             row["name"] for row in self.db.execute(
                 "PRAGMA table_info(e12a6_authorization_projection_checkpoint)"
@@ -534,6 +598,49 @@ class ZPCMMemory:
             for row in rows:
                 cursor = int(row["seq"])
                 yield dict(row)
+
+    def iter_lifecycle_candidate_history(
+        self, *, scope: str, candidate_id: str, candidate_version: int | None = None,
+        after_sequence: int = 0, page_size: int = 128,
+    ) -> Iterator[dict[str, Any]]:
+        """Yield digest-verified candidate lifecycle events in bounded keyset pages."""
+        if not isinstance(scope, str) or not scope.strip():
+            raise ZPCMError("scope must be non-empty")
+        if not isinstance(candidate_id, str) or not candidate_id.strip():
+            raise ZPCMError("candidate_id must be non-empty")
+        if candidate_version is not None and (
+            isinstance(candidate_version, bool) or not isinstance(candidate_version, int)
+            or candidate_version < 1
+        ):
+            raise ZPCMError("candidate_version must be a positive integer")
+        if isinstance(after_sequence, bool) or not isinstance(after_sequence, int) or after_sequence < 0:
+            raise ZPCMError("after_sequence must be a non-negative integer")
+        if isinstance(page_size, bool) or not isinstance(page_size, int) or not 1 <= page_size <= 4096:
+            raise ZPCMError("page_size must be an integer in [1, 4096]")
+        cursor = after_sequence
+        while True:
+            query = (
+                "SELECT seq,event_id FROM e12a6_lifecycle_event_projection "
+                "WHERE scope=? AND candidate_id=? AND seq>?"
+            )
+            params: list[Any] = [scope, candidate_id, cursor]
+            if candidate_version is not None:
+                query += " AND candidate_version=?"
+                params.append(candidate_version)
+            query += " ORDER BY seq LIMIT ?"
+            params.append(page_size)
+            with self.lock:
+                rows = self.db.execute(query, params).fetchall()
+            if not rows:
+                return
+            for row in rows:
+                event = self.get_domain_event(
+                    event_type="e12a6_lifecycle", scope=scope, event_id=row["event_id"],
+                )
+                if event is None or int(event["sequence"]) != int(row["seq"]):
+                    raise ZPCMError("candidate history projection points to a missing or mismatched event")
+                cursor = int(row["seq"])
+                yield event
 
     def iter_domain_events_reverse(
         self, *, event_type: str, scope: str, before_sequence: int | None = None,
