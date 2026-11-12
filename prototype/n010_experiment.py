@@ -49,11 +49,16 @@ def load_dataset(path: str | Path, roles: Sequence[RoleSpec], feature_dim: int):
             continue
         try:
             item = json.loads(line)
-            if not isinstance(item, dict) or set(item) != {
+            if not isinstance(item, dict) or not {
                 "id", "split", "nodes", "target_ids"
+            }.issubset(item) or set(item) - {
+                "id", "split", "nodes", "target_ids", "rule_family"
             }:
                 raise ValueError("record fields do not match schema")
             example_id, split = item["id"], item["split"]
+            rule_family = item.get("rule_family", "unspecified")
+            if not isinstance(rule_family, str) or not rule_family.strip():
+                raise ValueError("rule_family must be a non-empty string")
             if not isinstance(example_id, str) or not example_id.strip() or example_id in seen:
                 raise ValueError("example IDs must be unique non-empty strings")
             if split not in ("train", "dev", "locked_test"):
@@ -75,7 +80,7 @@ def load_dataset(path: str | Path, roles: Sequence[RoleSpec], feature_dim: int):
             if any(not pool for pool in pools):
                 raise ValueError("every role requires at least one compatible candidate")
             rows.append({
-                "id": example_id, "split": split, "nodes": nodes,
+                "id": example_id, "split": split, "rule_family": rule_family, "nodes": nodes,
                 "target_ids": tuple(item["target_ids"]), "pools": pools,
             })
             seen.add(example_id)
@@ -93,6 +98,10 @@ def load_dataset(path: str | Path, roles: Sequence[RoleSpec], feature_dim: int):
         "schema": DATASET_SCHEMA, "sha256": digest, "records": len(rows),
         "split_ids": {name: [row["id"] for row in group]
                       for name, group in splits.items()},
+        "rule_families_by_split": {
+            name: sorted({row["rule_family"] for row in group})
+            for name, group in splits.items()
+        },
         "feature_dim": feature_dim,
         "roles": [{"name": r.name, "allowed_types": sorted(r.allowed_types),
                    "required_tags": sorted(r.required_tags)} for r in roles],
@@ -136,10 +145,15 @@ def run_experiment(dataset_path: str | Path, roles: Sequence[RoleSpec], feature_
     if isinstance(epochs, bool) or not isinstance(epochs, int) or epochs < 1:
         raise LearnableSROKError("epochs must be a positive integer")
     splits, dataset_manifest = load_dataset(dataset_path, roles, feature_dim)
+    if isinstance(seed, bool) or not isinstance(seed, int) or seed < 0:
+        raise LearnableSROKError("seed must be a non-negative integer")
+    if not isinstance(git_sha, str) or not git_sha.strip():
+        raise LearnableSROKError("git_sha must be a non-empty string")
     config = {
         "epochs": epochs, "learning_rate": learning_rate, "l2": l2,
         "max_assignments_per_example": max_assignments_per_example,
         "max_expansions": max_expansions, "seed": seed, "git_sha": git_sha,
+        "seed_semantics": "recorded_only_no_stochastic_operations",
     }
     output = Path(output_path)
     history = []
