@@ -204,8 +204,12 @@ class PersistentM2ObservationStore:
                     payload=payload,
                     expected_sequence=self._last_sequence,
                 )
-            except ZPCMError:
-                raise
+            except ZPCMError as exc:
+                if "event ID content conflict" in str(exc):
+                    raise ObservationStoreError(
+                        "observation record_id is immutable; create a new revision ID"
+                    ) from exc
+                raise ObservationStoreError(f"ZPCM append failed: {exc}") from exc
             receipt = ObservationReceipt(
                 event_id=event_id,
                 sequence=raw["sequence"],
