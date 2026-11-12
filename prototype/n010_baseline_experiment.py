@@ -176,6 +176,10 @@ def run_comparison(dataset_path: str | Path, roles: Sequence[RoleSpec],
             "parameter_target": target_params,
         },
         "models": reports,
+        "parameter_accounting_policy": {
+            "matched_trainable_group": ["learnable_xiang", "parameter_matched_mlp", "parameter_matched_low_rank_tensor"],
+            "frozen_feature_control": "fixed_random_xiang has the same total stored parameter count as learnable Xiang but only its readout is trainable; it is intentionally not trainable-parameter matched",
+        },
         "locked_test_policy": "locked labels evaluated after all models are fitted; do not tune on this report",
     }
     path = Path(output_path)
