@@ -1,6 +1,6 @@
 """Mixed-operator relational corpus for CPG-EI.
 
-Forty independent teachers each define eight output rules over all 8-bit states.
+Four hundred independent teachers each define eight output rules over all 8-bit states.
 The corpus is synthetic and deterministic; it is a benchmark fixture, not evidence
 of natural-language or classical-analogy reasoning.
 """
