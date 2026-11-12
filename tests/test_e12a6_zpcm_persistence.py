@@ -167,6 +167,28 @@ class PersistentLifecycleTests(unittest.TestCase):
         self.assertEqual(len(created_states), 1)
         self.assertFalse(Path(created_states[0].path).exists())
 
+    def test_scratch_mutation_failure_replays_durable_event_atomically(self):
+        original_ledger = self.store._ledger
+        with patch.object(original_ledger, "add_candidate", side_effect=RuntimeError("scratch write failed")):
+            receipt = self.store.register_candidate(candidate())
+        self.assertEqual(receipt.sequence, 1)
+        self.assertEqual(
+            self.store.ledger.candidates[("rel:greater-than", 1)].state,
+            CandidateState.OBSERVED,
+        )
+        self.assertIsNot(self.store._ledger, original_ledger)
+        self.assertEqual(self.store._last_sequence, 1)
+
+    def test_bundle_scratch_mutation_failure_replays_all_durable_events(self):
+        original_ledger = self.store._ledger
+        with patch.object(original_ledger, "add_candidate", side_effect=RuntimeError("scratch write failed")):
+            bundle = self.store.register_candidate_bundle(candidate(), (evidence(),))
+        self.assertFalse(bundle.replayed)
+        self.assertIn("train-1", self.store.ledger.evidence)
+        self.assertIn(("rel:greater-than", 1), self.store.ledger.candidates)
+        self.assertEqual(self.store._last_sequence, 2)
+        self.assertIsNot(self.store._ledger, original_ledger)
+
     def test_append_failure_does_not_mutate_in_memory_ledger(self):
         self.store.register_candidate(candidate()); before=self.store.snapshot(); original=self.memory.append_lifecycle_event
         self.memory.append_lifecycle_event=lambda **kwargs: (_ for _ in ()).throw(ZPCMError("disk failure"))
