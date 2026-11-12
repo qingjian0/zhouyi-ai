@@ -2,9 +2,9 @@ name: tests
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'research/cpg-ei-learnable-gates-v3-2026-11-12']
   pull_request:
-    branches: [main]
+    branches: [main, 'train/cpg-ei-mvp-2026-11-12']
 
 jobs:
   unit-tests:
@@ -34,3 +34,7 @@ jobs:
         run: python -m prototype.e02_rule_ood --seed 17 --support-size 6 --json
       - name: Run E02-D multi-seed support identifiability sweep
         run: python -m prototype.e02_rule_ood --sweep --seeds 100 --start-seed 100 --json
+      - name: Run CPG-EI trainable MVP smoke test
+        run: python -m prototype.cpg_ei_mvp --seed 7 --train-samples 1024 --test-samples 256 --epochs 120 --json
+      - name: Run CPG-EI MVP unit tests
+        run: python -m unittest tests.test_cpg_ei_mvp -v
