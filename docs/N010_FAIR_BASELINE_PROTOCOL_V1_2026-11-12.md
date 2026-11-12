@@ -78,3 +78,13 @@ Do not promote Xiang as the default representation unless it:
 - reproduces from a content-addressed dataset, config and checkpoint.
 
 A failure to transfer is still a useful result: retain the operator as an experimental representation and inspect which order/role interactions are identifiable. Do not tune on locked-test examples.
+
+
+## Implemented reference baselines
+
+`prototype/n010_baselines.py` now contains:
+- `ParameterMatchedMLP`: one hidden tanh layer over concatenated role features, trained with deterministic full-batch BCE gradients.
+- `ParameterMatchedLowRankTensor`: CP-style rank-K multiplicative interaction over role-specific linear projections, trained with deterministic full-batch BCE gradients.
+- exact parameter-count functions and integer width/rank selection under a declared relative tolerance.
+
+The reference test suite checks the 96/99/97 parameter example, deterministic training, finite probabilities and epoch-update equivalence. These implementations are not yet wired into the experiment runner, and passing unit tests do not constitute benchmark evidence. The Xiang fixed-random basis must be reported with both total stored parameters and trainable parameter count; its basis is frozen while the readout remains trainable.
