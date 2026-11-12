@@ -519,6 +519,14 @@ class LearnableSROK:
             return Prediction(
                 (), True, "NO_VALID_ASSIGNMENT", expanded, exhausted, sizes
             )
+        # A truncated search cannot establish that the returned candidate is
+        # globally best. Preserve partial candidates for inspection, but never
+        # report an incomplete search as accepted.
+        if exhausted:
+            return Prediction(
+                structures, True, "SEARCH_BUDGET_EXHAUSTED",
+                expanded, True, sizes,
+            )
         # Compute confidence from the actual top two found assignments before
         # applying result_limit; result_limit=1 must not disable abstention.
         margin = (
