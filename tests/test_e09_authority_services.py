@@ -242,6 +242,10 @@ class E09AuthorityServiceTests(unittest.TestCase):
         )
         self.assertEqual(verified.authorization_ref, "grant-receipt")
         self.assertEqual(verified.evidence[0].outcome, f"opaque-e09-evidence-ref:{reveal_ref}")
+        self.assertEqual(verified.evidence[0].domain_id, "domain:authority")
+        self.assertEqual(verified.evidence[0].domain_registry_id, "registry:authority")
+        self.assertEqual(verified.evidence[0].domain_registry_version, "v1")
+        self.assertEqual(receipt["schema_version"], "e09_verification_receipt@2")
         self.assertNotIn("target_or_feedback", receipt["evidence"][0])
 
     def test_verifier_rejects_caller_supplied_world_family_override(self):
