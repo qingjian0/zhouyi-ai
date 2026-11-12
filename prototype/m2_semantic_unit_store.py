@@ -497,6 +497,10 @@ class PersistentM2SemanticUnitStore:
         if (record_digest(candidate) != metadata["record_digest"]
                 or event["payload_digest"] != metadata["payload_digest"]):
             raise SemanticUnitStoreError("candidate projection does not match authoritative event")
+        # A valid projection checkpoint proves prior log replay, not that external
+        # M1 evidence has remained unchanged since that replay. Re-verify source
+        # references whenever a candidate body is materialized for a caller.
+        self._verify_candidate(candidate)
         return candidate
 
     @property

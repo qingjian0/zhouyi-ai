@@ -233,8 +233,13 @@ class PersistentM2SemanticUnitStoreTests(unittest.TestCase):
                        (b"tampered", self.reference.chunk_id))
         self.memory.close()
         self.memory = ZPCMMemory(self.memory_db)
+        restored = PersistentM2SemanticUnitStore(
+            self.memory, self.resolver, scope="project-a"
+        )
+        # Startup may trust the valid derived projection checkpoint; the first
+        # materialization of the candidate must still re-resolve immutable M1 bytes.
         with self.assertRaises(EvidenceResolutionError):
-            PersistentM2SemanticUnitStore(self.memory, self.resolver, scope="project-a")
+            _ = restored.candidates
 
 
 if __name__ == "__main__":
