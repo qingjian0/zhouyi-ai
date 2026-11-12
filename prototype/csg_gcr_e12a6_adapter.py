@@ -67,6 +67,10 @@ def adapt_typed_candidate(
         raise ValueError("version must be a positive integer")
 
     candidate = coordinated.coordinated
+    if coordinated.semantic_status == "HYPOTHESIS_ONLY" or any(
+        "HYPOTHESIS_ONLY" in kind.upper() for kind in candidate.candidate_kinds
+    ):
+        raise ValueError("hypothesis-only candidates cannot be projected as OBSERVED")
     unified = coordinated.unification
     if candidate.parent_state_ref != unified.parent_state_ref:
         raise ValueError("coordinator and unifier parent state references differ")
