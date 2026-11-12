@@ -1,8 +1,15 @@
-import tempfile,unittest
+import ast,tempfile,unittest
 from pathlib import Path
 from prototype.zpcm_memory import ZPCMError,ZPCMMemory,canonical
 from prototype.shared_evidence_protocol import SQLiteEvidenceStore
 class Tests(unittest.TestCase):
+ def test_zpcm_method_names_are_unique(self):
+  source=Path(__file__).parents[1]/"prototype"/"zpcm_memory.py"
+  tree=ast.parse(source.read_text(encoding="utf-8"))
+  cls=next(node for node in tree.body if isinstance(node,ast.ClassDef) and node.name=="ZPCMMemory")
+  names=[node.name for node in cls.body if isinstance(node,(ast.FunctionDef,ast.AsyncFunctionDef))]
+  self.assertEqual(len(names),len(set(names)), "duplicate ZPCMMemory method definitions shadow earlier implementations")
+
  def setUp(self):
   self.tmp=tempfile.TemporaryDirectory();self.path=Path(self.tmp.name)/"m.db";self.m=ZPCMMemory(self.path)
  def tearDown(self):self.m.close();self.tmp.cleanup()
