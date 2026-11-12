@@ -31,6 +31,9 @@ and coordination bridge, not a semantic truth validator.
   they are not observational evidence and do not increase evidence strength.
 - Candidate scores are ranking utilities only, never probabilities or truth.
 - A bounded search may truncate recall. Budget exhaustion must remain visible.
+- The E12-A6 read-only projection adapter rejects any candidate kind containing
+  `HYPOTHESIS_ONLY`; a Yixiang hypothesis cannot be projected as an `OBSERVED`
+  candidate. A regression test enforces this boundary.
 - This bridge does not infer relations from raw natural language, ground
   observations, establish semantic equivalence, or prove causality.
 
