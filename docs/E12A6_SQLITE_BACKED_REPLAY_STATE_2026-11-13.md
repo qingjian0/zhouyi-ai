@@ -17,16 +17,22 @@ membership use disk-backed collections with bounded 128-row iteration.
   and is not used as an authority source.
 - PersistentLifecycleLedger.ledger and snapshot() are explicit full
   materialization boundaries.
+- Every scratch-state mutation is wrapped in a SQLite write transaction. If a
+  mutation fails after the authoritative event append, the adapter rebuilds
+  scratch state from the event log; if rebuilding fails, it fails closed.
+- Multi-event candidate/evidence bundle application uses the same transaction
+  and recovery boundary, so a partial bundle is never exposed as current state.
 - PersistentLifecycleLedger.close() removes the temporary database
   deterministically; context-manager exit also closes it. A finalizer remains
   as a fallback for abandoned instances.
 
 ## Exact-head validation
 
-- Runtime HEAD: `00ba6a48fad8967afc2af7367a992a9e78c82e05`.
-- Full validation: [workflow #43264128911](https://github.com/qingjian0/zhouyi-ai/actions/runs/43264128911), success.
-- RSS sweep: [workflow #43264128876](https://github.com/qingjian0/zhouyi-ai/actions/runs/43264128876), success.
-- Artifact: `e12a6-restore-rss-00ba6a48fad8967afc2af7367a992a9e78c82e05`.
+- Current runtime HEAD: `16784d50ad0f310f0768c87a4cb094c5a15bbc8f`.
+- Earlier full validation before transaction/recovery changes: [workflow #43264128911](https://github.com/qingjian0/zhouyi-ai/actions/runs/43264128911), success.
+- Earlier RSS sweep: [workflow #43264128876](https://github.com/qingjian0/zhouyi-ai/actions/runs/43264128876), success.
+- Current exact-head full validation: [workflow #43266082592](https://github.com/qingjian0/zhouyi-ai/actions/runs/43266082592), running.
+- Current exact-head RSS sweep: [workflow #43266082577](https://github.com/qingjian0/zhouyi-ai/actions/runs/43266082577), running.
 
 ## Measured restore RSS
 
@@ -53,13 +59,12 @@ is bounded in-process replay-state memory, not bounded storage consumption.
 
 ### Measurement caveat
 
-For the 100K and 500K rows, the reported post-restore `/proc/self/status`
-VmRSS is slightly higher than the `resource.getrusage().ru_maxrss` value
-reported by the same child process. Since a high-water RSS counter should not
-be below a contemporaneous RSS sample, the peak-counter field needs an
-instrumentation audit. The post-restore VmRSS values and complete replay
-counts remain directly reported by the artifact; do not use the peak field
-as an acceptance metric until reconciled.
+The table above is historical output from the earlier benchmark revision.
+That revision mixed `/proc/self/status` VmRSS with `resource.getrusage()` peak
+RSS and exposed an accounting discrepancy. The current benchmark reads both
+current RSS (`VmRSS`) and high-water RSS (`VmHWM`) from `/proc/self/status`.
+The new exact-head sweep is pending; the historical table must not be treated
+as the result of the current instrumentation.
 
 ## Remaining acceptance gates
 
@@ -67,8 +72,7 @@ as an acceptance metric until reconciled.
 - Add disk-full and scratch-database initialization-failure cleanup tests.
 - Exercise process termination and concurrent-adapter stress.
 - Confirm scratch-file cleanup on normal close and all failure paths.
-- Audit the `ru_maxrss` versus `VmRSS` discrepancy and use a consistent
-  process/cgroup measurement source.
+- Re-run and publish the VmRSS/VmHWM-consistent RSS sweep.
 - Continue to keep explicit `ledger`/ `snapshot()` materialization outside
   bounded-memory claims.
 
