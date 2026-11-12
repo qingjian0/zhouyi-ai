@@ -265,11 +265,14 @@ class LearnableSROKTests(unittest.TestCase):
         # or real-world generalization claim.
         seeds = (11, 23, 47, 89, 131)
         pool_sizes = (3, 5, 8)
-        beam_widths = (1, 2, 4, 8)
+        beam_widths = (1, 2, 4, 8, 16, 32, 64, 128, 256, 512)
         recalls = []
         top1_hits = []
         expansion_ratios = []
         abstentions = 0
+        complete_searches = 0
+        complete_recalls = []
+        complete_top1_hits = []
         comparisons = 0
 
         for seed in seeds:
@@ -335,6 +338,20 @@ class LearnableSROKTests(unittest.TestCase):
                         [item.role_bindings for item in beam.candidates],
                         [item.role_bindings for item in reversed_beam.candidates],
                     )
+                    if beam_width >= pool_size ** 3:
+                        # A width at least as large as the complete product
+                        # retains every prefix and must match exact ranking.
+                        self.assertFalse(beam.abstained)
+                        self.assertEqual(beam.reason, "LOW_SCORE_MARGIN" if exact.abstained else None)
+                        self.assertEqual(
+                            [item.role_bindings for item in beam.candidates],
+                            [item.role_bindings for item in exact.candidates],
+                        )
+                        self.assertEqual(recall, 1.0)
+                        self.assertEqual(top1, 1)
+                        complete_searches += 1
+                        complete_recalls.append(recall)
+                        complete_top1_hits.append(top1)
 
                     recalls.append(recall)
                     top1_hits.append(top1)
@@ -354,9 +371,13 @@ class LearnableSROKTests(unittest.TestCase):
             f"recall_at_5={mean_recall:.4f} "
             f"top1_hit={mean_top1:.4f} "
             f"expansion_ratio={mean_expansion_ratio:.4f} "
-            f"abstention_rate={abstention_rate:.4f}"
+            f"abstention_rate={abstention_rate:.4f} "
+            f"complete_search_rate={complete_searches / comparisons:.4f} "
+            f"complete_recall_at_5={(sum(complete_recalls) / len(complete_recalls)) if complete_recalls else 0.0:.4f} "
+            f"complete_top1_hit={(sum(complete_top1_hits) / len(complete_top1_hits)) if complete_top1_hits else 0.0:.4f}"
         )
-        self.assertEqual(comparisons, 60)
+        self.assertEqual(comparisons, 150)
+        self.assertEqual(complete_searches, 45)
 
     def test_beam_search_is_deterministic_under_input_permutation(self):
         model = LearnableSROK(self.roles, feature_dim=3)
