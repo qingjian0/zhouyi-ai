@@ -12,7 +12,7 @@ class CpgEiSelectionSweepTests(unittest.TestCase):
                 self.assertFalse(sets[i] & sets[j])
 
     def test_small_multifamily_sweep_reports_separate_metrics(self):
-        report = run_sweep(seeds=(11,), epochs=2, max_motifs=1)
+        report = run_sweep(seeds=(11,), epochs=2, oracle_epochs=2, max_motifs=1)
         self.assertEqual(len(report['records']), 2 * len(RULE_FAMILIES))
         self.assertEqual(set(report['aggregate_by_protocol_and_budget']), {'proposal_split@2', 'legacy_train_ranked@2'})
         self.assertEqual(report['aggregate_by_protocol_and_budget']['proposal_split@2']['experiments'], 3)
