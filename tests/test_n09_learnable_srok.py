@@ -401,5 +401,163 @@ class LearnableSROKTests(unittest.TestCase):
         )
 
 
+    def test_seeded_feature_noise_search_robustness(self):
+        # Separate two effects:
+        # 1) exact-ranking stability under perturbed input features;
+        # 2) beam retrieval quality relative to exact search on the same
+        #    perturbed inputs. This does not treat exact as semantic ground truth.
+        seeds = tuple(range(11, 36))
+        pool_sizes = (3, 5, 8)
+        noise_levels = (0.0, 0.1, 0.25, 0.5, 1.0)
+        beam_widths = (2, 8, 32, 128, 512)
+        comparisons = 0
+        complete_searches = 0
+        exact_top1_stability = {sigma: [] for sigma in noise_levels}
+        beam_recalls = []
+        beam_top1_hits = []
+        beam_expansion_ratios = []
+        beam_abstentions = 0
+        complete_recalls = []
+        complete_top1_hits = []
+
+        for seed in seeds:
+            weight_rng = random.Random(seed)
+            for pool_size in pool_sizes:
+                model = LearnableSROK(self.roles, feature_dim=2)
+                model.weights = [
+                    weight_rng.uniform(-0.8, 0.8) for _ in model.weights
+                ]
+                clean_nodes = []
+                for role in ("r0", "r1", "r2"):
+                    for index in range(pool_size):
+                        features = (
+                            weight_rng.gauss(0.0, 1.0),
+                            weight_rng.gauss(0.0, 1.0),
+                        )
+                        clean_nodes.append(Node(
+                            f"{role}-{index}", role, features,
+                            frozenset({"eligible"}),
+                        ))
+
+                exact_clean = model.predict(
+                    clean_nodes, retrieval_mode="joint",
+                    search_strategy="product",
+                    max_expansions=pool_size ** 3, result_limit=5,
+                )
+                self.assertTrue(exact_clean.candidates)
+                clean_top1 = exact_clean.candidates[0].role_bindings
+
+                for sigma in noise_levels:
+                    noise_rng = random.Random(
+                        seed * 1_000_003 + pool_size * 10_007
+                        + int(sigma * 1_000)
+                    )
+                    noisy_nodes = [
+                        Node(
+                            node.node_id,
+                            node.node_type,
+                            tuple(
+                                value + noise_rng.gauss(0.0, sigma)
+                                for value in node.features
+                            ),
+                            node.tags,
+                            node.evidence_ids,
+                        )
+                        for node in clean_nodes
+                    ]
+                    exact_noisy = model.predict(
+                        noisy_nodes, retrieval_mode="joint",
+                        search_strategy="product",
+                        max_expansions=pool_size ** 3, result_limit=5,
+                    )
+                    self.assertTrue(exact_noisy.candidates)
+                    exact_top_k = {
+                        candidate.role_bindings
+                        for candidate in exact_noisy.candidates
+                    }
+                    exact_top1 = exact_noisy.candidates[0].role_bindings
+                    stability = int(exact_top1 == clean_top1)
+                    exact_top1_stability[sigma].append(stability)
+
+                    for beam_width in beam_widths:
+                        beam = model.predict(
+                            noisy_nodes, retrieval_mode="joint",
+                            search_strategy="beam", beam_width=beam_width,
+                            max_expansions=10_000, result_limit=5,
+                        )
+                        reversed_beam = model.predict(
+                            list(reversed(noisy_nodes)), retrieval_mode="joint",
+                            search_strategy="beam", beam_width=beam_width,
+                            max_expansions=10_000, result_limit=5,
+                        )
+                        beam_top_k = {
+                            candidate.role_bindings
+                            for candidate in beam.candidates
+                        }
+                        recall = (
+                            len(exact_top_k & beam_top_k) / len(exact_top_k)
+                        )
+                        top1 = int(
+                            bool(beam.candidates)
+                            and beam.candidates[0].role_bindings == exact_top1
+                        )
+                        self.assertGreaterEqual(recall, 0.0)
+                        self.assertLessEqual(recall, 1.0)
+                        self.assertEqual(beam.reason, reversed_beam.reason)
+                        self.assertEqual(
+                            beam.expanded_search_states,
+                            reversed_beam.expanded_search_states,
+                        )
+                        self.assertEqual(
+                            [item.role_bindings for item in beam.candidates],
+                            [item.role_bindings for item in reversed_beam.candidates],
+                        )
+                        self.assertLessEqual(beam.expanded_search_states, 10_000)
+
+                        if beam_width >= pool_size ** 3:
+                            self.assertEqual(beam.abstained, exact_noisy.abstained)
+                            self.assertEqual(beam.reason, exact_noisy.reason)
+                            self.assertEqual(
+                                [item.role_bindings for item in beam.candidates],
+                                [item.role_bindings for item in exact_noisy.candidates],
+                            )
+                            self.assertEqual(recall, 1.0)
+                            self.assertEqual(top1, 1)
+                            complete_searches += 1
+                            complete_recalls.append(recall)
+                            complete_top1_hits.append(top1)
+
+                        beam_recalls.append(recall)
+                        beam_top1_hits.append(top1)
+                        beam_expansion_ratios.append(
+                            beam.expanded_search_states
+                            / exact_noisy.expanded_search_states
+                        )
+                        beam_abstentions += int(beam.abstained)
+                        comparisons += 1
+
+        stability_summary = {
+            str(sigma): sum(values) / len(values)
+            for sigma, values in exact_top1_stability.items()
+        }
+        print(
+            "CPG_EI_FEATURE_NOISE_SWEEP "
+            f"comparisons={comparisons} "
+            f"noise_levels={stability_summary} "
+            f"beam_recall_at_5={sum(beam_recalls) / comparisons:.4f} "
+            f"beam_top1_hit={sum(beam_top1_hits) / comparisons:.4f} "
+            f"beam_expansion_ratio={sum(beam_expansion_ratios) / comparisons:.4f} "
+            f"beam_abstention_rate={beam_abstentions / comparisons:.4f} "
+            f"complete_search_rate={complete_searches / comparisons:.4f} "
+            f"complete_recall_at_5={sum(complete_recalls) / len(complete_recalls):.4f} "
+            f"complete_top1_hit={sum(complete_top1_hits) / len(complete_top1_hits):.4f}"
+        )
+        self.assertEqual(comparisons, 1875)
+        self.assertEqual(complete_searches, 750)
+        self.assertEqual(exact_top1_stability[0.0], [1] * 75)
+        self.assertTrue(all(value == 1.0 for value in complete_recalls))
+        self.assertTrue(all(value == 1 for value in complete_top1_hits))
+
+
 if __name__ == "__main__":
     unittest.main()
