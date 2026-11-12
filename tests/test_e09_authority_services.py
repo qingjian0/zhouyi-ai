@@ -71,9 +71,13 @@ class _DomainRegistry:
 
 class _LearnerBindingRegistry:
     def resolve(self, *, episode_id, scope, learner_track):
-        if learner_track != "learner-a":
+        assignments = {
+            "learner-a": "spiffe://zhouyi/learner",
+            "learner-b": "spiffe://zhouyi/learner-b",
+        }
+        if learner_track not in assignments:
             raise ValueError("unassigned learner track")
-        return "spiffe://zhouyi/learner"
+        return assignments[learner_track]
 
 
 def _identity(workload_id, issuer_id, roles, scopes):
@@ -110,6 +114,8 @@ class E09AuthorityServiceTests(unittest.TestCase):
                                           {"authorizer"}, {self.scope}),
             "learner-cert": _identity("spiffe://zhouyi/learner", "issuer-learner",
                                        {"learner"}, {self.scope}),
+            "learner-b-cert": _identity("spiffe://zhouyi/learner-b", "issuer-learner-b",
+                                         {"learner"}, {self.scope}),
             "wrong-scope-cert": _identity("spiffe://zhouyi/other", "issuer-other",
                                            {"authorizer"}, {"world/other"}),
         })
@@ -405,6 +411,35 @@ class E09AuthorityServiceTests(unittest.TestCase):
                          "before_version_ids": ["v1"], "after_version_ids": ["v2"]},
             )
 
+
+    def test_learner_cannot_commit_against_another_workloads_observation(self):
+        observation_id = "obs-owned-by-b"
+        observation_event = f"{self.episode}:observation:{observation_id}"
+        self.authority.append_observation(
+            "observer-cert", episode_id=self.episode, event_id=observation_event,
+            idempotency_key=observation_event, observation_id=observation_id,
+            query_id=observation_id, scope=self.scope, split="SUPPORT",
+            learner_track="learner-b",
+        )
+        with self.assertRaises(E09AuthorizationError):
+            self.authority.append_prediction_commit(
+                "learner-cert",
+                episode_id=self.episode,
+                event_id="commit-cross-learner",
+                idempotency_key="commit-cross-learner",
+                causation_refs=[observation_event],
+                payload={
+                    "prediction_id": "prediction-cross-learner",
+                    "observation_id": observation_id,
+                    "query_id": observation_id,
+                    "scope": self.scope,
+                    "split": "SUPPORT",
+                    "model_version": "model-1",
+                    "learner_track": "learner-b",
+                    "decision_status": "PREDICT",
+                    "interop_commit_digest": hashlib.sha256(b"cross").hexdigest(),
+                },
+            )
 
     def test_prediction_commit_requires_same_episode_observation_causation(self):
         observation_id = "obs-causal"
