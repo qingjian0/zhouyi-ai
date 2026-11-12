@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import resource
 import subprocess
@@ -23,13 +24,25 @@ if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
 
+def _ru_maxrss_kib(value: int | float, platform: str | None = None) -> int:
+    """Normalize getrusage.ru_maxrss to KiB (bytes on macOS, KiB on Linux)."""
+    current_platform = sys.platform if platform is None else platform
+    if current_platform == "darwin":
+        return int(math.ceil(value / 1024.0))
+    return int(value)
+
+
 def _rss_kib() -> int:
-    with open("/proc/self/status", "r", encoding="utf-8") as status:
-        for line in status:
-            if line.startswith("VmRSS:"):
-                return int(line.split()[1])
+    try:
+        with open("/proc/self/status", "r", encoding="utf-8") as status:
+            for line in status:
+                if line.startswith("VmRSS:"):
+                    return int(line.split()[1])
+    except OSError:
+        # macOS and non-procfs platforms use getrusage below.
+        pass
     value = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
-    return int(value if sys.platform == "darwin" else value)
+    return _ru_maxrss_kib(value)
 
 
 def _write_dataset(path: Path, records_per_split: int) -> None:
@@ -55,7 +68,7 @@ def _write_dataset(path: Path, records_per_split: int) -> None:
                     "source_group_id": f"{prefix}-document-{index // 4}",
                     "nodes": nodes, "target_ids": targets,
                 }
-                sink.write(json.dumps(row, sort_keys=True, separators=(",", ":")) + "\n")
+                sink.write(json.dumps(row, sort_keys=True, separators=(",", ":")) + "\\n")
 
 
 def _worker(dataset: Path, records: int, epochs: int) -> dict:
@@ -79,14 +92,14 @@ def _worker(dataset: Path, records: int, epochs: int) -> dict:
         dev_count = sum(1 for _ in stream.iter_split_rows("dev"))
         manifest = stream.manifest
     elapsed = time.perf_counter() - started
-    peak = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+    peak = _ru_maxrss_kib(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
     return {
         "records_per_split": records,
         "total_records": manifest["records"],
         "epochs": epochs,
         "baseline_rss_kib": baseline,
-        "peak_rss_kib": int(peak),
-        "observed_peak_minus_baseline_kib": max(0, int(peak) - baseline),
+        "peak_rss_kib": peak,
+        "observed_peak_minus_baseline_kib": max(0, peak - baseline),
         "dev_rows_streamed": dev_count,
         "final_loss": losses[-1],
         "elapsed_seconds": round(elapsed, 3),
