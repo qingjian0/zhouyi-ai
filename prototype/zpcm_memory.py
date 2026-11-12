@@ -428,6 +428,147 @@ class ZPCMMemory:
             self.db.execute("DELETE FROM e12a6_current_state_projection_meta")
             self._ensure_e12a6_current_state_projection()
 
+    def verify_e12a6_current_state_projection(self, *, scope: str) -> dict[str, Any]:
+        """Compare scoped SQL projections with a digest-verified event-log fold.
+
+        Event payload verification is streamed in bounded pages. Projection
+        comparisons are performed by SQLite set differences, avoiding Python
+        materialization of candidate/evidence/action collections.
+        """
+        if not isinstance(scope,str) or not scope.strip():
+            raise ZPCMError("scope must be non-empty")
+        verified_events=0
+        for _event in self.iter_lifecycle_events(scope=scope,page_size=64):
+            verified_events+=1
+
+        candidate_cte = """
+        WITH candidate_events AS (
+            SELECT scope,
+                json_extract(payload_json,'$.body.candidate.candidate_id') AS candidate_id,
+                json_extract(payload_json,'$.body.candidate.version') AS candidate_version,
+                json_extract(payload_json,'$.body.candidate') AS candidate_json,
+                seq,
+                ROW_NUMBER() OVER (
+                    PARTITION BY scope,
+                    json_extract(payload_json,'$.body.candidate.candidate_id'),
+                    json_extract(payload_json,'$.body.candidate.version')
+                    ORDER BY seq DESC
+                ) AS rn
+            FROM memory_events
+            WHERE event_type='e12a6_lifecycle' AND scope=?
+              AND json_extract(payload_json,'$.kind') IN ('candidate_registered','revision_created')
+        ),
+        latest_actions AS (
+            SELECT scope,
+                json_extract(payload_json,'$.body.action.candidate_id') AS candidate_id,
+                json_extract(payload_json,'$.body.action.candidate_version') AS candidate_version,
+                json_extract(payload_json,'$.body.action.to_state') AS to_state,
+                seq,
+                ROW_NUMBER() OVER (
+                    PARTITION BY scope,
+                    json_extract(payload_json,'$.body.action.candidate_id'),
+                    json_extract(payload_json,'$.body.action.candidate_version')
+                    ORDER BY seq DESC
+                ) AS rn
+            FROM memory_events
+            WHERE event_type='e12a6_lifecycle' AND scope=?
+              AND json_extract(payload_json,'$.kind')='action_applied'
+              AND json_extract(payload_json,'$.body.action.to_state') IS NOT NULL
+        ),
+        expected AS (
+            SELECT c.scope,c.candidate_id,c.candidate_version,
+                CASE WHEN a.to_state IS NULL THEN c.candidate_json
+                     ELSE json_set(c.candidate_json,'$.state',a.to_state) END AS candidate_json,
+                MAX(c.seq,COALESCE(a.seq,0)) AS source_seq
+            FROM candidate_events c
+            LEFT JOIN latest_actions a
+              ON a.scope=c.scope AND a.candidate_id=c.candidate_id
+             AND a.candidate_version=c.candidate_version AND a.rn=1
+            WHERE c.rn=1
+        )
+        """
+        def candidate_diff(reverse):
+            expected_side = "SELECT scope,candidate_id,candidate_version,candidate_json,source_seq FROM expected"
+            actual_side = "SELECT scope,candidate_id,candidate_version,candidate_json,source_seq FROM e12a6_candidate_state_projection WHERE scope=?"
+            return candidate_cte + "SELECT COUNT(*) FROM (" + (
+                actual_side + " EXCEPT " + expected_side if reverse
+                else expected_side + " EXCEPT " + actual_side
+            ) + ")"
+        candidate_missing = int(self.db.execute(candidate_diff(False),(scope,scope,scope)).fetchone()[0])
+        candidate_unexpected = int(self.db.execute(candidate_diff(True),(scope,scope,scope)).fetchone()[0])
+
+        evidence_cte = """
+        WITH ranked AS (
+            SELECT scope,
+                json_extract(payload_json,'$.body.evidence.evidence_id') AS evidence_id,
+                json_extract(payload_json,'$.body.evidence') AS evidence_json,
+                seq,
+                ROW_NUMBER() OVER (
+                    PARTITION BY scope,json_extract(payload_json,'$.body.evidence.evidence_id')
+                    ORDER BY seq DESC
+                ) AS rn
+            FROM memory_events
+            WHERE event_type='e12a6_lifecycle' AND scope=?
+              AND json_extract(payload_json,'$.kind')='evidence_registered'
+        ), expected AS (
+            SELECT scope,evidence_id,evidence_json,seq AS source_seq FROM ranked WHERE rn=1
+        )
+        """
+        def evidence_diff(reverse):
+            expected_side = "SELECT scope,evidence_id,evidence_json,source_seq FROM expected"
+            actual_side = "SELECT scope,evidence_id,evidence_json,source_seq FROM e12a6_evidence_state_projection WHERE scope=?"
+            return evidence_cte + "SELECT COUNT(*) FROM (" + (
+                actual_side + " EXCEPT " + expected_side if reverse
+                else expected_side + " EXCEPT " + actual_side
+            ) + ")"
+        evidence_missing = int(self.db.execute(evidence_diff(False),(scope,scope)).fetchone()[0])
+        evidence_unexpected = int(self.db.execute(evidence_diff(True),(scope,scope)).fetchone()[0])
+
+        action_cte = """
+        WITH ranked AS (
+            SELECT scope,
+                json_extract(payload_json,'$.body.action.action_id') AS action_id,
+                json_extract(payload_json,'$.body.action.candidate_id') AS candidate_id,
+                json_extract(payload_json,'$.body.action.candidate_version') AS candidate_version,
+                json_extract(payload_json,'$.body.action') AS action_json,
+                seq,
+                ROW_NUMBER() OVER (
+                    PARTITION BY scope,json_extract(payload_json,'$.body.action.action_id')
+                    ORDER BY seq DESC
+                ) AS rn
+            FROM memory_events
+            WHERE event_type='e12a6_lifecycle' AND scope=?
+              AND json_extract(payload_json,'$.kind')='action_applied'
+        ), expected AS (
+            SELECT scope,action_id,candidate_id,candidate_version,action_json,seq AS source_seq
+            FROM ranked WHERE rn=1
+        )
+        """
+        def action_diff(reverse):
+            expected_side = "SELECT scope,action_id,candidate_id,candidate_version,action_json,source_seq FROM expected"
+            actual_side = "SELECT scope,action_id,candidate_id,candidate_version,action_json,source_seq FROM e12a6_action_state_projection WHERE scope=?"
+            return action_cte + "SELECT COUNT(*) FROM (" + (
+                actual_side + " EXCEPT " + expected_side if reverse
+                else expected_side + " EXCEPT " + actual_side
+            ) + ")"
+        action_missing = int(self.db.execute(action_diff(False),(scope,scope)).fetchone()[0])
+        action_unexpected = int(self.db.execute(action_diff(True),(scope,scope)).fetchone()[0])
+
+        counts = {
+            "candidate_missing": candidate_missing,
+            "candidate_unexpected": candidate_unexpected,
+            "evidence_missing": evidence_missing,
+            "evidence_unexpected": evidence_unexpected,
+            "action_missing": action_missing,
+            "action_unexpected": action_unexpected,
+        }
+        return {
+            "scope": scope,
+            "verified_event_count": verified_events,
+            **counts,
+            "ok": all(value == 0 for value in counts.values()),
+        }
+
     def get_lifecycle_candidate_projection(
         self, *, scope: str, candidate_id: str, candidate_version: int,
     ) -> dict[str, Any] | None:
