@@ -474,6 +474,7 @@ class Tests(unittest.TestCase):
   ])
   self.m.db.execute("DELETE FROM e12a6_candidate_state_projection")
   self.m.db.execute("DELETE FROM e12a6_action_state_projection")
+  self.m.rebuild_e12a6_current_state_projection()
   self.m.close()
   self.m=ZPCMMemory(self.path)
   row=self.m.get_lifecycle_candidate_projection(
