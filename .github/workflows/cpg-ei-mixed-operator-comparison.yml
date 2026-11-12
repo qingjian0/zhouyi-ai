@@ -1,0 +1,36 @@
+name: CPG-EI matched symbolic and trainable baseline comparison
+
+on:
+  push:
+    branches:
+      - research/cpg-ei-baseline-comparison-v1-2026-11-13
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  matched-baseline-comparison:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run matched comparison contract tests
+        run: |
+          python -m unittest discover -s tests -p 'test_cpg_ei_mixed_operator_comparison.py' -v
+      - name: Run matched 8-family comparison
+        run: |
+          python -m prototype.cpg_ei_mixed_operator_comparison \
+            --families 8 --input-dim 8 --output-dim 8 \
+            --seed 20261114 --epochs 120 --learning-rate 0.1 \
+            --l2 0.0001 --json artifacts/matched-baseline-comparison.json
+      - name: Upload matched comparison report
+        uses: actions/upload-artifact@v4
+        with:
+          name: zhouyi-cpg-ei-matched-baseline-comparison-v1
+          path: artifacts/matched-baseline-comparison.json
+          if-no-files-found: error
