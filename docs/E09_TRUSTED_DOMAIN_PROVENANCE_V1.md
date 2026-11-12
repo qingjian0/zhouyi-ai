@@ -41,6 +41,10 @@ Legacy request fields `world_family_by_evidence` and `candidate_evidence_world_f
 - Receipt signing path rejects caller-supplied relabeling.
 - Valid receipt retains registry ID/version in signed Evidence provenance.
 
+## Direct store-write audit
+
+The source-level call-site inventory and remaining migration requirements are recorded in [E09 Direct Store-Write Audit v1](E09_DIRECT_STORE_WRITE_AUDIT_V1.md). The legacy adapter below is intentionally not trusted for receipt issuance.
+
 ## Existing legacy writer path
 
 `prototype/e09_shared_protocol_adapter.py` still has a trusted-runner prototype path that writes Observation/Commit/Reveal directly through `SQLiteEvidenceStore`, with Observation actor role `runner`. It is not upgraded by this PR and is intentionally not eligible for trusted verifier receipts: the resolver rejects runner-role observations and observations without the authenticated, registry-bound domain tuple. This keeps the older training adapter usable for its existing non-receipt experiments without silently granting it the new evidence authority.
