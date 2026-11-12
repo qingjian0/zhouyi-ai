@@ -104,6 +104,11 @@ class VerifierReceiptLedgerTests(unittest.TestCase):
             db.commit()
             db.close()
             os.chmod(path, 0o600)
+            # Some CI runners execute tests as root while SQLite creates the
+            # fixture under a mapped service UID; normalize ownership to the
+            # identity that opens the ledger in this test.
+            if os.geteuid() == 0:
+                os.chown(path, os.geteuid(), -1)
 
             ledger = SQLiteVerifierReceiptLedger(path)
             try:
