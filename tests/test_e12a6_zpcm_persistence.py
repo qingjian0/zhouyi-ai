@@ -1,5 +1,8 @@
 import json
+import multiprocessing
+import os
 import tempfile
+import time
 import unittest
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
@@ -72,6 +75,27 @@ def writer_identity():
 def propose():
     return Action(action_id="propose-1",action_type=ActionType.PROPOSE,candidate_id="rel:greater-than",
       candidate_version=1,from_state=CandidateState.OBSERVED,to_state=CandidateState.PROPOSED)
+
+
+
+def _writer_bundle_commit_then_block(path, candidate_item, evidence_item, receipt, now, identity, committed_sender):
+    memory = ZPCMMemory(path)
+    try:
+        store = PersistentLifecycleLedger(memory, scope="project-a")
+        append = memory.append_lifecycle_events
+        def commit_then_block(**kwargs):
+            result = append(**kwargs)
+            committed_sender.send([dict(item) for item in result])
+            time.sleep(60)
+            return result
+        memory.append_lifecycle_events = commit_then_block
+        store.register_candidate_bundle(
+            candidate_item, (evidence_item,), authorization_receipt=receipt,
+            consumed_at=now, writer_identity=identity,
+        )
+    finally:
+        memory.close()
+
 
 class PersistentLifecycleTests(unittest.TestCase):
     def setUp(self):
@@ -187,6 +211,62 @@ class PersistentLifecycleTests(unittest.TestCase):
         )
         self.assertTrue(replay.replayed)
         self.assertTrue(replay.authorization.replayed)
+
+
+
+    def test_real_process_kill_after_atomic_bundle_commit_recovers_and_replays(self):
+        if not hasattr(os, "fork"):
+            self.skipTest("fork-based crash test requires Linux")
+        context = multiprocessing.get_context("fork")
+        candidate_item = authorized_candidate()
+        evidence_item = evidence()
+        receipt = verified_receipt(evidence_item, receipt_id="receipt-process-kill", nonce="nonce-process-kill")
+        now = datetime(2026, 11, 12, 0, 30, tzinfo=timezone.utc)
+        identity = writer_identity()
+        self.memory.close()
+        committed_receiver, committed_sender = context.Pipe(duplex=False)
+        child = context.Process(
+            target=_writer_bundle_commit_then_block,
+            args=(str(self.path), candidate_item, evidence_item, receipt, now, identity, committed_sender),
+        )
+        child.start()
+        committed_sender.close()
+        try:
+            self.assertTrue(committed_receiver.poll(10), "child did not publish committed lifecycle bundle")
+            committed_rows = committed_receiver.recv()
+            self.assertEqual(
+                [row["event_id"] for row in committed_rows],
+                [
+                    "e12a6:evidence:train-1",
+                    "e12a6:candidate:rel:greater-than@1",
+                    "e12a6:authorization-consumed:receipt-process-kill",
+                ],
+            )
+            child.kill()
+            child.join(timeout=5)
+            self.assertFalse(child.is_alive())
+            self.assertNotEqual(child.exitcode, 0)
+
+            self.memory = ZPCMMemory(self.path)
+            restored = PersistentLifecycleLedger(self.memory, scope="project-a")
+            events = self.memory.replay_lifecycle_events(scope="project-a")
+            self.assertEqual(
+                [event["payload"]["kind"] for event in events],
+                ["evidence_registered", "candidate_registered", "authorization_consumed"],
+            )
+            self.assertEqual(restored.ledger.candidates[(candidate_item.candidate_id, candidate_item.version)], candidate_item)
+            replay = restored.register_candidate_bundle(
+                candidate_item, (evidence_item,), authorization_receipt=receipt,
+                consumed_at=now + timedelta(seconds=10), writer_identity=identity,
+            )
+            self.assertTrue(replay.replayed)
+            self.assertTrue(replay.authorization.replayed)
+            self.assertEqual(len(self.memory.replay_lifecycle_events(scope="project-a")), 3)
+        finally:
+            if child.is_alive():
+                child.kill()
+                child.join(timeout=5)
+            committed_receiver.close()
 
     def test_receipt_consumption_requires_and_audits_authenticated_writer_identity(self):
         item = evidence()
