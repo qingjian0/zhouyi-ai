@@ -77,12 +77,11 @@ class E09RemoteZPCMMemoryTests(unittest.TestCase):
             try:
                 # Seed the source episode using authenticated observer/evaluator
                 # services; this test's learner process never receives the DB.
-                for principal in (observer, evaluator):
-                    pass
                 # Use an in-process test-only authority client with role-bound
                 # Unix peers to append the Observation and Reveal.
                 def call_as(principal, operation, body, operation_id):
-                    peer_path = root / f"{principal.roles.copy().pop()}.sock"
+                    role_name = sorted(principal.roles)[0]
+                    peer_path = root / f"{role_name}.sock"
                     peer_resolver = StaticUnixPeerResolver({
                         (os.getuid(), os.getgid()): (
                             principal.workload_id, principal.roles, principal.scopes,
