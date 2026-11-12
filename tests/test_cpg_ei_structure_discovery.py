@@ -1,3 +1,4 @@
+import itertools
 import json
 import math
 import random
@@ -28,7 +29,7 @@ def parity_teacher_support():
     support = set()
     for triple in triples:
         support.add("hyperedge_3_" + "_".join(map(str, triple)))
-        for pair in __import__("itertools").combinations(triple, 2):
+        for pair in itertools.combinations(triple, 2):
             support.add("hyperedge_2_" + "_".join(map(str, pair)))
     return support
 
