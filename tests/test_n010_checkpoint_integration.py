@@ -45,6 +45,41 @@ class N010CheckpointIntegrationTests(unittest.TestCase):
         )
         self.assertEqual(restored.checkpoint_json(), raw)
 
+
+    def test_joint_beam_search_uses_learned_unary_order_without_product_prefix_bias(self):
+        roles = tuple(
+            RoleSpec(name, frozenset({name}), frozenset({"eligible"}))
+            for name in ("r0", "r1", "r2")
+        )
+        model = LearnableSROK(roles, feature_dim=1)
+        model.weights = [1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 0.0]
+        pools = tuple(
+            tuple(
+                Node(f"{role}-{index}", role, (float(index),),
+                     frozenset({"eligible"}), (f"e-{role}-{index}",))
+                for index in range(4)
+            )
+            for role in ("r0", "r1", "r2")
+        )
+        nodes = tuple(node for pool in pools for node in pool)
+        prediction = model.predict(
+            nodes, retrieval_mode="joint", search_strategy="beam",
+            beam_width=1, max_expansions=12, result_limit=1,
+        )
+        self.assertEqual(prediction.candidates[0].role_bindings, (
+            ("r0", "r0-3"), ("r1", "r1-3"), ("r2", "r2-3")
+        ))
+        self.assertEqual(prediction.expanded_assignments, 12)
+        self.assertFalse(prediction.budget_exhausted)
+
+    def test_partial_score_matches_complete_score(self):
+        assignment = (self.nodes[0], self.nodes[2], self.nodes[4])
+        model = LearnableSROK(self.roles, feature_dim=2)
+        model.weights = [float(index + 1) / 10 for index in range(len(model.weights))]
+        self.assertAlmostEqual(
+            model._partial_score(assignment), model.score(assignment), places=12
+        )
+
     def test_checkpoint_rejects_tampering(self):
         model = LearnableSROK(self.roles, feature_dim=2)
         envelope = json.loads(model.checkpoint_json())
