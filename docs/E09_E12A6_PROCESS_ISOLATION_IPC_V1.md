@@ -193,6 +193,7 @@ The current stacked implementation has reached the following code increments:
 | Learner memory projection | `read_learner_episode` (PR #304) | Authenticated event projection with raw reveal labels and checkpoint blobs redacted |
 | Learner assignment | `E09LearnerBindingResolver` (PR #327) | Server-side episode/scope/track binding; Observer RPC cannot choose a learner workload ID |
 | Learner checkpoint | `structure.read_checkpoint` (PR #331) | Latest checkpoint bound to trusted learner assignment; validates snapshot digest, same-owner parent lineage and SUPPORT evidence references |
+| Remote ZPCM sync | `E09AuthorityRPCClient` / `E09LearnerMemorySource` (PR #332) | Learner-safe episode replay is consumable by ZPCMMemory without a local E09 store handle |
 
 These are service-boundary implementations and CI-tested local UDS integrations. They do **not** yet establish production process isolation.
 
