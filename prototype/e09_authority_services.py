@@ -328,16 +328,22 @@ class E09AuthorityService:
             principal, episode_id=episode_id, scope=scope, learner_track=learner_track
         )
         events = self._store.replay_episode(episode_id)
-        checkpoints = [
-            event for event in events
-            if event.get("event_type") == "structure_version"
-            and event.get("payload", {}).get("scope") == scope
-            and event.get("payload", {}).get("learner_track") == learner_track
-            and event.get("actor_role") == "learner"
-            and event.get("integrity_metadata", {}).get("authenticated_workload", {}).get(
-                "workload_id"
-            ) == principal.workload_id
-        ]
+        def is_owned_checkpoint(event: dict[str, Any]) -> bool:
+            metadata = event.get("integrity_metadata")
+            workload = (
+                metadata.get("authenticated_workload")
+                if isinstance(metadata, dict) else None
+            )
+            return (
+                event.get("event_type") == "structure_version"
+                and event.get("payload", {}).get("scope") == scope
+                and event.get("payload", {}).get("learner_track") == learner_track
+                and event.get("actor_role") == "learner"
+                and isinstance(workload, dict)
+                and workload.get("workload_id") == principal.workload_id
+            )
+
+        checkpoints = [event for event in events if is_owned_checkpoint(event)]
         if not checkpoints:
             raise MissingReference("no authenticated learner checkpoint exists for this episode/track")
         latest = max(checkpoints, key=lambda event: event.get("sequence_no", 0))
@@ -366,15 +372,19 @@ class E09AuthorityService:
 
         parents = payload.get("parent_version_ids", [])
         support_refs = payload.get("support_evidence_ids", [])
+        causes = latest.get("causation_refs", [])
         if (
-            not isinstance(parents, list)
+            not isinstance(causes, list)
+            or any(not isinstance(item, str) or not item.strip() for item in causes)
+            or len(causes) != len(set(causes))
+            or not isinstance(parents, list)
             or any(not isinstance(item, str) or not item.strip() for item in parents)
             or len(parents) != len(set(parents))
             or not isinstance(support_refs, list)
             or any(not isinstance(item, str) or not item.strip() for item in support_refs)
             or len(support_refs) != len(set(support_refs))
             or bool(parents) != bool(support_refs)
-            or not set(support_refs).issubset(set(latest.get("causation_refs", [])))
+            or not set(support_refs).issubset(set(causes))
         ):
             raise E09AuthorizationError("learner checkpoint lineage references are malformed")
         structures = {
