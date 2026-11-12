@@ -37,9 +37,10 @@ def _support_metrics(active_edges: Sequence[str], expected: set[str]):
         "active_edge_count": len(discovered),
     }
 
-def run_sweep(*, seeds: Sequence[int] = DEFAULT_SEEDS, epochs: int = 12, max_motifs: int = 3) -> dict:
+def run_sweep(*, seeds: Sequence[int] = DEFAULT_SEEDS, epochs: int | Sequence[int] = (12, 120), max_motifs: int = 3) -> dict:
     """Fit on train, rank on proposal split, and report locked/OOD results."""
-    if not seeds or epochs < 1 or not 1 <= max_motifs <= 20:
+    epoch_budgets = (epochs,) if isinstance(epochs, int) else tuple(epochs)
+    if not seeds or not epoch_budgets or any(value < 1 for value in epoch_budgets) or not 1 <= max_motifs <= 20:
         raise ValueError("seeds, epochs, or motif budget are invalid")
     records = []
     for seed in seeds:
@@ -51,12 +52,13 @@ def run_sweep(*, seeds: Sequence[int] = DEFAULT_SEEDS, epochs: int = 12, max_mot
             train = make_examples(train_states, triples)
             proposal = make_examples(proposal_states, triples)
             locked = make_examples(locked_states, triples)
-            for protocol in ("proposal_split", "legacy_train_ranked"):
+            for epoch_budget in epoch_budgets:
+              for protocol in ("proposal_split", "legacy_train_ranked"):
                 model = CpgEiTransitionModel.create(active_relation_indices=set())
                 kwargs = {"proposal_examples": proposal} if protocol == "proposal_split" else {}
                 result = grow_relation_graph_joint_motifs(
                     model, train, locked, **kwargs,
-                    max_motifs=max_motifs, epochs_per_candidate=epochs,
+                    max_motifs=max_motifs, epochs_per_candidate=epoch_budget,
                     gate_l1=0.001, edge_group_l1=0.001,
                 )
                 support = _support_metrics(result["active_edges"], exact_support(triples))
@@ -69,12 +71,13 @@ def run_sweep(*, seeds: Sequence[int] = DEFAULT_SEEDS, epochs: int = 12, max_mot
                 record = {
                     "seed": seed, "train_family": family,
                     "selection_protocol": protocol,
+                    "epochs_per_candidate": epoch_budget,
                     "train_examples": len(train),
                     "proposal_examples": len(proposal) if protocol == "proposal_split" else 0,
                     "locked_test_examples": len(locked),
                     "selected_motif_count": len(result["selected_motifs"]),
                     "candidate_fits": result["candidate_fits_total"],
-                    "training_passes": epochs * (1 + result["candidate_fits_total"]),
+                    "training_passes": epoch_budget * (1 + result["candidate_fits_total"]),
                     "proposal_selection_bce": result["proposal_selection_binary_cross_entropy"],
                     "locked_test_bce": result["validation_binary_cross_entropy"],
                     "locked_test_bit_accuracy": result["validation"]["bit_accuracy"],
@@ -108,19 +111,34 @@ def run_sweep(*, seeds: Sequence[int] = DEFAULT_SEEDS, epochs: int = 12, max_mot
                 for row in rows
             ),
         }
-    by_protocol = {
-        protocol: summarize([row for row in records if row["selection_protocol"] == protocol])
+    by_protocol_and_budget = {
+        f"{protocol}@{epoch_budget}": summarize([
+            row for row in records
+            if row["selection_protocol"] == protocol
+            and row["epochs_per_candidate"] == epoch_budget
+        ])
+        for epoch_budget in epoch_budgets
         for protocol in ("proposal_split", "legacy_train_ranked")
     }
     return {
         "benchmark": "cpg-ei-proposal-selection-multiseed-v1",
         "seeds": list(seeds), "rule_families": list(RULE_FAMILIES),
         "split_sizes": {"train": 40, "proposal_selection": 12, "locked_test": 12},
-        "optimizer": {"epochs_per_candidate": epochs, "max_motifs": max_motifs},
-        "aggregate_by_protocol": by_protocol,
+        "optimizer": {"epochs_per_candidate": list(epoch_budgets), "max_motifs": max_motifs},
+        "aggregate_by_protocol_and_budget": by_protocol_and_budget,
         "claim_boundary": "Synthetic finite six-bit rule families only; not open-ended relation induction or natural-language reasoning.",
         "records": records,
     }
+
+def _parse_epochs(value: str):
+    try:
+        budgets = tuple(int(part.strip()) for part in value.split(",") if part.strip())
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError("epochs must be comma-separated positive integers") from exc
+    if not budgets or any(budget < 1 for budget in budgets):
+        raise argparse.ArgumentTypeError("epochs must be comma-separated positive integers")
+    return budgets
+
 
 def _parse_seeds(value: str):
     try:
@@ -134,7 +152,7 @@ def _parse_seeds(value: str):
 def main(argv: Iterable[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--seeds", type=_parse_seeds, default=DEFAULT_SEEDS)
-    parser.add_argument("--epochs", type=int, default=12)
+    parser.add_argument("--epochs", type=_parse_epochs, default=(12, 120))
     parser.add_argument("--max-motifs", type=int, default=3)
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
