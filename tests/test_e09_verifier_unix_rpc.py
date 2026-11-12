@@ -5,6 +5,7 @@ import socket
 import tempfile
 import time
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 
 from prototype.e09_verifier_unix_rpc import (
@@ -23,6 +24,9 @@ from prototype.unix_ipc import (
 class _FakeVerifier:
     def __init__(self):
         self.calls = []
+
+    def receipt_issued_at(self):
+        return datetime.now(timezone.utc).isoformat()
 
     def issue_verification_receipt_with_identity(
         self, *, _receipt_id, _nonce, _issued_at, **request
