@@ -1,6 +1,7 @@
 """Tests for the N0.10 learnable role-conditioned SROK prototype."""
 import random
 import unittest
+from itertools import product
 
 from prototype.n09_learnable_srok import (
     LearnableSROK, LearnableSROKError, Node, RoleSpec, TrainingExample,
@@ -378,6 +379,167 @@ class LearnableSROKTests(unittest.TestCase):
         )
         self.assertEqual(comparisons, 150)
         self.assertEqual(complete_searches, 45)
+
+    def test_partial_upper_bound_dominates_every_completion(self):
+        model = LearnableSROK(self.roles, feature_dim=2)
+        rng = random.Random(731)
+        model.weights = [
+            rng.uniform(-1.5, 1.5) for _ in model.weights
+        ]
+        pools = tuple(
+            tuple(
+                Node(
+                    f"{role}-{index}", role,
+                    (rng.uniform(-2.0, 2.0), rng.uniform(-2.0, 2.0)),
+                    frozenset({"eligible"}),
+                )
+                for index in range(3)
+            )
+            for role in ("r0", "r1", "r2")
+        )
+
+        for prefix_size in range(len(self.roles) + 1):
+            for prefix in product(*pools[:prefix_size]):
+                bound = model._assignment_upper_bound(prefix, pools)
+                completion_scores = [
+                    model.score(prefix + suffix)
+                    for suffix in product(*pools[prefix_size:])
+                ]
+                self.assertTrue(completion_scores)
+                self.assertGreaterEqual(
+                    bound + 1e-9, max(completion_scores)
+                )
+
+    def test_branch_bound_matches_exact_product_across_seeded_pools(self):
+        seeds = (11, 23, 47, 89, 131)
+        pool_sizes = (3, 5, 8)
+        comparisons = 0
+        expansion_ratios = []
+
+        for seed in seeds:
+            rng = random.Random(seed)
+            for pool_size in pool_sizes:
+                model = LearnableSROK(self.roles, feature_dim=2)
+                model.weights = [
+                    rng.uniform(-0.8, 0.8) for _ in model.weights
+                ]
+                nodes = [
+                    Node(
+                        f"{role}-{index}", role,
+                        (rng.gauss(0.0, 1.0), rng.gauss(0.0, 1.0)),
+                        frozenset({"eligible"}),
+                    )
+                    for role in ("r0", "r1", "r2")
+                    for index in range(pool_size)
+                ]
+                exact = model.predict(
+                    nodes, retrieval_mode="joint", search_strategy="product",
+                    max_expansions=pool_size ** 3, result_limit=5,
+                )
+                bounded = model.predict(
+                    nodes, retrieval_mode="joint", search_strategy="branch_bound",
+                    max_expansions=10_000, result_limit=5,
+                )
+                self.assertEqual(bounded.abstained, exact.abstained)
+                self.assertEqual(bounded.reason, exact.reason)
+                self.assertEqual(
+                    [item.role_bindings for item in bounded.candidates],
+                    [item.role_bindings for item in exact.candidates],
+                )
+                self.assertEqual(bounded.role_pool_sizes, exact.role_pool_sizes)
+                expansion_ratios.append(
+                    bounded.expanded_search_states / exact.expanded_search_states
+                )
+                comparisons += 1
+
+        print(
+            "CPG_EI_BRANCH_BOUND_SWEEP "
+            f"comparisons={comparisons} "
+            f"mean_expansion_ratio={sum(expansion_ratios) / comparisons:.4f} "
+            f"min_expansion_ratio={min(expansion_ratios):.4f} "
+            f"max_expansion_ratio={max(expansion_ratios):.4f}"
+        )
+        self.assertEqual(comparisons, 15)
+
+    def test_branch_bound_preserves_third_order_global_optimum(self):
+        model = LearnableSROK(self.roles, feature_dim=1)
+        model.weights[6] = 1.0
+        nodes = []
+        for role in ("r0", "r1", "r2"):
+            nodes.extend(
+                Node(
+                    f"a-{role}-decoy-{index}", role, (0.0,),
+                    frozenset({"eligible"}),
+                )
+                for index in range(2)
+            )
+            nodes.append(
+                Node(f"z-{role}-signal", role, (1.0,), frozenset({"eligible"}))
+            )
+
+        exact = model.predict(
+            nodes, retrieval_mode="joint", search_strategy="product",
+            max_expansions=27, result_limit=1,
+        )
+        bounded = model.predict(
+            nodes, retrieval_mode="joint", search_strategy="branch_bound",
+            max_expansions=1_000, result_limit=1,
+        )
+        self.assertFalse(bounded.abstained)
+        self.assertEqual(bounded.reason, exact.reason)
+        self.assertEqual(
+            [item.role_bindings for item in bounded.candidates],
+            [item.role_bindings for item in exact.candidates],
+        )
+        self.assertEqual(
+            bounded.candidates[0].role_bindings,
+            (("r0", "z-r0-signal"), ("r1", "z-r1-signal"),
+             ("r2", "z-r2-signal")),
+        )
+
+    def test_branch_bound_budget_exhaustion_fails_closed(self):
+        model = LearnableSROK(self.roles, feature_dim=2)
+        nodes = [
+            Node(
+                f"{role}-{index}", role, (float(index), float(index % 2)),
+                frozenset({"eligible"}),
+            )
+            for role in ("r0", "r1", "r2") for index in range(3)
+        ]
+        result = model.predict(
+            nodes, retrieval_mode="joint", search_strategy="branch_bound",
+            max_expansions=1, result_limit=3,
+        )
+        self.assertTrue(result.abstained)
+        self.assertTrue(result.budget_exhausted)
+        self.assertEqual(result.reason, "SEARCH_BUDGET_EXHAUSTED")
+        self.assertEqual(result.expanded_search_states, 1)
+
+    def test_branch_bound_keeps_ties_for_deterministic_abstention(self):
+        model = LearnableSROK(self.roles, feature_dim=2)
+        nodes = [
+            Node(
+                f"{role}-{index}", role, (0.0, 0.0),
+                frozenset({"eligible"}),
+            )
+            for role in ("r0", "r1", "r2") for index in range(2)
+        ]
+        exact = model.predict(
+            nodes, retrieval_mode="joint", search_strategy="product",
+            max_expansions=8, result_limit=1,
+        )
+        bounded = model.predict(
+            list(reversed(nodes)), retrieval_mode="joint",
+            search_strategy="branch_bound", max_expansions=100,
+            result_limit=1,
+        )
+        self.assertTrue(bounded.abstained)
+        self.assertEqual(bounded.reason, "LOW_SCORE_MARGIN")
+        self.assertEqual(bounded.reason, exact.reason)
+        self.assertEqual(
+            [item.role_bindings for item in bounded.candidates],
+            [item.role_bindings for item in exact.candidates],
+        )
 
     def test_beam_search_is_deterministic_under_input_permutation(self):
         model = LearnableSROK(self.roles, feature_dim=3)
