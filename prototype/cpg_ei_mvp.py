@@ -162,7 +162,7 @@ class CpgEiTransitionModel:
         self,
         examples: Sequence[Example],
         epochs: int = 120,
-        learning_rate: float = 2.1,
+        learning_rate: float = 12.6,
         l2: float = 1e-4,
         gate_l1: float = 1e-4,
         edge_group_l1: float = 0.0,
