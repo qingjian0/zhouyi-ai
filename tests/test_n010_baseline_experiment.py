@@ -42,6 +42,10 @@ class N010BaselineExperimentTests(unittest.TestCase):
             self.assertEqual(report["models"]["fixed_random_xiang"]["total_parameter_count"], 96)
             self.assertEqual(report["models"]["fixed_random_xiang"]["trainable_parameter_count"], 56)
             self.assertEqual(report["models"]["parameter_matched_mlp"]["trainable_parameter_count"], 99)
+            self.assertEqual(
+                report["parameter_accounting_policy"]["matched_trainable_group"],
+                ["learnable_xiang", "parameter_matched_mlp", "parameter_matched_low_rank_tensor"],
+            )
             saved = json.loads(output.read_text(encoding="utf-8"))
             self.assertEqual(saved["schema"], "zhouyi-ai.n010-baseline-comparison-v1")
 
