@@ -25,6 +25,22 @@ class HighOrderBenchmarkTests(unittest.TestCase):
         self.assertAlmostEqual(report.pairwise_conditional_tv, 0.0)
         self.assertAlmostEqual(report.third_order_label_correlation, 1.0)
 
+    def test_parity_rule_is_invariant_under_role_permutation(self):
+        from itertools import permutations
+        for row in truth_table():
+            for permutation in permutations(row.bits):
+                self.assertEqual(
+                    row.label,
+                    permutation[0] * permutation[1] * permutation[2],
+                )
+
+    def test_invalid_label_and_non_integer_bits_are_rejected(self):
+        from prototype.high_order_benchmark import ParityExample, interaction_features
+        with self.assertRaises(ValueError):
+            interaction_features((1.0, 1, -1), 3)
+        with self.assertRaises(ValueError):
+            identifiability_report((ParityExample((1, 1, 1), -1),))
+
     def test_pairwise_probe_is_at_chance_but_third_order_probe_solves_task(self):
         unary, pairwise, third_order = run_parity_probe_suite(repeats=16, epochs=500)
         self.assertAlmostEqual(unary.accuracy, 0.5, places=6)
