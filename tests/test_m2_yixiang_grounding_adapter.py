@@ -5,6 +5,7 @@ from prototype.m2_yixiang_grounding_adapter import (
     GroundedYixiangInputError,
     compose_grounded_yixiang_hypotheses,
     compose_trlw_grounded_yixiang_hypotheses,
+    coordinate_trlw_grounded_yixiang_csg_gcr,
 )
 from prototype.observation_contract import (
     EpistemicStatus,
@@ -139,6 +140,40 @@ class M2YixiangGroundingAdapterTests(unittest.TestCase):
             "HYPOTHESIS_ONLY",
         )
         self.assertTrue(result.grounded.composition.search.candidates)
+
+    def test_trlw_yixiang_srok_candidates_reach_typed_csg_gcr_without_lifecycle_advance(self):
+        packet = build_trlw_working_set(
+            (self.relation, *self.workspace),
+            TRLWQuery(
+                query_goal="compose grounded causal relation",
+                scope="world:test",
+                max_records=8,
+                byte_budget=100_000,
+            ),
+            source_complete=True,
+        )
+        result = coordinate_trlw_grounded_yixiang_csg_gcr(
+            packet,
+            relation_record_id="relation:causes:1",
+            relation_type="causes",
+            e09_event_refs_by_record=self.e09,
+            transform=self.transform,
+            parent_state_ref="state:root",
+            branch_id="branch:yixiang-test",
+        )
+        self.assertFalse(result.lifecycle_advanced)
+        self.assertTrue(result.working_set.search_exhaustive)
+        self.assertTrue(result.csg_gcr.proposals)
+        for proposal in result.csg_gcr.proposals:
+            self.assertEqual(proposal.semantic_status, "HYPOTHESIS_ONLY")
+            self.assertIn(
+                "e09:observation:relation-1",
+                proposal.proposal.evidence_refs,
+            )
+            self.assertNotIn(
+                "xsl-prior:causal-role-view",
+                proposal.proposal.evidence_refs,
+            )
 
     def test_incomplete_trlw_packet_never_claims_exhaustive_search(self):
         records = (self.relation, *self.workspace)
