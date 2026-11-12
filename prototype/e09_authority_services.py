@@ -495,17 +495,19 @@ class E09VerifierService:
         all_evidence_refs = tuple(sorted(candidate_refs))
         if not set(permit.evidence_refs).issubset(set(all_evidence_refs)):
             raise E09AuthorizationError("candidate evidence refs must include all authorization evidence refs")
-        world_families = request.get(
-            "candidate_evidence_world_family_by_ref",
-            request.get("world_family_by_evidence"),
-        )
-        if world_families is not None and (
-            not isinstance(world_families, dict)
-            or set(world_families) != set(all_evidence_refs)
-            or any(not isinstance(value, str) or not value.strip()
-                   for value in world_families.values())
-        ):
-            raise E09AuthorizationError("legacy world-family assertions must exactly cover candidate evidence refs")
+        world_family_assertions = []
+        for field in ("world_family_by_evidence", "candidate_evidence_world_family_by_ref"):
+            if field not in request:
+                continue
+            mapping = request[field]
+            if (not isinstance(mapping, dict)
+                    or set(mapping) != set(all_evidence_refs)
+                    or any(not isinstance(value, str) or not value.strip()
+                           for value in mapping.values())):
+                raise E09AuthorizationError(
+                    f"{field} must exactly cover candidate evidence refs when supplied"
+                )
+            world_family_assertions.append((field, mapping))
 
         evidence = []
         for ref in all_evidence_refs:
@@ -515,8 +517,12 @@ class E09VerifierService:
                 evidence_ref=ref,
                 scope=request["scope"],
                 learner_track=request["learner_track"],
-                world_family=(world_families[ref] if world_families is not None else None),
             )
+            for field, mapping in world_family_assertions:
+                if mapping[ref] != item.world_family:
+                    raise E09AuthorizationError(
+                        f"{field} conflicts with trusted Observation domain for {ref}"
+                    )
             evidence.append({
                 "evidence_id": item.evidence_id,
                 "episode_id": item.episode_id,
