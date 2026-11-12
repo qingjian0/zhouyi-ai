@@ -284,7 +284,21 @@ class E09AuthorityService:
             raise TypeError("payload must be a dictionary")
         scope = payload.get("scope")
         principal = self._principal(credential, role="learner", scope=scope)
-        domain = self._observation_domain(episode_id, payload.get("observation_id"))
+        events = self._store.replay_episode(episode_id)
+        observation_id = payload.get("observation_id")
+        observations = [
+            event for event in events
+            if event.get("event_type") == "observation"
+            and event.get("payload", {}).get("observation_id") == observation_id
+        ]
+        if len(observations) != 1:
+            raise E09AuthorizationError("prediction requires exactly one prior observation")
+        observation = observations[0]
+        if (observation.get("payload", {}).get("scope") != scope
+                or observation.get("payload", {}).get("split") != payload.get("split")
+                or observation.get("event_id") not in set(causation_refs)):
+            raise E09AuthorizationError("prediction must causally reference an observation in the same scope and split")
+        domain = self._observation_domain(episode_id, observation_id)
         normalized = dict(payload)
         for field, value in domain.items():
             if field in normalized and normalized[field] != value:
@@ -326,19 +340,23 @@ class E09AuthorityService:
         if len(commits) != 1:
             raise E09AuthorizationError("reveal requires exactly one committed prediction")
         commit = commits[0]
+        if (commit.get("payload", {}).get("scope") != scope
+                or commit.get("event_id") not in set(causation_refs)):
+            raise E09AuthorizationError("reveal must causally reference a commit in the same scope")
         domain = self._observation_domain(episode_id, commit["payload"].get("observation_id"))
+        normalized = dict(payload)
         for field, value in domain.items():
-            if field in payload and payload[field] != value:
+            if field in normalized and normalized[field] != value:
                 raise E09AuthorizationError(f"evidence reveal cannot override {field}")
             if commit["payload"].get(field) != value:
                 raise E09AuthorizationError(f"prediction commit {field} does not match its observation")
-            payload[field] = value
+            normalized[field] = value
         return self._store.append_event(
             episode_id=episode_id,
             event_id=event_id,
             event_type="evidence_reveal",
             idempotency_key=idempotency_key,
-            payload=payload,
+            payload=normalized,
             actor_role="evaluator",
             causation_refs=causation_refs,
             integrity_metadata=_identity_metadata(principal),
@@ -412,6 +430,8 @@ class E09AuthorityService:
         for parent_id in parents:
             parent = structures.get(parent_id)
             if (parent is None
+                    or parent.get("actor_role") != "learner"
+                    or not isinstance(parent.get("integrity_metadata", {}).get("authenticated_workload"), dict)
                     or parent["payload"].get("structure_id") != normalized["structure_id"]
                     or parent["payload"].get("learner_track") != learner_track
                     or parent["payload"].get("scope") != scope):
@@ -419,6 +439,8 @@ class E09AuthorityService:
         for evidence_id in supports:
             reveal = reveals.get(evidence_id)
             if (reveal is None
+                    or reveal.get("actor_role") != "evaluator"
+                    or not isinstance(reveal.get("integrity_metadata", {}).get("authenticated_workload"), dict)
                     or reveal["payload"].get("scope") != scope
                     or reveal["payload"].get("learner_track") != learner_track):
                 raise E09AuthorizationError("support evidence is missing or outside the authorized scope/track")
@@ -489,6 +511,8 @@ class E09AuthorityService:
         for evidence_id in triggers:
             reveal = reveals.get(evidence_id)
             if (reveal is None
+                    or reveal.get("actor_role") != "evaluator"
+                    or not isinstance(reveal.get("integrity_metadata", {}).get("authenticated_workload"), dict)
                     or reveal["payload"].get("scope") != scope
                     or reveal["payload"].get("learner_track") != learner_track):
                 raise E09AuthorizationError("revision trigger evidence is missing or outside the authorized scope/track")
@@ -500,7 +524,9 @@ class E09AuthorityService:
             event["payload"].get("structure_id") for event in before_events + after_events
         }
         if len(structure_ids) != 1 or any(
-            event["payload"].get("learner_track") != learner_track
+            event.get("actor_role") != "learner"
+            or not isinstance(event.get("integrity_metadata", {}).get("authenticated_workload"), dict)
+            or event["payload"].get("learner_track") != learner_track
             or event["payload"].get("scope") != scope
             for event in before_events + after_events
         ):
