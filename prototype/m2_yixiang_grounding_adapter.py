@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Mapping, Sequence
 
+from prototype.trlw_working_set import MemoryPacket, PacketStatus
 from prototype.observation_contract import (
     EvidenceRef,
     GroundingStatus,
@@ -38,6 +39,16 @@ class GroundedYixiangComposition:
     m1_source_ref_digests: tuple[str, ...]
     e09_observation_event_refs: tuple[str, ...]
     semantic_status: str = "HYPOTHESIS_ONLY"
+
+
+@dataclass(frozen=True)
+class TRLWYixiangComposition:
+    grounded: GroundedYixiangComposition
+    working_set_status: str
+    working_set_source_complete: bool
+    working_set_budget_exhausted: bool
+    working_set_serialized_bytes: int
+    search_exhaustive: bool
 
 
 def _e09_refs(record_id: str, refs_by_record: Mapping[str, Sequence[str]]) -> tuple[str, ...]:
@@ -173,4 +184,63 @@ def compose_grounded_yixiang_hypotheses(
         workspace_record_ids=tuple(sorted(by_id)),
         m1_source_ref_digests=tuple(sorted(source_ref_digests)),
         e09_observation_event_refs=tuple(sorted(all_e09_refs)),
+    )
+
+
+def compose_trlw_grounded_yixiang_hypotheses(
+    packet: MemoryPacket,
+    *,
+    relation_record_id: str,
+    relation_type: str,
+    e09_event_refs_by_record: Mapping[str, Sequence[str]],
+    transform: RoleTransform,
+    limit: int = 16,
+    max_candidates_per_role: int = 32,
+    max_expansions: int = 10_000,
+) -> TRLWYixiangComposition:
+    """Compose hypotheses only from the bounded candidates selected by TRLW.
+
+    A truncated or incomplete packet can still produce useful hypotheses, but
+    the result explicitly marks search_exhaustive=False. It must never be
+    interpreted as a complete search of the durable ZPCM history.
+    """
+    if not isinstance(packet, MemoryPacket):
+        raise GroundedYixiangInputError("packet must be a TRLW MemoryPacket")
+    if not isinstance(relation_record_id, str) or not relation_record_id.strip():
+        raise GroundedYixiangInputError("relation_record_id must be non-empty")
+    if not packet.entries:
+        raise GroundedYixiangInputError("TRLW packet contains no candidates")
+    records = tuple(entry.record for entry in packet.entries)
+    if any(record.envelope.scope != packet.scope for record in records):
+        raise GroundedYixiangInputError("TRLW packet contains a cross-scope candidate")
+    by_id = {record.envelope.record_id: record for record in records}
+    if len(by_id) != len(records):
+        raise GroundedYixiangInputError("TRLW packet contains duplicate record IDs")
+    relation_candidate = by_id.get(relation_record_id)
+    if relation_candidate is None:
+        raise GroundedYixiangInputError(
+            "relation candidate is absent from the bounded TRLW packet"
+        )
+    grounded = compose_grounded_yixiang_hypotheses(
+        relation_candidate,
+        relation_type=relation_type,
+        workspace_candidates=records,
+        e09_event_refs_by_record=e09_event_refs_by_record,
+        transform=transform,
+        limit=limit,
+        max_candidates_per_role=max_candidates_per_role,
+        max_expansions=max_expansions,
+    )
+    exhaustive = (
+        packet.status == PacketStatus.COMPLETE
+        and packet.source_complete
+        and not packet.budget_exhausted
+    )
+    return TRLWYixiangComposition(
+        grounded=grounded,
+        working_set_status=packet.status,
+        working_set_source_complete=packet.source_complete,
+        working_set_budget_exhausted=packet.budget_exhausted,
+        working_set_serialized_bytes=packet.serialized_bytes,
+        search_exhaustive=exhaustive,
     )
