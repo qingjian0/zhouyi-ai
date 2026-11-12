@@ -79,8 +79,24 @@ class SQLiteEvidenceIngestor:
     and must provide the same source bytes when resuming a document ID.
     """
 
-    def __init__(self, database: str | Path) -> None:
+    DEFAULT_MAX_CHUNK_BYTES = 64 * 1024
+    DEFAULT_MAX_PAGE_BYTES = 1024 * 1024
+    MAX_PAGE_ROWS = 4096
+
+    def __init__(
+        self,
+        database: str | Path,
+        *,
+        max_chunk_bytes: int = DEFAULT_MAX_CHUNK_BYTES,
+        max_page_bytes: int = DEFAULT_MAX_PAGE_BYTES,
+    ) -> None:
+        if isinstance(max_chunk_bytes, bool) or not isinstance(max_chunk_bytes, int) or not 4 <= max_chunk_bytes <= self.DEFAULT_MAX_CHUNK_BYTES:
+            raise IngestContractError("max_chunk_bytes must be between 4 and 65536")
+        if isinstance(max_page_bytes, bool) or not isinstance(max_page_bytes, int) or not 1 <= max_page_bytes <= self.DEFAULT_MAX_PAGE_BYTES:
+            raise IngestContractError("max_page_bytes must be between 1 and 1048576")
         self.database = str(database)
+        self.max_chunk_bytes = max_chunk_bytes
+        self.max_page_bytes = max_page_bytes
         self._initialize()
 
     def _connect(self) -> sqlite3.Connection:
@@ -100,7 +116,12 @@ class SQLiteEvidenceIngestor:
                     chunk_bytes INTEGER NOT NULL CHECK(chunk_bytes >= 4),
                     next_byte_offset INTEGER NOT NULL DEFAULT 0,
                     next_ordinal INTEGER NOT NULL DEFAULT 0,
-                    complete INTEGER NOT NULL DEFAULT 0 CHECK(complete IN (0, 1))
+                    complete INTEGER NOT NULL DEFAULT 0 CHECK(complete IN (0, 1)),
+                    manifest_digest TEXT,
+                    manifest_chunks INTEGER,
+                    manifest_bytes INTEGER,
+                    chunk_generation INTEGER NOT NULL DEFAULT 0,
+                    manifest_generation INTEGER
                 )
                 """
             )
@@ -128,6 +149,107 @@ class SQLiteEvidenceIngestor:
                 ON evidence_chunks(document_id, byte_start, byte_end)
                 """
             )
+            document_columns = {
+                row[1] for row in db.execute("PRAGMA table_info(ingest_documents)")
+            }
+            migrations = {
+                "manifest_digest": "TEXT",
+                "manifest_chunks": "INTEGER",
+                "manifest_bytes": "INTEGER",
+                "chunk_generation": "INTEGER NOT NULL DEFAULT 0",
+                "manifest_generation": "INTEGER",
+            }
+            for name, declaration in migrations.items():
+                if name not in document_columns:
+                    db.execute(
+                        f"ALTER TABLE ingest_documents ADD COLUMN {name} {declaration}"
+                    )
+            db.executescript("""
+            CREATE TRIGGER IF NOT EXISTS evidence_chunk_generation_insert
+            AFTER INSERT ON evidence_chunks
+            BEGIN
+                UPDATE ingest_documents SET chunk_generation=chunk_generation+1
+                WHERE document_id=NEW.document_id;
+            END;
+            CREATE TRIGGER IF NOT EXISTS evidence_chunk_generation_update
+            AFTER UPDATE ON evidence_chunks
+            BEGIN
+                UPDATE ingest_documents SET chunk_generation=chunk_generation+1
+                WHERE document_id=OLD.document_id;
+                UPDATE ingest_documents SET chunk_generation=chunk_generation+1
+                WHERE document_id=NEW.document_id AND NEW.document_id<>OLD.document_id;
+            END;
+            CREATE TRIGGER IF NOT EXISTS evidence_chunk_generation_delete
+            AFTER DELETE ON evidence_chunks
+            BEGIN
+                UPDATE ingest_documents SET chunk_generation=chunk_generation+1
+                WHERE document_id=OLD.document_id;
+            END;
+            """)
+            self._backfill_completed_manifests(db)
+
+    @staticmethod
+    def _manifest_from_rows(document_id: str, rows) -> tuple[str, int, int]:
+        digest = hashlib.sha256()
+        digest.update(b"zhouyi-evidence-document-manifest-v1\0")
+        expected_ordinal = 0
+        expected_start = 0
+        for ordinal, start, end, chunk_id, content_sha256, text_utf8 in rows:
+            raw = bytes(text_utf8)
+            actual_digest = hashlib.sha256(raw).hexdigest()
+            if (
+                len(raw) > SQLiteEvidenceIngestor.DEFAULT_MAX_CHUNK_BYTES
+                or ordinal != expected_ordinal or start != expected_start or end <= start
+                or len(raw) != end - start or actual_digest != content_sha256
+                or chunk_id != SQLiteEvidenceIngestor._chunk_id(
+                    document_id, ordinal, content_sha256
+                )
+            ):
+                raise IngestContractError(
+                    "persisted evidence chunks do not match their immutable manifest fields"
+                )
+            digest.update(
+                f"{ordinal}:{start}:{end}:{chunk_id}:{content_sha256}\n".encode("ascii")
+            )
+            expected_ordinal += 1
+            expected_start = end
+        if expected_ordinal == 0:
+            raise IngestContractError("document has no committed evidence chunks")
+        return "manifest-sha256:" + digest.hexdigest(), expected_ordinal, expected_start
+
+    @classmethod
+    def _store_manifest(cls, db: sqlite3.Connection, document_id: str) -> None:
+        rows = db.execute(
+            """SELECT ordinal,byte_start,byte_end,chunk_id,content_sha256,text_utf8
+               FROM evidence_chunks WHERE document_id=? ORDER BY ordinal""",
+            (document_id,),
+        )
+        manifest, chunks, byte_count = cls._manifest_from_rows(document_id, rows)
+        generation = int(db.execute(
+            "SELECT chunk_generation FROM ingest_documents WHERE document_id=?",
+            (document_id,),
+        ).fetchone()[0])
+        db.execute(
+            """UPDATE ingest_documents SET complete=1,manifest_digest=?,
+               manifest_chunks=?,manifest_bytes=?,manifest_generation=?
+               WHERE document_id=?""",
+            (manifest, chunks, byte_count, generation, document_id),
+        )
+
+    @classmethod
+    def _backfill_completed_manifests(cls, db: sqlite3.Connection) -> None:
+        legacy = db.execute(
+            """SELECT document_id FROM ingest_documents
+               WHERE complete=1 AND manifest_digest IS NULL ORDER BY document_id"""
+        )
+        while True:
+            batch = legacy.fetchmany(64)
+            if not batch:
+                break
+            for (document_id,) in batch:
+                db.execute("BEGIN IMMEDIATE")
+                cls._store_manifest(db, document_id)
+                db.commit()
 
     @staticmethod
     def _chunk_id(document_id: str, ordinal: int, digest: str) -> str:
@@ -199,8 +321,13 @@ class SQLiteEvidenceIngestor:
             raise IngestContractError("document_id must be non-empty")
         if not source_name or not source_name.strip():
             raise IngestContractError("source_name must be non-empty")
-        if isinstance(chunk_bytes, bool) or not isinstance(chunk_bytes, int) or chunk_bytes < 4:
-            raise IngestContractError("chunk_bytes must be an integer >= 4")
+        if (
+            isinstance(chunk_bytes, bool) or not isinstance(chunk_bytes, int)
+            or not 4 <= chunk_bytes <= self.max_chunk_bytes
+        ):
+            raise IngestContractError(
+                f"chunk_bytes must be between 4 and configured max_chunk_bytes ({self.max_chunk_bytes})"
+            )
         if max_chunks is not None and (
             isinstance(max_chunks, bool) or not isinstance(max_chunks, int) or max_chunks < 1
         ):
@@ -246,10 +373,7 @@ class SQLiteEvidenceIngestor:
                 raw = _read_utf8_chunk(stream, offset, chunk_bytes)
                 if not raw:
                     db.execute("BEGIN IMMEDIATE")
-                    db.execute(
-                        "UPDATE ingest_documents SET complete = 1 WHERE document_id = ?",
-                        (document_id,),
-                    )
+                    self._store_manifest(db, document_id)
                     db.commit()
                     complete = 1
                     break
@@ -294,28 +418,55 @@ class SQLiteEvidenceIngestor:
             token_count_known=token_counts_known,
         )
 
-    def get_chunks(self, document_id: str, *, limit: int = 100, offset: int = 0) -> list[EvidenceChunk]:
-        if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
-            raise ValueError("limit must be a positive integer")
+    def get_chunks(
+        self, document_id: str, *, limit: int = 100, offset: int = 0,
+        page_bytes: int | None = None,
+    ) -> list[EvidenceChunk]:
+        if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= self.MAX_PAGE_ROWS:
+            raise ValueError(f"limit must be between 1 and {self.MAX_PAGE_ROWS}")
         if isinstance(offset, bool) or not isinstance(offset, int) or offset < 0:
             raise ValueError("offset must be a non-negative integer")
+        budget = self.max_page_bytes if page_bytes is None else page_bytes
+        if isinstance(budget, bool) or not isinstance(budget, int) or not 1 <= budget <= self.max_page_bytes:
+            raise ValueError(f"page_bytes must be between 1 and configured max_page_bytes ({self.max_page_bytes})")
+        result: list[EvidenceChunk] = []
+        consumed = 0
         with self._connect() as db:
-            rows = db.execute(
-                """SELECT chunk_id, document_id, ordinal, byte_start, byte_end,
-                          text_utf8, content_sha256, token_count
-                   FROM evidence_chunks WHERE document_id = ?
+            metadata = db.execute(
+                """SELECT chunk_id,document_id,ordinal,byte_start,byte_end,
+                          content_sha256,token_count,length(text_utf8)
+                   FROM evidence_chunks WHERE document_id=?
                    ORDER BY ordinal LIMIT ? OFFSET ?""",
                 (document_id, limit, offset),
-            ).fetchall()
-        return [
-            EvidenceChunk(
-                chunk_id=row[0], document_id=row[1], ordinal=row[2],
-                byte_start=row[3], byte_end=row[4],
-                text=bytes(row[5]).decode("utf-8"), content_sha256=row[6],
-                token_count=row[7],
             )
-            for row in rows
-        ]
+            for row in metadata:
+                payload_bytes = int(row[7])
+                if payload_bytes > self.max_chunk_bytes:
+                    raise IngestContractError("persisted evidence chunk exceeds configured hard chunk limit")
+                if payload_bytes > budget - consumed:
+                    if not result:
+                        raise IngestContractError("single evidence chunk exceeds requested page byte budget")
+                    break
+                payload = db.execute(
+                    "SELECT text_utf8 FROM evidence_chunks WHERE document_id=? AND chunk_id=?",
+                    (document_id, row[0]),
+                ).fetchone()
+                if payload is None:
+                    raise IngestContractError("evidence chunk disappeared during page read")
+                raw = bytes(payload[0])
+                if len(raw) != payload_bytes:
+                    raise IngestContractError("evidence chunk byte length changed during page read")
+                try:
+                    decoded = raw.decode("utf-8", errors="strict")
+                except UnicodeDecodeError as exc:
+                    raise IngestContractError("persisted evidence chunk is not valid UTF-8") from exc
+                result.append(EvidenceChunk(
+                    chunk_id=row[0], document_id=row[1], ordinal=row[2],
+                    byte_start=row[3], byte_end=row[4], text=decoded,
+                    content_sha256=row[5], token_count=row[6],
+                ))
+                consumed += payload_bytes
+        return result
 
     def document_state(self, document_id: str) -> tuple[int, int, bool] | None:
         with self._connect() as db:
