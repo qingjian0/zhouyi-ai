@@ -500,12 +500,17 @@ class E09VerifierService:
             if field not in request:
                 continue
             mapping = request[field]
+            expected_refs = (
+                set(permit.evidence_refs)
+                if field == "world_family_by_evidence"
+                else set(all_evidence_refs)
+            )
             if (not isinstance(mapping, dict)
-                    or set(mapping) != set(all_evidence_refs)
+                    or set(mapping) != expected_refs
                     or any(not isinstance(value, str) or not value.strip()
                            for value in mapping.values())):
                 raise E09AuthorizationError(
-                    f"{field} must exactly cover candidate evidence refs when supplied"
+                    f"{field} must exactly cover its authorized evidence reference set when supplied"
                 )
             world_family_assertions.append((field, mapping))
 
@@ -519,7 +524,7 @@ class E09VerifierService:
                 learner_track=request["learner_track"],
             )
             for field, mapping in world_family_assertions:
-                if mapping[ref] != item.world_family:
+                if ref in mapping and mapping[ref] != item.world_family:
                     raise E09AuthorizationError(
                         f"{field} conflicts with trusted Observation domain for {ref}"
                     )
