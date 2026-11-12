@@ -66,9 +66,9 @@ class Prediction:
         """Number of expanded search states, including partial beam prefixes.
 
         expanded_assignments is retained as a compatibility alias. Exact
-        product search expands complete assignments; beam search also expands
-        partial prefixes, so the older field name is not precise for all
-        strategies.
+        product search expands complete assignments; beam and branch-bound
+        also expand partial prefixes, so the older field name is not precise
+        for all strategies.
         """
         return self.expanded_assignments
 
@@ -746,8 +746,10 @@ class LearnableSROK:
         """Retrieve, compose, score, and optionally abstain under fixed budgets.
 
         unary preserves role-wise Top-K retrieval. joint retains every
-        type/tag-compatible candidate and ranks complete assignments using
-        relational scores, bounded by max_expansions.
+        type/tag-compatible candidate. Product exhaustively enumerates the
+        Cartesian product; Beam is approximate and abstains after pruning;
+        branch_bound uses an admissible upper bound to certify exact top-k
+        results when it finishes within max_expansions.
         """
         if isinstance(result_limit, bool) or not isinstance(result_limit, int) or result_limit < 1:
             raise LearnableSROKError("result_limit must be a positive integer")
