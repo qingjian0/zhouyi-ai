@@ -59,8 +59,10 @@ class N010StreamingRunnerTests(unittest.TestCase):
             epochs=3, max_expansions=64, seed=17, git_sha="same",
         )
         self.assertEqual(streamed["loss_history"], materialized["loss_history"])
-        self.assertEqual(streamed["dev"], materialized["dev"])
-        self.assertEqual(streamed["locked_test"], materialized["locked_test"])
+        for split in ("dev", "locked_test"):
+            expected = {k: v for k, v in materialized[split].items()
+                        if k != "predictions"}
+            self.assertEqual(streamed[split], expected)
         self.assertEqual(streamed["training_examples"], 4)
         self.assertEqual(streamed["evaluation_mode"],
                          "streaming_aggregate_no_prediction_retention")
