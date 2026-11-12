@@ -291,3 +291,20 @@ A failed earlier run on an older SHA is not evidence that the current exact head
 - PR #368 exact head `d52dd388286deca056ee85149967886f36b352aa`, workflow #43216139061: success; 16 tests.
 - Every record must declare at least one of `group_id`, `source_group_id`, or `episode_id`; records with no source-group identity now fail closed instead of passing an empty overlap check.
 - This strengthens the #366 cross-artifact isolation guard but still relies on producer-supplied identifiers being truthful and complete. It is not a provenance attestation system.
+
+
+### Exact-head refresh — N0.10 provenance integrity and RSS (2026-11-12 12:20Z)
+
+- PR #367 exact head `22f7ad698d489367f649d3465e75001e1c5f3bf7`, workflow #43216548648: success. Latest subprocess sweep (1 epoch):
+
+| Records per split | Total | Peak RSS | Peak minus baseline | Elapsed |
+|---:|---:|---:|---:|---:|
+| 1,000 | 2,000 | 25,004 KiB | 1,708 KiB | 0.286 s |
+| 10,000 | 20,000 | 27,228 KiB | 5,128 KiB | 2.669 s |
+| 100,000 | 200,000 | 27,208 KiB | 5,060 KiB | 27.520 s |
+
+- On this synthetic profile, peak RSS remains approximately 25–27 MiB while records per split increase 100x. This is encouraging scaling evidence, not a hard memory bound; per-row payload size, candidate fan-out, concurrency, and long schedules remain untested.
+- PR #368 exact head `d52dd388286deca056ee85149967886f36b352aa`, workflow #43216139061: success; 16 tests. Every record now must carry at least one declared grouping identifier, preventing an empty provenance row from passing the overlap guard.
+- PR #369 exact head `3ffcee62937601066cf0440681406e7a11964e12`, workflow #43216816823: success; 17 tests. The persisted SQLite group-index sidecar is SHA-256-bound into the checkpoint and verified before resume and locked-test evaluation; tampering is rejected.
+- PR #363 documentation/diagnostic exact head `176490351d4a3c5c62745f87834ce9ef48cde2b3`, workflow #43216313983: success; 9 tests. Second parity teacher: precision 1.000, recall 0.3056, validation bit accuracy 0.6337, exact support recovery 0/3. Joint-vs-greedy remains mixed (full support recall for both, but validation bit accuracy 0.5365 vs 0.8229); joint proposals remain experimental.
+- PR #358 exact head `20b28bb3b3857fd68ca5c01f71abf07f0f569765`, workflow #43216324086: success. All work remains Draft/unmerged; no stable branch was changed.
