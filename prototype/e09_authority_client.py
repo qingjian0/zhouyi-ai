@@ -168,6 +168,54 @@ class E09AuthorityRPCClient:
             raise RuntimeError("E09 Authority returned an invalid learner event projection")
         return events
 
+    def append_structure_version(
+        self,
+        *,
+        episode_id: str,
+        event_id: str,
+        scope: str,
+        learner_track: str,
+        payload: dict[str, Any],
+        operation_id: str,
+        causation_refs: tuple[str, ...] = (),
+        expected_sequence: int | None = None,
+    ) -> dict[str, Any]:
+        body: dict[str, Any] = {
+            "episode_id": episode_id,
+            "event_id": event_id,
+            "scope": scope,
+            "learner_track": learner_track,
+            "payload": payload,
+            "causation_refs": list(causation_refs),
+        }
+        if expected_sequence is not None:
+            body["expected_sequence"] = expected_sequence
+        return self._request("structure.append", body, operation_id=operation_id)
+
+    def append_revision(
+        self,
+        *,
+        episode_id: str,
+        event_id: str,
+        scope: str,
+        learner_track: str,
+        payload: dict[str, Any],
+        causation_refs: tuple[str, ...],
+        operation_id: str,
+        expected_sequence: int | None = None,
+    ) -> dict[str, Any]:
+        body: dict[str, Any] = {
+            "episode_id": episode_id,
+            "event_id": event_id,
+            "scope": scope,
+            "learner_track": learner_track,
+            "payload": payload,
+            "causation_refs": list(causation_refs),
+        }
+        if expected_sequence is not None:
+            body["expected_sequence"] = expected_sequence
+        return self._request("revision.append", body, operation_id=operation_id)
+
     def read_learner_checkpoint(
         self,
         *,
