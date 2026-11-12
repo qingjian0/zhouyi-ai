@@ -94,6 +94,20 @@ class N010CheckpointIntegrationTests(unittest.TestCase):
         with self.assertRaisesRegex(LearnableSROKError, "fields do not match"):
             LearnableSROK.from_checkpoint_json(json.dumps(envelope))
 
+    def test_joint_search_budget_exhaustion_never_accepts_partial_ranking(self):
+        model = LearnableSROK(self.roles, feature_dim=2)
+        prediction = model.predict(
+            self.nodes,
+            retrieval_mode="joint",
+            max_expansions=1,
+            result_limit=1,
+        )
+        self.assertTrue(prediction.abstained)
+        self.assertEqual(prediction.reason, "SEARCH_BUDGET_EXHAUSTED")
+        self.assertTrue(prediction.budget_exhausted)
+        self.assertEqual(prediction.expanded_assignments, 1)
+        self.assertEqual(len(prediction.candidates), 1)
+
 
 if __name__ == "__main__":
     unittest.main()
