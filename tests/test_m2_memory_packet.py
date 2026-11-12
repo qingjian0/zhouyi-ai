@@ -79,6 +79,21 @@ class MemoryPacketTests(unittest.TestCase):
         with self.assertRaises(MemoryPacketError):
             self.query(required_types=())
 
+    def test_temporal_window_requires_valid_ordered_iso_values(self):
+        with self.assertRaises(MemoryPacketError):
+            self.query(valid_time_start="2026-07-01", valid_time_end="2026-06-01")
+        with self.assertRaises(MemoryPacketError):
+            self.query(valid_time_start="not-a-date", valid_time_end="2026-06-01")
+        with self.assertRaises(MemoryPacketError):
+            self.query(valid_time_start="2026-06-01T00:00:00Z",
+                       valid_time_end="2026-06-02")
+
+    def test_malformed_candidate_temporal_interval_fails_closed(self):
+        candidate = self.candidate("bad-time", start="2026-12-31", end="2026-01-01")
+        with self.assertRaises(MemoryPacketError):
+            build_memory_packet([candidate], self.query(
+                valid_time_start="2026-01-01", valid_time_end="2026-12-31"))
+
 
 if __name__ == "__main__":
     unittest.main()
