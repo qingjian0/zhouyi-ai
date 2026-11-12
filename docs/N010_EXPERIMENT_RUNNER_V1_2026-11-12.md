@@ -20,13 +20,14 @@ python -m prototype.n010_experiment \
   --checkpoint artifacts/n010-run.json \
   --feature-dim 8 \
   --roles-json '[{"name":"subject","allowed_types":["entity"],"required_tags":[]},{"name":"relation","allowed_types":["relation"],"required_tags":[]}]' \
-  --epochs 30
+  --epochs 30 \
+  --git-sha "$(git rev-parse HEAD)"
 ```
 
 Resume a partial run with the same dataset and training configuration, increasing the requested total epoch count if needed:
 
 ```bash
-python -m prototype.n010_experiment --dataset data/n010.jsonl --checkpoint artifacts/n010-run.json --feature-dim 8 --roles-json '...' --epochs 60 --resume
+python -m prototype.n010_experiment --dataset data/n010.jsonl --checkpoint artifacts/n010-run.json --feature-dim 8 --roles-json '...' --epochs 60 --git-sha "$(git rev-parse HEAD)" --resume
 ```
 
 The runner writes an integrity-checked model checkpoint after every epoch and a JSON report after evaluation. The run bundle binds the model checkpoint to the dataset SHA-256, split IDs, rule-family IDs, role schema, hyperparameters, seed and Git SHA.
