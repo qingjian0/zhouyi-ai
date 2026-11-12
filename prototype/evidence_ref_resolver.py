@@ -1,8 +1,8 @@
 """Read-only resolver from M2 EvidenceRef to the immutable M1 SQLite chunks.
 
 The document version is a deterministic manifest hash over the complete ordered
-chunk sequence. Resolution verifies the manifest and the selected chunk bytes;
-it does not create or own an event ledger.
+chunk sequence. Resolution verifies every stored chunk byte-for-byte and keeps
+working memory bounded by one chunk.
 """
 from __future__ import annotations
 
@@ -25,22 +25,24 @@ class ResolvedEvidence:
     ordinal: int
 
 
-def _manifest_digest(rows) -> str:
+def _manifest_digest(document_id: str, rows) -> str:
     digest = hashlib.sha256()
-    digest.update(b"zhouyi-evidence-document-manifest-v1\0")
+    digest.update(b"zhouyi-evidence-document-manifest-v1\\0")
     expected_ordinal = 0
     expected_start = 0
-    for ordinal, start, end, chunk_id, content_sha256 in rows:
+    for ordinal, start, end, chunk_id, content_sha256, text_utf8 in rows:
         if ordinal != expected_ordinal or start != expected_start or end <= start:
             raise EvidenceResolutionError("M1 evidence chunks are not a contiguous ordered sequence")
-        if len(content_sha256) != 64:
-            raise EvidenceResolutionError("M1 chunk digest has an invalid representation")
-        try:
-            bytes.fromhex(content_sha256)
-        except ValueError as exc:
-            raise EvidenceResolutionError("M1 chunk digest is not hexadecimal") from exc
+        raw = bytes(text_utf8)
+        actual_digest = hashlib.sha256(raw).hexdigest()
+        if len(raw) != end - start or actual_digest != content_sha256:
+            raise EvidenceResolutionError("M1 stored chunk bytes do not match their committed span/hash")
+        material = f"zhouyi-evidence-chunk-v1\\0{document_id}\\0{ordinal}\\0{content_sha256}"
+        expected_chunk_id = hashlib.sha256(material.encode("utf-8")).hexdigest()
+        if chunk_id != expected_chunk_id:
+            raise EvidenceResolutionError("M1 chunk ID does not match its immutable identity fields")
         digest.update(
-            f"{ordinal}:{start}:{end}:{chunk_id}:{content_sha256}\n".encode("ascii")
+            f"{ordinal}:{start}:{end}:{chunk_id}:{content_sha256}\\n".encode("ascii")
         )
         expected_ordinal += 1
         expected_start = end
@@ -85,6 +87,8 @@ class SQLiteEvidenceRefResolver:
             digest = _manifest_digest(document_id, rows)
             if state[1] <= 0 or state[0] <= 0:
                 raise EvidenceResolutionError("completed document has an invalid durable cursor")
+            if int(state[1]) <= 0:
+                raise EvidenceResolutionError("completed document has no committed chunks")
             last = db.execute(
                 """SELECT byte_end FROM evidence_chunks
                    WHERE document_id = ? ORDER BY ordinal DESC LIMIT 1""",
