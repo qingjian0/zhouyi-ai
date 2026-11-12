@@ -456,6 +456,7 @@ class E09VerifierService:
         clock: E09Clock | None = None,
         receipt_signer: E09GrantSigner | None = None,
         receipt_ttl: timedelta = timedelta(minutes=1),
+        domain_registry: E09DomainRegistry | None = None,
     ) -> None:
         if not isinstance(store, SQLiteEvidenceStore):
             raise TypeError("store must be SQLiteEvidenceStore")
@@ -473,11 +474,16 @@ class E09VerifierService:
         self._clock = clock or SystemUTCClock()
         self._receipt_signer = receipt_signer
         self._receipt_ttl = receipt_ttl
+        if domain_registry is not None and not callable(getattr(domain_registry, "resolve", None)):
+            raise TypeError("domain_registry must implement resolve")
+        self._domain_registry = domain_registry
 
     def verify_branch_merge_authorization(self, **request: Any):
         """Verify with the service clock; caller-supplied now is rejected."""
         if "now" in request:
             raise E09AuthorizationError("verification time is controlled by the verifier service")
+        if "world_family_by_evidence" in request:
+            raise E09AuthorizationError("world-family overrides are forbidden; E09 derives domain from observations")
         current = self._clock.now()
         if not isinstance(current, datetime) or current.tzinfo is None:
             raise E09AuthenticationError("verifier clock must return a timezone-aware datetime")
@@ -486,6 +492,7 @@ class E09VerifierService:
             signature_verifier=self._signature_verifier,
             verifier_id=self.verifier_id,
             now=current,
+            domain_registry=self._domain_registry,
             **request,
         )
 
@@ -493,9 +500,12 @@ class E09VerifierService:
         """Verify a grant and issue a signed receipt for all candidate evidence refs."""
         if self._receipt_signer is None:
             raise E09AuthorizationError("verifier receipt signer is not configured")
-        receipt_only_fields = {
-            "candidate_evidence_refs", "candidate_evidence_world_family_by_ref",
-        }
+        if self._domain_registry is None:
+            raise E09AuthorizationError("trusted E09 domain registry is required for verification receipts")
+        forbidden = {"candidate_evidence_world_family_by_ref", "world_family_by_evidence"}
+        if forbidden.intersection(request):
+            raise E09AuthorizationError("caller-supplied world-family overrides are forbidden")
+        receipt_only_fields = {"candidate_evidence_refs"}
         verification_request = {
             key: value for key, value in request.items() if key not in receipt_only_fields
         }
@@ -524,13 +534,6 @@ class E09VerifierService:
         all_evidence_refs = tuple(sorted(candidate_refs))
         if not set(permit.evidence_refs).issubset(set(all_evidence_refs)):
             raise E09AuthorizationError("candidate evidence refs must include all authorization evidence refs")
-        world_families = request.get(
-            "candidate_evidence_world_family_by_ref",
-            request.get("world_family_by_evidence"),
-        )
-        if not isinstance(world_families, dict) or set(world_families) != set(all_evidence_refs):
-            raise E09AuthorizationError("every candidate evidence ref requires explicit world-family context")
-
         evidence = []
         for ref in all_evidence_refs:
             item = resolve_e09_reveal(
@@ -539,7 +542,7 @@ class E09VerifierService:
                 evidence_ref=ref,
                 scope=request["scope"],
                 learner_track=request["learner_track"],
-                world_family=world_families[ref],
+                domain_registry=self._domain_registry,
             )
             evidence.append({
                 "evidence_id": item.evidence_id,
