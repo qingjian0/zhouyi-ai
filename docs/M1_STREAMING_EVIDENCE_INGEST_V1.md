@@ -55,7 +55,7 @@ with open("large_input.txt", "rb") as source:
 
 ## 基准测量
 
-新增 `prototype/benchmark_streaming_ingest.py`，将 M0 RSS 采样、OS high-water、吞吐、SQLite/WAL 文件大小整合为单次可复现报告。详见 `docs/M1_STREAMING_INGEST_BENCHMARK_V1.md`。每个规模必须在新进程和新数据库执行。
+新增 `prototype/benchmark_streaming_ingest.py`，将 M0 RSS 采样、OS high-water、吞吐、SQLite/WAL 文件大小整合为单次可复现报告；脚本会创建缺失的数据库父目录，但拒绝覆盖已有数据库。新增 `tests/test_streaming_ingest_benchmark.py` 覆盖嵌套输出目录端到端摄取及已有数据库保护。详见 `docs/M1_STREAMING_INGEST_BENCHMARK_V1.md`。每个规模必须在新进程和新数据库执行。
 
 ## M1 验收仍需补齐
 
