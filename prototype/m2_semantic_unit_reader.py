@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Iterator
 
 from prototype.evidence_ref_resolver import SQLiteEvidenceRefResolver
-from prototype.m2_memory_packet import MemoryScanBudgetExceeded
+from prototype.stream_budget import ScanBudgetExceeded
 from prototype.m2_semantic_unit_store import (
     EVENT_SCHEMA, EVENT_TYPE, SemanticUnitStoreError, _candidate_from_dict,
 )
@@ -112,7 +112,7 @@ class PersistentM2SemanticUnitReader:
             for event in events:
                 scanned += 1
                 if scanned > max_events:
-                    raise MemoryScanBudgetExceeded(scanned - 1)
+                    raise ScanBudgetExceeded(scanned - 1)
                 payload = event["payload"]
                 if payload.get("schema_version") != EVENT_SCHEMA:
                     raise SemanticUnitStoreError("unsupported semantic-unit event schema")
@@ -144,7 +144,7 @@ class PersistentM2SemanticUnitReader:
                     seen_roots.add(root)
                 else:
                     raise SemanticUnitStoreError("unknown semantic-unit event kind")
-        except (ZPCMError, ContractError, SemanticUnitStoreError, MemoryScanBudgetExceeded):
+        except (ZPCMError, ContractError, SemanticUnitStoreError, ScanBudgetExceeded):
             raise
         except Exception as exc:
             raise SemanticUnitStoreError(f"semantic-unit stream read failed: {exc}") from exc
