@@ -167,6 +167,69 @@ def run_comparison(dataset_path: str | Path, roles: Sequence[RoleSpec],
     return result
 
 
+
+def run_multi_seed_comparison(dataset_path: str | Path, roles: Sequence[RoleSpec],
+                              feature_dim: int, output_path: str | Path, *,
+                              seeds: Sequence[int], latent_dim: int = 8,
+                              epochs: int = 100, learning_rate: float = 0.03,
+                              l2: float = 1e-4, max_expansions: int = 4096):
+    """Run independent seeds and aggregate paired per-seed model metrics."""
+    seed_values = tuple(seeds)
+    if not seed_values or any(isinstance(seed, bool) or not isinstance(seed, int) or seed < 0
+                              for seed in seed_values) or len(set(seed_values)) != len(seed_values):
+        raise LearnableSROKError("seeds must be a non-empty sequence of unique non-negative integers")
+    output = Path(output_path)
+    runs = []
+    for seed in seed_values:
+        seed_path = output.with_name(f"{output.stem}.seed-{seed}{output.suffix}")
+        runs.append(run_comparison(
+            dataset_path, roles, feature_dim, seed_path,
+            latent_dim=latent_dim, seed=seed, epochs=epochs,
+            learning_rate=learning_rate, l2=l2,
+            max_expansions=max_expansions,
+        ))
+    metric_names = (
+        "exact_match_accuracy", "mrr", "recall_at_1", "recall_at_3",
+        "recall_at_5", "candidate_brier", "candidate_log_loss",
+        "candidate_ece_10",
+    )
+    aggregates = {}
+    for model_name in runs[0]["models"]:
+        aggregates[model_name] = {}
+        for split_name in ("dev", "locked_test"):
+            aggregates[model_name][split_name] = {}
+            for metric in metric_names:
+                values = [run["models"][model_name][split_name][metric] for run in runs]
+                avg = math.fsum(values) / len(values)
+                variance = (math.fsum((value - avg) ** 2 for value in values) /
+                            (len(values) - 1)) if len(values) > 1 else 0.0
+                sd = math.sqrt(variance)
+                half_width = 1.96 * sd / math.sqrt(len(values)) if len(values) > 1 else 0.0
+                aggregates[model_name][split_name][metric] = {
+                    "mean": avg, "std": sd,
+                    "ci95_normal": [max(0.0, avg - half_width), min(1.0, avg + half_width)],
+                    "per_seed": values,
+                }
+    result = {
+        "schema": "zhouyi-ai.n010-baseline-multiseed-v1",
+        "dataset_manifest": runs[0]["dataset_manifest"],
+        "seeds": list(seed_values), "seed_count": len(seed_values),
+        "config": runs[0]["config"],
+        "models": aggregates,
+        "per_seed_reports": [
+            {"seed": seed, "path": str(output.with_name(
+                f"{output.stem}.seed-{seed}{output.suffix}"))}
+            for seed in seed_values
+        ],
+        "interval_note": "normal-approximation 95% CI across independent seeds; use paired bootstrap for final claims",
+    }
+    output.parent.mkdir(parents=True, exist_ok=True)
+    output.write_text(json.dumps(result, sort_keys=True, indent=2,
+                                 ensure_ascii=False, allow_nan=False) + "\\n",
+                      encoding="utf-8")
+    return result
+
+
 def main():
     parser = argparse.ArgumentParser(description="Compare N0.10 Xiang and matched baselines")
     parser.add_argument("--dataset", required=True)
