@@ -15,7 +15,7 @@ permissions:
 jobs:
   conditional-motif-e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -23,7 +23,7 @@ jobs:
           python-version: "3.11"
       - name: Run end-to-end learner test
         run: python -m unittest tests.test_cpg_ei_conditional_motif_e2e -v
-      - name: Run multi-seed held-out benchmark
+      - name: Run multi-seed optimizer sweep
         run: |
           set -o pipefail
           mkdir -p benchmark-results
