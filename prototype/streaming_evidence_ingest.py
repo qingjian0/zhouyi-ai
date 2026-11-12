@@ -100,7 +100,12 @@ class SQLiteEvidenceIngestor:
                     chunk_bytes INTEGER NOT NULL CHECK(chunk_bytes >= 4),
                     next_byte_offset INTEGER NOT NULL DEFAULT 0,
                     next_ordinal INTEGER NOT NULL DEFAULT 0,
-                    complete INTEGER NOT NULL DEFAULT 0 CHECK(complete IN (0, 1))
+                    complete INTEGER NOT NULL DEFAULT 0 CHECK(complete IN (0, 1)),
+                    manifest_digest TEXT,
+                    manifest_chunks INTEGER,
+                    manifest_bytes INTEGER,
+                    chunk_generation INTEGER NOT NULL DEFAULT 0,
+                    manifest_generation INTEGER
                 )
                 """
             )
@@ -128,6 +133,102 @@ class SQLiteEvidenceIngestor:
                 ON evidence_chunks(document_id, byte_start, byte_end)
                 """
             )
+            document_columns = {
+                row[1] for row in db.execute("PRAGMA table_info(ingest_documents)")
+            }
+            migrations = {
+                "manifest_digest": "TEXT",
+                "manifest_chunks": "INTEGER",
+                "manifest_bytes": "INTEGER",
+                "chunk_generation": "INTEGER NOT NULL DEFAULT 0",
+                "manifest_generation": "INTEGER",
+            }
+            for name, declaration in migrations.items():
+                if name not in document_columns:
+                    db.execute(
+                        f"ALTER TABLE ingest_documents ADD COLUMN {name} {declaration}"
+                    )
+            db.executescript("""
+            CREATE TRIGGER IF NOT EXISTS evidence_chunk_generation_insert
+            AFTER INSERT ON evidence_chunks
+            BEGIN
+                UPDATE ingest_documents SET chunk_generation=chunk_generation+1
+                WHERE document_id=NEW.document_id;
+            END;
+            CREATE TRIGGER IF NOT EXISTS evidence_chunk_generation_update
+            AFTER UPDATE ON evidence_chunks
+            BEGIN
+                UPDATE ingest_documents SET chunk_generation=chunk_generation+1
+                WHERE document_id=OLD.document_id;
+                UPDATE ingest_documents SET chunk_generation=chunk_generation+1
+                WHERE document_id=NEW.document_id AND NEW.document_id<>OLD.document_id;
+            END;
+            CREATE TRIGGER IF NOT EXISTS evidence_chunk_generation_delete
+            AFTER DELETE ON evidence_chunks
+            BEGIN
+                UPDATE ingest_documents SET chunk_generation=chunk_generation+1
+                WHERE document_id=OLD.document_id;
+            END;
+            """)
+            self._backfill_completed_manifests(db)
+
+    @staticmethod
+    def _manifest_from_rows(document_id: str, rows) -> tuple[str, int, int]:
+        digest = hashlib.sha256()
+        digest.update(b"zhouyi-evidence-document-manifest-v1\0")
+        expected_ordinal = 0
+        expected_start = 0
+        for ordinal, start, end, chunk_id, content_sha256, text_utf8 in rows:
+            raw = bytes(text_utf8)
+            actual_digest = hashlib.sha256(raw).hexdigest()
+            if (
+                ordinal != expected_ordinal or start != expected_start or end <= start
+                or len(raw) != end - start or actual_digest != content_sha256
+                or chunk_id != SQLiteEvidenceIngestor._chunk_id(
+                    document_id, ordinal, content_sha256
+                )
+            ):
+                raise IngestContractError(
+                    "persisted evidence chunks do not match their immutable manifest fields"
+                )
+            digest.update(
+                f"{ordinal}:{start}:{end}:{chunk_id}:{content_sha256}\n".encode("ascii")
+            )
+            expected_ordinal += 1
+            expected_start = end
+        if expected_ordinal == 0:
+            raise IngestContractError("document has no committed evidence chunks")
+        return "manifest-sha256:" + digest.hexdigest(), expected_ordinal, expected_start
+
+    @classmethod
+    def _store_manifest(cls, db: sqlite3.Connection, document_id: str) -> None:
+        rows = db.execute(
+            """SELECT ordinal,byte_start,byte_end,chunk_id,content_sha256,text_utf8
+               FROM evidence_chunks WHERE document_id=? ORDER BY ordinal""",
+            (document_id,),
+        )
+        manifest, chunks, byte_count = cls._manifest_from_rows(document_id, rows)
+        generation = int(db.execute(
+            "SELECT chunk_generation FROM ingest_documents WHERE document_id=?",
+            (document_id,),
+        ).fetchone()[0])
+        db.execute(
+            """UPDATE ingest_documents SET complete=1,manifest_digest=?,
+               manifest_chunks=?,manifest_bytes=?,manifest_generation=?
+               WHERE document_id=?""",
+            (manifest, chunks, byte_count, generation, document_id),
+        )
+
+    @classmethod
+    def _backfill_completed_manifests(cls, db: sqlite3.Connection) -> None:
+        legacy = db.execute(
+            """SELECT document_id FROM ingest_documents
+               WHERE complete=1 AND manifest_digest IS NULL ORDER BY document_id"""
+        ).fetchall()
+        for (document_id,) in legacy:
+            db.execute("BEGIN IMMEDIATE")
+            cls._store_manifest(db, document_id)
+            db.commit()
 
     @staticmethod
     def _chunk_id(document_id: str, ordinal: int, digest: str) -> str:
@@ -246,10 +347,7 @@ class SQLiteEvidenceIngestor:
                 raw = _read_utf8_chunk(stream, offset, chunk_bytes)
                 if not raw:
                     db.execute("BEGIN IMMEDIATE")
-                    db.execute(
-                        "UPDATE ingest_documents SET complete = 1 WHERE document_id = ?",
-                        (document_id,),
-                    )
+                    self._store_manifest(db, document_id)
                     db.commit()
                     complete = 1
                     break
