@@ -205,6 +205,276 @@ class E09SharedProtocolAdapter:
                 f"ZPCM projection failed; E09 source events remain durable and replayable: {exc}"
             ) from exc
 
+    @classmethod
+    def resume_srok_remote(
+        cls,
+        *,
+        episode_id: str,
+        scope: str,
+        split: str,
+        learner_track: str,
+        version_prefix: str,
+        learner_factory: Callable[[dict[str, Any]], Any],
+        observer_port: E09ObserverPort,
+        learner_port: E09LearnerPort,
+        evaluator_port: E09EvaluatorPort,
+        memory_projection: Any | None = None,
+    ) -> "E09SharedProtocolAdapter":
+        """Restore SROK from Authority-owned learner projection and checkpoint RPCs."""
+        if split not in EVIDENCE_SPLITS:
+            raise ValueError(f"split must be one of {sorted(EVIDENCE_SPLITS)}")
+        if not isinstance(episode_id, str) or not episode_id.strip():
+            raise ValueError("episode_id must be non-empty")
+        if not isinstance(scope, str) or not scope.strip():
+            raise ValueError("scope must be non-empty")
+        if not isinstance(learner_track, str) or not learner_track.strip():
+            raise ValueError("learner_track must be non-empty")
+        if not isinstance(version_prefix, str) or not version_prefix.strip():
+            raise ValueError("version_prefix must be non-empty")
+        if not callable(learner_factory):
+            raise TypeError("learner_factory must be callable")
+        if not all((
+            isinstance(observer_port, E09ObserverPort),
+            isinstance(learner_port, E09LearnerPort),
+            isinstance(evaluator_port, E09EvaluatorPort),
+        )):
+            raise E09ProtocolAdapterError(
+                "remote resume requires Observer, Learner and Evaluator role ports"
+            )
+
+        try:
+            events = learner_port.memory_source(
+                scope=scope, learner_track=learner_track
+            ).replay_episode(episode_id)
+            checkpoint = learner_port.checkpoint(
+                episode_id=episode_id, scope=scope, learner_track=learner_track
+            )
+        except Exception as exc:
+            raise E09ProtocolAdapterError(f"remote learner state read failed: {exc}") from exc
+        latest_payload = checkpoint.get("payload")
+        if not isinstance(latest_payload, dict):
+            raise E09ProtocolAdapterError("Authority returned a malformed learner checkpoint")
+        definition = latest_payload.get("definition", {})
+        if (
+            not isinstance(definition, dict)
+            or not isinstance(definition.get("snapshot"), dict)
+            or not isinstance(definition.get("ledger_snapshot"), dict)
+        ):
+            raise E09ProtocolAdapterError("remote checkpoint predates resumable SROK schema")
+
+        structures: list[dict[str, Any]] = []
+        for event in events:
+            if event.get("event_type") != "structure_version":
+                continue
+            item = dict(event)
+            if item.get("event_id") == checkpoint.get("event_id"):
+                item["payload"] = latest_payload
+                item["sequence_no"] = checkpoint.get("sequence_no")
+                item["payload_digest"] = checkpoint.get("payload_digest")
+            structures.append(item)
+        if not any(item.get("event_id") == checkpoint.get("event_id") for item in structures):
+            structures.append({
+                "event_id": checkpoint.get("event_id"),
+                "event_type": "structure_version",
+                "sequence_no": checkpoint.get("sequence_no"),
+                "payload_digest": checkpoint.get("payload_digest"),
+                "payload": latest_payload,
+            })
+        if not structures:
+            raise E09ProtocolAdapterError("episode has no learner structure checkpoint")
+        structures.sort(key=lambda event: event.get("sequence_no", 0))
+        version_id = latest_payload.get("version_id")
+        if not isinstance(version_id, str) or not version_id:
+            raise E09ProtocolAdapterError("remote checkpoint has no version ID")
+
+        learner = learner_factory(definition["snapshot"])
+        ledger = EvidenceLedger()
+        ledger_snapshot = definition["ledger_snapshot"]
+        for record in ledger_snapshot.get("records", []):
+            ledger.append(
+                record["sample_id"],
+                Example(tuple(record["inputs"]), cls._restore_label(record["label"])),
+                source=record.get("source", ""),
+                source_id=record.get("source_id", ""),
+            )
+        runner = PrequentialRunner(learner, ledger, revision_mode=definition["revision_mode"])
+        try:
+            model_version = int(
+                definition.get("runner_model_version") or version_id.rsplit("-v", 1)[1]
+            )
+        except (KeyError, ValueError, IndexError) as exc:
+            raise E09ProtocolAdapterError("invalid remote checkpoint model version") from exc
+        runner.model_version = model_version
+
+        observations = {
+            event["payload"]["observation_id"]: event["payload"]
+            for event in events
+            if event.get("event_type") == "observation"
+            and isinstance(event.get("payload", {}).get("observation_id"), str)
+        }
+        instance = cls.__new__(cls)
+        instance.runner = runner
+        instance.store = None
+        instance.episode_id = episode_id
+        instance.learner_track = learner_track
+        instance.scope = scope
+        instance.split = split
+        instance.structure_id = latest_payload["structure_id"]
+        instance.structure_kind = latest_payload["kind"]
+        instance.version_prefix = version_prefix
+        instance.memory_projection = memory_projection
+        instance._observer_port = observer_port
+        instance._learner_port = learner_port
+        instance._evaluator_port = evaluator_port
+        instance._authority = None
+        instance._observer_credential = None
+        instance._learner_credential = None
+        instance._evaluator_credential = None
+        instance._failed = False
+        instance._committed_predictions = set()
+        instance._commit_digests = {}
+        instance._event_digests = {}
+        instance._interop_commits = {}
+        instance._prediction_queries = {}
+        instance._reveals = {}
+        instance._version_id = version_id
+
+        for event in events:
+            if event.get("event_type") != "prediction_commit":
+                continue
+            payload = event.get("payload", {})
+            if payload.get("learner_track") != learner_track:
+                continue
+            prediction_id = payload["prediction_id"]
+            observation_id = payload["observation_id"]
+            observation = observations.get(observation_id)
+            if observation is None:
+                raise E09ProtocolAdapterError("prediction has no learner-visible Observation")
+            stored_input = learner_port.read_observation(
+                episode_id=episode_id, observation_id=observation_id, scope=scope
+            )
+            if not isinstance(stored_input, dict) or not isinstance(stored_input.get("inputs"), list):
+                raise E09ProtocolAdapterError("Authority returned malformed Observation inputs")
+            inputs = tuple(stored_input["inputs"])
+            prediction = cls._restore_label(payload.get("prediction"))
+            try:
+                model_number = int(payload["model_version"].rsplit("-model-", 1)[1])
+            except (KeyError, ValueError, IndexError) as exc:
+                raise E09ProtocolAdapterError("invalid durable prediction model version") from exc
+            step = int(payload.get("compute_cost", {}).get("step", 0))
+            runner._predictions[prediction_id] = RunnerPredictionCommit(
+                prediction_id, observation_id, inputs, model_number, prediction,
+                "PREDICT" if prediction is not None else "ABSTAIN", step,
+            )
+            interop = PredictionCommit(
+                commit_id=prediction_id,
+                candidate_ref=f"{instance.structure_id}@{version_prefix}-v{model_number}",
+                query_id=payload["query_id"],
+                scope=payload["scope"],
+                input_digest=observation["payload_ref"],
+                identifiable=prediction is not None,
+                prediction_json=canonical_json(cls._jsonable(prediction)) if prediction is not None else None,
+                abstention_reason=None if prediction is not None else "E09_NO_IDENTIFIABLE_PREDICTION",
+                episode_id=episode_id,
+                learner_track=learner_track,
+                split=EvidenceSplit(split.lower()),
+                model_version=payload["model_version"],
+            )
+            if interop.commit_digest != payload["interop_commit_digest"]:
+                raise E09ProtocolAdapterError("reconstructed remote prediction digest mismatch")
+            instance._committed_predictions.add(prediction_id)
+            instance._commit_digests[prediction_id] = interop.commit_digest
+            instance._event_digests[prediction_id] = event["payload_digest"]
+            instance._interop_commits[prediction_id] = interop
+            instance._prediction_queries[prediction_id] = observation_id
+            if hasattr(learner, "last_inference"):
+                learner.last_inference = dict(
+                    payload.get("compute_cost", {}).get("inference_report", {})
+                )
+
+        ledger_ids = {record.sample_id for record in ledger.records()}
+        reveal_event_to_prediction: dict[str, str] = {}
+        support_reveals = []
+        for event in events:
+            if event.get("event_type") != "evidence_reveal":
+                continue
+            payload = event.get("payload", {})
+            if payload.get("learner_track") != learner_track or payload.get("split") != "SUPPORT":
+                continue
+            prediction_id = payload["prediction_id"]
+            feedback = learner_port.read_support_feedback(
+                episode_id=episode_id, reveal_event_id=event["event_id"], scope=scope
+            )
+            if "feedback" not in feedback:
+                raise E09ProtocolAdapterError("Authority omitted authorized SUPPORT feedback")
+            label = cls._restore_label(feedback["feedback"])
+            source = feedback.get("reveal_source", "feedback")
+            reveal_event_to_prediction[event["event_id"]] = prediction_id
+            commit = runner._predictions.get(prediction_id)
+            if commit is None:
+                raise E09ProtocolAdapterError("SUPPORT reveal has no durable prediction commit")
+            if commit.observation_id not in ledger_ids:
+                ledger.append(commit.observation_id, Example(commit.inputs, label), source=source)
+                ledger_ids.add(commit.observation_id)
+            reveal_id = f"reveal-{prediction_id}"
+            runner._reveals[prediction_id] = RunnerEvidenceReveal(
+                reveal_id, prediction_id, label, int(event["sequence_no"]),
+            )
+            instance._reveals[prediction_id] = event["event_id"]
+            support_reveals.append((event, prediction_id, reveal_id))
+
+        revised_reveal_ids = set()
+        for event in events:
+            if event.get("event_type") != "revision":
+                continue
+            payload = event.get("payload", {})
+            if payload.get("learner_track") != learner_track:
+                continue
+            trigger = (payload.get("trigger_evidence_ids") or [None])[0]
+            prediction_id = reveal_event_to_prediction.get(trigger)
+            if prediction_id is None:
+                raise E09ProtocolAdapterError("remote revision trigger reveal cannot be resolved")
+            reveal_id = f"reveal-{prediction_id}"
+            before = (payload.get("before_version_ids") or [version_id])[0]
+            after = (payload.get("after_version_ids") or [version_id])[0]
+            runner._revisions.append(RunnerRevisionEvent(
+                payload["revision_id"], reveal_id,
+                int(before.rsplit("-v", 1)[1]), int(after.rsplit("-v", 1)[1]),
+                "", "", payload["operation"], payload.get("training_example_count", 0),
+                payload.get("candidate_evaluations", 0), int(event["sequence_no"]),
+            ))
+            revised_reveal_ids.add(reveal_id)
+
+        for structure in structures:
+            payload = structure.get("payload", {})
+            for evidence_id in payload.get("support_evidence_ids", []):
+                prediction_id = reveal_event_to_prediction.get(evidence_id)
+                if prediction_id is None:
+                    continue
+                reveal_id = f"reveal-{prediction_id}"
+                if reveal_id in revised_reveal_ids:
+                    continue
+                before = (payload.get("parent_version_ids") or [version_id])[0]
+                after = payload["version_id"]
+                sd = payload.get("definition", {})
+                runner._revisions.append(RunnerRevisionEvent(
+                    f"recovered-{after}", reveal_id,
+                    int(before.rsplit("-v", 1)[1]), int(after.rsplit("-v", 1)[1]),
+                    "", "", sd.get("revision_mode", runner.REVISION_MODE),
+                    sd.get("training_example_count", 0),
+                    sd.get("candidate_evaluations", 0), int(structure["sequence_no"]),
+                ))
+                revised_reveal_ids.add(reveal_id)
+
+        completed_revisions = sum(
+            bool(event.get("payload", {}).get("support_evidence_ids"))
+            for event in structures
+        )
+        runner.step = 1 + len(runner._predictions) + len(support_reveals) + completed_revisions
+        if memory_projection is not None:
+            instance._sync_memory()
+        return instance
+
     @staticmethod
     def _restore_label(value: Any) -> Any:
         return tuple(value) if isinstance(value, list) else value
