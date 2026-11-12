@@ -180,6 +180,7 @@ class E12A6WriterService:
             verified.issuer_id,
             verified.authorization_event_digest,
             verified.verifier_id,
+            domain_provenance_verified=True,
         )
         report = self._coordinator.coordinate(
             rows,
