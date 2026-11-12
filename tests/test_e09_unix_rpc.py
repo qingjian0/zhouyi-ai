@@ -392,6 +392,40 @@ class E09AuthorityUnixRPCTests(unittest.TestCase):
         )
         self.assertEqual(other_projection["events"], [])
 
+    def test_observer_cannot_choose_learner_workload_or_unassigned_track(self):
+        with self.assertRaises(IPCRemoteError) as forged:
+            self._call(
+                self.observer, "observation.append",
+                {
+                    "episode_id": self.episode,
+                    "event_id": "forged-observation",
+                    "observation_id": "forged-observation",
+                    "query_id": "forged-query",
+                    "scope": self.scope,
+                    "split": "SUPPORT",
+                    "learner_track": "track-a",
+                    "learner_workload_id": self.other_learner.workload_id,
+                },
+                "forged-learner-binding",
+            )
+        self.assertEqual(forged.exception.code, "invalid_body")
+
+        with self.assertRaises(IPCRemoteError) as unassigned:
+            self._call(
+                self.observer, "observation.append",
+                {
+                    "episode_id": self.episode,
+                    "event_id": "unassigned-observation",
+                    "observation_id": "unassigned-observation",
+                    "query_id": "unassigned-query",
+                    "scope": self.scope,
+                    "split": "SUPPORT",
+                    "learner_track": "track-unknown",
+                },
+                "unassigned-learner-track",
+            )
+        self.assertEqual(unassigned.exception.code, "permission_denied")
+
     def test_learner_cannot_append_observation_or_reveal(self):
         with self.assertRaises(IPCRemoteError) as observation_error:
             self._call(
@@ -400,6 +434,7 @@ class E09AuthorityUnixRPCTests(unittest.TestCase):
                     "episode_id": self.episode, "event_id": "obs-denied",
                     "observation_id": "obs-denied", "query_id": "q",
                     "scope": self.scope, "split": "SUPPORT",
+                    "learner_track": "track-a",
                 },
                 "obs-denied",
             )
