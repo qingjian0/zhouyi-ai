@@ -20,6 +20,10 @@ from prototype.observation_contract import (
 )
 from prototype.srok0_kernel import Node as SrokNode
 from prototype.yixiang_analogy import Relation
+from prototype.yixiang_csg_gcr_adapter import (
+    YixiangCsgGcrResult,
+    coordinate_yixiang_compositions,
+)
 from prototype.yixiang_role_transform import RoleTransform
 from prototype.yixiang_srok_adapter import (
     YixiangCompositionResult,
@@ -243,4 +247,50 @@ def compose_trlw_grounded_yixiang_hypotheses(
         working_set_budget_exhausted=packet.budget_exhausted,
         working_set_serialized_bytes=packet.serialized_bytes,
         search_exhaustive=exhaustive,
+    )
+
+
+@dataclass(frozen=True)
+class TRLWYixiangCsgGcrResult:
+    working_set: TRLWYixiangComposition
+    csg_gcr: YixiangCsgGcrResult
+    lifecycle_advanced: bool = False
+
+
+def coordinate_trlw_grounded_yixiang_csg_gcr(
+    packet: MemoryPacket,
+    *,
+    relation_record_id: str,
+    relation_type: str,
+    e09_event_refs_by_record: Mapping[str, Sequence[str]],
+    transform: RoleTransform,
+    parent_state_ref: str,
+    branch_id: str,
+    limit: int = 16,
+    max_candidates_per_role: int = 32,
+    max_expansions: int = 10_000,
+) -> TRLWYixiangCsgGcrResult:
+    """Run bounded TRLW → grounded XSL/Yixiang → SROK → typed CSG-GCR.
+
+    This function proposes and coordinates hypotheses only. It deliberately
+    does not consume an E09 verification receipt or advance E12-A6 lifecycle.
+    """
+    working_set = compose_trlw_grounded_yixiang_hypotheses(
+        packet,
+        relation_record_id=relation_record_id,
+        relation_type=relation_type,
+        e09_event_refs_by_record=e09_event_refs_by_record,
+        transform=transform,
+        limit=limit,
+        max_candidates_per_role=max_candidates_per_role,
+        max_expansions=max_expansions,
+    )
+    coordinated = coordinate_yixiang_compositions(
+        working_set.grounded.composition,
+        parent_state_ref=parent_state_ref,
+        branch_id=branch_id,
+    )
+    return TRLWYixiangCsgGcrResult(
+        working_set=working_set,
+        csg_gcr=coordinated,
     )
