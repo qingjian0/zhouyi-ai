@@ -162,7 +162,7 @@ class CpgEiTransitionModel:
         self,
         examples: Sequence[Example],
         epochs: int = 120,
-        learning_rate: float = 12.6,
+        learning_rate: float | None = None,
         l2: float = 1e-4,
         gate_l1: float = 1e-4,
         edge_group_l1: float = 0.0,
@@ -173,11 +173,13 @@ class CpgEiTransitionModel:
     ) -> list[float]:
         if not examples:
             raise ValueError("training data must not be empty")
-        if (epochs < 1 or learning_rate <= 0.0 or l2 < 0.0
-                or gate_l1 < 0.0 or edge_group_l1 < 0.0):
-            raise ValueError("invalid optimizer configuration")
         if optimizer not in {"sgd", "adam"}:
             raise ValueError("optimizer must be 'sgd' or 'adam'")
+        if learning_rate is None:
+            learning_rate = 12.6 if optimizer == "sgd" else 0.01
+        if (epochs < 1 or not math.isfinite(learning_rate) or learning_rate <= 0.0
+                or l2 < 0.0 or gate_l1 < 0.0 or edge_group_l1 < 0.0):
+            raise ValueError("invalid optimizer configuration")
         if not (0.0 <= adam_beta1 < 1.0 and 0.0 <= adam_beta2 < 1.0
                 and math.isfinite(adam_epsilon) and adam_epsilon > 0.0):
             raise ValueError("invalid Adam configuration")
