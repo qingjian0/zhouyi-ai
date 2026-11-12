@@ -77,6 +77,7 @@ class E09AuthorityRuntimeTests(unittest.TestCase):
             domain_registry=self.registry,
             uid_to_credential={uid: "observer-cert"},
             socket_gid=os.getgid(),
+            test_only_allow_same_uid=(uid == os.getuid()),
         )
 
     def observation_request(self):
@@ -120,6 +121,16 @@ class E09AuthorityRuntimeTests(unittest.TestCase):
             response = send_request(self.socket_path, self.observation_request())
             self.assertFalse(response["ok"])
             self.assertEqual(runtime._store.replay_episode("ipc-episode"), [])
+
+    def test_client_cannot_share_database_owner_uid_in_production_mode(self):
+        with self.assertRaisesRegex(E09AuthorityRuntimeError, "client UIDs must be distinct"):
+            E09AuthorityRuntime(
+                database_path=self.db_path, socket_path=self.socket_path,
+                authenticator=self.authenticator, signer=Signer(),
+                domain_registry=self.registry,
+                uid_to_credential={os.getuid(): "observer-cert"},
+                socket_gid=os.getgid(),
+            )
 
     def test_database_directory_with_group_or_world_access_is_rejected(self):
         os.chmod(self.db_dir, 0o755)
