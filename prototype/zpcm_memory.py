@@ -526,6 +526,14 @@ class ZPCMMemory:
             page_size=page_size,
         )
 
+    def get_lifecycle_event(self, *, scope: str, event_id: str) -> dict[str, Any] | None:
+        """Fetch and verify one lifecycle event without retaining its payload in memory."""
+        if not isinstance(scope, str) or not scope.strip():
+            raise ZPCMError("scope must be non-empty")
+        return self.get_domain_event(
+            event_type="e12a6_lifecycle", scope=scope, event_id=event_id,
+        )
+
     def replay_lifecycle_events(self, *, scope: str, after_sequence: int = 0) -> list[dict[str, Any]]:
         """Compatibility helper that materializes lifecycle history.
 
