@@ -359,6 +359,7 @@ class E09AuthorityService:
                 or observation_payload.get("scope") != scope
                 or observation_payload.get("learner_track") != learner_track
                 or observation_payload.get("learner_workload_id") != principal.workload_id
+                or observation_payload.get("split") != payload.get("split")
                 or observation_payload.get("observation_id") != payload.get("observation_id")
                 or observation_payload.get("query_id") != payload.get("query_id")
                 or not isinstance(observation_workload, dict)
@@ -393,6 +394,7 @@ class E09AuthorityService:
             commit_payload = commit.get("payload", {}) if isinstance(commit, dict) else {}
             if (
                 not isinstance(commit, dict)
+                or commit_payload.get("split") != "SUPPORT"
                 or reveal_payload.get("prediction_id") != commit_payload.get("prediction_id")
                 or reveal_payload.get("query_id") != commit_payload.get("query_id")
                 or reveal_payload.get("learner_track") != commit_payload.get("learner_track")
