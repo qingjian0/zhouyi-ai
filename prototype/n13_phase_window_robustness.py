@@ -44,7 +44,8 @@ def make_dataset(
         raise ValueError("seed must be an integer")
     if split not in ("train", "validation", "test"):
         raise ValueError("split must be train, validation, or test")
-    if isinstance(heldout_role, bool) or heldout_role not in (0, 1, 2):
+    if (isinstance(heldout_role, bool) or not isinstance(heldout_role, int)
+            or heldout_role not in (0, 1, 2)):
         raise ValueError("heldout_role must be 0, 1, or 2")
     if not math.isfinite(heldout_start):
         raise ValueError("heldout_start must be finite")
