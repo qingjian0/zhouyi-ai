@@ -259,6 +259,8 @@ class ZPCMMemory:
             );
             CREATE INDEX IF NOT EXISTS e12a6_action_state_by_candidate
                 ON e12a6_action_state_projection(scope,candidate_id,candidate_version,source_seq);
+            CREATE INDEX IF NOT EXISTS e12a6_action_state_by_scope_seq
+                ON e12a6_action_state_projection(scope,source_seq);
             CREATE TRIGGER IF NOT EXISTS e12a6_candidate_state_insert
             AFTER INSERT ON memory_events
             WHEN NEW.event_type='e12a6_lifecycle'
