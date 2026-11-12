@@ -6,6 +6,8 @@ verified EvidenceRefs; it does not create a second evidence or event ledger.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
+from threading import RLock
 from typing import Any
 
 from prototype.evidence_ref_resolver import SQLiteEvidenceRefResolver
@@ -95,6 +97,7 @@ class PersistentM2ObservationStore:
         self._memory = memory
         self._resolver = resolver
         self.scope = scope
+        self._lock = RLock()
         self._observations: dict[str, Observation] = {}
         self._receipts: dict[str, ObservationReceipt] = {}
         self._record_digests: dict[str, str] = {}
@@ -103,7 +106,8 @@ class PersistentM2ObservationStore:
 
     @property
     def observations(self) -> dict[str, Observation]:
-        return dict(self._observations)
+        with self._lock:
+            return dict(self._observations)
 
     def _verify_evidence(self, observation: Observation) -> None:
         if observation.envelope.scope != self.scope:
@@ -118,7 +122,7 @@ class PersistentM2ObservationStore:
 
     @staticmethod
     def _event_payload(observation: Observation) -> tuple[dict[str, Any], str]:
-        body = __import__("json").loads(canonical_json(observation))
+        body = json.loads(canonical_json(observation))
         body_digest = record_digest(observation)
         return {
             "schema_version": EVENT_SCHEMA,
@@ -175,47 +179,46 @@ class PersistentM2ObservationStore:
     def record_observation(self, observation: Observation) -> ObservationReceipt:
         if not isinstance(observation, Observation):
             raise TypeError("observation must be an Observation")
-        self._verify_evidence(observation)
-        record_id = observation.envelope.record_id
-        digest_value = record_digest(observation)
-        old = self._observations.get(record_id)
-        if old is not None:
-            if self._record_digests[record_id] != digest_value:
-                raise ObservationStoreError("observation record_id is immutable; create a new revision ID")
-            prior = self._receipts[record_id]
-            return ObservationReceipt(
-                prior.event_id, prior.sequence, prior.payload_digest, prior.record_digest, True
-            )
+        with self._lock:
+            self._verify_evidence(observation)
+            record_id = observation.envelope.record_id
+            digest_value = record_digest(observation)
+            old = self._observations.get(record_id)
+            if old is not None:
+                if self._record_digests[record_id] != digest_value:
+                    raise ObservationStoreError("observation record_id is immutable; create a new revision ID")
+                prior = self._receipts[record_id]
+                return ObservationReceipt(
+                    prior.event_id, prior.sequence, prior.payload_digest, prior.record_digest, True
+                )
 
-        event_id = f"m2:observation:{record_id}"
-        payload, body_digest = self._event_payload(observation)
-        if body_digest != digest_value:
-            raise ObservationStoreError("canonical observation digest changed during serialization")
-        try:
-            raw = self._memory.append_domain_event(
-                event_type=EVENT_TYPE,
+            event_id = f"m2:observation:{record_id}"
+            payload, body_digest = self._event_payload(observation)
+            if body_digest != digest_value:
+                raise ObservationStoreError("canonical observation digest changed during serialization")
+            try:
+                raw = self._memory.append_domain_event(
+                    event_type=EVENT_TYPE,
+                    event_id=event_id,
+                    scope=self.scope,
+                    payload=payload,
+                    expected_sequence=self._last_sequence,
+                )
+            except ZPCMError:
+                raise
+            receipt = ObservationReceipt(
                 event_id=event_id,
-                scope=self.scope,
-                payload=payload,
-                expected_sequence=self._last_sequence,
+                sequence=raw["sequence"],
+                payload_digest=raw["payload_digest"],
+                record_digest=digest_value,
+                replayed=raw["replayed"],
             )
-        except ZPCMError:
-            # Do not mutate local state after stale cursors, ID conflicts, or
-            # durable append failures. Reopen/replay is the recovery path.
-            raise
-        receipt = ObservationReceipt(
-            event_id=event_id,
-            sequence=raw["sequence"],
-            payload_digest=raw["payload_digest"],
-            record_digest=digest_value,
-            replayed=raw["replayed"],
-        )
-        if receipt.replayed:
-            raise ObservationStoreError(
-                "event exists in ZPCM outside this adapter's restored state; reconstruct before retry"
-            )
-        self._observations[record_id] = observation
-        self._receipts[record_id] = receipt
-        self._record_digests[record_id] = digest_value
-        self._last_sequence = receipt.sequence
-        return receipt
+            if receipt.replayed:
+                raise ObservationStoreError(
+                    "event exists in ZPCM outside this adapter's restored state; reconstruct before retry"
+                )
+            self._observations[record_id] = observation
+            self._receipts[record_id] = receipt
+            self._record_digests[record_id] = digest_value
+            self._last_sequence = receipt.sequence
+            return receipt
