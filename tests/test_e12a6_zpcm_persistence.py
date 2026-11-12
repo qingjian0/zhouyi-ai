@@ -425,7 +425,7 @@ class PersistentLifecycleTests(unittest.TestCase):
         projected = self.memory.get_lifecycle_candidate_projection(
             scope="project-a", candidate_id="rel:greater-than", candidate_version=1,
         )
-        self.assertEqual(projected["candidate"]["state"], "PROPOSED")
+        self.assertEqual(projected["candidate"]["state"], "proposed")
         self.assertEqual(projected["source_seq"], receipt.sequence)
         self.assertEqual(
             self.memory.get_lifecycle_evidence_projection(
@@ -447,7 +447,7 @@ class PersistentLifecycleTests(unittest.TestCase):
             self.memory.get_lifecycle_candidate_projection(
                 scope="project-a", candidate_id="rel:greater-than", candidate_version=1,
             )["candidate"]["state"],
-            "PROPOSED",
+            "proposed",
         )
         self.assertEqual(self.memory.lifecycle_state_projection_counts(scope="project-a"), before)
 
