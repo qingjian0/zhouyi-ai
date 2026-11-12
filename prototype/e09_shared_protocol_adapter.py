@@ -150,6 +150,10 @@ class E09SharedProtocolAdapter:
         split: str, learner_track: str, version_prefix: str,
         learner_factory: Callable[[dict[str, Any]], Any],
         memory_projection: Any | None = None,
+        authority: E09AuthorityService | None = None,
+        observer_credential: object | None = None,
+        learner_credential: object | None = None,
+        evaluator_credential: object | None = None,
     ) -> "E09SharedProtocolAdapter":
         """Rebuild SROK/E09 in-memory state from durable events and checkpoints.
 
@@ -203,6 +207,12 @@ class E09SharedProtocolAdapter:
         instance.structure_kind = latest_payload["kind"]
         instance.version_prefix = version_prefix
         instance.memory_projection = memory_projection
+        instance._configure_authority(
+            authority=authority,
+            observer_credential=observer_credential,
+            learner_credential=learner_credential,
+            evaluator_credential=evaluator_credential,
+        )
         instance._failed = False
         instance._committed_predictions = set()
         instance._commit_digests = {}
