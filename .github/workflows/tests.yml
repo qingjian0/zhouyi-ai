@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main, research/n10-learnable-role-composition-2026-11-11]
+    branches: [main, research/n10-learnable-role-composition-2026-11-11, research/n11-cyclic-ood-transfer-2026-11-12]
 
 jobs:
   unit-tests:
@@ -67,6 +67,34 @@ jobs:
         with:
           name: n11-cyclic-ood-results
           path: n11-cyclic-ood.json
+          if-no-files-found: error
+      - name: Run N0.12 parameter-matched MLP baselines
+        run: |
+          python -m unittest tests.test_n12_parameter_matched_baselines -v
+          python -m prototype.n12_parameter_matched_baselines \
+            --seeds 5 --start-seed 7 --train-samples 3000 \
+            --validation-samples 750 --test-samples 1500 \
+            --epochs 120 --json > n12-mlp-baselines.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          result = json.loads(Path("n12-mlp-baselines.json").read_text())
+          summary = result["summary"]
+          assert result["seed_count"] == 5
+          assert result["parameter_counts"] == {
+              "srok": 35, "mlp_4": 33, "mlp_5": 41, "mlp_12": 97
+          }
+          assert summary["srok.accuracy"]["mean"] >= 0.85
+          assert 0.40 <= summary["mlp_4.accuracy"]["mean"] <= 0.85
+          assert 0.40 <= summary["mlp_5.accuracy"]["mean"] <= 0.90
+          assert 0.65 <= summary["mlp_12.accuracy"]["mean"] <= 1.00
+          print(json.dumps({"summary": summary}, indent=2))
+          PY
+      - name: Upload N0.12 parameter-matched baseline artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: n12-mlp-baseline-results
+          path: n12-mlp-baselines.json
           if-no-files-found: error
       - name: Run E01 demonstration
         run: python -m prototype.e01_sparse_composition --json
