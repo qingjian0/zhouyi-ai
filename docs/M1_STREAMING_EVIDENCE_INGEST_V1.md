@@ -63,3 +63,7 @@ with open("large_input.txt", "rb") as source:
 6. 对源文件版本不一致的恢复增加显式校验/拒绝策略。
 
 M1 通过只证明原文可有界摄取和持久恢复，不代表 M2 认知工作集、K1 持续认知或 K2 原生表达通过。
+
+## CI wiring
+
+The M0 target branch now explicitly includes this M1 head branch in the repository test workflow's pull-request branch filter. Exact-head CI status must still be read from the GitHub Actions run; configuration alone is not validation.
