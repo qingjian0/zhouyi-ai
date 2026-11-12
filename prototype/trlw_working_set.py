@@ -170,42 +170,42 @@ def build_trlw_working_set(
     effective_source_complete = source_complete
 
     try:
-      for record in records:
-        seen += 1
-        if not isinstance(record, SemanticUnitCandidate):
-            raise TRLWError("input records must be SemanticUnitCandidate values")
-        if record.envelope.scope != query.scope:
-            continue
-        if query.required_types and record.kind not in query.required_types:
-            continue
-        if record.grounding_status not in query.allowed_grounding_statuses:
-            continue
-        if not _matches_time(record, query):
-            continue
-        matched += 1
-
-        score = scorer(record, query)
-        if not isinstance(score, Score) or score.semantics != "trlw-ranking":
-            raise TRLWError("ranker must return Score with semantics='trlw-ranking'")
-        encoded_size = len(canonical_json(record).encode("utf-8"))
-        if encoded_size > query.byte_budget:
-            budget_exhausted = True
-            continue
-
-        if any(entry.record.envelope.record_id == record.envelope.record_id for entry in selected):
-            continue
-        candidate = TRLWEntry(record, score, encoded_size, source_order=seen)
-        selected.append(candidate)
-        selected.sort(key=lambda item: (
-            -float(item.ranking_score.value), item.source_order,
-        ))
-        selected_bytes += encoded_size
-        while selected and (
-            len(selected) > query.max_records or selected_bytes > query.byte_budget
-        ):
-            removed = selected.pop()
-            selected_bytes -= removed.serialized_bytes
-            budget_exhausted = True
+        for record in records:
+            seen += 1
+            if not isinstance(record, SemanticUnitCandidate):
+                raise TRLWError("input records must be SemanticUnitCandidate values")
+            if record.envelope.scope != query.scope:
+                continue
+            if query.required_types and record.kind not in query.required_types:
+                continue
+            if record.grounding_status not in query.allowed_grounding_statuses:
+                continue
+            if not _matches_time(record, query):
+                continue
+            matched += 1
+    
+            score = scorer(record, query)
+            if not isinstance(score, Score) or score.semantics != "trlw-ranking":
+                raise TRLWError("ranker must return Score with semantics='trlw-ranking'")
+            encoded_size = len(canonical_json(record).encode("utf-8"))
+            if encoded_size > query.byte_budget:
+                budget_exhausted = True
+                continue
+    
+            if any(entry.record.envelope.record_id == record.envelope.record_id for entry in selected):
+                continue
+            candidate = TRLWEntry(record, score, encoded_size, source_order=seen)
+            selected.append(candidate)
+            selected.sort(key=lambda item: (
+                -float(item.ranking_score.value), item.source_order,
+            ))
+            selected_bytes += encoded_size
+            while selected and (
+                len(selected) > query.max_records or selected_bytes > query.byte_budget
+            ):
+                removed = selected.pop()
+                selected_bytes -= removed.serialized_bytes
+                budget_exhausted = True
     except ScanBudgetExceeded:
         effective_source_complete = False
         budget_exhausted = True
