@@ -79,7 +79,52 @@ class PersistentM2ObservationStoreTests(unittest.TestCase):
         self.memory = ZPCMMemory(self.memory_db)
         restored = PersistentM2ObservationStore(self.memory, self.resolver, scope="project-a")
         self.assertEqual(restored.observations["obs-1"], observation)
-        self.assertTrue(restored._receipts["obs-1"].replayed)
+        restored_receipt = next(restored._memory.iter_domain_events(
+            event_type="m2_observation", scope="project-a", page_size=1,
+        ))
+        self.assertEqual(restored_receipt["event_id"], "m2:observation:obs-1")
+
+    def test_constructor_does_not_eagerly_restore_observation_history(self):
+        original = self.memory.iter_domain_events
+        def forbidden_full_scan(**kwargs):
+            raise AssertionError("constructor must not iterate observation history")
+        self.memory.iter_domain_events = forbidden_full_scan
+        try:
+            store = PersistentM2ObservationStore(
+                self.memory, self.resolver, scope="project-a",
+            )
+            self.assertFalse(hasattr(store, "_observations"))
+        finally:
+            self.memory.iter_domain_events = original
+
+    def test_observations_are_available_as_a_lazy_paged_iterator(self):
+        receipts = [
+            self.store.record_observation(self.make_observation(record_id=f"obs-{i}"))
+            for i in range(3)
+        ]
+        iterator = self.store.iter_observations(page_size=1)
+        self.assertEqual(next(iterator).envelope.record_id, "obs-0")
+        tail = list(self.store.iter_observations(
+            after_sequence=receipts[0].sequence, page_size=1,
+        ))
+        self.assertEqual(
+            [item.envelope.record_id for item in tail],
+            ["obs-1", "obs-2"],
+        )
+        # The compatibility property is an explicit materializing snapshot.
+        self.assertEqual(set(self.store.observations), {"obs-0", "obs-1", "obs-2"})
+
+    def test_identical_retry_after_reopen_is_idempotent(self):
+        observation = self.make_observation()
+        first = self.store.record_observation(observation)
+        self.memory.close()
+        self.memory = ZPCMMemory(self.memory_db)
+        restored = PersistentM2ObservationStore(
+            self.memory, self.resolver, scope="project-a",
+        )
+        retry = restored.record_observation(observation)
+        self.assertTrue(retry.replayed)
+        self.assertEqual(retry.sequence, first.sequence)
 
     def test_identical_retry_is_idempotent_but_record_id_is_immutable(self):
         observation = self.make_observation()
@@ -128,8 +173,9 @@ class PersistentM2ObservationStoreTests(unittest.TestCase):
             )
         self.memory.close()
         self.memory = ZPCMMemory(self.memory_db)
+        restored = PersistentM2ObservationStore(self.memory, self.resolver, scope="project-a")
         with self.assertRaises(EvidenceResolutionError):
-            PersistentM2ObservationStore(self.memory, self.resolver, scope="project-a")
+            list(restored.iter_observations(page_size=1))
 
 
 if __name__ == "__main__":
