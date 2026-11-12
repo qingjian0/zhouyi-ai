@@ -176,3 +176,44 @@ The test must inspect OS file permissions and process identities, not merely moc
 7. Add external checkpoint, KMS/HSM integration, key rotation/revocation, monitoring and backup restore drill.
 
 No phase may claim full process isolation until Gates A–D pass on the target deployment OS.
+
+
+## 12. E09 consistent snapshot publication
+
+Implementation slice: `prototype/e09_snapshot_publisher.py` (PR #302).
+
+The Authority database must not be copied with filesystem byte-copy operations
+while SQLite is live. The publisher opens the source in SQLite read-only mode
+(without `immutable=1`) and uses `Connection.backup()`, allowing SQLite to
+coordinate a transactionally consistent image of the main database and any
+committed WAL content visible to the backup operation.
+
+Publication protocol:
+
+1. The destination directory is pre-provisioned for the Verifier identity and
+   must not be group/world writable. The publisher does not create service
+   directories or change their ownership.
+2. A private lock file and Linux `flock(LOCK_EX)` serialize publishers for a
+   destination. This prevents an older, slower backup from replacing a newer
+   completed publication.
+3. SQLite backs up into a unique temporary file in the destination directory.
+   The publisher verifies required E09 tables and `PRAGMA integrity_check`,
+   switches the result to standalone `DELETE` journal mode, closes all SQLite
+   handles, sets mode `0600`, and fsyncs the file.
+4. `os.replace()` atomically publishes the complete database; the containing
+   directory is then fsynced before success is returned.
+5. Existing destination `-wal`/`-shm` sidecars cause a fail-closed refusal.
+   The publisher never deletes sidecars that could belong to active readers.
+
+The snapshot is a point-in-time read model, not a second event ledger. The
+Authority database remains authoritative. The publisher does not alter the
+source DB, event sequence, idempotency table or payload vault. A later
+publication replaces the snapshot atomically; readers that already opened the
+old file continue reading their old inode, while new readers open the new file.
+
+Operational limitations still apply: service-account ownership, source read
+permissions, KMS key separation, external monotonic anti-rollback checkpoints,
+crash/restart orchestration and adversarial cross-UID tests must be validated
+in the deployment environment. Atomic rename protects publication visibility;
+it does not by itself provide anti-rollback across host restore or malicious
+filesystem rollback.
