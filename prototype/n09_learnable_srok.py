@@ -442,20 +442,39 @@ class LearnableSROK:
         if isinstance(top_k, bool) or not isinstance(top_k, int) or top_k < 2:
             raise LearnableSROKError("branch-and-bound top_k must be at least two")
 
+        def minimum_completion_ids(prefix):
+            return (
+                tuple(node.node_id for node in prefix)
+                + tuple(
+                    min(node.node_id for node in pool)
+                    for pool in pools[len(prefix):]
+                )
+            )
+
         root = ()
         serial = 0
         root_bound = self._assignment_upper_bound(root, pools)
-        frontier = [(-root_bound, (), serial, root)]
+        frontier = [(-root_bound, minimum_completion_ids(root), serial, root)]
         best = []
         expanded = 0
         role_count = len(self.roles)
 
         while frontier:
             best_remaining_bound = -frontier[0][0]
-            if len(best) >= top_k and best_remaining_bound < best[-1][0]:
-                break
+            if len(best) >= top_k:
+                kth_score = best[-1][0]
+                kth_ids = tuple(node.node_id for node in best[-1][1])
+                best_tie_lower_bound = frontier[0][1]
+                if (
+                    best_remaining_bound < kth_score
+                    or (
+                        best_remaining_bound == kth_score
+                        and best_tie_lower_bound >= kth_ids
+                    )
+                ):
+                    break
 
-            _negative_bound, _node_ids, _serial, prefix = heapq.heappop(frontier)
+            _negative_bound, _tie_lower_bound, _serial, prefix = heapq.heappop(frontier)
             if len(prefix) == role_count:
                 score = self.score(prefix)
                 best.append((score, prefix))
@@ -476,8 +495,10 @@ class LearnableSROK:
                 child = prefix + (node,)
                 bound = self._assignment_upper_bound(child, pools)
                 serial += 1
-                node_ids = tuple(item.node_id for item in child)
-                heapq.heappush(frontier, (-bound, node_ids, serial, child))
+                tie_lower_bound = minimum_completion_ids(child)
+                heapq.heappush(
+                    frontier, (-bound, tie_lower_bound, serial, child)
+                )
 
         return [assignment for _score, assignment in best], False, expanded
 
