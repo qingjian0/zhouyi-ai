@@ -298,9 +298,11 @@ class PersistentLifecycleLedger:
             return snapshot
 
     def close(self) -> None:
-        """Release the disk-backed replay state and remove its temporary database."""
+        """Release disk-backed replay state; safe after normal close or fail-closed recovery."""
         with self._lock:
-            self._runtime_state.close()
+            state = self._runtime_state
+            if state is not None:
+                state.close()
 
     def __enter__(self):
         return self
