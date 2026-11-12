@@ -112,6 +112,38 @@ class LearnableSROKParityIntegrationTests(unittest.TestCase):
         self.assertLess(abs(ranked[0][1]), 1e-10)
         self.assertLess(abs(ranked[1][1]), 1e-10)
 
+    def test_joint_predict_uses_relations_before_unary_top_k_truncation(self):
+        model = LearnableSROK(self._roles(), feature_dim=1)
+        model.fit_relation_classifier(
+            self._examples(seed=61), epochs=700, learning_rate=0.12,
+        )
+        nodes = tuple(
+            Node(f"{prefix}-{role}", f"r{role}", (value,))
+            for role in range(3)
+            for prefix, value in (("a-negative", -1.0), ("z-positive", 1.0))
+        )
+        unary = model.predict(nodes, top_k_per_role=1, result_limit=1)
+        joint = model.predict(
+            nodes, top_k_per_role=1, max_expansions=8,
+            result_limit=8, retrieval_mode="joint",
+        )
+        self.assertEqual(unary.role_pool_sizes, (("r0", 1), ("r1", 1), ("r2", 1)))
+        self.assertEqual(joint.role_pool_sizes, (("r0", 2), ("r1", 2), ("r2", 2)))
+        self.assertEqual(joint.expanded_assignments, 8)
+        self.assertFalse(joint.budget_exhausted)
+        self.assertTrue(joint.candidates)
+        best = joint.candidates[0]
+        selected = dict(best.role_bindings)
+        selected_nodes = [next(node for node in nodes if node.node_id == selected[f"r{i}"]) for i in range(3)]
+        parity = selected_nodes[0].features[0] * selected_nodes[1].features[0] * selected_nodes[2].features[0]
+        self.assertEqual(parity, 1.0)
+        self.assertGreater(best.score, unary.candidates[0].score)
+
+    def test_joint_predict_rejects_unknown_retrieval_mode(self):
+        model = LearnableSROK(self._roles(), feature_dim=1)
+        with self.assertRaises(ValueError):
+            model.predict((), retrieval_mode="oracle")
+
     def test_invalid_labels_and_incomplete_assignments_are_rejected(self):
         model = LearnableSROK(self._roles(), feature_dim=1)
         node = Node("a", "r0", (1.0,))
