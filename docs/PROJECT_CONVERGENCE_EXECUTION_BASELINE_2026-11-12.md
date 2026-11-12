@@ -324,3 +324,12 @@ A failed earlier run on an older SHA is not evidence that the current exact head
 - PR #367 exact head `7a0d937f8c14f833921651309309159a8ba30439`, workflow #43217463370: success. The sweep now includes 1,000, 10,000, 100,000, and 1,000,000 records per split (2,000,000 total at the largest point).
 - Measured peak RSS: 25,088 KiB / 27,220 KiB / 27,176 KiB / 27,380 KiB respectively. Peak-minus-baseline: 1,772 / 5,144 / 5,060 / 5,120 KiB. Elapsed: 0.195 / 1.815 / 18.702 / 187.581 seconds.
 - This is positive evidence that the current small-record, two-candidate-per-role synthetic profile scales to two million rows without a proportional RSS increase. It is not a universal constant-memory claim: record size, candidate fan-out, feature dimensionality, concurrent workers, storage throughput, and larger per-example assignment spaces remain untested.
+
+
+### Exact-head refresh — E12-A6 projection foundation and million-scale N0.10 (2026-11-12 12:29Z)
+
+- PR #370 exact head `dc49e69ac604787d7ff6e90ccbd37ef13e4cad72`, workflow #43217782060: success. Adds normalized SQLite current-state projections for candidate versions, evidence, and actions. SQLite triggers update the derived projections in the same transaction as lifecycle event appends; normal startup performs only a one-time historical backfill, with an explicit repair method.
+- Important E12-A6 boundary: `PersistentLifecycleLedger._restore()` still reconstructs the full in-memory `LifecycleLedger`, and `ledger` still exposes a deep-copied materialization. The new projection is a foundation for lazy SQL-backed validation, not yet bounded-memory restore.
+- PR #367 exact head `7a0d937f8c14f833921651309309159a8ba30439`, workflow #43217463370: success. One million records per split (two million total) streamed in 187.581 seconds at 27,380 KiB peak RSS in the synthetic Linux CI fixture.
+- PR #358 exact head `0f6ea1f25e10f6a7540dd9f280b3c70ce5cd279c`, workflow #43217815409: success. Full unit tests and E01/E02 validation stages passed.
+- All cited changes remain Draft/unmerged. No stable branch was changed.
