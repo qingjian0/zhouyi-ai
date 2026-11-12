@@ -250,6 +250,18 @@ def run_discovery_baseline(
                 len(x["support_identifiability_audit"]["unresolved_variable_indices"])
                 for x in items
             ) / count,
+            "mean_input_context_coverage": sum(
+                sum(variable["context_coverage"]
+                    for variable in x["support_identifiability_audit"]["variables"])
+                / len(x["support_identifiability_audit"]["variables"])
+                for x in items
+            ) / count,
+            "mean_influence_context_count": sum(
+                sum(variable["influence_context_count"]
+                    for variable in x["support_identifiability_audit"]["variables"])
+                / len(x["support_identifiability_audit"]["variables"])
+                for x in items
+            ) / count,
             "any_unresolved_support_rate": sum(
                 bool(x["support_identifiability_audit"]["unresolved_variable_indices"])
                 for x in items
