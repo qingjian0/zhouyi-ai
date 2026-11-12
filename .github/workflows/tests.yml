@@ -19,7 +19,7 @@ jobs:
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
       - name: Run M2 1k-candidate isolated RSS benchmark
-        run: python -m prototype.benchmark_m2_candidate_pages --records 1000 --page-size 64 --page-budget-bytes 65536 --json
+        run: python -m prototype.benchmark_m2_candidate_pages --records 10000 --page-size 64 --page-budget-bytes 65536 --json
       - name: Run E01 demonstration
         run: python -m prototype.e01_sparse_composition --json
       - name: Run E01-B five-seed evaluation

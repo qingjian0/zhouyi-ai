@@ -17,6 +17,7 @@ import multiprocessing
 import os
 from pathlib import Path
 import tempfile
+import time
 from typing import Any
 
 from prototype.evidence_ref_resolver import SQLiteEvidenceRefResolver
@@ -175,8 +176,10 @@ def run_benchmark(
                 max_event_bytes=max_event_bytes,
                 max_replay_page_bytes=page_budget_bytes,
             )
+            write_started = time.perf_counter()
             for index in range(records):
                 store.record_candidate(_candidate(index, reference))
+            write_elapsed = time.perf_counter() - write_started
         finally:
             memory.close()
 
@@ -215,6 +218,8 @@ def run_benchmark(
         return {
             "records_requested": records,
             "records_read": result["records_read"],
+            "write_elapsed_seconds": write_elapsed,
+            "write_records_per_second": records / write_elapsed if write_elapsed else None,
             "page_size_limit": page_size,
             "page_budget_bytes": page_budget_bytes,
             "max_event_bytes": max_event_bytes,
