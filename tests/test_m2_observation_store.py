@@ -161,8 +161,11 @@ class PersistentM2ObservationStoreTests(unittest.TestCase):
             )
         self.memory.close()
         self.memory = ZPCMMemory(self.memory_db)
+        restored = PersistentM2ObservationStore(self.memory, self.resolver, scope="project-a")
+        # Lazy construction does not scan the corpus. Corruption is detected
+        # when the affected indexed record is actually read.
         with self.assertRaises(EvidenceResolutionError):
-            PersistentM2ObservationStore(self.memory, self.resolver, scope="project-a")
+            restored.get_observation("obs-1")
 
 
 if __name__ == "__main__":
