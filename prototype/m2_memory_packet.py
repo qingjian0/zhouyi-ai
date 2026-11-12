@@ -14,6 +14,7 @@ from prototype.observation_contract import (
     EvidenceRef, GroundingStatus, SemanticUnitCandidate, TruthStatus,
     UnitKind, canonical_json,
 )
+from prototype.stream_budget import ScanBudgetExceeded
 
 
 class MemoryPacketError(ValueError):
