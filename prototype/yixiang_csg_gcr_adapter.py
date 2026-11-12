@@ -10,7 +10,7 @@ from dataclasses import dataclass
 import hashlib
 import json
 
-from prototype.csg_gcr_coordinator import GlobalConstraints
+from prototype.csg_gcr_coordinator import CandidateProposal, GlobalConstraints
 from prototype.typed_csg_gcr import (
     TypedCandidateCoordinator,
     TypedCandidateProposal,
@@ -70,8 +70,6 @@ def compile_yixiang_typed_proposals(
             raise ValueError("SROK candidate must contain at least one role binding")
         if {role for role, _ in bindings} != set(role_types):
             raise ValueError("SROK candidate roles do not match the compiled operator")
-        if len({member for _, member in bindings}) != len(bindings):
-            raise ValueError("one member cannot fill multiple roles in a Yixiang candidate")
         if candidate.relation_type != operator.relation_type:
             raise ValueError("SROK candidate relation type differs from compiled operator")
 
@@ -106,8 +104,6 @@ def compile_yixiang_typed_proposals(
     proposals = []
     for proposal_id, candidate, edge, variables, evidence_refs in rows:
         excludes = tuple(sorted(item for item in all_ids if item != proposal_id))
-        from prototype.csg_gcr_coordinator import CandidateProposal
-
         proposal = CandidateProposal(
             proposal_id=proposal_id,
             parent_state_ref=parent_state_ref,
@@ -146,6 +142,6 @@ def coordinate_yixiang_compositions(
         proposals=proposals,
         coordination=report,
         transform_evidence_refs=tuple(sorted(set(
-            result.application.evidence_refs
+            result.compiled_operator.transform_evidence_refs
         ))),
     )
