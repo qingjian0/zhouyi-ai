@@ -249,10 +249,12 @@ class LearnableSROKTests(unittest.TestCase):
                 beam.candidates[0].role_bindings,
                 exact.candidates[0].role_bindings,
             )
-            self.assertEqual(exact.expanded_assignments, pool_size ** 3)
-            self.assertEqual(beam.expanded_assignments, 3 * pool_size)
+            self.assertEqual(exact.expanded_search_states, pool_size ** 3)
+            self.assertEqual(beam.expanded_search_states, 3 * pool_size)
+            # The legacy field remains available for compatibility.
+            self.assertEqual(beam.expanded_assignments, beam.expanded_search_states)
             self.assertLess(
-                beam.expanded_assignments, exact.expanded_assignments
+                beam.expanded_search_states, exact.expanded_search_states
             )
 
     def test_beam_search_is_deterministic_under_input_permutation(self):
