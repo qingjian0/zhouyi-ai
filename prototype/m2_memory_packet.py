@@ -20,12 +20,7 @@ class MemoryPacketError(ValueError):
     """A query or packet violates the bounded retrieval contract."""
 
 
-class MemoryScanBudgetExceeded(RuntimeError):
-    """The candidate event stream exceeded its explicit scan budget."""
-
-    def __init__(self, records_scanned: int):
-        self.records_scanned = records_scanned
-        super().__init__(f"candidate scan budget exhausted after {records_scanned} events")
+MemoryScanBudgetExceeded = ScanBudgetExceeded
 
 
 class PacketCompleteness(str, Enum):
@@ -188,7 +183,7 @@ def build_memory_packet(candidates: Iterable[SemanticUnitCandidate],
                 completeness = PacketCompleteness.BUDGET_EXHAUSTED
                 break
             selected.append(proposed[-1])
-    except MemoryScanBudgetExceeded as exc:
+    except ScanBudgetExceeded as exc:
         scanned = max(scanned, exc.records_scanned)
         completeness = PacketCompleteness.BUDGET_EXHAUSTED
     if not selected and completeness == PacketCompleteness.COMPLETE:
