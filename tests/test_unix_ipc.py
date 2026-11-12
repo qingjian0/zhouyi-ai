@@ -129,6 +129,15 @@ class UnixJSONRPCTransportTests(unittest.TestCase):
         finally:
             server.close()
 
+    def test_socket_mode_cannot_grant_world_access(self):
+        with self.assertRaises(ValueError):
+            UnixJSONRPCServer(
+                Path(self.tmp.name) / "world.sock",
+                peer_resolver=self.resolver,
+                handlers={"test.echo": self._echo},
+                socket_mode=0o666,
+            )
+
     def test_unmapped_kernel_peer_is_denied(self):
         denied_path = Path(self.tmp.name) / "denied.sock"
         denied = UnixJSONRPCServer(
