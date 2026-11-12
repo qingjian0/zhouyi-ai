@@ -114,6 +114,15 @@ def run_matched_comparison(
     }
 
 
+def write_json_report(report: dict[str, Any], path: str | Path) -> None:
+    destination = Path(path)
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    destination.write_text(
+        json.dumps(report, ensure_ascii=False, indent=2) + "\\n",
+        encoding="utf-8",
+    )
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--families", type=int, default=8)
