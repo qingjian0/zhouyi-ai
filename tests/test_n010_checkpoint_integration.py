@@ -1,0 +1,64 @@
+"""Checkpoint integration regressions for the N0.10 relation learner."""
+import json
+import unittest
+
+from prototype.n09_learnable_srok import (
+    LearnableSROK, LearnableSROKError, Node, RelationClassificationExample, RoleSpec,
+)
+
+
+class N010CheckpointIntegrationTests(unittest.TestCase):
+    def setUp(self):
+        self.roles = tuple(
+            RoleSpec(name, frozenset({name}), frozenset({"eligible"}))
+            for name in ("r0", "r1", "r2")
+        )
+        self.nodes = tuple(
+            Node(f"{role}-{index}", role, (float(index + 1), float(index == 0)),
+                 frozenset({"eligible"}), (f"ev-{role}-{index}",))
+            for role in ("r0", "r1", "r2") for index in range(2)
+        )
+
+    def test_checkpoint_round_trip_preserves_classifier_and_joint_prediction(self):
+        model = LearnableSROK(self.roles, feature_dim=2)
+        examples = []
+        for a in self.nodes[:2]:
+            for b in self.nodes[2:4]:
+                for c in self.nodes[4:6]:
+                    label = 1 if (a.node_id.endswith("0") ^ b.node_id.endswith("0") ^ c.node_id.endswith("0")) else -1
+                    examples.append(RelationClassificationExample((a, b, c), label))
+        model.fit_relation_classifier(examples, epochs=12, learning_rate=0.08)
+        query = (self.nodes[0], self.nodes[2], self.nodes[4])
+        before_probability = model.predict_relation_probability(query)
+        before_prediction = model.predict(
+            self.nodes, retrieval_mode="joint", max_expansions=8, result_limit=4
+        )
+        raw = model.checkpoint_json()
+        restored = LearnableSROK.from_checkpoint_json(raw)
+        self.assertEqual(restored.roles, model.roles)
+        self.assertEqual(restored.weights, model.weights)
+        self.assertEqual(restored.training_steps, model.training_steps)
+        self.assertEqual(restored.predict_relation_probability(query), before_probability)
+        self.assertEqual(
+            restored.predict(self.nodes, retrieval_mode="joint", max_expansions=8, result_limit=4),
+            before_prediction,
+        )
+        self.assertEqual(restored.checkpoint_json(), raw)
+
+    def test_checkpoint_rejects_tampering(self):
+        model = LearnableSROK(self.roles, feature_dim=2)
+        envelope = json.loads(model.checkpoint_json())
+        envelope["weights"][0] = 42.0
+        with self.assertRaisesRegex(LearnableSROKError, "digest mismatch"):
+            LearnableSROK.from_checkpoint_json(json.dumps(envelope))
+
+    def test_checkpoint_rejects_unknown_fields(self):
+        model = LearnableSROK(self.roles, feature_dim=2)
+        envelope = json.loads(model.checkpoint_json())
+        envelope["unexpected"] = True
+        with self.assertRaisesRegex(LearnableSROKError, "fields do not match"):
+            LearnableSROK.from_checkpoint_json(json.dumps(envelope))
+
+
+if __name__ == "__main__":
+    unittest.main()
