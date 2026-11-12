@@ -52,11 +52,9 @@ def _manifest_digest(document_id: str, rows) -> tuple[str, int, int]:
 
 
 class SQLiteEvidenceRefResolver:
-    """Resolve a single M1 chunk while keeping memory bounded by chunk size.
+    """Resolve one bounded M1 chunk against a persisted document manifest."""
 
-    Resolution is restricted to completed documents so the manifest version
-    cannot change underneath a reference while ingestion is still in progress.
-    """
+    MAX_CHUNK_BYTES = 64 * 1024
 
     def __init__(self, database: str | Path) -> None:
         self.database = str(database)
@@ -72,22 +70,24 @@ class SQLiteEvidenceRefResolver:
             raise EvidenceResolutionError("document_id must be non-empty")
         with self._connect() as db:
             state = db.execute(
-                "SELECT next_byte_offset, next_ordinal, complete FROM ingest_documents WHERE document_id = ?",
+                """SELECT next_byte_offset,next_ordinal,complete,manifest_digest,
+                          manifest_chunks,manifest_bytes,chunk_generation,manifest_generation
+                   FROM ingest_documents WHERE document_id=?""",
                 (document_id,),
             ).fetchone()
             if state is None:
                 raise EvidenceResolutionError("unknown M1 document")
             if not bool(state[2]):
                 raise EvidenceResolutionError("cannot version an incomplete M1 document")
-            rows = db.execute(
-                """SELECT ordinal, byte_start, byte_end, chunk_id, content_sha256, text_utf8
-                   FROM evidence_chunks WHERE document_id = ? ORDER BY ordinal""",
-                (document_id,),
-            )
-            digest, manifest_chunks, manifest_bytes = _manifest_digest(document_id, rows)
-            if manifest_chunks != int(state[1]) or manifest_bytes != int(state[0]):
-                raise EvidenceResolutionError("durable document cursor does not match the evidence manifest")
-            return digest
+            if (
+                not isinstance(state[3], str) or not state[3].startswith("manifest-sha256:")
+                or state[4] is None or state[5] is None or state[7] is None
+                or int(state[4]) != int(state[1])
+                or int(state[5]) != int(state[0])
+                or int(state[6]) != int(state[7])
+            ):
+                raise EvidenceResolutionError("durable document manifest is missing, stale, or invalid")
+            return str(state[3])
 
     def make_reference(self, document_id: str, chunk_id: str) -> EvidenceRef:
         version = self.document_version(document_id)
@@ -125,6 +125,8 @@ class SQLiteEvidenceRefResolver:
             raise EvidenceResolutionError("EvidenceRef chunk was not found")
         ordinal, start, end, raw_blob, stored_digest = row
         raw = bytes(raw_blob)
+        if len(raw) > self.MAX_CHUNK_BYTES:
+            raise EvidenceResolutionError("stored evidence chunk exceeds hard chunk byte limit")
         actual_digest = hashlib.sha256(raw).hexdigest()
         if (int(start), int(end)) != (reference.byte_start, reference.byte_end):
             raise EvidenceResolutionError("EvidenceRef byte span does not match the stored chunk")
