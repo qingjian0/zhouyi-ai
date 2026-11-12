@@ -230,7 +230,7 @@ class E09AuthorityService:
         scope: str,
     ) -> Any:
         """Return input only to an authorized observer/learner after Observation exists."""
-        self._principal_any(
+        principal = self._principal_any(
             credential, roles=frozenset({"observer", "learner"}), scope=scope
         )
         events = self._store.replay_episode(episode_id)
@@ -245,6 +245,10 @@ class E09AuthorityService:
         if (
             event.get("actor_role") != "observer"
             or event.get("payload", {}).get("scope") != scope
+            or (
+                "learner" in principal.roles
+                and event.get("payload", {}).get("learner_workload_id") != principal.workload_id
+            )
             or not isinstance(
                 event.get("integrity_metadata", {}).get("authenticated_workload"), dict
             )
@@ -255,6 +259,113 @@ class E09AuthorityService:
             raise E09AuthorizationError("Observation has no durable input payload reference")
         return self._store.get_payload(payload_ref)
 
+    def read_learner_episode(
+        self,
+        credential: object,
+        *,
+        episode_id: str,
+        scope: str,
+        learner_track: str,
+    ) -> list[dict[str, Any]]:
+        """Return a learner-safe, provenance-checked event projection for ZPCM sync."""
+        principal = self._principal(credential, role="learner", scope=scope)
+        if not isinstance(learner_track, str) or not learner_track.strip():
+            raise E09AuthorizationError("learner_track must be a non-empty string")
+        events = self._store.replay_episode(episode_id)
+        own_commit_ids = set()
+        own_observation_ids = set()
+        for event in events:
+            if event.get("event_type") != "prediction_commit":
+                continue
+            payload = event.get("payload", {})
+            workload = event.get("integrity_metadata", {}).get("authenticated_workload", {})
+            if (
+                event.get("actor_role") == "learner"
+                and payload.get("scope") == scope
+                and payload.get("learner_track") == learner_track
+                and isinstance(workload, dict)
+                and workload.get("workload_id") == principal.workload_id
+            ):
+                own_commit_ids.add(event.get("event_id"))
+                own_observation_ids.update(event.get("causation_refs", []))
+        own_reveal_ids = {
+            event.get("event_id")
+            for event in events
+            if event.get("event_type") == "evidence_reveal"
+            and event.get("payload", {}).get("scope") == scope
+            and event.get("payload", {}).get("learner_track") == learner_track
+            and event.get("actor_role") == "evaluator"
+            and isinstance(event.get("integrity_metadata", {}).get("authenticated_workload"), dict)
+            and set(event.get("causation_refs", [])) & own_commit_ids
+        }
+        expected_roles = {
+            "observation": "observer",
+            "prediction_commit": "learner",
+            "evidence_reveal": "evaluator",
+            "structure_version": "learner",
+            "revision": "learner",
+        }
+        projection: list[dict[str, Any]] = []
+        for event in events:
+            event_type = event.get("event_type")
+            if event_type not in expected_roles:
+                continue
+            payload = event.get("payload", {})
+            if payload.get("scope") != scope:
+                continue
+            if event_type == "prediction_commit" and event.get("event_id") not in own_commit_ids:
+                continue
+            if event_type == "observation" and (
+                event.get("event_id") not in own_observation_ids
+                or payload.get("learner_workload_id") != principal.workload_id
+            ):
+                continue
+            if event_type == "evidence_reveal" and event.get("event_id") not in own_reveal_ids:
+                continue
+            event_workload = event.get("integrity_metadata", {}).get("authenticated_workload", {})
+            if event_type in {"structure_version", "revision"} and (
+                not isinstance(event_workload, dict)
+                or event_workload.get("workload_id") != principal.workload_id
+            ):
+                continue
+            event_track = payload.get("learner_track")
+            if event_track not in (None, learner_track):
+                continue
+            authenticated_workload = event.get("integrity_metadata", {}).get(
+                "authenticated_workload"
+            )
+            if (
+                event.get("actor_role") != expected_roles[event_type]
+                or not isinstance(authenticated_workload, dict)
+                or not isinstance(authenticated_workload.get("workload_id"), str)
+            ):
+                raise E09AuthorizationError(
+                    "learner replay encountered an event outside the authenticated role boundary"
+                )
+            safe_payload = dict(payload)
+            if event_type == "evidence_reveal":
+                safe_payload.pop("target_or_feedback", None)
+                safe_payload.pop("reveal_source", None)
+            if event_type == "structure_version":
+                definition = safe_payload.get("definition")
+                if isinstance(definition, dict):
+                    definition = dict(definition)
+                    definition.pop("snapshot", None)
+                    definition.pop("ledger_snapshot", None)
+                    safe_payload["definition"] = definition
+            safe_payload.pop("raw_input", None)
+            safe_payload.pop("target_or_feedback", None)
+            safe_payload.pop("reveal_source", None)
+            projection.append({
+                "event_id": event["event_id"],
+                "event_type": event_type,
+                "protocol_version": event.get("protocol_version"),
+                "sequence_no": event.get("sequence_no"),
+                "payload_digest": event.get("payload_digest"),
+                "payload": safe_payload,
+            })
+        return projection
+
     def read_support_feedback(
         self,
         credential: object,
@@ -264,7 +375,7 @@ class E09AuthorityService:
         scope: str,
     ) -> dict[str, Any]:
         """Release only lineage-verified SUPPORT feedback to the authorized learner."""
-        self._principal(credential, role="learner", scope=scope)
+        principal = self._principal(credential, role="learner", scope=scope)
         events = self._store.replay_episode(episode_id)
         by_id = {event.get("event_id"): event for event in events}
         reveal = by_id.get(reveal_event_id)
@@ -294,6 +405,8 @@ class E09AuthorityService:
             or not isinstance(
                 commit.get("integrity_metadata", {}).get("authenticated_workload"), dict
             )
+            or commit.get("integrity_metadata", {}).get("authenticated_workload", {}).get("workload_id")
+                != principal.workload_id
             or reveal_payload.get("prediction_id") != commit_payload.get("prediction_id")
             or reveal_payload.get("query_id") != commit_payload.get("query_id")
             or reveal_payload.get("learner_track") != commit_payload.get("learner_track")
@@ -343,6 +456,7 @@ class E09AuthorityService:
         split: str,
         payload_ref: str | None = None,
         feature_schema_version: str | None = None,
+        learner_workload_id: str | None = None,
         causation_refs: tuple[str, ...] | list[str] = (),
         expected_sequence: int | None = None,
     ) -> EventReceipt:
@@ -373,6 +487,10 @@ class E09AuthorityService:
                 if not isinstance(value, str) or not value.strip():
                     raise E09AuthorizationError(f"{field} must be a non-empty string")
                 payload[field] = value
+        if learner_workload_id is not None:
+            if not isinstance(learner_workload_id, str) or not learner_workload_id.strip():
+                raise E09AuthorizationError("learner_workload_id must be a non-empty string")
+            payload["learner_workload_id"] = learner_workload_id
         if payload_ref is not None:
             try:
                 self._store.get_payload(payload_ref)
