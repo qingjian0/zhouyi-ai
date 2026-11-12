@@ -133,6 +133,65 @@ class PersistentM2SemanticUnitStoreTests(unittest.TestCase):
         self.assertEqual(self.memory.replay_domain_events(
             event_type="m2_semantic_unit", scope="project-a"), [])
 
+    def test_startup_uses_sqlite_projection_not_full_python_history_maps(self):
+        for index in range(12):
+            self.store.record_candidate(self.candidate(f"bounded-{index}"))
+        self.memory.close()
+        self.memory = ZPCMMemory(self.memory_db)
+        restored = PersistentM2SemanticUnitStore(
+            self.memory, self.resolver, scope="project-a", replay_page_size=2,
+        )
+        self.assertFalse(hasattr(restored, "_versions"))
+        self.assertFalse(hasattr(restored, "_latest"))
+        self.assertEqual(
+            self.memory.db.execute(
+                "SELECT COUNT(*) FROM m2_semantic_unit_records WHERE scope=?",
+                ("project-a",),
+            ).fetchone()[0],
+            12,
+        )
+        self.assertEqual(len(restored.candidates), 12)
+
+    def test_projection_mutation_invalidates_checkpoint_and_rebuilds(self):
+        candidate = self.candidate("projection-repair")
+        self.store.record_candidate(candidate)
+        self.memory.db.execute(
+            "DELETE FROM m2_semantic_unit_records WHERE scope=? AND record_id=?",
+            ("project-a", "projection-repair"),
+        )
+        self.memory.close()
+        self.memory = ZPCMMemory(self.memory_db)
+        restored = PersistentM2SemanticUnitStore(
+            self.memory, self.resolver, scope="project-a",
+        )
+        self.assertEqual(restored.candidates["projection-repair"], candidate)
+
+    def test_separate_store_instances_share_authoritative_projection_state(self):
+        second = PersistentM2SemanticUnitStore(
+            self.memory, self.resolver, scope="project-a",
+        )
+        first_candidate = self.candidate("multi-instance-a")
+        second_candidate = self.candidate("multi-instance-b")
+        self.store.record_candidate(first_candidate)
+        second.record_candidate(second_candidate)
+        self.assertEqual(
+            set(second.candidates),
+            {"multi-instance-a", "multi-instance-b"},
+        )
+
+    def test_projection_checkpoint_failure_rolls_back_authoritative_append(self):
+        self.memory.db.execute(
+            "DROP TABLE m2_semantic_unit_projection_checkpoint"
+        )
+        with self.assertRaises(Exception):
+            self.store.record_candidate(self.candidate("checkpoint-rollback"))
+        self.assertEqual(
+            self.memory.latest_domain_sequence(
+                event_type="m2_semantic_unit", scope="project-a",
+            ),
+            0,
+        )
+
     def test_replay_page_size_is_validated(self):
         with self.assertRaises(ValueError):
             PersistentM2SemanticUnitStore(
