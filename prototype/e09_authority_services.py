@@ -757,6 +757,13 @@ class E09VerifierService:
             **request,
         )
 
+    def receipt_issued_at(self) -> str:
+        """Return a timezone-aware UTC timestamp from the Verifier-owned clock."""
+        current = self._clock.now()
+        if not isinstance(current, datetime) or current.tzinfo is None:
+            raise E09AuthenticationError("verifier clock must return a timezone-aware datetime")
+        return current.astimezone(timezone.utc).isoformat()
+
     def issue_verification_receipt(self, **request: Any) -> dict[str, Any]:
         """Verify and issue a fresh receipt for direct in-process callers."""
         return self._issue_verification_receipt(request)
