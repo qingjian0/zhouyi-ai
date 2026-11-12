@@ -1,0 +1,36 @@
+name: cpg-ei-proposal-fit-epoch-sweep
+
+on:
+  push:
+    branches:
+      - research/cpg-ei-proposal-fit-epoch-sweep-2026-11-13
+  pull_request:
+    branches:
+      - research/cpg-ei-proposal-split-size-sweep-2026-11-13
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  proposal-fit-epoch-sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Validate epoch sweep helper
+        run: python -m unittest tests.test_cpg_ei_proposal_fit_epoch_sweep -v
+      - name: Run candidate fit epoch sensitivity sweep
+        run: |
+          mkdir -p benchmark-results
+          python -m prototype.cpg_ei_proposal_fit_epoch_sweep --json | tee benchmark-results/cpg-ei-proposal-fit-epochs.json
+      - name: Upload epoch sensitivity measurements
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpg-ei-proposal-fit-epochs-${{ github.sha }}
+          path: benchmark-results/cpg-ei-proposal-fit-epochs.json
+          if-no-files-found: error
+          retention-days: 30
