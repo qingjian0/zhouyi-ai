@@ -78,14 +78,15 @@ def run_sweep(*, seeds: Sequence[int] = DEFAULT_SEEDS, epochs: int | Sequence[in
                     "selected_motif_count": len(result["selected_motifs"]),
                     "candidate_fits": result["candidate_fits_total"],
                     "training_passes": epoch_budget * (1 + result["candidate_fits_total"]),
-                    "proposal_selection_bce": result["proposal_selection_binary_cross_entropy"],
+                    "selection_bce": result["proposal_selection_binary_cross_entropy"],
+                    "selection_metric_source": "proposal" if protocol == "proposal_split" else "train",
                     "locked_test_bce": result["validation_binary_cross_entropy"],
                     "locked_test_bit_accuracy": result["validation"]["bit_accuracy"],
                     "ood_bit_accuracy_by_family": ood,
                     **support,
                 }
                 values = [
-                    record["proposal_selection_bce"], record["locked_test_bce"],
+                    record["selection_bce"], record["locked_test_bce"],
                     record["locked_test_bit_accuracy"], *ood.values(),
                 ]
                 if not all(math.isfinite(value) for value in values):
