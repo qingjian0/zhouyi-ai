@@ -1,12 +1,29 @@
-"""Leakage-safe optimizer selection and locked-test evaluation for CPG-EI."""
+"""Leakage-safe optimizer selection and state-disjoint locked-test evaluation."""
 from __future__ import annotations
 
+import itertools
 import json
 import math
+import random
 
-from prototype.cpg_ei_mvp import CpgEiTransitionModel, FEATURE_NAMES, evaluate
-from prototype.cpg_ei_conditional_motif_e2e import make_parity_dataset, expected_support
+from prototype.cpg_ei_mvp import CpgEiTransitionModel, Example, FEATURE_NAMES, evaluate
+from prototype.cpg_ei_conditional_motif_e2e import PARITY_TRIPLES, expected_support
 from prototype.cpg_ei_conditional_motif_proposals import rank_conditional_motifs
+
+
+def make_state_disjoint_splits(seed: int) -> tuple[list[Example], list[Example], list[Example]]:
+    """Partition the complete 6-bit state space into disjoint 32/16/16 splits."""
+    states = list(itertools.product((0, 1), repeat=6))
+    random.Random(seed).shuffle(states)
+
+    def label(state):
+        return tuple(
+            sum(state[index] for index in PARITY_TRIPLES[head // 2]) % 2
+            for head in range(6)
+        )
+
+    rows = [Example(tuple(state), label(state)) for state in states]
+    return rows[:32], rows[32:48], rows[48:]
 
 
 def _fit(train, evaluation_rows, seed, learning_rate, epochs, support):
@@ -46,9 +63,6 @@ def run_locked_test(
     seeds: tuple[int, ...] = (11, 23, 37, 53, 71),
     learning_rates: tuple[float, ...] = (0.35, 1.05, 2.1, 4.2),
     epoch_counts: tuple[int, ...] = (300, 600),
-    train_samples: int = 512,
-    dev_samples: int = 256,
-    locked_samples: int = 256,
 ) -> dict:
     if not seeds or not learning_rates or not epoch_counts:
         raise ValueError("seeds, learning rates, and epoch counts must be non-empty")
@@ -56,20 +70,11 @@ def run_locked_test(
         raise ValueError("learning rates must be finite and positive")
     if any(epoch < 1 for epoch in epoch_counts):
         raise ValueError("epoch counts must be positive")
-    if min(train_samples, dev_samples, locked_samples) < 1:
-        raise ValueError("sample counts must be positive")
 
     support = expected_support()
-    splits = {
-        seed: (
-            make_parity_dataset(train_samples, seed),
-            make_parity_dataset(dev_samples, seed + 1000),
-            make_parity_dataset(locked_samples, seed + 10000),
-        )
-        for seed in seeds
-    }
+    splits = {seed: make_state_disjoint_splits(seed) for seed in seeds}
 
-    # Hyperparameters are selected only from development metrics.
+    # Hyperparameters are selected only from development states.
     dev_rows = []
     for rate in learning_rates:
         for epochs in epoch_counts:
@@ -90,8 +95,6 @@ def run_locked_test(
                 "all_losses_finite": all(row["finite_loss"] for row in rows),
             })
 
-    # Deterministic tie-break: dev bit accuracy, exact-state accuracy,
-    # fewer epochs, then lower learning rate.
     chosen = max(
         dev_rows,
         key=lambda row: (
@@ -104,28 +107,50 @@ def run_locked_test(
     chosen_rate = chosen["learning_rate"]
     chosen_epochs = chosen["epochs"]
 
-    # Refit using train + dev only. Locked examples are passed only to evaluate().
+    # Refit on train + dev. Locked states are only passed to evaluate().
     locked_rows = []
+    split_audit = []
     for seed in seeds:
         train, dev, locked = splits[seed]
+        train_states = {row.state for row in train}
+        dev_states = {row.state for row in dev}
+        locked_states = {row.state for row in locked}
+        split_audit.append({
+            "seed": seed,
+            "train_unique_states": len(train_states),
+            "development_unique_states": len(dev_states),
+            "locked_unique_states": len(locked_states),
+            "train_dev_overlap": len(train_states & dev_states),
+            "train_locked_overlap": len(train_states & locked_states),
+            "dev_locked_overlap": len(dev_states & locked_states),
+            "union_states": len(train_states | dev_states | locked_states),
+        })
         locked_rows.append(
-            _fit(
-                train + dev, locked, seed, chosen_rate, chosen_epochs, support
-            )
+            _fit(train + dev, locked, seed, chosen_rate, chosen_epochs, support)
         )
 
+    if any(
+        audit["train_dev_overlap"] or audit["train_locked_overlap"]
+        or audit["dev_locked_overlap"] or audit["union_states"] != 64
+        for audit in split_audit
+    ):
+        raise AssertionError("state-disjoint split invariant violated")
+
     return {
-        "benchmark": "cpg-ei-conditional-motif-locked-test-v1",
+        "benchmark": "cpg-ei-conditional-motif-state-disjoint-locked-test-v2",
         "seeds": list(seeds),
         "sample_counts": {
-            "train": train_samples,
-            "development": dev_samples,
-            "locked_test": locked_samples,
+            "train": 32,
+            "development": 16,
+            "locked_test": 16,
+            "total_unique_states": 64,
         },
+        "split_semantics": "complete six-bit input state space partitioned without overlap",
+        "split_audit": split_audit,
         "selection_policy": {
-            "hyperparameter_selection": "development split only",
+            "hyperparameter_selection": "development states only",
             "locked_test_access": "final evaluation only",
-            "final_fit_data": "train + development",
+            "final_fit_data": "train + development states",
             "tie_break": "dev bit accuracy, dev exact-state accuracy, fewer epochs, lower learning rate",
         },
         "selected_config": {
@@ -147,10 +172,11 @@ def run_locked_test(
         },
         "locked_test_records": locked_rows,
         "claim_boundary": (
-            "Five-seed finite six-line GF(2) parity benchmark. The locked test is "
-            "excluded from hyperparameter selection and fitting. This does not "
-            "establish arbitrary-arity discovery, open-world induction, natural-"
-            "language reasoning, or general superiority to Transformer models."
+            "Five-seed complete six-bit GF(2) state-space partition. Locked input "
+            "states are disjoint from training and development states. This finite "
+            "truth-table benchmark does not establish arbitrary-arity discovery, "
+            "open-world induction, natural-language reasoning, or general superiority "
+            "to Transformer models."
         ),
     }
 

@@ -1,35 +1,38 @@
-# CPG-EI conditional motif: leakage-safe locked-test protocol
+# CPG-EI conditional motif: state-disjoint locked-test protocol
 
 Status: research-only; follows PR #406 and does not change the default learner.
 
-## Why this exists
+## Correction to the prior experiment
 
-PR #406's optimizer sweep compared eight configurations on the same held-out
-partition. That partition was not used for gradient updates, but its metrics
-were inspected to choose the optimizer configuration. Therefore the best
-reported score is a model-selection result, not an untouched final test score.
+The previous generator sampled six-bit states with replacement. Since the
+entire input domain contains only 64 states, the old 512/256/256 row splits
+necessarily repeated input states across train and held-out partitions. Different
+random seeds did not make those finite-domain states disjoint. The old scores
+therefore measure performance on independently sampled records, not generalization
+to unseen input states.
+
+This protocol replaces row-level random sampling with an exact partition of
+the complete six-bit state space.
 
 ## Protocol
 
-- For each of five deterministic seeds, create disjoint train, development,
-  and locked-test samples using separate RNG seeds.
-- Generate candidate motifs from training rows only during the development
-  sweep.
-- Select learning rate and epoch count using aggregate development bit
-  accuracy, then development exact-state accuracy.
-- Resolve ties deterministically in favor of fewer epochs and then lower
-  learning rate.
-- Refit the selected configuration on train + development rows.
-- Evaluate the refitted model on locked-test rows exactly once, after selection.
-- Never pass locked-test rows to candidate proposal, topology selection,
-  hyperparameter selection, or parameter fitting.
+- Enumerate all 64 possible six-bit states once per seed and deterministically
+  shuffle their order.
+- Partition into 32 training, 16 development, and 16 locked-test states.
+- Assert pairwise disjointness and exact coverage of all 64 states.
+- Generate candidate motifs and fit candidate configurations on training states.
+- Select learning rate and epoch count using development states only.
+- Resolve ties in favor of fewer epochs, then lower learning rate.
+- Refit the frozen configuration on train + development states.
+- Evaluate the locked 16 states only after selection and refitting.
+- Emit per-seed overlap counts so the split invariant is independently auditable.
 
-## Acceptance and claim boundary
+## Interpretation
 
-The focused test verifies the split contract, exact relation support, finite
-losses, and metric bounds. The five-seed benchmark reports locked bit accuracy,
-exact-state accuracy, support recovery, and finite-loss status.
+This is a strict unseen-state test within a finite six-bit truth table. It is
+stronger than the previous row-level split but remains a small finite-domain
+benchmark. It does not establish arbitrary-arity discovery, open-world
+induction, natural-language reasoning, or superiority to Transformer models.
 
-This is still a finite six-line GF(2) parity benchmark. It does not establish
-open-world relation discovery, arbitrary-arity induction, natural-language
-reasoning, or superiority to Transformer models.
+The 100% scores previously observed on the row-level split must not be reused
+as unseen-state generalization results.
