@@ -1,39 +1,64 @@
 import tempfile
+import hashlib
 import unittest
 from pathlib import Path
 
 from prototype.csg_gcr_coordinator import CandidateProposal
 from prototype.csg_gcr_e12a6_ingestion import ingest_typed_candidate
 from prototype.e12a6_lifecycle_contract import Action, ActionType, CandidateState, SplitRole
+from prototype.e09_authority_services import E09AuthenticatedWorkload, E09AuthorityService
+from prototype.e09_domain_registry import E09DomainBinding, StaticE09DomainRegistry
 from prototype.e12a6_zpcm_persistence import PersistentLifecycleLedger
-from prototype.shared_evidence_protocol import STRICT_PROTOCOL_VERSION, SQLiteEvidenceStore
+from prototype.shared_evidence_protocol import SQLiteEvidenceStore
 from prototype.typed_csg_gcr import TypedCandidateCoordinator, TypedCandidateProposal
 from prototype.typed_hypergraph_unifier import HyperedgeProposal, RoleBinding, VariableRef, VariableSpec
 from prototype.zpcm_memory import ZPCMMemory
 
 
-def add_reveal(store, split, prediction_id, *, episode, scope, track, label):
+class _Authenticator:
+    def __init__(self, identities):
+        self.identities = identities
+    def authenticate(self, credential):
+        if credential not in self.identities:
+            raise ValueError("unknown credential")
+        return self.identities[credential]
+
+
+class _Signer:
+    def sign(self, issuer_id, message):
+        return "unused-test-signature"
+
+
+def _identity(name, role, scope):
+    return E09AuthenticatedWorkload(
+        workload_id=f"spiffe://e2e/{name}", issuer_id=f"issuer:{name}",
+        roles=frozenset({role}), scopes=frozenset({scope}),
+        identity_provider="test-spiffe", authentication_method="mTLS",
+        credential_fingerprint=hashlib.sha256(name.encode()).hexdigest(),
+    )
+
+
+def add_reveal(authority, split, prediction_id, *, episode, scope, track, label):
     observation_id=f"obs-{prediction_id}"
     observation_event=f"{episode}:observation:{observation_id}"
-    store.append_event(episode_id=episode,event_id=observation_event,event_type="observation",
-      idempotency_key=observation_event,actor_role="runner",
-      payload={"observation_id":observation_id,"query_id":observation_id,"scope":scope,"split":split},
-      protocol_version=STRICT_PROTOCOL_VERSION)
+    authority.append_observation(
+      "observer",episode_id=episode,event_id=observation_event,idempotency_key=observation_event,
+      payload={"observation_id":observation_id,"query_id":observation_id,"scope":scope,"split":split})
     commit_event=f"{episode}:prediction:{prediction_id}"
-    commit_digest=(str(ord(split[0])%10))*64
-    commit=store.append_event(episode_id=episode,event_id=commit_event,event_type="prediction_commit",
-      idempotency_key=commit_event,actor_role="learner",causation_refs=[observation_event],
-      payload={"prediction_id":prediction_id,"observation_id":observation_id,"query_id":observation_id,
-        "scope":scope,"split":split,"model_version":"model-1","learner_track":track,
-        "decision_status":"PREDICT","interop_commit_digest":commit_digest},
-      protocol_version=STRICT_PROTOCOL_VERSION)
+    commit_digest=hashlib.sha256(prediction_id.encode()).hexdigest()
+    commit=authority.append_prediction_commit(
+      "learner",episode_id=episode,event_id=commit_event,idempotency_key=commit_event,
+      causation_refs=[observation_event],
+      payload={"prediction_id":prediction_id,"observation_id":observation_id,
+        "query_id":observation_id,"scope":scope,"split":split,"model_version":"model-1",
+        "learner_track":track,"decision_status":"PREDICT","interop_commit_digest":commit_digest})
     reveal_event=f"{episode}:reveal:{prediction_id}"
-    store.append_event(episode_id=episode,event_id=reveal_event,event_type="evidence_reveal",
-      idempotency_key=reveal_event,actor_role="evaluator",causation_refs=[commit_event],
-      payload={"prediction_id":prediction_id,"query_id":observation_id,"scope":scope,"split":split,
-        "commit_digest":commit_digest,"event_digest":commit.payload_digest,
-        "learner_track":track,"target_or_feedback":label,"reveal_source":"e2e-test"},
-      protocol_version=STRICT_PROTOCOL_VERSION)
+    authority.append_evidence_reveal(
+      "evaluator",episode_id=episode,event_id=reveal_event,idempotency_key=reveal_event,
+      causation_refs=[commit_event],
+      payload={"prediction_id":prediction_id,"query_id":observation_id,"scope":scope,
+        "split":split,"commit_digest":commit_digest,"event_digest":commit.payload_digest,
+        "learner_track":track,"target_or_feedback":label})
     return reveal_event
 
 
@@ -57,6 +82,15 @@ class CSGGCRE12A6EndToEndTests(unittest.TestCase):
         self.e09=SQLiteEvidenceStore(Path(self.tmp.name)/"e09.db")
         self.memory=ZPCMMemory(Path(self.tmp.name)/"zpcm.db")
         self.ledger=PersistentLifecycleLedger(self.memory,scope="e2e/project")
+        self.registry=StaticE09DomainRegistry({
+          self.scope:E09DomainBinding("domain:e2e","finite-rule-world","registry:e2e","v1")
+        })
+        self.authority=E09AuthorityService(
+          self.e09,authenticator=_Authenticator({
+            "observer":_identity("observer","observer",self.scope),
+            "learner":_identity("learner","learner",self.scope),
+            "evaluator":_identity("evaluator","evaluator",self.scope),
+          }),signer=_Signer(),domain_registry=self.registry)
     def tearDown(self):
         self.e09.close()
         self.memory.close()
@@ -65,10 +99,9 @@ class CSGGCRE12A6EndToEndTests(unittest.TestCase):
         candidate=make_typed_candidate(refs)
         return ingest_typed_candidate(candidate,ledger=self.ledger,e09_store=self.e09,
           episode_id=self.episode,scope=self.scope,learner_track=self.track,
-          grammar_version="csg-e2e-v1",
-          world_family_by_evidence={ref:"finite-rule-world" for ref in refs})
+          grammar_version="csg-e2e-v1",domain_registry=self.registry)
     def test_candidate_lifecycle_runs_from_csg_gcr_through_e09_e12_zpcm_and_restarts(self):
-        support=add_reveal(self.e09,"SUPPORT","pred-support",episode=self.episode,
+        support=add_reveal(self.authority,"SUPPORT","pred-support",episode=self.episode,
           scope=self.scope,track=self.track,label="PRIVATE_SUPPORT")
         gate=add_reveal(self.e09,"GATE_FINAL","pred-gate",episode=self.episode,
           scope=self.scope,track=self.track,label="PRIVATE_GATE")
