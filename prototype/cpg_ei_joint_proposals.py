@@ -83,7 +83,7 @@ def grow_relation_graph_joint_motifs(
         gate_l1=gate_l1,
         edge_group_l1=edge_group_l1,
     )
-    current_loss = _binary_cross_entropy(current, validation_examples)
+    current_loss = _binary_cross_entropy(current, train_examples)
 
     for round_index in range(1, max_motifs + 1):
         best_model = None
@@ -101,7 +101,9 @@ def grow_relation_graph_joint_motifs(
                 gate_l1=gate_l1,
                 edge_group_l1=edge_group_l1,
             )
-            score = _binary_cross_entropy(candidate, validation_examples)
+            # Candidate generation is fitted/ranked on training data only;
+            # validation remains a strictly held-out diagnostic, not a search oracle.
+            score = _binary_cross_entropy(candidate, train_examples)
             if score < best_loss - 1e-12:
                 best_loss = score
                 best_model = candidate
@@ -146,7 +148,8 @@ def grow_relation_graph_joint_motifs(
         ],
         "active_edge_count": len(model.active_relation_indices),
         "validation": evaluate(model, validation_examples),
-        "validation_binary_cross_entropy": current_loss,
+        "training_binary_cross_entropy": current_loss,
+        "validation_binary_cross_entropy": _binary_cross_entropy(model, validation_examples),
         "candidate_motif_universe_size": len(_three_line_motifs()),
         "candidate_fits_per_round": len(_three_line_motifs()),
     }
