@@ -63,6 +63,7 @@ def grow_relation_graph(
     gate_l1: float = 0.01,
     edge_group_l1: float = 0.03,
     prune_threshold: float = 1e-5,
+    normalize_candidate_scores: bool = False,
 ) -> dict:
     """Train, prune weak active edges, then add top residual-correlated candidates."""
     if not train_examples or not validation_examples:
@@ -104,11 +105,17 @@ def grow_relation_graph(
             for unit in basis:
                 projection = sum(a * b for a, b in zip(residual, unit))
                 residual = [a - projection * b for a, b in zip(residual, unit)]
-            score = sum(
-                abs(sum(error[head] * residual[row_index]
-                        for row_index, error in enumerate(errors)))
+            correlations = [
+                sum(error[head] * residual[row_index]
+                    for row_index, error in enumerate(errors))
                 for head in range(6)
-            )
+            ]
+            score = sum(abs(value) for value in correlations)
+            if normalize_candidate_scores:
+                residual_norm = math.sqrt(sum(value * value for value in residual))
+                if residual_norm <= 1e-9:
+                    continue
+                score /= residual_norm
             if score > 1e-10:
                 scores[feature_index] = score
         validation_before_add = evaluate(model, validation_examples)
