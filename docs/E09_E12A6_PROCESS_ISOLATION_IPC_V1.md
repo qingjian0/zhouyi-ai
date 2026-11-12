@@ -194,6 +194,7 @@ The current stacked implementation has reached the following code increments:
 | Learner assignment | `E09LearnerBindingResolver` (PR #327) | Server-side episode/scope/track binding; Observer RPC cannot choose a learner workload ID |
 | Learner checkpoint | `structure.read_checkpoint` (PR #331) | Latest checkpoint bound to trusted learner assignment; validates snapshot digest, same-owner parent lineage and SUPPORT evidence references |
 | Remote ZPCM sync | `E09AuthorityRPCClient` / `E09LearnerMemorySource` (PR #332) | Learner-safe episode replay is consumable by ZPCMMemory without a local E09 store handle |
+| Role-specific ports | `prototype/e09_role_ports.py` (PR #333) | Separate Observer, Learner and Evaluator client surfaces; still require separate OS workloads to become a security boundary |
 
 These are service-boundary implementations and CI-tested local UDS integrations. They do **not** yet establish production process isolation.
 
