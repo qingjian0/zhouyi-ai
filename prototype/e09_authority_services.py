@@ -16,6 +16,7 @@ from prototype.e09_e12a6_evidence_bridge import resolve_branch_merge_authorizati
 from prototype.shared_evidence_protocol import (
     STRICT_PROTOCOL_VERSION,
     EventReceipt,
+    EvidenceEpisodeReader,
     SQLiteEvidenceStore,
     digest_payload,
 )
@@ -716,7 +717,7 @@ class E09VerifierService:
 
     def __init__(
         self,
-        store: SQLiteEvidenceStore,
+        store: EvidenceEpisodeReader,
         *,
         signature_verifier: Callable[[str, str, bytes, str], bool],
         verifier_id: str,
@@ -724,8 +725,8 @@ class E09VerifierService:
         receipt_signer: E09GrantSigner | None = None,
         receipt_ttl: timedelta = timedelta(minutes=1),
     ) -> None:
-        if not isinstance(store, SQLiteEvidenceStore):
-            raise TypeError("store must be SQLiteEvidenceStore")
+        if not callable(getattr(store, "replay_episode", None)):
+            raise TypeError("store must implement the read-only replay_episode interface")
         if not callable(signature_verifier):
             raise TypeError("signature_verifier must be callable")
         if not isinstance(verifier_id, str) or not verifier_id.strip():

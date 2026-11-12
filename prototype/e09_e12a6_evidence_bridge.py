@@ -14,7 +14,7 @@ from prototype.csg_branch_delta import (
 )
 from prototype.e12a6_lifecycle_contract import Evidence, SplitRole
 from prototype.e12a6_zpcm_persistence import LifecycleEventReceipt, PersistentLifecycleLedger
-from prototype.shared_evidence_protocol import STRICT_PROTOCOL_VERSION, SQLiteEvidenceStore, canonical_json, digest_payload
+from prototype.shared_evidence_protocol import STRICT_PROTOCOL_VERSION, EvidenceEpisodeReader, SQLiteEvidenceStore, canonical_json, digest_payload
 
 
 class E09EvidenceBindingError(ValueError):
@@ -79,7 +79,7 @@ def _verify_event_envelope(event: dict[str, Any]) -> None:
 
 
 def resolve_e09_reveal(
-    store: SQLiteEvidenceStore,
+    store: EvidenceEpisodeReader,
     *,
     episode_id: str,
     evidence_ref: str,
@@ -226,7 +226,7 @@ def resolve_e09_reveal(
 
 def register_e09_reveal(
     ledger: PersistentLifecycleLedger,
-    store: SQLiteEvidenceStore,
+    store: EvidenceEpisodeReader,
     **kwargs: Any,
 ) -> tuple[Evidence, LifecycleEventReceipt]:
     """Resolve an E09 reveal and register its redacted E12-A6 evidence DTO."""
@@ -237,7 +237,7 @@ def register_e09_reveal(
 
 
 def resolve_branch_merge_authorization(
-    store: SQLiteEvidenceStore,
+    store: EvidenceEpisodeReader,
     *,
     episode_id: str,
     authorization_ref: str,
