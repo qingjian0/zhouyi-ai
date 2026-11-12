@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 
 from prototype.n09_learnable_srok import RoleSpec
-from prototype.n010_baseline_experiment import run_comparison
+from prototype.n010_baseline_experiment import run_comparison, run_multi_seed_comparison
 from prototype.n010_synthetic import generate_compositional_dataset
 
 
@@ -38,6 +38,33 @@ class N010BaselineExperimentTests(unittest.TestCase):
             self.assertEqual(report["models"]["parameter_matched_low_rank_tensor"]["parameter_count"], 97)
             saved = json.loads(output.read_text(encoding="utf-8"))
             self.assertEqual(saved["schema"], "zhouyi-ai.n010-baseline-comparison-v1")
+
+    def test_multi_seed_report_aggregates_models_and_intervals(self):
+        roles = tuple(
+            RoleSpec(name, frozenset({name}), frozenset({"candidate"}))
+            for name in ("r0", "r1", "r2")
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            dataset = Path(directory) / "cycle.jsonl"
+            output = Path(directory) / "multi.json"
+            generate_compositional_dataset(
+                dataset, seed=111, train_count=3, dev_count=1,
+                locked_test_count=1, candidates_per_role=2,
+                noise_rate=0.0, missing_rate=0.0,
+            )
+            report = run_multi_seed_comparison(
+                dataset, roles, 4, output, seeds=(3, 5),
+                latent_dim=8, epochs=1, max_expansions=8,
+            )
+            self.assertEqual(report["seed_count"], 2)
+            self.assertEqual(report["seeds"], [3, 5])
+            metrics = report["models"]["learnable_xiang"]["locked_test"]["exact_match_accuracy"]
+            self.assertEqual(len(metrics["per_seed"]), 2)
+            self.assertLessEqual(metrics["ci95_normal"][0], metrics["mean"])
+            self.assertGreaterEqual(metrics["ci95_normal"][1], metrics["mean"])
+            self.assertTrue(output.exists())
+            self.assertTrue((Path(directory) / "multi.seed-3.json").exists())
+            self.assertTrue((Path(directory) / "multi.seed-5.json").exists())
 
     def test_candidate_expansion_cap_fails_closed(self):
         roles = tuple(
