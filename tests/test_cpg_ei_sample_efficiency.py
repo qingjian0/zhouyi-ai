@@ -52,7 +52,7 @@ class TestSampleEfficiencyComparison(unittest.TestCase):
             report = {"result": 1}
             write_json_report(report, path)
             raw = path.read_text(encoding="utf-8")
-            self.assertTrue(raw.endswith("\\n"))
+            self.assertTrue(raw.endswith("\n"))
             self.assertEqual(json.loads(raw), report)
 
 
