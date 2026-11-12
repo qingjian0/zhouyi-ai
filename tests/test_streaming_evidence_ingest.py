@@ -111,8 +111,8 @@ with open(source_path, "rb") as stream:
         self.assertTrue(resumed.complete)
         chunks = restarted.get_chunks("doc-hard-crash", limit=1000)
         self.assertEqual(b"".join(chunk.text.encode() for chunk in chunks), source)
-        self.assertEqual(len(chunks), 15)
-        self.assertEqual(len({chunk.chunk_id for chunk in chunks}), 15)
+        self.assertEqual(len(chunks), 30)
+        self.assertEqual(len({chunk.chunk_id for chunk in chunks}), 30)
 
     def test_hard_process_exit_recovers_across_multiple_commit_boundaries(self):
         source_path = Path(self.temp.name) / "multi-crash-source.txt"
