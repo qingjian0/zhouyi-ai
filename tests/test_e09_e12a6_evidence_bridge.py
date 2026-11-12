@@ -77,7 +77,6 @@ class E09EvidenceBridgeTests(unittest.TestCase):
         with self.assertRaises(E09EvidenceBindingError):
             register_e09_reveal(ledger,self.e09,episode_id=self.episode,evidence_ref=ref,
               scope=self.scope,learner_track=self.track,world_family=self.world,
-              allow_legacy_migration=True,
               allow_legacy_migration=True)
         self.assertEqual(self.zpcm.replay_lifecycle_events(scope="project-1"), [])
 
@@ -93,17 +92,17 @@ class E09EvidenceBridgeTests(unittest.TestCase):
         ref=self.add_reveal()
         with self.assertRaises(E09EvidenceBindingError):
             resolve_e09_reveal(self.e09,episode_id=self.episode,evidence_ref=ref,
-              scope="other-scope",learner_track=self.track,world_family=self.world)
+              scope="other-scope",learner_track=self.track,world_family=self.world,allow_legacy_migration=True)
         with self.assertRaises(E09EvidenceBindingError):
             resolve_e09_reveal(self.e09,episode_id=self.episode,evidence_ref=ref,
-              scope=self.scope,learner_track="other-track",world_family=self.world)
+              scope=self.scope,learner_track="other-track",world_family=self.world,allow_legacy_migration=True)
 
     def test_non_reveal_reference_is_rejected(self):
         self.add_reveal()
         with self.assertRaises(E09EvidenceBindingError):
             resolve_e09_reveal(self.e09,episode_id=self.episode,
               evidence_ref=f"{self.episode}:observation:obs-support",
-              scope=self.scope,learner_track=self.track,world_family=self.world)
+              scope=self.scope,learner_track=self.track,world_family=self.world,allow_legacy_migration=True)
 
     def test_world_family_must_be_explicit(self):
         ref=self.add_reveal()
