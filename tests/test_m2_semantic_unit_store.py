@@ -196,6 +196,28 @@ class PersistentM2SemanticUnitStoreTests(unittest.TestCase):
             0,
         )
 
+    def test_oversized_candidate_event_is_rejected_before_append(self):
+        bounded = PersistentM2SemanticUnitStore(
+            self.memory, self.resolver, scope="project-a",
+            max_event_bytes=256, max_replay_page_bytes=512,
+        )
+        oversized = self.candidate("oversized-event", surface="x" * 1024)
+        with self.assertRaises(SemanticUnitStoreError):
+            bounded.record_candidate(oversized)
+        self.assertEqual(
+            self.memory.latest_domain_sequence(
+                event_type="m2_semantic_unit", scope="project-a",
+            ),
+            0,
+        )
+
+    def test_event_limit_cannot_exceed_replay_page_budget(self):
+        with self.assertRaises(ValueError):
+            PersistentM2SemanticUnitStore(
+                self.memory, self.resolver, scope="project-a",
+                max_event_bytes=1024, max_replay_page_bytes=512,
+            )
+
     def test_replay_page_size_is_validated(self):
         with self.assertRaises(ValueError):
             PersistentM2SemanticUnitStore(
