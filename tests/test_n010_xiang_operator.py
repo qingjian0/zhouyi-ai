@@ -73,6 +73,8 @@ class LearnableXiangOperatorTests(unittest.TestCase):
         model = LearnableXiangOperator(self.roles, 2, XiangConfig(3, "learnable", 17))
         eps = 1e-5
         baseline = copy.deepcopy(model)
+        baseline.readout = [0.07 * (i + 1) for i in range(len(baseline.readout))]
+        model.readout = baseline.readout[:]
         numeric = {}
         for name, index in (("readout", 0), ("basis", (0, 0))):
             plus, minus = copy.deepcopy(baseline), copy.deepcopy(baseline)
