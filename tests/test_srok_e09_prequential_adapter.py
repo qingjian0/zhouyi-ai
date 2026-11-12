@@ -57,6 +57,28 @@ class SROKPrequentialTests(unittest.TestCase):
         with self.assertRaises(Exception):
             SROKPrequentialLearner.from_snapshot(broken)
 
+
+    def test_prequential_learner_supports_joint_beam_and_restores_search_config(self):
+        roles = tuple(RoleSpec(r, frozenset({r}), frozenset({"eligible"}))
+                      for r in ("r0", "r1", "r2"))
+        learner = SROKPrequentialLearner(
+            roles, 3, epochs=5, top_k_per_role=1, max_expansions=64,
+            retrieval_mode="joint", search_strategy="beam", beam_width=8,
+        )
+        nodes, target = make_episode(707, candidates_per_role=3)
+        row = Example((encode_srok_observation(nodes),), target)
+        learner.fit([row])
+        prediction = learner.predict((encode_srok_observation(nodes),))
+        self.assertNotEqual(learner.last_inference["status"], "ROLE_POOL_TRUNCATED")
+        self.assertIn(learner.last_inference["status"], (
+            "RANKED", "LOW_SCORE_MARGIN", "BUDGET_EXHAUSTED", "BEAM_PRUNED"
+        ))
+        restored = SROKPrequentialLearner.from_snapshot(learner.snapshot())
+        self.assertEqual(restored.retrieval_mode, "joint")
+        self.assertEqual(restored.search_strategy, "beam")
+        self.assertEqual(restored.beam_width, 8)
+        self.assertEqual(restored.snapshot(), learner.snapshot())
+
     def test_e09_adapter_projects_full_protocol_lifecycle_to_zpcm(self):
         memory = ZPCMMemory(Path(self.tmp.name) / "memory.sqlite3")
         try:

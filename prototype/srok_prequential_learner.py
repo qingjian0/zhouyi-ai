@@ -24,12 +24,21 @@ class SROKPrequentialLearner:
                  epochs: int=80, learning_rate: float=0.2, l2: float=1e-4,
                  max_assignments_per_example: int=4096, top_k_per_role: int=8,
                  max_expansions: int=4096, result_limit: int=5,
-                 abstain_margin: float=0.0):
+                 abstain_margin: float=0.0, retrieval_mode: str="unary",
+                 search_strategy: str="product", beam_width: int=64):
         self.roles=tuple(roles); self.feature_dim=feature_dim
         self.epochs=epochs; self.learning_rate=learning_rate; self.l2=l2
         self.max_assignments_per_example=max_assignments_per_example
         self.top_k_per_role=top_k_per_role; self.max_expansions=max_expansions
         self.result_limit=result_limit; self.abstain_margin=abstain_margin
+        if retrieval_mode not in ("unary", "joint"):
+            raise LearnableSROKError("retrieval_mode must be 'unary' or 'joint'")
+        if search_strategy not in ("product", "beam"):
+            raise LearnableSROKError("search_strategy must be 'product' or 'beam'")
+        if isinstance(beam_width, bool) or not isinstance(beam_width, int) or beam_width < 1:
+            raise LearnableSROKError("beam_width must be a positive integer")
+        self.retrieval_mode=retrieval_mode; self.search_strategy=search_strategy
+        self.beam_width=beam_width
         self.model=LearnableSROK(self.roles,feature_dim)
         self.report={"fitted":False,"training_examples":0,"candidate_patterns_evaluated":0}
         self.last_inference={"status":"NOT_RUN"}
@@ -89,21 +98,27 @@ class SROKPrequentialLearner:
         pools=tuple(tuple(n for n in nodes if self._compatible(n,r)) for r in self.roles)
         sizes=tuple((r.name,len(p)) for r,p in zip(self.roles,pools))
         truncated=tuple(r.name for r,p in zip(self.roles,pools) if len(p)>self.top_k_per_role)
-        if truncated:
+        if self.retrieval_mode == "unary" and truncated:
             self.last_inference={"status":"ROLE_POOL_TRUNCATED","truncated_roles":truncated,"role_pool_sizes":sizes}
             return None
         pred=self.model.predict(nodes,top_k_per_role=self.top_k_per_role,max_expansions=self.max_expansions,
-                                result_limit=self.result_limit,abstain_margin=self.abstain_margin)
+                                result_limit=self.result_limit,abstain_margin=self.abstain_margin,
+                                retrieval_mode=self.retrieval_mode,search_strategy=self.search_strategy,
+                                beam_width=self.beam_width)
+        search_meta={"retrieval_mode":self.retrieval_mode,
+                     "search_strategy":self.search_strategy,"beam_width":self.beam_width}
         if pred.budget_exhausted:
-            self.last_inference={"status":"BUDGET_EXHAUSTED","expanded_assignments":pred.expanded_assignments,"role_pool_sizes":sizes}
+            self.last_inference={"status":"BUDGET_EXHAUSTED","expanded_assignments":pred.expanded_assignments,
+                                 "role_pool_sizes":sizes,**search_meta}
             return None
         if pred.abstained or not pred.candidates:
-            self.last_inference={"status":pred.reason,"expanded_assignments":pred.expanded_assignments,"role_pool_sizes":sizes}
+            self.last_inference={"status":pred.reason,"expanded_assignments":pred.expanded_assignments,
+                                 "role_pool_sizes":sizes,**search_meta}
             return None
         chosen=pred.candidates[0]
         self.last_inference={"status":"RANKED","expanded_assignments":pred.expanded_assignments,
                              "role_pool_sizes":sizes,"raw_score":chosen.score,
-                             "score_semantics":"uncalibrated_ranking_score"}
+                             "score_semantics":"uncalibrated_ranking_score",**search_meta}
         return tuple(node_id for _,node_id in chosen.role_bindings)
 
     @classmethod
@@ -126,6 +141,9 @@ class SROKPrequentialLearner:
                 max_expansions=snapshot.get("max_expansions", 4096),
                 result_limit=snapshot.get("result_limit", 5),
                 abstain_margin=snapshot.get("abstain_margin", 0.0),
+                retrieval_mode=snapshot.get("retrieval_mode", "unary"),
+                search_strategy=snapshot.get("search_strategy", "product"),
+                beam_width=snapshot.get("beam_width", 64),
             )
             weights = snapshot["weights"]
             steps = snapshot["training_steps"]
@@ -162,4 +180,6 @@ class SROKPrequentialLearner:
                 "epochs":self.epochs,"learning_rate":self.learning_rate,"l2":self.l2,
                 "max_assignments_per_example":self.max_assignments_per_example,
                 "top_k_per_role":self.top_k_per_role,"max_expansions":self.max_expansions,
-                "result_limit":self.result_limit,"abstain_margin":self.abstain_margin}
+                "result_limit":self.result_limit,"abstain_margin":self.abstain_margin,
+                "retrieval_mode":self.retrieval_mode,"search_strategy":self.search_strategy,
+                "beam_width":self.beam_width}

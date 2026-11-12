@@ -8,6 +8,8 @@ This is a small synthetic-reasoning prototype, not a language model.
 """
 from __future__ import annotations
 from dataclasses import dataclass
+import hashlib
+import json
 from itertools import combinations, product
 import math
 from typing import Iterable, Sequence
@@ -33,6 +35,13 @@ class Node:
 class TrainingExample:
     role_candidates: tuple[tuple[Node, ...], ...]
     target_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class RelationClassificationExample:
+    """One labeled complete role assignment for relation classification."""
+    assignment: tuple[Node, ...]
+    label: int
 
 
 @dataclass(frozen=True)
@@ -135,8 +144,97 @@ class LearnableSROK:
             raise LearnableSROKError("score must be finite")
         return value
 
-    def score(self, assignment: Sequence[Node]) -> float:
-        return self._dot(self.weights, self._assignment_features(assignment))
+    def _interaction_limit(self, features: Sequence[float], interaction_order: int) -> int:
+        if isinstance(interaction_order, bool) or not isinstance(interaction_order, int) or interaction_order not in (1, 2, 3):
+            raise LearnableSROKError("interaction_order must be 1, 2, or 3")
+        unary_width = self.feature_dim * len(self.roles)
+        pair_width = self.feature_dim * len(self.pairs)
+        if interaction_order == 1:
+            return unary_width
+        if interaction_order == 2:
+            return unary_width + pair_width
+        return len(features)
+
+    def score(self, assignment: Sequence[Node], *, interaction_order: int = 3) -> float:
+        """Score one complete assignment, optionally ablating higher interactions."""
+        features = self._assignment_features(assignment)
+        limit = self._interaction_limit(features, interaction_order)
+        return self._dot(self.weights[:limit], features[:limit])
+
+    def fit_relation_classifier(self, examples: Iterable[RelationClassificationExample], *,
+                                epochs: int = 300, learning_rate: float = 0.1,
+                                l2: float = 1e-4, interaction_order: int = 3) -> list[float]:
+        """Train binary labels on complete assignments using the SROK score features.
+
+        Unlike structured fit(), this supports multiple positive assignments and
+        is suitable for balanced parity truth tables.
+        """
+        rows = tuple(examples)
+        if not rows:
+            raise LearnableSROKError("relation examples must not be empty")
+        if isinstance(epochs, bool) or not isinstance(epochs, int) or epochs < 1:
+            raise LearnableSROKError("epochs must be a positive integer")
+        if not isinstance(learning_rate, (int, float)) or isinstance(learning_rate, bool) or not math.isfinite(learning_rate) or learning_rate <= 0:
+            raise LearnableSROKError("learning_rate must be finite and positive")
+        if not isinstance(l2, (int, float)) or isinstance(l2, bool) or not math.isfinite(l2) or l2 < 0:
+            raise LearnableSROKError("l2 must be finite and non-negative")
+        prepared = []
+        for row in rows:
+            if not isinstance(row, RelationClassificationExample):
+                raise LearnableSROKError("each row must be a RelationClassificationExample")
+            if type(row.label) is not int or row.label not in (-1, 1):
+                raise LearnableSROKError("relation labels must be integer -1 or +1")
+            if len(row.assignment) != len(self.roles):
+                raise LearnableSROKError("assignment role count mismatch")
+            for node, role in zip(row.assignment, self.roles):
+                self._validate_node(node)
+                if not self._compatible(node, role):
+                    raise LearnableSROKError("assignment violates role constraints")
+            if len({node.node_id for node in row.assignment}) != len(row.assignment):
+                raise LearnableSROKError("assignment members must be distinct")
+            features = self._assignment_features(row.assignment)
+            limit = self._interaction_limit(features, interaction_order)
+            prepared.append((features[:limit], 1.0 if row.label == 1 else 0.0))
+        width = len(prepared[0][0])
+        if any(len(features) != width for features, _ in prepared):
+            raise LearnableSROKError("inconsistent relation feature widths")
+        history = []
+        for _ in range(epochs):
+            gradient = [0.0] * width
+            total_loss = 0.0
+            for features, target in prepared:
+                logit = self._dot(self.weights[:width], features)
+                if logit >= 0:
+                    exp_value = math.exp(-min(logit, 60.0))
+                    probability = 1.0 / (1.0 + exp_value)
+                else:
+                    exp_value = math.exp(max(logit, -60.0))
+                    probability = exp_value / (1.0 + exp_value)
+                clipped = min(max(probability, 1e-15), 1.0 - 1e-15)
+                total_loss += -(target * math.log(clipped) + (1.0 - target) * math.log(1.0 - clipped))
+                error = probability - target
+                for index, value in enumerate(features):
+                    gradient[index] += error * value
+            for index in range(width):
+                gradient[index] = gradient[index] / len(prepared) + l2 * self.weights[index]
+                if not math.isfinite(gradient[index]):
+                    raise LearnableSROKError("relation gradient became non-finite")
+                self.weights[index] -= learning_rate * gradient[index]
+                if not math.isfinite(self.weights[index]):
+                    raise LearnableSROKError("relation weights became non-finite")
+            history.append(total_loss / len(prepared))
+            self.training_steps += 1
+        return history
+
+    def predict_relation_probability(self, assignment: Sequence[Node], *, interaction_order: int = 3) -> float:
+        """Return P(label=+1) from the model's actual assignment score."""
+        logit = self.score(assignment, interaction_order=interaction_order)
+        if logit >= 0:
+            exp_value = math.exp(-min(logit, 60.0))
+            return 1.0 / (1.0 + exp_value)
+        exp_value = math.exp(max(logit, -60.0))
+        return exp_value / (1.0 + exp_value)
+
 
     def _enumerate(self, pools, max_expansions):
         if isinstance(max_expansions, bool) or not isinstance(max_expansions, int) or max_expansions < 1:
@@ -153,6 +251,94 @@ class LearnableSROK:
                 continue
             assignments.append(tuple(candidate))
         return assignments, exhausted, expanded
+
+    def _partial_score(self, assignment: Sequence[Node]) -> float:
+        """Score all unary/pair/triple terms whose roles are already assigned."""
+        count = len(assignment)
+        if count > len(self.roles):
+            raise LearnableSROKError("partial assignment role count mismatch")
+        features: list[float] = []
+        for node in assignment:
+            self._validate_node(node)
+        for node in assignment:
+            features.extend(node.features)
+        for left, right in combinations(range(count), 2):
+            features.extend(
+                a * b for a, b in zip(
+                    assignment[left].features, assignment[right].features
+                )
+            )
+        for first, second, third in combinations(range(count), 3):
+            features.extend(
+                a * b * c for a, b, c in zip(
+                    assignment[first].features,
+                    assignment[second].features,
+                    assignment[third].features,
+                )
+            )
+        # Feature blocks in the model are ordered by role, then role-pair,
+        # then role-triple. Build the matching weight indices explicitly.
+        indices: list[int] = []
+        dim = self.feature_dim
+        indices.extend(range(count * dim))
+        pair_offset = len(self.roles) * dim
+        all_pairs = tuple(combinations(range(len(self.roles)), 2))
+        for pair in combinations(range(count), 2):
+            indices.extend(
+                range(pair_offset + all_pairs.index(pair) * dim,
+                      pair_offset + (all_pairs.index(pair) + 1) * dim)
+            )
+        triple_offset = pair_offset + len(all_pairs) * dim
+        all_triples = tuple(combinations(range(len(self.roles)), 3))
+        for triple in combinations(range(count), 3):
+            index = all_triples.index(triple)
+            indices.extend(range(triple_offset + index * dim,
+                                 triple_offset + (index + 1) * dim))
+        if len(indices) != len(features):
+            raise LearnableSROKError("partial feature layout mismatch")
+        return self._dot([self.weights[index] for index in indices], features)
+
+    def _beam_enumerate(self, pools, max_expansions: int, beam_width: int):
+        """Bounded deterministic beam search over role prefixes.
+
+        The partial score is an ordering heuristic, not an admissible upper
+        bound. Beam search is therefore approximate; the exhaustion flag
+        reports budget truncation but cannot certify recall.
+        """
+        if isinstance(beam_width, bool) or not isinstance(beam_width, int) or beam_width < 1:
+            raise LearnableSROKError("beam_width must be a positive integer")
+        beam: list[tuple[Node, ...]] = [()]
+        expanded = 0
+        pruned = False
+        for pool in pools:
+            proposals: list[tuple[Node, ...]] = []
+            for prefix in beam:
+                for node in pool:
+                    if expanded >= max_expansions:
+                        ranked = sorted(
+                            proposals,
+                            key=lambda item: (-self._partial_score(item),
+                                              tuple(value.node_id for value in item)),
+                        )
+                        return (
+                            [item for item in ranked if len(item) == len(self.roles)],
+                            True, pruned, expanded,
+                        )
+                    expanded += 1
+                    if any(existing.node_id == node.node_id for existing in prefix):
+                        continue
+                    proposals.append(prefix + (node,))
+            proposals.sort(
+                key=lambda item: (-self._partial_score(item),
+                                  tuple(value.node_id for value in item))
+            )
+            if len(proposals) > beam_width:
+                pruned = True
+            beam = proposals[:beam_width]
+            if not beam:
+                break
+        complete = [item for item in beam if len(item) == len(self.roles)]
+        return complete, False, pruned, expanded
 
     def fit(
         self, examples: Iterable[TrainingExample], *, epochs: int = 80,
@@ -260,9 +446,15 @@ class LearnableSROK:
     def predict(
         self, nodes: Iterable[Node], *, top_k_per_role: int = 8,
         max_expansions: int = 4096, result_limit: int = 5,
-        abstain_margin: float = 0.0,
+        abstain_margin: float = 0.0, retrieval_mode: str = "unary",
+        search_strategy: str = "product", beam_width: int = 64,
     ) -> Prediction:
-        """Retrieve, compose, score, and optionally abstain under fixed budgets."""
+        """Retrieve, compose, score, and optionally abstain under fixed budgets.
+
+        unary preserves role-wise Top-K retrieval. joint retains every
+        type/tag-compatible candidate and ranks complete assignments using
+        relational scores, bounded by max_expansions.
+        """
         if isinstance(result_limit, bool) or not isinstance(result_limit, int) or result_limit < 1:
             raise LearnableSROKError("result_limit must be a positive integer")
         if isinstance(top_k_per_role, bool) or not isinstance(top_k_per_role, int) or top_k_per_role < 1:
@@ -271,20 +463,44 @@ class LearnableSROK:
             raise LearnableSROKError("max_expansions must be a positive integer")
         if not isinstance(abstain_margin, (int, float)) or isinstance(abstain_margin, bool) or not math.isfinite(abstain_margin) or abstain_margin < 0:
             raise LearnableSROKError("abstain_margin must be finite and non-negative")
+        if retrieval_mode not in ("unary", "joint"):
+            raise LearnableSROKError("retrieval_mode must be 'unary' or 'joint'")
+        if search_strategy not in ("product", "beam"):
+            raise LearnableSROKError("search_strategy must be 'product' or 'beam'")
+        if isinstance(beam_width, bool) or not isinstance(beam_width, int) or beam_width < 1:
+            raise LearnableSROKError("beam_width must be a positive integer")
         node_list = tuple(nodes)
         for node in node_list:
             self._validate_node(node)
         if len({node.node_id for node in node_list}) != len(node_list):
             raise LearnableSROKError("node IDs must be unique")
-        retrieved = tuple(
-            self.retrieve(i, node_list, top_k=top_k_per_role)
-            for i in range(len(self.roles))
-        )
-        pools = tuple(tuple(node for node, _ in items) for items in retrieved)
+        if retrieval_mode == "unary":
+            retrieved = tuple(
+                self.retrieve(i, node_list, top_k=top_k_per_role)
+                for i in range(len(self.roles))
+            )
+            pools = tuple(tuple(node for node, _ in items) for items in retrieved)
+        else:
+            # Joint mode avoids unary Top-K truncation. Hard type/tag
+            # constraints remain active; relational scoring ranks complete
+            # distinct assignments after bounded enumeration.
+            pools = tuple(
+                tuple(sorted(
+                    (node for node in node_list if self._compatible(node, role)),
+                    key=lambda node: node.node_id,
+                ))
+                for role in self.roles
+            )
         sizes = tuple((role.name, len(pool)) for role, pool in zip(self.roles, pools))
         if any(not pool for pool in pools):
             return Prediction((), True, "NO_ROLE_CANDIDATES", 0, False, sizes)
-        assignments, exhausted, expanded = self._enumerate(pools, max_expansions)
+        pruned = False
+        if retrieval_mode == "joint" and search_strategy == "beam":
+            assignments, exhausted, pruned, expanded = self._beam_enumerate(
+                pools, max_expansions, beam_width
+            )
+        else:
+            assignments, exhausted, expanded = self._enumerate(pools, max_expansions)
         ranked = sorted(
             assignments,
             key=lambda assignment: (
@@ -307,8 +523,25 @@ class LearnableSROK:
             for assignment in ranked[:result_limit]
         )
         if not structures:
+            reason = (
+                "SEARCH_BUDGET_EXHAUSTED" if exhausted
+                else "BEAM_PRUNED" if pruned
+                else "NO_VALID_ASSIGNMENT"
+            )
             return Prediction(
-                (), True, "NO_VALID_ASSIGNMENT", expanded, exhausted, sizes
+                (), True, reason, expanded, exhausted, sizes
+            )
+        # Budget truncation and beam pruning both make the search incomplete.
+        # Preserve any discovered candidates for inspection, but never report
+        # an incomplete search as an accepted global ranking.
+        if exhausted:
+            return Prediction(
+                structures, True, "SEARCH_BUDGET_EXHAUSTED",
+                expanded, True, sizes,
+            )
+        if pruned:
+            return Prediction(
+                structures, True, "BEAM_PRUNED", expanded, False, sizes,
             )
         # Compute confidence from the actual top two found assignments before
         # applying result_limit; result_limit=1 must not disable abstention.
@@ -324,3 +557,106 @@ class LearnableSROK:
         return Prediction(
             structures, False, "ACCEPTED", expanded, exhausted, sizes
         )
+
+
+    def checkpoint_json(self) -> str:
+        """Serialize all learned parameters in a deterministic, integrity-checked envelope."""
+        payload = {
+            "format": "zhouyi-ai.n10.learnable-srok",
+            "schema_version": 1,
+            "feature_dim": self.feature_dim,
+            "roles": [
+                {
+                    "name": role.name,
+                    "allowed_types": sorted(role.allowed_types),
+                    "required_tags": sorted(role.required_tags),
+                }
+                for role in self.roles
+            ],
+            "weights": self.weights,
+            "training_steps": self.training_steps,
+        }
+        canonical = json.dumps(
+            payload, sort_keys=True, separators=(",", ":"),
+            ensure_ascii=False, allow_nan=False,
+        )
+        envelope = dict(payload)
+        envelope["sha256"] = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+        return json.dumps(
+            envelope, sort_keys=True, indent=2,
+            ensure_ascii=False, allow_nan=False,
+        )
+
+    @classmethod
+    def from_checkpoint_json(cls, raw: str) -> "LearnableSROK":
+        """Restore model state after strict schema, digest, shape and finiteness checks."""
+        try:
+            envelope = json.loads(raw)
+        except (TypeError, json.JSONDecodeError) as exc:
+            raise LearnableSROKError("checkpoint must be valid JSON") from exc
+        if not isinstance(envelope, dict):
+            raise LearnableSROKError("checkpoint root must be an object")
+        expected = {
+            "format", "schema_version", "feature_dim", "roles",
+            "weights", "training_steps", "sha256",
+        }
+        if set(envelope) != expected:
+            raise LearnableSROKError("checkpoint fields do not match schema")
+        supplied_digest = envelope.get("sha256")
+        payload = {key: value for key, value in envelope.items() if key != "sha256"}
+        try:
+            canonical = json.dumps(
+                payload, sort_keys=True, separators=(",", ":"),
+                ensure_ascii=False, allow_nan=False,
+            )
+        except (TypeError, ValueError) as exc:
+            raise LearnableSROKError("checkpoint contains non-canonical values") from exc
+        actual_digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+        if not isinstance(supplied_digest, str) or supplied_digest != actual_digest:
+            raise LearnableSROKError("checkpoint digest mismatch")
+        if (
+            payload["format"] != "zhouyi-ai.n10.learnable-srok"
+            or isinstance(payload["schema_version"], bool)
+            or not isinstance(payload["schema_version"], int)
+            or payload["schema_version"] != 1
+        ):
+            raise LearnableSROKError("unsupported checkpoint format or version")
+        feature_dim = payload["feature_dim"]
+        if isinstance(feature_dim, bool) or not isinstance(feature_dim, int) or feature_dim < 1:
+            raise LearnableSROKError("checkpoint feature_dim must be a positive integer")
+        raw_roles = payload["roles"]
+        if not isinstance(raw_roles, list) or len(raw_roles) < 2:
+            raise LearnableSROKError("checkpoint roles must be a list of at least two roles")
+        roles = []
+        for item in raw_roles:
+            if (
+                not isinstance(item, dict)
+                or set(item) != {"name", "allowed_types", "required_tags"}
+                or not isinstance(item["name"], str) or not item["name"].strip()
+                or not isinstance(item["allowed_types"], list)
+                or not isinstance(item["required_tags"], list)
+                or any(
+                    not isinstance(value, str) or not value.strip()
+                    for value in item["allowed_types"] + item["required_tags"]
+                )
+            ):
+                raise LearnableSROKError("invalid checkpoint role schema")
+            roles.append(RoleSpec(
+                item["name"], frozenset(item["allowed_types"]),
+                frozenset(item["required_tags"]),
+            ))
+        weights = payload["weights"]
+        if not isinstance(weights, list) or any(
+            isinstance(value, bool) or not isinstance(value, (int, float))
+            or not math.isfinite(value) for value in weights
+        ):
+            raise LearnableSROKError("checkpoint weights must be finite numbers")
+        steps = payload["training_steps"]
+        if isinstance(steps, bool) or not isinstance(steps, int) or steps < 0:
+            raise LearnableSROKError("checkpoint training_steps must be a non-negative integer")
+        model = cls(roles, feature_dim)
+        if len(weights) != len(model.weights):
+            raise LearnableSROKError("checkpoint weight shape mismatch")
+        model.weights = [float(value) for value in weights]
+        model.training_steps = steps
+        return model
