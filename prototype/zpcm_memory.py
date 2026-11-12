@@ -223,6 +223,12 @@ class ZPCMMemory:
         """
         with self.lock:
             self.db.executescript("""
+            CREATE TABLE IF NOT EXISTS e12a6_current_state_projection_meta(
+                singleton INTEGER PRIMARY KEY CHECK(singleton=1),
+                schema_version TEXT NOT NULL,
+                initialized_through_seq INTEGER NOT NULL,
+                initialized_event_count INTEGER NOT NULL
+            );
             CREATE TABLE IF NOT EXISTS e12a6_candidate_state_projection(
                 scope TEXT NOT NULL,
                 candidate_id TEXT NOT NULL,
@@ -314,9 +320,18 @@ class ZPCMMemory:
                   AND json_extract(NEW.payload_json,'$.body.action.to_state') IS NOT NULL;
             END;
             """)
-            # Idempotent streaming-compatible backfill for databases created
-            # before these triggers existed. INSERT OR REPLACE in seq order
-            # leaves the latest candidate revision per identity.
+            meta = self.db.execute(
+                "SELECT schema_version FROM e12a6_current_state_projection_meta WHERE singleton=1"
+            ).fetchone()
+            if meta is not None and meta["schema_version"] == "e12a6-current-state-v1":
+                return
+            if meta is not None:
+                self.db.execute("DELETE FROM e12a6_candidate_state_projection")
+                self.db.execute("DELETE FROM e12a6_evidence_state_projection")
+                self.db.execute("DELETE FROM e12a6_action_state_projection")
+            # One-time backfill for databases created before the triggers existed.
+            # Subsequent opens trust transactional triggers; explicit rebuild
+            # is available for repair and audit workflows.
             self.db.execute("""
                 INSERT OR REPLACE INTO e12a6_candidate_state_projection(
                     scope,candidate_id,candidate_version,candidate_json,source_seq
@@ -393,6 +408,25 @@ class ZPCMMemory:
                       AND json_extract(e.payload_json,'$.body.action.to_state') IS NOT NULL
                 )
             """)
+            max_seq = int(self.db.execute("SELECT COALESCE(MAX(seq),0) FROM memory_events").fetchone()[0])
+            event_count = int(self.db.execute(
+                "SELECT COUNT(*) FROM memory_events WHERE event_type='e12a6_lifecycle'"
+            ).fetchone()[0])
+            self.db.execute(
+                "INSERT OR REPLACE INTO e12a6_current_state_projection_meta("
+                "singleton,schema_version,initialized_through_seq,initialized_event_count) "
+                "VALUES(1,'e12a6-current-state-v1',?,?)",
+                (max_seq,event_count),
+            )
+
+    def rebuild_e12a6_current_state_projection(self) -> None:
+        """Explicitly rebuild derived lifecycle state rows from the event log."""
+        with self.lock:
+            self.db.execute("DELETE FROM e12a6_candidate_state_projection")
+            self.db.execute("DELETE FROM e12a6_evidence_state_projection")
+            self.db.execute("DELETE FROM e12a6_action_state_projection")
+            self.db.execute("DELETE FROM e12a6_current_state_projection_meta")
+            self._ensure_e12a6_current_state_projection()
 
     def get_lifecycle_candidate_projection(
         self, *, scope: str, candidate_id: str, candidate_version: int,
