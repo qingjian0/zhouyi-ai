@@ -2,7 +2,7 @@
 
 This diagnostic isolates optimizer/regularization behavior from support search.
 The true support is supplied to the model, but all fitting uses train states only.
-Locked states are never used for gradient updates or hyperparameter selection.
+Locked states are evaluation-only and never select a configuration.
 """
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ import math
 from collections import defaultdict
 from typing import Sequence
 
-from prototype.cpg_ei_mvp import CpgEiTransitionModel, Example, FEATURE_NAMES, evaluate
+from prototype.cpg_ei_mvp import CpgEiTransitionModel, FEATURE_NAMES, evaluate
 from prototype.cpg_ei_selection_sweep import RULE_FAMILIES, make_examples, partition_states, exact_support
 
 DEFAULT_SEEDS = (11, 47)
@@ -102,8 +102,18 @@ def run_optimizer_sweep(
             "mean_full_64_state_bit_accuracy": sum(r["full_64_state_bit_accuracy"] for r in rows) / len(rows),
             "mean_final_train_bce": sum(r["final_train_bce"] for r in rows) / len(rows),
         })
-    best_locked = max(summary, key=lambda row: (row["mean_locked_bit_accuracy"], -row["mean_final_train_bce"]))
-    best_full = max(summary, key=lambda row: (row["mean_full_64_state_bit_accuracy"], -row["mean_final_train_bce"]))
+
+    # Configuration selection is train-only. Locked and full-domain metrics are
+    # reported for diagnosis, never used to rank or choose hyperparameters.
+    best_train_config = min(
+        summary,
+        key=lambda row: (
+            row["mean_final_train_bce"],
+            -row["mean_train_bit_accuracy"],
+            row["regularizer"],
+            row["learning_rate"],
+        ),
+    )
     return {
         "benchmark": "cpg-ei-known-support-optimizer-sweep-v1",
         "seeds": list(seeds),
@@ -114,9 +124,10 @@ def run_optimizer_sweep(
         "learning_rates": list(learning_rates),
         "regularizers": REGULARIZERS,
         "summary": summary,
-        "best_locked_config": best_locked,
-        "best_full_64_state_config": best_full,
+        "best_train_config": best_train_config,
         "records": records,
+        "selection_metric": "mean_final_train_bce_only",
+        "locked_and_full_metrics_used_for_selection": False,
         "claim_boundary": (
             "Synthetic six-bit parity diagnostic with oracle-supplied support. "
             "No open-world relation discovery, language reasoning, or production "
