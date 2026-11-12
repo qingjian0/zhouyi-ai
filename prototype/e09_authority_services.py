@@ -178,6 +178,21 @@ class E09AuthorityService:
             raise E09AuthorizationError("workload is not authorized for the requested scope")
         return principal
 
+    def validate_adapter_workloads(
+        self,
+        *,
+        scope: str,
+        observer_credential: object,
+        learner_credential: object,
+        evaluator_credential: object,
+    ) -> None:
+        """Fail fast unless all three adapter workload identities are authorized."""
+        if self._domain_registry is None:
+            raise E09AuthorizationError("trusted E09 domain registry is not configured")
+        self._principal(observer_credential, role="observer", scope=scope)
+        self._principal(learner_credential, role="learner", scope=scope)
+        self._principal(evaluator_credential, role="evaluator", scope=scope)
+
     def append_observation(
         self,
         credential: object,
@@ -189,6 +204,8 @@ class E09AuthorityService:
         query_id: str,
         scope: str,
         split: str,
+        payload_ref: str | None = None,
+        feature_schema_version: str | None = None,
         causation_refs: tuple[str, ...] | list[str] = (),
         expected_sequence: int | None = None,
     ) -> EventReceipt:
@@ -211,6 +228,21 @@ class E09AuthorityService:
             "domain_registry_version": binding.registry_version,
             "world_family": binding.world_family,
         }
+        for field, value in (
+            ("payload_ref", payload_ref),
+            ("feature_schema_version", feature_schema_version),
+        ):
+            if value is not None:
+                if not isinstance(value, str) or not value.strip():
+                    raise E09AuthorizationError(f"{field} must be a non-empty string")
+                payload[field] = value
+        if payload_ref is not None:
+            try:
+                self._store.get_payload(payload_ref)
+            except Exception as exc:
+                raise E09AuthorizationError(
+                    "observation payload_ref must reference an existing digest-verified payload"
+                ) from exc
         return self._store.append_event(
             episode_id=episode_id, event_id=event_id, event_type="observation",
             idempotency_key=idempotency_key, payload=payload,
@@ -259,7 +291,21 @@ class E09AuthorityService:
             raise TypeError("payload must be a dictionary")
         scope = payload.get("scope")
         principal = self._principal(credential, role="learner", scope=scope)
-        domain = self._observation_domain(episode_id, payload.get("observation_id"))
+        events = self._store.replay_episode(episode_id)
+        observation_id = payload.get("observation_id")
+        observations = [
+            event for event in events
+            if event.get("event_type") == "observation"
+            and event.get("payload", {}).get("observation_id") == observation_id
+        ]
+        if len(observations) != 1:
+            raise E09AuthorizationError("prediction requires exactly one prior observation")
+        observation = observations[0]
+        if (observation.get("payload", {}).get("scope") != scope
+                or observation.get("payload", {}).get("split") != payload.get("split")
+                or observation.get("event_id") not in set(causation_refs)):
+            raise E09AuthorizationError("prediction must causally reference an observation in the same scope and split")
+        domain = self._observation_domain(episode_id, observation_id)
         normalized = dict(payload)
         for field, value in domain.items():
             if field in normalized and normalized[field] != value:
@@ -301,24 +347,214 @@ class E09AuthorityService:
         if len(commits) != 1:
             raise E09AuthorizationError("reveal requires exactly one committed prediction")
         commit = commits[0]
+        if (commit.get("payload", {}).get("scope") != scope
+                or commit.get("event_id") not in set(causation_refs)):
+            raise E09AuthorizationError("reveal must causally reference a commit in the same scope")
         domain = self._observation_domain(episode_id, commit["payload"].get("observation_id"))
+        normalized = dict(payload)
         for field, value in domain.items():
-            if field in payload and payload[field] != value:
+            if field in normalized and normalized[field] != value:
                 raise E09AuthorizationError(f"evidence reveal cannot override {field}")
             if commit["payload"].get(field) != value:
                 raise E09AuthorizationError(f"prediction commit {field} does not match its observation")
-            payload[field] = value
+            normalized[field] = value
         return self._store.append_event(
             episode_id=episode_id,
             event_id=event_id,
             event_type="evidence_reveal",
             idempotency_key=idempotency_key,
-            payload=payload,
+            payload=normalized,
             actor_role="evaluator",
             causation_refs=causation_refs,
             integrity_metadata=_identity_metadata(principal),
             expected_sequence=expected_sequence,
             protocol_version=STRICT_PROTOCOL_VERSION,
+        )
+
+    def append_structure_version(
+        self,
+        credential: object,
+        *,
+        episode_id: str,
+        event_id: str,
+        idempotency_key: str,
+        scope: str,
+        learner_track: str,
+        payload: dict[str, Any],
+        causation_refs: tuple[str, ...] | list[str] = (),
+        expected_sequence: int | None = None,
+    ) -> EventReceipt:
+        """Append a learner structure checkpoint after validating its causal support."""
+        principal = self._principal(credential, role="learner", scope=scope)
+        if not isinstance(learner_track, str) or not learner_track.strip():
+            raise E09AuthorizationError("learner_track must be a non-empty string")
+        if not isinstance(payload, dict):
+            raise TypeError("payload must be a dictionary")
+        normalized = dict(payload)
+        if normalized.get("scope", scope) != scope:
+            raise E09AuthorizationError("structure version scope does not match authenticated scope")
+        if normalized.get("learner_track", learner_track) != learner_track:
+            raise E09AuthorizationError("structure version learner_track mismatch")
+        normalized["scope"] = scope
+        normalized["learner_track"] = learner_track
+        required = {"structure_id", "version_id", "kind", "definition",
+                    "parent_version_ids", "support_evidence_ids"}
+        if not required.issubset(normalized):
+            raise E09AuthorizationError(
+                f"structure version missing fields: {sorted(required - normalized.keys())}"
+            )
+        for field in ("structure_id", "version_id", "kind"):
+            if not isinstance(normalized[field], str) or not normalized[field].strip():
+                raise E09AuthorizationError(f"structure version {field} must be non-empty")
+        if not isinstance(normalized["definition"], dict):
+            raise E09AuthorizationError("structure version definition must be an object")
+        parents = normalized["parent_version_ids"]
+        supports = normalized["support_evidence_ids"]
+        if (not isinstance(parents, (tuple, list))
+                or any(not isinstance(x, str) or not x.strip() for x in parents)
+                or len(parents) != len(set(parents))):
+            raise E09AuthorizationError("parent_version_ids must be unique non-empty strings")
+        if (not isinstance(supports, (tuple, list))
+                or any(not isinstance(x, str) or not x.strip() for x in supports)
+                or len(supports) != len(set(supports))):
+            raise E09AuthorizationError("support_evidence_ids must be unique non-empty strings")
+        causes = tuple(causation_refs)
+        if len(causes) != len(set(causes)) or any(not isinstance(x, str) or not x.strip() for x in causes):
+            raise E09AuthorizationError("causation_refs must be unique non-empty strings")
+        if not set(supports).issubset(set(causes)):
+            raise E09AuthorizationError("every support evidence reference must be a causal reference")
+        events = self._store.replay_episode(episode_id)
+        structures = {
+            event["payload"].get("version_id"): event
+            for event in events if event.get("event_type") == "structure_version"
+        }
+        reveals = {
+            event.get("event_id"): event
+            for event in events if event.get("event_type") == "evidence_reveal"
+        }
+        if bool(parents) != bool(supports):
+            raise E09AuthorizationError("non-bootstrap structure versions require both parents and support evidence")
+        for parent_id in parents:
+            parent = structures.get(parent_id)
+            if (parent is None
+                    or parent.get("actor_role") != "learner"
+                    or not isinstance(parent.get("integrity_metadata", {}).get("authenticated_workload"), dict)
+                    or parent["payload"].get("structure_id") != normalized["structure_id"]
+                    or parent["payload"].get("learner_track") != learner_track
+                    or parent["payload"].get("scope") != scope):
+                raise E09AuthorizationError("parent structure version is missing or outside the authorized scope/track")
+        for evidence_id in supports:
+            reveal = reveals.get(evidence_id)
+            if (reveal is None
+                    or reveal.get("actor_role") != "evaluator"
+                    or not isinstance(reveal.get("integrity_metadata", {}).get("authenticated_workload"), dict)
+                    or reveal["payload"].get("scope") != scope
+                    or reveal["payload"].get("learner_track") != learner_track):
+                raise E09AuthorizationError("support evidence is missing or outside the authorized scope/track")
+        return self._store.append_event(
+            episode_id=episode_id, event_id=event_id, event_type="structure_version",
+            idempotency_key=idempotency_key, payload=normalized,
+            actor_role="learner", causation_refs=causes,
+            integrity_metadata=_identity_metadata(principal),
+            expected_sequence=expected_sequence, protocol_version=STRICT_PROTOCOL_VERSION,
+        )
+
+    def append_revision(
+        self,
+        credential: object,
+        *,
+        episode_id: str,
+        event_id: str,
+        idempotency_key: str,
+        scope: str,
+        learner_track: str,
+        payload: dict[str, Any],
+        causation_refs: tuple[str, ...] | list[str],
+        expected_sequence: int | None = None,
+    ) -> EventReceipt:
+        """Append a learner revision bound to prior reveals and structure versions."""
+        principal = self._principal(credential, role="learner", scope=scope)
+        if not isinstance(learner_track, str) or not learner_track.strip():
+            raise E09AuthorizationError("learner_track must be a non-empty string")
+        if not isinstance(payload, dict):
+            raise TypeError("payload must be a dictionary")
+        normalized = dict(payload)
+        if normalized.get("scope", scope) != scope:
+            raise E09AuthorizationError("revision scope does not match authenticated scope")
+        if normalized.get("learner_track", learner_track) != learner_track:
+            raise E09AuthorizationError("revision learner_track mismatch")
+        normalized["scope"] = scope
+        normalized["learner_track"] = learner_track
+        required = {"revision_id", "operation", "trigger_evidence_ids",
+                    "before_version_ids", "after_version_ids"}
+        if not required.issubset(normalized):
+            raise E09AuthorizationError(f"revision missing fields: {sorted(required - normalized.keys())}")
+        for field in ("revision_id", "operation"):
+            if not isinstance(normalized[field], str) or not normalized[field].strip():
+                raise E09AuthorizationError(f"revision {field} must be non-empty")
+        triggers = normalized["trigger_evidence_ids"]
+        before = normalized["before_version_ids"]
+        after = normalized["after_version_ids"]
+        for field, values in (("trigger_evidence_ids", triggers),
+                              ("before_version_ids", before), ("after_version_ids", after)):
+            if (not isinstance(values, (tuple, list)) or not values
+                    or any(not isinstance(x, str) or not x.strip() for x in values)
+                    or len(values) != len(set(values))):
+                raise E09AuthorizationError(f"{field} must be unique non-empty strings")
+        causes = tuple(causation_refs)
+        if len(causes) != len(set(causes)) or any(not isinstance(x, str) or not x.strip() for x in causes):
+            raise E09AuthorizationError("causation_refs must be unique non-empty strings")
+        if not set(triggers).issubset(set(causes)):
+            raise E09AuthorizationError("every trigger evidence reference must be a causal reference")
+        events = self._store.replay_episode(episode_id)
+        reveals = {
+            event.get("event_id"): event
+            for event in events if event.get("event_type") == "evidence_reveal"
+        }
+        structures = {
+            event["payload"].get("version_id"): event
+            for event in events if event.get("event_type") == "structure_version"
+        }
+        for evidence_id in triggers:
+            reveal = reveals.get(evidence_id)
+            if (reveal is None
+                    or reveal.get("actor_role") != "evaluator"
+                    or not isinstance(reveal.get("integrity_metadata", {}).get("authenticated_workload"), dict)
+                    or reveal["payload"].get("scope") != scope
+                    or reveal["payload"].get("learner_track") != learner_track):
+                raise E09AuthorizationError("revision trigger evidence is missing or outside the authorized scope/track")
+        before_events = [structures.get(version_id) for version_id in before]
+        after_events = [structures.get(version_id) for version_id in after]
+        if any(event is None for event in before_events + after_events):
+            raise E09AuthorizationError("revision references an unknown structure version")
+        structure_ids = {
+            event["payload"].get("structure_id") for event in before_events + after_events
+        }
+        if len(structure_ids) != 1 or any(
+            event.get("actor_role") != "learner"
+            or not isinstance(event.get("integrity_metadata", {}).get("authenticated_workload"), dict)
+            or event["payload"].get("learner_track") != learner_track
+            or event["payload"].get("scope") != scope
+            for event in before_events + after_events
+        ):
+            raise E09AuthorizationError("revision structure versions cross scope, track, or structure boundaries")
+        after_event_ids = {event["event_id"] for event in after_events}
+        if not after_event_ids.issubset(set(causes)):
+            raise E09AuthorizationError("revision causation must include its resulting structure version events")
+        before_ids = set(before)
+        for after_event in after_events:
+            after_payload = after_event["payload"]
+            if (not before_ids.intersection(set(after_payload.get("parent_version_ids", [])))
+                    or not set(triggers).issubset(set(after_payload.get("support_evidence_ids", [])))):
+                raise E09AuthorizationError(
+                    "resulting structure version must descend from the declared parent and cite every trigger"
+                )
+        return self._store.append_event(
+            episode_id=episode_id, event_id=event_id, event_type="revision",
+            idempotency_key=idempotency_key, payload=normalized,
+            actor_role="learner", causation_refs=causes,
+            integrity_metadata=_identity_metadata(principal),
+            expected_sequence=expected_sequence, protocol_version=STRICT_PROTOCOL_VERSION,
         )
 
     def issue_branch_merge_authorization(

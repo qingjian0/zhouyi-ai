@@ -45,11 +45,14 @@ Legacy request fields `world_family_by_evidence` and `candidate_evidence_world_f
 
 The source-level call-site inventory and remaining migration requirements are recorded in [E09 Direct Store-Write Audit v1](E09_DIRECT_STORE_WRITE_AUDIT_V1.md). The legacy adapter below is intentionally not trusted for receipt issuance.
 
-## Existing legacy writer path
+## Adapter modes
 
-`prototype/e09_shared_protocol_adapter.py` still has a trusted-runner prototype path that writes Observation/Commit/Reveal directly through `SQLiteEvidenceStore`, with Observation actor role `runner`. It is not upgraded by this PR and is intentionally not eligible for trusted verifier receipts: the resolver rejects runner-role observations and observations without the authenticated, registry-bound domain tuple. This keeps the older training adapter usable for its existing non-receipt experiments without silently granting it the new evidence authority.
+`prototype/e09_shared_protocol_adapter.py` now supports two explicit modes:
 
-A separate follow-up is required to migrate that adapter to the authenticated authority facade, including observer/learner/evaluator workload credentials and a configured domain registry, before its events can participate in the secure E09 → E12-A6 receipt path.
+- **Secure mode:** requires an `E09AuthorityService`, configured trusted domain registry, and observer/learner/evaluator credentials validated for the adapter scope. Observation, Commit, Reveal, StructureVersion and Revision event writes are routed through narrow authenticated authority methods. The authority binds the domain tuple from Observation and validates scope/track/causation for subsequent writes.
+- **Legacy mode:** remains the default for compatibility with existing prequential experiments. It writes runner-origin events directly and remains non-receipt-eligible. The resolver rejects runner-role observations and observations without authenticated, registry-bound domain provenance. Existing events are never silently upgraded.
+
+The secure mode is still an in-process facade integration, not process isolation. See [E09 Direct Store-Write Audit v1](E09_DIRECT_STORE_WRITE_AUDIT_V1.md) for the current guarantee and the remaining IPC/database-permission work.
 
 ## Security boundary
 

@@ -12,6 +12,7 @@ from typing import Any, Callable, Sequence
 from prototype.shared_evidence_protocol import (
     EVIDENCE_SPLITS, STRICT_PROTOCOL_VERSION, SQLiteEvidenceStore, digest_payload,
 )
+from prototype.e09_authority_services import E09AuthorityService
 from prototype.e09_prequential import (
     PrequentialRunner, PrequentialError,
     PredictionCommit as RunnerPredictionCommit,
@@ -38,7 +39,11 @@ class E09SharedProtocolAdapter:
                  structure_id: str = "e09-rule-set",
                  structure_kind: str = "rule_set",
                  version_prefix: str = "e09",
-                 memory_projection: Any | None = None) -> None:
+                 memory_projection: Any | None = None,
+                 authority: E09AuthorityService | None = None,
+                 observer_credential: object | None = None,
+                 learner_credential: object | None = None,
+                 evaluator_credential: object | None = None) -> None:
         if not isinstance(episode_id, str) or not episode_id.strip():
             raise ValueError("episode_id must be non-empty")
         if not isinstance(learner_track, str) or not learner_track.strip():
@@ -62,6 +67,12 @@ class E09SharedProtocolAdapter:
         self.structure_kind = structure_kind
         self.version_prefix = version_prefix
         self.memory_projection = memory_projection
+        self._configure_authority(
+            authority=authority,
+            observer_credential=observer_credential,
+            learner_credential=learner_credential,
+            evaluator_credential=evaluator_credential,
+        )
         self._failed = False
         self._committed_predictions: set[str] = set()
         self._commit_digests: dict[str, str] = {}
@@ -76,6 +87,44 @@ class E09SharedProtocolAdapter:
             )
         self._append_initial_structure()
         self._sync_memory()
+
+    def _configure_authority(
+        self,
+        *,
+        authority: E09AuthorityService | None,
+        observer_credential: object | None,
+        learner_credential: object | None,
+        evaluator_credential: object | None,
+    ) -> None:
+        supplied = (authority, observer_credential, learner_credential, evaluator_credential)
+        if not any(value is not None for value in supplied):
+            self._authority = None
+            self._observer_credential = None
+            self._learner_credential = None
+            self._evaluator_credential = None
+            return
+        if (not isinstance(authority, E09AuthorityService)
+                or observer_credential is None
+                or learner_credential is None
+                or evaluator_credential is None):
+            raise E09ProtocolAdapterError(
+                "secure mode requires an E09AuthorityService and observer, learner, evaluator credentials"
+            )
+        try:
+            authority.validate_adapter_workloads(
+                scope=self.scope,
+                observer_credential=observer_credential,
+                learner_credential=learner_credential,
+                evaluator_credential=evaluator_credential,
+            )
+        except Exception as exc:
+            raise E09ProtocolAdapterError(
+                f"secure adapter workload validation failed: {exc}"
+            ) from exc
+        self._authority = authority
+        self._observer_credential = observer_credential
+        self._learner_credential = learner_credential
+        self._evaluator_credential = evaluator_credential
 
     def _sync_memory(self) -> None:
         if self.memory_projection is None:
@@ -101,6 +150,10 @@ class E09SharedProtocolAdapter:
         split: str, learner_track: str, version_prefix: str,
         learner_factory: Callable[[dict[str, Any]], Any],
         memory_projection: Any | None = None,
+        authority: E09AuthorityService | None = None,
+        observer_credential: object | None = None,
+        learner_credential: object | None = None,
+        evaluator_credential: object | None = None,
     ) -> "E09SharedProtocolAdapter":
         """Rebuild SROK/E09 in-memory state from durable events and checkpoints.
 
@@ -154,6 +207,12 @@ class E09SharedProtocolAdapter:
         instance.structure_kind = latest_payload["kind"]
         instance.version_prefix = version_prefix
         instance.memory_projection = memory_projection
+        instance._configure_authority(
+            authority=authority,
+            observer_credential=observer_credential,
+            learner_credential=learner_credential,
+            evaluator_credential=evaluator_credential,
+        )
         instance._failed = False
         instance._committed_predictions = set()
         instance._commit_digests = {}
@@ -314,22 +373,29 @@ class E09SharedProtocolAdapter:
             "runner_model_version": self.runner.model_version,
             "runner_step": self.runner.step,
         }
-        self.store.append_event(
-            episode_id=self.episode_id,
-            event_id=f"{self.episode_id}:structure:{self._version_id}",
-            event_type="structure_version",
-            idempotency_key=f"{self.episode_id}:structure:{self._version_id}",
-            actor_role="learner",
-            payload={
-                "structure_id": self.structure_id,
-                "version_id": self._version_id,
-                "kind": self.structure_kind,
-                "definition": definition,
-                "parent_version_ids": [],
-                "support_evidence_ids": [],
-                "learner_track": self.learner_track,
-            },
-        )
+        event_id = f"{self.episode_id}:structure:{self._version_id}"
+        payload = {
+            "structure_id": self.structure_id,
+            "version_id": self._version_id,
+            "kind": self.structure_kind,
+            "definition": definition,
+            "parent_version_ids": [],
+            "support_evidence_ids": [],
+            "scope": self.scope,
+            "learner_track": self.learner_track,
+        }
+        if self._authority is not None:
+            self._authority.append_structure_version(
+                self._learner_credential, episode_id=self.episode_id,
+                event_id=event_id, idempotency_key=event_id, scope=self.scope,
+                learner_track=self.learner_track, payload=payload,
+            )
+        else:
+            self.store.append_event(
+                episode_id=self.episode_id, event_id=event_id,
+                event_type="structure_version", idempotency_key=event_id,
+                actor_role="learner", payload=payload,
+            )
 
     def predict_and_commit(self, observation_id: str,
                            inputs: Sequence[Any]) -> dict[str, Any]:
@@ -340,22 +406,27 @@ class E09SharedProtocolAdapter:
             self.store.put_payload(input_digest, {"inputs": self._jsonable(input_values)})
             observation_event_id = f"{self.episode_id}:observation:{observation_id}"
             # The durable observation is sequenced before the learner predicts.
-            self.store.append_event(
-                episode_id=self.episode_id,
-                event_id=observation_event_id,
-                event_type="observation",
-                idempotency_key=observation_event_id,
-                actor_role="runner",
-                payload={
-                    "observation_id": observation_id,
-                    "query_id": observation_id,
-                    "scope": self.scope,
-                    "split": self.split,
-                    "payload_ref": input_digest,
-                    "feature_schema_version": "e09-categorical-input-v1",
-                },
-                protocol_version=STRICT_PROTOCOL_VERSION,
-            )
+            if self._authority is not None:
+                self._authority.append_observation(
+                    self._observer_credential, episode_id=self.episode_id,
+                    event_id=observation_event_id, idempotency_key=observation_event_id,
+                    observation_id=observation_id, query_id=observation_id,
+                    scope=self.scope, split=self.split, payload_ref=input_digest,
+                    feature_schema_version="e09-categorical-input-v1",
+                )
+            else:
+                self.store.append_event(
+                    episode_id=self.episode_id, event_id=observation_event_id,
+                    event_type="observation", idempotency_key=observation_event_id,
+                    actor_role="runner",
+                    payload={
+                        "observation_id": observation_id, "query_id": observation_id,
+                        "scope": self.scope, "split": self.split,
+                        "payload_ref": input_digest,
+                        "feature_schema_version": "e09-categorical-input-v1",
+                    },
+                    protocol_version=STRICT_PROTOCOL_VERSION,
+                )
             commit = self.runner.predict_and_commit(observation_id, input_values)
             interop_commit = PredictionCommit(
                 commit_id=commit.prediction_id,
@@ -399,15 +470,19 @@ class E09SharedProtocolAdapter:
                 },
             }
             prediction_event_id = f"{self.episode_id}:prediction:{commit.prediction_id}"
-            prediction_receipt = self.store.commit_prediction(
-                episode_id=self.episode_id,
-                event_id=prediction_event_id,
-                idempotency_key=prediction_event_id,
-                actor_role="learner",
-                causation_refs=[observation_event_id],
-                payload=prediction_payload,
-                protocol_version=STRICT_PROTOCOL_VERSION,
-            )
+            if self._authority is not None:
+                prediction_receipt = self._authority.append_prediction_commit(
+                    self._learner_credential, episode_id=self.episode_id,
+                    event_id=prediction_event_id, idempotency_key=prediction_event_id,
+                    causation_refs=[observation_event_id], payload=prediction_payload,
+                )
+            else:
+                prediction_receipt = self.store.commit_prediction(
+                    episode_id=self.episode_id, event_id=prediction_event_id,
+                    idempotency_key=prediction_event_id, actor_role="learner",
+                    causation_refs=[observation_event_id], payload=prediction_payload,
+                    protocol_version=STRICT_PROTOCOL_VERSION,
+                )
             self._committed_predictions.add(commit.prediction_id)
             self._commit_digests[commit.prediction_id] = interop_commit.commit_digest
             self._event_digests[commit.prediction_id] = prediction_receipt.payload_digest
@@ -450,25 +525,30 @@ class E09SharedProtocolAdapter:
                 learner_track=self.learner_track,
             )
             validate_reveal_binding(self._interop_commits[prediction_id], interop_reveal, require_context=True)
-            self.store.reveal_evidence(
-                episode_id=self.episode_id,
-                event_id=event_id,
-                idempotency_key=event_id,
-                actor_role="evaluator",
-                causation_refs=[f"{self.episode_id}:prediction:{prediction_id}"],
-                payload={
-                    "prediction_id": prediction_id,
-                    "query_id": self._prediction_queries[prediction_id],
-                    "scope": self.scope,
-                    "split": self.split,
-                    "commit_digest": interop_reveal.commit_digest,
-                    "event_digest": self._event_digests[prediction_id],
-                    "learner_track": self.learner_track,
-                    "target_or_feedback": self._jsonable(label),
-                    "reveal_source": source,
-                },
-                protocol_version=STRICT_PROTOCOL_VERSION,
-            )
+            reveal_payload = {
+                "prediction_id": prediction_id,
+                "query_id": self._prediction_queries[prediction_id],
+                "scope": self.scope, "split": self.split,
+                "commit_digest": interop_reveal.commit_digest,
+                "event_digest": self._event_digests[prediction_id],
+                "learner_track": self.learner_track,
+                "target_or_feedback": self._jsonable(label),
+                "reveal_source": source,
+            }
+            reveal_causes = [f"{self.episode_id}:prediction:{prediction_id}"]
+            if self._authority is not None:
+                self._authority.append_evidence_reveal(
+                    self._evaluator_credential, episode_id=self.episode_id,
+                    event_id=event_id, idempotency_key=event_id,
+                    causation_refs=reveal_causes, payload=reveal_payload,
+                )
+            else:
+                self.store.reveal_evidence(
+                    episode_id=self.episode_id, event_id=event_id,
+                    idempotency_key=event_id, actor_role="evaluator",
+                    causation_refs=reveal_causes, payload=reveal_payload,
+                    protocol_version=STRICT_PROTOCOL_VERSION,
+                )
             # Source IDs remain in E09's provenance ledger, not learner-facing
             # protocol payloads; the protocol has no evaluator-only field ACL.
             # Only SUPPORT evidence may enter the learner's update path.
@@ -497,50 +577,59 @@ class E09SharedProtocolAdapter:
             after_version = f"{self.version_prefix}-v{revision.after_model_version}"
             snapshot = self._snapshot()
             structure_event_id = f"{self.episode_id}:structure:{after_version}"
-            self.store.append_event(
-                episode_id=self.episode_id,
-                event_id=structure_event_id,
-                event_type="structure_version",
-                idempotency_key=structure_event_id,
-                actor_role="learner",
-                causation_refs=[reveal_event_id],
-                payload={
-                    "structure_id": self.structure_id,
-                    "version_id": after_version,
-                    "kind": self.structure_kind,
-                    "definition": {
-                        "revision_mode": revision.operation,
-                        "snapshot_digest": digest_payload(snapshot),
-                        "snapshot": snapshot,
-                        "training_example_count": revision.training_example_count,
-                        "candidate_evaluations": revision.candidate_evaluations,
-                        "ledger_snapshot": self.runner.ledger.snapshot(),
-                        "runner_model_version": self.runner.model_version,
-                        "runner_step": self.runner.step,
-                    },
-                    "parent_version_ids": [before_version],
-                    "support_evidence_ids": [reveal_event_id],
-                    "learner_track": self.learner_track,
-                },
-            )
-            revision_event_id = f"{self.episode_id}:revision:{revision.revision_id}"
-            self.store.append_revision(
-                episode_id=self.episode_id,
-                event_id=revision_event_id,
-                idempotency_key=revision_event_id,
-                actor_role="learner",
-                causation_refs=[reveal_event_id, structure_event_id],
-                payload={
-                    "revision_id": revision.revision_id,
-                    "operation": revision.operation,
-                    "trigger_evidence_ids": [reveal_event_id],
-                    "before_version_ids": [before_version],
-                    "after_version_ids": [after_version],
-                    "learner_track": self.learner_track,
+            structure_payload = {
+                "structure_id": self.structure_id, "version_id": after_version,
+                "kind": self.structure_kind,
+                "definition": {
+                    "revision_mode": revision.operation,
+                    "snapshot_digest": digest_payload(snapshot), "snapshot": snapshot,
                     "training_example_count": revision.training_example_count,
                     "candidate_evaluations": revision.candidate_evaluations,
+                    "ledger_snapshot": self.runner.ledger.snapshot(),
+                    "runner_model_version": self.runner.model_version,
+                    "runner_step": self.runner.step,
                 },
-            )
+                "parent_version_ids": [before_version],
+                "support_evidence_ids": [reveal_event_id],
+                "scope": self.scope, "learner_track": self.learner_track,
+            }
+            if self._authority is not None:
+                self._authority.append_structure_version(
+                    self._learner_credential, episode_id=self.episode_id,
+                    event_id=structure_event_id, idempotency_key=structure_event_id,
+                    scope=self.scope, learner_track=self.learner_track,
+                    causation_refs=[reveal_event_id], payload=structure_payload,
+                )
+            else:
+                self.store.append_event(
+                    episode_id=self.episode_id, event_id=structure_event_id,
+                    event_type="structure_version", idempotency_key=structure_event_id,
+                    actor_role="learner", causation_refs=[reveal_event_id],
+                    payload=structure_payload,
+                )
+            revision_event_id = f"{self.episode_id}:revision:{revision.revision_id}"
+            revision_payload = {
+                "revision_id": revision.revision_id, "operation": revision.operation,
+                "trigger_evidence_ids": [reveal_event_id],
+                "before_version_ids": [before_version], "after_version_ids": [after_version],
+                "learner_track": self.learner_track,
+                "training_example_count": revision.training_example_count,
+                "candidate_evaluations": revision.candidate_evaluations,
+            }
+            revision_causes = [reveal_event_id, structure_event_id]
+            if self._authority is not None:
+                self._authority.append_revision(
+                    self._learner_credential, episode_id=self.episode_id,
+                    event_id=revision_event_id, idempotency_key=revision_event_id,
+                    scope=self.scope, learner_track=self.learner_track,
+                    causation_refs=revision_causes, payload=revision_payload,
+                )
+            else:
+                self.store.append_revision(
+                    episode_id=self.episode_id, event_id=revision_event_id,
+                    idempotency_key=revision_event_id, actor_role="learner",
+                    causation_refs=revision_causes, payload=revision_payload,
+                )
             self._version_id = after_version
             self._sync_memory()
             return {
