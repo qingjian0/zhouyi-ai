@@ -85,8 +85,8 @@ def make_dataset(*, repeats: int = 32, seed: int = 0) -> tuple[ParityExample, ..
 
 def interaction_features(bits: Sequence[int], order: int) -> tuple[float, ...]:
     """Return intercept plus every monomial of degree <= order."""
-    if len(bits) != 3 or any(value not in (-1, 1) for value in bits):
-        raise ValueError("features require exactly three values from {-1,+1}")
+    if len(bits) != 3 or any(type(value) is not int or value not in (-1, 1) for value in bits):
+        raise ValueError("features require exactly three integer values from {-1,+1}")
     if isinstance(order, bool) or not isinstance(order, int) or order not in (1, 2, 3):
         raise ValueError("interaction order must be 1, 2, or 3")
     x, y, z = bits
