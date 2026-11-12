@@ -24,6 +24,18 @@ REGULARIZERS = {
 }
 
 
+def _mean_bce(model: CpgEiTransitionModel, examples) -> float:
+    """Evaluate mean BCE on the supplied rows using the model's current weights."""
+    rows = list(examples)
+    if not rows:
+        raise ValueError("evaluation data must not be empty")
+    total = 0.0
+    for row in rows:
+        for logit, label in zip(model.logits(row.state), row.target):
+            total += max(logit, 0.0) - logit * label + math.log1p(math.exp(-abs(logit)))
+    return total / (len(rows) * 6.0)
+
+
 def run_optimizer_sweep(
     *,
     seeds: Sequence[int] = DEFAULT_SEEDS,
@@ -53,12 +65,17 @@ def run_optimizer_sweep(
                     model = CpgEiTransitionModel.create(
                         active_relation_indices=support_indices
                     )
-                    losses = model.train(
+                    initial_train_bce = _mean_bce(model, train)
+                    model.train(
                         train,
                         epochs=epochs,
                         learning_rate=learning_rate,
                         **penalties,
                     )
+                    # Re-evaluate after the final update. The optimizer's per-epoch
+                    # trace is accumulated during the update pass and is not a
+                    # post-update objective for the resulting model parameters.
+                    final_train_bce = _mean_bce(model, train)
                     train_metrics = evaluate(model, train)
                     locked_metrics = evaluate(model, locked)
                     full_metrics = evaluate(model, full)
@@ -71,8 +88,8 @@ def run_optimizer_sweep(
                         "train_bit_accuracy": train_metrics["bit_accuracy"],
                         "locked_bit_accuracy": locked_metrics["bit_accuracy"],
                         "full_64_state_bit_accuracy": full_metrics["bit_accuracy"],
-                        "final_train_bce": losses[-1],
-                        "initial_train_bce": losses[0],
+                        "final_train_bce": final_train_bce,
+                        "initial_train_bce": initial_train_bce,
                         "support_source": "oracle_known_support",
                         "gradient_data": "train_40_only",
                         "locked_examples": len(locked),
