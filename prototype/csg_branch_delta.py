@@ -103,12 +103,13 @@ class VerifiedBranchMergeAuthorization(BranchMergeAuthorization):
     issuer_id: str
     event_digest: str
     verifier_id: str
+    domain_provenance_verified: bool
 
     def __init__(
         self, authorization_ref: str, parent_state_ref: str,
         branch_ids: tuple[str, ...], evidence_refs: tuple[str, ...],
-        issuer_id: str, event_digest: str, verifier_id: str, *,
-        _seal: object | None = None,
+        issuer_id: str, event_digest: str, verifier_id: str,
+        domain_provenance_verified: bool, *, _seal: object | None = None,
     ) -> None:
         if _seal is not _VERIFIED_AUTHORIZATION_SEAL:
             raise TypeError("VerifiedBranchMergeAuthorization must come from the E09 verifier")
@@ -119,16 +120,19 @@ class VerifiedBranchMergeAuthorization(BranchMergeAuthorization):
         object.__setattr__(self, "issuer_id", issuer_id)
         object.__setattr__(self, "event_digest", event_digest)
         object.__setattr__(self, "verifier_id", verifier_id)
+        object.__setattr__(self, "domain_provenance_verified", bool(domain_provenance_verified))
 
 
 def _issue_verified_branch_merge_authorization(
     authorization_ref: str, parent_state_ref: str, branch_ids: tuple[str, ...],
     evidence_refs: tuple[str, ...], issuer_id: str, event_digest: str, verifier_id: str,
+    domain_provenance_verified: bool,
 ) -> VerifiedBranchMergeAuthorization:
     """Internal factory called only after the E09 signature verifier succeeds."""
     return VerifiedBranchMergeAuthorization(
         authorization_ref, parent_state_ref, branch_ids, evidence_refs,
-        issuer_id, event_digest, verifier_id, _seal=_VERIFIED_AUTHORIZATION_SEAL,
+        issuer_id, event_digest, verifier_id, domain_provenance_verified,
+        _seal=_VERIFIED_AUTHORIZATION_SEAL,
     )
 
 
@@ -141,6 +145,8 @@ def validate_merge_authorization(
         raise ValueError("cross-branch merge requires an E09 signature-verified authorization")
     _text(authorization.issuer_id, "authorization issuer_id")
     _text(authorization.verifier_id, "authorization verifier_id")
+    if authorization.domain_provenance_verified is not True:
+        raise ValueError("cross-branch authorization lacks trusted domain provenance")
     if (not isinstance(authorization.event_digest, str) or len(authorization.event_digest) != 64
             or any(ch not in "0123456789abcdef" for ch in authorization.event_digest)):
         raise ValueError("verified authorization event_digest must be a lowercase SHA-256 digest")
