@@ -437,4 +437,86 @@ class Tests(unittest.TestCase):
   ).fetchone()
   self.assertEqual(tuple(row),("legacy-rule",3,"legacy-action"))
 
+
+ def test_e12a6_current_state_projection_tracks_candidate_evidence_and_actions(self):
+  candidate={"candidate_id":"rule-a","version":1,"state":"OBSERVED","canonical_expression":"x > y"}
+  evidence={"evidence_id":"ev-a","episode_id":"ep-a","split_role":"TRAIN"}
+  action={"action_id":"act-a","candidate_id":"rule-a","candidate_version":1,
+          "from_state":"OBSERVED","to_state":"PROPOSED"}
+  receipts=self.m.append_lifecycle_events(scope="scope-a",expected_sequence=0,events=[
+   {"event_id":"candidate:rule-a@1","payload":{"schema_version":"e12a6-lifecycle-event-v1",
+    "kind":"candidate_registered","body":{"candidate":candidate}}},
+   {"event_id":"evidence:ev-a","payload":{"schema_version":"e12a6-lifecycle-event-v1",
+    "kind":"evidence_registered","body":{"evidence":evidence}}},
+   {"event_id":"action:act-a","payload":{"schema_version":"e12a6-lifecycle-event-v1",
+    "kind":"action_applied","body":{"action":action}}},
+  ])
+  projected=self.m.get_lifecycle_candidate_projection(
+      scope="scope-a",candidate_id="rule-a",candidate_version=1)
+  self.assertEqual(projected["candidate"]["state"],"PROPOSED")
+  self.assertEqual(projected["source_seq"],receipts[-1]["sequence"])
+  self.assertEqual(self.m.get_lifecycle_evidence_projection(
+      scope="scope-a",evidence_id="ev-a")["evidence"],evidence)
+  self.assertEqual(self.m.get_lifecycle_action_projection(
+      scope="scope-a",action_id="act-a")["action"],action)
+  self.assertEqual(self.m.lifecycle_state_projection_counts(scope="scope-a"),
+      {"candidates":1,"evidence":1,"actions":1})
+  audit=self.m.verify_e12a6_current_state_projection(scope="scope-a")
+  self.assertTrue(audit["ok"])
+  self.assertEqual(audit["verified_event_count"],3)
+  self.assertIsNone(self.m.get_lifecycle_candidate_projection(
+      scope="other",candidate_id="rule-a",candidate_version=1))
+
+ def test_e12a6_current_state_projection_rebuilds_after_projection_rows_are_lost(self):
+  candidate={"candidate_id":"rule-rebuild","version":1,"state":"OBSERVED"}
+  action={"action_id":"act-rebuild","candidate_id":"rule-rebuild","candidate_version":1,
+          "from_state":"OBSERVED","to_state":"PROPOSED"}
+  self.m.append_lifecycle_events(scope="scope-a",expected_sequence=0,events=[
+   {"event_id":"candidate:rebuild@1","payload":{"kind":"candidate_registered","body":{"candidate":candidate}}},
+   {"event_id":"action:rebuild","payload":{"kind":"action_applied","body":{"action":action}}},
+  ])
+  self.m.db.execute("DELETE FROM e12a6_candidate_state_projection")
+  self.m.db.execute("DELETE FROM e12a6_action_state_projection")
+  self.m.rebuild_e12a6_current_state_projection()
+  self.m.close()
+  self.m=ZPCMMemory(self.path)
+  row=self.m.get_lifecycle_candidate_projection(
+      scope="scope-a",candidate_id="rule-rebuild",candidate_version=1)
+  self.assertEqual(row["candidate"]["state"],"PROPOSED")
+  self.assertEqual(self.m.lifecycle_state_projection_counts(scope="scope-a"),
+      {"candidates":1,"evidence":0,"actions":1})
+
+ def test_e12a6_current_state_projection_rolls_back_with_event_append(self):
+  candidate={"candidate_id":"rule-rollback","version":1,"state":"OBSERVED"}
+  original=self.m._advance_authorization_projection_checkpoint
+  def fail(_sequence,*,expected_previous_high_water=None):
+   raise RuntimeError("injected checkpoint failure")
+  self.m._advance_authorization_projection_checkpoint=fail
+  with self.assertRaises(RuntimeError):
+   self.m.append_lifecycle_event(event_id="candidate:rollback@1",scope="scope-a",
+      payload={"kind":"candidate_registered","body":{"candidate":candidate}},
+      expected_sequence=0)
+  self.m._advance_authorization_projection_checkpoint=original
+  self.assertIsNone(self.m.get_lifecycle_candidate_projection(
+      scope="scope-a",candidate_id="rule-rollback",candidate_version=1))
+  self.assertEqual(self.m.db.execute(
+      "SELECT COUNT(*) FROM memory_events WHERE event_id='candidate:rollback@1'").fetchone()[0],0)
+
+
+
+ def test_e12a6_projection_audit_detects_corruption_and_explicit_rebuild_repairs_it(self):
+  candidate={"candidate_id":"audit-rule","version":1,"state":"OBSERVED"}
+  self.m.append_lifecycle_event(event_id="candidate:audit@1",scope="scope-a",
+      payload={"kind":"candidate_registered","body":{"candidate":candidate}},
+      expected_sequence=0)
+  self.m.db.execute(
+      "UPDATE e12a6_candidate_state_projection SET candidate_json='{}' "
+      "WHERE scope='scope-a' AND candidate_id='audit-rule'"
+  )
+  audit=self.m.verify_e12a6_current_state_projection(scope="scope-a")
+  self.assertFalse(audit["ok"])
+  self.assertGreater(audit["candidate_missing"]+audit["candidate_unexpected"],0)
+  self.m.rebuild_e12a6_current_state_projection()
+  self.assertTrue(self.m.verify_e12a6_current_state_projection(scope="scope-a")["ok"])
+
 if __name__=="__main__":unittest.main()
