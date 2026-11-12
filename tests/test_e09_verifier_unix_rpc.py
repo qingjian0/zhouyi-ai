@@ -103,6 +103,7 @@ class VerifierReceiptLedgerTests(unittest.TestCase):
             )
             db.commit()
             db.close()
+            os.chmod(path, 0o600)
 
             ledger = SQLiteVerifierReceiptLedger(path)
             try:
