@@ -20,7 +20,10 @@ from prototype.cpg_ei_relation_operators import (
 
 
 def make_rule(rng: random.Random, operator: str, input_dim: int) -> RelationRule:
-    arity = rng.randint(2, min(6, input_dim - (operator == "conditional_xor")))
+    if operator == "implies":
+        arity = 2
+    else:
+        arity = rng.randint(2, min(6, input_dim - (operator == "conditional_xor")))
     support = tuple(sorted(rng.sample(range(input_dim), arity)))
     if operator == "implies":
         support = tuple(rng.sample(support, len(support)))
