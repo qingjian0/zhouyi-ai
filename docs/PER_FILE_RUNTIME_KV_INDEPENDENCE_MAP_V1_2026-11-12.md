@@ -254,3 +254,19 @@ Parity 可作为严格的 pairwise-indistinguishable 核心任务，但不能只
 - #252 仍然只是 transport primitive：它将 peer credentials 交给 dispatcher；生产 UID/GID → principal 映射、operation/schema allowlist、WriterService 调用和真实端到端持久化恢复仍未实现。
 
 CI 通过只说明 exact-head workflow 测试成功，不代表生产安全隔离、R4 科学有效性或完整认知链路已通过。
+
+
+### 10.6 N0.10 交互项的表达能力边界
+
+同一源码审计还发现，`LearnableSROK._assignment_features` 的 pair/triple 特征通过 `zip` 按相同 feature coordinate 相乘：
+
+- pair: (x_{i,d} x_{j,d})
+- triple: (x_{i,d} x_{j,d} x_{k,d})
+
+因此当前模型是 coordinate-aligned diagonal interaction parameterization，不是完整的 bilinear/trilinear tensor。它是低成本基线，但不能表达任意跨维交互，例如 (x_{i,p}x_{j,q}x_{k,r}) 且 (p,q,r) 不同的情形。
+
+后续实验应把“交互阶数必要性”与“交互张量表达能力”分开：
+- parity / pairwise-preserving 任务验证三阶信息是否必要；
+- cross-feature relation 任务验证当前 diagonal 参数化是否足够；
+- 加入参数量受控的 factorized / low-rank tensor baseline；
+- 只有在内存、计算预算与 OOD 收益均明确时，才考虑更稠密的高阶张量。
