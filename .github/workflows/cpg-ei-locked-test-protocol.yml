@@ -1,0 +1,41 @@
+name: cpg-ei-locked-test-protocol
+
+on:
+  push:
+    branches:
+      - research/cpg-ei-locked-test-protocol-2026-11-13
+  pull_request:
+    branches:
+      - research/cpg-ei-conditional-motif-e2e-2026-11-13
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cpg-ei-locked-test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  locked-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run leakage-boundary unit test
+        run: python -m unittest tests.test_cpg_ei_conditional_motif_locked_test -v
+      - name: Run five-seed development-selected locked benchmark
+        run: |
+          set -o pipefail
+          mkdir -p benchmark-results
+          python -m prototype.cpg_ei_conditional_motif_locked_test | tee benchmark-results/cpg-ei-conditional-motif-locked-test.json
+      - name: Upload locked-test report
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpg-ei-conditional-motif-locked-test-${{ github.sha }}
+          path: benchmark-results/cpg-ei-conditional-motif-locked-test.json
+          if-no-files-found: error
+          retention-days: 30
