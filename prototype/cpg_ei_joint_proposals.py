@@ -58,20 +58,20 @@ def grow_relation_graph_joint_motifs(
     learning_rate: float = 0.35,
     gate_l1: float = 0.01,
     edge_group_l1: float = 0.03,
-    min_validation_improvement: float = 1e-5,
+    min_training_improvement: float = 1e-5,
 ) -> dict:
     """Select bounded four-edge motifs by joint fit, not marginal edge scores.
 
     Each round evaluates every not-yet-selected 3-line motif from an identical
     copy of the current model. The whole group is enabled and optimized
-    together; the candidate with the lowest validation BCE is retained.
+    together; the candidate with the lowest training BCE is retained.
     """
     if not train_examples or not validation_examples:
         raise ValueError("train and validation examples must be non-empty")
     if not 1 <= max_motifs <= 20 or epochs_per_candidate < 1:
         raise ValueError("invalid joint-motif search schedule")
-    if min_validation_improvement < 0.0:
-        raise ValueError("min_validation_improvement must be non-negative")
+    if min_training_improvement < 0.0:
+        raise ValueError("min_training_improvement must be non-negative")
 
     selected: list[tuple[int, ...]] = []
     trace = []
@@ -110,7 +110,7 @@ def grow_relation_graph_joint_motifs(
                 best_motif = motif
 
         improvement = current_loss - best_loss
-        if best_model is None or improvement <= min_validation_improvement:
+        if best_model is None or improvement <= min_training_improvement:
             trace.append({
                 "round": round_index,
                 "selected_motif": None,
