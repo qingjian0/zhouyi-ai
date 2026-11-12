@@ -227,6 +227,7 @@ def main():
     parser.add_argument("--git-sha", required=True,
                         help="source revision used for this experiment")
     parser.add_argument("--max-expansions", type=int, default=4096)
+    parser.add_argument("--max-assignments-per-example", type=int, default=4096)
     parser.add_argument("--learning-rate", type=float, default=0.2)
     parser.add_argument("--l2", type=float, default=1e-4)
     parser.add_argument("--feature-dim", type=int, required=True)
@@ -240,6 +241,8 @@ def main():
     report = run_experiment(
         args.dataset, roles, args.feature_dim, args.checkpoint,
         epochs=args.epochs, learning_rate=args.learning_rate, l2=args.l2,
+        max_assignments_per_example=args.max_assignments_per_example,
+        max_expansions=args.max_expansions, seed=args.seed, git_sha=args.git_sha,
         resume=args.resume,
     )
     print(json.dumps(report, ensure_ascii=False, indent=2))
