@@ -176,6 +176,15 @@ class SQLiteEvidenceIngestor:
             raise IngestContractError("persisted resume cursor does not match evidence chunks")
         stream.seek(expected_offset)
 
+    @staticmethod
+    def _all_token_counts_known(db: sqlite3.Connection, document_id: str) -> bool:
+        total, missing = db.execute(
+            """SELECT COUNT(*), SUM(CASE WHEN token_count IS NULL THEN 1 ELSE 0 END)
+               FROM evidence_chunks WHERE document_id = ?""",
+            (document_id,),
+        ).fetchone()
+        return bool(total) and int(missing or 0) == 0
+
     def ingest(
         self,
         document_id: str,
@@ -228,7 +237,8 @@ class SQLiteEvidenceIngestor:
                 )
                 if complete:
                     db.commit()
-                    return IngestResult(document_id, 0, offset, True, tokenizer is not None)
+                    token_counts_known = self._all_token_counts_known(db, document_id)
+                    return IngestResult(document_id, 0, offset, True, token_counts_known)
             db.commit()
 
             stream.seek(offset)
@@ -273,12 +283,15 @@ class SQLiteEvidenceIngestor:
                 offset, ordinal = end, next_ordinal
                 committed += 1
 
+        with self._connect() as db:
+            token_counts_known = self._all_token_counts_known(db, document_id)
+
         return IngestResult(
             document_id=document_id,
             chunks_committed=committed,
             next_byte_offset=offset,
             complete=bool(complete),
-            token_count_known=tokenizer is not None,
+            token_count_known=token_counts_known,
         )
 
     def get_chunks(self, document_id: str, *, limit: int = 100, offset: int = 0) -> list[EvidenceChunk]:
