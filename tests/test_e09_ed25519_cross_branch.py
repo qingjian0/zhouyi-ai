@@ -24,14 +24,27 @@ from prototype.typed_hypergraph_unifier import (
 from prototype.zpcm_memory import ZPCMMemory
 
 
-def add_reveal(store, *, episode, scope, track, prediction_id, label):
+def add_reveal(store, *, episode, scope, track, prediction_id, label, world_family):
     observation_id = f"obs-{prediction_id}"
     observation_event = f"{episode}:observation:{observation_id}"
+    domain = {
+        "domain_provenance_schema": "e09-domain-provenance@1",
+        "domain_registry_id": "zhouyi-domain-registry",
+        "domain_registry_version": "2026-11-12.1",
+        "world_family": world_family,
+    }
     store.append_event(
         episode_id=episode, event_id=observation_event, event_type="observation",
-        idempotency_key=observation_event, actor_role="runner",
+        idempotency_key=observation_event, actor_role="observer",
+        integrity_metadata={"authenticated_workload": {
+            "workload_id": "spiffe://zhouyi/test-observer",
+            "issuer_id": "issuer-test",
+            "identity_provider": "test-spiffe",
+            "authentication_method": "mTLS",
+            "credential_fingerprint": "b" * 64,
+        }},
         payload={"observation_id": observation_id, "query_id": observation_id,
-                 "scope": scope, "split": "SUPPORT"},
+                 "scope": scope, "split": "SUPPORT", **domain},
         protocol_version=STRICT_PROTOCOL_VERSION,
     )
     commit_event = f"{episode}:prediction:{prediction_id}"
@@ -43,7 +56,7 @@ def add_reveal(store, *, episode, scope, track, prediction_id, label):
         payload={"prediction_id": prediction_id, "observation_id": observation_id,
                  "query_id": observation_id, "scope": scope, "split": "SUPPORT",
                  "model_version": "model-e2e", "learner_track": track,
-                 "decision_status": "PREDICT", "interop_commit_digest": semantic_digest},
+                 "decision_status": "PREDICT", "interop_commit_digest": semantic_digest, **domain},
         protocol_version=STRICT_PROTOCOL_VERSION,
     )
     reveal_event = f"{episode}:reveal:{prediction_id}"
@@ -54,7 +67,7 @@ def add_reveal(store, *, episode, scope, track, prediction_id, label):
         payload={"prediction_id": prediction_id, "query_id": observation_id,
                  "scope": scope, "split": "SUPPORT", "commit_digest": semantic_digest,
                  "event_digest": commit.payload_digest, "learner_track": track,
-                 "target_or_feedback": label, "reveal_source": "ed25519-e2e"},
+                 "target_or_feedback": label, "reveal_source": "ed25519-e2e", **domain},
         protocol_version=STRICT_PROTOCOL_VERSION,
     )
     return reveal_event
@@ -84,15 +97,15 @@ class E09Ed25519CrossBranchTests(unittest.TestCase):
     def test_real_ed25519_grant_authorizes_typed_candidate_and_persists_atomically(self):
         left_evidence = add_reveal(
             self.e09, episode=self.episode, scope=self.scope, track=self.track,
-            prediction_id="left-support", label="PRIVATE_LEFT",
+            prediction_id="left-support", label="PRIVATE_LEFT", world_family="left-world",
         )
         right_evidence = add_reveal(
             self.e09, episode=self.episode, scope=self.scope, track=self.track,
-            prediction_id="right-support", label="PRIVATE_RIGHT",
+            prediction_id="right-support", label="PRIVATE_RIGHT", world_family="right-world",
         )
         grant_evidence = add_reveal(
             self.e09, episode=self.episode, scope=self.scope, track=self.track,
-            prediction_id="grant-support", label="PRIVATE_GRANT_SUPPORT",
+            prediction_id="grant-support", label="PRIVATE_GRANT_SUPPORT", world_family="authorization-world",
         )
 
         authorization_ref = f"{self.episode}:authorization:merge-1"
