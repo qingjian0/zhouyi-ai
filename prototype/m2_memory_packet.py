@@ -74,8 +74,8 @@ class MemoryQuery:
         if not isinstance(self.ranking_policy, str) or not self.ranking_policy.strip():
             raise MemoryPacketError("ranking_policy must be explicit")
         if (isinstance(self.max_scan_events, bool) or not isinstance(self.max_scan_events, int)
-                or self.max_scan_events < 1):
-            raise MemoryPacketError("max_scan_events must be a positive integer")
+                or not 1 <= self.max_scan_events <= 65536):
+            raise MemoryPacketError("max_scan_events must be an integer in [1, 65536]")
         if (self.valid_time_start is None) != (self.valid_time_end is None):
             raise MemoryPacketError("temporal filter endpoints must be supplied together")
         if self.valid_time_start is not None:
