@@ -22,7 +22,9 @@ and coordination bridge, not a semantic truth validator.
 
 ## Non-negotiable semantics
 
-- Every output remains `YIXIANG_HYPOTHESIS_ONLY`.
+- Every typed proposal and coordinated candidate carries an explicit
+  `semantic_status=HYPOTHESIS_ONLY`; the status survives coordination and is
+  independent of the display-oriented candidate-kind label.
 - Alternative assignments from the same SROK search are pairwise mutually
   exclusive. They are ranked as separate hypotheses and cannot be combined
   into a joint fact.
@@ -31,9 +33,10 @@ and coordination bridge, not a semantic truth validator.
   they are not observational evidence and do not increase evidence strength.
 - Candidate scores are ranking utilities only, never probabilities or truth.
 - A bounded search may truncate recall. Budget exhaustion must remain visible.
-- The E12-A6 read-only projection adapter rejects any candidate kind containing
-  `HYPOTHESIS_ONLY`; a Yixiang hypothesis cannot be projected as an `OBSERVED`
-  candidate. A regression test enforces this boundary.
+- The E12-A6 read-only projection adapter rejects typed `HYPOTHESIS_ONLY`
+  status and also rejects the reserved candidate-kind marker. Relabeling a
+  candidate cannot erase its typed epistemic status. Regression tests enforce
+  this boundary.
 - This bridge does not infer relations from raw natural language, ground
   observations, establish semantic equivalence, or prove causality.
 
