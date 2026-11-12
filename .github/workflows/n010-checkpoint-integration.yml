@@ -15,4 +15,4 @@ jobs:
           python-version: "3.11"
       - name: Run N0.10 learner and checkpoint integration tests
         run: |
-          python -m unittest tests.test_n09_learnable_srok tests.test_srok_parity_integration tests.test_n010_checkpoint_integration tests.test_srok_e09_prequential_adapter -v
+          python -m unittest tests.test_n09_learnable_srok tests.test_srok_parity_integration tests.test_n010_checkpoint_integration tests.test_srok_e09_prequential_adapter tests.test_n010_experiment -v
