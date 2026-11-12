@@ -182,7 +182,15 @@ class CpgEiTransitionModel:
             gate_derivatives = [gate * (1.0 - gate) for gate in gates]
             total_loss = 0.0
             for raw, target in rows:
-                effective = (*raw[:7], *(value * gate for value, gate in zip(raw[7:], gates)))
+                effective = (
+                    *raw[:7],
+                    *(
+                        value * gate if index in self.active_relation_indices else 0.0
+                        for index, (value, gate) in enumerate(
+                            zip(raw[7:], gates), start=7
+                        )
+                    ),
+                )
                 for head_index, head in enumerate(self.weights):
                     logit = sum(w * value for w, value in zip(head, effective))
                     probability = _sigmoid(logit)
