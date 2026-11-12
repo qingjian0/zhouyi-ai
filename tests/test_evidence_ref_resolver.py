@@ -87,6 +87,18 @@ class SQLiteEvidenceRefResolverTests(unittest.TestCase):
         with self.assertRaises(EvidenceResolutionError):
             self.resolver.resolve(forged)
 
+
+    def test_tampering_in_another_chunk_invalidates_document_manifest(self):
+        chunks = self.ingest_complete()
+        ref = self.resolver.make_reference("doc-resolve", chunks[-1].chunk_id)
+        with sqlite3.connect(self.database) as db:
+            db.execute(
+                "UPDATE evidence_chunks SET text_utf8 = ? WHERE chunk_id = ?",
+                (b"tampered!", chunks[0].chunk_id),
+            )
+        with self.assertRaises(EvidenceResolutionError):
+            self.resolver.resolve(ref)
+
     def test_in_place_blob_tampering_is_detected(self):
         chunks = self.ingest_complete()
         ref = self.resolver.make_reference("doc-resolve", chunks[0].chunk_id)
