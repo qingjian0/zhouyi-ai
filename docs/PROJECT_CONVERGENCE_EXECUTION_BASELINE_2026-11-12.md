@@ -441,3 +441,24 @@ A failed earlier run on an older SHA is not evidence that the current exact head
 - E12-A6 now has strong measured memory reduction but still a startup latency penalty at 500K. A verified checkpoint with event-log anchoring and corruption fallback is a candidate next design, not yet implemented or approved.
 - N0.10's million-row streaming evidence remains specific to its synthetic repeated-row benchmark. It is not evidence of complex relation learning.
 - Keep all research PRs Draft and stacked. `main` remains unchanged. Training-readiness requires unified data/checkpoint/trainer/evaluator, independent locked-test isolation, multi-rule OOD, crash recovery, and measured resource/latency acceptance.
+
+### Repeated-run and optimizer-regime refresh — 2026-11-12 17:44Z
+
+#### E12-A6 cache-size and latency repeatability
+
+- The 2 MiB SQLite scratch cache was measured three times at 500K: 39.31 s, 21.94 s, and 22.32 s (median 22.32 s). RSS remained about 28.5 MB. The first run is a large outlier; report the range and median, not just the best run.
+- The in-memory baseline repeated at 11.708 s and 11.674 s (median 11.69 s). The 2 MiB disk-backed design is therefore about 1.9× slower at 500K but uses about 94% less RSS.
+- The 8 MiB cache was repeated twice at 40.98 s and 39.14 s (median 40.06 s) with about 35.5 MB RSS. It is slower and uses about 7 MB more RSS than the 2 MiB runs. The 2 MiB setting remains selected.
+- Exact comparison artifacts are in PR #385 workflow #43269750265 (2 MiB attempts 1–3), PR #390 workflow #43265737771 (baseline attempts 1–2), and PR #385 workflow #43268777016 (8 MiB attempts 1–2).
+
+#### CPG-EI 500-epoch known-support oracle
+
+- PR #388's 500-epoch oracle under the current search-strength regularization (gate L1 1e-3, group L1 1e-3) measured mean training accuracy 88.94%, full-64-state in-sample accuracy 87.50%, locked accuracy 52.04%, and alternate-family accuracy 50.00% (workflow #43270467094).
+- This barely clears the bitwise chance baseline on the 12-state locked set, while the full-state in-sample fit remains incomplete. The optimizer/regularization regime is still a likely bottleneck.
+- A paired oracle ablation now compares the search-strength regularization with the model's default gate L1 1e-4 and group L1 0, both at 500 epochs. Exact-head benchmark/full tests are running on PR #388. Do not change candidate-search regularization until the oracle ablation is measured.
+
+#### Current decision
+
+- E12-A6: retain 2 MiB cache and bulk startup transaction. Memory reduction is strong; latency remains a measured penalty. The next high-value direction is a verified persistent checkpoint anchored to the authoritative ZPCM event log, with full replay fallback on invalid checkpoint.
+- CPG-EI: do not scale candidate search yet. First finish regularization oracle and training-convergence diagnostics; keep structure discovery, locked prediction, and OOD as separate metrics.
+- Unified training remains not approved. `main` remains unchanged; all work stays in Draft stacks.
