@@ -615,6 +615,62 @@ class ZPCMMemory:
             ).fetchone()[0])
         return counts
 
+    def _iter_e12a6_projection_rows(
+        self, *, scope: str, table: str, json_column: str, output_key: str,
+        page_size: int = 256,
+    ):
+        """Yield one scoped projection row at a time using bounded keyset pages."""
+        if not isinstance(scope, str) or not scope.strip():
+            raise ZPCMError("scope must be non-empty")
+        if isinstance(page_size, bool) or not isinstance(page_size, int) or not 1 <= page_size <= 4096:
+            raise ZPCMError("page_size must be an integer between 1 and 4096")
+        allowed = {
+            ("e12a6_candidate_state_projection", "candidate_json", "candidate"),
+            ("e12a6_evidence_state_projection", "evidence_json", "evidence"),
+            ("e12a6_action_state_projection", "action_json", "action"),
+        }
+        if (table, json_column, output_key) not in allowed:
+            raise ZPCMError("unsupported lifecycle projection")
+        last_seq = 0
+        while True:
+            with self.lock:
+                rows = self.db.execute(
+                    f"SELECT {json_column} AS payload,source_seq FROM {table} "
+                    "WHERE scope=? AND source_seq>? ORDER BY source_seq LIMIT ?",
+                    (scope, last_seq, page_size),
+                ).fetchall()
+            if not rows:
+                return
+            for row in rows:
+                last_seq = int(row["source_seq"])
+                yield {
+                    output_key: json.loads(row["payload"]),
+                    "source_seq": last_seq,
+                }
+            if len(rows) < page_size:
+                return
+
+    def iter_lifecycle_candidate_projections(self, *, scope: str, page_size: int = 256):
+        """Stream candidate current-state projections in source-event order."""
+        yield from self._iter_e12a6_projection_rows(
+            scope=scope, table="e12a6_candidate_state_projection",
+            json_column="candidate_json", output_key="candidate", page_size=page_size,
+        )
+
+    def iter_lifecycle_evidence_projections(self, *, scope: str, page_size: int = 256):
+        """Stream evidence projections in source-event order."""
+        yield from self._iter_e12a6_projection_rows(
+            scope=scope, table="e12a6_evidence_state_projection",
+            json_column="evidence_json", output_key="evidence", page_size=page_size,
+        )
+
+    def iter_lifecycle_action_projections(self, *, scope: str, page_size: int = 256):
+        """Stream action projections in source-event order."""
+        yield from self._iter_e12a6_projection_rows(
+            scope=scope, table="e12a6_action_state_projection",
+            json_column="action_json", output_key="action", page_size=page_size,
+        )
+
     def close(self):
         with self.lock:self.db.close()
     def _authorization_checkpoint_digest(self, high_water_seq: int) -> str:
