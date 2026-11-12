@@ -18,6 +18,7 @@ from prototype.observation_contract import (
 )
 from prototype.streaming_evidence_ingest import SQLiteEvidenceIngestor
 from prototype.zpcm_memory import ZPCMMemory
+from prototype.trlw_working_set import PacketStatus, TRLWQuery, build_trlw_working_set
 
 
 class PersistentSemanticUnitCandidateStoreTests(unittest.TestCase):
@@ -128,6 +129,31 @@ class PersistentSemanticUnitCandidateStoreTests(unittest.TestCase):
         self.assertEqual(
             [item.envelope.record_id for item in tail],
             ["candidate-1", "candidate-2"],
+        )
+
+    def test_persistent_candidate_stream_feeds_bounded_trlw_packet(self):
+        for index in range(3):
+            self.store.record_candidate(self.make_candidate(
+                record_id=f"candidate-{index}", surface=f"实体{index}",
+            ))
+        query = TRLWQuery(
+            query_goal="retrieve grounded entities",
+            scope="project-a",
+            max_records=2,
+            byte_budget=8192,
+        )
+        packet = build_trlw_working_set(
+            self.store.iter_candidates(page_size=1),
+            query,
+            source_complete=True,
+        )
+        self.assertEqual(packet.returned_records, 2)
+        self.assertTrue(packet.source_complete)
+        self.assertTrue(packet.budget_exhausted)
+        self.assertEqual(packet.status, PacketStatus.BUDGET_EXHAUSTED)
+        self.assertEqual(
+            {entry.record.envelope.record_id for entry in packet.entries},
+            {"candidate-0", "candidate-1"},
         )
 
     def test_replay_fails_closed_when_source_evidence_changes(self):
