@@ -502,7 +502,7 @@ class E09SharedProtocolAdapter:
                     feature_schema_version="e09-categorical-input-v1",
                     learner_track=self.learner_track,
                 )
-            else:
+            elif self._observer_port is None:
                 self.store.append_event(
                     episode_id=self.episode_id, event_id=observation_event_id,
                     event_type="observation", idempotency_key=observation_event_id,
