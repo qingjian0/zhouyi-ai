@@ -61,19 +61,30 @@ This prevents an M1 chunk locator or an analogy prior from being misrepresented 
 - CSG-GCR proposals retain mutual exclusion between alternative SROK assignments.
 - E12-A6 remains a hard lifecycle boundary: `HYPOTHESIS_ONLY` proposals cannot become lifecycle evidence or durable facts.
 
+## TRLW working-set status
+
+This branch now includes an executable, ephemeral TRLW projection in `prototype/trlw_working_set.py`.
+
+- `TRLWQuery` constrains scope, requested types, allowed grounding states, valid-time interval, record count, and canonical serialized-byte budget.
+- `build_trlw_working_set` consumes an iterable and retains only a bounded ranked packet; it does not materialize the full input history.
+- Packet status distinguishes `SOURCE_INCOMPLETE` from `BUDGET_EXHAUSTED`; the two conditions can also be reported simultaneously.
+- Ranking scores have an explicit `trlw-ranking` semantic and are not conflated with extractor confidence, truth probability, or SROK priority.
+- The byte budget applies to canonical serialized record bytes, **not** Python heap/RSS. Runtime memory still requires separate measurement.
+
+This is not yet a durable ZPCM-to-TRLW integration. In particular, the current TRLW builder requires an upstream iterable of already materialized `SemanticUnitCandidate` values. It does not itself page semantic candidates from ZPCM, and the M2 persistence slice currently persists Observations rather than SemanticUnitCandidate revisions/retractions.
+
 ## Not implemented
 
 - Raw M1 EvidenceChunk paging and byte-span verification in this adapter.
 - OCR/parser execution and semantic candidate extraction.
 - Entity resolution, conflict adjudication, assertion/relation materialization.
-- A TRLW/working-set implementation.
-- ZPCM append/transaction/replay integration for M2 records.
+- Persistent SemanticUnitCandidate append/revision/retraction adapter.
+- A keyset-paginated ZPCM semantic-candidate reader feeding TRLW.
 - Full observation-to-E09 event orchestration.
 - Production registry, identity, and policy deployment.
 
 ## Acceptance
 
-The unit tests verify scope and grounding gates, relation role ordering, M1/E09/XSL provenance separation, and hypothesis-only output. The repository CI must pass on the exact PR head before this slice is considered validated.
-
+The unit tests verify scope and grounding gates, relation role ordering, M1/E09/XSL provenance separation, hypothesis-only output, and the bounded TRLW packet contract. The repository CI must pass on the exact PR head before this slice is considered validated.
 
 Research/security branches now run the full repository validation workflow on push via `.github/workflows/research-branch-validation.yml`.
