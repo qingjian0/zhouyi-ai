@@ -11,7 +11,7 @@ The known-support optimizer sweep indicates that the current SGD path is highly 
 - 40 training states; 12 locked states; complete 64-state truth table as a separate finite-domain diagnostic.
 - Oracle supplies the true pair/triple support; support discovery is intentionally excluded.
 - 800 epochs per configuration.
-- SGD learning rates: 0.35, 0.7, 1.0.
+- SGD learning rates: 2.1, 4.2, 6.0, 12.0. These are six times the earlier 0.35, 0.7, 1.0, 2.0 settings to compensate for the corrected mean-over-six-heads output-weight gradient.
 - Adam learning rates: 0.003, 0.01, 0.03, 0.1.
 - Both default and search-strength regularization are compared.
 - Each model is freshly initialized for every seed/family/optimizer/regularizer/rate combination.
@@ -42,7 +42,7 @@ any optimizer recommendation is made.
 - optimizer='sgd' remains the default and preserves the existing update path.
 - optimizer='adam' enables bias-corrected first/second moments for both per-head weights and shared relation-gate logits.
 - Existing L2, gate-L1, and proximal edge-group-L1 terms remain active under both optimizers.
-- The shared gate gradient continues to match the mean-over-six-heads BCE objective, as checked by the existing finite-difference regression test.
+- Both output-head and shared-gate gradients match the mean-over-six-heads BCE objective, as checked by finite-difference regression tests. The output-head correction reduces the raw SGD gradient by 6×, so the SGD rate grid is rescaled accordingly; prior rate results are not directly comparable.
 
 ## Claim boundary
 
