@@ -62,6 +62,27 @@ class Tests(unittest.TestCase):
       scope="scope-a",kind="candidate_registered",entity_id="legacy",entity_version=1)
   self.assertEqual(found["event_id"],"candidate:legacy@1")
 
+ def test_typed_projection_backfill_runs_only_when_schema_is_extended(self):
+  self.m._append("candidate:legacy@1","e12a6_lifecycle","scope-a",{
+   "kind":"candidate_registered","body":{"candidate":{"candidate_id":"legacy","version":1}}})
+  self.m.close()
+  self.m=ZPCMMemory(self.path)
+  found=self.m.db.execute(
+   "SELECT candidate_id,candidate_version FROM e12a6_lifecycle_event_projection WHERE event_id=?",
+   ("candidate:legacy@1",)).fetchone()
+  self.assertEqual(tuple(found),("legacy",1))
+  self.m.db.execute("""
+   CREATE TRIGGER reject_unnecessary_projection_rewrite
+   BEFORE UPDATE ON e12a6_lifecycle_event_projection
+   BEGIN SELECT RAISE(ABORT,'unexpected full projection backfill'); END
+  """)
+  self.m.close()
+  self.m=ZPCMMemory(self.path)
+  found=self.m.db.execute(
+   "SELECT candidate_id,candidate_version FROM e12a6_lifecycle_event_projection WHERE event_id=?",
+   ("candidate:legacy@1",)).fetchone()
+  self.assertEqual(tuple(found),("legacy",1))
+
  def test_generic_domain_events_share_the_authoritative_event_log(self):
   first=self.m.append_domain_event(event_type="m2_cognition",event_id="m2:obs:1",
       scope="project",payload={"kind":"observation","record_id":"obs-1"},expected_sequence=0)
