@@ -60,7 +60,10 @@ class N010ExperimentRunnerTests(unittest.TestCase):
         self.assertTrue(set(manifest["split_ids"]["train"]).isdisjoint(
             manifest["split_ids"]["locked_test"]))
         self.assertEqual(report["completed_epochs"], 3)
-        for split in ("dev", "locked_test"):
+        self.assertEqual(report["dev"]["search_strategy"], "product")
+        self.assertEqual(report["dev_beam"]["search_strategy"], "beam")
+        self.assertEqual(report["locked_test_beam"]["search_strategy"], "beam")
+        for split in ("dev", "locked_test", "dev_beam", "locked_test_beam"):
             self.assertEqual(report[split]["examples"], 3)
             self.assertGreaterEqual(report[split]["coverage"], 0.0)
             self.assertLessEqual(report[split]["coverage"], 1.0)
