@@ -123,6 +123,9 @@ class PersistentTRLWYixiangCSGGCRE2ETests(unittest.TestCase):
         )
 
         self.assertTrue(result.working_set.search_exhaustive)
+        self.assertTrue(result.srok_search_exhaustive)
+        self.assertTrue(result.csg_gcr_search_exhaustive)
+        self.assertTrue(result.end_to_end_search_exhaustive)
         self.assertFalse(result.lifecycle_advanced)
         self.assertTrue(result.csg_gcr.proposals)
         for proposal in result.csg_gcr.proposals:
