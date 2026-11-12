@@ -160,6 +160,21 @@ class N010OutOfCoreTests(unittest.TestCase):
             4,
         )
 
+    def test_streaming_index_rejects_missing_source_group_provenance(self):
+        rows = self._rows(("train", "dev"))
+        for row in rows:
+            row.pop("group_id", None)
+            row.pop("source_group_id", None)
+            row.pop("episode_id", None)
+        self._write(self.train_dev, rows)
+        with self.assertRaisesRegex(
+            LearnableSROKError,
+            "each record must declare group_id, source_group_id, or episode_id",
+        ):
+            N010StreamingDataset(
+                self.train_dev, self.roles, 1, expected_splits=("train", "dev")
+            )
+
     def test_locked_test_evaluator_rejects_training_group_overlap(self):
         checkpoint = self.root / "isolated.json"
         run_experiment_ooc(
