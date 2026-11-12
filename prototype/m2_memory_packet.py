@@ -6,6 +6,7 @@ It emits compact references and typed status metadata, never source text.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from enum import Enum
 from typing import Iterable, Iterator
 
@@ -23,6 +24,18 @@ class PacketCompleteness(str, Enum):
     COMPLETE = "COMPLETE"
     NOT_FOUND = "NOT_FOUND"
     BUDGET_EXHAUSTED = "BUDGET_EXHAUSTED"
+
+
+def _time_key(value: str, field: str):
+    if not isinstance(value, str) or not value.strip():
+        raise MemoryPacketError(f"{field} must be a non-empty ISO-8601 date/time")
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError as exc:
+        raise MemoryPacketError(f"{field} must be a valid ISO-8601 date/time") from exc
+    if parsed.tzinfo is None:
+        return ("naive", parsed)
+    return ("aware", parsed.astimezone(timezone.utc))
 
 
 @dataclass(frozen=True)
@@ -53,6 +66,13 @@ class MemoryQuery:
             raise MemoryPacketError("ranking_policy must be explicit")
         if (self.valid_time_start is None) != (self.valid_time_end is None):
             raise MemoryPacketError("temporal filter endpoints must be supplied together")
+        if self.valid_time_start is not None:
+            start_mode, start = _time_key(self.valid_time_start, "valid_time_start")
+            end_mode, end = _time_key(self.valid_time_end, "valid_time_end")
+            if start_mode != end_mode:
+                raise MemoryPacketError("temporal filter endpoints must use compatible timezone forms")
+            if start > end:
+                raise MemoryPacketError("valid_time_start must not be after valid_time_end")
 
 
 @dataclass(frozen=True)
@@ -90,7 +110,15 @@ def _matches(candidate: SemanticUnitCandidate, query: MemoryQuery) -> bool:
         # as matching a bounded temporal query.
         if env.valid_time_start is None or env.valid_time_end is None:
             return False
-        if env.valid_time_end < query.valid_time_start or env.valid_time_start > query.valid_time_end:
+        candidate_start_mode, candidate_start = _time_key(env.valid_time_start, "candidate.valid_time_start")
+        candidate_end_mode, candidate_end = _time_key(env.valid_time_end, "candidate.valid_time_end")
+        query_start_mode, query_start = _time_key(query.valid_time_start, "query.valid_time_start")
+        query_end_mode, query_end = _time_key(query.valid_time_end, "query.valid_time_end")
+        if candidate_start_mode != candidate_end_mode or candidate_start > candidate_end:
+            raise MemoryPacketError("candidate valid-time interval is malformed")
+        if query_start_mode != query_end_mode or candidate_start_mode != query_start_mode:
+            raise MemoryPacketError("candidate and query valid-time timezone forms are incompatible")
+        if candidate_end < query_start or candidate_start > query_end:
             return False
     return True
 
