@@ -241,11 +241,15 @@ class SQLiteEvidenceIngestor:
         legacy = db.execute(
             """SELECT document_id FROM ingest_documents
                WHERE complete=1 AND manifest_digest IS NULL ORDER BY document_id"""
-        ).fetchall()
-        for (document_id,) in legacy:
-            db.execute("BEGIN IMMEDIATE")
-            cls._store_manifest(db, document_id)
-            db.commit()
+        )
+        while True:
+            batch = legacy.fetchmany(64)
+            if not batch:
+                break
+            for (document_id,) in batch:
+                db.execute("BEGIN IMMEDIATE")
+                cls._store_manifest(db, document_id)
+                db.commit()
 
     @staticmethod
     def _chunk_id(document_id: str, ordinal: int, digest: str) -> str:
