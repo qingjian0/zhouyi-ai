@@ -72,7 +72,7 @@ class E09SharedProtocolAdapter:
         self._version_id = f"{self.version_prefix}-v{runner.model_version}"
         if self.store.replay_episode(self.episode_id):
             raise E09ProtocolAdapterError(
-                "adapter currently requires a fresh episode; replay/resume is not implemented"
+                "episode already contains events; use resume_srok() to recover durable state"
             )
         self._append_initial_structure()
         self._sync_memory()
