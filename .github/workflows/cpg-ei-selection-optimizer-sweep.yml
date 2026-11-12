@@ -25,6 +25,7 @@ jobs:
         run: python -m unittest tests.test_cpg_ei_selection_optimizer_sweep -v
       - name: Run five-seed, three-family paired selection optimizer sweep
         run: |
+          set -o pipefail
           mkdir -p benchmark-results
           python -m prototype.cpg_ei_selection_optimizer_sweep --epochs 50 --json | tee benchmark-results/cpg-ei-selection-optimizer-sweep.json
       - name: Upload selection optimizer report
