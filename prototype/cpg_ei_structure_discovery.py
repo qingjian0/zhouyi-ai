@@ -59,7 +59,8 @@ def grow_relation_graph(
     rounds: int = 5,
     edges_per_round: int = 3,
     epochs_per_round: int = 100,
-    learning_rate: float = 12.6,
+    # This residual-growth benchmark keeps its separately calibrated SGD rate.
+    learning_rate: float = 2.1,
     gate_l1: float = 0.01,
     edge_group_l1: float = 0.03,
     prune_threshold: float = 1e-5,
