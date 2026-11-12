@@ -72,6 +72,23 @@ def run_sweep(*, seeds: Sequence[int] = DEFAULT_SEEDS, epochs: int | Sequence[in
                     oracle_ood[other_family] = evaluate(
                         oracle_model, make_examples(locked_states, other_triples)
                     )["bit_accuracy"]
+            default_oracle = CpgEiTransitionModel.create(active_relation_indices=oracle_indices)
+            default_oracle_losses = default_oracle.train(
+                train, epochs=oracle_epochs, l2=1e-4, gate_l1=1e-4, edge_group_l1=0.0,
+            )
+            default_oracle_train = evaluate(default_oracle, train)["bit_accuracy"]
+            default_oracle_locked = evaluate(default_oracle, locked)["bit_accuracy"]
+            default_full_oracle = CpgEiTransitionModel.create(active_relation_indices=oracle_indices)
+            default_full_oracle.train(
+                full_examples, epochs=oracle_epochs, l2=1e-4, gate_l1=1e-4, edge_group_l1=0.0,
+            )
+            default_oracle_full = evaluate(default_full_oracle, full_examples)["bit_accuracy"]
+            default_oracle_ood = {}
+            for other_family, other_triples in RULE_FAMILIES.items():
+                if other_family != family:
+                    default_oracle_ood[other_family] = evaluate(
+                        default_oracle, make_examples(locked_states, other_triples)
+                    )["bit_accuracy"]
             for epoch_budget in epoch_budgets:
               for protocol in ("proposal_split", "legacy_train_ranked"):
                 model = CpgEiTransitionModel.create(active_relation_indices=set())
@@ -110,13 +127,23 @@ def run_sweep(*, seeds: Sequence[int] = DEFAULT_SEEDS, epochs: int | Sequence[in
                     "oracle_final_train_loss": oracle_losses[-1],
                     "oracle_training_passes": oracle_epochs,
                     "oracle_ood_bit_accuracy_by_family": oracle_ood,
+                    "oracle_default_train_bit_accuracy": default_oracle_train,
+                    "oracle_default_locked_test_bit_accuracy": default_oracle_locked,
+                    "oracle_default_full_universe_bit_accuracy": default_oracle_full,
+                    "oracle_default_final_train_loss": default_oracle_losses[-1],
+                    "oracle_default_ood_bit_accuracy_by_family": default_oracle_ood,
+                    "oracle_default_training_passes": oracle_epochs,
                     **support,
                 }
                 values = [
                     record["selection_bce"], record["locked_test_bce"],
                     record["locked_test_bit_accuracy"], record["oracle_train_bit_accuracy"],
                     record["oracle_locked_test_bit_accuracy"], record["oracle_full_universe_bit_accuracy"],
-                    record["oracle_final_train_loss"], *ood.values(), *oracle_ood.values(),
+                    record["oracle_final_train_loss"], record["oracle_default_train_bit_accuracy"],
+                    record["oracle_default_locked_test_bit_accuracy"],
+                    record["oracle_default_full_universe_bit_accuracy"],
+                    record["oracle_default_final_train_loss"],
+                    *ood.values(), *oracle_ood.values(), *default_oracle_ood.values(),
                 ]
                 if not all(math.isfinite(value) for value in values):
                     raise AssertionError("non-finite selection benchmark metric")
@@ -145,6 +172,14 @@ def run_sweep(*, seeds: Sequence[int] = DEFAULT_SEEDS, epochs: int | Sequence[in
             "mean_oracle_locked_test_bit_accuracy": mean("oracle_locked_test_bit_accuracy"),
             "mean_oracle_full_universe_bit_accuracy": mean("oracle_full_universe_bit_accuracy"),
             "mean_oracle_final_train_loss": mean("oracle_final_train_loss"),
+            "mean_oracle_default_train_bit_accuracy": mean("oracle_default_train_bit_accuracy"),
+            "mean_oracle_default_locked_test_bit_accuracy": mean("oracle_default_locked_test_bit_accuracy"),
+            "mean_oracle_default_full_universe_bit_accuracy": mean("oracle_default_full_universe_bit_accuracy"),
+            "mean_oracle_default_final_train_loss": mean("oracle_default_final_train_loss"),
+            "mean_oracle_default_ood_bit_accuracy": sum(
+                value for row in rows
+                for value in row["oracle_default_ood_bit_accuracy_by_family"].values()
+            ) / (2 * len(rows)),
             "mean_ood_bit_accuracy": sum(ood_values) / len(ood_values),
             "mean_oracle_ood_bit_accuracy": sum(
                 value for row in rows
