@@ -105,6 +105,30 @@ class UnixJSONRPCTransportTests(unittest.TestCase):
         self.assertEqual(response["status"], "error")
         self.assertEqual(response["body"]["code"], "invalid_request")
 
+    def test_slow_client_cannot_extend_frame_read_deadline(self):
+        slow_path = Path(self.tmp.name) / "slow.sock"
+        server = UnixJSONRPCServer(
+            slow_path,
+            peer_resolver=self.resolver,
+            handlers={"test.echo": self._echo},
+            io_timeout_seconds=0.1,
+        )
+        server.start()
+        try:
+            deadline = time.monotonic() + 2
+            while not slow_path.exists() and time.monotonic() < deadline:
+                time.sleep(0.01)
+            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as conn:
+                conn.settimeout(2)
+                conn.connect(str(slow_path))
+                conn.sendall(struct.pack("!I", 64) + b'{"protocol":')
+                time.sleep(0.2)
+                response = _recv_frame(conn, 4 * 1024 * 1024)
+            self.assertEqual(response["status"], "error")
+            self.assertEqual(response["body"]["code"], "invalid_request")
+        finally:
+            server.close()
+
     def test_oversized_frame_is_rejected_before_body_read(self):
         small_path = Path(self.tmp.name) / "small.sock"
         server = UnixJSONRPCServer(
