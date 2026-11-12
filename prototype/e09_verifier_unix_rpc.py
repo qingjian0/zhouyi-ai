@@ -235,8 +235,8 @@ class E09VerifierUnixRPC:
         allowed_writer_workload_ids: set[str] | frozenset[str],
         socket_mode: int = 0o660,
     ) -> None:
-        if not callable(getattr(verifier, "issue_verification_receipt", None)):
-            raise TypeError("verifier must implement issue_verification_receipt")
+        if not callable(getattr(verifier, "issue_verification_receipt_with_identity", None)):
+            raise TypeError("verifier must implement issue_verification_receipt_with_identity")
         if not isinstance(receipt_ledger, SQLiteVerifierReceiptLedger):
             raise TypeError("receipt_ledger must be SQLiteVerifierReceiptLedger")
         if isinstance(allowed_writer_workload_ids, str):
