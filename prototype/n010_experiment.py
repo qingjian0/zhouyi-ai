@@ -150,11 +150,18 @@ def run_experiment(dataset_path: str | Path, roles: Sequence[RoleSpec], feature_
         bundle = json.loads(output.read_text(encoding="utf-8"))
         if bundle.get("schema") != RUN_SCHEMA or bundle.get("dataset_manifest") != dataset_manifest:
             raise LearnableSROKError("resume dataset/schema does not match")
-        if bundle.get("config") != config:
+        saved_config = bundle.get("config", {})
+        if {k: v for k, v in saved_config.items() if k != "epochs"} != {
+            k: v for k, v in config.items() if k != "epochs"
+        }:
             raise LearnableSROKError("resume configuration does not match")
         model = LearnableSROK.from_checkpoint_json(bundle["model_checkpoint"])
         history = list(bundle["loss_history"])
         completed_epochs = bundle["completed_epochs"]
+        if isinstance(completed_epochs, bool) or not isinstance(completed_epochs, int) or completed_epochs < 0:
+            raise LearnableSROKError("invalid completed epoch count")
+        if epochs < completed_epochs:
+            raise LearnableSROKError("requested epochs precede checkpoint progress")
     else:
         model = LearnableSROK(roles, feature_dim)
 
