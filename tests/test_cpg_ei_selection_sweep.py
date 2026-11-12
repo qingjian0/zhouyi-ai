@@ -18,7 +18,7 @@ class CpgEiSelectionSweepTests(unittest.TestCase):
         self.assertEqual(report['aggregate_by_protocol']['proposal_split']['experiments'], 3)
         self.assertEqual(report['aggregate_by_protocol']['legacy_train_ranked']['experiments'], 3)
         for row in report['records']:
-            self.assertEqual((row['train_examples'], row['proposal_examples'], row['locked_test_examples']), (40, 12, 12))
+            self.assertEqual((row['train_examples'], row['proposal_examples'], row['locked_test_examples']), (40, 12 if row['selection_protocol'] == 'proposal_split' else 0, 12))
             self.assertEqual(len(row['ood_bit_accuracy_by_family']), 2)
             self.assertIn(row['selection_protocol'], ('proposal_split', 'legacy_train_ranked'))
             self.assertEqual(row['proposal_examples'], 12 if row['selection_protocol'] == 'proposal_split' else 0)
