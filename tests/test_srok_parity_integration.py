@@ -68,6 +68,24 @@ class LearnableSROKParityIntegrationTests(unittest.TestCase):
         permuted = self._examples(seed=31, permute_roles=True)
         self.assertEqual(self._evaluate(model, permuted, 3), 1.0)
 
+    def test_learned_parity_does_not_transfer_to_a_different_pairwise_rule(self):
+        model = LearnableSROK(self._roles(), feature_dim=1)
+        parity_rows = self._examples(seed=43)
+        model.fit_relation_classifier(
+            parity_rows, epochs=700, learning_rate=0.12,
+        )
+        pairwise_correct = 0
+        for bits in product((-1, 1), repeat=3):
+            assignment = tuple(
+                Node(f"held-{i}-{bits[i]}", f"r{i}", (float(bits[i]),))
+                for i in range(3)
+            )
+            expected_pairwise = bits[0] * bits[1]
+            probability = model.predict_relation_probability(assignment)
+            predicted = 1 if probability >= 0.5 else -1
+            pairwise_correct += int(predicted == expected_pairwise)
+        self.assertEqual(pairwise_correct / 8, 0.5)
+
     def test_invalid_labels_and_incomplete_assignments_are_rejected(self):
         model = LearnableSROK(self._roles(), feature_dim=1)
         node = Node("a", "r0", (1.0,))
