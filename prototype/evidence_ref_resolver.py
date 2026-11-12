@@ -48,7 +48,7 @@ def _manifest_digest(document_id: str, rows) -> str:
         expected_start = end
     if expected_ordinal == 0:
         raise EvidenceResolutionError("document has no committed evidence chunks")
-    return "manifest-sha256:" + digest.hexdigest()
+    return "manifest-sha256:" + digest.hexdigest(), expected_ordinal, expected_start
 
 
 class SQLiteEvidenceRefResolver:
@@ -84,18 +84,9 @@ class SQLiteEvidenceRefResolver:
                    FROM evidence_chunks WHERE document_id = ? ORDER BY ordinal""",
                 (document_id,),
             )
-            digest = _manifest_digest(document_id, rows)
-            if state[1] <= 0 or state[0] <= 0:
-                raise EvidenceResolutionError("completed document has an invalid durable cursor")
-            if int(state[1]) <= 0:
-                raise EvidenceResolutionError("completed document has no committed chunks")
-            last = db.execute(
-                """SELECT byte_end FROM evidence_chunks
-                   WHERE document_id = ? ORDER BY ordinal DESC LIMIT 1""",
-                (document_id,),
-            ).fetchone()
-            if last is None or int(last[0]) != int(state[0]):
-                raise EvidenceResolutionError("document cursor does not match the evidence manifest")
+            digest, manifest_chunks, manifest_bytes = _manifest_digest(document_id, rows)
+            if manifest_chunks != int(state[1]) or manifest_bytes != int(state[0]):
+                raise EvidenceResolutionError("durable document cursor does not match the evidence manifest")
             return digest
 
     def make_reference(self, document_id: str, chunk_id: str) -> EvidenceRef:
