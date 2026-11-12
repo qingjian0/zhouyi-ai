@@ -222,6 +222,11 @@ def main():
     parser.add_argument("--dataset", required=True)
     parser.add_argument("--checkpoint", required=True)
     parser.add_argument("--epochs", type=int, default=20)
+    parser.add_argument("--seed", type=int, default=0,
+                        help="recorded reproducibility seed; current full-batch learner is deterministic")
+    parser.add_argument("--git-sha", required=True,
+                        help="source revision used for this experiment")
+    parser.add_argument("--max-expansions", type=int, default=4096)
     parser.add_argument("--learning-rate", type=float, default=0.2)
     parser.add_argument("--l2", type=float, default=1e-4)
     parser.add_argument("--feature-dim", type=int, required=True)
