@@ -184,5 +184,45 @@ class TestCpgEiStructureDiscovery(unittest.TestCase):
         self.assertLessEqual(report["support_recall"], 1.0)
         print("CPGEI_NEGATIVE_CONTROL " + json.dumps(report, sort_keys=True))
 
+
+    def test_normalized_candidate_score_ablation(self):
+        """Paired diagnostic: compare raw vs residual-norm-normalized edge ranking."""
+        true_support = {
+            "hyperedge_2_0_1", "hyperedge_2_0_5", "hyperedge_2_2_4",
+            "hyperedge_3_0_1_3", "hyperedge_3_0_3_4", "hyperedge_3_1_4_5",
+        }
+        paired = []
+        for seed in (7, 17, 29, 41, 53):
+            train = make_dataset(512, seed=seed, sparse_teacher=True)
+            validation = make_dataset(128, seed=seed + 100, sparse_teacher=True)
+            results = {}
+            for mode, normalized in (("raw", False), ("normalized", True)):
+                model = CpgEiTransitionModel.create(active_relation_indices=set())
+                result = grow_relation_graph(
+                    model, train, validation, rounds=3, edges_per_round=3,
+                    epochs_per_round=60, gate_l1=0.01, edge_group_l1=0.03,
+                    normalize_candidate_scores=normalized,
+                )
+                discovered = set(result["active_edges"])
+                results[mode] = {
+                    "bit_accuracy": result["validation"]["bit_accuracy"],
+                    "support_recall": len(discovered & true_support) / len(true_support),
+                    "false_discoveries": len(discovered - true_support),
+                    "active_edges": len(discovered),
+                    "exact_support": discovered == true_support,
+                }
+            paired.append({"seed": seed, **results})
+        summary = {
+            "seeds": len(paired),
+            "raw_mean_recall": sum(x["raw"]["support_recall"] for x in paired) / len(paired),
+            "normalized_mean_recall": sum(x["normalized"]["support_recall"] for x in paired) / len(paired),
+            "raw_exact_recovery": sum(x["raw"]["exact_support"] for x in paired),
+            "normalized_exact_recovery": sum(x["normalized"]["exact_support"] for x in paired),
+            "raw_mean_false_discoveries": sum(x["raw"]["false_discoveries"] for x in paired) / len(paired),
+            "normalized_mean_false_discoveries": sum(x["normalized"]["false_discoveries"] for x in paired) / len(paired),
+            "paired": paired,
+        }
+        print("CPGEI_NORMALIZED_SCORE_ABLATION " + json.dumps(summary, sort_keys=True))
+
 if __name__ == "__main__":
     unittest.main()
