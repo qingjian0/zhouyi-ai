@@ -18,7 +18,7 @@ from prototype.shared_evidence_protocol import (
     DOMAIN_BOUND_PROTOCOL_VERSION, DOMAIN_FIELDS, STRICT_PROTOCOL_VERSION,
     SQLiteEvidenceStore, canonical_json, digest_payload,
 )
-from prototype.e09_domain_registry import E09DomainRegistry
+from prototype.e09_domain_registry import E09DomainBinding, E09DomainRegistry
 
 
 class E09EvidenceBindingError(ValueError):
@@ -208,13 +208,15 @@ def resolve_e09_reveal(
             binding = domain_registry.resolve(scope)
         except Exception as exc:
             raise E09EvidenceBindingError("trusted domain registration is missing or revoked") from exc
+        if not isinstance(binding, E09DomainBinding):
+            raise E09EvidenceBindingError("trusted domain registry returned an invalid binding")
         expected = {
             "domain_id": binding.domain_id,
             "world_family": binding.world_family,
             "domain_registry_id": binding.registry_id,
             "domain_registry_version": binding.registry_version,
         }
-        if not getattr(binding, "active", False) or any(op.get(key) != value for key, value in expected.items()):
+        if not binding.active or any(op.get(key) != value for key, value in expected.items()):
             raise E09EvidenceBindingError("observation domain provenance does not match the active trusted registry")
         derived_world_family = binding.world_family
         domain_id = binding.domain_id
