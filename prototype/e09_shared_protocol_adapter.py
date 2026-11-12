@@ -272,6 +272,9 @@ class E09SharedProtocolAdapter:
         instance.structure_kind = latest_payload["kind"]
         instance.version_prefix = version_prefix
         instance.memory_projection = memory_projection
+        instance._observer_port = None
+        instance._learner_port = None
+        instance._evaluator_port = None
         instance._configure_authority(
             authority=authority,
             observer_credential=observer_credential,
