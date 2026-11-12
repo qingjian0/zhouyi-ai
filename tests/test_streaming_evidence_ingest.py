@@ -64,6 +64,21 @@ class SQLiteEvidenceIngestorTests(unittest.TestCase):
         self.assertTrue(first.complete)
         self.assertEqual(second.chunks_committed, 0)
         self.assertEqual(len(self.ingestor.get_chunks("doc-idem")), 3)
+        with self.assertRaises(IngestContractError):
+            self.ingestor.ingest(
+                "doc-idem", "same.txt", io.BytesIO(b"changed!"), chunk_bytes=4
+            )
+
+    def test_resume_rejects_changed_source_prefix(self):
+        self.ingestor.ingest(
+            "doc-source-change", "source.txt", io.BytesIO(b"abcdefghijk"),
+            chunk_bytes=4, max_chunks=2,
+        )
+        with self.assertRaises(IngestContractError):
+            self.ingestor.ingest(
+                "doc-source-change", "source.txt", io.BytesIO(b"abXXefghijk"),
+                chunk_bytes=4,
+            )
 
     def test_resume_rejects_changed_configuration(self):
         self.ingestor.ingest(
