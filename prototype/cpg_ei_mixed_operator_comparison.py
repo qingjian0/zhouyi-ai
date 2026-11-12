@@ -142,10 +142,8 @@ def main() -> None:
         corpus, epochs=args.epochs,
         learning_rate=args.learning_rate, l2=args.l2,
     )
-    encoded = json.dumps(report, ensure_ascii=False, indent=2)
     if args.json:
-        args.json.parent.mkdir(parents=True, exist_ok=True)
-        args.json.write_text(encoded + "\n", encoding="utf-8")
+        write_json_report(report, args.json)
     print(json.dumps(report, ensure_ascii=False, indent=2))
 
 
