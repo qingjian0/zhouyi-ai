@@ -13,6 +13,11 @@ class TestOracleOptimizerSweep(unittest.TestCase):
         self.assertEqual(len(report["summary"]), 4)
         self.assertEqual(report["train_examples"], 40)
         self.assertEqual(report["locked_test_examples"], 12)
+        self.assertEqual(report["selection_metric"], "mean_final_train_bce_only")
+        self.assertFalse(report["locked_and_full_metrics_used_for_selection"])
+        self.assertIn("best_train_config", report)
+        self.assertNotIn("best_locked_config", report)
+        self.assertNotIn("best_full_64_state_config", report)
         for row in report["records"]:
             self.assertEqual(row["support_source"], "oracle_known_support")
             self.assertEqual(row["gradient_data"], "train_40_only")
