@@ -1,78 +1,55 @@
-# Zhouyi-AI / CPG-EI
+# Zhouyi-AI
 
-**组合并行生成与易象启发式认知架构**  
-*Combinatorial Parallel Generation & Epistemic Intelligence*
+**非 Transformer 原生认知计算研究项目**  
+研究方向：结构化关系认知、非自回归组合、易象/类象算子、证据约束学习、持久认知记忆与资源受控执行。
 
-> 研究目标：探索一种不把自回归 Token 预测作为唯一内部计算范式的认知架构。通过动态语义组合、高阶关系建模、多路径并行推演、易象状态表征与证据约束的自组织学习，研究更灵活的组合泛化与推理机制。
+## 当前架构决策（2026-11-11）
 
-## 项目状态
+Zhouyi-AI 以**非序列中心认知计算**为顶层原则：内部认知以类型化结构和关系为中心，允许非连续、多段、跨距离组合及多候选并行协调。Transformer/LLM 可作为可插拔输入解析、语言表达、教师和对照基线，不是唯一认知核心。
 
-- 当前阶段：M1 数学理论定稿与 M2 最小原型准备
-- 理论版本：CPG-EI v0.3（研究草案）
-- 代码状态：E01 组合选择基线原型正在建立；尚无规模化模型或性能结论
-- 验证原则：所有架构主张均须通过可复现实验、消融和公平对照验证
+统一分工：
+- **CPG-EI**：研究总纲与实验范式；
+- **ZNCA**：认知组织与状态框架；
+- **TRLW**：类型化关系潜在工作空间；
+- **SROK**：稀疏非连续关系组合内核；
+- **CSG-GCR**：候选生成与全局约束协调；
+- **RSDN**：关系状态动力学；
+- **Yixiang / XSL**：可证伪的易象算子与跨域类象映射；
+- **ZPCM / DCMF**：持久事件记忆与认知状态投影；
+- **E09 / E12-A6**：证据治理与候选生命周期唯一权威；
+- **CSL / MCRL / Hyper-Speed**：依赖失效、计算策略与执行调度。
 
-## 核心研究问题
+## 架构与工程文档
 
-1. **动态组合**：系统能否自主发现、创建、合并、拆分和淘汰语义组合？
-2. **非 Token 中心的内部表示**：能否以概念、事件、属性和关系作为内部计算单元，同时保留 Token 输入/输出接口？
-3. **高阶关系与跨距离组合**：能否表达不连续元素之间的组合，例如从 a,b,c,d,e 中选出 a,b,c,e？
-4. **易象状态表征**：阴阳、四象、八卦、六十四卦、卦变及五行关系能否成为可学习、可证伪的状态与关系先验？
-5. **自组织与证据约束**：结构能否根据任务反馈更新，同时避免无证据的类比和自我强化？
-6. **并行推演**：多条候选组合路径能否并行评估，并由全局协调器进行证据整合？
-
-## 架构边界
-
-- 不宣称完全不使用 Token：Tokenizer/Decoder 可作为外部语言接口；研究重点是内部计算不再以 Token 序列作为唯一基本单元。
-- 不把并行预测多个 Token 当作核心创新；离散扩散、非自回归生成和并行解码已有大量研究。
-- 不预设易学映射天然正确；所有映射必须可学习、可调整、可拒绝，并接受消融验证。
-- 类比不等于因果；每条关键推断应记录来源、置信度、反例与验证状态。
-- 不预设 CPG-EI 优于 Transformer；必须在相同数据、参数量和计算预算下比较。
-- 组合搜索采用稀疏候选与预算约束，避免组合爆炸。
-
-## 文档导航
-
-- [研究总纲与问题定义](docs/RESEARCH_CHARTER.md)
-- [数学理论 v0.3](docs/THEORY_v0.3.md)
-- [架构设计](docs/ARCHITECTURE.md)
-- [易象模块：可检验化设计](docs/YIXIANG_MODULE.md)
-- [相关工作与文献](docs/RELATED_WORK.md)
-- [2026-11-10 研究增量报告](docs/RESEARCH_FINDINGS_2026-11-10.md)
-- [实验计划与验收标准](docs/EXPERIMENTS.md)
-- [E02 动态超图实验设计](docs/E02_DYNAMIC_HYPERGRAPH.md)
-- [E02-A 结果审计与下一阶段协议](docs/E02A_NEXT_RESEARCH_2026-11-10.md)
-- [E02-B 三元有限域关系诊断协议](docs/E02B_TERNARY_PROTOCOL.md)
-- [E02-B 学习器对照原型](prototype/e02_ternary_learners.py)
-- [E02-C 超边生命周期原型](prototype/e02_edge_lifecycle.py)
-- [E02-B 三元有限域学习器对照结果](docs/E02B_RESULTS_2026-11-10.md)
-- [E02-D 未见规则族归纳基准](prototype/e02_rule_ood.py)
-- [E02-D 实验协议](docs/E02D_RULE_FAMILY_OOD.md)
-- [E02-D 支持样本量扫描结果](docs/E02D_SUPPORT_SWEEP_RESULTS_2026-11-10.md)
-- [E01-B 五种子结果报告](docs/E01B_RESULTS_2026-11-10.md)
-- [E01-C 组合 OOD 结果报告](docs/E01C_RESULTS_2026-11-10.md)
-- [研究风险与证伪条件](docs/RISKS_AND_FALSIFICATION.md)
+- [全项目收敛执行基线 v1](docs/UNIFIED_CONVERGENCE_EXECUTION_V1_2026-11-11.md)
+- [统一认知架构 v1](docs/MASTER_ARCHITECTURE_V1_2026-11-11.md)
+- [模块契约 v1](docs/MODULE_CONTRACTS_V1_2026-11-11.md)
+- [集成登记册 v1](docs/INTEGRATION_REGISTRY_V1_2026-11-11.md)
+- [训练与评估路线 v1](docs/TRAINING_EVALUATION_V1_2026-11-11.md)
+- [架构决策记录 v1](docs/ARCHITECTURE_DECISIONS_V1_2026-11-11.md)
 - [开发路线图](ROADMAP.md)
-- [原型代码](prototype/)
+- [研究总纲](docs/RESEARCH_CHARTER.md)
+- [易象模块研究](docs/YIXIANG_MODULE.md)
+- [实验计划](docs/EXPERIMENTS.md)
+- [风险与证伪条件](docs/RISKS_AND_FALSIFICATION.md)
 
-## 快速开始（当前原型）
+## 当前工程状态
 
-当前原型优先验证组合策略和跨位置组合，不代表完整模型：
+- main 保持稳定的早期研究基线。
+- 全项目收敛工作基于 E09 集成代码线建立独立工作分支，不直接修改 main。
+- 旧 unified 架构分支与 E09 代码线存在分叉，必须逐项审计，不直接合并。
+- 现有研究 PR 的文档、参考实现、可学习原型和集成切片成熟度不同；详见集成登记册。
+- 当前没有规模化统一认知模型，也没有证明优于 Transformer 的端到端结果。
+- 当前优先级是完成非连续结构组合、证据、生命周期、训练和持久记忆的最小闭环，再开展联合训练。
 
-```bash
-python -m unittest discover -s tests -v
-python -m prototype.e01_sparse_composition
-python -m prototype.e01_learned_ranker --json
-```
+## 快速开始（main 当前原型）
 
-## 研究状态标记
+    python -m unittest discover -s tests -v
+    python -m prototype.e01_sparse_composition
+    python -m prototype.e01_learned_ranker --json
 
-| 标记 | 含义 |
-|---|---|
-| [事实] | 可由公开文献或可复现实验支持 |
-| [假设] | 尚待实验验证的研究假设 |
-| [设计] | 当前工程方案，不代表有效性已证实 |
-| [结果] | 已执行并记录数据、配置和代码版本的实验结果 |
+## 研究纪律
 
-## 许可与引用
+每项能力必须标明假设、设计、实现、实验结果或发布状态。CI 通过不等于科学有效；研究分支存在不等于主线集成；可检索长记忆不等于原生长上下文。所有架构主张都接受公平基线、消融、OOD、资源成本和失败案例检验。
 
-本仓库初始阶段采用 MIT License。若后续引入外部数据集、论文代码或古籍数字化文本，须逐项核查其许可证、来源和引用要求。研究引用见 [RELATED_WORK.md](docs/RELATED_WORK.md)。
+许可与引用要求见 [LICENSE](LICENSE) 与 [RELATED_WORK.md](docs/RELATED_WORK.md)。
