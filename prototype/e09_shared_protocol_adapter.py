@@ -13,6 +13,7 @@ from prototype.shared_evidence_protocol import (
     EVIDENCE_SPLITS, STRICT_PROTOCOL_VERSION, SQLiteEvidenceStore, digest_payload,
 )
 from prototype.e09_authority_services import E09AuthorityService
+from prototype.e09_role_ports import E09ObserverPort, E09LearnerPort, E09EvaluatorPort
 from prototype.e09_prequential import (
     PrequentialRunner, PrequentialError,
     PredictionCommit as RunnerPredictionCommit,
@@ -33,7 +34,7 @@ class E09ProtocolAdapterError(RuntimeError):
 class E09SharedProtocolAdapter:
     LEARNER_TRACK = "e09"
 
-    def __init__(self, runner: PrequentialRunner, store: SQLiteEvidenceStore,
+    def __init__(self, runner: PrequentialRunner, store: SQLiteEvidenceStore | None,
                  *, episode_id: str, scope: str, split: str = "SUPPORT",
                  learner_track: str = LEARNER_TRACK,
                  structure_id: str = "e09-rule-set",
@@ -43,7 +44,10 @@ class E09SharedProtocolAdapter:
                  authority: E09AuthorityService | None = None,
                  observer_credential: object | None = None,
                  learner_credential: object | None = None,
-                 evaluator_credential: object | None = None) -> None:
+                 evaluator_credential: object | None = None,
+                 observer_port: E09ObserverPort | None = None,
+                 learner_port: E09LearnerPort | None = None,
+                 evaluator_port: E09EvaluatorPort | None = None) -> None:
         if not isinstance(episode_id, str) or not episode_id.strip():
             raise ValueError("episode_id must be non-empty")
         if not isinstance(learner_track, str) or not learner_track.strip():
@@ -67,12 +71,35 @@ class E09SharedProtocolAdapter:
         self.structure_kind = structure_kind
         self.version_prefix = version_prefix
         self.memory_projection = memory_projection
-        self._configure_authority(
+        self._configure_ports(
+            observer_port=observer_port,
+            learner_port=learner_port,
+            evaluator_port=evaluator_port,
+        )
+        if self._observer_port is not None:
+            if store is not None or authority is not None or any(
+                value is not None for value in (
+                    observer_credential, learner_credential, evaluator_credential
+                )
+            ):
+                raise E09ProtocolAdapterError(
+                    "remote role-port mode must not receive a local SQLite store or in-process Authority credentials"
+                )
+            self._authority = None
+            self._observer_credential = None
+            self._learner_credential = None
+            self._evaluator_credential = None
+        else:
+            if not isinstance(store, SQLiteEvidenceStore):
+                raise E09ProtocolAdapterError(
+                    "local/legacy adapter mode requires a SQLiteEvidenceStore"
+                )
+            self._configure_authority(
             authority=authority,
             observer_credential=observer_credential,
             learner_credential=learner_credential,
-            evaluator_credential=evaluator_credential,
-        )
+                evaluator_credential=evaluator_credential,
+            )
         self._failed = False
         self._committed_predictions: set[str] = set()
         self._commit_digests: dict[str, str] = {}
@@ -81,12 +108,44 @@ class E09SharedProtocolAdapter:
         self._prediction_queries: dict[str, str] = {}
         self._reveals: dict[str, str] = {}
         self._version_id = f"{self.version_prefix}-v{runner.model_version}"
-        if self.store.replay_episode(self.episode_id):
+        existing_events = (
+            self._learner_port.memory_source(
+                scope=self.scope, learner_track=self.learner_track
+            ).replay_episode(self.episode_id)
+            if self._learner_port is not None
+            else self.store.replay_episode(self.episode_id)
+        )
+        if existing_events:
             raise E09ProtocolAdapterError(
-                "adapter currently requires a fresh episode; replay/resume is not implemented"
+                "adapter constructor requires a fresh episode; use resume_srok for local recovery"
             )
         self._append_initial_structure()
         self._sync_memory()
+
+    def _configure_ports(
+        self,
+        *,
+        observer_port: E09ObserverPort | None,
+        learner_port: E09LearnerPort | None,
+        evaluator_port: E09EvaluatorPort | None,
+    ) -> None:
+        supplied = (observer_port, learner_port, evaluator_port)
+        if not any(port is not None for port in supplied):
+            self._observer_port = None
+            self._learner_port = None
+            self._evaluator_port = None
+            return
+        if not all((
+            isinstance(observer_port, E09ObserverPort),
+            isinstance(learner_port, E09LearnerPort),
+            isinstance(evaluator_port, E09EvaluatorPort),
+        )):
+            raise E09ProtocolAdapterError(
+                "remote mode requires Observer, Learner and Evaluator role ports"
+            )
+        self._observer_port = observer_port
+        self._learner_port = learner_port
+        self._evaluator_port = evaluator_port
 
     def _configure_authority(
         self,
@@ -130,8 +189,14 @@ class E09SharedProtocolAdapter:
         if self.memory_projection is None:
             return
         try:
+            source = (
+                self._learner_port.memory_source(
+                    scope=self.scope, learner_track=self.learner_track
+                )
+                if self._learner_port is not None else self.store
+            )
             self.memory_projection.sync_episode(
-                self.store, episode_id=self.episode_id, scope=self.scope,
+                source, episode_id=self.episode_id, scope=self.scope,
                 learner_track=self.learner_track,
             )
         except Exception as exc:
