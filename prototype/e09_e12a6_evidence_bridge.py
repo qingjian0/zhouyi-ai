@@ -92,6 +92,7 @@ def resolve_e09_reveal(
     world_family: str | None = None,
     measurement_cost: float = 0.0,
     domain_registry: E09DomainRegistry | None = None,
+    allow_legacy_migration: bool = False,
 ) -> Evidence:
     """Verify an E09 reveal→commit→observation chain and return a redacted DTO.
 
@@ -132,8 +133,10 @@ def resolve_e09_reveal(
             raise E09EvidenceBindingError("v0.4 evidence requires the trusted domain registry")
         if reveal.get("payload_schema") != "evidence_reveal@4":
             raise E09EvidenceBindingError("v0.4 reveal requires the closed evidence_reveal@4 schema")
+    elif not allow_legacy_migration:
+        raise E09EvidenceBindingError("legacy v0.3 evidence is quarantined; explicit migration opt-in is required")
     elif not isinstance(world_family, str) or not world_family.strip():
-        raise E09EvidenceBindingError("legacy v0.3 evidence requires non-empty explicit migration context")
+        raise E09EvidenceBindingError("legacy v0.3 migration requires non-empty world-family context")
     if reveal.get("actor_role") != "evaluator":
         raise E09EvidenceBindingError("evidence reveal must be committed by the evaluator role")
 
@@ -255,6 +258,11 @@ def register_e09_reveal(
     if not isinstance(ledger, PersistentLifecycleLedger):
         raise TypeError("ledger must be PersistentLifecycleLedger")
     evidence = resolve_e09_reveal(store, **kwargs)
+    if not evidence.domain_id or not evidence.domain_registry_id or not evidence.domain_registry_version:
+        raise E09EvidenceBindingError(
+            "legacy v0.3 evidence is quarantined from E12-A6 registration; "
+            "migration requires trusted v0.4 domain provenance"
+        )
     return evidence, ledger.register_evidence(evidence)
 
 
@@ -272,6 +280,7 @@ def resolve_branch_merge_authorization(
     verifier_id: str,
     now: datetime | None = None,
     domain_registry: E09DomainRegistry | None = None,
+    allow_legacy_migration: bool = False,
 ) -> VerifiedBranchMergeAuthorization:
     """Authenticate a scoped branch-merge grant from an immutable E09 event.
 
@@ -292,8 +301,12 @@ def resolve_branch_merge_authorization(
         raise E09EvidenceBindingError("branch_ids must be unique")
     if domain_registry is not None and world_family_by_evidence is not None:
         raise E09EvidenceBindingError("caller-supplied world-family overrides are forbidden")
+    if domain_registry is None and not allow_legacy_migration:
+        raise E09EvidenceBindingError("legacy branch authorization is quarantined outside explicit migration")
     if domain_registry is None and not isinstance(world_family_by_evidence, dict):
-        raise E09EvidenceBindingError("legacy verification requires explicit migration context")
+        raise E09EvidenceBindingError("legacy migration requires explicit world-family mapping")
+    if domain_registry is not None and allow_legacy_migration:
+        raise E09EvidenceBindingError("legacy migration flag is invalid with a trusted domain registry")
     if not callable(signature_verifier):
         raise E09EvidenceBindingError("signature_verifier must be callable")
 
@@ -359,6 +372,7 @@ def resolve_branch_merge_authorization(
             resolve_e09_reveal(
                 store, episode_id=episode_id, evidence_ref=ref, scope=scope,
                 learner_track=learner_track, world_family=world_family_by_evidence[ref],
+                allow_legacy_migration=True,
             )
 
     if event.get("payload_schema") != AUTHORIZATION_PAYLOAD_SCHEMA:
