@@ -99,7 +99,7 @@ def _unary_family_metrics(
 
 
 def run_multiseed_benchmark(
-    *, seeds: Sequence[int] = (20261114, 20261115),
+    *, seeds: Sequence[int] = (20261114, 20261115, 20261116, 20261117, 20261118),
     family_count: int = 8,
     input_dim: int = 8,
     output_dim: int = 8,
@@ -245,7 +245,7 @@ def run_multiseed_benchmark(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--seeds", default="20261114,20261115")
+    parser.add_argument("--seeds", default="20261114,20261115,20261116,20261117,20261118")
     parser.add_argument("--families", type=int, default=8)
     parser.add_argument("--input-dim", type=int, default=8)
     parser.add_argument("--output-dim", type=int, default=8)
