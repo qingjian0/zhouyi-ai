@@ -15,6 +15,7 @@ import resource
 import subprocess
 import sys
 import tempfile
+import time
 from typing import Iterable
 
 from prototype.e12a6_lifecycle_contract import Candidate
@@ -102,9 +103,16 @@ def _restore_report(path: Path, scope: str) -> dict[str, int | None]:
     after_zpcm = _current_rss_bytes()
     store = None
     try:
+        restore_started = time.perf_counter()
         store = PersistentLifecycleLedger(memory, scope=scope)
+        restore_duration = time.perf_counter() - restore_started
         after_restore = _current_rss_bytes()
         return {
+            "restore_duration_seconds": round(restore_duration, 6),
+            "restore_events_per_second": (
+                round(store._last_sequence / restore_duration, 2)
+                if restore_duration > 0 else None
+            ),
             "rss_before_zpcm_bytes": before,
             "rss_after_zpcm_bytes": after_zpcm,
             "rss_after_e12a6_restore_bytes": after_restore,
@@ -181,8 +189,9 @@ def main(argv: Iterable[str] | None = None) -> int:
         "platform": sys.platform,
         "results": results,
         "interpretation": (
-            "Compare restore RSS across history sizes. This is an observational "
-            "benchmark, not a pass/fail memory-bound assertion."
+            "Compare E12-A6 restore RSS and elapsed replay time across history sizes. "
+            "Restore duration excludes fixture generation and ZPCM initialization. "
+            "These are observational measurements, not pass/fail performance guarantees."
         ),
     }, ensure_ascii=False, indent=2, sort_keys=True))
     return 0
