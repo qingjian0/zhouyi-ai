@@ -2,6 +2,7 @@ import json
 import multiprocessing
 import os
 import tempfile
+import time
 import unittest
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
@@ -77,7 +78,7 @@ def propose():
 
 
 
-def _writer_bundle_commit_then_block(path, candidate_item, evidence_item, receipt, now, identity, committed_sender, release):
+def _writer_bundle_commit_then_block(path, candidate_item, evidence_item, receipt, now, identity, committed_sender):
     memory = ZPCMMemory(path)
     try:
         store = PersistentLifecycleLedger(memory, scope="project-a")
@@ -85,7 +86,7 @@ def _writer_bundle_commit_then_block(path, candidate_item, evidence_item, receip
         def commit_then_block(**kwargs):
             result = append(**kwargs)
             committed_sender.send([dict(item) for item in result])
-            release.wait(30)
+            time.sleep(60)
             return result
         memory.append_lifecycle_events = commit_then_block
         store.register_candidate_bundle(
@@ -224,10 +225,9 @@ class PersistentLifecycleTests(unittest.TestCase):
         identity = writer_identity()
         self.memory.close()
         committed_receiver, committed_sender = context.Pipe(duplex=False)
-        release = context.Event()
         child = context.Process(
             target=_writer_bundle_commit_then_block,
-            args=(str(self.path), candidate_item, evidence_item, receipt, now, identity, committed_sender, release),
+            args=(str(self.path), candidate_item, evidence_item, receipt, now, identity, committed_sender),
         )
         child.start()
         committed_sender.close()
@@ -262,7 +262,6 @@ class PersistentLifecycleTests(unittest.TestCase):
             if child.is_alive():
                 child.kill()
                 child.join(timeout=5)
-            release.set()
             committed_receiver.close()
 
     def test_receipt_consumption_requires_and_audits_authenticated_writer_identity(self):
