@@ -69,6 +69,8 @@ def _support_identifiability_audit(train_rows: list[dict], input_dim: int) -> di
             status = "observed_influence"
         elif matched_pairs == 0:
             status = "unobserved_counterpart"
+        elif len(observed_contexts) == 2 ** (input_dim - 1):
+            status = "observed_no_influence_full_context_coverage"
         else:
             status = "no_influence_observed_inconclusive"
         variables.append({
@@ -85,7 +87,14 @@ def _support_identifiability_audit(train_rows: list[dict], input_dim: int) -> di
         "variables": variables,
         "unresolved_variable_indices": [
             item["index"] for item in variables
-            if item["status"] != "observed_influence"
+            if item["status"] not in (
+                "observed_influence",
+                "observed_no_influence_full_context_coverage",
+            )
+        ],
+        "observed_irrelevant_variable_indices": [
+            item["index"] for item in variables
+            if item["status"] == "observed_no_influence_full_context_coverage"
         ],
         "matched_pair_total": sum(item["matched_pair_count"] for item in variables),
     }
