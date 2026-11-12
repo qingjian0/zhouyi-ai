@@ -21,7 +21,7 @@ class N11CyclicCompositionOODTests(unittest.TestCase):
         self.assertEqual(train, make_dataset(80, 17, "train"))
         self.assertEqual(test, make_dataset(80, 29, "test"))
         self.assertTrue(all(phase(row, 0) >= math.pi / 2 for row in train))
-        self.assertTrue(all(phase_a(row) < math.pi / 2 for row in test))
+        self.assertTrue(all(phase(row, 0) < math.pi / 2 for row in test))
         self.assertEqual({len(row.assignment) for row in train + test}, {3})
         self.assertEqual({len(node.features) for row in train + test
                           for node in row.assignment}, {5})
