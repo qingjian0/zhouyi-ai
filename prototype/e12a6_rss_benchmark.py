@@ -100,7 +100,9 @@ def _write_fixture(path: Path, count: int, scope: str, batch_size: int) -> int:
 
 def _restore_report(path: Path, scope: str) -> dict[str, int | None]:
     before = _current_rss_bytes()
+    zpcm_started = time.perf_counter()
     memory = ZPCMMemory(path)
+    zpcm_init_duration = time.perf_counter() - zpcm_started
     after_zpcm = _current_rss_bytes()
     store = None
     try:
@@ -117,8 +119,7 @@ def _restore_report(path: Path, scope: str) -> dict[str, int | None]:
             "rss_before_zpcm_bytes": before,
             "rss_after_zpcm_bytes": after_zpcm,
             "rss_after_e12a6_restore_bytes": after_restore,
-            "zpcm_init_seconds": zpcm_init_seconds,
-            "e12a6_restore_seconds": restore_seconds,
+            "zpcm_init_duration_seconds": round(zpcm_init_duration, 6),
             "peak_rss_bytes": _peak_rss_bytes(),
             "cgroup_memory_current_bytes": _cgroup_memory_bytes("memory.current"),
             "cgroup_memory_peak_bytes": _cgroup_memory_bytes("memory.peak"),
