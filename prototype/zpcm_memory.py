@@ -210,6 +210,8 @@ class ZPCMMemory:
             raise ZPCMError("domain event payload must be an object")
         if not isinstance(event_type, str) or not event_type.strip():
             raise ZPCMError("event_type must be non-empty")
+        if event_type == "e12a6_lifecycle" or payload.get("kind") == "authorization_consumed":
+            raise ZPCMError("E12-A6 lifecycle events must use the authorized lifecycle append API")
         if not isinstance(expected_sequence, int) or isinstance(expected_sequence, bool) or expected_sequence < 0:
             raise ZPCMError("expected_sequence must be a non-negative integer")
         with self.lock:
