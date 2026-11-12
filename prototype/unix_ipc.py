@@ -176,10 +176,17 @@ def _encode_frame(value: dict[str, Any], max_frame_bytes: int) -> bytes:
     return struct.pack("!I", len(raw)) + raw
 
 
-def _recv_exact(conn: socket.socket, count: int) -> bytes:
+def _recv_exact(
+    conn: socket.socket, count: int, *, deadline_monotonic: float | None = None
+) -> bytes:
     chunks: list[bytes] = []
     remaining = count
     while remaining:
+        if deadline_monotonic is not None:
+            budget = deadline_monotonic - time.monotonic()
+            if budget <= 0:
+                raise socket.timeout("IPC frame read deadline exceeded")
+            conn.settimeout(budget)
         chunk = conn.recv(remaining)
         if not chunk:
             raise IPCTransportError("peer closed an incomplete IPC frame")
@@ -188,12 +195,17 @@ def _recv_exact(conn: socket.socket, count: int) -> bytes:
     return b"".join(chunks)
 
 
-def _recv_frame(conn: socket.socket, max_frame_bytes: int) -> dict[str, Any]:
-    header = _recv_exact(conn, 4)
+def _recv_frame(
+    conn: socket.socket,
+    max_frame_bytes: int,
+    *,
+    deadline_monotonic: float | None = None,
+) -> dict[str, Any]:
+    header = _recv_exact(conn, 4, deadline_monotonic=deadline_monotonic)
     size = struct.unpack("!I", header)[0]
     if size < 2 or size > max_frame_bytes:
         raise IPCTransportError("incoming IPC frame length is invalid")
-    raw = _recv_exact(conn, size)
+    raw = _recv_exact(conn, size, deadline_monotonic=deadline_monotonic)
     value = json.loads(
         raw.decode("utf-8"),
         object_pairs_hook=_unique_object,
@@ -319,8 +331,11 @@ class UnixJSONRPCServer:
         request_id: str | None = None
         try:
             conn.settimeout(self.io_timeout_seconds)
+            io_deadline = time.monotonic() + self.io_timeout_seconds
             pid, uid, gid = _peer_credentials(conn)
-            request = _recv_frame(conn, self.max_frame_bytes)
+            request = _recv_frame(
+                conn, self.max_frame_bytes, deadline_monotonic=io_deadline
+            )
             expected = {"protocol", "request_id", "operation_id", "operation", "deadline_ms", "body"}
             if set(request) != expected:
                 raise IPCRequestError("invalid_envelope", "IPC request envelope fields are invalid")
