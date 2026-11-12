@@ -20,6 +20,14 @@ class MemoryPacketError(ValueError):
     """A query or packet violates the bounded retrieval contract."""
 
 
+class MemoryScanBudgetExceeded(RuntimeError):
+    """The candidate event stream exceeded its explicit scan budget."""
+
+    def __init__(self, records_scanned: int):
+        self.records_scanned = records_scanned
+        super().__init__(f"candidate scan budget exhausted after {records_scanned} events")
+
+
 class PacketCompleteness(str, Enum):
     COMPLETE = "COMPLETE"
     NOT_FOUND = "NOT_FOUND"
@@ -48,6 +56,7 @@ class MemoryQuery:
     ranking_policy: str
     valid_time_start: str | None = None
     valid_time_end: str | None = None
+    max_scan_events: int = 4096
 
     def __post_init__(self) -> None:
         if not isinstance(self.query_goal, str) or not self.query_goal.strip():
@@ -64,6 +73,9 @@ class MemoryQuery:
             raise MemoryPacketError("byte_budget must be a positive integer")
         if not isinstance(self.ranking_policy, str) or not self.ranking_policy.strip():
             raise MemoryPacketError("ranking_policy must be explicit")
+        if (isinstance(self.max_scan_events, bool) or not isinstance(self.max_scan_events, int)
+                or not 1 <= self.max_scan_events <= 65536):
+            raise MemoryPacketError("max_scan_events must be an integer in [1, 65536]")
         if (self.valid_time_start is None) != (self.valid_time_end is None):
             raise MemoryPacketError("temporal filter endpoints must be supplied together")
         if self.valid_time_start is not None:
@@ -151,30 +163,34 @@ def build_memory_packet(candidates: Iterable[SemanticUnitCandidate],
     selected: list[MemoryPacketItem] = []
     scanned = 0
     completeness = PacketCompleteness.COMPLETE
-    for candidate in candidates:
-        scanned += 1
-        if not isinstance(candidate, SemanticUnitCandidate):
-            raise TypeError("candidate stream must contain SemanticUnitCandidate values")
-        if not _matches(candidate, query):
-            continue
-        if len(selected) >= query.max_records:
-            completeness = PacketCompleteness.BUDGET_EXHAUSTED
-            break
-        proposed = selected + [_item(candidate)]
-        probe = {
-            "schema_version": "m2-memory-packet-v1",
-            "query_goal": query.query_goal,
-            "scope": query.scope,
-            "ranking_policy": query.ranking_policy,
-            "items": proposed,
-            "completeness": PacketCompleteness.COMPLETE,
-            "byte_budget": query.byte_budget,
-        }
-        encoded_size = len(canonical_json(probe).encode("utf-8"))
-        if encoded_size > query.byte_budget:
-            completeness = PacketCompleteness.BUDGET_EXHAUSTED
-            break
-        selected.append(proposed[-1])
+    try:
+        for candidate in candidates:
+            scanned += 1
+            if not isinstance(candidate, SemanticUnitCandidate):
+                raise TypeError("candidate stream must contain SemanticUnitCandidate values")
+            if not _matches(candidate, query):
+                continue
+            if len(selected) >= query.max_records:
+                completeness = PacketCompleteness.BUDGET_EXHAUSTED
+                break
+            proposed = selected + [_item(candidate)]
+            probe = {
+                "schema_version": "m2-memory-packet-v1",
+                "query_goal": query.query_goal,
+                "scope": query.scope,
+                "ranking_policy": query.ranking_policy,
+                "items": proposed,
+                "completeness": PacketCompleteness.COMPLETE,
+                "byte_budget": query.byte_budget,
+            }
+            encoded_size = len(canonical_json(probe).encode("utf-8"))
+            if encoded_size > query.byte_budget:
+                completeness = PacketCompleteness.BUDGET_EXHAUSTED
+                break
+            selected.append(proposed[-1])
+    except MemoryScanBudgetExceeded as exc:
+        scanned = max(scanned, exc.records_scanned)
+        completeness = PacketCompleteness.BUDGET_EXHAUSTED
     if not selected and completeness == PacketCompleteness.COMPLETE:
         completeness = PacketCompleteness.NOT_FOUND
     def encoded_payload():
@@ -210,3 +226,14 @@ def build_memory_packet(candidates: Iterable[SemanticUnitCandidate],
         byte_budget=query.byte_budget,
         records_scanned=scanned,
     )
+
+def build_memory_packet_from_store(reader, query: MemoryQuery) -> MemoryPacket:
+    """Build a packet directly from a bounded semantic-unit event reader."""
+    if not isinstance(query, MemoryQuery):
+        raise TypeError("query must be MemoryQuery")
+    if getattr(reader, "scope", None) != query.scope:
+        raise MemoryPacketError("semantic-unit reader scope does not match query scope")
+    if query.ranking_policy != "latest-lifecycle-event-desc-v1":
+        raise MemoryPacketError("store reader requires latest-lifecycle-event-desc-v1 ranking")
+    stream = reader.iter_current_candidates(max_events=query.max_scan_events)
+    return build_memory_packet(stream, query)
