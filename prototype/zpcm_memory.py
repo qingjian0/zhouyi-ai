@@ -212,6 +212,234 @@ class ZPCMMemory:
         END;
         """)
         self._rebuild_authorization_consumption_index()
+        self._ensure_e12a6_current_state_projection()
+
+    def _ensure_e12a6_current_state_projection(self) -> None:
+        """Maintain rebuildable, queryable E12-A6 current-state rows from the event log.
+
+        The append-only memory_events table remains authoritative. These tables
+        are derived projections and are updated by SQLite triggers in the same
+        transaction as each lifecycle event append.
+        """
+        with self.lock:
+            self.db.executescript("""
+            CREATE TABLE IF NOT EXISTS e12a6_candidate_state_projection(
+                scope TEXT NOT NULL,
+                candidate_id TEXT NOT NULL,
+                candidate_version INTEGER NOT NULL,
+                candidate_json TEXT NOT NULL,
+                source_seq INTEGER NOT NULL,
+                PRIMARY KEY(scope,candidate_id,candidate_version)
+            );
+            CREATE INDEX IF NOT EXISTS e12a6_candidate_state_by_scope_seq
+                ON e12a6_candidate_state_projection(scope,source_seq);
+            CREATE TABLE IF NOT EXISTS e12a6_evidence_state_projection(
+                scope TEXT NOT NULL,
+                evidence_id TEXT NOT NULL,
+                evidence_json TEXT NOT NULL,
+                source_seq INTEGER NOT NULL,
+                PRIMARY KEY(scope,evidence_id)
+            );
+            CREATE INDEX IF NOT EXISTS e12a6_evidence_state_by_scope_seq
+                ON e12a6_evidence_state_projection(scope,source_seq);
+            CREATE TABLE IF NOT EXISTS e12a6_action_state_projection(
+                scope TEXT NOT NULL,
+                action_id TEXT NOT NULL,
+                candidate_id TEXT NOT NULL,
+                candidate_version INTEGER NOT NULL,
+                action_json TEXT NOT NULL,
+                source_seq INTEGER NOT NULL,
+                PRIMARY KEY(scope,action_id)
+            );
+            CREATE INDEX IF NOT EXISTS e12a6_action_state_by_candidate
+                ON e12a6_action_state_projection(scope,candidate_id,candidate_version,source_seq);
+            CREATE TRIGGER IF NOT EXISTS e12a6_candidate_state_insert
+            AFTER INSERT ON memory_events
+            WHEN NEW.event_type='e12a6_lifecycle'
+             AND json_extract(NEW.payload_json,'$.kind') IN ('candidate_registered','revision_created')
+            BEGIN
+                INSERT INTO e12a6_candidate_state_projection(
+                    scope,candidate_id,candidate_version,candidate_json,source_seq
+                )
+                SELECT NEW.scope,
+                    json_extract(NEW.payload_json,'$.body.candidate.candidate_id'),
+                    json_extract(NEW.payload_json,'$.body.candidate.version'),
+                    json_extract(NEW.payload_json,'$.body.candidate'),NEW.seq
+                WHERE json_extract(NEW.payload_json,'$.body.candidate.candidate_id') IS NOT NULL
+                ON CONFLICT(scope,candidate_id,candidate_version) DO UPDATE SET
+                    candidate_json=excluded.candidate_json,source_seq=excluded.source_seq;
+            END;
+            CREATE TRIGGER IF NOT EXISTS e12a6_evidence_state_insert
+            AFTER INSERT ON memory_events
+            WHEN NEW.event_type='e12a6_lifecycle'
+             AND json_extract(NEW.payload_json,'$.kind')='evidence_registered'
+            BEGIN
+                INSERT INTO e12a6_evidence_state_projection(
+                    scope,evidence_id,evidence_json,source_seq
+                )
+                SELECT NEW.scope,
+                    json_extract(NEW.payload_json,'$.body.evidence.evidence_id'),
+                    json_extract(NEW.payload_json,'$.body.evidence'),NEW.seq
+                WHERE json_extract(NEW.payload_json,'$.body.evidence.evidence_id') IS NOT NULL
+                ON CONFLICT(scope,evidence_id) DO UPDATE SET
+                    evidence_json=excluded.evidence_json,source_seq=excluded.source_seq;
+            END;
+            CREATE TRIGGER IF NOT EXISTS e12a6_action_state_insert
+            AFTER INSERT ON memory_events
+            WHEN NEW.event_type='e12a6_lifecycle'
+             AND json_extract(NEW.payload_json,'$.kind')='action_applied'
+            BEGIN
+                INSERT INTO e12a6_action_state_projection(
+                    scope,action_id,candidate_id,candidate_version,action_json,source_seq
+                )
+                SELECT NEW.scope,
+                    json_extract(NEW.payload_json,'$.body.action.action_id'),
+                    json_extract(NEW.payload_json,'$.body.action.candidate_id'),
+                    json_extract(NEW.payload_json,'$.body.action.candidate_version'),
+                    json_extract(NEW.payload_json,'$.body.action'),NEW.seq
+                WHERE json_extract(NEW.payload_json,'$.body.action.action_id') IS NOT NULL
+                ON CONFLICT(scope,action_id) DO UPDATE SET
+                    candidate_id=excluded.candidate_id,
+                    candidate_version=excluded.candidate_version,
+                    action_json=excluded.action_json,source_seq=excluded.source_seq;
+                UPDATE e12a6_candidate_state_projection
+                SET candidate_json=json_set(
+                        candidate_json,'$.state',
+                        json_extract(NEW.payload_json,'$.body.action.to_state')
+                    ),
+                    source_seq=NEW.seq
+                WHERE scope=NEW.scope
+                  AND candidate_id=json_extract(NEW.payload_json,'$.body.action.candidate_id')
+                  AND candidate_version=json_extract(NEW.payload_json,'$.body.action.candidate_version')
+                  AND json_extract(NEW.payload_json,'$.body.action.to_state') IS NOT NULL;
+            END;
+            """)
+            # Idempotent streaming-compatible backfill for databases created
+            # before these triggers existed. INSERT OR REPLACE in seq order
+            # leaves the latest candidate revision per identity.
+            self.db.execute("""
+                INSERT OR REPLACE INTO e12a6_candidate_state_projection(
+                    scope,candidate_id,candidate_version,candidate_json,source_seq
+                )
+                SELECT scope,
+                    json_extract(payload_json,'$.body.candidate.candidate_id'),
+                    json_extract(payload_json,'$.body.candidate.version'),
+                    json_extract(payload_json,'$.body.candidate'),seq
+                FROM memory_events
+                WHERE event_type='e12a6_lifecycle'
+                  AND json_extract(payload_json,'$.kind') IN ('candidate_registered','revision_created')
+                  AND json_extract(payload_json,'$.body.candidate.candidate_id') IS NOT NULL
+                ORDER BY seq
+            """)
+            self.db.execute("""
+                INSERT OR REPLACE INTO e12a6_evidence_state_projection(
+                    scope,evidence_id,evidence_json,source_seq
+                )
+                SELECT scope,json_extract(payload_json,'$.body.evidence.evidence_id'),
+                    json_extract(payload_json,'$.body.evidence'),seq
+                FROM memory_events
+                WHERE event_type='e12a6_lifecycle'
+                  AND json_extract(payload_json,'$.kind')='evidence_registered'
+                  AND json_extract(payload_json,'$.body.evidence.evidence_id') IS NOT NULL
+                ORDER BY seq
+            """)
+            self.db.execute("""
+                INSERT OR REPLACE INTO e12a6_action_state_projection(
+                    scope,action_id,candidate_id,candidate_version,action_json,source_seq
+                )
+                SELECT scope,
+                    json_extract(payload_json,'$.body.action.action_id'),
+                    json_extract(payload_json,'$.body.action.candidate_id'),
+                    json_extract(payload_json,'$.body.action.candidate_version'),
+                    json_extract(payload_json,'$.body.action'),seq
+                FROM memory_events
+                WHERE event_type='e12a6_lifecycle'
+                  AND json_extract(payload_json,'$.kind')='action_applied'
+                  AND json_extract(payload_json,'$.body.action.action_id') IS NOT NULL
+                ORDER BY seq
+            """)
+            # Recompute each candidate's latest state from its last state-changing
+            # action. This also repairs a partially populated legacy projection.
+            self.db.execute("""
+                UPDATE e12a6_candidate_state_projection AS c
+                SET candidate_json=json_set(
+                        c.candidate_json,'$.state',
+                        (SELECT json_extract(e.payload_json,'$.body.action.to_state')
+                         FROM memory_events e
+                         WHERE e.event_type='e12a6_lifecycle'
+                           AND e.scope=c.scope
+                           AND json_extract(e.payload_json,'$.kind')='action_applied'
+                           AND json_extract(e.payload_json,'$.body.action.candidate_id')=c.candidate_id
+                           AND json_extract(e.payload_json,'$.body.action.candidate_version')=c.candidate_version
+                           AND json_extract(e.payload_json,'$.body.action.to_state') IS NOT NULL
+                         ORDER BY e.seq DESC LIMIT 1)
+                    ),
+                    source_seq=MAX(
+                        c.source_seq,
+                        COALESCE((SELECT MAX(e.seq) FROM memory_events e
+                         WHERE e.event_type='e12a6_lifecycle'
+                           AND e.scope=c.scope
+                           AND json_extract(e.payload_json,'$.kind')='action_applied'
+                           AND json_extract(e.payload_json,'$.body.action.candidate_id')=c.candidate_id
+                           AND json_extract(e.payload_json,'$.body.action.candidate_version')=c.candidate_version
+                           AND json_extract(e.payload_json,'$.body.action.to_state') IS NOT NULL),0)
+                    )
+                WHERE EXISTS(
+                    SELECT 1 FROM memory_events e
+                    WHERE e.event_type='e12a6_lifecycle' AND e.scope=c.scope
+                      AND json_extract(e.payload_json,'$.kind')='action_applied'
+                      AND json_extract(e.payload_json,'$.body.action.candidate_id')=c.candidate_id
+                      AND json_extract(e.payload_json,'$.body.action.candidate_version')=c.candidate_version
+                      AND json_extract(e.payload_json,'$.body.action.to_state') IS NOT NULL
+                )
+            """)
+
+    def get_lifecycle_candidate_projection(
+        self, *, scope: str, candidate_id: str, candidate_version: int,
+    ) -> dict[str, Any] | None:
+        row = self.db.execute(
+            "SELECT candidate_json,source_seq FROM e12a6_candidate_state_projection "
+            "WHERE scope=? AND candidate_id=? AND candidate_version=?",
+            (scope,candidate_id,candidate_version),
+        ).fetchone()
+        if row is None:
+            return None
+        return {"candidate":json.loads(row["candidate_json"]),"source_seq":int(row["source_seq"])}
+
+    def get_lifecycle_evidence_projection(
+        self, *, scope: str, evidence_id: str,
+    ) -> dict[str, Any] | None:
+        row = self.db.execute(
+            "SELECT evidence_json,source_seq FROM e12a6_evidence_state_projection "
+            "WHERE scope=? AND evidence_id=?",(scope,evidence_id),
+        ).fetchone()
+        if row is None:
+            return None
+        return {"evidence":json.loads(row["evidence_json"]),"source_seq":int(row["source_seq"])}
+
+    def get_lifecycle_action_projection(
+        self, *, scope: str, action_id: str,
+    ) -> dict[str, Any] | None:
+        row = self.db.execute(
+            "SELECT action_json,source_seq FROM e12a6_action_state_projection "
+            "WHERE scope=? AND action_id=?",(scope,action_id),
+        ).fetchone()
+        if row is None:
+            return None
+        return {"action":json.loads(row["action_json"]),"source_seq":int(row["source_seq"])}
+
+    def lifecycle_state_projection_counts(self, *, scope: str) -> dict[str, int]:
+        counts={}
+        for kind,table in (
+            ("candidates","e12a6_candidate_state_projection"),
+            ("evidence","e12a6_evidence_state_projection"),
+            ("actions","e12a6_action_state_projection"),
+        ):
+            counts[kind]=int(self.db.execute(
+                f"SELECT COUNT(*) FROM {table} WHERE scope=?",(scope,)
+            ).fetchone()[0])
+        return counts
+
     def close(self):
         with self.lock:self.db.close()
     def _authorization_checkpoint_digest(self, high_water_seq: int) -> str:
