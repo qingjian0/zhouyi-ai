@@ -20,11 +20,12 @@ class CpgEiSelectionSweepTests(unittest.TestCase):
         for row in report['records']:
             self.assertEqual((row['train_examples'], row['proposal_examples'], row['locked_test_examples']), (40, 12 if row['selection_protocol'] == 'proposal_split' else 0, 12))
             self.assertEqual(len(row['ood_bit_accuracy_by_family']), 2)
+            self.assertEqual(len(row['oracle_ood_bit_accuracy_by_family']), 2)
             self.assertIn(row['selection_protocol'], ('proposal_split', 'legacy_train_ranked'))
             self.assertEqual(row['proposal_examples'], 12 if row['selection_protocol'] == 'proposal_split' else 0)
             self.assertEqual(row['selection_metric_source'], 'proposal' if row['selection_protocol'] == 'proposal_split' else 'train')
             self.assertTrue(math.isfinite(row['selection_bce']))
-            for key in ('support_precision', 'support_recall', 'locked_test_bit_accuracy'):
+            for key in ('support_precision', 'support_recall', 'locked_test_bit_accuracy', 'oracle_locked_test_bit_accuracy'):
                 self.assertTrue(math.isfinite(row[key]))
                 self.assertGreaterEqual(row[key], 0.0)
                 self.assertLessEqual(row[key], 1.0)
