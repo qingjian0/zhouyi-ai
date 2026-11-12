@@ -7,6 +7,7 @@ on:
       - research/n010-heldout-group-isolation-2026-11-12
       - research/n010-required-source-provenance-2026-11-12
       - research/n010-group-index-integrity-2026-11-12
+      - research/n010-index-build-snapshot-integrity-2026-11-12
   pull_request:
     branches:
       - research/n010-reiterable-fullbatch-gradient-2026-11-12
