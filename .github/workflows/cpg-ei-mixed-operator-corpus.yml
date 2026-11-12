@@ -46,7 +46,7 @@ jobs:
       - name: Upload corpus and manifest
         uses: actions/upload-artifact@v4
         with:
-          name: zhouyi-cpg-ei-mixed-operator-v1
+          name: zhouyi-cpg-ei-mixed-operator-v1-100k
           path: |
             /tmp/zhouyi-cpg-ei-mixed-v1.jsonl
             /tmp/zhouyi-cpg-ei-mixed-v1-manifest.json
