@@ -254,7 +254,17 @@ def compose_trlw_grounded_yixiang_hypotheses(
 class TRLWYixiangCsgGcrResult:
     working_set: TRLWYixiangComposition
     csg_gcr: YixiangCsgGcrResult
+    srok_search_exhaustive: bool
+    csg_gcr_search_exhaustive: bool
     lifecycle_advanced: bool = False
+
+    @property
+    def end_to_end_search_exhaustive(self) -> bool:
+        return (
+            self.working_set.search_exhaustive
+            and self.srok_search_exhaustive
+            and self.csg_gcr_search_exhaustive
+        )
 
 
 def coordinate_trlw_grounded_yixiang_csg_gcr(
@@ -293,4 +303,6 @@ def coordinate_trlw_grounded_yixiang_csg_gcr(
     return TRLWYixiangCsgGcrResult(
         working_set=working_set,
         csg_gcr=coordinated,
+        srok_search_exhaustive=not working_set.grounded.composition.search.budget_exhausted,
+        csg_gcr_search_exhaustive=coordinated.coordination.status != "BUDGET_EXHAUSTED",
     )
