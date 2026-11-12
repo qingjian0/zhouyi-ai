@@ -357,6 +357,25 @@ class E09AuthorityServiceTests(unittest.TestCase):
         self.assertEqual(revision["integrity_metadata"]["authenticated_workload"]["workload_id"],
                          "spiffe://zhouyi/learner")
 
+    def test_unassigned_learner_cannot_write_structure_checkpoint(self):
+        with self.assertRaises(E09AuthorizationError):
+            self.authority.append_structure_version(
+                "learner-b-cert",
+                episode_id=self.episode,
+                event_id=f"{self.episode}:structure:unassigned",
+                idempotency_key=f"{self.episode}:structure:unassigned",
+                scope=self.scope,
+                learner_track="learner-a",
+                payload={
+                    "structure_id": "unassigned",
+                    "version_id": "unassigned-v1",
+                    "kind": "rule_set",
+                    "definition": {},
+                    "parent_version_ids": [],
+                    "support_evidence_ids": [],
+                },
+            )
+
     def test_gate_reveal_cannot_be_used_as_structure_support(self):
         bootstrap_ref = f"{self.episode}:structure:gate-bootstrap"
         self.authority.append_structure_version(
