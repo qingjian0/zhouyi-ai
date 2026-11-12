@@ -32,3 +32,6 @@ A successful diagnostic is not evidence of open-ended relation discovery.
 ## Negative control: shuffled training labels
 
 A deterministic negative control shuffles training targets across training states while leaving validation examples untouched. It reports validation bit accuracy, recovery of the known teacher support, false discoveries, active-edge count, and the finite candidate-universe size. This is a diagnostic measurement only; no post-hoc acceptance threshold is imposed. The control is intended to expose spurious structure recovery when the state/target relationship is destroyed.
+
+
+A second negative control independently permutes each training feature column across examples while preserving each feature's marginal distribution and leaving labels untouched. It reports the same structure-recovery metrics as the shuffled-label control. This tests whether the learner depends on the original joint feature/target structure rather than marginal feature frequencies alone.
