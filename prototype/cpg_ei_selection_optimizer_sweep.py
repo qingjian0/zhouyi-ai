@@ -64,6 +64,7 @@ def run_selection_optimizer_sweep(
             for learning_rate in learning_rates:
                 for protocol in ("proposal_split", "legacy_train_ranked"):
                     model = CpgEiTransitionModel.create(active_relation_indices=set())
+                    ranking_partition = "proposal" if protocol == "proposal_split" else "train"
                     kwargs = {"proposal_examples": proposal} if protocol == "proposal_split" else {}
                     result = grow_relation_graph_joint_motifs(
                         model,
@@ -95,14 +96,21 @@ def run_selection_optimizer_sweep(
                         "selected_motif_count": len(result["selected_motifs"]),
                         "candidate_fits": result["candidate_fits_total"],
                         "training_passes": epochs * (1 + result["candidate_fits_total"]),
-                        "proposal_selection_bce": result["proposal_selection_binary_cross_entropy"],
+                        # The legacy baseline deliberately ranks on train BCE;
+                        # do not label that score as proposal-held-out evidence.
+                        "candidate_ranking_partition": ranking_partition,
+                        "candidate_ranking_bce": result["proposal_selection_binary_cross_entropy"],
+                        "proposal_selection_bce": (
+                            result["proposal_selection_binary_cross_entropy"]
+                            if ranking_partition == "proposal" else None
+                        ),
                         "locked_test_bce": result["validation_binary_cross_entropy"],
                         "locked_test_bit_accuracy": result["validation"]["bit_accuracy"],
                         "ood_bit_accuracy_by_family": ood,
                         **_support_metrics(result["active_edges"], expected),
                     }
                     metrics = [
-                        record["proposal_selection_bce"],
+                        record["candidate_ranking_bce"],
                         record["locked_test_bce"],
                         record["locked_test_bit_accuracy"],
                         record["support_precision"],
@@ -149,7 +157,11 @@ def run_selection_optimizer_sweep(
         "regularization": {"gate_l1": 0.001, "edge_group_l1": 0.001},
         "summary": summary,
         "records": records,
-        "selection_metric": "proposal_selection_bce_only",
+        "selection_metric": "candidate_ranking_bce_on_protocol_specific_partition",
+        "ranking_partitions": {
+            "proposal_split": "proposal",
+            "legacy_train_ranked": "train",
+        },
         "locked_and_ood_metrics_used_for_selection": False,
         "claim_boundary": (
             "Finite synthetic six-bit parity families only. This sweep tests "
