@@ -43,9 +43,45 @@ class ZPCMMemory:
             singleton INTEGER PRIMARY KEY CHECK(singleton=1),
             schema_version TEXT NOT NULL,
             high_water_seq INTEGER NOT NULL CHECK(high_water_seq>=0),
-            checkpoint_digest TEXT NOT NULL
+            checkpoint_digest TEXT NOT NULL,
+            projection_generation INTEGER NOT NULL DEFAULT -1
         );
+        CREATE TABLE IF NOT EXISTS e12a6_authorization_projection_state(
+            singleton INTEGER PRIMARY KEY CHECK(singleton=1),
+            generation INTEGER NOT NULL CHECK(generation>=0)
+        );
+        INSERT OR IGNORE INTO e12a6_authorization_projection_state(singleton,generation) VALUES(1,0);
         CREATE INDEX IF NOT EXISTS memory_events_type_seq ON memory_events(event_type,seq);
+        """)
+        checkpoint_columns = {
+            row["name"] for row in self.db.execute(
+                "PRAGMA table_info(e12a6_authorization_projection_checkpoint)"
+            )
+        }
+        if "projection_generation" not in checkpoint_columns:
+            self.db.execute(
+                "ALTER TABLE e12a6_authorization_projection_checkpoint "
+                "ADD COLUMN projection_generation INTEGER NOT NULL DEFAULT -1"
+            )
+        self.db.executescript("""
+        CREATE TRIGGER IF NOT EXISTS e12a6_projection_generation_insert
+        AFTER INSERT ON e12a6_authorization_consumptions
+        BEGIN
+            UPDATE e12a6_authorization_projection_state
+            SET generation=generation+1 WHERE singleton=1;
+        END;
+        CREATE TRIGGER IF NOT EXISTS e12a6_projection_generation_update
+        AFTER UPDATE ON e12a6_authorization_consumptions
+        BEGIN
+            UPDATE e12a6_authorization_projection_state
+            SET generation=generation+1 WHERE singleton=1;
+        END;
+        CREATE TRIGGER IF NOT EXISTS e12a6_projection_generation_delete
+        AFTER DELETE ON e12a6_authorization_consumptions
+        BEGIN
+            UPDATE e12a6_authorization_projection_state
+            SET generation=generation+1 WHERE singleton=1;
+        END;
         """)
         self._rebuild_authorization_consumption_index()
     def close(self):
@@ -69,12 +105,18 @@ class ZPCMMemory:
             # checkpoint. Do not jump over them; startup will catch them up.
             return
         target = max(current, int(high_water_seq))
+        projection_generation = int(self.db.execute(
+            "SELECT generation FROM e12a6_authorization_projection_state WHERE singleton=1"
+        ).fetchone()[0])
         self.db.execute(
-            "INSERT INTO e12a6_authorization_projection_checkpoint(singleton,schema_version,high_water_seq,checkpoint_digest) "
-            "VALUES(1,?,?,?) ON CONFLICT(singleton) DO UPDATE SET "
+            "INSERT INTO e12a6_authorization_projection_checkpoint("
+            "singleton,schema_version,high_water_seq,checkpoint_digest,projection_generation) "
+            "VALUES(1,?,?,?,?) ON CONFLICT(singleton) DO UPDATE SET "
             "schema_version=excluded.schema_version,high_water_seq=excluded.high_water_seq,"
-            "checkpoint_digest=excluded.checkpoint_digest",
-            (self.AUTHORIZATION_PROJECTION_VERSION,target,self._authorization_checkpoint_digest(target)),
+            "checkpoint_digest=excluded.checkpoint_digest,"
+            "projection_generation=excluded.projection_generation",
+            (self.AUTHORIZATION_PROJECTION_VERSION,target,
+             self._authorization_checkpoint_digest(target),projection_generation),
         )
 
     def _rebuild_authorization_consumption_index(self, *, force: bool = False):
@@ -90,9 +132,12 @@ class ZPCMMemory:
                 "SELECT COALESCE(MAX(seq),0) FROM memory_events"
             ).fetchone()[0])
             checkpoint = self.db.execute(
-                "SELECT schema_version,high_water_seq,checkpoint_digest "
+                "SELECT schema_version,high_water_seq,checkpoint_digest,projection_generation "
                 "FROM e12a6_authorization_projection_checkpoint WHERE singleton=1"
             ).fetchone()
+            projection_generation = int(self.db.execute(
+                "SELECT generation FROM e12a6_authorization_projection_state WHERE singleton=1"
+            ).fetchone()[0])
             valid = False
             cursor = 0
             if checkpoint is not None and not force:
@@ -102,6 +147,7 @@ class ZPCMMemory:
                         checkpoint["schema_version"] == self.AUTHORIZATION_PROJECTION_VERSION
                         and 0 <= saved <= max_seq
                         and checkpoint["checkpoint_digest"] == self._authorization_checkpoint_digest(saved)
+                        and int(checkpoint["projection_generation"]) == projection_generation
                     )
                     if valid:
                         cursor = saved
