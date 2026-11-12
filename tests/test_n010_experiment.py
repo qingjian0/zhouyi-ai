@@ -33,6 +33,7 @@ class N010ExperimentRunnerTests(unittest.TestCase):
                          "tags": ["eligible"], "evidence_ids": []},
                     ])
                 rows.append({"id": f"{prefix}-{index}", "split": split,
+                             "rule_family": "family-A" if split != "locked_test" else "family-OOD",
                              "nodes": nodes, "target_ids": targets})
         self.dataset.write_text(
             "".join(json.dumps(row, sort_keys=True) + "\n" for row in rows),
@@ -52,6 +53,8 @@ class N010ExperimentRunnerTests(unittest.TestCase):
         self.assertEqual(len(manifest["split_ids"]["train"]), 3)
         self.assertEqual(len(manifest["split_ids"]["dev"]), 3)
         self.assertEqual(len(manifest["split_ids"]["locked_test"]), 3)
+        self.assertEqual(manifest["rule_families_by_split"]["locked_test"], ["family-OOD"])
+        self.assertEqual(manifest["rule_families_by_split"]["train"], ["family-A"])
         self.assertTrue(set(manifest["split_ids"]["train"]).isdisjoint(
             manifest["split_ids"]["dev"]))
         self.assertTrue(set(manifest["split_ids"]["train"]).isdisjoint(
