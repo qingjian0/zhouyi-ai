@@ -2,6 +2,7 @@ import json
 import tempfile
 import unittest
 from unittest.mock import patch
+import prototype.e12a6_zpcm_persistence as persistence
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -136,6 +137,35 @@ class PersistentLifecycleTests(unittest.TestCase):
         self.assertFalse(scratch_path.exists())
         # Closing twice is deliberately idempotent.
         self.store.close()
+
+    def test_restore_uses_one_scratch_store_and_cleans_it_on_replay_failure(self):
+        created_states = []
+        original_factory = persistence._new_sqlite_lifecycle_ledger
+
+        def tracked_factory():
+            ledger, state = original_factory()
+            created_states.append(state)
+            return ledger, state
+
+        with patch.object(persistence, "_new_sqlite_lifecycle_ledger", side_effect=tracked_factory):
+            restored = PersistentLifecycleLedger(self.memory, scope="scratch-success")
+        self.assertEqual(len(created_states), 1)
+        restored.close()
+        self.assertFalse(Path(created_states[0].path).exists())
+
+        self.memory.append_lifecycle_event(
+            event_id="e12a6:invalid-kind",
+            scope="scratch-corrupt",
+            payload={"schema_version": EVENT_SCHEMA, "kind": "unknown_kind", "body": {}},
+            expected_sequence=0,
+        )
+        created_states.clear()
+        with patch.object(persistence, "_new_sqlite_lifecycle_ledger", side_effect=tracked_factory):
+            with self.assertRaises(LifecyclePersistenceError):
+                PersistentLifecycleLedger(self.memory, scope="scratch-corrupt")
+
+        self.assertEqual(len(created_states), 1)
+        self.assertFalse(Path(created_states[0].path).exists())
 
     def test_append_failure_does_not_mutate_in_memory_ledger(self):
         self.store.register_candidate(candidate()); before=self.store.snapshot(); original=self.memory.append_lifecycle_event
