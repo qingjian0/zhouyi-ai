@@ -75,6 +75,8 @@ The Yixiang adapter now also accepts a completed TRLW `MemoryPacket` through `co
 
 The new `coordinate_trlw_grounded_yixiang_csg_gcr` entry point composes the bounded packet through explicit XSL role transformation, bounded SROK assignment search, and typed CSG-GCR coordination. It returns the packet completeness metadata beside the typed proposals. Every proposal remains `HYPOTHESIS_ONLY`; this function does not consume an E09 verification receipt and never advances E12-A6 lifecycle.
 
+End-to-end completeness is the conjunction of three independent conditions: TRLW source/packet completeness, no SROK expansion-budget exhaustion, and no CSG-GCR coordination-budget exhaustion. A complete TRLW packet alone is not sufficient to claim exhaustive reasoning.
+
 This PR branch still does not itself contain the persistent ZPCM candidate store. The persistent candidate iterator is being developed separately in PR #273; once both branches are integrated, it can feed TRLW and then this packet adapter without materializing full history.
 
 ## Not implemented

@@ -175,6 +175,31 @@ class M2YixiangGroundingAdapterTests(unittest.TestCase):
                 proposal.proposal.evidence_refs,
             )
 
+    def test_srok_expansion_budget_is_included_in_end_to_end_completeness(self):
+        packet = build_trlw_working_set(
+            (self.relation, *self.workspace),
+            TRLWQuery(
+                query_goal="compose grounded causal relation",
+                scope="world:test",
+                max_records=8,
+                byte_budget=100_000,
+            ),
+            source_complete=True,
+        )
+        result = coordinate_trlw_grounded_yixiang_csg_gcr(
+            packet,
+            relation_record_id="relation:causes:1",
+            relation_type="causes",
+            e09_event_refs_by_record=self.e09,
+            transform=self.transform,
+            parent_state_ref="state:root",
+            branch_id="branch:yixiang-test",
+            max_expansions=1,
+        )
+        self.assertTrue(result.working_set.search_exhaustive)
+        self.assertFalse(result.srok_search_exhaustive)
+        self.assertFalse(result.end_to_end_search_exhaustive)
+
     def test_incomplete_trlw_packet_never_claims_exhaustive_search(self):
         records = (self.relation, *self.workspace)
         packet = build_trlw_working_set(
