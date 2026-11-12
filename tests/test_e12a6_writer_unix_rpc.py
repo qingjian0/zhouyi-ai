@@ -47,6 +47,9 @@ def _snapshot_wire(snapshot):
 
 @unittest.skipUnless(hasattr(socket, "SO_PEERCRED"), "Linux SO_PEERCRED is required")
 class E12A6WriterUnixRPCTests(unittest.TestCase):
+    _add_reveal = E12A6WriterServiceTests._add_reveal
+    _make_proposals_and_snapshots = E12A6WriterServiceTests._make_proposals_and_snapshots
+
     def setUp(self):
         E12A6WriterServiceTests.setUp(self)
         self.tmp_rpc = tempfile.TemporaryDirectory()
