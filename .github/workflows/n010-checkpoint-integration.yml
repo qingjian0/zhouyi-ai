@@ -1,0 +1,18 @@
+name: n010-checkpoint-integration
+
+on:
+  pull_request:
+    branches:
+      - research/n010-pairwise-parity-benchmark-2026-11-12
+
+jobs:
+  n010-checkpoint-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run N0.10 learner and checkpoint integration tests
+        run: |
+          python -m unittest tests.test_n09_learnable_srok tests.test_n010_checkpoint_integration -v
