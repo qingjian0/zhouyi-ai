@@ -1,6 +1,9 @@
 name: cpg-ei-multiseed-diagnostic
 
 on:
+  push:
+    branches:
+      - research/cpg-ei-multiseed-diagnostics-2026-11-12
   pull_request:
     branches:
       - research/cpg-ei-learnable-gates-v3-2026-11-12
