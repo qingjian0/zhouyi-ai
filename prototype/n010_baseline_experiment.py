@@ -11,6 +11,7 @@ import argparse
 import itertools
 import json
 import math
+import random
 from pathlib import Path
 from typing import Sequence
 
@@ -20,6 +21,7 @@ from prototype.n09_learnable_srok import (
 from prototype.n010_baselines import (
     BaselineConfig, ParameterMatchedLowRankTensor, ParameterMatchedMLP,
     match_mlp_hidden_dim, match_tensor_rank, xiang_parameter_count,
+    mlp_parameter_count, low_rank_tensor_parameter_count,
 )
 from prototype.n010_experiment import load_dataset
 from prototype.n010_xiang_operator import LearnableXiangOperator, XiangConfig
@@ -136,10 +138,27 @@ def run_comparison(dataset_path: str | Path, roles: Sequence[RoleSpec],
         histories[name] = model.fit(
             train_rows, epochs=epochs, learning_rate=learning_rate, l2=l2,
         )
+    interaction_blocks = (
+        len(roles) + len(roles) * (len(roles) - 1) // 2
+        + len(roles) * (len(roles) - 1) * (len(roles) - 2) // 6
+    )
+    xiang_total = target_params
+    xiang_readout = latent_dim * interaction_blocks
+    mlp_params = mlp_parameter_count(len(roles), feature_dim, hidden_dim)
+    tensor_params = low_rank_tensor_parameter_count(len(roles), feature_dim, rank)
+    parameter_counts = {
+        "learnable_xiang": (xiang_total, xiang_total),
+        "fixed_random_xiang": (xiang_total, xiang_readout),
+        "parameter_matched_mlp": (mlp_params, mlp_params),
+        "parameter_matched_low_rank_tensor": (tensor_params, tensor_params),
+    }
     reports = {}
     for name, model in models.items():
+        total_params, trainable_params = parameter_counts[name]
         reports[name] = {
-            "parameter_count": getattr(model, "parameter_count", target_params),
+            "parameter_count": total_params,
+            "total_parameter_count": total_params,
+            "trainable_parameter_count": trainable_params,
             "training_steps": model.training_steps,
             "final_train_loss": histories[name][-1],
             "dev": _metrics(model, splits["dev"], max_expansions),
@@ -210,18 +229,72 @@ def run_multi_seed_comparison(dataset_path: str | Path, roles: Sequence[RoleSpec
                     "ci95_normal": [max(0.0, avg - half_width), min(1.0, avg + half_width)],
                     "per_seed": values,
                 }
+    higher_is_better = {
+        "exact_match_accuracy", "mrr", "recall_at_1", "recall_at_3", "recall_at_5",
+    }
+    comparisons = {}
+    reference_models = tuple(name for name in runs[0]["models"]
+                             if name != "learnable_xiang")
+    bootstrap_rng = random.Random(20261112)
+    bootstrap_samples = 10000
+
+    def percentile(sorted_values, probability):
+        if len(sorted_values) == 1:
+            return sorted_values[0]
+        position = probability * (len(sorted_values) - 1)
+        lower = int(position)
+        upper = min(lower + 1, len(sorted_values) - 1)
+        fraction = position - lower
+        return sorted_values[lower] * (1.0 - fraction) + sorted_values[upper] * fraction
+
+    for split_name in ("dev", "locked_test"):
+        comparisons[split_name] = {}
+        for reference in reference_models:
+            comparison_name = f"learnable_xiang_minus_{reference}"
+            comparisons[split_name][comparison_name] = {}
+            for metric in metric_names:
+                deltas = [
+                    run["models"]["learnable_xiang"][split_name][metric]
+                    - run["models"][reference][split_name][metric]
+                    for run in runs
+                ]
+                sampled_means = []
+                for _ in range(bootstrap_samples):
+                    sample = [deltas[bootstrap_rng.randrange(len(deltas))]
+                              for _ in range(len(deltas))]
+                    sampled_means.append(math.fsum(sample) / len(sample))
+                sampled_means.sort()
+                mean_delta = math.fsum(deltas) / len(deltas)
+                comparisons[split_name][comparison_name][metric] = {
+                    "mean_delta": mean_delta,
+                    "bootstrap_ci95_percentile": [
+                        percentile(sampled_means, 0.025),
+                        percentile(sampled_means, 0.975),
+                    ],
+                    "per_seed_delta": deltas,
+                    "direction": "higher_is_better" if metric in higher_is_better else "lower_is_better",
+                }
+
     result = {
-        "schema": "zhouyi-ai.n010-baseline-multiseed-v1",
+        "schema": "zhouyi-ai.n010-baseline-multiseed-v2",
         "dataset_manifest": runs[0]["dataset_manifest"],
         "seeds": list(seed_values), "seed_count": len(seed_values),
         "config": runs[0]["config"],
         "models": aggregates,
+        "paired_comparisons": comparisons,
+        "bootstrap": {
+            "method": "paired_seed_resampling_percentile",
+            "resamples": bootstrap_samples,
+            "seed": 20261112,
+            "unit": "matched_seed",
+            "warning": "Seed-level bootstrap is exploratory with small seed counts; use at least 30 seeds for final claims.",
+        },
         "per_seed_reports": [
             {"seed": seed, "path": str(output.with_name(
                 f"{output.stem}.seed-{seed}{output.suffix}"))}
             for seed in seed_values
         ],
-        "interval_note": "normal-approximation 95% CI across independent seeds; use paired bootstrap for final claims",
+        "interval_note": "model means include normal-approximation intervals; paired model deltas use deterministic percentile bootstrap over matched seeds",
     }
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(result, sort_keys=True, indent=2,
@@ -237,7 +310,10 @@ def main():
     parser.add_argument("--feature-dim", required=True, type=int)
     parser.add_argument("--roles-json", required=True)
     parser.add_argument("--latent-dim", type=int, default=8)
-    parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--seed", type=int, default=0,
+                        help="single-run seed; ignored when --seeds is supplied")
+    parser.add_argument("--seeds", default=None,
+                        help="comma-separated independent seeds, e.g. 0,1,2,...,9")
     parser.add_argument("--epochs", type=int, default=100)
     parser.add_argument("--learning-rate", type=float, default=0.03)
     parser.add_argument("--l2", type=float, default=1e-4)
@@ -246,12 +322,24 @@ def main():
     role_rows = json.loads(args.roles_json)
     roles = tuple(RoleSpec(x["name"], frozenset(x.get("allowed_types", [])),
                            frozenset(x.get("required_tags", []))) for x in role_rows)
-    result = run_comparison(
-        args.dataset, roles, args.feature_dim, args.output,
-        latent_dim=args.latent_dim, seed=args.seed, epochs=args.epochs,
-        learning_rate=args.learning_rate, l2=args.l2,
-        max_expansions=args.max_expansions,
-    )
+    if args.seeds is not None:
+        try:
+            seeds = tuple(int(value.strip()) for value in args.seeds.split(",") if value.strip())
+        except ValueError as exc:
+            parser.error(f"--seeds must be comma-separated integers: {exc}")
+        result = run_multi_seed_comparison(
+            args.dataset, roles, args.feature_dim, args.output,
+            seeds=seeds, latent_dim=args.latent_dim, epochs=args.epochs,
+            learning_rate=args.learning_rate, l2=args.l2,
+            max_expansions=args.max_expansions,
+        )
+    else:
+        result = run_comparison(
+            args.dataset, roles, args.feature_dim, args.output,
+            latent_dim=args.latent_dim, seed=args.seed, epochs=args.epochs,
+            learning_rate=args.learning_rate, l2=args.l2,
+            max_expansions=args.max_expansions,
+        )
     print(json.dumps(result, sort_keys=True, indent=2, ensure_ascii=False))
 
 
