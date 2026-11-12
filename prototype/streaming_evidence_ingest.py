@@ -134,6 +134,48 @@ class SQLiteEvidenceIngestor:
         material = f"zhouyi-evidence-chunk-v1\0{document_id}\0{ordinal}\0{digest}"
         return hashlib.sha256(material.encode("utf-8")).hexdigest()
 
+    @staticmethod
+    def _verify_committed_prefix(
+        db: sqlite3.Connection,
+        document_id: str,
+        stream: BinaryIO,
+        expected_offset: int,
+        expected_ordinal: int,
+        chunk_bytes: int,
+    ) -> None:
+        """Re-hash the persisted prefix before resuming or declaring idempotence.
+
+        This is O(bytes already ingested) I/O but O(chunk_bytes) memory. It
+        prevents a reused document ID from silently appending a different
+        source file to an existing evidence sequence.
+        """
+        cursor = 0
+        ordinal = 0
+        rows = db.execute(
+            """SELECT ordinal, byte_start, byte_end, content_sha256
+               FROM evidence_chunks WHERE document_id = ? ORDER BY ordinal""",
+            (document_id,),
+        )
+        for stored_ordinal, start, end, expected_digest in rows:
+            if (
+                stored_ordinal != ordinal
+                or start != cursor
+                or end <= start
+                or end - start > chunk_bytes
+            ):
+                raise IngestContractError("persisted evidence spans are not contiguous")
+            stream.seek(start)
+            raw = stream.read(end - start)
+            if len(raw) != end - start:
+                raise IngestContractError("source is shorter than the committed evidence prefix")
+            if hashlib.sha256(raw).hexdigest() != expected_digest:
+                raise IngestContractError("source bytes differ from the committed evidence prefix")
+            cursor = end
+            ordinal += 1
+        if cursor != expected_offset or ordinal != expected_ordinal:
+            raise IngestContractError("persisted resume cursor does not match evidence chunks")
+        stream.seek(expected_offset)
+
     def ingest(
         self,
         document_id: str,
@@ -181,6 +223,9 @@ class SQLiteEvidenceIngestor:
                     raise IngestContractError(
                         "resume metadata mismatch: source_name and chunk_bytes are immutable"
                     )
+                self._verify_committed_prefix(
+                    db, document_id, stream, offset, ordinal, chunk_bytes
+                )
                 if complete:
                     db.commit()
                     return IngestResult(document_id, 0, offset, True, tokenizer is not None)
