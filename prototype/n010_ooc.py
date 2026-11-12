@@ -139,6 +139,9 @@ class N010StreamingDataset:
         """)
         self._db.execute("CREATE INDEX records_split_idx ON records(split)")
         self._db.execute("CREATE INDEX records_family_idx ON records(rule_family, split)")
+        self._db.execute("CREATE INDEX records_group_idx ON records(group_id, split)")
+        self._db.execute("CREATE INDEX records_source_group_idx ON records(source_group_id, split)")
+        self._db.execute("CREATE INDEX records_episode_idx ON records(episode_id, split)")
         self._db.commit()
         self.sha256 = _sha256_file(self.path)
         try:
