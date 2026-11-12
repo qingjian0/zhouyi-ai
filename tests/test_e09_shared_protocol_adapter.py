@@ -92,7 +92,7 @@ class E09SharedProtocolAdapterTests(unittest.TestCase):
                 return "spiffe://test/learner"
 
         authority = E09AuthorityService(
-            self.store, authenticator=authenticator, signer=Signer(),
+            self.store, authenticator=Authenticator(), signer=Signer(),
             domain_registry=DomainRegistry(),
             learner_binding_resolver=LearnerBindingRegistry(),
         )
@@ -197,7 +197,7 @@ class E09SharedProtocolAdapterTests(unittest.TestCase):
                 return "spiffe://test/learner"
 
         authority = E09AuthorityService(
-            self.store, authenticator=Authenticator(), signer=Signer(),
+            self.store, authenticator=authenticator, signer=Signer(),
             domain_registry=DomainRegistry(),
             learner_binding_resolver=LearnerBindingRegistry(),
         )
