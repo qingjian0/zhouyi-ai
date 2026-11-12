@@ -239,3 +239,12 @@ A failed earlier run on an older SHA is not evidence that the current exact head
 - PR #363 exact head `5f7b0933404cd7344e2aa41c86d308272d40ed9b`, workflow run #43211461122: success; 9 tests (203.58 s).
 - On seed 11, joint motifs used 696 training passes vs greedy 700 (0.571% budget gap). Both recovered all 12 planted support edges; joint precision was 1.000 (12 active edges) vs greedy 0.923 (13 active edges).
 - Important counter-signal: held-out validation bit accuracy was 0.5365 for joint vs 0.8229 for greedy. Thus support recovery on this synthetic seed did not translate to held-out predictive quality. Joint selection is promising as a structural proposal mechanism, but the current train-BCE selection is likely overfitting or otherwise misaligned with held-out generalization. Do not promote it as the default; next study should add multiple-seed matched-compute evaluation and separate structure metrics from predictive metrics.
+
+
+### N0.10 isolated locked-test evaluator and cross-artifact group guard (2026-11-12)
+
+- PR #365 exact head `25316bd14dd9c331eb7b3825e6e1e20b01090ca2`, workflow run #43213101734: success; 14 tests.
+- PR #366 exact head `9299a9b54c8bc3fd5a5a800e14554cc98d914437`, workflow run #43213940381: success; 15 tests.
+- #365 separates train/dev JSONL from the locked-test artifact and exposes a separate locked-test evaluator. It streams evaluation predictions directly to JSONL and uses a SQLite metadata-only index.
+- #366 persists field-scoped SHA-256 fingerprints for declared group/source-group/episode IDs in a SQLite sidecar and rejects held-out group overlap with train/dev before locked-test prediction.
+- Boundary: the guard can only enforce identifiers actually supplied by dataset producers. Missing source provenance cannot be inferred. The group sidecar must travel with the checkpoint. These tests establish logical isolation checks, not OS-level process sandboxing or measured RSS bounds.
