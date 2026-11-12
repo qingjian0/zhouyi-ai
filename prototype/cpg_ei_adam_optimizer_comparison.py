@@ -22,7 +22,7 @@ from prototype.cpg_ei_selection_sweep import (
 )
 
 DEFAULT_SEEDS = (11, 23, 47, 89, 131)
-SGD_RATES = (0.35, 0.7, 1.0)
+SGD_RATES = (2.1, 4.2, 6.0, 12.0)
 ADAM_RATES = (0.003, 0.01, 0.03, 0.1)
 REGULARIZERS = {
     "default": {"l2": 1e-4, "gate_l1": 1e-4, "edge_group_l1": 0.0},
