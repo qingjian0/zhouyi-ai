@@ -40,12 +40,16 @@ be derived before receipt issuance.
 
 ## Legacy policy
 
-E09 v0.3 remains readable only through the explicit legacy compatibility
-resolver that requires caller-supplied migration context. It is not accepted
-by the v0.4 verifier receipt path. Do not silently infer domain metadata from
-scope names or rewrite old events. Migration requires an independently
-authorized registry mapping and a new provenance event; otherwise quarantine
-the old evidence from domain-sensitive training and cross-domain transfer.
+E09 v0.3 can be inspected only through the resolver's explicit
+`allow_legacy_migration=True` compatibility path and caller-supplied migration
+context. It is not accepted by the v0.4 verifier receipt path, direct E12-A6
+evidence registration, or cross-branch merge authorization. Legacy
+`VerifiedBranchMergeAuthorization` capabilities carry
+`domain_provenance_verified=False` and are rejected by the merge validator.
+Do not silently infer domain metadata from scope names or rewrite old events.
+Migration requires an independently authorized registry mapping and a new
+v0.4 provenance event; otherwise quarantine old evidence from domain-sensitive
+training and cross-domain transfer.
 
 ## Trust and deployment boundary
 
