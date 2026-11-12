@@ -57,6 +57,49 @@ class PersistentM2SemanticUnitStoreTests(unittest.TestCase):
             truth_status=TruthStatus.UNKNOWN,
         )
 
+    def test_current_candidates_are_available_through_bounded_keyset_pages(self):
+        for index in range(5):
+            self.store.record_candidate(self.candidate(f"page-{index}"))
+        first = self.store.read_candidate_page(page_size=2)
+        second = self.store.read_candidate_page(
+            after_root_id=first.next_cursor, page_size=2,
+        )
+        third = self.store.read_candidate_page(
+            after_root_id=second.next_cursor, page_size=2,
+        )
+        self.assertEqual([root for root, _ in first.items], ["page-0", "page-1"])
+        self.assertEqual([root for root, _ in second.items], ["page-2", "page-3"])
+        self.assertEqual([root for root, _ in third.items], ["page-4"])
+        self.assertIsNotNone(first.next_cursor)
+        self.assertIsNotNone(second.next_cursor)
+        self.assertIsNone(third.next_cursor)
+        self.assertTrue(all(candidate.truth_status is TruthStatus.UNKNOWN
+                            for _, candidate in first.items + second.items + third.items))
+
+    def test_current_candidate_page_obeys_serialized_byte_budget(self):
+        for suffix in ("a", "b", "c"):
+            self.store.record_candidate(self.candidate(f"budget-{suffix}"))
+        sizes = [
+            int(row[0]) for row in self.memory.db.execute(
+                """SELECT length(CAST(e.payload_json AS BLOB))
+                   FROM m2_semantic_unit_heads AS h
+                   JOIN m2_semantic_unit_records AS r
+                     ON r.scope=h.scope AND r.record_id=h.current_record_id
+                   JOIN memory_events AS e ON e.event_id=r.event_id
+                   WHERE h.scope=? AND h.retraction_reason IS NULL""",
+                ("project-a",),
+            ).fetchall()
+        ]
+        budget = max(sizes)
+        bounded = PersistentM2SemanticUnitStore(
+            self.memory, self.resolver, scope="project-a",
+            max_event_bytes=budget, max_replay_page_bytes=budget,
+        )
+        page = bounded.read_candidate_page(page_size=3)
+        self.assertEqual(len(page.items), 1)
+        self.assertLessEqual(page.payload_bytes, budget)
+        self.assertIsNotNone(page.next_cursor)
+
     def test_candidate_round_trip_and_idempotency(self):
         candidate = self.candidate("su-1")
         first = self.store.record_candidate(candidate)
@@ -133,6 +176,91 @@ class PersistentM2SemanticUnitStoreTests(unittest.TestCase):
         self.assertEqual(self.memory.replay_domain_events(
             event_type="m2_semantic_unit", scope="project-a"), [])
 
+    def test_startup_uses_sqlite_projection_not_full_python_history_maps(self):
+        for index in range(12):
+            self.store.record_candidate(self.candidate(f"bounded-{index}"))
+        self.memory.close()
+        self.memory = ZPCMMemory(self.memory_db)
+        restored = PersistentM2SemanticUnitStore(
+            self.memory, self.resolver, scope="project-a", replay_page_size=2,
+        )
+        self.assertFalse(hasattr(restored, "_versions"))
+        self.assertFalse(hasattr(restored, "_latest"))
+        self.assertEqual(
+            self.memory.db.execute(
+                "SELECT COUNT(*) FROM m2_semantic_unit_records WHERE scope=?",
+                ("project-a",),
+            ).fetchone()[0],
+            12,
+        )
+        self.assertEqual(len(restored.candidates), 12)
+
+    def test_projection_mutation_invalidates_checkpoint_and_rebuilds(self):
+        candidate = self.candidate("projection-repair")
+        self.store.record_candidate(candidate)
+        self.memory.db.execute(
+            "DELETE FROM m2_semantic_unit_heads WHERE scope=? AND root_id=?",
+            ("project-a", "projection-repair"),
+        )
+        self.memory.db.execute(
+            "DELETE FROM m2_semantic_unit_records WHERE scope=? AND record_id=?",
+            ("project-a", "projection-repair"),
+        )
+        self.memory.close()
+        self.memory = ZPCMMemory(self.memory_db)
+        restored = PersistentM2SemanticUnitStore(
+            self.memory, self.resolver, scope="project-a",
+        )
+        self.assertEqual(restored.candidates["projection-repair"], candidate)
+
+    def test_separate_store_instances_share_authoritative_projection_state(self):
+        second = PersistentM2SemanticUnitStore(
+            self.memory, self.resolver, scope="project-a",
+        )
+        first_candidate = self.candidate("multi-instance-a")
+        second_candidate = self.candidate("multi-instance-b")
+        self.store.record_candidate(first_candidate)
+        second.record_candidate(second_candidate)
+        self.assertEqual(
+            set(second.candidates),
+            {"multi-instance-a", "multi-instance-b"},
+        )
+
+    def test_projection_checkpoint_failure_rolls_back_authoritative_append(self):
+        self.memory.db.execute(
+            "DROP TABLE m2_semantic_unit_projection_checkpoint"
+        )
+        with self.assertRaises(Exception):
+            self.store.record_candidate(self.candidate("checkpoint-rollback"))
+        self.assertEqual(
+            self.memory.latest_domain_sequence(
+                event_type="m2_semantic_unit", scope="project-a",
+            ),
+            0,
+        )
+
+    def test_oversized_candidate_event_is_rejected_before_append(self):
+        bounded = PersistentM2SemanticUnitStore(
+            self.memory, self.resolver, scope="project-a",
+            max_event_bytes=256, max_replay_page_bytes=512,
+        )
+        oversized = self.candidate("oversized-event", surface="x" * 1024)
+        with self.assertRaises(SemanticUnitStoreError):
+            bounded.record_candidate(oversized)
+        self.assertEqual(
+            self.memory.latest_domain_sequence(
+                event_type="m2_semantic_unit", scope="project-a",
+            ),
+            0,
+        )
+
+    def test_event_limit_cannot_exceed_replay_page_budget(self):
+        with self.assertRaises(ValueError):
+            PersistentM2SemanticUnitStore(
+                self.memory, self.resolver, scope="project-a",
+                max_event_bytes=1024, max_replay_page_bytes=512,
+            )
+
     def test_replay_page_size_is_validated(self):
         with self.assertRaises(ValueError):
             PersistentM2SemanticUnitStore(
@@ -148,8 +276,13 @@ class PersistentM2SemanticUnitStoreTests(unittest.TestCase):
                        (b"tampered", self.reference.chunk_id))
         self.memory.close()
         self.memory = ZPCMMemory(self.memory_db)
+        restored = PersistentM2SemanticUnitStore(
+            self.memory, self.resolver, scope="project-a"
+        )
+        # Startup may trust the valid derived projection checkpoint; the first
+        # materialization of the candidate must still re-resolve immutable M1 bytes.
         with self.assertRaises(EvidenceResolutionError):
-            PersistentM2SemanticUnitStore(self.memory, self.resolver, scope="project-a")
+            _ = restored.candidates
 
 
 if __name__ == "__main__":
