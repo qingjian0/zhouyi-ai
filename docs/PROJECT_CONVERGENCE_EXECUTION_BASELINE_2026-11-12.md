@@ -333,3 +333,11 @@ A failed earlier run on an older SHA is not evidence that the current exact head
 - PR #367 exact head `7a0d937f8c14f833921651309309159a8ba30439`, workflow #43217463370: success. One million records per split (two million total) streamed in 187.581 seconds at 27,380 KiB peak RSS in the synthetic Linux CI fixture.
 - PR #358 exact head `0f6ea1f25e10f6a7540dd9f280b3c70ce5cd279c`, workflow #43217815409: success. Full unit tests and E01/E02 validation stages passed.
 - All cited changes remain Draft/unmerged. No stable branch was changed.
+
+
+### Exact-head refresh — million-row streaming and checkpoint semantics (2026-11-12 13:54Z)
+
+- PR #367 exact head `7a0d937f8c14f833921651309309159a8ba30439`, workflow #43217463370: success. Expanded subprocess RSS sweep to 1,000,000 records per split (2,000,000 total), 1 epoch. Measurements: 1k/split peak 25,088 KiB (0.195 s); 10k/split 27,220 KiB (1.815 s); 100k/split 27,176 KiB (18.702 s); 1m/split 27,380 KiB (187.581 s). The 1m/split run streamed 1,000,000 dev rows; peak RSS was about 26.7 MiB. This is strong evidence of near-flat RSS for this exact synthetic row shape and serial 1-epoch workload, not a universal bound. Payload size is fixed/small, candidate fan-out is fixed at 2 per role, and no concurrent workers or long multi-epoch run were measured.
+- PR #358 exact head `d5f06a192ad4e0633fecc53abc995759e1dd2998`, workflow #43218525308: success. This is the current architecture-doc PR head at this refresh.
+- PR #371 was extended with checkpoint implementation fingerprints: SHA-256 of `prototype/n010_ooc.py` and the imported `LearnableSROK` implementation are persisted and checked on resume and before locked-test evaluation. A regression test corrupts the fingerprint and requires both paths to fail closed. Exact head `8565fdf49b749761e532f8f37e136937ff02db45`; workflows #43231692763 and #43231673908 were queued/running at the time of this note and must not be described as passed until completed.
+- Checkpoint semantics note: this implementation uses stateless SGD updates, so there is no momentum/Adam accumulator to persist today. If optimizer state is introduced later, it must be included in the checkpoint and fingerprinted before claiming exact resume equivalence.
