@@ -140,9 +140,9 @@ PR #252 的 `E12A6UnixSocketServer` 接受任意 dispatcher callback。它把内
 - 重启后该链路仍可正确 replay；
 - learner/runner OS account 无权读取或直接打开 writer 数据库。
 
-PR #252 exact head `ee13ffd9ca8a9b1a596a2c28a0c06f0b0e4691a7` 在本次检查时没有返回关联 workflow run；因此不能报告该 PR 的 CI 已通过。
+PR #252 exact head `ee13ffd9ca8a9b1a596a2c28a0c06f0b0e4691a7` 对应 workflow run `43088689689`，`unit-tests` job 全部步骤成功（含 unit tests、E01、E01-B、E01-C、E02-A/B/C/D）。commit→workflow-runs 查询端点未返回记录，但通过 PR 描述中的 run ID 查询 jobs 已确认成功；以 run ID/jobs 结果为准。
 
-### 9.3 PR #248 的路径处理补强项
+### 9.3 PR #248 的路径处理补强项（与 PR #252 区分）
 
 `E12A6WriterProcessLock.acquire` 对父目录使用 `Path.stat()`，该调用会跟随父目录 symlink；runtime 对数据库路径的 `is_symlink()` 检查只覆盖最终路径组件。现有测试覆盖最终 lock/DB symlink，但没有覆盖 symlink parent path。
 
