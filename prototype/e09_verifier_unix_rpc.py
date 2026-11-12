@@ -47,7 +47,12 @@ class SQLiteVerifierReceiptLedger:
                 or file_stat.st_mode & 0o077
                 or file_stat.st_uid != os.geteuid()
             ):
-                raise ValueError("existing verifier receipt ledger must be owned by this service and private")
+                raise ValueError(
+                    "existing verifier receipt ledger must be owned by this service and private "
+                    f"(regular={stat.S_ISREG(file_stat.st_mode)}, "
+                    f"mode={oct(stat.S_IMODE(file_stat.st_mode))}, "
+                    f"uid={file_stat.st_uid}, euid={os.geteuid()})"
+                )
         else:
             descriptor = os.open(
                 self.path, os.O_CREAT | os.O_EXCL | os.O_RDWR, 0o600
