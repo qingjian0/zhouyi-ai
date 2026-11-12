@@ -35,19 +35,17 @@ def _assignments(row, max_expansions: int):
     return tuple(itertools.product(*pools))
 
 
-def _binary_rows(splits, max_expansions):
-    output = {}
-    for split_name, records in splits.items():
-        rows = []
-        for record in records:
-            target = tuple(record["target_ids"])
-            for assignment in _assignments(record, max_expansions):
-                ids = tuple(node.node_id for node in assignment)
-                rows.append(RelationClassificationExample(
-                    assignment, 1 if ids == target else -1
-                ))
-        output[split_name] = rows
-    return output
+def _training_rows(train_records, max_expansions):
+    """Materialize labels for train only; dev/test targets are not touched here."""
+    rows = []
+    for record in train_records:
+        target = tuple(record["target_ids"])
+        for assignment in _assignments(record, max_expansions):
+            ids = tuple(node.node_id for node in assignment)
+            rows.append(RelationClassificationExample(
+                assignment, 1 if ids == target else -1
+            ))
+    return rows
 
 
 def _metrics(model, records, max_expansions):
@@ -119,7 +117,7 @@ def run_comparison(dataset_path: str | Path, roles: Sequence[RoleSpec],
         raise LearnableSROKError("seed must be non-negative")
     if isinstance(max_expansions, bool) or not isinstance(max_expansions, int) or max_expansions < 1:
         raise LearnableSROKError("max_expansions must be positive")
-    rows = _binary_rows(splits, max_expansions)
+    train_rows = _training_rows(splits["train"], max_expansions)
     target_params = xiang_parameter_count(len(roles), feature_dim, latent_dim)
     hidden_dim = match_mlp_hidden_dim(len(roles), feature_dim, target_params)
     rank = match_tensor_rank(len(roles), feature_dim, target_params)
@@ -133,7 +131,6 @@ def run_comparison(dataset_path: str | Path, roles: Sequence[RoleSpec],
         "parameter_matched_low_rank_tensor": ParameterMatchedLowRankTensor(
             len(roles), feature_dim, rank, BaselineConfig(seed)),
     }
-    train_rows = rows["train"]
     histories = {}
     for name, model in models.items():
         histories[name] = model.fit(
