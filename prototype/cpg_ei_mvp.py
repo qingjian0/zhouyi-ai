@@ -95,13 +95,26 @@ class CpgEiTransitionModel:
     """A trainable sparse-relation transition model with six logistic heads."""
 
     weights: list[list[float]]
+    # One shared learnable gate for each pair/triple relation feature.
+    gate_logits: list[float]
 
     @classmethod
     def create(cls) -> "CpgEiTransitionModel":
-        return cls([[0.0] * len(FEATURE_NAMES) for _ in range(6)])
+        return cls(
+            [[0.0] * len(FEATURE_NAMES) for _ in range(6)],
+            [2.0] * (len(FEATURE_NAMES) - 7),
+        )
+
+    def relation_gate_probabilities(self) -> tuple[float, ...]:
+        return tuple(_sigmoid(value) for value in self.gate_logits)
+
+    def _gated_features(self, state: Sequence[int]) -> tuple[float, ...]:
+        raw = encode_state(state)
+        gates = self.relation_gate_probabilities()
+        return (*raw[:7], *(value * gate for value, gate in zip(raw[7:], gates)))
 
     def logits(self, state: Sequence[int]) -> tuple[float, ...]:
-        x = encode_state(state)
+        x = self._gated_features(state)
         return tuple(sum(w * v for w, v in zip(head, x)) for head in self.weights)
 
     def predict_proba(self, state: Sequence[int]) -> tuple[float, ...]:
@@ -116,34 +129,53 @@ class CpgEiTransitionModel:
         epochs: int = 120,
         learning_rate: float = 0.35,
         l2: float = 1e-4,
+        gate_l1: float = 1e-4,
     ) -> list[float]:
         if not examples:
             raise ValueError("training data must not be empty")
-        if epochs < 1 or learning_rate <= 0.0 or l2 < 0.0:
+        if epochs < 1 or learning_rate <= 0.0 or l2 < 0.0 or gate_l1 < 0.0:
             raise ValueError("invalid optimizer configuration")
         rows = [(encode_state(row.state), row.target) for row in examples]
         losses = []
         n = float(len(rows))
         for _ in range(epochs):
-            gradients = [[0.0] * len(FEATURE_NAMES) for _ in range(6)]
+            weight_gradients = [[0.0] * len(FEATURE_NAMES) for _ in range(6)]
+            gate_gradients = [0.0] * len(self.gate_logits)
+            gates = self.relation_gate_probabilities()
+            gate_derivatives = [gate * (1.0 - gate) for gate in gates]
             total_loss = 0.0
-            for x, target in rows:
+            for raw, target in rows:
+                effective = (*raw[:7], *(value * gate for value, gate in zip(raw[7:], gates)))
                 for head_index, head in enumerate(self.weights):
-                    logit = sum(w * value for w, value in zip(head, x))
+                    logit = sum(w * value for w, value in zip(head, effective))
                     probability = _sigmoid(logit)
                     label = target[head_index]
-                    # Numerically stable binary cross entropy.
                     total_loss += max(logit, 0.0) - logit * label + math.log1p(math.exp(-abs(logit)))
                     error = probability - label
-                    grad = gradients[head_index]
-                    for j, value in enumerate(x):
-                        grad[j] += error * value
+                    weight_grad = weight_gradients[head_index]
+                    for j, value in enumerate(effective):
+                        weight_grad[j] += error * value
+                    for gate_index, feature_index in enumerate(range(7, len(raw))):
+                        gate_gradients[gate_index] += (
+                            error * head[feature_index] * raw[feature_index]
+                            * gate_derivatives[gate_index]
+                        )
             for head_index, head in enumerate(self.weights):
-                grad = gradients[head_index]
+                grad = weight_gradients[head_index]
                 for j in range(len(head)):
                     grad[j] = grad[j] / n + l2 * head[j]
                     head[j] -= learning_rate * grad[j]
-            losses.append(total_loss / (n * 6.0))
+            for gate_index in range(len(self.gate_logits)):
+                gate = gates[gate_index]
+                gate_gradients[gate_index] = (
+                    gate_gradients[gate_index] / n
+                    + gate_l1 * gate_derivatives[gate_index]
+                )
+                self.gate_logits[gate_index] -= learning_rate * gate_gradients[gate_index]
+            losses.append(
+                total_loss / (n * 6.0)
+                + gate_l1 * sum(gates) / 6.0
+            )
         return losses
 
 
@@ -186,6 +218,13 @@ def run_experiment(
         "initial_train_loss": losses[0],
         "final_train_loss": losses[-1],
         "test": evaluate(model, test_rows),
+        "relation_gate_summary": {
+            "pair_mean": sum(model.relation_gate_probabilities()[:15]) / 15.0,
+            "triple_mean": sum(model.relation_gate_probabilities()[15:]) / 20.0,
+            "active_gates_gt_0_5": sum(
+                gate > 0.5 for gate in model.relation_gate_probabilities()
+            ),
+        },
         "model_weights": model.weights,
         "claim_boundary": (
             "Synthetic finite-state transition benchmark only; not natural-language "
