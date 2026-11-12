@@ -30,7 +30,8 @@ class E09EvidenceBridgeTests(unittest.TestCase):
         self.tmp.cleanup()
 
     def add_reveal(self, *, split="SUPPORT", label="PRIVATE_LABEL", track=None, scope=None,
-                   include_domain=True, commit_domain_override=None, reveal_domain_override=None):
+                   include_domain=True, commit_domain_override=None, reveal_domain_override=None,
+                   observation_actor_role="observer"):
         track = track or self.track
         scope = scope or self.scope
         obs_id = "obs-" + split.lower()
@@ -43,7 +44,7 @@ class E09EvidenceBridgeTests(unittest.TestCase):
         self.e09.append_event(
             episode_id=self.episode, event_id=f"{self.episode}:observation:{obs_id}",
             event_type="observation", idempotency_key=f"obs-key-{split}",
-            actor_role="observer",
+            actor_role=observation_actor_role,
             integrity_metadata={"authenticated_workload": {
                 "workload_id": "spiffe://zhouyi/test-observer",
                 "issuer_id": "issuer-test",
@@ -131,6 +132,14 @@ class E09EvidenceBridgeTests(unittest.TestCase):
             resolve_e09_reveal(
                 self.e09, episode_id=self.episode, evidence_ref=ref,
                 scope=self.scope, learner_track=self.track, world_family="attacker-family",
+            )
+
+    def test_legacy_runner_observation_is_not_receipt_eligible(self):
+        ref = self.add_reveal(observation_actor_role="runner")
+        with self.assertRaises(E09EvidenceBindingError):
+            resolve_e09_reveal(
+                self.e09, episode_id=self.episode, evidence_ref=ref,
+                scope=self.scope, learner_track=self.track,
             )
 
     def test_missing_trusted_domain_provenance_fails_closed(self):
