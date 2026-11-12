@@ -38,6 +38,8 @@ class E09AuthorityRuntime:
     ) -> None:
         self.database_path = Path(database_path)
         self.socket_path = Path(socket_path)
+        if not self.database_path.is_absolute() or not self.socket_path.is_absolute():
+            raise ValueError("E09 database and socket paths must be absolute")
         if self.database_path.parent == self.socket_path.parent:
             raise ValueError("E09 database and IPC socket must use separate directories")
         if not isinstance(uid_to_credential, Mapping) or not uid_to_credential:
@@ -160,7 +162,11 @@ class E09AuthorityRuntime:
             raise E09AuthorityRuntimeError("E09 authority runtime is already started")
         self._prepare_database_file()
         try:
-            self._store = SQLiteEvidenceStore(self.database_path)
+            previous_umask = os.umask(0o077)
+            try:
+                self._store = SQLiteEvidenceStore(self.database_path)
+            finally:
+                os.umask(previous_umask)
             os.chmod(self.database_path, 0o600, follow_symlinks=False)
             info = self.database_path.lstat()
             if info.st_uid != os.geteuid() or stat.S_IMODE(info.st_mode) != 0o600:
