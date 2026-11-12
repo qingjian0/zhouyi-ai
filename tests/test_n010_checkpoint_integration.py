@@ -72,6 +72,23 @@ class N010CheckpointIntegrationTests(unittest.TestCase):
         self.assertEqual(prediction.expanded_assignments, 12)
         self.assertFalse(prediction.budget_exhausted)
 
+
+    def test_joint_beam_search_reports_truncated_budget_without_partial_predictions(self):
+        model = LearnableSROK(self.roles, feature_dim=2)
+        nodes = tuple(
+            Node(f"{role}-{index}", role, (float(index), 1.0),
+                 frozenset({"eligible"}))
+            for role in ("r0", "r1", "r2") for index in range(4)
+        )
+        result = model.predict(
+            nodes, retrieval_mode="joint", search_strategy="beam",
+            beam_width=2, max_expansions=5, result_limit=3,
+        )
+        self.assertTrue(result.budget_exhausted)
+        self.assertEqual(result.expanded_assignments, 5)
+        self.assertEqual(result.candidates, ())
+        self.assertTrue(result.abstained)
+
     def test_partial_score_matches_complete_score(self):
         assignment = (self.nodes[0], self.nodes[2], self.nodes[4])
         model = LearnableSROK(self.roles, feature_dim=2)
