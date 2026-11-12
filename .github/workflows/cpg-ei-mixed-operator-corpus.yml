@@ -31,7 +31,7 @@ jobs:
         run: |
           python -m unittest tests.test_cpg_ei_relation_operators -v
           python -m unittest tests.test_cpg_ei_mixed_operator_data -v
-      - name: Generate 10,240-row mixed operator corpus
+      - name: Generate 102,400-row mixed operator corpus
         run: |
           python -m prototype.cpg_ei_mixed_operator_data --jsonl /tmp/zhouyi-cpg-ei-mixed-v1.jsonl > /tmp/zhouyi-cpg-ei-mixed-v1-manifest.json
           python - <<'PY'
