@@ -268,6 +268,10 @@ class PersistentM2SemanticUnitStoreTests(unittest.TestCase):
         _, peak = tracemalloc.get_traced_memory()
         tracemalloc.stop()
 
+        print(
+            f"M2_CHECKPOINTED_STARTUP_PYTHON_HEAP peak_bytes={peak} "
+            f"history_payload_bytes={stored_bytes}"
+        )
         self.assertLess(peak, 3 * 1024 * 1024)
         self.assertEqual(len(list(restored.iter_candidates(limit=1))), 1)
 
