@@ -255,6 +255,32 @@ class E09SharedProtocolAdapterTests(unittest.TestCase):
                 self.assertIn("never-in-zpcm-remote", str(durable))
                 self.assertNotIn("never-in-zpcm-remote", str(memory.retrieve(scope="e09/test")))
                 self.assertTrue(memory.verify_integrity()["ok"])
+
+                def restore_incremental(snapshot):
+                    restored = IncrementalConjunctionLearner(
+                        DOMAINS, min_support=snapshot["min_support"]
+                    )
+                    for record in snapshot["observations"]:
+                        for label in record["labels"]:
+                            restored.observe(tuple(record["inputs"]), label)
+                    return restored
+
+                resumed = E09SharedProtocolAdapter.resume_srok_remote(
+                    episode_id="episode-remote-ports", scope="e09/test",
+                    split="SUPPORT", learner_track="e09", version_prefix="e09",
+                    learner_factory=restore_incremental,
+                    observer_port=ports["observer"],
+                    learner_port=ports["learner"],
+                    evaluator_port=ports["evaluator"],
+                    memory_projection=memory,
+                )
+                self.assertIsNone(resumed.store)
+                self.assertEqual(resumed._version_id, "e09-v2")
+                resumed.predict_and_commit("obs-after-remote-resume", (0, 0, 2))
+                self.assertEqual(resumed.replay()[-1]["event_type"], "prediction_commit")
+                self.assertNotIn(
+                    "never-in-zpcm-remote", str(memory.retrieve(scope="e09/test"))
+                )
             finally:
                 memory.close()
         finally:
