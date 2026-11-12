@@ -263,3 +263,18 @@ A failed earlier run on an older SHA is not evidence that the current exact head
 
 - In this synthetic fixture, increasing from 10k to 100k records per split added only 16 KiB to absolute peak RSS; 100x more rows than the 1k point added about 2.1 MiB to absolute peak RSS. This is encouraging evidence for the SQLite-indexed streaming path.
 - Scope limitation: each row has only four small nodes, two-dimensional features, one epoch, and the benchmark is a single Ubuntu CI environment. It does not establish production memory bounds for large feature vectors, large per-row candidate pools, concurrent runs, or long training schedules. Continue measuring RSS and throughput on representative corpora.
+
+
+### Exact-head refresh — N0.10 RSS and evaluator validation (2026-11-12 12:04Z)
+
+- PR #365 advanced to `974d7ae9f3b3178e3bae5b5e708c3adc6d108925`; workflow run #43214491147 succeeded with 15 tests, including a subprocess RSS scaling test comparing 1,000 and 20,000 examples.
+- PR #367 advanced to `fcd1d4ac0f0c5a83df76cc6c1e2dd5db7834b483`; workflow run #43214382087 succeeded. The fresh-process sweep reported:
+
+| Records per split | Total | Peak RSS | Peak minus baseline | Elapsed |
+|---:|---:|---:|---:|---:|
+| 1,000 | 2,000 | 25,032 KiB | 1,680 KiB | 0.287 s |
+| 10,000 | 20,000 | 27,292 KiB | 5,228 KiB | 2.748 s |
+| 100,000 | 200,000 | 26,992 KiB | 4,908 KiB | 27.323 s |
+
+- The 10k and 100k measurements are effectively flat in absolute peak RSS (~27 MiB), while row count increases 10x. Across 1k to 100k per split, peak RSS rises by about 1.9 MiB. This supports the streaming-memory hypothesis for this synthetic profile, but is not a universal upper bound.
+- PR #366 remains the explicit held-out source-group overlap guard; PR #367 is stacked on it. These PRs are Draft and remain unmerged.
