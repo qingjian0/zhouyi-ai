@@ -1,0 +1,17 @@
+name: cpg-ei-multiseed-diagnostic
+
+on:
+  pull_request:
+    branches:
+      - research/cpg-ei-learnable-gates-v3-2026-11-12
+
+jobs:
+  multiseed-diagnostic:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run CPG-EI structure discovery tests
+        run: python -m unittest tests.test_cpg_ei_structure_discovery -v
