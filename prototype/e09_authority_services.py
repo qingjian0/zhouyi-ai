@@ -178,6 +178,21 @@ class E09AuthorityService:
             raise E09AuthorizationError("workload is not authorized for the requested scope")
         return principal
 
+    def validate_adapter_workloads(
+        self,
+        *,
+        scope: str,
+        observer_credential: object,
+        learner_credential: object,
+        evaluator_credential: object,
+    ) -> None:
+        """Fail fast unless all three adapter workload identities are authorized."""
+        if self._domain_registry is None:
+            raise E09AuthorizationError("trusted E09 domain registry is not configured")
+        self._principal(observer_credential, role="observer", scope=scope)
+        self._principal(learner_credential, role="learner", scope=scope)
+        self._principal(evaluator_credential, role="evaluator", scope=scope)
+
     def append_observation(
         self,
         credential: object,
@@ -189,6 +204,8 @@ class E09AuthorityService:
         query_id: str,
         scope: str,
         split: str,
+        payload_ref: str | None = None,
+        feature_schema_version: str | None = None,
         causation_refs: tuple[str, ...] | list[str] = (),
         expected_sequence: int | None = None,
     ) -> EventReceipt:
@@ -211,6 +228,14 @@ class E09AuthorityService:
             "domain_registry_version": binding.registry_version,
             "world_family": binding.world_family,
         }
+        for field, value in (
+            ("payload_ref", payload_ref),
+            ("feature_schema_version", feature_schema_version),
+        ):
+            if value is not None:
+                if not isinstance(value, str) or not value.strip():
+                    raise E09AuthorizationError(f"{field} must be a non-empty string")
+                payload[field] = value
         return self._store.append_event(
             episode_id=episode_id, event_id=event_id, event_type="observation",
             idempotency_key=idempotency_key, payload=payload,
