@@ -174,5 +174,94 @@ class PersistentM2SemanticUnitStoreTests(unittest.TestCase):
         self.assertEqual(restored.candidates[first.envelope.record_id].envelope.record_id, previous)
 
 
+    def test_checkpoint_startup_does_not_replay_historical_events(self):
+        candidate = self.candidate("checkpoint-1")
+        self.store.record_candidate(candidate)
+        original = self.memory.iter_domain_events
+
+        def forbidden_replay(**kwargs):
+            raise AssertionError("valid checkpoint must not replay the event log")
+
+        self.memory.iter_domain_events = forbidden_replay
+        try:
+            restored = PersistentM2SemanticUnitStore(
+                self.memory, self.resolver, scope="project-a"
+            )
+            self.assertEqual(restored.candidates, {"checkpoint-1": candidate})
+        finally:
+            self.memory.iter_domain_events = original
+
+    def test_projection_and_event_append_are_one_sqlite_transaction(self):
+        self.memory.db.execute("""
+            CREATE TRIGGER injected_m2_projection_failure
+            BEFORE INSERT ON m2_semantic_unit_versions
+            BEGIN SELECT RAISE(ABORT, 'injected projection failure'); END
+        """)
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.store.record_candidate(self.candidate("atomic-failure"))
+        self.assertEqual(self.memory.db.execute(
+            "SELECT COUNT(*) FROM memory_events WHERE event_type='m2_semantic_unit' "
+            "AND scope='project-a'"
+        ).fetchone()[0], 0)
+        self.assertEqual(self.memory.db.execute(
+            "SELECT COUNT(*) FROM m2_semantic_unit_versions WHERE scope='project-a'"
+        ).fetchone()[0], 0)
+        self.memory.db.execute("DROP TRIGGER injected_m2_projection_failure")
+        receipt = self.store.record_candidate(self.candidate("atomic-success"))
+        self.assertFalse(receipt.replayed)
+
+    def test_corrupt_projection_checkpoint_rebuilds_from_event_log(self):
+        candidate = self.candidate("checkpoint-rebuild")
+        self.store.record_candidate(candidate)
+        self.memory.db.execute(
+            "UPDATE m2_semantic_unit_projection_checkpoint "
+            "SET projection_generation=projection_generation+1 WHERE scope='project-a'"
+        )
+        restored = PersistentM2SemanticUnitStore(
+            self.memory, self.resolver, scope="project-a", replay_page_size=1
+        )
+        self.assertEqual(restored.candidates, {"checkpoint-rebuild": candidate})
+        self.assertTrue(restored._checkpoint_valid())
+
+    def test_stale_second_store_observes_committed_projection(self):
+        second = PersistentM2SemanticUnitStore(
+            ZPCMMemory(self.memory_db), self.resolver, scope="project-a"
+        )
+        second_memory = second._memory
+        self.addCleanup(second_memory.close)
+        first = self.candidate("multi-1")
+        self.store.record_candidate(first)
+        second_candidate = self.candidate("multi-2")
+        receipt = second.record_candidate(second_candidate)
+        self.assertFalse(receipt.replayed)
+        self.assertEqual(set(second.candidates), {"multi-1", "multi-2"})
+
+    def test_iter_candidates_is_count_and_byte_bounded(self):
+        for rid in ("page-a", "page-b", "page-c"):
+            self.store.record_candidate(self.candidate(rid))
+        first_page = list(self.store.iter_candidates(limit=1, max_bytes=4096))
+        self.assertEqual(len(first_page), 1)
+        remaining = list(self.store.iter_candidates(
+            limit=8, after_root_id=first_page[-1][0], max_bytes=4096
+        ))
+        self.assertEqual(len(first_page) + len(remaining), 3)
+        with self.assertRaises(ValueError):
+            list(self.store.iter_candidates(limit=1, max_bytes=self.memory.max_page_bytes + 1))
+
+    def test_store_keeps_historical_candidate_bodies_out_of_python_state(self):
+        self.store.record_candidate(self.candidate("disk-backed-1"))
+        self.store.record_candidate(self.candidate("disk-backed-2"))
+        self.assertFalse(hasattr(self.store, "_versions"))
+        self.assertFalse(hasattr(self.store, "_digests"))
+        self.assertFalse(hasattr(self.store, "_latest"))
+        self.assertEqual(
+            self.memory.db.execute(
+                "SELECT COUNT(*) FROM m2_semantic_unit_versions WHERE scope='project-a'"
+            ).fetchone()[0],
+            2,
+        )
+
+
+
 if __name__ == "__main__":
     unittest.main()
