@@ -1,5 +1,7 @@
 import hashlib
 import io
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
@@ -71,6 +73,46 @@ class SQLiteEvidenceIngestorTests(unittest.TestCase):
             self.ingestor.ingest(
                 "doc-idem", "same.txt", io.BytesIO(b"changed!"), chunk_bytes=4
             )
+
+    def test_hard_process_exit_recovers_only_committed_chunks(self):
+        source_path = Path(self.temp.name) / "crash-source.txt"
+        source = b"01234567" * 30
+        source_path.write_bytes(source)
+        script = r"""
+import os
+import sys
+from prototype.streaming_evidence_ingest import SQLiteEvidenceIngestor
+
+database, source_path = sys.argv[1], sys.argv[2]
+calls = 0
+def crash_on_fifth_chunk(text):
+    global calls
+    calls += 1
+    if calls == 5:
+        os._exit(73)
+    return 1
+
+store = SQLiteEvidenceIngestor(database)
+with open(source_path, "rb") as stream:
+    store.ingest("doc-hard-crash", source_path, stream,
+                 chunk_bytes=8, tokenizer=crash_on_fifth_chunk)
+"""
+        child = subprocess.run(
+            [sys.executable, "-c", script, str(self.db_path), str(source_path)],
+            cwd=Path(__file__).resolve().parents[1],
+            check=False,
+        )
+        self.assertEqual(child.returncode, 73)
+        restarted = SQLiteEvidenceIngestor(self.db_path)
+        self.assertEqual(restarted.document_state("doc-hard-crash"), (32, 4, False))
+        resumed = restarted.ingest(
+            "doc-hard-crash", str(source_path), io.BytesIO(source), chunk_bytes=8
+        )
+        self.assertTrue(resumed.complete)
+        chunks = restarted.get_chunks("doc-hard-crash", limit=1000)
+        self.assertEqual(b"".join(chunk.text.encode() for chunk in chunks), source)
+        self.assertEqual(len(chunks), 15)
+        self.assertEqual(len({chunk.chunk_id for chunk in chunks}), 15)
 
     def test_tokenizer_coverage_reflects_persisted_chunks(self):
         source = io.BytesIO(b"abcdefgh")
