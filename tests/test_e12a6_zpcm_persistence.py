@@ -437,7 +437,7 @@ class PersistentLifecycleTests(unittest.TestCase):
             self.memory.get_lifecycle_action_projection(
                 scope="project-a", action_id="propose-1",
             )["action"]["to_state"],
-            "PROPOSED",
+            "proposed",
         )
         before = self.memory.lifecycle_state_projection_counts(scope="project-a")
         self.memory.close()
