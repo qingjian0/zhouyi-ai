@@ -275,3 +275,37 @@ CI 通过只说明 exact-head workflow 测试成功，不代表生产安全隔�
 ### 10.7 E12-A6 生产 composition root 跟踪项
 
 已建立 [Issue #260](https://github.com/qingjian0/zhouyi-ai/issues/260)，跟踪 #248 runtime、#252 UDS 与 #244/#245 WriterService 的实际接线。除严格 UID/GID → workload principal 映射和 JSON schema allowlist 外，特别要求 shutdown 时先停止/排空 IPC handler，再关闭 SQLite/ZPCM runtime；若 dispatcher 仍在运行，不得释放 writer lock 或关闭其数据库。该 issue 尚未实现或关闭。
+
+
+## 11. N0.10 高阶必要性：首个可执行数学控制基准（PR #262）
+
+新增独立研究分支与 Draft PR：[ #262 Pairwise-preserving high-order parity benchmark ](https://github.com/qingjian0/zhouyi-ai/pull/262)。
+
+文件：
+- `prototype/high_order_benchmark.py`
+- `tests/test_high_order_benchmark.py`
+
+当前可执行基准定义三元变量 (x,y,z\in\{-1,+1\})，标签 (t=xyz)，枚举全部 8 个状态并重复采样。正负标签各 4 个状态；对每个标签条件化后，任意一元和二元边缘分布完全相同。
+
+已实现：
+- 精确 parity truth table；
+- unary / pairwise label correlation；
+- pairwise conditional total-variation gap；
+- unary、pairwise、third-order monomial logistic probes；
+- 输入、标签、训练超参数验证；
+- 角色置换不变性测试。
+
+独立复算的固定配置结果（16 次完整 truth-table 重复、500 epoch）：
+| Probe | Held-out accuracy | Mean log loss |
+|---|---:|---:|
+| Unary | 0.50 | 0.6931 |
+| Pairwise | 0.50 | 0.6931 |
+| Third-order | 1.00 | 0.0344 |
+
+解释边界：
+- 这是一个严格的可辨识性 sanity check：在该分布中，低于三阶的单项式线性探针没有标签信息，三阶乘积则直接携带标签。
+- 它还不是 LearnableSROK 完整 assignment-scoring 路径的集成测试；也不是 role-sensitive OOD benchmark、噪声/缺失证据测试或 XSL 效果证明。
+- 该 PR exact head 当前未返回关联 workflow run；不能声称 CI 通过。独立计算验证了算法预期值，但最终仍需 exact-head CI。
+- 下一步必须把同一任务变成 SROK 的候选组合任务，并增加 cross-feature factorized tensor 与角色绑定/规则族隔离测试。
+
+该基准不得被解释为“模型已具备高阶认知”，只作为后续真实 SROK 训练基准的数学控制组。
