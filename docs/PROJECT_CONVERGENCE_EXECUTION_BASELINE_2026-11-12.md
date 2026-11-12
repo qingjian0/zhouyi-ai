@@ -317,3 +317,10 @@ A failed earlier run on an older SHA is not evidence that the current exact head
 - E02-D Z3 affine rule-family support sweep: 100 seeds. All-episode accuracy is 0 at support size 1, 0.1296 at size 2, 0.8704 at size 3, and 1.0000 at sizes 4–8; conditional accuracy when identified is 1.0000 for support sizes 2–8. This measures support-consistency identifiability/coverage, not neural model accuracy.
 - PR #371 exact head `4e3e07d4e5092efba985bd81d24ae91ee8ad2615`, workflows #43217632211 and #43217603763: both succeeded. Adds a post-index SHA-256 recheck so the JSONL bytes must match the initial digest after SQLite metadata indexing; a deterministic regression test simulates a mid-build digest change. This closes the ordinary file-mutation window, but is not a filesystem snapshot against a hostile writer changing and restoring bytes between checks.
 - #371 remains Draft, stacked on #369. No PR was merged into `main`.
+
+
+### N0.10 million-scale RSS confirmation (2026-11-12 12:28Z)
+
+- PR #367 exact head `7a0d937f8c14f833921651309309159a8ba30439`, workflow #43217463370: success. The sweep now includes 1,000, 10,000, 100,000, and 1,000,000 records per split (2,000,000 total at the largest point).
+- Measured peak RSS: 25,088 KiB / 27,220 KiB / 27,176 KiB / 27,380 KiB respectively. Peak-minus-baseline: 1,772 / 5,144 / 5,060 / 5,120 KiB. Elapsed: 0.195 / 1.815 / 18.702 / 187.581 seconds.
+- This is positive evidence that the current small-record, two-candidate-per-role synthetic profile scales to two million rows without a proportional RSS increase. It is not a universal constant-memory claim: record size, candidate fan-out, feature dimensionality, concurrent workers, storage throughput, and larger per-example assignment spaces remain untested.
