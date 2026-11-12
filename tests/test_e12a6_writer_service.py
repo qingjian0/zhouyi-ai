@@ -11,7 +11,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from prototype.csg_branch_delta import BranchDelta, BranchSnapshot, DeltaOperation, canonical_hash
 from prototype.csg_gcr_coordinator import CandidateProposal
 from prototype.e09_authority_services import (
-    E09AuthenticatedWorkload, E09AuthorityService, E09VerifierService,
+    E09AuthenticatedWorkload, E09AuthorityService, E09DomainBinding, E09VerifierService,
 )
 from prototype.e09_ed25519_keyring import E09Ed25519IssuerKeyring
 from prototype.e09_verification_receipt import verification_receipt_signing_bytes
@@ -67,6 +67,15 @@ class _NamedSigner:
         return base64.b64encode(self.private_key.sign(message)).decode("ascii")
 
 
+class _DomainRegistry:
+    def resolve(self, *, episode_id, scope, observation_id):
+        return E09DomainBinding(
+            world_family="family-a",
+            registry_id="zhouyi-domain-registry",
+            registry_version="2026-11-12.1",
+        )
+
+
 def _public_bytes(private_key):
     return private_key.public_key().public_bytes(
         encoding=serialization.Encoding.Raw,
@@ -94,6 +103,18 @@ class E12A6WriterServiceTests(unittest.TestCase):
             identity_provider="test-spiffe", authentication_method="mTLS",
             credential_fingerprint="e" * 64,
         )
+        observer = E09AuthenticatedWorkload(
+            workload_id="spiffe://zhouyi/observer", issuer_id="issuer-observer",
+            roles=frozenset({"observer"}), scopes=frozenset({self.scope}),
+            identity_provider="test-spiffe", authentication_method="mTLS",
+            credential_fingerprint="o" * 64,
+        )
+        learner = E09AuthenticatedWorkload(
+            workload_id="spiffe://zhouyi/learner", issuer_id="issuer-learner",
+            roles=frozenset({"learner"}), scopes=frozenset({self.scope}),
+            identity_provider="test-spiffe", authentication_method="mTLS",
+            credential_fingerprint="l" * 64,
+        )
         authorizer = E09AuthenticatedWorkload(
             workload_id="spiffe://zhouyi/authorizer", issuer_id="issuer-authority",
             roles=frozenset({"authorizer"}), scopes=frozenset({self.scope}),
@@ -103,11 +124,13 @@ class E12A6WriterServiceTests(unittest.TestCase):
         self.e09_authority = E09AuthorityService(
             self.e09,
             authenticator=_E09Authenticator({
+                "observer-cert": observer, "learner-cert": learner,
                 "evaluator-cert": evaluator, "authorizer-cert": authorizer,
             }),
             signer=_NamedSigner(issuer_private, "issuer-authority"),
             clock=_FixedClock(datetime(2026, 11, 12, 0, 0, tzinfo=timezone.utc)),
             max_grant_ttl=timedelta(hours=1),
+            domain_registry=_DomainRegistry(),
         )
 
         self.proposal_ref = self._add_reveal("proposal-left")
@@ -193,26 +216,21 @@ class E12A6WriterServiceTests(unittest.TestCase):
     def _add_reveal(self, name):
         observation_id = f"obs-{name}"
         observation_event = f"{self.episode}:observation:{observation_id}"
-        self.e09.append_event(
-            episode_id=self.episode, event_id=observation_event,
-            event_type="observation", idempotency_key=observation_event,
-            actor_role="runner",
-            payload={"observation_id": observation_id, "query_id": observation_id,
-                     "scope": self.scope, "split": "SUPPORT"},
-            protocol_version=STRICT_PROTOCOL_VERSION,
+        self.e09_authority.append_observation(
+            "observer-cert", episode_id=self.episode, event_id=observation_event,
+            idempotency_key=observation_event, observation_id=observation_id,
+            query_id=observation_id, scope=self.scope, split="SUPPORT",
         )
         prediction_id = f"prediction-{name}"
         commit_digest = hashlib.sha256(prediction_id.encode()).hexdigest()
         commit_event = f"{self.episode}:prediction:{prediction_id}"
-        commit = self.e09.append_event(
-            episode_id=self.episode, event_id=commit_event,
-            event_type="prediction_commit", idempotency_key=commit_event,
-            actor_role="learner", causation_refs=[observation_event],
+        commit = self.e09_authority.append_prediction_commit(
+            "learner-cert", episode_id=self.episode, event_id=commit_event,
+            idempotency_key=commit_event, causation_refs=[observation_event],
             payload={"prediction_id": prediction_id, "observation_id": observation_id,
                      "query_id": observation_id, "scope": self.scope, "split": "SUPPORT",
                      "model_version": "model-writer", "learner_track": self.track,
                      "decision_status": "PREDICT", "interop_commit_digest": commit_digest},
-            protocol_version=STRICT_PROTOCOL_VERSION,
         )
         reveal_ref = f"{self.episode}:reveal:{prediction_id}"
         self.e09_authority.append_evidence_reveal(

@@ -70,6 +70,30 @@ class E09WorkloadAuthenticator(Protocol):
         ...
 
 
+
+
+@dataclass(frozen=True)
+class E09DomainBinding:
+    """Versioned domain attribution resolved by the trusted E09 registry."""
+
+    world_family: str
+    registry_id: str
+    registry_version: str
+
+    def __post_init__(self) -> None:
+        for field in ("world_family", "registry_id", "registry_version"):
+            value = getattr(self, field)
+            if not isinstance(value, str) or not value.strip():
+                raise ValueError(f"{field} must be a non-empty string")
+
+
+class E09DomainRegistry(Protocol):
+    """Trusted, versioned mapping from an observation context to its domain."""
+
+    def resolve(self, *, episode_id: str, scope: str, observation_id: str) -> E09DomainBinding:
+        ...
+
+
 class E09GrantSigner(Protocol):
     """HSM/KMS-backed issuer signer; private key material stays outside E09."""
 
@@ -120,6 +144,7 @@ class E09AuthorityService:
         signer: E09GrantSigner,
         clock: E09Clock | None = None,
         max_grant_ttl: timedelta = timedelta(minutes=5),
+        domain_registry: E09DomainRegistry | None = None,
     ) -> None:
         if not isinstance(store, SQLiteEvidenceStore):
             raise TypeError("store must be SQLiteEvidenceStore")
@@ -134,6 +159,9 @@ class E09AuthorityService:
         self._signer = signer
         self._clock = clock or SystemUTCClock()
         self._max_grant_ttl = max_grant_ttl
+        if domain_registry is not None and not callable(getattr(domain_registry, "resolve", None)):
+            raise TypeError("domain_registry must implement resolve")
+        self._domain_registry = domain_registry
 
     def _principal(self, credential: object, *, role: str, scope: str) -> E09AuthenticatedWorkload:
         if not isinstance(scope, str) or not scope.strip():
@@ -149,6 +177,101 @@ class E09AuthorityService:
         if scope not in principal.scopes:
             raise E09AuthorizationError("workload is not authorized for the requested scope")
         return principal
+
+    def append_observation(
+        self,
+        credential: object,
+        *,
+        episode_id: str,
+        event_id: str,
+        idempotency_key: str,
+        observation_id: str,
+        query_id: str,
+        scope: str,
+        split: str,
+        causation_refs: tuple[str, ...] | list[str] = (),
+        expected_sequence: int | None = None,
+    ) -> EventReceipt:
+        """Append an observation with domain attribution derived from the trusted registry."""
+        if self._domain_registry is None:
+            raise E09AuthorizationError("trusted E09 domain registry is not configured")
+        principal = self._principal(credential, role="observer", scope=scope)
+        binding = self._domain_registry.resolve(
+            episode_id=episode_id, scope=scope, observation_id=observation_id
+        )
+        if not isinstance(binding, E09DomainBinding):
+            raise E09AuthenticationError("domain registry returned an invalid binding")
+        payload = {
+            "observation_id": observation_id,
+            "query_id": query_id,
+            "scope": scope,
+            "split": split,
+            "domain_provenance_schema": "e09-domain-provenance@1",
+            "domain_registry_id": binding.registry_id,
+            "domain_registry_version": binding.registry_version,
+            "world_family": binding.world_family,
+        }
+        return self._store.append_event(
+            episode_id=episode_id, event_id=event_id, event_type="observation",
+            idempotency_key=idempotency_key, payload=payload,
+            actor_role="observer", causation_refs=causation_refs,
+            integrity_metadata=_identity_metadata(principal),
+            expected_sequence=expected_sequence, protocol_version=STRICT_PROTOCOL_VERSION,
+        )
+
+    def _observation_domain(self, episode_id: str, observation_id: str) -> dict[str, str]:
+        events = self._store.replay_episode(episode_id)
+        matches = [
+            event for event in events
+            if event.get("event_type") == "observation"
+            and event.get("payload", {}).get("observation_id") == observation_id
+        ]
+        if len(matches) != 1:
+            raise E09AuthorizationError("prediction requires exactly one prior observation")
+        observation = matches[0]
+        payload = observation.get("payload", {})
+        identity = observation.get("integrity_metadata", {}).get("authenticated_workload")
+        fields = (
+            "domain_provenance_schema", "domain_registry_id",
+            "domain_registry_version", "world_family",
+        )
+        if (observation.get("actor_role") != "observer"
+                or not isinstance(identity, dict)
+                or payload.get("domain_provenance_schema") != "e09-domain-provenance@1"
+                or any(not isinstance(payload.get(field), str) or not payload[field].strip()
+                       for field in fields[1:])):
+            raise E09AuthorizationError("observation has no authenticated domain provenance")
+        return {field: payload[field] for field in fields}
+
+    def append_prediction_commit(
+        self,
+        credential: object,
+        *,
+        episode_id: str,
+        event_id: str,
+        idempotency_key: str,
+        payload: dict[str, Any],
+        causation_refs: tuple[str, ...] | list[str],
+        expected_sequence: int | None = None,
+    ) -> EventReceipt:
+        """Append a learner commit while binding domain metadata from its Observation."""
+        if not isinstance(payload, dict):
+            raise TypeError("payload must be a dictionary")
+        scope = payload.get("scope")
+        principal = self._principal(credential, role="learner", scope=scope)
+        domain = self._observation_domain(episode_id, payload.get("observation_id"))
+        normalized = dict(payload)
+        for field, value in domain.items():
+            if field in normalized and normalized[field] != value:
+                raise E09AuthorizationError(f"prediction commit cannot override {field}")
+            normalized[field] = value
+        return self._store.append_event(
+            episode_id=episode_id, event_id=event_id, event_type="prediction_commit",
+            idempotency_key=idempotency_key, payload=normalized,
+            actor_role="learner", causation_refs=causation_refs,
+            integrity_metadata=_identity_metadata(principal),
+            expected_sequence=expected_sequence, protocol_version=STRICT_PROTOCOL_VERSION,
+        )
 
     def append_evidence_reveal(
         self,
@@ -166,6 +289,25 @@ class E09AuthorityService:
             raise TypeError("payload must be a dictionary")
         scope = payload.get("scope")
         principal = self._principal(credential, role="evaluator", scope=scope)
+        events = self._store.replay_episode(episode_id)
+        prediction_id = payload.get("prediction_id")
+        learner_track = payload.get("learner_track")
+        commits = [
+            event for event in events
+            if event.get("event_type") == "prediction_commit"
+            and event.get("payload", {}).get("prediction_id") == prediction_id
+            and event.get("payload", {}).get("learner_track") == learner_track
+        ]
+        if len(commits) != 1:
+            raise E09AuthorizationError("reveal requires exactly one committed prediction")
+        commit = commits[0]
+        domain = self._observation_domain(episode_id, commit["payload"].get("observation_id"))
+        for field, value in domain.items():
+            if field in payload and payload[field] != value:
+                raise E09AuthorizationError(f"evidence reveal cannot override {field}")
+            if commit["payload"].get(field) != value:
+                raise E09AuthorizationError(f"prediction commit {field} does not match its observation")
+            payload[field] = value
         return self._store.append_event(
             episode_id=episode_id,
             event_id=event_id,
@@ -323,6 +465,7 @@ class E09VerifierService:
             raise E09AuthorizationError("verifier receipt signer is not configured")
         receipt_only_fields = {
             "candidate_evidence_refs", "candidate_evidence_world_family_by_ref",
+            "world_family_by_evidence",
         }
         verification_request = {
             key: value for key, value in request.items() if key not in receipt_only_fields
@@ -352,12 +495,24 @@ class E09VerifierService:
         all_evidence_refs = tuple(sorted(candidate_refs))
         if not set(permit.evidence_refs).issubset(set(all_evidence_refs)):
             raise E09AuthorizationError("candidate evidence refs must include all authorization evidence refs")
-        world_families = request.get(
-            "candidate_evidence_world_family_by_ref",
-            request.get("world_family_by_evidence"),
-        )
-        if not isinstance(world_families, dict) or set(world_families) != set(all_evidence_refs):
-            raise E09AuthorizationError("every candidate evidence ref requires explicit world-family context")
+        world_family_assertions = []
+        for field in ("world_family_by_evidence", "candidate_evidence_world_family_by_ref"):
+            if field not in request:
+                continue
+            mapping = request[field]
+            expected_refs = (
+                set(permit.evidence_refs)
+                if field == "world_family_by_evidence"
+                else set(all_evidence_refs)
+            )
+            if (not isinstance(mapping, dict)
+                    or set(mapping) != expected_refs
+                    or any(not isinstance(value, str) or not value.strip()
+                           for value in mapping.values())):
+                raise E09AuthorizationError(
+                    f"{field} must exactly cover its authorized evidence reference set when supplied"
+                )
+            world_family_assertions.append((field, mapping))
 
         evidence = []
         for ref in all_evidence_refs:
@@ -367,8 +522,12 @@ class E09VerifierService:
                 evidence_ref=ref,
                 scope=request["scope"],
                 learner_track=request["learner_track"],
-                world_family=world_families[ref],
             )
+            for field, mapping in world_family_assertions:
+                if ref in mapping and mapping[ref] != item.world_family:
+                    raise E09AuthorizationError(
+                        f"{field} conflicts with trusted Observation domain for {ref}"
+                    )
             evidence.append({
                 "evidence_id": item.evidence_id,
                 "episode_id": item.episode_id,
