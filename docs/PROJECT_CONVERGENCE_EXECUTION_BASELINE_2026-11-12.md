@@ -278,3 +278,16 @@ A failed earlier run on an older SHA is not evidence that the current exact head
 
 - The 10k and 100k measurements are effectively flat in absolute peak RSS (~27 MiB), while row count increases 10x. Across 1k to 100k per split, peak RSS rises by about 1.9 MiB. This supports the streaming-memory hypothesis for this synthetic profile, but is not a universal upper bound.
 - PR #366 remains the explicit held-out source-group overlap guard; PR #367 is stacked on it. These PRs are Draft and remain unmerged.
+
+
+### CPG-EI second parity teacher cross-check (2026-11-12)
+
+- PR #363 exact head `75b8994567d8b2b07d1d7fa8589706a2f47e75df`, workflow #43213671969: success; 9 tests.
+- Distinct GF(2) three-input parity teacher, 3 seeds: mean support precision 1.000, mean support recall 0.3056, mean validation bit accuracy 0.6337, zero false discoveries, exact support recovery 0/3. An exact 12-edge oracle reaches 100% bit and exact-state accuracy, so the representational basis is sufficient for this synthetic teacher while current greedy discovery remains incomplete.
+- Joint motif matched-compute comparison on seed 11 remains mixed: full support recall and precision 1.000 vs greedy precision 0.923, but held-out bit accuracy 0.5365 vs greedy 0.8229. Joint proposal stays experimental only.
+
+### N0.10 source-provenance completeness guard (2026-11-12)
+
+- PR #368 exact head `d52dd388286deca056ee85149967886f36b352aa`, workflow #43216139061: success; 16 tests.
+- Every record must declare at least one of `group_id`, `source_group_id`, or `episode_id`; records with no source-group identity now fail closed instead of passing an empty overlap check.
+- This strengthens the #366 cross-artifact isolation guard but still relies on producer-supplied identifiers being truthful and complete. It is not a provenance attestation system.
