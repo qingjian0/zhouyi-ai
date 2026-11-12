@@ -10,6 +10,7 @@ on:
     branches:
       - research/cpg-ei-learnable-gates-v3-2026-11-12
       - research/cpg-ei-multiseed-diagnostics-rebased-2026-11-12
+      - research/cpg-ei-second-parity-teacher-rebased-2026-11-12
 
 jobs:
   multiseed-diagnostic:
