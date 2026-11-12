@@ -38,6 +38,18 @@ def _current_rss_bytes() -> int | None:
     return None
 
 
+def _cgroup_memory_bytes(filename: str) -> int | None:
+    """Read a cgroup v2 memory counter when the process is containerized."""
+    try:
+        raw = Path("/sys/fs/cgroup", filename).read_text(encoding="ascii").strip()
+        if raw == "max":
+            return None
+        value = int(raw)
+        return value if value >= 0 else None
+    except (OSError, ValueError):
+        return None
+
+
 def _peak_rss_bytes() -> int:
     value = int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
     # Linux/BSD report KiB; macOS reports bytes.
@@ -96,6 +108,8 @@ def _restore_report(path: Path, scope: str) -> dict[str, int | None]:
             "rss_after_zpcm_bytes": after_zpcm,
             "rss_after_e12a6_restore_bytes": after_restore,
             "peak_rss_bytes": _peak_rss_bytes(),
+            "cgroup_memory_current_bytes": _cgroup_memory_bytes("memory.current"),
+            "cgroup_memory_peak_bytes": _cgroup_memory_bytes("memory.peak"),
             "last_sequence": store._last_sequence,
             "restored_candidate_count": len(store._ledger.candidates),
         }
