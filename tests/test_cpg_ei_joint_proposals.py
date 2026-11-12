@@ -4,6 +4,7 @@ import unittest
 
 from prototype.cpg_ei_mvp import CpgEiTransitionModel, Example, FEATURE_NAMES
 from prototype.cpg_ei_joint_proposals import grow_relation_graph_joint_motifs
+from prototype.cpg_ei_structure_discovery import grow_relation_graph
 
 
 def parity_rows(count, seed):
