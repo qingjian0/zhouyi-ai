@@ -176,5 +176,57 @@ class LearnableSROKTests(unittest.TestCase):
             model.fit([], epochs=1)
 
 
+    def test_beam_pruning_never_reports_a_global_acceptance(self):
+        model = LearnableSROK(self.roles, feature_dim=3)
+        nodes = [
+            Node(f"{role}-{i}", role, (float(i), 0.0, 0.0), frozenset({"eligible"}))
+            for role in ("r0", "r1", "r2") for i in range(3)
+        ]
+        result = model.predict(
+            nodes, retrieval_mode="joint", search_strategy="beam",
+            beam_width=1, max_expansions=100, result_limit=3,
+        )
+        self.assertTrue(result.abstained)
+        self.assertEqual(result.reason, "BEAM_PRUNED")
+        self.assertFalse(result.budget_exhausted)
+        self.assertLess(result.expanded_assignments, 27)
+
+    def test_beam_budget_exhaustion_is_distinct_from_pruning(self):
+        model = LearnableSROK(self.roles, feature_dim=3)
+        nodes = [
+            Node(f"{role}-{i}", role, (float(i), 0.0, 0.0), frozenset({"eligible"}))
+            for role in ("r0", "r1", "r2") for i in range(3)
+        ]
+        result = model.predict(
+            nodes, retrieval_mode="joint", search_strategy="beam",
+            beam_width=2, max_expansions=2, result_limit=3,
+        )
+        self.assertTrue(result.abstained)
+        self.assertEqual(result.reason, "SEARCH_BUDGET_EXHAUSTED")
+        self.assertTrue(result.budget_exhausted)
+        self.assertEqual(result.expanded_assignments, 2)
+
+    def test_beam_search_is_deterministic_under_input_permutation(self):
+        model = LearnableSROK(self.roles, feature_dim=3)
+        nodes = [
+            Node(f"{role}-{i}", role, (float(i), float(i % 2), 0.0), frozenset({"eligible"}))
+            for role in ("r0", "r1", "r2") for i in range(3)
+        ]
+        first = model.predict(
+            nodes, retrieval_mode="joint", search_strategy="beam",
+            beam_width=3, max_expansions=100, result_limit=5,
+        )
+        second = model.predict(
+            list(reversed(nodes)), retrieval_mode="joint", search_strategy="beam",
+            beam_width=3, max_expansions=100, result_limit=5,
+        )
+        self.assertEqual(first.reason, second.reason)
+        self.assertEqual(first.expanded_assignments, second.expanded_assignments)
+        self.assertEqual(
+            [candidate.role_bindings for candidate in first.candidates],
+            [candidate.role_bindings for candidate in second.candidates],
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
