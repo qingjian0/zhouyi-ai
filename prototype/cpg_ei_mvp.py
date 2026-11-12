@@ -174,7 +174,7 @@ class CpgEiTransitionModel:
                 self.gate_logits[gate_index] -= learning_rate * gate_gradients[gate_index]
             losses.append(
                 total_loss / (n * 6.0)
-                + gate_l1 * sum(gates) / max(1, len(gates))
+                + gate_l1 * sum(gates) / 6.0
             )
         return losses
 
@@ -218,6 +218,13 @@ def run_experiment(
         "initial_train_loss": losses[0],
         "final_train_loss": losses[-1],
         "test": evaluate(model, test_rows),
+        "relation_gate_summary": {
+            "pair_mean": sum(model.relation_gate_probabilities()[:15]) / 15.0,
+            "triple_mean": sum(model.relation_gate_probabilities()[15:]) / 20.0,
+            "active_gates_gt_0_5": sum(
+                gate > 0.5 for gate in model.relation_gate_probabilities()
+            ),
+        },
         "model_weights": model.weights,
         "claim_boundary": (
             "Synthetic finite-state transition benchmark only; not natural-language "
