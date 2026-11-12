@@ -116,6 +116,16 @@ class _SQLiteRuntimeState:
         """Close and remove the scratch database immediately; safe to call repeatedly."""
         self._finalizer()
 
+    def begin(self) -> None:
+        self.connection.execute("BEGIN IMMEDIATE")
+
+    def commit(self) -> None:
+        self.connection.execute("COMMIT")
+
+    def rollback(self) -> None:
+        if self.connection.in_transaction:
+            self.connection.execute("ROLLBACK")
+
 
 def _dump_state(value: Any) -> sqlite3.Binary:
     return sqlite3.Binary(pickle.dumps(value, protocol=5))
@@ -440,7 +450,10 @@ class PersistentLifecycleLedger:
                     if event["event_id"] != f"e12a6:authorization-consumed:{receipt_id}":
                         raise LifecyclePersistenceError("authorization consumption event ID mismatch")
                 else: raise LifecyclePersistenceError(f"unknown lifecycle event kind: {kind!r}")
+            previous_state = self._runtime_state
             self._ledger=staged; self._runtime_state=staged_state; self._last_sequence=previous
+            if previous_state is not None and previous_state is not staged_state:
+                previous_state.close()
         except LifecyclePersistenceError:
             if staged_state is not None:
                 staged_state.close()
@@ -450,6 +463,32 @@ class PersistentLifecycleLedger:
                 staged_state.close()
             raise LifecyclePersistenceError(f"lifecycle replay failed: {exc}") from exc
 
+    def _apply_durable_state(self, mutation: Callable[[], None]) -> None:
+        """Apply scratch mutations atomically; rebuild from authoritative events on failure."""
+        state = self._runtime_state
+        try:
+            state.begin()
+            mutation()
+            state.commit()
+        except Exception as mutation_error:
+            try:
+                state.rollback()
+            except Exception:
+                pass
+            try:
+                self._restore()
+            except Exception as restore_error:
+                if self._runtime_state is state:
+                    state.close()
+                    self._runtime_state = None
+                    self._ledger = None
+                    self._last_sequence = 0
+                raise LifecyclePersistenceError(
+                    "durable lifecycle event committed but runtime state recovery failed; adapter is fail-closed"
+                ) from restore_error
+            # The authoritative event is durable and replay has reconstructed its state.
+            return
+
     def _commit(self,event_id: str,payload: dict[str,Any],apply_state: Callable[[], None]) -> LifecycleEventReceipt:
         raw=self._memory.append_lifecycle_event(event_id=event_id,scope=self.scope,
           payload=payload,expected_sequence=self._last_sequence)
@@ -458,7 +497,7 @@ class PersistentLifecycleLedger:
             if self._get_event_payload(event_id)!=payload:
                 raise LifecyclePersistenceError("replayed event differs from local history")
             return receipt
-        apply_state()
+        self._apply_durable_state(apply_state)
         self._last_sequence=receipt.sequence
         return receipt
 
@@ -668,9 +707,12 @@ class PersistentLifecycleLedger:
                 raise LifecyclePersistenceError(
                     "bundle already exists in ZPCM outside this adapter; reconstruct ledger before retry"
                 )
-            for item in safe_evidence:
-                self._ledger.add_evidence(item)
-            self._ledger.add_candidate(candidate)
+            def apply_bundle_state() -> None:
+                for item in safe_evidence:
+                    self._ledger.add_evidence(item)
+                self._ledger.add_candidate(candidate)
+
+            self._apply_durable_state(apply_bundle_state)
             self._last_sequence = raw_receipts[-1]["sequence"]
             auth_receipt = None
             if authorization_event is not None:
