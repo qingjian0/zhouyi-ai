@@ -38,7 +38,7 @@ jobs:
           import json
           from pathlib import Path
           manifest = json.loads(Path("/tmp/zhouyi-cpg-ei-mixed-v1-manifest.json").read_text())
-          assert manifest["row_count"] == 10240
+          assert manifest["row_count"] == 102400
           assert manifest["teacher_rule_count"] == 320
           assert len(manifest["operator_rule_counts"]) == 7
           print(json.dumps(manifest, indent=2))
