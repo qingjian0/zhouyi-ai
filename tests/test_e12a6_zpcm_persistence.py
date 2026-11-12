@@ -362,6 +362,13 @@ class PersistentLifecycleTests(unittest.TestCase):
         with self.assertRaises(LifecyclePersistenceError): PersistentLifecycleLedger(self.memory,scope="project-a")
 
 
+    def test_event_payload_bodies_are_not_cached_in_process(self):
+        self.store.register_candidate(candidate())
+        self.store.register_evidence(evidence())
+        self.assertFalse(hasattr(self.store, "_event_payloads"))
+        self.assertTrue(self.store.register_candidate(candidate()).replayed)
+        self.assertTrue(self.store.register_evidence(evidence()).replayed)
+
     def test_restore_uses_streaming_iterator_not_materializing_compatibility_api(self):
         self.store.register_candidate(candidate())
         self.memory.replay_lifecycle_events = lambda **kwargs: (_ for _ in ()).throw(
