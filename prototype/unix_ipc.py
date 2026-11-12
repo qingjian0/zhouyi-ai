@@ -394,6 +394,9 @@ class UnixJSONRPCServer:
                 "status": "error", "body": {"code": "internal_error", "message": "IPC service failed"},
             }
         try:
+            # A frame-read deadline may have shortened the socket timeout to
+            # near zero; reset a bounded write timeout for the error response.
+            conn.settimeout(self.io_timeout_seconds)
             conn.sendall(_encode_frame(response, self.max_frame_bytes))
         except (OSError, IPCTransportError):
             pass
