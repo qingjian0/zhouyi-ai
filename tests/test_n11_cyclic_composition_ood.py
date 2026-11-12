@@ -8,9 +8,10 @@ from prototype.n11_cyclic_composition_ood import (
 )
 
 
-def phase_a(row):
-    node = row.assignment[0]
-    return math.atan2(node.features[2], node.features[0]) % (2.0 * math.pi)
+def phase(row, role_index):
+    node = row.assignment[role_index]
+    sine_index = 2 if role_index == 0 else 1
+    return math.atan2(node.features[sine_index], node.features[0]) % (2.0 * math.pi)
 
 
 class N11CyclicCompositionOODTests(unittest.TestCase):
@@ -19,7 +20,7 @@ class N11CyclicCompositionOODTests(unittest.TestCase):
         test = make_dataset(80, 29, "test")
         self.assertEqual(train, make_dataset(80, 17, "train"))
         self.assertEqual(test, make_dataset(80, 29, "test"))
-        self.assertTrue(all(phase_a(row) >= math.pi / 2 for row in train))
+        self.assertTrue(all(phase(row, 0) >= math.pi / 2 for row in train))
         self.assertTrue(all(phase_a(row) < math.pi / 2 for row in test))
         self.assertEqual({len(row.assignment) for row in train + test}, {3})
         self.assertEqual({len(node.features) for row in train + test
@@ -28,10 +29,7 @@ class N11CyclicCompositionOODTests(unittest.TestCase):
     def test_labels_match_the_composed_phase_rule(self):
         rows = make_dataset(100, 41, "test")
         for row in rows:
-            angles = [
-                math.atan2(node.features[2], node.features[0])
-                for node in row.assignment
-            ]
+            angles = [phase(row, index) for index in range(3)]
             expected = int(math.cos(sum(angles)) > 0.0)
             self.assertEqual(row.label, expected)
 
