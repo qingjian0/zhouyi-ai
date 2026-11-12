@@ -556,10 +556,13 @@ class E09VerifierService:
                 "prediction_commit_step": item.prediction_commit_step,
                 "label_visibility_step": item.label_visibility_step,
                 "provenance": item.provenance,
+                "domain_id": item.domain_id,
+                "domain_registry_id": item.domain_registry_id,
+                "domain_registry_version": item.domain_registry_version,
             })
 
         receipt = {
-            "schema_version": "e09_verification_receipt@1",
+            "schema_version": "e09_verification_receipt@2",
             "receipt_id": secrets.token_hex(16),
             "nonce": secrets.token_urlsafe(32),
             "audience": "e12a6-lifecycle-writer",
