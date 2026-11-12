@@ -152,7 +152,7 @@ class Tests(unittest.TestCase):
    self.assertEqual(m.db.execute("SELECT COUNT(*) FROM memory_events").fetchone()[0],0)
   finally:m.close()
  def test_forward_and_reverse_pages_obey_aggregate_byte_budget(self):
-  m=ZPCMMemory(Path(self.tmp.name)/"paged.db",max_event_payload_bytes=256,max_page_bytes=130)
+  m=ZPCMMemory(Path(self.tmp.name)/"paged.db",max_event_payload_bytes=128,max_page_bytes=130)
   try:
    for i in range(3):
     m.append_domain_event(event_type="x",event_id=f"e{i}",scope="s",
