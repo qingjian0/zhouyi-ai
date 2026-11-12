@@ -7,7 +7,6 @@ This measures within-family sample efficiency, not cross-family zero-shot transf
 from __future__ import annotations
 
 import argparse
-import copy
 import hashlib
 import json
 import random
@@ -189,7 +188,7 @@ def write_json_report(report: dict[str, Any], path: str | Path) -> None:
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
     destination.write_text(
-        json.dumps(report, ensure_ascii=False, indent=2) + "\\n",
+        json.dumps(report, ensure_ascii=False, indent=2) + "\n",
         encoding="utf-8",
     )
 
