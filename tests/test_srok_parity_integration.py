@@ -57,11 +57,14 @@ class LearnableSROKParityIntegrationTests(unittest.TestCase):
                 train, epochs=700, learning_rate=0.12,
                 interaction_order=order,
             )
-            self.assertLess(history[-1], history[0])
             accuracy = self._evaluate(model, self._examples(seed=29), order)
             if order < 3:
+                # Parity is orthogonal to all unary/pairwise features: a
+                # stationary chance-level loss is the expected control.
+                self.assertAlmostEqual(history[-1], history[0], places=12)
                 self.assertAlmostEqual(accuracy, 0.5, places=6)
             else:
+                self.assertLess(history[-1], history[0])
                 self.assertEqual(accuracy, 1.0)
 
     def test_randomized_example_order_and_role_permutation_preserve_parity(self):
@@ -103,9 +106,11 @@ class LearnableSROKParityIntegrationTests(unittest.TestCase):
         ranked = model.retrieve(0, candidates, top_k=2)
         self.assertEqual(len(ranked), 2)
         self.assertAlmostEqual(ranked[0][1], ranked[1][1], places=10)
-        # Retrieval has no parity-relevant unary evidence; its deterministic
-        # node_id tie-break is not a learned semantic ranking.
-        self.assertEqual(ranked[0][0].node_id, "a-negative")
+        # Retrieval has no parity-relevant unary evidence. Tiny floating-point
+        # residuals may change the ordering, so assert score neutrality rather
+        # than pinning a particular candidate ID as the winner.
+        self.assertLess(abs(ranked[0][1]), 1e-10)
+        self.assertLess(abs(ranked[1][1]), 1e-10)
 
     def test_invalid_labels_and_incomplete_assignments_are_rejected(self):
         model = LearnableSROK(self._roles(), feature_dim=1)
