@@ -78,6 +78,19 @@ class LifecycleProjectionReaderTests(unittest.TestCase):
         self.assertEqual(len(ledger.actions), 1)
         self.assertIn("lazy-propose-1", ledger._action_ids)
 
+    def test_action_projection_keyset_scan_uses_scope_sequence_index(self):
+        self.writer.register_candidate(_candidate())
+        self.writer.register_evidence(_evidence())
+        self.writer.apply(_propose())
+        plan = self.memory.db.execute(
+            "EXPLAIN QUERY PLAN SELECT action_json,source_seq "
+            "FROM e12a6_action_state_projection "
+            "WHERE scope=? AND source_seq>? ORDER BY source_seq LIMIT ?",
+            ("lazy-scope", 0, 256),
+        ).fetchall()
+        details = " ".join(row["detail"] for row in plan)
+        self.assertIn("e12a6_action_state_by_scope_seq", details)
+
     def test_projection_iterator_rejects_unbounded_page_sizes(self):
         reader = LifecycleProjectionReader(self.memory, scope="lazy-scope")
         with self.assertRaises(Exception):
