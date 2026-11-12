@@ -111,12 +111,27 @@ class CpgEiTransitionModel:
     weights: list[list[float]]
     # One shared learnable gate for each pair/triple relation feature.
     gate_logits: list[float]
+    active_relation_indices: set[int]
 
     @classmethod
-    def create(cls) -> "CpgEiTransitionModel":
+    def create(
+        cls, active_relation_indices: Iterable[int] | None = None
+    ) -> "CpgEiTransitionModel":
+        active = (
+            set(range(7, len(FEATURE_NAMES)))
+            if active_relation_indices is None
+            else set(active_relation_indices)
+        )
+        if any(
+            isinstance(index, bool) or not isinstance(index, int)
+            or not 7 <= index < len(FEATURE_NAMES)
+            for index in active
+        ):
+            raise ValueError("active relation indices must be in [7, 41]")
         return cls(
             [[0.0] * len(FEATURE_NAMES) for _ in range(6)],
             [2.0] * (len(FEATURE_NAMES) - 7),
+            active,
         )
 
     def relation_gate_probabilities(self) -> tuple[float, ...]:
@@ -125,7 +140,13 @@ class CpgEiTransitionModel:
     def _gated_features(self, state: Sequence[int]) -> tuple[float, ...]:
         raw = encode_state(state)
         gates = self.relation_gate_probabilities()
-        return (*raw[:7], *(value * gate for value, gate in zip(raw[7:], gates)))
+        return (
+            *raw[:7],
+            *(
+                value * gate if index in self.active_relation_indices else 0.0
+                for index, (value, gate) in enumerate(zip(raw[7:], gates), start=7)
+            ),
+        )
 
     def logits(self, state: Sequence[int]) -> tuple[float, ...]:
         x = self._gated_features(state)
@@ -172,6 +193,8 @@ class CpgEiTransitionModel:
                     for j, value in enumerate(effective):
                         weight_grad[j] += error * value
                     for gate_index, feature_index in enumerate(range(7, len(raw))):
+                        if feature_index not in self.active_relation_indices:
+                            continue
                         gate_gradients[gate_index] += (
                             error * head[feature_index] * raw[feature_index]
                             * gate_derivatives[gate_index]
@@ -194,7 +217,7 @@ class CpgEiTransitionModel:
             # independently.
             group_norm_sum = 0.0
             if edge_group_l1:
-                for feature_index in range(7, len(FEATURE_NAMES)):
+                for feature_index in self.active_relation_indices:
                     norm = math.sqrt(sum(
                         self.weights[head_index][feature_index] ** 2
                         for head_index in range(6)
