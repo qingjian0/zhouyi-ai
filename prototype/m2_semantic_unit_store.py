@@ -350,21 +350,30 @@ class PersistentM2SemanticUnitStore:
         while True:
             with self._memory.lock:
                 rows = self._db.execute(
-                    "SELECT root_id,current_body_json FROM m2_semantic_unit_roots "
-                    "WHERE scope=? AND retracted_reason IS NULL AND root_id>? "
-                    "ORDER BY root_id LIMIT 32",
+                    "SELECT root_id,length(CAST(current_body_json AS BLOB)) AS body_bytes "
+                    "FROM m2_semantic_unit_roots WHERE scope=? AND retracted_reason IS NULL "
+                    "AND root_id>? ORDER BY root_id LIMIT 32",
                     (self.scope,cursor),
                 ).fetchall()
             if not rows:
                 return
             used = 0
             for row in rows:
-                size = len(row["current_body_json"].encode("utf-8"))
+                size = int(row["body_bytes"])
                 if size > self._memory.max_page_bytes or used + size > self._memory.max_page_bytes:
                     if used == 0:
                         raise SemanticUnitStoreError("current candidate exceeds projection validation byte budget")
                     break
-                candidate = _candidate_from_dict(json.loads(row["current_body_json"]))
+                with self._memory.lock:
+                    body = self._db.execute(
+                        "SELECT current_body_json FROM m2_semantic_unit_roots "
+                        "WHERE scope=? AND root_id=? AND retracted_reason IS NULL",
+                        (self.scope,row["root_id"]),
+                    ).fetchone()
+                if body is None:
+                    cursor = row["root_id"]
+                    continue
+                candidate = _candidate_from_dict(json.loads(body["current_body_json"]))
                 self._verify_candidate(candidate)
                 used += size
                 cursor = row["root_id"]
