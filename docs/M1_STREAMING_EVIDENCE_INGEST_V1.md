@@ -1,6 +1,6 @@
 # M1 流式证据摄取原型 v1
 
-状态：首个可执行原型；等待精确分支 CI 与压力测试验收。  
+状态：首个可执行原型；精确 head `f55171bd7db33aa1df342c4f7bd5450e1f9533ec` 的 Run #1616 已完整通过。后续 benchmark 与恢复覆盖增强仍需新 head CI 和压力测试验收。  
 模块：`prototype/streaming_evidence_ingest.py`
 
 ## 目标
@@ -53,14 +53,18 @@ with open("large_input.txt", "rb") as source:
 - 字节块边界保证 UTF-8 码点完整，不保证语义边界；Token 计数必须由实际 tokenizer 提供。
 - 幂等保证针对同一文档 ID 和同一输入版本的已完成/已提交批次；输入内容变更时必须使用新文档 ID。
 
+## 基准测量
+
+新增 `prototype/benchmark_streaming_ingest.py`，将 M0 RSS 采样、OS high-water、吞吐、SQLite/WAL 文件大小整合为单次可复现报告。详见 `docs/M1_STREAMING_INGEST_BENCHMARK_V1.md`。每个规模必须在新进程和新数据库执行。
+
 ## M1 验收仍需补齐
 
-1. 精确 PR head 的完整 CI。
-2. 1M Token 测试：使用项目真实 tokenizer 统计 Token 数，不能用字符数估算。
+1. 新增 benchmark 与 tokenizer coverage 变更的精确 head CI。
+2. 1M Token 测试：使用项目真实 tokenizer 的增量接口或可证明边界一致的 adapter；不能用字符数估算，也不能简单把独立块 token 数冒充整文 token 数。
 3. 1M 输入期间 RSS/OS high-water、SQLite/WAL 磁盘占用、吞吐和延迟。
-4. 在多个提交点强制终止进程，重新打开数据库恢复，验证块数、哈希、span 无丢失/重复。
+4. 在多个提交点强制终止独立进程，重新打开数据库恢复，验证块数、哈希、span 无丢失/重复；当前单元测试只覆盖关闭连接后重开恢复，不等同于硬崩溃测试。
 5. 对 8K/128K/256K/512K/1M 输入重复运行，报告内存曲线和输入正确性。
-6. 对源文件版本不一致的恢复增加显式校验/拒绝策略。
+6. 多进程并发写入/重复请求的锁冲突和幂等语义测试。
 
 M1 通过只证明原文可有界摄取和持久恢复，不代表 M2 认知工作集、K1 持续认知或 K2 原生表达通过。
 
