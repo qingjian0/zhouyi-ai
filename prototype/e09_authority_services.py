@@ -264,10 +264,36 @@ class E09AuthorityService:
         learner_track: str,
     ) -> list[dict[str, Any]]:
         """Return a learner-safe, provenance-checked event projection for ZPCM sync."""
-        self._principal(credential, role="learner", scope=scope)
+        principal = self._principal(credential, role="learner", scope=scope)
         if not isinstance(learner_track, str) or not learner_track.strip():
             raise E09AuthorizationError("learner_track must be a non-empty string")
         events = self._store.replay_episode(episode_id)
+        own_commit_ids = set()
+        own_observation_ids = set()
+        for event in events:
+            if event.get("event_type") != "prediction_commit":
+                continue
+            payload = event.get("payload", {})
+            workload = event.get("integrity_metadata", {}).get("authenticated_workload", {})
+            if (
+                event.get("actor_role") == "learner"
+                and payload.get("scope") == scope
+                and payload.get("learner_track") == learner_track
+                and isinstance(workload, dict)
+                and workload.get("workload_id") == principal.workload_id
+            ):
+                own_commit_ids.add(event.get("event_id"))
+                own_observation_ids.update(event.get("causation_refs", []))
+        own_reveal_ids = {
+            event.get("event_id")
+            for event in events
+            if event.get("event_type") == "evidence_reveal"
+            and event.get("payload", {}).get("scope") == scope
+            and event.get("payload", {}).get("learner_track") == learner_track
+            and event.get("actor_role") == "evaluator"
+            and isinstance(event.get("integrity_metadata", {}).get("authenticated_workload"), dict)
+            and set(event.get("causation_refs", [])) & own_commit_ids
+        }
         expected_roles = {
             "observation": "observer",
             "prediction_commit": "learner",
@@ -282,6 +308,18 @@ class E09AuthorityService:
                 continue
             payload = event.get("payload", {})
             if payload.get("scope") != scope:
+                continue
+            if event_type == "prediction_commit" and event.get("event_id") not in own_commit_ids:
+                continue
+            if event_type == "observation" and event.get("event_id") not in own_observation_ids:
+                continue
+            if event_type == "evidence_reveal" and event.get("event_id") not in own_reveal_ids:
+                continue
+            event_workload = event.get("integrity_metadata", {}).get("authenticated_workload", {})
+            if event_type in {"structure_version", "revision"} and (
+                not isinstance(event_workload, dict)
+                or event_workload.get("workload_id") != principal.workload_id
+            ):
                 continue
             event_track = payload.get("learner_track")
             if event_track not in (None, learner_track):
@@ -330,7 +368,7 @@ class E09AuthorityService:
         scope: str,
     ) -> dict[str, Any]:
         """Release only lineage-verified SUPPORT feedback to the authorized learner."""
-        self._principal(credential, role="learner", scope=scope)
+        principal = self._principal(credential, role="learner", scope=scope)
         events = self._store.replay_episode(episode_id)
         by_id = {event.get("event_id"): event for event in events}
         reveal = by_id.get(reveal_event_id)
@@ -360,6 +398,8 @@ class E09AuthorityService:
             or not isinstance(
                 commit.get("integrity_metadata", {}).get("authenticated_workload"), dict
             )
+            or commit.get("integrity_metadata", {}).get("authenticated_workload", {}).get("workload_id")
+                != principal.workload_id
             or reveal_payload.get("prediction_id") != commit_payload.get("prediction_id")
             or reveal_payload.get("query_id") != commit_payload.get("query_id")
             or reveal_payload.get("learner_track") != commit_payload.get("learner_track")
