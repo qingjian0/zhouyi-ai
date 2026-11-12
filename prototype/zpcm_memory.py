@@ -11,7 +11,13 @@ def digest(v): return hashlib.sha256(canonical(v).encode()).hexdigest()
 
 class ZPCMMemory:
     SCHEMA_VERSION="zpcm-memory-v0.1"
-    def __init__(self,path:str|Path):
+    def __init__(self,path:str|Path, *, max_event_payload_bytes:int=1048576, max_page_bytes:int=4194304):
+        if isinstance(max_event_payload_bytes,bool) or not isinstance(max_event_payload_bytes,int) or max_event_payload_bytes < 1:
+            raise ZPCMError("max_event_payload_bytes must be a positive integer")
+        if isinstance(max_page_bytes,bool) or not isinstance(max_page_bytes,int) or max_page_bytes < max_event_payload_bytes:
+            raise ZPCMError("max_page_bytes must be >= max_event_payload_bytes")
+        self.max_event_payload_bytes=max_event_payload_bytes
+        self.max_page_bytes=max_page_bytes
         self.path=str(path); self.lock=threading.RLock()
         self.db=sqlite3.connect(self.path,isolation_level=None,check_same_thread=False)
         self.db.row_factory=sqlite3.Row
@@ -20,6 +26,7 @@ class ZPCMMemory:
         self.db.execute("PRAGMA synchronous=FULL"); self.db.execute("PRAGMA foreign_keys=ON")
         self.db.executescript("""
         CREATE TABLE IF NOT EXISTS memory_events(seq INTEGER PRIMARY KEY AUTOINCREMENT,event_id TEXT UNIQUE NOT NULL,event_type TEXT NOT NULL,scope TEXT NOT NULL,payload_json TEXT NOT NULL,payload_digest TEXT NOT NULL,recorded_at TEXT NOT NULL);
+        CREATE INDEX IF NOT EXISTS memory_events_type_scope_seq ON memory_events(event_type,scope,seq);
         CREATE TABLE IF NOT EXISTS memory_items(item_id TEXT PRIMARY KEY,item_type TEXT NOT NULL,scope TEXT NOT NULL,content_json TEXT NOT NULL,source_event_id TEXT NOT NULL,created_seq INTEGER NOT NULL,active INTEGER NOT NULL DEFAULT 1,FOREIGN KEY(source_event_id) REFERENCES memory_events(event_id));
         CREATE INDEX IF NOT EXISTS memory_items_scope_type_seq ON memory_items(scope,item_type,created_seq DESC);
         CREATE TABLE IF NOT EXISTS assertions(assertion_id TEXT PRIMARY KEY,subject_id TEXT NOT NULL,predicate TEXT NOT NULL,object_json TEXT NOT NULL,scope TEXT NOT NULL,valid_from TEXT,valid_to TEXT,status TEXT NOT NULL,source_event_id TEXT NOT NULL,created_seq INTEGER NOT NULL,FOREIGN KEY(source_event_id) REFERENCES memory_events(event_id));
@@ -80,7 +87,11 @@ class ZPCMMemory:
 
     def _append(self,event_id,event_type,scope,payload):
         if not all(isinstance(x,str) and x.strip() for x in (event_id,event_type,scope)):raise ZPCMError("event identifiers/type/scope required")
-        raw=canonical(payload); d=digest(payload)
+        raw=canonical(payload)
+        payload_size=len(raw.encode("utf-8"))
+        if payload_size > self.max_event_payload_bytes:
+            raise ZPCMError(f"event payload exceeds max_event_payload_bytes: {payload_size} > {self.max_event_payload_bytes}")
+        d=digest(payload)
         old=self.db.execute("SELECT seq,event_type,scope,payload_digest FROM memory_events WHERE event_id=?",(event_id,)).fetchone()
         if old:
             if (old["event_type"],old["scope"],old["payload_digest"])!=(event_type,scope,d):raise ZPCMError("event ID content conflict")
@@ -137,12 +148,7 @@ class ZPCMMemory:
         self, *, event_type: str, scope: str, after_sequence: int = 0,
         page_size: int = 128,
     ) -> Iterator[dict[str, Any]]:
-        """Keyset-page a stable snapshot of one typed event stream.
-
-        The high-water mark is captured once, so concurrent appends do not
-        extend this iteration indefinitely. Each page is fetched and released
-        before yielding; memory use is bounded by page_size decoded events.
-        """
+        """Byte- and count-bounded forward keyset iterator."""
         if not isinstance(event_type, str) or not event_type.strip():
             raise ZPCMError("event_type must be non-empty")
         if not isinstance(scope, str) or not scope.strip():
@@ -151,7 +157,6 @@ class ZPCMMemory:
             raise ZPCMError("after_sequence must be a non-negative integer")
         if isinstance(page_size, bool) or not isinstance(page_size, int) or not 1 <= page_size <= 4096:
             raise ZPCMError("page_size must be an integer in [1, 4096]")
-
         with self.lock:
             high_water = self.db.execute(
                 "SELECT COALESCE(MAX(seq), 0) FROM memory_events WHERE event_type=? AND scope=?",
@@ -161,23 +166,41 @@ class ZPCMMemory:
         while cursor < high_water:
             with self.lock:
                 rows = self.db.execute(
-                    "SELECT seq,event_id,event_type,scope,payload_json,payload_digest,recorded_at "
+                    "SELECT seq,event_id,event_type,scope,length(CAST(payload_json AS BLOB)) AS payload_bytes,payload_digest,recorded_at "
                     "FROM memory_events WHERE event_type=? AND scope=? AND seq>? AND seq<=? "
                     "ORDER BY seq LIMIT ?",
                     (event_type, scope, cursor, high_water, page_size),
                 ).fetchall()
             if not rows:
                 return
+            selected=[]
+            used=0
             for row in rows:
-                payload = json.loads(row["payload_json"])
+                size=int(row["payload_bytes"])
+                if size > self.max_event_payload_bytes:
+                    raise ZPCMError(f"persisted event payload exceeds max_event_payload_bytes: {row['event_id']}")
+                if used + size > self.max_page_bytes:
+                    break
+                selected.append(row); used += size
+            if not selected:
+                raise ZPCMError("event page cannot make progress within max_page_bytes")
+            for row in selected:
+                with self.lock:
+                    raw=self.db.execute(
+                        "SELECT payload_json FROM memory_events WHERE seq=? AND event_id=?",
+                        (row["seq"],row["event_id"]),
+                    ).fetchone()
+                if raw is None:
+                    raise ZPCMError("event disappeared during keyset iteration")
+                payload=json.loads(raw["payload_json"])
                 if digest(payload) != row["payload_digest"]:
                     raise ZPCMError(f"domain event digest mismatch: {row['event_id']}")
-                cursor = row["seq"]
+                cursor=row["seq"]
                 yield {
-                    "sequence": row["seq"], "event_id": row["event_id"],
-                    "event_type": row["event_type"], "scope": row["scope"],
-                    "payload": payload, "payload_digest": row["payload_digest"],
-                    "recorded_at": row["recorded_at"],
+                    "sequence":row["seq"],"event_id":row["event_id"],
+                    "event_type":row["event_type"],"scope":row["scope"],
+                    "payload":payload,"payload_digest":row["payload_digest"],
+                    "recorded_at":row["recorded_at"],
                 }
 
     def latest_domain_sequence(self, *, event_type: str, scope: str) -> int:
@@ -245,12 +268,7 @@ class ZPCMMemory:
         self, *, event_type: str, scope: str, after_sequence: int = 0,
         page_size: int = 128,
     ) -> Iterator[dict[str, Any]]:
-        """Keyset-page a stable snapshot of one typed event stream.
-
-        The high-water mark is captured once, so concurrent appends do not
-        extend this iteration indefinitely. Each page is fetched and released
-        before yielding; memory use is bounded by page_size decoded events.
-        """
+        """Byte- and count-bounded forward keyset iterator."""
         if not isinstance(event_type, str) or not event_type.strip():
             raise ZPCMError("event_type must be non-empty")
         if not isinstance(scope, str) or not scope.strip():
@@ -259,7 +277,6 @@ class ZPCMMemory:
             raise ZPCMError("after_sequence must be a non-negative integer")
         if isinstance(page_size, bool) or not isinstance(page_size, int) or not 1 <= page_size <= 4096:
             raise ZPCMError("page_size must be an integer in [1, 4096]")
-
         with self.lock:
             high_water = self.db.execute(
                 "SELECT COALESCE(MAX(seq), 0) FROM memory_events WHERE event_type=? AND scope=?",
@@ -269,23 +286,40 @@ class ZPCMMemory:
         while cursor < high_water:
             with self.lock:
                 rows = self.db.execute(
-                    "SELECT seq,event_id,event_type,scope,payload_json,payload_digest,recorded_at "
+                    "SELECT seq,event_id,event_type,scope,length(CAST(payload_json AS BLOB)) AS payload_bytes,payload_digest,recorded_at "
                     "FROM memory_events WHERE event_type=? AND scope=? AND seq>? AND seq<=? "
                     "ORDER BY seq LIMIT ?",
                     (event_type, scope, cursor, high_water, page_size),
                 ).fetchall()
             if not rows:
                 return
+            selected=[]; used=0
             for row in rows:
-                payload = json.loads(row["payload_json"])
+                size=int(row["payload_bytes"])
+                if size > self.max_event_payload_bytes:
+                    raise ZPCMError(f"persisted event payload exceeds max_event_payload_bytes: {row['event_id']}")
+                if used + size > self.max_page_bytes:
+                    break
+                selected.append(row); used += size
+            if not selected:
+                raise ZPCMError("event page cannot make progress within max_page_bytes")
+            for row in selected:
+                with self.lock:
+                    raw=self.db.execute(
+                        "SELECT payload_json FROM memory_events WHERE seq=? AND event_id=?",
+                        (row["seq"],row["event_id"]),
+                    ).fetchone()
+                if raw is None:
+                    raise ZPCMError("event disappeared during keyset iteration")
+                payload=json.loads(raw["payload_json"])
                 if digest(payload) != row["payload_digest"]:
                     raise ZPCMError(f"domain event digest mismatch: {row['event_id']}")
-                cursor = row["seq"]
+                cursor=row["seq"]
                 yield {
-                    "sequence": row["seq"], "event_id": row["event_id"],
-                    "event_type": row["event_type"], "scope": row["scope"],
-                    "payload": payload, "payload_digest": row["payload_digest"],
-                    "recorded_at": row["recorded_at"],
+                    "sequence":row["seq"],"event_id":row["event_id"],
+                    "event_type":row["event_type"],"scope":row["scope"],
+                    "payload":payload,"payload_digest":row["payload_digest"],
+                    "recorded_at":row["recorded_at"],
                 }
 
     def latest_domain_sequence(self, *, event_type: str, scope: str) -> int:
@@ -382,7 +416,7 @@ class ZPCMMemory:
     def get_domain_event(
         self, *, event_type: str, scope: str, event_id: str,
     ) -> dict[str, Any] | None:
-        """Fetch one indexed event without replaying or materializing its stream."""
+        """Fetch one event only after checking its persisted byte length."""
         if not isinstance(event_type, str) or not event_type.strip():
             raise ZPCMError("event_type must be non-empty")
         if not isinstance(scope, str) or not scope.strip():
@@ -390,65 +424,88 @@ class ZPCMMemory:
         if not isinstance(event_id, str) or not event_id.strip():
             raise ZPCMError("event_id must be non-empty")
         with self.lock:
-            row = self.db.execute(
-                "SELECT seq,event_id,event_type,scope,payload_json,payload_digest,recorded_at "
+            row=self.db.execute(
+                "SELECT seq,event_id,event_type,scope,length(CAST(payload_json AS BLOB)) AS payload_bytes,payload_digest,recorded_at "
                 "FROM memory_events WHERE event_id=? AND event_type=? AND scope=?",
-                (event_id, event_type, scope),
+                (event_id,event_type,scope),
             ).fetchone()
-        if row is None:
-            return None
-        payload = json.loads(row["payload_json"])
+            if row is None:
+                return None
+            if int(row["payload_bytes"]) > self.max_event_payload_bytes:
+                raise ZPCMError(f"persisted event payload exceeds max_event_payload_bytes: {event_id}")
+            raw=self.db.execute(
+                "SELECT payload_json FROM memory_events WHERE event_id=?",(event_id,)
+            ).fetchone()
+        if raw is None:
+            raise ZPCMError(f"event disappeared during indexed lookup: {event_id}")
+        payload=json.loads(raw["payload_json"])
         if digest(payload) != row["payload_digest"]:
             raise ZPCMError(f"domain event digest mismatch: {event_id}")
         return {
-            "sequence": row["seq"], "event_id": row["event_id"],
-            "event_type": row["event_type"], "scope": row["scope"],
-            "payload": payload, "payload_digest": row["payload_digest"],
-            "recorded_at": row["recorded_at"],
+            "sequence":row["seq"],"event_id":row["event_id"],
+            "event_type":row["event_type"],"scope":row["scope"],
+            "payload":payload,"payload_digest":row["payload_digest"],
+            "recorded_at":row["recorded_at"],
         }
 
     def iter_domain_events_reverse(
         self, *, event_type: str, scope: str, before_sequence: int | None = None,
         page_size: int = 128,
     ) -> Iterator[dict[str, Any]]:
-        """Keyset-page one typed event stream newest-first with bounded memory."""
+        """Byte- and count-bounded newest-first keyset iterator."""
         if not isinstance(event_type, str) or not event_type.strip():
             raise ZPCMError("event_type must be non-empty")
         if not isinstance(scope, str) or not scope.strip():
             raise ZPCMError("scope must be non-empty")
         if before_sequence is not None and (
-            isinstance(before_sequence, bool) or not isinstance(before_sequence, int)
-            or before_sequence < 1
+            isinstance(before_sequence,bool) or not isinstance(before_sequence,int) or before_sequence < 1
         ):
             raise ZPCMError("before_sequence must be a positive integer")
-        if isinstance(page_size, bool) or not isinstance(page_size, int) or not 1 <= page_size <= 4096:
+        if isinstance(page_size,bool) or not isinstance(page_size,int) or not 1 <= page_size <= 4096:
             raise ZPCMError("page_size must be an integer in [1, 4096]")
         with self.lock:
-            high_water = self.db.execute(
-                "SELECT COALESCE(MAX(seq), 0) FROM memory_events WHERE event_type=? AND scope=?",
-                (event_type, scope),
+            high_water=self.db.execute(
+                "SELECT COALESCE(MAX(seq),0) FROM memory_events WHERE event_type=? AND scope=?",
+                (event_type,scope),
             ).fetchone()[0]
-        cursor = min(high_water + 1, before_sequence) if before_sequence is not None else high_water + 1
+        cursor=min(high_water+1,before_sequence) if before_sequence is not None else high_water+1
         while cursor > 1:
             with self.lock:
-                rows = self.db.execute(
-                    "SELECT seq,event_id,event_type,scope,payload_json,payload_digest,recorded_at "
+                rows=self.db.execute(
+                    "SELECT seq,event_id,event_type,scope,length(CAST(payload_json AS BLOB)) AS payload_bytes,payload_digest,recorded_at "
                     "FROM memory_events WHERE event_type=? AND scope=? AND seq<? AND seq<=? "
                     "ORDER BY seq DESC LIMIT ?",
-                    (event_type, scope, cursor, high_water, page_size),
+                    (event_type,scope,cursor,high_water,page_size),
                 ).fetchall()
             if not rows:
                 return
+            selected=[]; used=0
             for row in rows:
-                payload = json.loads(row["payload_json"])
+                size=int(row["payload_bytes"])
+                if size > self.max_event_payload_bytes:
+                    raise ZPCMError(f"persisted event payload exceeds max_event_payload_bytes: {row['event_id']}")
+                if used+size > self.max_page_bytes:
+                    break
+                selected.append(row); used+=size
+            if not selected:
+                raise ZPCMError("event page cannot make progress within max_page_bytes")
+            for row in selected:
+                with self.lock:
+                    raw=self.db.execute(
+                        "SELECT payload_json FROM memory_events WHERE seq=? AND event_id=?",
+                        (row["seq"],row["event_id"]),
+                    ).fetchone()
+                if raw is None:
+                    raise ZPCMError("event disappeared during reverse keyset iteration")
+                payload=json.loads(raw["payload_json"])
                 if digest(payload) != row["payload_digest"]:
                     raise ZPCMError(f"domain event digest mismatch: {row['event_id']}")
-                cursor = row["seq"]
+                cursor=row["seq"]
                 yield {
-                    "sequence": row["seq"], "event_id": row["event_id"],
-                    "event_type": row["event_type"], "scope": row["scope"],
-                    "payload": payload, "payload_digest": row["payload_digest"],
-                    "recorded_at": row["recorded_at"],
+                    "sequence":row["seq"],"event_id":row["event_id"],
+                    "event_type":row["event_type"],"scope":row["scope"],
+                    "payload":payload,"payload_digest":row["payload_digest"],
+                    "recorded_at":row["recorded_at"],
                 }
 
     def append_lifecycle_event(self, *, event_id: str, scope: str, payload: dict[str, Any],
