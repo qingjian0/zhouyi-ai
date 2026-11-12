@@ -14,9 +14,13 @@ from typing import Any, Callable, Protocol
 
 from prototype.e09_e12a6_evidence_bridge import resolve_branch_merge_authorization, resolve_e09_reveal
 from prototype.shared_evidence_protocol import (
+    DOMAIN_BOUND_PROTOCOL_VERSION,
     STRICT_PROTOCOL_VERSION,
     EventReceipt,
     SQLiteEvidenceStore,
+)
+from prototype.e09_domain_registry import (
+    E09DomainBinding, E09DomainRegistry, E09DomainRegistryError,
 )
 
 
@@ -120,6 +124,7 @@ class E09AuthorityService:
         signer: E09GrantSigner,
         clock: E09Clock | None = None,
         max_grant_ttl: timedelta = timedelta(minutes=5),
+        domain_registry: E09DomainRegistry | None = None,
     ) -> None:
         if not isinstance(store, SQLiteEvidenceStore):
             raise TypeError("store must be SQLiteEvidenceStore")
@@ -134,6 +139,9 @@ class E09AuthorityService:
         self._signer = signer
         self._clock = clock or SystemUTCClock()
         self._max_grant_ttl = max_grant_ttl
+        if domain_registry is not None and not callable(getattr(domain_registry, "resolve", None)):
+            raise TypeError("domain_registry must implement resolve")
+        self._domain_registry = domain_registry
 
     def _principal(self, credential: object, *, role: str, scope: str) -> E09AuthenticatedWorkload:
         if not isinstance(scope, str) or not scope.strip():
@@ -149,6 +157,114 @@ class E09AuthorityService:
         if scope not in principal.scopes:
             raise E09AuthorizationError("workload is not authorized for the requested scope")
         return principal
+
+    def _trusted_domain(self, scope: str) -> E09DomainBinding:
+        if self._domain_registry is None:
+            raise E09AuthorizationError("trusted E09 domain registry is not configured")
+        try:
+            binding = self._domain_registry.resolve(scope)
+        except Exception as exc:
+            raise E09AuthorizationError("trusted domain registration is missing or revoked") from exc
+        if not isinstance(binding, E09DomainBinding) or not binding.active:
+            raise E09AuthorizationError("trusted domain registry returned an invalid or revoked binding")
+        return binding
+
+    @staticmethod
+    def _domain_payload(binding: E09DomainBinding) -> dict[str, str]:
+        return {
+            "domain_id": binding.domain_id,
+            "world_family": binding.world_family,
+            "domain_registry_id": binding.registry_id,
+            "domain_registry_version": binding.registry_version,
+        }
+
+    def append_observation(
+        self,
+        credential: object,
+        *,
+        episode_id: str,
+        event_id: str,
+        idempotency_key: str,
+        payload: dict[str, Any],
+        expected_sequence: int | None = None,
+    ) -> EventReceipt:
+        """Append a v0.4 observation with domain provenance derived by E09."""
+        required = {"observation_id", "query_id", "scope", "split"}
+        if not isinstance(payload, dict) or set(payload) != required:
+            raise E09AuthorizationError("observation request must use the exact v0.4 caller schema")
+        scope = payload.get("scope")
+        principal = self._principal(credential, role="observer", scope=scope)
+        binding = self._trusted_domain(scope)
+        event_payload = {**payload, **self._domain_payload(binding)}
+        return self._store.append_event(
+            episode_id=episode_id,
+            event_id=event_id,
+            event_type="observation",
+            idempotency_key=idempotency_key,
+            payload=event_payload,
+            actor_role="observer",
+            integrity_metadata=_identity_metadata(principal),
+            payload_schema="observation@4",
+            expected_sequence=expected_sequence,
+            protocol_version=DOMAIN_BOUND_PROTOCOL_VERSION,
+        )
+
+    def append_prediction_commit(
+        self,
+        credential: object,
+        *,
+        episode_id: str,
+        event_id: str,
+        idempotency_key: str,
+        payload: dict[str, Any],
+        causation_refs: tuple[str, ...] | list[str],
+        expected_sequence: int | None = None,
+    ) -> EventReceipt:
+        """Append a learner commit while copying domain provenance from its observation."""
+        required = {
+            "prediction_id", "observation_id", "model_version", "learner_track",
+            "decision_status", "query_id", "scope", "split", "interop_commit_digest",
+        }
+        if not isinstance(payload, dict) or set(payload) != required:
+            raise E09AuthorizationError("prediction commit request must use the exact v0.4 caller schema")
+        principal = self._principal(credential, role="learner", scope=payload.get("scope"))
+        if not isinstance(causation_refs, (tuple, list)) or not all(
+            isinstance(ref, str) and ref.strip() for ref in causation_refs
+        ):
+            raise E09AuthorizationError("prediction commit causation refs must be non-empty strings")
+        events = self._store.replay_episode(episode_id)
+        matches = [
+            event for event in events
+            if event.get("event_type") == "observation"
+            and event.get("payload", {}).get("observation_id") == payload["observation_id"]
+        ]
+        if len(matches) != 1:
+            raise E09AuthorizationError("prediction commit requires exactly one prior E09 observation")
+        observation = matches[0]
+        if observation.get("protocol_version") != DOMAIN_BOUND_PROTOCOL_VERSION:
+            raise E09AuthorizationError("legacy v0.3 observations are quarantined from v0.4 commits")
+        if observation.get("event_id") not in causation_refs:
+            raise E09AuthorizationError("prediction commit must cite its observation event")
+        observed = observation["payload"]
+        for field in ("query_id", "scope", "split"):
+            if payload[field] != observed[field]:
+                raise E09AuthorizationError(f"prediction commit {field} differs from observation")
+        event_payload = {**payload, **{field: observed[field] for field in (
+            "domain_id", "world_family", "domain_registry_id", "domain_registry_version",
+        )}}
+        return self._store.append_event(
+            episode_id=episode_id,
+            event_id=event_id,
+            event_type="prediction_commit",
+            idempotency_key=idempotency_key,
+            payload=event_payload,
+            actor_role="learner",
+            causation_refs=causation_refs,
+            integrity_metadata=_identity_metadata(principal),
+            payload_schema="prediction_commit@4",
+            expected_sequence=expected_sequence,
+            protocol_version=DOMAIN_BOUND_PROTOCOL_VERSION,
+        )
 
     def append_evidence_reveal(
         self,
