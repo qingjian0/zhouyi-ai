@@ -18,4 +18,4 @@ jobs:
         with:
           python-version: "3.11"
       - name: Measure out-of-core RSS at two corpus sizes
-        run: python benchmarks/benchmark_n010_ooc_rss.py --sizes 1000 10000 --epochs 1
+        run: python benchmarks/benchmark_n010_ooc_rss.py --sizes 1000 10000 100000 --epochs 1
