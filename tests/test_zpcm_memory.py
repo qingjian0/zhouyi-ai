@@ -201,6 +201,32 @@ class Tests(unittest.TestCase):
       "SELECT high_water_seq FROM e12a6_authorization_projection_checkpoint WHERE singleton=1"
   ).fetchone()
   self.assertEqual(checkpoint["high_water_seq"],legacy_seq)
+ def test_checkpoint_does_not_jump_over_unseen_legacy_lifecycle_events(self):
+  self.m.append_lifecycle_event(event_id="lifecycle:1",scope="s",
+      payload={"kind":"state_transition","value":1},expected_sequence=0)
+  legacy_seq,_=self.m._append("legacy:lifecycle:2","e12a6_lifecycle","s",
+      {"kind":"state_transition","value":2})
+  self.m.append_lifecycle_event(event_id="lifecycle:3",scope="s",
+      payload={"kind":"state_transition","value":3},expected_sequence=legacy_seq)
+  checkpoint=self.m.db.execute(
+      "SELECT high_water_seq FROM e12a6_authorization_projection_checkpoint WHERE singleton=1"
+  ).fetchone()
+  self.assertEqual(checkpoint["high_water_seq"],1)
+  self.m.close()
+  self.m=ZPCMMemory(self.path)
+  checkpoint=self.m.db.execute(
+      "SELECT high_water_seq FROM e12a6_authorization_projection_checkpoint WHERE singleton=1"
+  ).fetchone()
+  self.assertEqual(checkpoint["high_water_seq"],3)
+ def test_lifecycle_batch_advances_checkpoint_atomically(self):
+  receipts=self.m.append_lifecycle_events(scope="s",expected_sequence=0,events=[
+      {"event_id":"lifecycle:batch:1","payload":{"kind":"state_transition","value":1}},
+      {"event_id":"lifecycle:batch:2","payload":{"kind":"state_transition","value":2}},
+  ])
+  checkpoint=self.m.db.execute(
+      "SELECT high_water_seq FROM e12a6_authorization_projection_checkpoint WHERE singleton=1"
+  ).fetchone()
+  self.assertEqual(checkpoint["high_water_seq"],max(x["sequence"] for x in receipts))
  def test_corrupt_authorization_checkpoint_triggers_streaming_rebuild(self):
   body={"receipt_id":"receipt-rebuild","nonce":"nonce-rebuild","scope":"s"}
   payload={"kind":"authorization_consumed","body":body}
@@ -223,7 +249,7 @@ class Tests(unittest.TestCase):
   before=self.m.db.execute(
       "SELECT high_water_seq,checkpoint_digest FROM e12a6_authorization_projection_checkpoint WHERE singleton=1"
   ).fetchone()
-  def fail_checkpoint(_sequence):
+  def fail_checkpoint(_sequence, *, expected_previous_high_water=None):
    raise RuntimeError("injected checkpoint failure")
   self.m._advance_authorization_projection_checkpoint=fail_checkpoint
   with self.assertRaises(RuntimeError):
