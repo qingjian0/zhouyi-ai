@@ -44,7 +44,10 @@ class SQLiteEvidenceIngestorTests(unittest.TestCase):
         )
         self.assertFalse(first.complete)
         state_after_first = self.ingestor.document_state("doc-resume")
-        second = self.ingestor.ingest(
+        # Re-open the database through a fresh store instance to model
+        # process restart rather than merely continuing the same object.
+        restarted = SQLiteEvidenceIngestor(self.db_path)
+        second = restarted.ingest(
             "doc-resume", "resume.txt", io.BytesIO(source),
             chunk_bytes=16,
         )
@@ -68,6 +71,23 @@ class SQLiteEvidenceIngestorTests(unittest.TestCase):
             self.ingestor.ingest(
                 "doc-idem", "same.txt", io.BytesIO(b"changed!"), chunk_bytes=4
             )
+
+    def test_tokenizer_coverage_reflects_persisted_chunks(self):
+        source = io.BytesIO(b"abcdefgh")
+        first = self.ingestor.ingest(
+            "doc-token-coverage", "tokens.txt", source,
+            chunk_bytes=4, max_chunks=1,
+        )
+        self.assertFalse(first.token_count_known)
+        second = self.ingestor.ingest(
+            "doc-token-coverage", "tokens.txt", io.BytesIO(b"abcdefgh"),
+            chunk_bytes=4, tokenizer=lambda text: 2,
+        )
+        self.assertTrue(second.complete)
+        self.assertFalse(second.token_count_known)
+        chunks = self.ingestor.get_chunks("doc-token-coverage")
+        self.assertIsNone(chunks[0].token_count)
+        self.assertEqual(chunks[1].token_count, 2)
 
     def test_resume_rejects_changed_source_prefix(self):
         self.ingestor.ingest(
