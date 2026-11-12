@@ -7,6 +7,7 @@ from prototype.m2_extraction_dataset import (
     AnnotatedExtractionRecord,
     DatasetSplit,
     ExtractionDatasetManifest,
+    GoldUnitEvidenceSpan,
 )
 from prototype.m2_extraction_evaluation import ExtractionGoldCase, GoldSemanticUnit
 from prototype.observation_contract import EvidenceRef, UnitKind
@@ -28,17 +29,23 @@ def record(
     lineage: str | None = None,
     status: AnnotationStatus | None = None,
 ) -> AnnotatedExtractionRecord:
+    case = ExtractionGoldCase(
+        case_id, domain, (GoldSemanticUnit(UnitKind.CONCEPT, f"concept:{case_id}"),),
+    )
+    evidence_ref = ref(document_id or f"doc:{case_id}")
     return AnnotatedExtractionRecord(
-        case=ExtractionGoldCase(
-            case_id, domain, (GoldSemanticUnit(UnitKind.CONCEPT, f"concept:{case_id}"),),
-        ),
+        case=case,
         split=split,
         source_lineage_ids=(lineage or f"lineage:{case_id}",),
-        evidence_refs=(ref(document_id or f"doc:{case_id}"),),
+        evidence_refs=(evidence_ref,),
         annotation_status=status or (
             AnnotationStatus.REVIEWED if split is DatasetSplit.TRAIN
             else AnnotationStatus.ADJUDICATED
         ),
+        gold_evidence_spans=(GoldUnitEvidenceSpan(
+            unit_index=0, evidence_ref=evidence_ref, byte_start=0, byte_end=4,
+            span_sha256="b" * 64,
+        ),),
     )
 
 
@@ -60,6 +67,8 @@ class ExtractionDatasetManifestTests(unittest.TestCase):
         self.assertEqual(summary["split_case_counts"]["train"], 1)
         self.assertEqual(summary["split_case_counts"]["validation"], 1)
         self.assertEqual(summary["split_case_counts"]["test"], 1)
+        self.assertEqual(summary["annotated_unit_count"], 3)
+        self.assertEqual(summary["gold_evidence_span_count"], 3)
         self.assertEqual(len(summary["manifest_sha256"]), 64)
         self.assertIn('"dataset_id":"m2-gold"', manifest.to_canonical_json())
 
@@ -79,10 +88,7 @@ class ExtractionDatasetManifestTests(unittest.TestCase):
 
     def test_rejects_unevaluated_gold_annotations(self):
         with self.assertRaisesRegex(ValueError, "must be adjudicated"):
-            record(
-                "test-1", DatasetSplit.TEST,
-                status=AnnotationStatus.REVIEWED,
-            )
+            record("test-1", DatasetSplit.TEST, status=AnnotationStatus.REVIEWED)
 
     def test_ood_domain_must_not_appear_in_other_splits(self):
         with self.assertRaisesRegex(ValueError, "OOD domain leakage"):
@@ -111,6 +117,53 @@ class ExtractionDatasetManifestTests(unittest.TestCase):
                 case=ExtractionGoldCase("x", "general", ()),
                 split=DatasetSplit.TRAIN, source_lineage_ids=(), evidence_refs=(ref("doc"),),
                 annotation_status=AnnotationStatus.REVIEWED,
+            )
+
+    def test_every_positive_gold_unit_requires_a_source_span(self):
+        evidence_ref = ref("doc")
+        with self.assertRaisesRegex(ValueError, "requires at least one source evidence span"):
+            AnnotatedExtractionRecord(
+                case=ExtractionGoldCase(
+                    "x", "general", (GoldSemanticUnit(UnitKind.CONCEPT, "x"),),
+                ),
+                split=DatasetSplit.TRAIN, source_lineage_ids=("lineage",),
+                evidence_refs=(evidence_ref,), annotation_status=AnnotationStatus.REVIEWED,
+            )
+
+    def test_gold_span_must_be_inside_evidence_ref(self):
+        evidence_ref = ref("doc")
+        with self.assertRaisesRegex(ValueError, "inside its EvidenceRef"):
+            GoldUnitEvidenceSpan(
+                unit_index=0, evidence_ref=evidence_ref, byte_start=0, byte_end=11,
+                span_sha256="b" * 64,
+            )
+
+    def test_gold_span_must_reference_record_evidence(self):
+        with self.assertRaisesRegex(ValueError, "outside the record"):
+            case = ExtractionGoldCase(
+                "x", "general", (GoldSemanticUnit(UnitKind.CONCEPT, "x"),),
+            )
+            AnnotatedExtractionRecord(
+                case=case, split=DatasetSplit.TRAIN, source_lineage_ids=("lineage",),
+                evidence_refs=(ref("doc-a"),), annotation_status=AnnotationStatus.REVIEWED,
+                gold_evidence_spans=(GoldUnitEvidenceSpan(
+                    unit_index=0, evidence_ref=ref("doc-b"), byte_start=0, byte_end=4,
+                    span_sha256="b" * 64,
+                ),),
+            )
+
+    def test_gold_span_unit_index_must_be_in_range(self):
+        with self.assertRaisesRegex(ValueError, "outside expected_units"):
+            AnnotatedExtractionRecord(
+                case=ExtractionGoldCase(
+                    "x", "general", (GoldSemanticUnit(UnitKind.CONCEPT, "x"),),
+                ),
+                split=DatasetSplit.TRAIN, source_lineage_ids=("lineage",),
+                evidence_refs=(ref("doc"),), annotation_status=AnnotationStatus.REVIEWED,
+                gold_evidence_spans=(GoldUnitEvidenceSpan(
+                    unit_index=1, evidence_ref=ref("doc"), byte_start=0, byte_end=4,
+                    span_sha256="b" * 64,
+                ),),
             )
 
 
