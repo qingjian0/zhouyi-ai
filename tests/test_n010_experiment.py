@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from prototype.n09_learnable_srok import RoleSpec
+from prototype.n09_learnable_srok import Node, RoleSpec, TrainingExample
 from prototype.n010_experiment import LearnableSROKError, load_dataset, run_experiment
 
 
@@ -122,6 +122,52 @@ class N010ExperimentRunnerTests(unittest.TestCase):
     def test_loader_enforces_per_record_byte_limit(self):
         with self.assertRaisesRegex(LearnableSROKError, "max_record_bytes"):
             load_dataset(self.dataset, self.roles, 1, max_record_bytes=32)
+
+
+    def test_reiterable_fullbatch_gradient_matches_materialized_fit(self):
+        splits, _ = load_dataset(self.dataset, self.roles, 1)
+        examples = [
+            TrainingExample(tuple(row["pools"]), tuple(row["target_ids"]))
+            for row in splits["train"]
+        ]
+        materialized = __import__(
+            "prototype.n09_learnable_srok", fromlist=["LearnableSROK"]
+        ).LearnableSROK(self.roles, 1)
+        streamed = __import__(
+            "prototype.n09_learnable_srok", fromlist=["LearnableSROK"]
+        ).LearnableSROK(self.roles, 1)
+        expected = materialized.fit(
+            examples, epochs=5, learning_rate=0.17, l2=0.003,
+            max_assignments_per_example=64,
+        )
+        factory_calls = []
+        def factory():
+            factory_calls.append(1)
+            for example in examples:
+                yield example
+        actual = streamed.fit_reiterable(
+            factory, epochs=5, learning_rate=0.17, l2=0.003,
+            max_assignments_per_example=64,
+        )
+        self.assertEqual(actual, expected)
+        self.assertEqual(streamed.weights, materialized.weights)
+        self.assertEqual(streamed.training_steps, materialized.training_steps)
+        self.assertEqual(len(factory_calls), 6)  # count pass + one complete pass per epoch
+
+    def test_reiterable_fullbatch_rejects_empty_or_unstable_stream(self):
+        from prototype.n09_learnable_srok import LearnableSROK
+        model = LearnableSROK(self.roles, 1)
+        with self.assertRaisesRegex(LearnableSROKError, "must not be empty"):
+            model.fit_reiterable(lambda: iter(()), epochs=1)
+        calls = []
+        def unstable():
+            calls.append(1)
+            if len(calls) == 1:
+                return iter([TrainingExample((), ())])
+            return iter(())
+        with self.assertRaisesRegex(LearnableSROKError, "changed record count"):
+            model.fit_reiterable(unstable, epochs=1)
+
 
 if __name__ == "__main__":
     unittest.main()
