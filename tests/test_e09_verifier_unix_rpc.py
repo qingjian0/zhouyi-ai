@@ -1,4 +1,5 @@
 import json
+import multiprocessing
 import os
 import sqlite3
 import socket
@@ -38,6 +39,30 @@ class _FakeVerifier:
             "issued_at": _issued_at,
             "signature": "test-signature",
         }
+
+
+
+
+def _crash_during_receipt_signing(ledger_path, started_sender):
+    """Child process blocks in the issuer after the durable reservation commit."""
+    ledger = SQLiteVerifierReceiptLedger(ledger_path)
+    try:
+        def blocked_issuer(identity):
+            started_sender.send(dict(identity))
+            time.sleep(60)
+            return {
+                "receipt_id": identity["receipt_id"],
+                "nonce": identity["nonce"],
+                "issued_at": identity["issued_at"],
+                "signature": "must-not-be-persisted",
+            }
+        ledger.issue_once(
+            "operation-process-crash", {"scope": "scope/process-crash"},
+            blocked_issuer,
+            issued_at_provider=lambda: "2026-11-12T03:00:00+00:00",
+        )
+    finally:
+        ledger.close()
 
 
 class VerifierReceiptLedgerTests(unittest.TestCase):
@@ -155,6 +180,60 @@ class VerifierReceiptLedgerTests(unittest.TestCase):
                 self.assertEqual(receipt["nonce"], seen[0]["nonce"])
             finally:
                 restarted.close()
+
+
+    def test_real_process_kill_after_reservation_reuses_identity_after_restart(self):
+        if not hasattr(os, "fork"):
+            self.skipTest("fork-based crash test requires Linux")
+        context = multiprocessing.get_context("fork")
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "receipts.sqlite"
+            started_receiver, started_sender = context.Pipe(duplex=False)
+            child = context.Process(
+                target=_crash_during_receipt_signing,
+                args=(str(path), started_sender),
+            )
+            child.start()
+            started_sender.close()
+            try:
+                self.assertTrue(started_receiver.poll(5), "child did not publish reservation identity")
+                identity_before_kill = started_receiver.recv()
+                child.kill()
+                child.join(timeout=5)
+                self.assertFalse(child.is_alive())
+                self.assertNotEqual(child.exitcode, 0)
+
+                restarted = SQLiteVerifierReceiptLedger(path)
+                try:
+                    observed = []
+                    receipt = restarted.issue_once(
+                        "operation-process-crash",
+                        {"scope": "scope/process-crash"},
+                        lambda identity: observed.append(dict(identity)) or {
+                            "receipt_id": identity["receipt_id"],
+                            "nonce": identity["nonce"],
+                            "issued_at": identity["issued_at"],
+                            "signature": "recovered-deterministic-signature",
+                        },
+                        issued_at_provider=lambda: "2026-11-12T04:00:00+00:00",
+                    )
+                    self.assertEqual(observed, [identity_before_kill])
+                    self.assertEqual(receipt["receipt_id"], identity_before_kill["receipt_id"])
+                    self.assertEqual(receipt["nonce"], identity_before_kill["nonce"])
+                    self.assertEqual(receipt["issued_at"], identity_before_kill["issued_at"])
+                    self.assertEqual(
+                        restarted._db.execute(
+                            "SELECT COUNT(*) FROM issued_receipts WHERE receipt_json IS NOT NULL"
+                        ).fetchone()[0],
+                        1,
+                    )
+                finally:
+                    restarted.close()
+            finally:
+                if child.is_alive():
+                    child.kill()
+                    child.join(timeout=5)
+                started_receiver.close()
 
     def test_ledger_rejects_world_accessible_file(self):
         with tempfile.TemporaryDirectory() as directory:
