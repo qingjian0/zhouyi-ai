@@ -385,3 +385,28 @@ A failed earlier run on an older SHA is not evidence that the current exact head
 - Unified end-to-end joint training is **not yet approved**. CPG-EI structure recovery and predictive generalization can diverge; E12-A6 startup cost and failure-mode acceptance remain open; N0.10's streaming evidence is specific to its measured row shape and execution profile.
 - The next gates are: finish the 100K/500K E12-A6 RSS sweep; complete latest-head semantic CI; measure startup latency and write/query overhead; stress temp-state cleanup and disk-full/crash recovery; and run multi-seed CPG-EI candidate-selection studies with structure metrics, locked predictive metrics, and OOD results reported separately.
 - `main` remains unchanged. All active work stays in Draft research stacks until exact-head evidence and dependency-chain review are complete.
+
+### Exact-head refresh — 500K E12-A6 replay and CPG-EI selection ablation (2026-11-12 17:22Z)
+
+#### E12-A6 memory/latency trade-off after batched replay
+
+- PR #385 current code head `52f0a04d328937f491e0a9282b7a178748a61854`; full unit/E01/E02 workflow #43267236730 succeeded. The startup replay now stages all scratch SQLite writes in one transaction.
+- PR #390 provides the in-memory baseline at 1K/10K/50K/100K/500K. PR #385's batched disk-backed replay benchmark #43267209703 also completed successfully.
+- At 500K events: in-memory restore RSS 472.32 MB / 11.71 s; batched SQLite scratch restore RSS 28.54 MB / 28.17 s. This is about 94% lower RSS but 2.4× slower startup than in-memory. The first unbatched scratch implementation took 102.80 s; the bulk transaction improved it by 3.65×.
+- At 10K–500K, observed scratch-state RSS remains around 28.5 MB. The 500K fixture is about 945 MB on disk; storage is not bounded. The benchmark is a synthetic candidate-registration-only history, not a production workload model.
+- Decision: retain the disk-backed design as a memory-bounded research direction, but do not claim a speedup. Next performance work should consider a verified checkpoint/snapshot that can resume from a trusted event-log anchor, without replacing the event log as authority or skipping semantic validation.
+
+#### CPG-EI proposal-selection ablation
+
+- PR #388 introduces five seeds × three synthetic six-bit rule families, with disjoint 40 train / 12 proposal / 12 locked-test partitions and both 12- and 120-epoch candidate fits. Exact-head multi-budget artifact #43266823550 completed successfully.
+- At 12 epochs, proposal-split selection selected no motifs in 15 experiments; legacy train-ranked selected all three motifs and recovered exact support in 12/15. At 120 epochs, proposal-split selected motifs in 3/15 (all three exact), while legacy train-ranked recovered exact support in 15/15.
+- Despite exact support recovery in 15/15 legacy train-ranked experiments at 120 epochs, mean locked-test bit accuracy was only 43.33%, below the 50% bitwise chance baseline; alternate-family accuracy was 50.37%. Proposal split at 120 epochs had 32.59% locked accuracy and 49.44% alternate-family accuracy.
+- The result separates three concerns: support discovery, candidate selection coverage, and predictive generalization. Structure recovery is not sufficient for a useful predictor. The 12-state locked sets are small and these are synthetic finite-state diagnostics only.
+- A known-support oracle control and a precision metric correction for empty candidate sets are now added in PR #388; latest exact-head benchmark and full tests are pending.
+
+#### Current training readiness
+
+- Controlled component training and synthetic experiments may continue, but unified end-to-end joint training remains **not approved**.
+- E12-A6 now has a large measured memory reduction but still a 2.4× startup latency penalty at 500K. A verified checkpoint design is the next architectural candidate, subject to event-log anchoring and corruption fallback.
+- CPG-EI's structural support results are promising only under train-ranked selection; independent proposal ranking has low coverage, and prediction remains weak even with exact support. The oracle control must isolate optimizer/model limits before architecture changes.
+- Keep all branches Draft and stacked; no changes to `main`. Do not merge until the exact-head oracle result, checkpoint threat model, write/query overhead, and failure-mode tests are reviewed.
