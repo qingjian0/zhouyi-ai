@@ -20,6 +20,7 @@ class ZPCMMemory:
         self.db.execute("PRAGMA synchronous=FULL"); self.db.execute("PRAGMA foreign_keys=ON")
         self.db.executescript("""
         CREATE TABLE IF NOT EXISTS memory_events(seq INTEGER PRIMARY KEY AUTOINCREMENT,event_id TEXT UNIQUE NOT NULL,event_type TEXT NOT NULL,scope TEXT NOT NULL,payload_json TEXT NOT NULL,payload_digest TEXT NOT NULL,recorded_at TEXT NOT NULL);
+        CREATE INDEX IF NOT EXISTS memory_events_type_scope_seq ON memory_events(event_type,scope,seq);
         CREATE TABLE IF NOT EXISTS memory_items(item_id TEXT PRIMARY KEY,item_type TEXT NOT NULL,scope TEXT NOT NULL,content_json TEXT NOT NULL,source_event_id TEXT NOT NULL,created_seq INTEGER NOT NULL,active INTEGER NOT NULL DEFAULT 1,FOREIGN KEY(source_event_id) REFERENCES memory_events(event_id));
         CREATE INDEX IF NOT EXISTS memory_items_scope_type_seq ON memory_items(scope,item_type,created_seq DESC);
         CREATE TABLE IF NOT EXISTS assertions(assertion_id TEXT PRIMARY KEY,subject_id TEXT NOT NULL,predicate TEXT NOT NULL,object_json TEXT NOT NULL,scope TEXT NOT NULL,valid_from TEXT,valid_to TEXT,status TEXT NOT NULL,source_event_id TEXT NOT NULL,created_seq INTEGER NOT NULL,FOREIGN KEY(source_event_id) REFERENCES memory_events(event_id));
