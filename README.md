@@ -52,6 +52,7 @@
 - [E01-C 组合 OOD 结果报告](docs/E01C_RESULTS_2026-11-10.md)
 - [研究风险与证伪条件](docs/RISKS_AND_FALSIFICATION.md)
 - [开发路线图](ROADMAP.md)
+- [全项目架构收敛与阶段收尾基线](docs/PROJECT_CONVERGENCE_EXECUTION_BASELINE_2026-11-12.md)
 - [原型代码](prototype/)
 
 ## 快速开始（当前原型）
