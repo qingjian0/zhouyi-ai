@@ -25,6 +25,17 @@ class TestCpgEiMvp(unittest.TestCase):
         self.assertLess(losses[-1], losses[0])
         self.assertGreater(metrics["bit_accuracy"], 0.85)
 
+    def test_relation_gates_are_trainable_and_bounded(self):
+        train = make_dataset(1024, seed=17)
+        model = CpgEiTransitionModel.create()
+        before = model.relation_gate_probabilities()
+        self.assertEqual(len(before), 35)
+        model.train(train, epochs=80, gate_l1=1e-4)
+        after = model.relation_gate_probabilities()
+        self.assertEqual(len(after), 35)
+        self.assertTrue(all(0.0 < value < 1.0 for value in after))
+        self.assertTrue(any(abs(a - b) > 1e-8 for a, b in zip(before, after)))
+
     def test_dataset_is_reproducible(self):
         self.assertEqual(make_dataset(10, seed=11), make_dataset(10, seed=11))
 
