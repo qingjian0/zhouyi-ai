@@ -434,7 +434,7 @@ class E09AuthorityService:
             ):
                 continue
             event_track = payload.get("learner_track")
-            if event_track not in (None, learner_track):
+            if event_track != learner_track:
                 continue
             authenticated_workload = event.get("integrity_metadata", {}).get(
                 "authenticated_workload"
