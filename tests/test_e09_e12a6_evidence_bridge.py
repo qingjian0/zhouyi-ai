@@ -119,7 +119,7 @@ class E09EvidenceBridgeTests(unittest.TestCase):
         )
         with self.assertRaises(E09EvidenceBindingError):
             resolve_e09_reveal(self.e09,episode_id=self.episode,evidence_ref=ref,
-              scope=self.scope,learner_track=self.track,world_family=self.world)
+              scope=self.scope,learner_track=self.track,world_family=self.world,allow_legacy_migration=True)
 
 
     def add_branch_authorization(self, evidence_ref, *, signature="sig-ok", branches=None):
