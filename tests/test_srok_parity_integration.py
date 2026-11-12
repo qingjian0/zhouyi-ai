@@ -89,6 +89,24 @@ class LearnableSROKParityIntegrationTests(unittest.TestCase):
             pairwise_correct += int(predicted == expected_pairwise)
         self.assertEqual(pairwise_correct / 8, 0.5)
 
+
+    def test_balanced_parity_training_does_not_create_unary_retrieval_signal(self):
+        """Composition learning must not be mistaken for candidate retrieval learning."""
+        model = LearnableSROK(self._roles(), feature_dim=1)
+        model.fit_relation_classifier(
+            self._examples(seed=59), epochs=700, learning_rate=0.12,
+        )
+        candidates = (
+            Node("a-negative", "r0", (-1.0,)),
+            Node("z-positive", "r0", (1.0,)),
+        )
+        ranked = model.retrieve(0, candidates, top_k=2)
+        self.assertEqual(len(ranked), 2)
+        self.assertAlmostEqual(ranked[0][1], ranked[1][1], places=10)
+        # Retrieval has no parity-relevant unary evidence; its deterministic
+        # node_id tie-break is not a learned semantic ranking.
+        self.assertEqual(ranked[0][0].node_id, "a-negative")
+
     def test_invalid_labels_and_incomplete_assignments_are_rejected(self):
         model = LearnableSROK(self._roles(), feature_dim=1)
         node = Node("a", "r0", (1.0,))
