@@ -103,6 +103,9 @@ class ZPCMMemory:
                     valid = False
             if not valid:
                 self.db.execute("DELETE FROM e12a6_authorization_consumptions")
+                self.db.execute(
+                    "DELETE FROM e12a6_authorization_projection_checkpoint WHERE singleton=1"
+                )
                 cursor = 0
 
             while True:
