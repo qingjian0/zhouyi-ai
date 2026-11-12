@@ -33,7 +33,7 @@ class GenericRelationalLearnerTests(unittest.TestCase):
             for state in itertools.product((0, 1), repeat=4)
         ]
         model = RelationalTransitionModel.create(4, 1, 1, 4)
-        losses = model.train(rows, epochs=1200, learning_rate=0.25, l2=1e-6)
+        losses = model.train(rows, epochs=3000, learning_rate=0.75, l2=1e-6)
         metrics = evaluate(model, rows)
         self.assertLess(losses[-1], losses[0])
         self.assertEqual(metrics["exact_state_accuracy"], 1.0)
