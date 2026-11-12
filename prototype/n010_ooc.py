@@ -7,6 +7,7 @@ or parses the locked-test file.
 from __future__ import annotations
 
 import hashlib
+import inspect
 import itertools
 import json
 import os
@@ -36,6 +37,17 @@ def _sha256_file(path: Path, *, chunk_bytes: int = 1024 * 1024) -> str:
         while chunk := source.read(chunk_bytes):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def _implementation_fingerprint() -> dict[str, str]:
+    """Hash the training/evaluation implementation that defines checkpoint semantics."""
+    learner_path = Path(inspect.getsourcefile(LearnableSROK) or "")
+    if not learner_path.is_file():
+        raise LearnableSROKError("cannot locate learner implementation for checkpoint fingerprint")
+    return {
+        "n010_ooc_sha256": _sha256_file(Path(__file__)),
+        "n09_learnable_srok_sha256": _sha256_file(learner_path),
+    }
 
 
 def _canonical_json(value: object) -> str:
@@ -506,6 +518,7 @@ def run_experiment_ooc(dataset_path: str | Path, roles: Sequence[RoleSpec],
     if not isinstance(git_sha, str) or not git_sha.strip():
         raise LearnableSROKError("git_sha must be a non-empty string")
     checkpoint = Path(checkpoint_path)
+    implementation_fingerprint = _implementation_fingerprint()
     with N010StreamingDataset(
         dataset_path, roles, feature_dim, expected_splits=("train", "dev")
     ) as dataset:
@@ -532,6 +545,8 @@ def run_experiment_ooc(dataset_path: str | Path, roles: Sequence[RoleSpec],
                 raise LearnableSROKError("resume dataset/schema does not match")
             if bundle.get("group_index_sha256") != group_index_sha256:
                 raise LearnableSROKError("resume group index integrity mismatch")
+            if bundle.get("implementation_fingerprint") != implementation_fingerprint:
+                raise LearnableSROKError("resume implementation fingerprint does not match")
             saved_config = bundle.get("config", {})
             if {k: v for k, v in saved_config.items() if k != "epochs"} != {
                 k: v for k, v in config.items() if k != "epochs"
@@ -560,6 +575,7 @@ def run_experiment_ooc(dataset_path: str | Path, roles: Sequence[RoleSpec],
                 "dataset_manifest": dataset.manifest,
                 "group_index_path": str(group_index_path),
                 "group_index_sha256": group_index_sha256,
+                "implementation_fingerprint": implementation_fingerprint,
                 "config": config,
                 "completed_epochs": epoch + 1,
                 "loss_history": history,
@@ -597,6 +613,8 @@ def evaluate_locked_test_ooc(locked_test_path: str | Path, roles: Sequence[RoleS
     if not checkpoint.exists():
         raise LearnableSROKError("training checkpoint does not exist")
     bundle = json.loads(checkpoint.read_text(encoding="utf-8"))
+    if bundle.get("implementation_fingerprint") != _implementation_fingerprint():
+        raise LearnableSROKError("locked-test evaluator implementation fingerprint does not match")
     if bundle.get("schema") != OOC_RUN_SCHEMA:
         raise LearnableSROKError("unsupported out-of-core checkpoint schema")
     model = LearnableSROK.from_checkpoint_json(bundle["model_checkpoint"])
