@@ -104,6 +104,8 @@ class PersistentM2SemanticUnitStore:
                 or not isinstance(max_replay_page_bytes, int)
                 or not 1 <= max_replay_page_bytes <= MAX_REPLAY_PAGE_BYTES):
             raise ValueError(f"max_replay_page_bytes must be in [1, {MAX_REPLAY_PAGE_BYTES}]")
+        if max_event_bytes > max_replay_page_bytes:
+            raise ValueError("max_event_bytes cannot exceed max_replay_page_bytes")
         self._memory, self._resolver, self.scope = memory, resolver, scope
         self._replay_page_size = replay_page_size
         self._max_event_bytes = max_event_bytes
@@ -547,6 +549,11 @@ class PersistentM2SemanticUnitStore:
     ) -> dict[str, Any]:
         """Atomically append the authoritative event and update its derived index."""
         db = self._memory.db
+        serialized_bytes = len(canonical(payload).encode("utf-8"))
+        if serialized_bytes > self._max_event_bytes:
+            raise SemanticUnitStoreError(
+                f"semantic-unit event exceeds hard payload byte limit ({self._max_event_bytes})"
+            )
         payload_digest = digest(payload)
         with self._memory.lock:
             db.execute("BEGIN IMMEDIATE")
