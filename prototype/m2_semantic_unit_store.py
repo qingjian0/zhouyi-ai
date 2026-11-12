@@ -148,9 +148,15 @@ class PersistentSemanticUnitCandidateStore:
                     expected_sequence=self._last_sequence,
                 )
             except ZPCMError as exc:
-                raise SemanticUnitStoreError(
-                    "candidate record_id is immutable; use a new revision ID for changed content"
-                ) from exc
+                if "event ID content conflict" in str(exc):
+                    raise SemanticUnitStoreError(
+                        "candidate record_id is immutable; use a new revision ID for changed content"
+                    ) from exc
+                if "stale domain sequence" in str(exc):
+                    raise SemanticUnitStoreError(
+                        "concurrent candidate append detected; refresh the store and retry"
+                    ) from exc
+                raise SemanticUnitStoreError(f"ZPCM candidate append failed: {exc}") from exc
             if not receipt["replayed"]:
                 self._last_sequence = receipt["sequence"]
             return SemanticUnitReceipt(
