@@ -43,12 +43,12 @@ class _FakeVerifier:
 
 
 
-def _crash_during_receipt_signing(ledger_path, started, release):
+def _crash_during_receipt_signing(ledger_path, started_sender, release):
     """Child process blocks in the issuer after the durable reservation commit."""
     ledger = SQLiteVerifierReceiptLedger(ledger_path)
     try:
         def blocked_issuer(identity):
-            started.put(dict(identity))
+            started_sender.send(dict(identity))
             release.wait(30)
             return {
                 "receipt_id": identity["receipt_id"],
@@ -188,15 +188,17 @@ class VerifierReceiptLedgerTests(unittest.TestCase):
         context = multiprocessing.get_context("fork")
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "receipts.sqlite"
-            started = context.Queue()
+            started_receiver, started_sender = context.Pipe(duplex=False)
             release = context.Event()
             child = context.Process(
                 target=_crash_during_receipt_signing,
-                args=(str(path), started, release),
+                args=(str(path), started_sender, release),
             )
             child.start()
+            started_sender.close()
             try:
-                identity_before_kill = started.get(timeout=5)
+                self.assertTrue(started_receiver.poll(5), "child did not publish reservation identity")
+                identity_before_kill = started_receiver.recv()
                 child.kill()
                 child.join(timeout=5)
                 self.assertFalse(child.is_alive())
@@ -233,8 +235,7 @@ class VerifierReceiptLedgerTests(unittest.TestCase):
                     child.kill()
                     child.join(timeout=5)
                 release.set()
-                started.close()
-                started.join_thread()
+                started_receiver.close()
 
     def test_ledger_rejects_world_accessible_file(self):
         with tempfile.TemporaryDirectory() as directory:
