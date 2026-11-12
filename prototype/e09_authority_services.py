@@ -489,6 +489,8 @@ class E09AuthorityService:
             or observation_payload.get("split") != "SUPPORT"
             or observation_payload.get("observation_id") != commit_payload.get("observation_id")
             or observation_payload.get("query_id") != commit_payload.get("query_id")
+            or observation_payload.get("learner_track") != commit_payload.get("learner_track")
+            or observation_payload.get("learner_workload_id") != principal.workload_id
             or not isinstance(
                 observation.get("integrity_metadata", {}).get("authenticated_workload"), dict
             )
@@ -628,10 +630,23 @@ class E09AuthorityService:
         if len(observations) != 1:
             raise E09AuthorizationError("prediction requires exactly one prior observation")
         observation = observations[0]
-        if (observation.get("payload", {}).get("scope") != scope
-                or observation.get("payload", {}).get("split") != payload.get("split")
-                or observation.get("event_id") not in set(causation_refs)):
-            raise E09AuthorizationError("prediction must causally reference an observation in the same scope and split")
+        observation_payload = observation.get("payload", {})
+        observation_workload = observation.get("integrity_metadata", {}).get(
+            "authenticated_workload", {}
+        )
+        if (
+            observation_payload.get("scope") != scope
+            or observation_payload.get("split") != payload.get("split")
+            or observation_payload.get("learner_track") != payload.get("learner_track")
+            or observation_payload.get("learner_workload_id") != principal.workload_id
+            or observation.get("actor_role") != "observer"
+            or not isinstance(observation_workload, dict)
+            or not isinstance(observation_workload.get("workload_id"), str)
+            or observation.get("event_id") not in set(causation_refs)
+        ):
+            raise E09AuthorizationError(
+                "prediction must causally reference an Observation assigned to this learner in the same scope, track and split"
+            )
         domain = self._observation_domain(episode_id, observation_id)
         normalized = dict(payload)
         for field, value in domain.items():
