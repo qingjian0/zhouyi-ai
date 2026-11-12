@@ -164,10 +164,11 @@ class PersistentM2SemanticUnitStore:
             )
 
     def _latest_sequence(self) -> int:
-        return int(self._db.execute(
-            "SELECT COALESCE(MAX(seq),0) FROM memory_events WHERE event_type=? AND scope=?",
-            (EVENT_TYPE, self.scope),
-        ).fetchone()[0])
+        with self._memory.lock:
+            return int(self._db.execute(
+                "SELECT COALESCE(MAX(seq),0) FROM memory_events WHERE event_type=? AND scope=?",
+                (EVENT_TYPE, self.scope),
+            ).fetchone()[0])
 
     @staticmethod
     def _checkpoint_digest(scope: str, high_water: int, generation: int) -> str:
@@ -178,24 +179,25 @@ class PersistentM2SemanticUnitStore:
         return hashlib.sha256(canonical_json(value).encode("utf-8")).hexdigest()
 
     def _checkpoint_valid(self) -> bool:
-        checkpoint = self._db.execute(
-            "SELECT schema_version,high_water_seq,projection_generation,checkpoint_digest "
-            "FROM m2_semantic_unit_projection_checkpoint WHERE scope=?", (self.scope,)
-        ).fetchone()
-        state = self._db.execute(
-            "SELECT generation FROM m2_semantic_unit_projection_state WHERE scope=?",
-            (self.scope,),
-        ).fetchone()
-        if checkpoint is None or state is None:
-            return False
-        high_water, generation = self._latest_sequence(), int(state["generation"])
-        return (
-            checkpoint["schema_version"] == PROJECTION_SCHEMA
-            and int(checkpoint["high_water_seq"]) == high_water
-            and int(checkpoint["projection_generation"]) == generation
-            and checkpoint["checkpoint_digest"]
-                == self._checkpoint_digest(self.scope, high_water, generation)
-        )
+        with self._memory.lock:
+            checkpoint = self._db.execute(
+                "SELECT schema_version,high_water_seq,projection_generation,checkpoint_digest "
+                "FROM m2_semantic_unit_projection_checkpoint WHERE scope=?", (self.scope,)
+            ).fetchone()
+            state = self._db.execute(
+                "SELECT generation FROM m2_semantic_unit_projection_state WHERE scope=?",
+                (self.scope,),
+            ).fetchone()
+            if checkpoint is None or state is None:
+                return False
+            high_water, generation = self._latest_sequence(), int(state["generation"])
+            return (
+                checkpoint["schema_version"] == PROJECTION_SCHEMA
+                and int(checkpoint["high_water_seq"]) == high_water
+                and int(checkpoint["projection_generation"]) == generation
+                and checkpoint["checkpoint_digest"]
+                    == self._checkpoint_digest(self.scope, high_water, generation)
+            )
 
     def _write_checkpoint(self, high_water: int) -> None:
         generation = int(self._db.execute(
@@ -383,10 +385,11 @@ class PersistentM2SemanticUnitStore:
             self._restore()
 
     def _version_row(self, record_id: str):
-        return self._db.execute(
-            "SELECT * FROM m2_semantic_unit_versions WHERE scope=? AND record_id=?",
-            (self.scope,record_id),
-        ).fetchone()
+        with self._memory.lock:
+            return self._db.execute(
+                "SELECT * FROM m2_semantic_unit_versions WHERE scope=? AND record_id=?",
+                (self.scope,record_id),
+            ).fetchone()
 
     @staticmethod
     def _receipt(row, *, replayed: bool) -> SemanticUnitReceipt:
@@ -641,11 +644,12 @@ class PersistentM2SemanticUnitStore:
             prior = self._version_row(previous_record_id)
             if prior is None:
                 raise SemanticUnitStoreError("revision predecessor does not exist")
-            active = self._db.execute(
-                "SELECT root_id FROM m2_semantic_unit_roots WHERE scope=? "
-                "AND current_record_id=? AND retracted_reason IS NULL",
-                (self.scope,previous_record_id),
-            ).fetchone()
+            with self._memory.lock:
+                active = self._db.execute(
+                    "SELECT root_id FROM m2_semantic_unit_roots WHERE scope=? "
+                    "AND current_record_id=? AND retracted_reason IS NULL",
+                    (self.scope,previous_record_id),
+                ).fetchone()
             if active is None or prior["root_id"] != active["root_id"]:
                 raise SemanticUnitStoreError("only the current active candidate can be revised")
             if candidate.envelope.derivation_refs.count(previous_record_id) != 1:
@@ -665,10 +669,11 @@ class PersistentM2SemanticUnitStore:
             raise ValueError("reason must be non-empty")
         with self._lock:
             self._ensure_current()
-            existing = self._db.execute(
-                "SELECT * FROM m2_semantic_unit_roots WHERE scope=? AND current_record_id=?",
-                (self.scope,record_id),
-            ).fetchone()
+            with self._memory.lock:
+                existing = self._db.execute(
+                    "SELECT * FROM m2_semantic_unit_roots WHERE scope=? AND current_record_id=?",
+                    (self.scope,record_id),
+                ).fetchone()
             if existing is None:
                 raise SemanticUnitStoreError("only the current candidate version can be retracted")
             if existing["retracted_reason"] is not None:
