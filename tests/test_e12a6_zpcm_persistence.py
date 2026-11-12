@@ -129,6 +129,14 @@ class PersistentLifecycleTests(unittest.TestCase):
         self.assertEqual(self.store.snapshot(), before)
         self.assertEqual(type(self.store._ledger.candidates).__name__, "_SQLiteMapping")
 
+    def test_close_removes_temporary_replay_database(self):
+        scratch_path = Path(self.store._runtime_state.path)
+        self.assertTrue(scratch_path.exists())
+        self.store.close()
+        self.assertFalse(scratch_path.exists())
+        # Closing twice is deliberately idempotent.
+        self.store.close()
+
     def test_append_failure_does_not_mutate_in_memory_ledger(self):
         self.store.register_candidate(candidate()); before=self.store.snapshot(); original=self.memory.append_lifecycle_event
         self.memory.append_lifecycle_event=lambda **kwargs: (_ for _ in ()).throw(ZPCMError("disk failure"))
