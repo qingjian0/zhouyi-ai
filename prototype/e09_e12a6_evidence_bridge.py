@@ -417,4 +417,5 @@ def resolve_branch_merge_authorization(
         issuer_id=issuer_id,
         event_digest=event["payload_digest"],
         verifier_id=verifier_id,
+        domain_provenance_verified=domain_registry is not None,
     )
