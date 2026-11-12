@@ -105,16 +105,20 @@ class SROKPrequentialLearner:
                                 result_limit=self.result_limit,abstain_margin=self.abstain_margin,
                                 retrieval_mode=self.retrieval_mode,search_strategy=self.search_strategy,
                                 beam_width=self.beam_width)
+        search_meta={"retrieval_mode":self.retrieval_mode,
+                     "search_strategy":self.search_strategy,"beam_width":self.beam_width}
         if pred.budget_exhausted:
-            self.last_inference={"status":"BUDGET_EXHAUSTED","expanded_assignments":pred.expanded_assignments,"role_pool_sizes":sizes}
+            self.last_inference={"status":"BUDGET_EXHAUSTED","expanded_assignments":pred.expanded_assignments,
+                                 "role_pool_sizes":sizes,**search_meta}
             return None
         if pred.abstained or not pred.candidates:
-            self.last_inference={"status":pred.reason,"expanded_assignments":pred.expanded_assignments,"role_pool_sizes":sizes}
+            self.last_inference={"status":pred.reason,"expanded_assignments":pred.expanded_assignments,
+                                 "role_pool_sizes":sizes,**search_meta}
             return None
         chosen=pred.candidates[0]
         self.last_inference={"status":"RANKED","expanded_assignments":pred.expanded_assignments,
                              "role_pool_sizes":sizes,"raw_score":chosen.score,
-                             "score_semantics":"uncalibrated_ranking_score"}
+                             "score_semantics":"uncalibrated_ranking_score",**search_meta}
         return tuple(node_id for _,node_id in chosen.role_bindings)
 
     @classmethod
