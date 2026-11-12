@@ -309,6 +309,7 @@ class LearnableSROK:
             raise LearnableSROKError("beam_width must be a positive integer")
         beam: list[tuple[Node, ...]] = [()]
         expanded = 0
+        pruned = False
         for pool in pools:
             proposals: list[tuple[Node, ...]] = []
             for prefix in beam:
@@ -321,21 +322,23 @@ class LearnableSROK:
                         )
                         return (
                             [item for item in ranked if len(item) == len(self.roles)],
-                            True, expanded,
+                            True, pruned, expanded,
                         )
                     expanded += 1
-                    if any(existing.node_id == node.node_id for existing in prefix):
+                    if any(existing.node_id == node.node_id for node in prefix):
                         continue
                     proposals.append(prefix + (node,))
             proposals.sort(
                 key=lambda item: (-self._partial_score(item),
                                   tuple(value.node_id for value in item))
             )
+            if len(proposals) > beam_width:
+                pruned = True
             beam = proposals[:beam_width]
             if not beam:
                 break
         complete = [item for item in beam if len(item) == len(self.roles)]
-        return complete, False, expanded
+        return complete, False, pruned, expanded
 
     def fit(
         self, examples: Iterable[TrainingExample], *, epochs: int = 80,
@@ -491,8 +494,9 @@ class LearnableSROK:
         sizes = tuple((role.name, len(pool)) for role, pool in zip(self.roles, pools))
         if any(not pool for pool in pools):
             return Prediction((), True, "NO_ROLE_CANDIDATES", 0, False, sizes)
+        pruned = False
         if retrieval_mode == "joint" and search_strategy == "beam":
-            assignments, exhausted, expanded = self._beam_enumerate(
+            assignments, exhausted, pruned, expanded = self._beam_enumerate(
                 pools, max_expansions, beam_width
             )
         else:
@@ -519,16 +523,25 @@ class LearnableSROK:
             for assignment in ranked[:result_limit]
         )
         if not structures:
-            return Prediction(
-                (), True, "NO_VALID_ASSIGNMENT", expanded, exhausted, sizes
+            reason = (
+                "SEARCH_BUDGET_EXHAUSTED" if exhausted
+                else "BEAM_PRUNED" if pruned
+                else "NO_VALID_ASSIGNMENT"
             )
-        # A truncated search cannot establish that the returned candidate is
-        # globally best. Preserve partial candidates for inspection, but never
-        # report an incomplete search as accepted.
+            return Prediction(
+                (), True, reason, expanded, exhausted, sizes
+            )
+        # Budget truncation and beam pruning both make the search incomplete.
+        # Preserve any discovered candidates for inspection, but never report
+        # an incomplete search as an accepted global ranking.
         if exhausted:
             return Prediction(
                 structures, True, "SEARCH_BUDGET_EXHAUSTED",
                 expanded, True, sizes,
+            )
+        if pruned:
+            return Prediction(
+                structures, True, "BEAM_PRUNED", expanded, False, sizes,
             )
         # Compute confidence from the actual top two found assignments before
         # applying result_limit; result_limit=1 must not disable abstention.
