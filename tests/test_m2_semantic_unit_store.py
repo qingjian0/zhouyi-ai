@@ -94,6 +94,23 @@ class PersistentSemanticUnitCandidateStoreTests(unittest.TestCase):
         with self.assertRaises(SemanticUnitStoreError):
             self.store.record_candidate(self.make_candidate(surface="甲（修订）"))
 
+    def test_concurrent_store_writer_gets_retryable_sequence_conflict(self):
+        second_store = PersistentSemanticUnitCandidateStore(
+            self.memory, self.resolver, scope="project-a",
+        )
+        self.store.record_candidate(self.make_candidate(record_id="candidate-1"))
+        with self.assertRaisesRegex(SemanticUnitStoreError, "concurrent candidate append"):
+            second_store.record_candidate(self.make_candidate(record_id="candidate-2"))
+        refreshed = PersistentSemanticUnitCandidateStore(
+            self.memory, self.resolver, scope="project-a",
+        )
+        receipt = refreshed.record_candidate(self.make_candidate(record_id="candidate-2"))
+        self.assertFalse(receipt.replayed)
+        self.assertEqual(
+            [item.envelope.record_id for item in refreshed.iter_candidates(page_size=1)],
+            ["candidate-1", "candidate-2"],
+        )
+
     def test_rejects_wrong_scope_and_invalid_source_evidence(self):
         wrong_scope = self.make_candidate()
         object.__setattr__(wrong_scope.envelope, "scope", "project-b")
