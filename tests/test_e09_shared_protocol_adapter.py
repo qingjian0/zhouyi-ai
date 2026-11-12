@@ -1,3 +1,4 @@
+import hashlib
 import tempfile
 import unittest
 from pathlib import Path
@@ -5,7 +6,10 @@ from pathlib import Path
 from prototype.e09_counterexample_learner import CounterexampleRuleLearner, Example
 from prototype.e09_incremental_learner import IncrementalConjunctionLearner
 from prototype.e09_prequential import PrequentialError, PrequentialRunner
-from prototype.e09_shared_protocol_adapter import E09SharedProtocolAdapter
+from prototype.e09_shared_protocol_adapter import E09SharedProtocolAdapter, E09ProtocolAdapterError
+from prototype.e09_authority_services import (
+    E09AuthenticatedWorkload, E09AuthorityService, E09DomainBinding,
+)
 from prototype.e09_evaluator_projection import E09EvaluatorProjection
 from prototype.shared_evidence_protocol import SQLiteEvidenceStore
 
@@ -39,6 +43,83 @@ class E09SharedProtocolAdapterTests(unittest.TestCase):
         return E09SharedProtocolAdapter(
             runner, self.store, episode_id=f"episode-{mode}", scope="e09/test", split=split
         )
+
+    def test_secure_mode_routes_every_event_write_through_authenticated_authority(self):
+        class Authenticator:
+            identities = {
+                "observer": E09AuthenticatedWorkload(
+                    "spiffe://test/observer", "issuer-observer", frozenset({"observer"}),
+                    frozenset({"e09/test"}), "test-idp", "mTLS",
+                    hashlib.sha256(b"observer").hexdigest(),
+                ),
+                "learner": E09AuthenticatedWorkload(
+                    "spiffe://test/learner", "issuer-learner", frozenset({"learner"}),
+                    frozenset({"e09/test"}), "test-idp", "mTLS",
+                    hashlib.sha256(b"learner").hexdigest(),
+                ),
+                "evaluator": E09AuthenticatedWorkload(
+                    "spiffe://test/evaluator", "issuer-evaluator", frozenset({"evaluator"}),
+                    frozenset({"e09/test"}), "test-idp", "mTLS",
+                    hashlib.sha256(b"evaluator").hexdigest(),
+                ),
+            }
+
+            def authenticate(self, credential):
+                if credential not in self.identities:
+                    raise ValueError("unknown credential")
+                return self.identities[credential]
+
+        class Signer:
+            def sign(self, issuer_id, message):
+                return "unused-test-signature"
+
+        class DomainRegistry:
+            def resolve(self, *, episode_id, scope, observation_id):
+                return E09DomainBinding("family-e09", "test-registry", "v1")
+
+        authority = E09AuthorityService(
+            self.store, authenticator=Authenticator(), signer=Signer(),
+            domain_registry=DomainRegistry(),
+        )
+        learner = CounterexampleRuleLearner(DOMAINS, min_support=2)
+        runner = PrequentialRunner(learner, revision_mode="INCREMENTAL_INDEX")
+        runner.bootstrap(BOOTSTRAP)
+        adapter = E09SharedProtocolAdapter(
+            runner, self.store, episode_id="episode-secure", scope="e09/test",
+            authority=authority, observer_credential="observer",
+            learner_credential="learner", evaluator_credential="evaluator",
+        )
+        commit = adapter.predict_and_commit("obs-secure", (0, 0, 2))
+        reveal_ref = adapter.reveal(commit["prediction_id"], "no")
+        adapter.revise(commit["prediction_id"])
+
+        events = adapter.replay()
+        self.assertEqual(
+            [event["event_type"] for event in events],
+            ["structure_version", "observation", "prediction_commit",
+             "evidence_reveal", "structure_version", "revision"],
+        )
+        observation = next(event for event in events if event["event_type"] == "observation")
+        prediction = next(event for event in events if event["event_type"] == "prediction_commit")
+        reveal = next(event for event in events if event["event_type"] == "evidence_reveal")
+        self.assertEqual(observation["actor_role"], "observer")
+        self.assertEqual(observation["payload"]["world_family"], "family-e09")
+        self.assertEqual(observation["payload"]["domain_registry_id"], "test-registry")
+        self.assertEqual(prediction["actor_role"], "learner")
+        self.assertEqual(reveal["actor_role"], "evaluator")
+        self.assertEqual(reveal["event_id"], reveal_ref)
+        for event in events:
+            self.assertIn("authenticated_workload", event["integrity_metadata"])
+
+    def test_secure_mode_requires_all_credentials_and_trusted_domain_registry(self):
+        learner = CounterexampleRuleLearner(DOMAINS, min_support=2)
+        runner = PrequentialRunner(learner, revision_mode="INCREMENTAL_INDEX")
+        runner.bootstrap(BOOTSTRAP)
+        with self.assertRaises(E09ProtocolAdapterError):
+            E09SharedProtocolAdapter(
+                runner, self.store, episode_id="episode-incomplete-secure",
+                scope="e09/test", authority=object(), observer_credential="observer",
+            )
 
     def test_incremental_arm_persists_full_causal_chain(self):
         adapter = self.make_adapter("INCREMENTAL_INDEX")
