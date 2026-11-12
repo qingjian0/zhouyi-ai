@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main]
+    branches: [main, research/n10-learnable-role-composition-2026-11-11]
 
 jobs:
   unit-tests:
