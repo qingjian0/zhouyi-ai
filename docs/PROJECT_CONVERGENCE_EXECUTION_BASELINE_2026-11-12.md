@@ -410,3 +410,34 @@ A failed earlier run on an older SHA is not evidence that the current exact head
 - E12-A6 now has a large measured memory reduction but still a 2.4× startup latency penalty at 500K. A verified checkpoint design is the next architectural candidate, subject to event-log anchoring and corruption fallback.
 - CPG-EI's structural support results are promising only under train-ranked selection; independent proposal ranking has low coverage, and prediction remains weak even with exact support. The oracle control must isolate optimizer/model limits before architecture changes.
 - Keep all branches Draft and stacked; no changes to `main`. Do not merge until the exact-head oracle result, checkpoint threat model, write/query overhead, and failure-mode tests are reviewed.
+
+### Latest evidence refresh — 2026-11-12 17:27Z (supersedes earlier status rows where they conflict)
+
+#### E09 / E12-A6 exact-head status
+
+- PR #379 E09 → ZPCM crash replay exact head `423c53a6b90bb71bfe97fbe9d6f08114d4b71057`: both workflows #43253292643 and #43253306110 succeeded. The new fail-closed replay assertion passed.
+- PR #385 SQLite-backed E12-A6 replay state: bulk startup scratch transaction and fail-closed recovery passed full validation at HEAD `52f0a04d328937f491e0a9282b7a178748a61854` (workflow #43267236730). At 500K synthetic candidate events, batched scratch replay used 28.54 MB post-restore RSS and 28.17 s; in-memory baseline PR #390 used 472.32 MB and 11.71 s. This is ~94% lower RSS but ~2.4× slower. The first unbatched scratch version took 102.80 s; bulk transaction improved it 3.65×.
+- PR #385 is currently testing an 8 MiB SQLite page cache against the prior 2 MiB setting. Exact benchmark #43268777016 is running and full validation #43268776886 is queued. Do not assume 8 MiB is better until the artifact is compared.
+- PR #390 in-memory baseline exact workflow #43265737771 and full validation #43265737912 succeeded. Its 500K restore baseline was 11.708 s / 472.32 MB.
+- This benchmark is candidate-registration-only. It establishes the scratch state memory/latency trade-off for that row shape, not a universal production guarantee. `ledger` and `snapshot()` remain explicit full-materialization boundaries.
+
+#### CPG-EI: candidate selection and prediction are separate gates
+
+- PR #384 exact head `a87436d2068cce94257fcd99948d85848d9669ce` passed full CI #43263017253. The implementation now fits on train, ranks on a disjoint proposal split, and evaluates locked test only after selection; tests instrument actual train/BCE call boundaries.
+- PR #388 paired five-seed × three-family benchmark uses disjoint 40 train / 12 proposal / 12 locked-test states. At 120 epochs, legacy train-ranked selection recovered exact support in 15/15 experiments, but mean locked bit accuracy was only 43.33% and alternate-family accuracy 50.37%. Proposal-split selection selected a motif in 3/15 experiments (all three exact), with 20% support recall and 32.59% locked accuracy.
+- Known-support oracle at 40 train / 12 locked reached only 33.89% locked accuracy at 12 epochs and 37.41% at 120 epochs. This is a different low-data six-bit parity regime from earlier 1024/256 synthetic oracle runs that achieved 100%; the two results are not contradictory, but the regime distinction must be preserved.
+- Latest PR #388 adds training-set oracle accuracy and a full-64-state oracle fit to distinguish underfitting/overfitting from representation capacity. Latest exact-head benchmark and full suite are pending. Do not claim the CPG-EI predictor is ready.
+- Metric correction: support precision is undefined when no edge is selected; report null/N/A and keep support recall at zero rather than assigning precision zero to an empty prediction set.
+
+#### Bounded search
+
+- PR #382 exact-head 150-comparison sweep passed both push/PR full workflows (#43263370449 / #43263353057). Overall Recall@5 0.7453, top-1 hit 0.7467, expansion ratio 0.8741, abstention 0.70, complete-search rate 0.30. Complete-search subset had 1.0 recall/top-1; do not present this subset-conditioned score as overall recall.
+- The 70% abstention rate is a deliberate fail-closed consequence, not a retrieval failure to be hidden. Incomplete/pruned search does not claim a global optimum.
+
+#### Training readiness decision
+
+- Component-level training and synthetic experiments may continue. Unified end-to-end joint training remains **not approved**.
+- The CPG-EI known-support oracle has not yet shown robust prediction in the 40/12/12 parity regime; exact support discovery does not imply predictive capability.
+- E12-A6 now has strong measured memory reduction but still a startup latency penalty at 500K. A verified checkpoint with event-log anchoring and corruption fallback is a candidate next design, not yet implemented or approved.
+- N0.10's million-row streaming evidence remains specific to its synthetic repeated-row benchmark. It is not evidence of complex relation learning.
+- Keep all research PRs Draft and stacked. `main` remains unchanged. Training-readiness requires unified data/checkpoint/trainer/evaluator, independent locked-test isolation, multi-rule OOD, crash recovery, and measured resource/latency acceptance.
