@@ -124,6 +124,78 @@ class ZPCMMemory:
                     "recorded_at": row["recorded_at"],
                 }
 
+    def get_domain_event(
+        self, *, event_type: str, scope: str, event_id: str,
+    ) -> dict[str, Any] | None:
+        """Fetch one indexed event without replaying or materializing its stream."""
+        if not isinstance(event_type, str) or not event_type.strip():
+            raise ZPCMError("event_type must be non-empty")
+        if not isinstance(scope, str) or not scope.strip():
+            raise ZPCMError("scope must be non-empty")
+        if not isinstance(event_id, str) or not event_id.strip():
+            raise ZPCMError("event_id must be non-empty")
+        with self.lock:
+            row = self.db.execute(
+                "SELECT seq,event_id,event_type,scope,payload_json,payload_digest,recorded_at "
+                "FROM memory_events WHERE event_id=? AND event_type=? AND scope=?",
+                (event_id, event_type, scope),
+            ).fetchone()
+        if row is None:
+            return None
+        payload = json.loads(row["payload_json"])
+        if digest(payload) != row["payload_digest"]:
+            raise ZPCMError(f"domain event digest mismatch: {event_id}")
+        return {
+            "sequence": row["seq"], "event_id": row["event_id"],
+            "event_type": row["event_type"], "scope": row["scope"],
+            "payload": payload, "payload_digest": row["payload_digest"],
+            "recorded_at": row["recorded_at"],
+        }
+
+    def iter_domain_events_reverse(
+        self, *, event_type: str, scope: str, before_sequence: int | None = None,
+        page_size: int = 128,
+    ) -> Iterator[dict[str, Any]]:
+        """Keyset-page one typed event stream newest-first with bounded memory."""
+        if not isinstance(event_type, str) or not event_type.strip():
+            raise ZPCMError("event_type must be non-empty")
+        if not isinstance(scope, str) or not scope.strip():
+            raise ZPCMError("scope must be non-empty")
+        if before_sequence is not None and (
+            isinstance(before_sequence, bool) or not isinstance(before_sequence, int)
+            or before_sequence < 1
+        ):
+            raise ZPCMError("before_sequence must be a positive integer")
+        if isinstance(page_size, bool) or not isinstance(page_size, int) or not 1 <= page_size <= 4096:
+            raise ZPCMError("page_size must be an integer in [1, 4096]")
+        with self.lock:
+            high_water = self.db.execute(
+                "SELECT COALESCE(MAX(seq), 0) FROM memory_events WHERE event_type=? AND scope=?",
+                (event_type, scope),
+            ).fetchone()[0]
+        cursor = min(high_water + 1, before_sequence) if before_sequence is not None else high_water + 1
+        while cursor > 1:
+            with self.lock:
+                rows = self.db.execute(
+                    "SELECT seq,event_id,event_type,scope,payload_json,payload_digest,recorded_at "
+                    "FROM memory_events WHERE event_type=? AND scope=? AND seq<? AND seq<=? "
+                    "ORDER BY seq DESC LIMIT ?",
+                    (event_type, scope, cursor, high_water, page_size),
+                ).fetchall()
+            if not rows:
+                return
+            for row in rows:
+                payload = json.loads(row["payload_json"])
+                if digest(payload) != row["payload_digest"]:
+                    raise ZPCMError(f"domain event digest mismatch: {row['event_id']}")
+                cursor = row["seq"]
+                yield {
+                    "sequence": row["seq"], "event_id": row["event_id"],
+                    "event_type": row["event_type"], "scope": row["scope"],
+                    "payload": payload, "payload_digest": row["payload_digest"],
+                    "recorded_at": row["recorded_at"],
+                }
+
     def latest_domain_sequence(self, *, event_type: str, scope: str) -> int:
         """Return the current global event sequence for one typed scope stream."""
         if not isinstance(event_type, str) or not event_type.strip():
