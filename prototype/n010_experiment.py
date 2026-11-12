@@ -109,13 +109,14 @@ def load_dataset(path: str | Path, roles: Sequence[RoleSpec], feature_dim: int):
     return splits, manifest
 
 
-def evaluate(model: LearnableSROK, rows, *, max_expansions: int = 4096):
+def evaluate(model: LearnableSROK, rows, *, max_expansions: int = 4096,
+             search_strategy: str = "product", beam_width: int = 64):
     correct = covered = abstained = exhausted = 0
     predictions = []
     for row in rows:
         result = model.predict(
-            row["nodes"], retrieval_mode="joint", search_strategy="product",
-            max_expansions=max_expansions, result_limit=1,
+            row["nodes"], retrieval_mode="joint", search_strategy=search_strategy,
+            beam_width=beam_width, max_expansions=max_expansions, result_limit=1,
         )
         prediction = None if result.abstained or not result.candidates else tuple(
             node_id for _, node_id in result.candidates[0].role_bindings
@@ -128,6 +129,7 @@ def evaluate(model: LearnableSROK, rows, *, max_expansions: int = 4096):
                             "target_match": prediction == row["target_ids"]})
     total = len(rows)
     return {
+        "search_strategy": search_strategy, "beam_width": beam_width,
         "examples": total, "exact_match_accuracy": correct / total,
         "coverage": covered / total, "abstention_rate": abstained / total,
         "budget_exhaustion_rate": exhausted / total,
@@ -140,8 +142,8 @@ def run_experiment(dataset_path: str | Path, roles: Sequence[RoleSpec], feature_
                    output_path: str | Path, *, epochs: int = 20,
                    learning_rate: float = 0.2, l2: float = 1e-4,
                    max_assignments_per_example: int = 4096,
-                   max_expansions: int = 4096, seed: int = 0,
-                   git_sha: str = "unknown", resume: bool = False):
+                   max_expansions: int = 4096, beam_width: int = 64,
+                   seed: int = 0, git_sha: str = "unknown", resume: bool = False):
     if isinstance(epochs, bool) or not isinstance(epochs, int) or epochs < 1:
         raise LearnableSROKError("epochs must be a positive integer")
     splits, dataset_manifest = load_dataset(dataset_path, roles, feature_dim)
@@ -152,7 +154,8 @@ def run_experiment(dataset_path: str | Path, roles: Sequence[RoleSpec], feature_
     config = {
         "epochs": epochs, "learning_rate": learning_rate, "l2": l2,
         "max_assignments_per_example": max_assignments_per_example,
-        "max_expansions": max_expansions, "seed": seed, "git_sha": git_sha,
+        "max_expansions": max_expansions, "beam_width": beam_width,
+        "seed": seed, "git_sha": git_sha,
         "seed_semantics": "recorded_only_no_stochastic_operations",
     }
     output = Path(output_path)
@@ -201,13 +204,22 @@ def run_experiment(dataset_path: str | Path, roles: Sequence[RoleSpec], feature_
                           encoding="utf-8")
 
     dev_metrics = evaluate(model, splits["dev"], max_expansions=max_expansions)
+    dev_beam_metrics = evaluate(
+        model, splits["dev"], max_expansions=max_expansions,
+        search_strategy="beam", beam_width=beam_width,
+    )
     # Locked labels are read only here, after the model is fully fitted and frozen.
     locked_metrics = evaluate(model, splits["locked_test"], max_expansions=max_expansions)
+    locked_beam_metrics = evaluate(
+        model, splits["locked_test"], max_expansions=max_expansions,
+        search_strategy="beam", beam_width=beam_width,
+    )
     report = {
         "schema": RUN_SCHEMA, "dataset_manifest": dataset_manifest,
         "config": config, "completed_epochs": epochs,
         "training_examples": len(training), "loss_history": history,
-        "dev": dev_metrics, "locked_test": locked_metrics,
+        "dev": dev_metrics, "dev_beam": dev_beam_metrics,
+        "locked_test": locked_metrics, "locked_test_beam": locked_beam_metrics,
         "checkpoint": str(output),
     }
     report_path = output.with_suffix(output.suffix + ".report.json")
@@ -227,6 +239,7 @@ def main():
     parser.add_argument("--git-sha", required=True,
                         help="source revision used for this experiment")
     parser.add_argument("--max-expansions", type=int, default=4096)
+    parser.add_argument("--beam-width", type=int, default=64)
     parser.add_argument("--max-assignments-per-example", type=int, default=4096)
     parser.add_argument("--learning-rate", type=float, default=0.2)
     parser.add_argument("--l2", type=float, default=1e-4)
@@ -242,7 +255,8 @@ def main():
         args.dataset, roles, args.feature_dim, args.checkpoint,
         epochs=args.epochs, learning_rate=args.learning_rate, l2=args.l2,
         max_assignments_per_example=args.max_assignments_per_example,
-        max_expansions=args.max_expansions, seed=args.seed, git_sha=args.git_sha,
+        max_expansions=args.max_expansions, beam_width=args.beam_width,
+        seed=args.seed, git_sha=args.git_sha,
         resume=args.resume,
     )
     print(json.dumps(report, ensure_ascii=False, indent=2))
