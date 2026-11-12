@@ -47,3 +47,7 @@ any optimizer recommendation is made.
 ## Claim boundary
 
 This is a synthetic finite parity diagnostic with oracle-supplied support. It does not measure support discovery, open-world relation induction, natural-language grounding, or general reasoning. The optimizer comparison is CPU microbenchmark evidence for this finite setup only.
+
+## Optimizer-specific defaults
+
+When no explicit learning rate is supplied, the trainer now uses 12.6 for the provisional corrected-scale SGD default and 0.01 for opt-in Adam. The optimizer sweep itself always passes explicit rates. Adam remains opt-in; the 0.01 default is conservative and is not claimed to be the best setting from the finite sweep.
