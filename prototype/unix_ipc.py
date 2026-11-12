@@ -68,8 +68,8 @@ class UnixPeerIdentity:
                 raise ValueError(f"{field} must be a non-empty string")
         for field in ("roles", "scopes"):
             values = getattr(self, field)
-            if not isinstance(values, (set, frozenset, tuple, list)):
-                raise TypeError(f"{field} must be a collection")
+            if isinstance(values, str) or not isinstance(values, (set, frozenset, tuple, list)):
+                raise TypeError(f"{field} must be a collection of strings")
             if any(not isinstance(item, str) or not item.strip() for item in values):
                 raise ValueError(f"{field} must contain non-empty strings")
             object.__setattr__(self, field, frozenset(values))
@@ -94,6 +94,9 @@ class StaticUnixPeerResolver:
             workload_id, roles, scopes = value
             if not isinstance(workload_id, str) or not workload_id.strip():
                 raise ValueError("workload_id must be non-empty")
+            if (isinstance(roles, str) or not isinstance(roles, (set, frozenset, tuple, list))
+                    or isinstance(scopes, str) or not isinstance(scopes, (set, frozenset, tuple, list))):
+                raise ValueError("peer roles and scopes must be collections of strings")
             role_set, scope_set = frozenset(roles), frozenset(scopes)
             if (not role_set or any(not isinstance(x, str) or not x.strip() for x in role_set)
                     or not scope_set or any(not isinstance(x, str) or not x.strip() for x in scope_set)):
@@ -230,8 +233,8 @@ class UnixJSONRPCServer:
             raise TypeError("peer_resolver must implement resolve")
         if not handlers or any(not isinstance(k, str) or not k or not callable(v) for k, v in handlers.items()):
             raise ValueError("handlers must be a non-empty operation-to-callable mapping")
-        if socket_mode & ~0o777:
-            raise ValueError("socket_mode contains invalid permission bits")
+        if socket_mode not in (0o600, 0o660):
+            raise ValueError("socket_mode must be 0600 or 0660; world access is forbidden")
         if isinstance(max_frame_bytes, bool) or not 2 <= max_frame_bytes <= _DEFAULT_MAX_FRAME_BYTES:
             raise ValueError("max_frame_bytes must be between 2 bytes and the 4 MiB protocol ceiling")
         if isinstance(max_deadline_ms, bool) or not 1 <= max_deadline_ms <= 300_000:
