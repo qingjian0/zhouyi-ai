@@ -15,6 +15,7 @@ from prototype.e09_authority_services import (
 )
 from prototype.e09_ed25519_keyring import E09Ed25519IssuerKeyring
 from prototype.e09_verification_receipt import verification_receipt_signing_bytes
+from prototype.e09_domain_registry import E09DomainBinding, StaticE09DomainRegistry
 from prototype.e12a6_lifecycle_contract import CandidateState
 from prototype.e12a6_writer_service import (
     E12A6AuthenticatedWorkload, E12A6AuthorizationError, E12A6WriterService,
@@ -88,6 +89,18 @@ class E12A6WriterServiceTests(unittest.TestCase):
         issuer_private = Ed25519PrivateKey.generate()
         issuer_keyring = E09Ed25519IssuerKeyring({"issuer-authority": _public_bytes(issuer_private)})
         self.verifier_id = issuer_keyring.verifier_id
+        observer = E09AuthenticatedWorkload(
+            workload_id="spiffe://zhouyi/observer", issuer_id="issuer-observer",
+            roles=frozenset({"observer"}), scopes=frozenset({self.scope}),
+            identity_provider="test-spiffe", authentication_method="mTLS",
+            credential_fingerprint="o" * 64,
+        )
+        learner = E09AuthenticatedWorkload(
+            workload_id="spiffe://zhouyi/learner", issuer_id="issuer-learner",
+            roles=frozenset({"learner"}), scopes=frozenset({self.scope}),
+            identity_provider="test-spiffe", authentication_method="mTLS",
+            credential_fingerprint="l" * 64,
+        )
         evaluator = E09AuthenticatedWorkload(
             workload_id="spiffe://zhouyi/evaluator", issuer_id="issuer-evaluator",
             roles=frozenset({"evaluator"}), scopes=frozenset({self.scope}),
@@ -103,11 +116,18 @@ class E12A6WriterServiceTests(unittest.TestCase):
         self.e09_authority = E09AuthorityService(
             self.e09,
             authenticator=_E09Authenticator({
+                "observer-cert": observer, "learner-cert": learner,
                 "evaluator-cert": evaluator, "authorizer-cert": authorizer,
             }),
             signer=_NamedSigner(issuer_private, "issuer-authority"),
             clock=_FixedClock(datetime(2026, 11, 12, 0, 0, tzinfo=timezone.utc)),
             max_grant_ttl=timedelta(hours=1),
+            domain_registry=StaticE09DomainRegistry({
+                self.scope: E09DomainBinding(
+                    domain_id="domain:writer", world_family="family-a",
+                    registry_id="registry:writer", registry_version="v1",
+                ),
+            }),
         )
 
         self.proposal_ref = self._add_reveal("proposal-left")
@@ -134,6 +154,7 @@ class E12A6WriterServiceTests(unittest.TestCase):
             clock=_FixedClock(self.now),
             receipt_signer=_NamedSigner(self.receipt_signer_private, self.verifier_id),
             receipt_ttl=timedelta(minutes=1),
+            domain_registry=self.e09_authority._domain_registry,
         )
         self.receipt = self.verifier.issue_verification_receipt(
             episode_id=self.episode,
@@ -142,17 +163,9 @@ class E12A6WriterServiceTests(unittest.TestCase):
             branch_ids=("left", "right"),
             scope=self.scope,
             learner_track=self.track,
-            world_family_by_evidence={self.authorization_evidence_ref: "family-a"},
             candidate_evidence_refs=(
                 self.proposal_ref, self.proposal_ref_right, self.branch_ref_left, self.branch_ref_right, self.authorization_evidence_ref,
             ),
-            candidate_evidence_world_family_by_ref={
-                self.proposal_ref: "family-a",
-                self.proposal_ref_right: "family-a",
-                self.branch_ref_left: "family-a",
-                self.branch_ref_right: "family-a",
-                self.authorization_evidence_ref: "family-a",
-            },
         )
         receipt_keyring = E09Ed25519IssuerKeyring({
             self.verifier_id: _public_bytes(self.receipt_signer_private),
@@ -193,26 +206,22 @@ class E12A6WriterServiceTests(unittest.TestCase):
     def _add_reveal(self, name):
         observation_id = f"obs-{name}"
         observation_event = f"{self.episode}:observation:{observation_id}"
-        self.e09.append_event(
-            episode_id=self.episode, event_id=observation_event,
-            event_type="observation", idempotency_key=observation_event,
-            actor_role="runner",
+        self.e09_authority.append_observation(
+            "observer-cert", episode_id=self.episode, event_id=observation_event,
+            idempotency_key=observation_event,
             payload={"observation_id": observation_id, "query_id": observation_id,
                      "scope": self.scope, "split": "SUPPORT"},
-            protocol_version=STRICT_PROTOCOL_VERSION,
         )
         prediction_id = f"prediction-{name}"
         commit_digest = hashlib.sha256(prediction_id.encode()).hexdigest()
         commit_event = f"{self.episode}:prediction:{prediction_id}"
-        commit = self.e09.append_event(
-            episode_id=self.episode, event_id=commit_event,
-            event_type="prediction_commit", idempotency_key=commit_event,
-            actor_role="learner", causation_refs=[observation_event],
+        commit = self.e09_authority.append_prediction_commit(
+            "learner-cert", episode_id=self.episode, event_id=commit_event,
+            idempotency_key=commit_event, causation_refs=[observation_event],
             payload={"prediction_id": prediction_id, "observation_id": observation_id,
                      "query_id": observation_id, "scope": self.scope, "split": "SUPPORT",
                      "model_version": "model-writer", "learner_track": self.track,
                      "decision_status": "PREDICT", "interop_commit_digest": commit_digest},
-            protocol_version=STRICT_PROTOCOL_VERSION,
         )
         reveal_ref = f"{self.episode}:reveal:{prediction_id}"
         self.e09_authority.append_evidence_reveal(
