@@ -134,8 +134,10 @@ class LearnableXiangOperator:
         for row in rows:
             if not isinstance(row, RelationClassificationExample) or type(row.label) is not int or row.label not in (-1, 1):
                 raise LearnableSROKError("invalid relation classification row")
-            features, embeddings = self._features_and_embeddings(row.assignment)
-            prepared.append((row.assignment, features, embeddings, 1.0 if row.label == 1 else 0.0))
+            # Store immutable observations only. Latent features must be
+            # recomputed each epoch after the previous parameter update.
+            self._validate_assignment(row.assignment)
+            prepared.append((row.assignment, 1.0 if row.label == 1 else 0.0))
 
         n, width, latent = len(prepared), len(self.readout), self.config.latent_dim
         history = []
@@ -145,7 +147,8 @@ class LearnableXiangOperator:
             grad_bias = [0.0] * latent
             loss = 0.0
             # All gradients use the same pre-update parameter snapshot.
-            for assignment, features, z, target in prepared:
+            for assignment, target in prepared:
+                features, z = self._features_and_embeddings(assignment)
                 logit = math.fsum(w * x for w, x in zip(self.readout, features))
                 probability = self._sigmoid(logit)
                 clipped = min(max(probability, 1e-15), 1.0 - 1e-15)
