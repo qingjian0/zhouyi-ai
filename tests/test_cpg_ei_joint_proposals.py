@@ -216,5 +216,28 @@ class TestCpgEiJointMotifProposals(unittest.TestCase):
               json.dumps(comparison, sort_keys=True))
 
 
+    def test_optimizer_is_propagated_to_baseline_and_candidate_fits(self):
+        train, proposal, locked = partition_parity_splits(
+            81, ((0, 1, 2), (1, 3, 4), (2, 4, 5))
+        )
+        model = CpgEiTransitionModel.create(active_relation_indices=set())
+        observed = []
+        original_train = CpgEiTransitionModel.train
+
+        def tracked_train(candidate, examples, *args, **kwargs):
+            observed.append(kwargs.get("optimizer", "sgd"))
+            return original_train(candidate, examples, *args, **kwargs)
+
+        with patch.object(CpgEiTransitionModel, "train", tracked_train):
+            grow_relation_graph_joint_motifs(
+                model, train, locked, proposal_examples=proposal,
+                max_motifs=1, epochs_per_candidate=1,
+                learning_rate=0.01, gate_l1=0.001, edge_group_l1=0.001,
+                optimizer="adam",
+            )
+        self.assertGreater(len(observed), 1)
+        self.assertEqual(set(observed), {"adam"})
+
+
 if __name__ == "__main__":
     unittest.main()

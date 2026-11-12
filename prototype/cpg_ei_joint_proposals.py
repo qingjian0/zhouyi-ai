@@ -61,6 +61,7 @@ def grow_relation_graph_joint_motifs(
     edge_group_l1: float = 0.03,
     min_training_improvement: float = 1e-5,
     proposal_examples: Sequence[Example] | None = None,
+    optimizer: str = "sgd",
 ) -> dict:
     """Select bounded four-edge motifs by joint fit, not marginal edge scores.
 
@@ -89,6 +90,7 @@ def grow_relation_graph_joint_motifs(
         learning_rate=learning_rate,
         gate_l1=gate_l1,
         edge_group_l1=edge_group_l1,
+        optimizer=optimizer,
     )
     current_loss = _binary_cross_entropy(current, proposal_rows)
 
@@ -111,6 +113,7 @@ def grow_relation_graph_joint_motifs(
                 learning_rate=learning_rate,
                 gate_l1=gate_l1,
                 edge_group_l1=edge_group_l1,
+                optimizer=optimizer,
             )
             # Candidate weights are fitted only on train_examples. Candidate
             # ranking uses proposal_rows; validation_examples is never consulted
