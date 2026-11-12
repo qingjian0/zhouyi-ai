@@ -105,7 +105,7 @@ class CSGGCRE12A6EndToEndTests(unittest.TestCase):
           scope=self.scope,track=self.track,label="PRIVATE_SUPPORT")
         gate=add_reveal(self.authority,"GATE_FINAL","pred-gate",episode=self.episode,
           scope=self.scope,track=self.track,label="PRIVATE_GATE")
-        locked=add_reveal(self.e09,"LOCKED_TEST","pred-locked",episode=self.episode,
+        locked=add_reveal(self.authority,"LOCKED_TEST","pred-locked",episode=self.episode,
           scope=self.scope,track=self.track,label="PRIVATE_LOCKED")
         result=self.ingest((support,gate,locked))
         candidate=result.projection.native_candidate
@@ -137,9 +137,9 @@ class CSGGCRE12A6EndToEndTests(unittest.TestCase):
         self.assertEqual({x.split_role for x in restored.evidence.values()},
           {SplitRole.TRAIN,SplitRole.GATE_FINAL,SplitRole.LOCKED_TEST})
     def test_gate_dev_cannot_be_used_as_gate_final(self):
-        support=add_reveal(self.e09,"SUPPORT","pred-support",episode=self.episode,
+        support=add_reveal(self.authority,"SUPPORT","pred-support",episode=self.episode,
           scope=self.scope,track=self.track,label="PRIVATE_SUPPORT")
-        dev=add_reveal(self.e09,"GATE_DEV","pred-dev",episode=self.episode,
+        dev=add_reveal(self.authority,"GATE_DEV","pred-dev",episode=self.episode,
           scope=self.scope,track=self.track,label="PRIVATE_DEV")
         result=self.ingest((support,dev))
         cid=result.projection.native_candidate.candidate_id
