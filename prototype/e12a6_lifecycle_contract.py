@@ -101,6 +101,9 @@ class Evidence:
     prediction_commit_step: Optional[int] = None
     label_visibility_step: Optional[int] = None
     provenance: str = ""
+    domain_id: str = ""
+    domain_registry_id: str = ""
+    domain_registry_version: str = ""
 
     def __post_init__(self) -> None:
         for name in ("evidence_id", "episode_id", "world_family",
@@ -117,6 +120,9 @@ class Evidence:
             _nonnegative(reveal, "label_visibility_step")
             if commit > reveal:
                 raise ValueError("prediction must be committed before label reveal")
+        domain_values = (self.domain_id, self.domain_registry_id, self.domain_registry_version)
+        if any(domain_values) and any(not isinstance(value, str) or not value.strip() for value in domain_values):
+            raise ValueError("domain provenance fields must be supplied together as non-empty strings")
 
 
 @dataclass(frozen=True)
