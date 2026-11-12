@@ -119,7 +119,9 @@ def compile_yixiang_typed_proposals(
                 f"{result.compiled_operator.transform_version}"
             ),
         )
-        proposals.append(TypedCandidateProposal(proposal, edge, variables))
+        proposals.append(TypedCandidateProposal(
+            proposal, edge, variables, semantic_status="HYPOTHESIS_ONLY",
+        ))
     return tuple(proposals)
 
 
