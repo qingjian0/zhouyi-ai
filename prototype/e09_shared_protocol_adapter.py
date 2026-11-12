@@ -637,7 +637,8 @@ class E09SharedProtocolAdapter:
             if self._evaluator_port is not None:
                 self._evaluator_port.reveal(
                     episode_id=self.episode_id, prediction_id=prediction_id,
-                    payload=reveal_payload, commit_event_id=reveal_causes[0],
+                    reveal_id=reveal_id, payload=reveal_payload,
+                    commit_event_id=reveal_causes[0],
                     operation_id=event_id,
                 )
             elif self._authority is not None:
