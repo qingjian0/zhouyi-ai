@@ -147,11 +147,12 @@ class E09EvaluatorPort(_RolePort):
         prediction_id: str,
         payload: dict[str, Any],
         commit_event_id: str,
+        reveal_id: str | None = None,
         operation_id: str,
     ) -> dict[str, Any]:
         return self.client.append_evidence_reveal(
             episode_id=episode_id,
-            event_id=f"{episode_id}:reveal:{prediction_id}",
+            event_id=f"{episode_id}:reveal:{reveal_id or prediction_id}",
             payload=payload,
             causation_refs=(commit_event_id,),
             operation_id=operation_id,
