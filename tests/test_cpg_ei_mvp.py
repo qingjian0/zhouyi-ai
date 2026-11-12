@@ -134,7 +134,7 @@ class TestCpgEiMvp(unittest.TestCase):
         train = make_dataset(512, seed=31)
         model = CpgEiTransitionModel.create()
         losses = model.train(
-            train, epochs=80, learning_rate=0.01, optimizer="adam"
+            train, epochs=80, optimizer="adam"
         )
         self.assertTrue(all(math.isfinite(value) for value in losses))
         self.assertLess(losses[-1], losses[0])
