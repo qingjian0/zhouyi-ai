@@ -57,6 +57,49 @@ class PersistentM2SemanticUnitStoreTests(unittest.TestCase):
             truth_status=TruthStatus.UNKNOWN,
         )
 
+    def test_current_candidates_are_available_through_bounded_keyset_pages(self):
+        for index in range(5):
+            self.store.record_candidate(self.candidate(f"page-{index}"))
+        first = self.store.read_candidate_page(page_size=2)
+        second = self.store.read_candidate_page(
+            after_root_id=first.next_cursor, page_size=2,
+        )
+        third = self.store.read_candidate_page(
+            after_root_id=second.next_cursor, page_size=2,
+        )
+        self.assertEqual([root for root, _ in first.items], ["page-0", "page-1"])
+        self.assertEqual([root for root, _ in second.items], ["page-2", "page-3"])
+        self.assertEqual([root for root, _ in third.items], ["page-4"])
+        self.assertIsNotNone(first.next_cursor)
+        self.assertIsNotNone(second.next_cursor)
+        self.assertIsNone(third.next_cursor)
+        self.assertTrue(all(candidate.truth_status is TruthStatus.UNKNOWN
+                            for _, candidate in first.items + second.items + third.items))
+
+    def test_current_candidate_page_obeys_serialized_byte_budget(self):
+        for suffix in ("a", "b", "c"):
+            self.store.record_candidate(self.candidate(f"budget-{suffix}"))
+        sizes = [
+            int(row[0]) for row in self.memory.db.execute(
+                """SELECT length(CAST(e.payload_json AS BLOB))
+                   FROM m2_semantic_unit_heads AS h
+                   JOIN m2_semantic_unit_records AS r
+                     ON r.scope=h.scope AND r.record_id=h.current_record_id
+                   JOIN memory_events AS e ON e.event_id=r.event_id
+                   WHERE h.scope=? AND h.retraction_reason IS NULL""",
+                ("project-a",),
+            ).fetchall()
+        ]
+        budget = max(sizes)
+        bounded = PersistentM2SemanticUnitStore(
+            self.memory, self.resolver, scope="project-a",
+            max_event_bytes=budget, max_replay_page_bytes=budget,
+        )
+        page = bounded.read_candidate_page(page_size=3)
+        self.assertEqual(len(page.items), 1)
+        self.assertLessEqual(page.payload_bytes, budget)
+        self.assertIsNotNone(page.next_cursor)
+
     def test_candidate_round_trip_and_idempotency(self):
         candidate = self.candidate("su-1")
         first = self.store.record_candidate(candidate)

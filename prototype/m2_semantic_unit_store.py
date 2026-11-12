@@ -42,6 +42,18 @@ class SemanticUnitReceipt:
     replayed: bool = False
 
 
+@dataclass(frozen=True)
+class SemanticUnitCandidatePage:
+    """One bounded keyset page of current candidates.
+
+    items retain only this page's candidate bodies; next_cursor is the last
+    root_id returned when more rows remain.
+    """
+    items: tuple[tuple[str, SemanticUnitCandidate], ...]
+    next_cursor: str | None
+    payload_bytes: int
+
+
 def _candidate_from_dict(value: dict[str, Any]) -> SemanticUnitCandidate:
     env = dict(value["envelope"])
     env["source_refs"] = tuple(EvidenceRef(**x) for x in env["source_refs"])
@@ -502,6 +514,68 @@ class PersistentM2SemanticUnitStore:
         # references whenever a candidate body is materialized for a caller.
         self._verify_candidate(candidate)
         return candidate
+
+    def read_candidate_page(
+        self, *, after_root_id: str | None = None, page_size: int = 64,
+    ) -> SemanticUnitCandidatePage:
+        """Read current candidates using bounded keyset pagination.
+
+        The page is capped by both row count and serialized event bytes. The
+        cursor is an opaque root_id key, not an OFFSET; pages are live reads,
+        not a multi-page snapshot if writers mutate the store between calls.
+        Each returned candidate is loaded from the authoritative event log and
+        its M1 source references are re-verified before it is returned.
+        """
+        if after_root_id is not None and (
+            not isinstance(after_root_id, str) or not after_root_id.strip()
+        ):
+            raise ValueError("after_root_id must be a non-empty string or None")
+        if (isinstance(page_size, bool) or not isinstance(page_size, int)
+                or not 1 <= page_size <= MAX_REPLAY_PAGE_ROWS):
+            raise ValueError(f"page_size must be in [1, {MAX_REPLAY_PAGE_ROWS}]")
+
+        with self._lock, self._memory.lock:
+            rows = self._memory.db.execute(
+                """SELECT h.root_id,h.current_record_id,
+                          length(CAST(e.payload_json AS BLOB)) AS payload_bytes
+                   FROM m2_semantic_unit_heads AS h
+                   JOIN m2_semantic_unit_records AS r
+                     ON r.scope=h.scope AND r.record_id=h.current_record_id
+                   JOIN memory_events AS e ON e.event_id=r.event_id
+                   WHERE h.scope=? AND h.retraction_reason IS NULL
+                     AND (? IS NULL OR h.root_id>?)
+                   ORDER BY h.root_id LIMIT ?""",
+                (self.scope, after_root_id, after_root_id, page_size + 1),
+            ).fetchall()
+
+            selected = []
+            used_bytes = 0
+            for row in rows:
+                if len(selected) >= page_size:
+                    break
+                size = int(row["payload_bytes"])
+                if size > self._max_event_bytes:
+                    raise SemanticUnitStoreError(
+                        f"candidate event exceeds hard payload byte limit: {row['current_record_id']}"
+                    )
+                if used_bytes + size > self._max_replay_page_bytes:
+                    break
+                selected.append(row)
+                used_bytes += size
+
+            if rows and not selected:
+                raise SemanticUnitStoreError(
+                    "candidate page cannot make progress within max_replay_page_bytes"
+                )
+            has_more = len(selected) < len(rows)
+            items = tuple(
+                (str(row["root_id"]), self._candidate_for_record(str(row["current_record_id"])))
+                for row in selected
+            )
+            next_cursor = str(selected[-1]["root_id"]) if has_more else None
+            return SemanticUnitCandidatePage(
+                items=items, next_cursor=next_cursor, payload_bytes=used_bytes,
+            )
 
     @property
     def candidates(self) -> dict[str, SemanticUnitCandidate]:
