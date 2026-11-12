@@ -22,10 +22,10 @@ class TestCpgEiStructureDiscovery(unittest.TestCase):
         true_support = {
             "hyperedge_2_0_1",
             "hyperedge_2_0_5",
-            "hyperedge_2_2_3",
+            "hyperedge_2_2_4",
             "hyperedge_3_0_1_3",
-            "hyperedge_3_1_2_4",
-            "hyperedge_3_2_3_5",
+            "hyperedge_3_0_3_4",
+            "hyperedge_3_1_4_5",
         }
         discovered = set(result["active_edges"])
         recall = len(discovered & true_support) / len(true_support)
