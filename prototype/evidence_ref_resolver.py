@@ -78,11 +78,11 @@ class SQLiteEvidenceRefResolver:
             if not bool(state[2]):
                 raise EvidenceResolutionError("cannot version an incomplete M1 document")
             rows = db.execute(
-                """SELECT ordinal, byte_start, byte_end, chunk_id, content_sha256
+                """SELECT ordinal, byte_start, byte_end, chunk_id, content_sha256, text_utf8
                    FROM evidence_chunks WHERE document_id = ? ORDER BY ordinal""",
                 (document_id,),
             )
-            digest = _manifest_digest(rows)
+            digest = _manifest_digest(document_id, rows)
             if state[1] <= 0 or state[0] <= 0:
                 raise EvidenceResolutionError("completed document has an invalid durable cursor")
             last = db.execute(
