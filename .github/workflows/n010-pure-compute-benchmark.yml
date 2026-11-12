@@ -1,0 +1,20 @@
+name: n010-pure-compute-benchmark
+
+on:
+  push:
+    branches:
+      - research/n010-pure-compute-benchmark-2026-11-12
+
+jobs:
+  model-compute:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Test in-memory benchmark helpers
+        run: python -m unittest tests.test_n010_model_compute_benchmark -v
+      - name: Measure SROK in-memory training and scoring
+        run: python -m benchmarks.benchmark_n010_model_compute --sizes 8 64 256 1024 --epochs 100 --repeats 3
