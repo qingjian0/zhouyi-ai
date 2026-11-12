@@ -2,9 +2,10 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from prototype.n09_learnable_srok import RoleSpec
-from prototype.n010_experiment import LearnableSROKError, run_experiment
+from prototype.n010_experiment import LearnableSROKError, load_dataset, run_experiment
 
 
 class N010ExperimentRunnerTests(unittest.TestCase):
@@ -97,6 +98,30 @@ class N010ExperimentRunnerTests(unittest.TestCase):
             run_experiment(self.dataset, self.roles, 1, checkpoint,
                            epochs=2, resume=True)
 
+
+
+    def test_loader_hashes_and_parses_without_reading_entire_file(self):
+        with patch.object(Path, "read_bytes", side_effect=AssertionError("read_bytes must not be used")):
+            splits, manifest = load_dataset(self.dataset, self.roles, 1)
+        self.assertEqual(len(splits["train"]), 3)
+        self.assertEqual(manifest["loader"], "two_pass_streaming_jsonl")
+        self.assertEqual(manifest["records"], 9)
+        self.assertEqual(manifest["group_ids_by_split"]["episode_id"]["train"], [])
+
+    def test_loader_rejects_group_leakage_across_splits(self):
+        rows = [json.loads(line) for line in self.dataset.read_text(encoding="utf-8").splitlines()]
+        rows[0]["group_id"] = "shared-source"
+        rows[3]["group_id"] = "shared-source"
+        self.dataset.write_text(
+            "".join(json.dumps(row, sort_keys=True) + "\\n" for row in rows),
+            encoding="utf-8",
+        )
+        with self.assertRaisesRegex(LearnableSROKError, "group_id leakage"):
+            load_dataset(self.dataset, self.roles, 1)
+
+    def test_loader_enforces_per_record_byte_limit(self):
+        with self.assertRaisesRegex(LearnableSROKError, "max_record_bytes"):
+            load_dataset(self.dataset, self.roles, 1, max_record_bytes=32)
 
 if __name__ == "__main__":
     unittest.main()
