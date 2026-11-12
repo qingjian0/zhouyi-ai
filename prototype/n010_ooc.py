@@ -139,6 +139,13 @@ class N010StreamingDataset:
         """)
         self._db.execute("CREATE INDEX records_split_idx ON records(split)")
         self._db.execute("CREATE INDEX records_family_idx ON records(rule_family, split)")
+        self._db.execute("""
+            CREATE TABLE group_fingerprints (
+                field TEXT NOT NULL,
+                fingerprint TEXT NOT NULL,
+                PRIMARY KEY(field, fingerprint)
+            )
+        """)
         self._db.commit()
         self.sha256 = _sha256_file(self.path)
         try:
@@ -194,6 +201,14 @@ class N010StreamingDataset:
                         raise LearnableSROKError(
                             f"duplicate example id at dataset row {line_number}"
                         ) from exc
+                    for field, value in groups.items():
+                        fingerprint = hashlib.sha256(
+                            (field + "\\0" + value).encode("utf-8")
+                        ).hexdigest()
+                        self._db.execute(
+                            "INSERT OR IGNORE INTO group_fingerprints VALUES (?, ?)",
+                            (field, fingerprint),
+                        )
                     counts[row["split"]] += 1
             self._db.commit()
         except OSError as exc:
@@ -296,6 +311,59 @@ class N010StreamingDataset:
                 _canonical_json(provenance).encode("utf-8")
             ).hexdigest()
         return manifest
+
+    def write_group_index(self, output_path: str | Path) -> Path:
+        """Persist exact hashed group membership for later isolated evaluation."""
+        self._assert_unchanged()
+        output = Path(output_path)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        temporary = output.with_suffix(output.suffix + ".tmp")
+        if temporary.exists():
+            temporary.unlink()
+        target = sqlite3.connect(str(temporary))
+        try:
+            target.execute("""
+                CREATE TABLE groups (
+                    field TEXT NOT NULL,
+                    fingerprint TEXT NOT NULL,
+                    PRIMARY KEY(field, fingerprint)
+                )
+            """)
+            cursor = self._db.execute(
+                "SELECT field, fingerprint FROM group_fingerprints ORDER BY field, fingerprint"
+            )
+            while rows := cursor.fetchmany(2048):
+                target.executemany("INSERT INTO groups VALUES (?, ?)", rows)
+            target.commit()
+        finally:
+            target.close()
+        os.replace(temporary, output)
+        return output
+
+    def assert_no_group_overlap(self, training_group_index: str | Path) -> None:
+        """Reject held-out rows sharing any declared source group with training."""
+        self._assert_unchanged()
+        index_path = Path(training_group_index)
+        if not index_path.exists():
+            raise LearnableSROKError("training group index is missing")
+        try:
+            self._db.execute("ATTACH DATABASE ? AS training_groups", (str(index_path),))
+            overlap = self._db.execute("""
+                SELECT 1 FROM group_fingerprints heldout
+                JOIN training_groups.groups trained
+                  ON heldout.field = trained.field
+                 AND heldout.fingerprint = trained.fingerprint
+                LIMIT 1
+            """).fetchone()
+            if overlap:
+                raise LearnableSROKError(
+                    "locked-test source group overlaps training/dev data"
+                )
+        finally:
+            try:
+                self._db.execute("DETACH DATABASE training_groups")
+            except sqlite3.Error:
+                pass
 
     def iter_split_rows(self, split: str) -> Iterator[dict]:
         if split not in self.expected_splits:
@@ -433,6 +501,8 @@ def run_experiment_ooc(dataset_path: str | Path, roles: Sequence[RoleSpec],
     with N010StreamingDataset(
         dataset_path, roles, feature_dim, expected_splits=("train", "dev")
     ) as dataset:
+        group_index_path = checkpoint.with_suffix(checkpoint.suffix + ".groups.sqlite3")
+        dataset.write_group_index(group_index_path)
         config = {
             "epochs": epochs,
             "learning_rate": learning_rate,
@@ -477,6 +547,7 @@ def run_experiment_ooc(dataset_path: str | Path, roles: Sequence[RoleSpec],
             _atomic_write_json(checkpoint, {
                 "schema": OOC_RUN_SCHEMA,
                 "dataset_manifest": dataset.manifest,
+                "group_index_path": str(group_index_path),
                 "config": config,
                 "completed_epochs": epoch + 1,
                 "loss_history": history,
@@ -521,6 +592,8 @@ def evaluate_locked_test_ooc(locked_test_path: str | Path, roles: Sequence[RoleS
         locked_test_path, roles, feature_dim, expected_splits=("locked_test",)
     ) as dataset:
         training_manifest = bundle.get("dataset_manifest", {})
+        group_index_path = checkpoint.with_suffix(checkpoint.suffix + ".groups.sqlite3")
+        dataset.assert_no_group_overlap(group_index_path)
         if (training_manifest.get("feature_dim") != dataset.manifest["feature_dim"]
                 or training_manifest.get("roles") != dataset.manifest["roles"]
                 or model.feature_dim != feature_dim):
