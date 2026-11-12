@@ -91,6 +91,9 @@ class SQLiteEvidenceIngestorTests(unittest.TestCase):
                 "doc-invalid", "bad.bin", io.BytesIO(b"ok\xffbad"), chunk_bytes=8
             )
 
+        self.assertEqual(self.ingestor.document_state("doc-invalid"), (0, 0, False))
+        self.assertEqual(self.ingestor.get_chunks("doc-invalid"), [])
+
     def test_non_seekable_stream_is_rejected(self):
         class NonSeekable(io.BytesIO):
             def seekable(self):
