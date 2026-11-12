@@ -37,11 +37,11 @@ def _support_metrics(active_edges: Sequence[str], expected: set[str]):
         "active_edge_count": len(discovered),
     }
 
-def run_sweep(*, seeds: Sequence[int] = DEFAULT_SEEDS, epochs: int | Sequence[int] = (12, 120), max_motifs: int = 3) -> dict:
+def run_sweep(*, seeds: Sequence[int] = DEFAULT_SEEDS, epochs: int | Sequence[int] = (12, 120), oracle_epochs: int = 500, max_motifs: int = 3) -> dict:
     """Fit on train, rank on proposal split, and report locked/OOD results."""
     epoch_budgets = (epochs,) if isinstance(epochs, int) else tuple(epochs)
-    if not seeds or not epoch_budgets or any(value < 1 for value in epoch_budgets) or not 1 <= max_motifs <= 20:
-        raise ValueError("seeds, epochs, or motif budget are invalid")
+    if not seeds or not epoch_budgets or any(value < 1 for value in epoch_budgets) or oracle_epochs < 1 or not 1 <= max_motifs <= 20:
+        raise ValueError("seeds, epochs, oracle epochs, or motif budget are invalid")
     records = []
     for seed in seeds:
         train_states, proposal_states, locked_states = partition_states(seed)
@@ -53,6 +53,25 @@ def run_sweep(*, seeds: Sequence[int] = DEFAULT_SEEDS, epochs: int | Sequence[in
             proposal = make_examples(proposal_states, triples)
             locked = make_examples(locked_states, triples)
             oracle_indices = {FEATURE_NAMES.index(name) for name in exact_support(triples)}
+            oracle_model = CpgEiTransitionModel.create(active_relation_indices=oracle_indices)
+            oracle_losses = oracle_model.train(
+                train, epochs=oracle_epochs, gate_l1=0.001, edge_group_l1=0.001,
+            )
+            oracle_train = evaluate(oracle_model, train)["bit_accuracy"]
+            oracle_locked = evaluate(oracle_model, locked)["bit_accuracy"]
+            all_states = list(itertools.product((0, 1), repeat=6))
+            full_examples = make_examples(all_states, triples)
+            full_oracle = CpgEiTransitionModel.create(active_relation_indices=oracle_indices)
+            full_oracle.train(
+                full_examples, epochs=oracle_epochs, gate_l1=0.001, edge_group_l1=0.001,
+            )
+            oracle_full_universe = evaluate(full_oracle, full_examples)["bit_accuracy"]
+            oracle_ood = {}
+            for other_family, other_triples in RULE_FAMILIES.items():
+                if other_family != family:
+                    oracle_ood[other_family] = evaluate(
+                        oracle_model, make_examples(locked_states, other_triples)
+                    )["bit_accuracy"]
             for epoch_budget in epoch_budgets:
               for protocol in ("proposal_split", "legacy_train_ranked"):
                 model = CpgEiTransitionModel.create(active_relation_indices=set())
@@ -63,25 +82,6 @@ def run_sweep(*, seeds: Sequence[int] = DEFAULT_SEEDS, epochs: int | Sequence[in
                     gate_l1=0.001, edge_group_l1=0.001,
                 )
                 support = _support_metrics(result["active_edges"], exact_support(triples))
-                oracle_model = CpgEiTransitionModel.create(active_relation_indices=oracle_indices)
-                oracle_losses = oracle_model.train(
-                    train, epochs=epoch_budget, gate_l1=0.001, edge_group_l1=0.001,
-                )
-                oracle_train = evaluate(oracle_model, train)["bit_accuracy"]
-                oracle_locked = evaluate(oracle_model, locked)["bit_accuracy"]
-                all_states = list(itertools.product((0, 1), repeat=6))
-                full_examples = make_examples(all_states, triples)
-                full_oracle = CpgEiTransitionModel.create(active_relation_indices=oracle_indices)
-                full_oracle.train(
-                    full_examples, epochs=epoch_budget, gate_l1=0.001, edge_group_l1=0.001,
-                )
-                oracle_full_universe = evaluate(full_oracle, full_examples)["bit_accuracy"]
-                oracle_ood = {}
-                for other_family, other_triples in RULE_FAMILIES.items():
-                    if other_family != family:
-                        oracle_ood[other_family] = evaluate(
-                            oracle_model, make_examples(locked_states, other_triples)
-                        )["bit_accuracy"]
                 ood = {}
                 for other_family, other_triples in RULE_FAMILIES.items():
                     if other_family != family:
@@ -92,6 +92,7 @@ def run_sweep(*, seeds: Sequence[int] = DEFAULT_SEEDS, epochs: int | Sequence[in
                     "seed": seed, "train_family": family,
                     "selection_protocol": protocol,
                     "epochs_per_candidate": epoch_budget,
+                    "oracle_epochs": oracle_epochs,
                     "train_examples": len(train),
                     "proposal_examples": len(proposal) if protocol == "proposal_split" else 0,
                     "locked_test_examples": len(locked),
@@ -107,6 +108,7 @@ def run_sweep(*, seeds: Sequence[int] = DEFAULT_SEEDS, epochs: int | Sequence[in
                     "oracle_locked_test_bit_accuracy": oracle_locked,
                     "oracle_full_universe_bit_accuracy": oracle_full_universe,
                     "oracle_final_train_loss": oracle_losses[-1],
+                    "oracle_training_passes": oracle_epochs,
                     "oracle_ood_bit_accuracy_by_family": oracle_ood,
                     **support,
                 }
@@ -168,7 +170,7 @@ def run_sweep(*, seeds: Sequence[int] = DEFAULT_SEEDS, epochs: int | Sequence[in
         "benchmark": "cpg-ei-proposal-selection-multiseed-v1",
         "seeds": list(seeds), "rule_families": list(RULE_FAMILIES),
         "split_sizes": {"train": 40, "proposal_selection": 12, "locked_test": 12},
-        "optimizer": {"epochs_per_candidate": list(epoch_budgets), "max_motifs": max_motifs},
+        "optimizer": {"epochs_per_candidate": list(epoch_budgets), "oracle_epochs": oracle_epochs, "max_motifs": max_motifs},
         "aggregate_by_protocol_and_budget": by_protocol_and_budget,
         "claim_boundary": "Synthetic finite six-bit rule families only; not open-ended relation induction or natural-language reasoning.",
         "records": records,
@@ -197,10 +199,11 @@ def main(argv: Iterable[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--seeds", type=_parse_seeds, default=DEFAULT_SEEDS)
     parser.add_argument("--epochs", type=_parse_epochs, default=(12, 120))
+    parser.add_argument("--oracle-epochs", type=int, default=500)
     parser.add_argument("--max-motifs", type=int, default=3)
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
-    report = run_sweep(seeds=args.seeds, epochs=args.epochs, max_motifs=args.max_motifs)
+    report = run_sweep(seeds=args.seeds, epochs=args.epochs, oracle_epochs=args.oracle_epochs, max_motifs=args.max_motifs)
     print(json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2))
     return 0
 
