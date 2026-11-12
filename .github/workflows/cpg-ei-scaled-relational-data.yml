@@ -1,4 +1,4 @@
-name: CPG-EI scaled relational data
+name: CPG-EI scaled relational data and learner
 
 on:
   push:
@@ -6,27 +6,33 @@ on:
       - research/cpg-ei-scaled-relational-benchmark-v1-2026-11-13
     paths:
       - "prototype/cpg_ei_scaled_relational_data.py"
+      - "prototype/cpg_ei_generic_learner.py"
       - "tests/test_cpg_ei_scaled_relational_data.py"
+      - "tests/test_cpg_ei_generic_learner.py"
       - ".github/workflows/cpg-ei-scaled-relational-data.yml"
   pull_request:
     paths:
       - "prototype/cpg_ei_scaled_relational_data.py"
+      - "prototype/cpg_ei_generic_learner.py"
       - "tests/test_cpg_ei_scaled_relational_data.py"
+      - "tests/test_cpg_ei_generic_learner.py"
       - ".github/workflows/cpg-ei-scaled-relational-data.yml"
 
 permissions:
   contents: read
 
 jobs:
-  scaled-relational-data:
+  scaled-relational-data-and-learner:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Run generator contract tests
-        run: python -m unittest tests.test_cpg_ei_scaled_relational_data -v
+      - name: Run generator and learner contract tests
+        run: |
+          python -m unittest tests.test_cpg_ei_scaled_relational_data -v
+          python -m unittest tests.test_cpg_ei_generic_learner -v
       - name: Generate the 16x target corpus
         run: |
           python -m prototype.cpg_ei_scaled_relational_data --jsonl /tmp/zhouyi-cpg-ei-scaled-v1.jsonl > /tmp/zhouyi-cpg-ei-scaled-v1-manifest.json
