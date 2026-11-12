@@ -124,6 +124,12 @@ class E09VerifierUnixRPCTests(unittest.TestCase):
             "candidate_evidence_refs": ["evidence-1"],
         }
 
+    def test_health_reports_ready_for_provisioned_writer(self):
+        result = self.client.request("health", {}, operation_id="health-check-1")
+        self.assertEqual(result, {
+            "service": "e09-verifier", "protocol": "zhouyi-ipc/1", "ready": True,
+        })
+
     def test_receipt_issuance_is_writer_only_and_durable_idempotent(self):
         first = self.client.request(
             "receipt.issue", self._request(), operation_id="issue-receipt-1"
