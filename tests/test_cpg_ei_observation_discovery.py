@@ -19,6 +19,10 @@ class TestObservationDiscoveryBaseline(unittest.TestCase):
         self.assertIn("support_recovery_rate", overall)
         self.assertIn("operator_candidate_coverage", overall)
         self.assertIn("locked_consensus_accuracy_rate", overall)
+        self.assertIn("mean_input_context_coverage", overall)
+        self.assertIn("mean_influence_context_count", overall)
+        self.assertGreaterEqual(overall["mean_input_context_coverage"], 0.0)
+        self.assertLessEqual(overall["mean_input_context_coverage"], 1.0)
         self.assertEqual(set(self.report["by_operator"]), {
             "xor", "and", "or", "nand", "implies", "threshold", "conditional_xor"
         })
