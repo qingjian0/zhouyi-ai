@@ -78,8 +78,8 @@ class PersistentM2ObservationStoreTests(unittest.TestCase):
         self.memory.close()
         self.memory = ZPCMMemory(self.memory_db)
         restored = PersistentM2ObservationStore(self.memory, self.resolver, scope="project-a")
-        self.assertEqual(restored.observations["obs-1"], observation)
-        self.assertTrue(restored._receipts["obs-1"].replayed)
+        self.assertEqual(restored.get_observation("obs-1"), observation)
+        self.assertTrue(restored.get_receipt("obs-1").replayed)
 
     def test_identical_retry_is_idempotent_but_record_id_is_immutable(self):
         observation = self.make_observation()
@@ -90,6 +90,39 @@ class PersistentM2ObservationStoreTests(unittest.TestCase):
         self.assertEqual(first.sequence, replay.sequence)
         with self.assertRaises(ObservationStoreError):
             self.store.record_observation(self.make_observation(extractor_version="2.0"))
+
+    def test_store_initialization_and_indexed_lookup_do_not_replay_full_stream(self):
+        observation = self.make_observation()
+        self.store.record_observation(observation)
+        original_iter = self.memory.iter_domain_events
+        self.memory.iter_domain_events = lambda **kwargs: (_ for _ in ()).throw(
+            AssertionError("indexed lookup must not replay the full event stream")
+        )
+        try:
+            lazy = PersistentM2ObservationStore(
+                self.memory, self.resolver, scope="project-a"
+            )
+            self.assertEqual(lazy.get_observation("obs-1"), observation)
+            self.assertEqual(lazy.get_receipt("obs-1").record_digest,
+                             self.store.get_receipt("obs-1").record_digest)
+        finally:
+            self.memory.iter_domain_events = original_iter
+
+    def test_keyset_iteration_is_bounded_and_resumable(self):
+        first = self.store.record_observation(self.make_observation(record_id="obs-1"))
+        second = self.store.record_observation(self.make_observation(record_id="obs-2"))
+        pages = list(self.store.iter_observations(page_size=1))
+        self.assertEqual([item[0].envelope.record_id for item in pages], ["obs-1", "obs-2"])
+        resumed = list(self.store.iter_observations(after_sequence=first.sequence, page_size=1))
+        self.assertEqual([item[0].envelope.record_id for item in resumed], ["obs-2"])
+        self.assertEqual(resumed[0][1].sequence, second.sequence)
+
+    def test_default_store_has_no_corpus_sized_observation_or_receipt_cache(self):
+        self.store.record_observation(self.make_observation())
+        lazy = PersistentM2ObservationStore(self.memory, self.resolver, scope="project-a")
+        self.assertFalse(hasattr(lazy, "_observations"))
+        self.assertFalse(hasattr(lazy, "_receipts"))
+        self.assertEqual(lazy.get_observation("obs-1").envelope.record_id, "obs-1")
 
     def test_rejects_wrong_scope_before_durable_append(self):
         with self.assertRaises(ObservationStoreError):
@@ -128,8 +161,11 @@ class PersistentM2ObservationStoreTests(unittest.TestCase):
             )
         self.memory.close()
         self.memory = ZPCMMemory(self.memory_db)
+        restored = PersistentM2ObservationStore(self.memory, self.resolver, scope="project-a")
+        # Lazy construction does not scan the corpus. Corruption is detected
+        # when the affected indexed record is actually read.
         with self.assertRaises(EvidenceResolutionError):
-            PersistentM2ObservationStore(self.memory, self.resolver, scope="project-a")
+            restored.get_observation("obs-1")
 
 
 if __name__ == "__main__":
