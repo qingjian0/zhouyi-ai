@@ -111,6 +111,7 @@ def grow_relation_graph(
             )
             if score > 1e-10:
                 scores[feature_index] = score
+        validation_before_add = evaluate(model, validation_examples)
         added = tuple(sorted(
             sorted(scores, key=lambda index: (-scores[index], index))[:edges_per_round]
         ))
@@ -119,8 +120,8 @@ def grow_relation_graph(
             "round": round_index,
             "added_edges": [FEATURE_NAMES[index] for index in added],
             "pruned_edges": [FEATURE_NAMES[index] for index in removed],
-            "active_edge_count": len(model.active_relation_indices),
-            "validation": evaluate(model, validation_examples),
+            "active_edge_count_after_add": len(model.active_relation_indices),
+            "validation_before_add": validation_before_add,
         })
 
     model.train(
