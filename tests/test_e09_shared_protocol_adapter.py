@@ -135,6 +135,9 @@ class E09SharedProtocolAdapterTests(unittest.TestCase):
         memory.sync_episode = commit_then_crash
         with self.assertRaises(E09ProtocolAdapterError):
             adapter.reveal(commit["prediction_id"], "no")
+        # The adapter must remain fail-closed after an uncertain projection.
+        with self.assertRaises(E09ProtocolAdapterError):
+            adapter.replay()
         memory.sync_episode = original_sync
 
         # The adapter intentionally fails closed after projection uncertainty.
