@@ -176,6 +176,7 @@ def run_sweep(*, seeds: Sequence[int] = DEFAULT_SEEDS, epochs: int | Sequence[in
             "mean_oracle_default_locked_test_bit_accuracy": mean("oracle_default_locked_test_bit_accuracy"),
             "mean_oracle_default_full_universe_bit_accuracy": mean("oracle_default_full_universe_bit_accuracy"),
             "mean_oracle_default_final_train_loss": mean("oracle_default_final_train_loss"),
+            "mean_oracle_default_training_passes": mean("oracle_default_training_passes"),
             "mean_oracle_default_ood_bit_accuracy": sum(
                 value for row in rows
                 for value in row["oracle_default_ood_bit_accuracy_by_family"].values()
