@@ -76,6 +76,13 @@ class _DomainRegistry:
         )
 
 
+class _LearnerBindingRegistry:
+    def resolve(self, *, episode_id, scope, learner_track):
+        if learner_track != "track-writer":
+            raise ValueError("unassigned learner track")
+        return "spiffe://zhouyi/learner"
+
+
 def _public_bytes(private_key):
     return private_key.public_key().public_bytes(
         encoding=serialization.Encoding.Raw,
@@ -131,6 +138,7 @@ class E12A6WriterServiceTests(unittest.TestCase):
             clock=_FixedClock(datetime(2026, 11, 12, 0, 0, tzinfo=timezone.utc)),
             max_grant_ttl=timedelta(hours=1),
             domain_registry=_DomainRegistry(),
+            learner_binding_resolver=_LearnerBindingRegistry(),
         )
 
         self.proposal_ref = self._add_reveal("proposal-left")
@@ -220,6 +228,7 @@ class E12A6WriterServiceTests(unittest.TestCase):
             "observer-cert", episode_id=self.episode, event_id=observation_event,
             idempotency_key=observation_event, observation_id=observation_id,
             query_id=observation_id, scope=self.scope, split="SUPPORT",
+            learner_track=self.track,
         )
         prediction_id = f"prediction-{name}"
         commit_digest = hashlib.sha256(prediction_id.encode()).hexdigest()
