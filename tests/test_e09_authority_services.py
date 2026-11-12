@@ -246,7 +246,32 @@ class E09AuthorityServiceTests(unittest.TestCase):
         )
         self.assertEqual(verified.authorization_ref, "grant-receipt")
         self.assertEqual(verified.evidence[0].outcome, f"opaque-e09-evidence-ref:{reveal_ref}")
+        self.assertIn("domain-registry:zhouyi-domain-registry@2026-11-12.1",
+                      verified.evidence[0].provenance)
         self.assertNotIn("target_or_feedback", receipt["evidence"][0])
+
+    def test_receipt_rejects_caller_world_family_relabel(self):
+        reveal_ref = self._prior_prediction()
+        self.authority.issue_branch_merge_authorization(
+            "authorizer-cert", episode_id=self.episode, authorization_id="grant-spoof",
+            scope=self.scope, parent_state_ref="parent-1", branch_ids=["left", "right"],
+            evidence_refs=[reveal_ref], ttl=timedelta(minutes=45),
+        )
+        verifier = E09VerifierService(
+            self.store, signature_verifier=self.keyring.verify,
+            verifier_id=self.keyring.verifier_id,
+            clock=_FixedClock(datetime(2026, 11, 12, 0, 30, tzinfo=timezone.utc)),
+            receipt_signer=_NamedSigner(Ed25519PrivateKey.generate(), self.keyring.verifier_id),
+        )
+        with self.assertRaises(ValueError):
+            verifier.issue_verification_receipt(
+                episode_id=self.episode, authorization_ref="grant-spoof",
+                parent_state_ref="parent-1", branch_ids=("left", "right"),
+                scope=self.scope, learner_track=self.track,
+                world_family_by_evidence={reveal_ref: "attacker-family"},
+                candidate_evidence_refs=[reveal_ref],
+                candidate_evidence_world_family_by_ref={reveal_ref: "attacker-family"},
+            )
 
     def test_caller_cannot_supply_verification_time(self):
         verifier = E09VerifierService(
