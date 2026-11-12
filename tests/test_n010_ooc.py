@@ -142,7 +142,7 @@ class N010OutOfCoreTests(unittest.TestCase):
         self.assertEqual(report["training_examples"], 4)
         self.assertNotIn("locked_test", report)
         self.assertEqual(
-            report["locked_test_policy"], "separate_artifact_and_evaluator_process"
+            report["locked_test_policy"], "separate_artifact_and_evaluator_entry_point"
         )
         dev_predictions = Path(report["dev"]["predictions_path"])
         self.assertEqual(len(dev_predictions.read_text(encoding="utf-8").splitlines()), 4)
