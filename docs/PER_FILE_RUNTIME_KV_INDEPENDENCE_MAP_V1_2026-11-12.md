@@ -270,3 +270,8 @@ CI 通过只说明 exact-head workflow 测试成功，不代表生产安全隔�
 - cross-feature relation 任务验证当前 diagonal 参数化是否足够；
 - 加入参数量受控的 factorized / low-rank tensor baseline；
 - 只有在内存、计算预算与 OOD 收益均明确时，才考虑更稠密的高阶张量。
+
+
+### 10.7 E12-A6 生产 composition root 跟踪项
+
+已建立 [Issue #260](https://github.com/qingjian0/zhouyi-ai/issues/260)，跟踪 #248 runtime、#252 UDS 与 #244/#245 WriterService 的实际接线。除严格 UID/GID → workload principal 映射和 JSON schema allowlist 外，特别要求 shutdown 时先停止/排空 IPC handler，再关闭 SQLite/ZPCM runtime；若 dispatcher 仍在运行，不得释放 writer lock 或关闭其数据库。该 issue 尚未实现或关闭。
