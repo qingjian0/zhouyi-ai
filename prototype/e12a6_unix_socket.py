@@ -44,6 +44,9 @@ class E12A6UnixSocketServer:
         max_frame_bytes: int = 1_048_576,
         client_timeout: float = 5.0,
         backlog: int = 16,
+        parent_mode: int = 0o700,
+        socket_mode: int = 0o600,
+        socket_gid: int | None = None,
     ) -> None:
         self.path = Path(path)
         if not callable(dispatcher):
@@ -54,11 +57,23 @@ class E12A6UnixSocketServer:
             raise ValueError("max_frame_bytes must be between 64 and 16777216")
         if client_timeout <= 0 or backlog < 1:
             raise ValueError("client_timeout and backlog must be positive")
+        if parent_mode not in (0o700, 0o710):
+            raise ValueError("parent_mode must be 0700 or 0710")
+        if socket_mode not in (0o600, 0o660):
+            raise ValueError("socket_mode must be 0600 or 0660")
+        if socket_mode == 0o660:
+            if parent_mode != 0o710 or type(socket_gid) is not int or socket_gid < 0:
+                raise ValueError("group IPC requires parent_mode=0710 and a socket_gid")
+        elif socket_gid is not None:
+            raise ValueError("socket_gid is only valid with socket_mode=0660")
         self._dispatcher = dispatcher
         self._allowed_uids = frozenset(allowed_uids)
         self._max_frame_bytes = max_frame_bytes
         self._client_timeout = client_timeout
         self._backlog = backlog
+        self._parent_mode = parent_mode
+        self._socket_mode = socket_mode
+        self._socket_gid = socket_gid
         self._socket: socket.socket | None = None
         self._thread: threading.Thread | None = None
         self._stop = threading.Event()
@@ -81,8 +96,10 @@ class E12A6UnixSocketServer:
             raise E12A6IPCError("IPC parent directory is unavailable") from exc
         if not stat.S_ISDIR(st.st_mode) or stat.S_ISLNK(st.st_mode):
             raise E12A6IPCError("IPC parent must be a real directory, not a symlink")
-        if st.st_uid != os.geteuid() or st.st_mode & 0o077:
-            raise E12A6IPCError("IPC parent directory must be service-owned and mode 0700")
+        if st.st_uid != os.geteuid() or stat.S_IMODE(st.st_mode) != self._parent_mode:
+            raise E12A6IPCError("IPC parent directory ownership or mode does not match policy")
+        if self._socket_gid is not None and st.st_gid != self._socket_gid:
+            raise E12A6IPCError("IPC parent group does not match the configured client group")
         if len(os.fsencode(str(self.path))) >= 104:
             raise E12A6IPCError("IPC socket path exceeds the Linux AF_UNIX path limit")
         try:
@@ -98,10 +115,15 @@ class E12A6UnixSocketServer:
             if not stat.S_ISSOCK(st.st_mode) or st.st_uid != os.geteuid():
                 raise E12A6IPCError("bound IPC path failed socket ownership validation")
             self._inode = (st.st_dev, st.st_ino)
-            os.chmod(self.path, 0o600, follow_symlinks=False)
+            if self._socket_gid is not None:
+                os.chown(self.path, -1, self._socket_gid, follow_symlinks=False)
+            os.chmod(self.path, self._socket_mode, follow_symlinks=False)
             st = self.path.lstat()
-            if not stat.S_ISSOCK(st.st_mode) or (st.st_dev, st.st_ino) != self._inode:
-                raise E12A6IPCError("bound IPC socket inode changed during setup")
+            if (not stat.S_ISSOCK(st.st_mode)
+                    or (st.st_dev, st.st_ino) != self._inode
+                    or stat.S_IMODE(st.st_mode) != self._socket_mode
+                    or (self._socket_gid is not None and st.st_gid != self._socket_gid)):
+                raise E12A6IPCError("bound IPC socket ownership or mode changed during setup")
             sock.listen(self._backlog)
             sock.settimeout(0.2)
             self._socket = sock
