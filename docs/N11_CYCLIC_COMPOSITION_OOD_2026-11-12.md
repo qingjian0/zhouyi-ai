@@ -35,7 +35,7 @@ N0.10 的三元奇偶任务只证明显式三阶项可以拟合一个已知 IID 
 | Unary + Pairwise + Triple | 35 | 增加三元交互 |
 | Triple-trained / Triple-masked | 推理时仅用前 30 维 | 对已训练三阶模型做归因干预 |
 
-这里是同一模型的嵌套特征消融，不是与 MLP、GNN 或 Transformer 的参数匹配比较。Pairwise 在训练相位区间内可能学习到错误的分布相关性，因此测试时出现低于随机的准确率也可能是负迁移；必须同时查看 balanced accuracy、正类比例和 BCE，不应只看单一准确率。
+这里是同一模型的嵌套特征消融，不是与 MLP、GNN 或 Transformer 的参数匹配比较。CI 还报告一个明确标注为 test-oracle 的诊断：把 pairwise 模型的 logit 方向反转后重新计算测试准确率。它只用于揭示方向反转，不用于模型选择、调参或主结果。若这个诊断显著高于按验证集确定方向的主结果，说明 pairwise 模型在 OOD 区域出现系统性方向反转，不能简单将其解释成“二阶特征没有信息”。
 
 ## 复现
 
@@ -44,7 +44,7 @@ python -m unittest tests.test_n11_cyclic_composition_ood -v
 python -m prototype.n11_cyclic_composition_ood --seeds 5 --start-seed 7 --train-samples 3000 --test-samples 1500 --epochs 120 --json
 ```
 
-CI 验收阈值针对这个已知解析目标：五种子平均三阶 OOD accuracy ≥ 0.85；unary accuracy 处于 0.40–0.60；屏蔽三阶块后的准确率 ≤ 0.35。阈值只验证实现是否按预期工作，不是现实任务能力标准。
+CI 验收阈值针对这个已知解析目标：五种子平均三阶 OOD accuracy 和 balanced accuracy 均 ≥ 0.85；经验证集方向校准的 unary accuracy 处于 0.38–0.62；屏蔽三阶块后的准确率 ≤ 0.35；测试正类比例处于 0.45–0.55。阈值只验证实现是否按预期工作，不是现实任务能力标准。
 
 ## 解释边界与下一步
 
@@ -53,3 +53,8 @@ CI 验收阈值针对这个已知解析目标：五种子平均三阶 OOD accura
 - OOD 只涉及一个角色的相位区域，不等于未见语义规则族。
 - 需要后续增加无 Fourier 先验的可学习编码器、容量/计算预算匹配的 MLP/GNN 基线，以及多个不同规则族。
 - 只有当同一机制在多个任务族、多个随机划分和匹配预算下仍有优势，才值得把它作为 Zhouyi-AI 的核心归纳偏置。
+
+
+## 验证校准与方向反转审计
+
+模型方向只在训练分布内的 validation split 上选择；validation 的角色 A 相位仍然位于 [π/2, 2π)。测试集完全不参与选择。另行输出 pairwise 模型在测试集上反转 logit 符号后的结果，字段名明确包含 `test_oracle` 和 `diagnostic_only`，避免把它误读为可部署性能。若反向结果很高，表示该模型在未见相位区域发生了方向反转，提示低阶模型出现分布相关的负迁移；这不是证明所有二阶模型都无法表达该目标。
