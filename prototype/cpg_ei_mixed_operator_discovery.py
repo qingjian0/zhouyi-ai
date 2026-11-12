@@ -2,7 +2,8 @@
 
 This is a transparent symbolic baseline, not a learned neural model. It searches
 an explicitly declared hypothesis space, selects using train then development
-states, and reports locked states only after selection.
+states, and reports locked states only after selection. Semantic aliases are
+audited separately from predictive accuracy.
 """
 from __future__ import annotations
 
@@ -86,7 +87,7 @@ def _truth_mask(rule: RelationRule, input_dim: int) -> int:
 
 def _discover_one(
     rows: list[dict], output_index: int, candidates: tuple[tuple[RelationRule, int], ...],
-    input_dim: int, teacher_rule: dict,
+    input_dim: int, teacher_rule: dict, equivalence_sizes: dict[int, int],
 ) -> dict[str, Any]:
     train_mask = _mask_for_rows(rows, "train")
     dev_mask = _mask_for_rows(rows, "development")
@@ -122,6 +123,16 @@ def _discover_one(
     locked_errors = ((selected_mask ^ target_mask) & locked_mask).bit_count()
     full_errors = (selected_mask ^ target_mask).bit_count()
     selected_spec = rule_manifest(selected_rule, input_dim)
+    teacher_object = RelationRule(
+        teacher_rule["operator"], tuple(teacher_rule["support"]),
+        threshold=teacher_rule["threshold"],
+        context_index=teacher_rule["context_index"],
+        context_value=(teacher_rule["context_value"]
+                       if teacher_rule["context_value"] is not None else 1),
+    )
+    teacher_mask = _truth_mask(teacher_object, input_dim)
+    selected_class_size = equivalence_sizes[selected_mask]
+    teacher_class_size = equivalence_sizes[teacher_mask]
     return {
         "train_errors": train_error,
         "development_errors": best_dev,
@@ -129,10 +140,15 @@ def _discover_one(
             1.0 - locked_errors / locked_total if locked_total else None
         ),
         "full_truth_table_exact": full_errors == 0,
+        "semantic_function_recovered": full_errors == 0,
         "operator_recovered": selected_rule.operator == teacher_rule["operator"],
         "exact_rule_recovered": selected_spec == teacher_rule,
         "train_minimizer_count": len(scored),
         "development_tie_count": len(finalists),
+        "selected_function_equivalence_class_size": selected_class_size,
+        "selected_function_structurally_identifiable": selected_class_size == 1,
+        "teacher_function_equivalence_class_size": teacher_class_size,
+        "teacher_function_structurally_identifiable": teacher_class_size == 1,
         "selected_rule": selected_spec,
     }
 
@@ -144,6 +160,10 @@ def run_discovery_benchmark(corpus: dict) -> dict[str, Any]:
         (rule, _truth_mask(rule, input_dim))
         for rule in enumerate_rule_hypotheses(input_dim)
     )
+    equivalence_sizes: dict[int, int] = defaultdict(int)
+    for _, prediction_mask in candidates:
+        equivalence_sizes[prediction_mask] += 1
+
     rows_by_family: dict[str, list[dict]] = defaultdict(list)
     for row in corpus["rows"]:
         rows_by_family[row["family_id"]].append(row)
@@ -156,7 +176,7 @@ def run_discovery_benchmark(corpus: dict) -> dict[str, Any]:
         output_results = [
             _discover_one(
                 family_rows, output_index, candidates, input_dim,
-                teacher["rules"][output_index],
+                teacher["rules"][output_index], equivalence_sizes,
             )
             for output_index in range(manifest["output_dim"])
         ]
@@ -171,6 +191,10 @@ def run_discovery_benchmark(corpus: dict) -> dict[str, Any]:
         if not outputs:
             return {"families": 0, "outputs": 0}
         count = len(outputs)
+        identifiable = [
+            item for item in outputs
+            if item["teacher_function_structurally_identifiable"]
+        ]
         return {
             "families": len(selected),
             "outputs": count,
@@ -181,11 +205,22 @@ def run_discovery_benchmark(corpus: dict) -> dict[str, Any]:
             "full_truth_table_exact_rate": sum(
                 item["full_truth_table_exact"] for item in outputs
             ) / count,
+            "semantic_function_recovery_rate": sum(
+                item["semantic_function_recovered"] for item in outputs
+            ) / count,
             "operator_recovery_rate": sum(
                 item["operator_recovered"] for item in outputs
             ) / count,
             "exact_rule_recovery_rate": sum(
                 item["exact_rule_recovered"] for item in outputs
+            ) / count,
+            "teacher_function_identifiability_rate": len(identifiable) / count,
+            "operator_recovery_on_identifiable_rate": (
+                sum(item["operator_recovered"] for item in identifiable) / len(identifiable)
+                if identifiable else None
+            ),
+            "mean_teacher_function_equivalence_class_size": sum(
+                item["teacher_function_equivalence_class_size"] for item in outputs
             ) / count,
             "mean_train_minimizer_count": sum(
                 item["train_minimizer_count"] for item in outputs
@@ -206,10 +241,16 @@ def run_discovery_benchmark(corpus: dict) -> dict[str, Any]:
         "dataset_id": manifest["dataset_id"],
         "corpus_sha256": manifest["corpus_sha256"],
         "candidate_hypothesis_count": len(candidates),
+        "candidate_truth_function_count": len(equivalence_sizes),
+        "candidate_structural_alias_count": len(candidates) - len(equivalence_sizes),
         "candidate_space_operators": list(OPERATORS),
         "selection_protocol": (
             "minimum train error; development error breaks train ties; "
             "locked states are report-only"
+        ),
+        "identifiability_protocol": (
+            "rules with identical complete truth tables share a semantic "
+            "equivalence class; structural recovery is scored separately"
         ),
         "family_split_results": by_split,
         "family_results": family_results,
