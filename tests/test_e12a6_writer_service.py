@@ -113,6 +113,12 @@ class E12A6WriterServiceTests(unittest.TestCase):
             identity_provider="test-spiffe", authentication_method="mTLS",
             credential_fingerprint="a" * 64,
         )
+        self.domain_registry = StaticE09DomainRegistry({
+            self.scope: E09DomainBinding(
+                domain_id="domain:writer", world_family="family-a",
+                registry_id="registry:writer", registry_version="v1",
+            ),
+        })
         self.e09_authority = E09AuthorityService(
             self.e09,
             authenticator=_E09Authenticator({
@@ -122,12 +128,7 @@ class E12A6WriterServiceTests(unittest.TestCase):
             signer=_NamedSigner(issuer_private, "issuer-authority"),
             clock=_FixedClock(datetime(2026, 11, 12, 0, 0, tzinfo=timezone.utc)),
             max_grant_ttl=timedelta(hours=1),
-            domain_registry=StaticE09DomainRegistry({
-                self.scope: E09DomainBinding(
-                    domain_id="domain:writer", world_family="family-a",
-                    registry_id="registry:writer", registry_version="v1",
-                ),
-            }),
+            domain_registry=self.domain_registry,
         )
 
         self.proposal_ref = self._add_reveal("proposal-left")
@@ -154,7 +155,7 @@ class E12A6WriterServiceTests(unittest.TestCase):
             clock=_FixedClock(self.now),
             receipt_signer=_NamedSigner(self.receipt_signer_private, self.verifier_id),
             receipt_ttl=timedelta(minutes=1),
-            domain_registry=self.e09_authority._domain_registry,
+            domain_registry=self.domain_registry,
         )
         self.receipt = self.verifier.issue_verification_receipt(
             episode_id=self.episode,
