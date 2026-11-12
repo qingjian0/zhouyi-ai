@@ -1,14 +1,17 @@
-"""M2 observation persistence as events in the existing ZPCM event log.
+"""M2 observation persistence as lazily-read events in the shared ZPCM log.
 
 Raw source bytes remain in M1. This adapter stores only typed observations and
 verified EvidenceRefs; it does not create a second evidence or event ledger.
+The default store instance retains no corpus-sized Python cache. Reads are
+indexed by event ID or keyset-paged through ZPCM; full materialization is an
+explicit compatibility operation via the observations property.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
 import json
 from threading import RLock
-from typing import Any
+from typing import Any, Iterator
 
 from prototype.evidence_ref_resolver import SQLiteEvidenceRefResolver
 from prototype.observation_contract import (
@@ -98,16 +101,14 @@ class PersistentM2ObservationStore:
         self._resolver = resolver
         self.scope = scope
         self._lock = RLock()
-        self._observations: dict[str, Observation] = {}
-        self._receipts: dict[str, ObservationReceipt] = {}
-        self._record_digests: dict[str, str] = {}
-        self._last_sequence = 0
-        self._restore()
+        # Read only the indexed high-water mark. No event replay or corpus cache.
+        self._last_sequence = self._memory.latest_domain_sequence(
+            event_type=EVENT_TYPE, scope=self.scope,
+        )
 
-    @property
-    def observations(self) -> dict[str, Observation]:
-        with self._lock:
-            return dict(self._observations)
+    @staticmethod
+    def _event_id(record_id: str) -> str:
+        return f"m2:observation:{record_id}"
 
     def _verify_evidence(self, observation: Observation) -> None:
         if observation.envelope.scope != self.scope:
@@ -140,50 +141,90 @@ class PersistentM2ObservationStore:
             "body_digest": body_digest,
         }, body_digest
 
-    def _restore(self) -> None:
+    def _decode_event(
+        self, event: dict[str, Any], *, replayed: bool = True,
+    ) -> tuple[Observation, ObservationReceipt]:
         try:
-            events = self._memory.replay_domain_events(event_type=EVENT_TYPE, scope=self.scope)
-            previous = 0
-            staged: dict[str, Observation] = {}
-            receipts: dict[str, ObservationReceipt] = {}
-            record_digests: dict[str, str] = {}
-            for event in events:
-                sequence = event["sequence"]
-                if isinstance(sequence, bool) or not isinstance(sequence, int) or sequence <= previous:
-                    raise ObservationStoreError("M2 observation event sequence is not strictly increasing")
-                previous = sequence
-                payload = event["payload"]
-                if payload.get("schema_version") != EVENT_SCHEMA or payload.get("kind") != "observation_recorded":
-                    raise ObservationStoreError("unsupported M2 observation event schema/kind")
-                body = payload.get("body")
-                if not isinstance(body, dict):
-                    raise ObservationStoreError("observation event body must be an object")
-                observation = _observation_from_dict(body)
-                self._verify_evidence(observation)
-                digest_value = record_digest(observation)
-                if digest_value != payload.get("body_digest"):
-                    raise ObservationStoreError("observation record digest mismatch")
-                record_id = observation.envelope.record_id
-                expected_event_id = f"m2:observation:{record_id}"
-                if event["event_id"] != expected_event_id or record_id in staged:
-                    raise ObservationStoreError("observation event identity is inconsistent or duplicated")
-                staged[record_id] = observation
-                record_digests[record_id] = digest_value
-                receipts[record_id] = ObservationReceipt(
-                    event_id=event["event_id"],
-                    sequence=sequence,
-                    payload_digest=event["payload_digest"],
-                    record_digest=digest_value,
-                    replayed=True,
-                )
-            self._observations = staged
-            self._receipts = receipts
-            self._record_digests = record_digests
-            self._last_sequence = previous
+            if event.get("event_type") != EVENT_TYPE or event.get("scope") != self.scope:
+                raise ObservationStoreError("M2 observation event type/scope mismatch")
+            payload = event["payload"]
+            if payload.get("schema_version") != EVENT_SCHEMA or payload.get("kind") != "observation_recorded":
+                raise ObservationStoreError("unsupported M2 observation event schema/kind")
+            body = payload.get("body")
+            if not isinstance(body, dict):
+                raise ObservationStoreError("observation event body must be an object")
+            observation = _observation_from_dict(body)
+            self._verify_evidence(observation)
+            digest_value = record_digest(observation)
+            if digest_value != payload.get("body_digest"):
+                raise ObservationStoreError("observation record digest mismatch")
+            record_id = observation.envelope.record_id
+            if event.get("event_id") != self._event_id(record_id):
+                raise ObservationStoreError("observation event identity is inconsistent")
+            sequence = event.get("sequence")
+            if isinstance(sequence, bool) or not isinstance(sequence, int) or sequence <= 0:
+                raise ObservationStoreError("observation event sequence is invalid")
+            return observation, ObservationReceipt(
+                event_id=event["event_id"],
+                sequence=sequence,
+                payload_digest=event["payload_digest"],
+                record_digest=digest_value,
+                replayed=replayed,
+            )
         except (ZPCMError, ContractError, ObservationStoreError):
             raise
         except Exception as exc:
-            raise ObservationStoreError(f"M2 observation replay failed: {exc}") from exc
+            raise ObservationStoreError(f"M2 observation event is malformed: {exc}") from exc
+
+    def get_observation(self, record_id: str) -> Observation | None:
+        if not isinstance(record_id, str) or not record_id.strip():
+            raise ValueError("record_id must be non-empty")
+        event = self._memory.get_domain_event(
+            event_type=EVENT_TYPE, scope=self.scope, event_id=self._event_id(record_id),
+        )
+        if event is None:
+            return None
+        observation, _ = self._decode_event(event)
+        if observation.envelope.record_id != record_id:
+            raise ObservationStoreError("indexed observation record ID mismatch")
+        return observation
+
+    def get_receipt(self, record_id: str) -> ObservationReceipt | None:
+        if not isinstance(record_id, str) or not record_id.strip():
+            raise ValueError("record_id must be non-empty")
+        event = self._memory.get_domain_event(
+            event_type=EVENT_TYPE, scope=self.scope, event_id=self._event_id(record_id),
+        )
+        if event is None:
+            return None
+        _, receipt = self._decode_event(event)
+        return receipt
+
+    def iter_observations(
+        self, *, after_sequence: int = 0, page_size: int = 128,
+    ) -> Iterator[tuple[Observation, ObservationReceipt]]:
+        """Yield validated observations one bounded ZPCM page at a time."""
+        previous = after_sequence
+        for event in self._memory.iter_domain_events(
+            event_type=EVENT_TYPE, scope=self.scope,
+            after_sequence=after_sequence, page_size=page_size,
+        ):
+            sequence = event["sequence"]
+            if sequence <= previous:
+                raise ObservationStoreError("M2 observation event sequence is not strictly increasing")
+            previous = sequence
+            yield self._decode_event(event)
+
+    @property
+    def observations(self) -> dict[str, Observation]:
+        """Compatibility view; explicitly materializes the full stream on demand."""
+        result: dict[str, Observation] = {}
+        for observation, _ in self.iter_observations():
+            record_id = observation.envelope.record_id
+            if record_id in result:
+                raise ObservationStoreError("duplicate observation record ID in event stream")
+            result[record_id] = observation
+        return result
 
     def record_observation(self, observation: Observation) -> ObservationReceipt:
         if not isinstance(observation, Observation):
@@ -191,43 +232,57 @@ class PersistentM2ObservationStore:
         with self._lock:
             self._verify_evidence(observation)
             record_id = observation.envelope.record_id
-            digest_value = record_digest(observation)
-            old = self._observations.get(record_id)
-            if old is not None:
-                if self._record_digests[record_id] != digest_value:
-                    raise ObservationStoreError("observation record_id is immutable; create a new revision ID")
-                prior = self._receipts[record_id]
-                return ObservationReceipt(
-                    prior.event_id, prior.sequence, prior.payload_digest, prior.record_digest, True
-                )
-
-            event_id = f"m2:observation:{record_id}"
+            event_id = self._event_id(record_id)
             payload, body_digest = self._event_payload(observation)
-            if body_digest != digest_value:
+            if body_digest != record_digest(observation):
                 raise ObservationStoreError("canonical observation digest changed during serialization")
-            try:
-                raw = self._memory.append_domain_event(
-                    event_type=EVENT_TYPE,
-                    event_id=event_id,
-                    scope=self.scope,
-                    payload=payload,
-                    expected_sequence=self._last_sequence,
+
+            # The SQLite event_id uniqueness constraint is the idempotency arbiter.
+            # Refresh the stream cursor after unrelated concurrent appends.
+            for _ in range(4):
+                expected = self._memory.latest_domain_sequence(
+                    event_type=EVENT_TYPE, scope=self.scope,
                 )
-            except ZPCMError:
-                raise
-            receipt = ObservationReceipt(
-                event_id=event_id,
-                sequence=raw["sequence"],
-                payload_digest=raw["payload_digest"],
-                record_digest=digest_value,
-                replayed=raw["replayed"],
-            )
-            if receipt.replayed:
-                raise ObservationStoreError(
-                    "event exists in ZPCM outside this adapter's restored state; reconstruct before retry"
+                try:
+                    raw = self._memory.append_domain_event(
+                        event_type=EVENT_TYPE,
+                        event_id=event_id,
+                        scope=self.scope,
+                        payload=payload,
+                        expected_sequence=expected,
+                    )
+                except ZPCMError:
+                    existing = self._memory.get_domain_event(
+                        event_type=EVENT_TYPE, scope=self.scope, event_id=event_id,
+                    )
+                    if existing is not None:
+                        prior, receipt = self._decode_event(existing)
+                        if record_digest(prior) != body_digest:
+                            raise ObservationStoreError(
+                                "observation record_id is immutable; create a new revision ID"
+                            )
+                        return ObservationReceipt(
+                            receipt.event_id, receipt.sequence, receipt.payload_digest,
+                            receipt.record_digest, True,
+                        )
+                    latest = self._memory.latest_domain_sequence(
+                        event_type=EVENT_TYPE, scope=self.scope,
+                    )
+                    if latest == expected:
+                        raise
+                    continue
+
+                event = self._memory.get_domain_event(
+                    event_type=EVENT_TYPE, scope=self.scope, event_id=event_id,
                 )
-            self._observations[record_id] = observation
-            self._receipts[record_id] = receipt
-            self._record_digests[record_id] = digest_value
-            self._last_sequence = receipt.sequence
-            return receipt
+                if event is None:
+                    raise ObservationStoreError("committed observation event cannot be read back")
+                committed, receipt = self._decode_event(event, replayed=raw["replayed"])
+                if record_digest(committed) != body_digest:
+                    raise ObservationStoreError(
+                        "observation record_id is immutable; create a new revision ID"
+                    )
+                self._last_sequence = max(self._last_sequence, receipt.sequence)
+                return receipt
+
+            raise ObservationStoreError("concurrent observation appends did not stabilize; retry")
