@@ -215,8 +215,8 @@ class CpgEiTransitionModel:
             for gate_index in range(len(self.gate_logits)):
                 gate = gates[gate_index]
                 gate_gradients[gate_index] = (
-                    gate_gradients[gate_index] / n
-                    + gate_l1 * gate_derivatives[gate_index]
+                    gate_gradients[gate_index] / (n * 6.0)
+                    + (gate_l1 / 6.0) * gate_derivatives[gate_index]
                 )
                 self.gate_logits[gate_index] -= learning_rate * gate_gradients[gate_index]
 

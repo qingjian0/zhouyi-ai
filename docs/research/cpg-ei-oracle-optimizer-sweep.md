@@ -4,7 +4,7 @@
 
 Does the current low-data parity failure come from candidate discovery, optimizer settings, or the model/data regime?
 
-PR #388's five-seed, three-family sweep showed that the exact-support oracle remains near 52% locked accuracy after 500 epochs, while full-universe in-sample accuracy is 87.5%. Search-strength and default regularization were close, so regularization alone is unlikely to explain the gap.
+PR #388's five-seed, three-family sweep showed that the exact-support oracle remains near 52% locked accuracy after 500 epochs, while full-universe in-sample accuracy is 87.5%. Search-strength and default regularization were close, so regularization alone is unlikely to explain the gap. During this sweep's implementation audit, the shared relation-gate gradient was found to be scaled six times too large relative to the mean-over-heads BCE objective. The gradient is now normalized by the six output heads, and a finite-difference regression test checks the update against that objective. This optimizer sweep therefore runs on the corrected gate-gradient implementation.
 
 ## Protocol
 
