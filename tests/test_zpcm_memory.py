@@ -63,7 +63,7 @@ class Tests(unittest.TestCase):
 
  def test_lifecycle_iterator_enforces_aggregate_page_byte_budget(self):
   m=ZPCMMemory(Path(self.tmp.name)/"lifecycle-budget.db",
-      max_event_payload_bytes=256,max_page_bytes=130)
+      max_event_payload_bytes=128,max_page_bytes=130)
   try:
    for i in range(4):
     m.append_lifecycle_event(event_id=f"life:{i}",scope="s",
