@@ -13,11 +13,15 @@ class CpgEiSelectionSweepTests(unittest.TestCase):
 
     def test_small_multifamily_sweep_reports_separate_metrics(self):
         report = run_sweep(seeds=(11,), epochs=2, max_motifs=1)
-        self.assertEqual(report['aggregate']['experiments'], len(RULE_FAMILIES))
-        self.assertEqual(len(report['records']), 3)
+        self.assertEqual(len(report['records']), 2 * len(RULE_FAMILIES))
+        self.assertEqual(set(report['aggregate_by_protocol']), {'proposal_split', 'legacy_train_ranked'})
+        self.assertEqual(report['aggregate_by_protocol']['proposal_split']['experiments'], 3)
+        self.assertEqual(report['aggregate_by_protocol']['legacy_train_ranked']['experiments'], 3)
         for row in report['records']:
             self.assertEqual((row['train_examples'], row['proposal_examples'], row['locked_test_examples']), (40, 12, 12))
             self.assertEqual(len(row['ood_bit_accuracy_by_family']), 2)
+            self.assertIn(row['selection_protocol'], ('proposal_split', 'legacy_train_ranked'))
+            self.assertEqual(row['proposal_examples'], 12 if row['selection_protocol'] == 'proposal_split' else 0)
             for key in ('support_precision', 'support_recall', 'locked_test_bit_accuracy'):
                 self.assertTrue(math.isfinite(row[key]))
                 self.assertGreaterEqual(row[key], 0.0)
