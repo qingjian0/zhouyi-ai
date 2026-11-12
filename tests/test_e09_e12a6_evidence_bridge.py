@@ -33,11 +33,24 @@ class E09EvidenceBridgeTests(unittest.TestCase):
         track = track or self.track
         scope = scope or self.scope
         obs_id = "obs-" + split.lower()
+        domain = {
+            "domain_provenance_schema": "e09-domain-provenance@1",
+            "domain_registry_id": "zhouyi-domain-registry",
+            "domain_registry_version": "2026-11-12.1",
+            "world_family": self.world,
+        }
         self.e09.append_event(
             episode_id=self.episode, event_id=f"{self.episode}:observation:{obs_id}",
             event_type="observation", idempotency_key=f"obs-key-{split}",
-            actor_role="runner",
-            payload={"observation_id":obs_id,"query_id":obs_id,"scope":scope,"split":split},
+            actor_role="observer",
+            integrity_metadata={"authenticated_workload": {
+                "workload_id": "spiffe://zhouyi/test-observer",
+                "issuer_id": "issuer-test",
+                "identity_provider": "test-spiffe",
+                "authentication_method": "mTLS",
+                "credential_fingerprint": "a" * 64,
+            }},
+            payload={"observation_id":obs_id,"query_id":obs_id,"scope":scope,"split":split,**domain},
             protocol_version=STRICT_PROTOCOL_VERSION,
         )
         prediction_id = "pred-" + split.lower()
@@ -49,7 +62,7 @@ class E09EvidenceBridgeTests(unittest.TestCase):
             causation_refs=[f"{self.episode}:observation:{obs_id}"],
             payload={"prediction_id":prediction_id,"observation_id":obs_id,"query_id":obs_id,
               "scope":scope,"split":split,"model_version":"model-7","learner_track":track,
-              "decision_status":"PREDICT","interop_commit_digest":commit_digest},
+              "decision_status":"PREDICT","interop_commit_digest":commit_digest,**domain},
             protocol_version=STRICT_PROTOCOL_VERSION,
         )
         reveal_event = f"{self.episode}:reveal:{prediction_id}"
@@ -59,7 +72,7 @@ class E09EvidenceBridgeTests(unittest.TestCase):
             causation_refs=[commit_event],
             payload={"prediction_id":prediction_id,"query_id":obs_id,"scope":scope,"split":split,
               "commit_digest":commit_digest,"event_digest":commit.payload_digest,
-              "learner_track":track,"target_or_feedback":label,"reveal_source":"test"},
+              "learner_track":track,"target_or_feedback":label,"reveal_source":"test",**domain},
             protocol_version=STRICT_PROTOCOL_VERSION,
         )
         return reveal_event
