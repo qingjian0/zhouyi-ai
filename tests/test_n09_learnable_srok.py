@@ -541,6 +541,32 @@ class LearnableSROKTests(unittest.TestCase):
             [item.role_bindings for item in exact.candidates],
         )
 
+    def test_branch_bound_prunes_equal_score_branches_by_lexicographic_bound(self):
+        model = LearnableSROK(self.roles, feature_dim=2)
+        nodes = [
+            Node(
+                f"{role}-{index:04d}", role, (0.0, 0.0),
+                frozenset({"eligible"}),
+            )
+            for role in ("r0", "r1", "r2") for index in range(8)
+        ]
+        exact = model.predict(
+            nodes, retrieval_mode="joint", search_strategy="product",
+            max_expansions=8 ** 3, result_limit=5,
+        )
+        bounded = model.predict(
+            nodes, retrieval_mode="joint", search_strategy="branch_bound",
+            max_expansions=8 ** 3, result_limit=5,
+        )
+        self.assertTrue(exact.abstained)
+        self.assertEqual(exact.reason, "LOW_SCORE_MARGIN")
+        self.assertEqual(bounded.reason, exact.reason)
+        self.assertEqual(
+            [item.role_bindings for item in bounded.candidates],
+            [item.role_bindings for item in exact.candidates],
+        )
+        self.assertLess(bounded.expanded_search_states, 8 ** 3)
+
     def test_beam_search_is_deterministic_under_input_permutation(self):
         model = LearnableSROK(self.roles, feature_dim=3)
         nodes = [
