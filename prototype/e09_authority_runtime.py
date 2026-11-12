@@ -34,6 +34,7 @@ class E09AuthorityRuntime:
         domain_registry: E09DomainRegistry,
         uid_to_credential: Mapping[int, object],
         socket_gid: int,
+        test_only_allow_same_uid: bool = False,
     ) -> None:
         self.database_path = Path(database_path)
         self.socket_path = Path(socket_path)
@@ -45,6 +46,12 @@ class E09AuthorityRuntime:
             raise ValueError("UID map keys must be non-negative integers")
         if type(socket_gid) is not int or socket_gid < 0:
             raise ValueError("socket_gid must be a non-negative integer")
+        if type(test_only_allow_same_uid) is not bool:
+            raise TypeError("test_only_allow_same_uid must be bool")
+        if os.geteuid() in uid_to_credential and not test_only_allow_same_uid:
+            raise E09AuthorityRuntimeError(
+                "client UIDs must be distinct from the E09 database owner UID"
+            )
         self._uid_to_credential = dict(uid_to_credential)
         self._socket_gid = socket_gid
         self._authenticator = authenticator
