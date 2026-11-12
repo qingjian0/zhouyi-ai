@@ -130,6 +130,21 @@ class TestCpgEiMvp(unittest.TestCase):
         observed_gradient = (original - model.gate_logits[0]) / learning_rate
         self.assertAlmostEqual(observed_gradient, expected_gradient, delta=2e-5)
 
+    def test_adam_optimizer_reduces_training_loss(self):
+        train = make_dataset(512, seed=31)
+        model = CpgEiTransitionModel.create()
+        losses = model.train(
+            train, epochs=80, optimizer="adam"
+        )
+        self.assertTrue(all(math.isfinite(value) for value in losses))
+        self.assertLess(losses[-1], losses[0])
+
+    def test_unknown_optimizer_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "optimizer must be"):
+            CpgEiTransitionModel.create().train(
+                make_dataset(8, seed=3), epochs=1, optimizer="rmsprop"
+            )
+
     def test_dataset_is_reproducible(self):
         self.assertEqual(make_dataset(10, seed=11), make_dataset(10, seed=11))
 
