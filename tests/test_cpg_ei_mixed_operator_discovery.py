@@ -44,6 +44,13 @@ class TestMixedOperatorDiscoveryBaseline(unittest.TestCase):
                 self.assertTrue(0.0 <= split["mean_locked_bit_accuracy"] <= 1.0)
                 self.assertTrue(0.0 <= split["operator_recovery_rate"] <= 1.0)
         self.assertEqual(len(report["family_results"]), 10)
+        self.assertIn("not a zero-shot transfer test", report["family_split_interpretation"])
+        self.assertGreater(report["candidate_truth_function_count"], 0)
+        self.assertGreaterEqual(report["candidate_structural_alias_count"], 0)
+        for family in report["family_results"]:
+            for output in family["output_results"]:
+                self.assertGreaterEqual(output["teacher_function_equivalence_class_size"], 1)
+                self.assertGreaterEqual(output["selected_function_equivalence_class_size"], 1)
 
     def test_locked_labels_do_not_change_selected_hypotheses(self):
         corpus = generate_mixed_corpus(
