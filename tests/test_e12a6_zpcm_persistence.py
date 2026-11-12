@@ -1,6 +1,7 @@
 import json
 import tempfile
 import unittest
+from unittest.mock import patch
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -101,6 +102,13 @@ class PersistentLifecycleTests(unittest.TestCase):
         with self.assertRaises(ValueError): self.store.apply(bad)
         self.assertEqual(self.store.snapshot(),before)
         self.assertEqual(len(self.memory.replay_lifecycle_events(scope="project-a")),1)
+    def test_normal_writes_do_not_deepcopy_the_full_ledger(self):
+        with patch("prototype.e12a6_zpcm_persistence.deepcopy", side_effect=AssertionError("write path copied full ledger")):
+            self.store.register_candidate(candidate())
+            self.store.register_evidence(evidence())
+            self.store.apply(propose())
+        self.assertEqual(self.store.ledger.candidates[("rel:greater-than", 1)].state, CandidateState.PROPOSED)
+
     def test_append_failure_does_not_mutate_in_memory_ledger(self):
         self.store.register_candidate(candidate()); before=self.store.snapshot(); original=self.memory.append_lifecycle_event
         self.memory.append_lifecycle_event=lambda **kwargs: (_ for _ in ()).throw(ZPCMError("disk failure"))
