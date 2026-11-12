@@ -6,7 +6,7 @@ on:
       - research/cpg-ei-conditional-motif-proposals-2026-11-13
   pull_request:
     branches:
-      - research/cpg-ei-conditional-motif-proposals-2026-11-13
+      - research/cpg-ei-second-parity-teacher-rebased-2026-11-12
 
 jobs:
   conditional-motif-tests:
