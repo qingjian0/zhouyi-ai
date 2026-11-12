@@ -92,7 +92,7 @@ class E09SharedProtocolAdapterTests(unittest.TestCase):
                 return "spiffe://test/learner"
 
         authority = E09AuthorityService(
-            self.store, authenticator=Authenticator(), signer=Signer(),
+            self.store, authenticator=authenticator, signer=Signer(),
             domain_registry=DomainRegistry(),
             learner_binding_resolver=LearnerBindingRegistry(),
         )
@@ -161,29 +161,26 @@ class E09SharedProtocolAdapterTests(unittest.TestCase):
 
     @unittest.skipUnless(hasattr(socket, "SO_PEERCRED"), "Linux SO_PEERCRED is required")
     def test_remote_role_ports_run_adapter_without_sqlite_handle(self):
-        class Authenticator:
-            identities = {
-                "observer": E09AuthenticatedWorkload(
-                    "spiffe://test/observer", "issuer-observer", frozenset({"observer"}),
-                    frozenset({"e09/test"}), "test-idp", "SO_PEERCRED",
-                    hashlib.sha256(b"observer").hexdigest(),
-                ),
-                "learner": E09AuthenticatedWorkload(
-                    "spiffe://test/learner", "issuer-learner", frozenset({"learner"}),
-                    frozenset({"e09/test"}), "test-idp", "SO_PEERCRED",
-                    hashlib.sha256(b"learner").hexdigest(),
-                ),
-                "evaluator": E09AuthenticatedWorkload(
-                    "spiffe://test/evaluator", "issuer-evaluator", frozenset({"evaluator"}),
-                    frozenset({"e09/test"}), "test-idp", "SO_PEERCRED",
-                    hashlib.sha256(b"evaluator").hexdigest(),
-                ),
-            }
-
-            def authenticate(self, credential):
-                if credential not in self.identities:
-                    raise ValueError("unknown credential")
-                return self.identities[credential]
+        principals = {
+            "observer": E09AuthenticatedWorkload(
+                "spiffe://test/observer", "issuer-observer", frozenset({"observer"}),
+                frozenset({"e09/test"}), "test-idp", "SO_PEERCRED",
+                hashlib.sha256(b"observer").hexdigest(),
+            ),
+            "learner": E09AuthenticatedWorkload(
+                "spiffe://test/learner", "issuer-learner", frozenset({"learner"}),
+                frozenset({"e09/test"}), "test-idp", "SO_PEERCRED",
+                hashlib.sha256(b"learner").hexdigest(),
+            ),
+            "evaluator": E09AuthenticatedWorkload(
+                "spiffe://test/evaluator", "issuer-evaluator", frozenset({"evaluator"}),
+                frozenset({"e09/test"}), "test-idp", "SO_PEERCRED",
+                hashlib.sha256(b"evaluator").hexdigest(),
+            ),
+        }
+        authenticator = UnixPeerWorkloadAuthenticator({
+            principal.workload_id: principal for principal in principals.values()
+        })
 
         class Signer:
             def sign(self, issuer_id, message):
@@ -204,7 +201,6 @@ class E09SharedProtocolAdapterTests(unittest.TestCase):
             domain_registry=DomainRegistry(),
             learner_binding_resolver=LearnerBindingRegistry(),
         )
-        principals = Authenticator.identities
         servers = []
         ports = {}
         try:
