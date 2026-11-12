@@ -10,7 +10,7 @@
 - 表示：42 维显式特征，包含偏置、6 个一阶爻位、15 个二阶关系项和 20 个三阶关系项。
 - 高阶项：每个二阶/三阶乘积视为一个候选关系超边特征；当前候选集合是静态枚举，但每条关系拥有跨输出共享的可学习 sigmoid gate。
 - 输出：六个 logistic heads，共享关系门控后分别预测下一时刻六爻状态。
-- 优化：二元交叉熵、全批量梯度下降、L2 权重正则与 gate-L1 稀疏惩罚。
+- 优化：二元交叉熵、全批量梯度下降、L2 权重正则、gate-L1 与按超边分组的 group-L1 proximal shrinkage。
 - 数据：固定隐藏教师规则生成的合成有限状态转移样本；训练/测试使用不同采样种子。
 
 ## 运行
@@ -56,3 +56,16 @@ bounded. It does **not** yet demonstrate reliable pruning or recovery of the
 teacher's true sparse relation set: the current teacher is dense, and all
 35 gates remain above 0.5. Treat gate means and active counts as diagnostics,
 not as evidence that the model has discovered a minimal structure.
+
+
+## Sparse-support control experiment
+
+A second synthetic teacher exposes only 3 of 15 pairwise and 3 of 20
+third-order relations. The group-L1 proximal step shrinks the six output
+weights for a relation together, allowing whole candidate edges to become
+inactive. The regression test checks held-out bit accuracy and that fewer than
+20 of 35 relation groups remain active.
+
+This is controlled support recovery on a six-bit synthetic task, not evidence
+of open-domain relation discovery. The true sparse support is fixed by the
+synthetic generator; the model still selects from a predefined candidate set.
