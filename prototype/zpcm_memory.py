@@ -123,6 +123,10 @@ class ZPCMMemory:
                 "PRAGMA table_info(e12a6_lifecycle_event_projection)"
             )
         }
+        typed_projection_migration_needed = any(
+            column not in projection_columns
+            for column in ("candidate_id", "candidate_version", "action_id", "evidence_id")
+        )
         for column, declaration in (
             ("candidate_id", "TEXT"),
             ("candidate_version", "INTEGER"),
@@ -133,23 +137,24 @@ class ZPCMMemory:
                 self.db.execute(
                     f"ALTER TABLE e12a6_lifecycle_event_projection ADD COLUMN {column} {declaration}"
                 )
-        self.db.execute(
-            "UPDATE e12a6_lifecycle_event_projection SET "
-            "candidate_id=COALESCE("
-            "json_extract((SELECT payload_json FROM memory_events WHERE event_id=e12a6_lifecycle_event_projection.event_id),'$.body.candidate.candidate_id'),"
-            "json_extract((SELECT payload_json FROM memory_events WHERE event_id=e12a6_lifecycle_event_projection.event_id),'$.body.arguments.candidate_id'),"
-            "json_extract((SELECT payload_json FROM memory_events WHERE event_id=e12a6_lifecycle_event_projection.event_id),'$.body.action.candidate_id'),"
-            "json_extract((SELECT payload_json FROM memory_events WHERE event_id=e12a6_lifecycle_event_projection.event_id),'$.body.candidate_id')),"
-            "candidate_version=COALESCE("
-            "json_extract((SELECT payload_json FROM memory_events WHERE event_id=e12a6_lifecycle_event_projection.event_id),'$.body.candidate.version'),"
-            "json_extract((SELECT payload_json FROM memory_events WHERE event_id=e12a6_lifecycle_event_projection.event_id),'$.body.action.candidate_version'),"
-            "json_extract((SELECT payload_json FROM memory_events WHERE event_id=e12a6_lifecycle_event_projection.event_id),'$.body.candidate_version'),"
-            "CASE WHEN kind='revision_created' THEN "
-            "json_extract((SELECT payload_json FROM memory_events WHERE event_id=e12a6_lifecycle_event_projection.event_id),'$.body.arguments.version')+1 END),"
-            "action_id=json_extract((SELECT payload_json FROM memory_events WHERE event_id=e12a6_lifecycle_event_projection.event_id),'$.body.action.action_id'),"
-            "evidence_id=json_extract((SELECT payload_json FROM memory_events WHERE event_id=e12a6_lifecycle_event_projection.event_id),'$.body.evidence.evidence_id')"
-        )
-        self.db.executescript("""
+        if typed_projection_migration_needed:
+            self.db.execute(
+                "UPDATE e12a6_lifecycle_event_projection SET "
+                "candidate_id=COALESCE("
+                "json_extract((SELECT payload_json FROM memory_events WHERE event_id=e12a6_lifecycle_event_projection.event_id),'$.body.candidate.candidate_id'),"
+                "json_extract((SELECT payload_json FROM memory_events WHERE event_id=e12a6_lifecycle_event_projection.event_id),'$.body.arguments.candidate_id'),"
+                "json_extract((SELECT payload_json FROM memory_events WHERE event_id=e12a6_lifecycle_event_projection.event_id),'$.body.action.candidate_id'),"
+                "json_extract((SELECT payload_json FROM memory_events WHERE event_id=e12a6_lifecycle_event_projection.event_id),'$.body.candidate_id')),"
+                "candidate_version=COALESCE("
+                "json_extract((SELECT payload_json FROM memory_events WHERE event_id=e12a6_lifecycle_event_projection.event_id),'$.body.candidate.version'),"
+                "json_extract((SELECT payload_json FROM memory_events WHERE event_id=e12a6_lifecycle_event_projection.event_id),'$.body.action.candidate_version'),"
+                "json_extract((SELECT payload_json FROM memory_events WHERE event_id=e12a6_lifecycle_event_projection.event_id),'$.body.candidate_version'),"
+                "CASE WHEN kind='revision_created' THEN "
+                "json_extract((SELECT payload_json FROM memory_events WHERE event_id=e12a6_lifecycle_event_projection.event_id),'$.body.arguments.version')+1 END),"
+                "action_id=json_extract((SELECT payload_json FROM memory_events WHERE event_id=e12a6_lifecycle_event_projection.event_id),'$.body.action.action_id'),"
+                "evidence_id=json_extract((SELECT payload_json FROM memory_events WHERE event_id=e12a6_lifecycle_event_projection.event_id),'$.body.evidence.evidence_id')"
+            )
+            self.db.executescript("""
         CREATE INDEX IF NOT EXISTS e12a6_lifecycle_candidate_version_history
             ON e12a6_lifecycle_event_projection(scope,candidate_id,candidate_version,seq);
         CREATE INDEX IF NOT EXISTS e12a6_lifecycle_action_lookup
