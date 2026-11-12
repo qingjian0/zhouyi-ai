@@ -40,6 +40,35 @@ class LearnableXiangOperatorTests(unittest.TestCase):
         model.fit(rows, epochs=2)
         self.assertNotEqual(model.basis, before)
 
+    def test_two_epoch_fit_matches_two_sequential_one_epoch_fits(self):
+        rows = [RelationClassificationExample(self.assignment((a, b, c)),
+                    1 if a*b*c == 1 else -1)
+                for a in (-1, 1) for b in (-1, 1) for c in (-1, 1)]
+        together = LearnableXiangOperator(self.roles, 2, XiangConfig(4, "learnable", 29))
+        sequential = LearnableXiangOperator(self.roles, 2, XiangConfig(4, "learnable", 29))
+        together.fit(rows, epochs=2, learning_rate=0.05)
+        sequential.fit(rows, epochs=1, learning_rate=0.05)
+        sequential.fit(rows, epochs=1, learning_rate=0.05)
+        self.assertEqual(together.basis, sequential.basis)
+        self.assertEqual(together.bias, sequential.bias)
+        self.assertEqual(together.readout, sequential.readout)
+        self.assertEqual(together.training_steps, sequential.training_steps)
+
+    def test_checkpoint_rejects_malformed_shapes_and_non_object(self):
+        model = LearnableXiangOperator(self.roles, 2, XiangConfig(3))
+        payload = json.loads(model.checkpoint_json())
+        payload["basis"] = []
+        canonical = {k: v for k, v in payload.items() if k != "sha256"}
+        import hashlib
+        payload["sha256"] = hashlib.sha256(
+            json.dumps(canonical, sort_keys=True, separators=(",", ":"),
+                       ensure_ascii=False).encode("utf-8")
+        ).hexdigest()
+        with self.assertRaises(LearnableSROKError):
+            LearnableXiangOperator.from_checkpoint_json(json.dumps(payload))
+        with self.assertRaises(LearnableSROKError):
+            LearnableXiangOperator.from_checkpoint_json("[]")
+
     def test_rejects_tampered_checkpoint(self):
         model = LearnableXiangOperator(self.roles, 2, XiangConfig(3))
         payload = json.loads(model.checkpoint_json())
