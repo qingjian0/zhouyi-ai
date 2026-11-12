@@ -85,13 +85,17 @@ def grow_relation_graph_joint_motifs(
     )
     current_loss = _binary_cross_entropy(current, train_examples)
 
+    total_candidate_fits = 0
     for round_index in range(1, max_motifs + 1):
+        round_candidate_fits = 0
         best_model = None
         best_motif = None
         best_loss = current_loss
         for motif in _three_line_motifs():
             if motif in selected:
                 continue
+            round_candidate_fits += 1
+            total_candidate_fits += 1
             candidate = copy.deepcopy(current)
             candidate.active_relation_indices.update(motif)
             candidate.train(
@@ -117,6 +121,7 @@ def grow_relation_graph_joint_motifs(
                 "training_bce_before": current_loss,
                 "training_bce_after": current_loss,
                 "training_bce_improvement": 0.0,
+                "candidate_fits": round_candidate_fits,
             })
             break
 
@@ -131,6 +136,7 @@ def grow_relation_graph_joint_motifs(
             "training_bce_before": current_loss + improvement,
             "training_bce_after": current_loss,
             "training_bce_improvement": improvement,
+            "candidate_fits": round_candidate_fits,
         })
 
     # Copy the selected model state back into the caller-owned instance.
@@ -151,5 +157,5 @@ def grow_relation_graph_joint_motifs(
         "training_binary_cross_entropy": current_loss,
         "validation_binary_cross_entropy": _binary_cross_entropy(model, validation_examples),
         "candidate_motif_universe_size": len(_three_line_motifs()),
-        "candidate_fits_per_round": len(_three_line_motifs()),
+        "candidate_fits_total": total_candidate_fits,
     }
