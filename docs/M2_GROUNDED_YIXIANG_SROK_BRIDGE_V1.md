@@ -74,3 +74,6 @@ This prevents an M1 chunk locator or an analogy prior from being misrepresented 
 ## Acceptance
 
 The unit tests verify scope and grounding gates, relation role ordering, M1/E09/XSL provenance separation, and hypothesis-only output. The repository CI must pass on the exact PR head before this slice is considered validated.
+
+
+Research/security branches now run the full repository validation workflow on push via `.github/workflows/research-branch-validation.yml`.
