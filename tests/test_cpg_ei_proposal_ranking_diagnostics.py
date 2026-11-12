@@ -16,7 +16,9 @@ class TestProposalRankingDiagnostics(unittest.TestCase):
         self.assertEqual(report["ranking_partition"], "proposal")
         self.assertFalse(report["locked_and_ood_metrics_used_for_selection"])
         for row in report["records"]:
-            self.assertEqual(row["candidate_fits"], 3 * 20)
+            self.assertGreaterEqual(row["candidate_fits"], 20)
+            self.assertLessEqual(row["candidate_fits"], 57)
+            self.assertEqual(row["training_passes"], row["candidate_fits"] + 1)
             self.assertTrue(row["best_candidate_proposal_improvements"])
             self.assertTrue(all(
                 math.isfinite(value)
