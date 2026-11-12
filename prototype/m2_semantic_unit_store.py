@@ -159,8 +159,6 @@ class PersistentM2SemanticUnitStore:
                     if kind == "candidate_recorded":
                         if event_id != f"m2:semantic-unit:{rid}" or rid in latest:
                             raise SemanticUnitStoreError("candidate event identity is inconsistent")
-                        if candidate.envelope.derivation_refs:
-                            raise SemanticUnitStoreError("initial candidate cannot claim a revision predecessor")
                         latest[rid] = rid
                     else:
                         prior = payload.get("previous_record_id")
@@ -235,8 +233,6 @@ class PersistentM2SemanticUnitStore:
         if not isinstance(candidate, SemanticUnitCandidate):
             raise TypeError("candidate must be SemanticUnitCandidate")
         with self._lock:
-            if candidate.envelope.derivation_refs:
-                raise SemanticUnitStoreError("initial candidate must not claim a revision predecessor")
             return self._append_candidate(candidate, previous_id=None)
 
     def revise_candidate(self, previous_record_id: str,
