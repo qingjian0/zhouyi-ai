@@ -192,6 +192,36 @@ class E09AuthorityUnixRPCTests(unittest.TestCase):
         self.assertEqual(learned_feedback["feedback"], "secret-label")
         self.assertEqual(learned_feedback["prediction_id"], prediction_id)
 
+        learner_projection = self._call(
+            self.learner, "episode.read_for_learner",
+            {
+                "episode_id": self.episode,
+                "scope": self.scope,
+                "learner_track": "track-a",
+            },
+            "read-learner-episode-1",
+        )
+        self.assertTrue(learner_projection["events"])
+        self.assertNotIn("secret-label", str(learner_projection))
+        reveal_projection = next(
+            item for item in learner_projection["events"]
+            if item["event_id"] == reveal_event
+        )
+        self.assertNotIn("target_or_feedback", reveal_projection["payload"])
+        self.assertNotIn("reveal_source", reveal_projection["payload"])
+
+        with self.assertRaises(IPCRemoteError) as evaluator_error:
+            self._call(
+                self.evaluator, "episode.read_for_learner",
+                {
+                    "episode_id": self.episode,
+                    "scope": self.scope,
+                    "learner_track": "track-a",
+                },
+                "evaluator-read-learner-episode",
+            )
+        self.assertEqual(evaluator_error.exception.code, "permission_denied")
+
         events = self.store.replay_episode(self.episode)
         by_id = {event["event_id"]: event for event in events}
         self.assertEqual(by_id[observation_event]["actor_role"], "observer")
