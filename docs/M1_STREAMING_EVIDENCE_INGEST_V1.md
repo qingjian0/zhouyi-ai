@@ -62,7 +62,7 @@ with open("large_input.txt", "rb") as source:
 1. 新增 benchmark 与 tokenizer coverage 变更的精确 head CI。
 2. 1M Token 测试：使用项目真实 tokenizer 的增量接口或可证明边界一致的 adapter；不能用字符数估算，也不能简单把独立块 token 数冒充整文 token 数。
 3. 1M 输入期间 RSS/OS high-water、SQLite/WAL 磁盘占用、吞吐和延迟。
-4. 在多个提交点强制终止独立进程，重新打开数据库恢复，验证块数、哈希、span 无丢失/重复；当前单元测试只覆盖关闭连接后重开恢复，不等同于硬崩溃测试。
+4. 当前测试已加入子进程在第 5 个块处理时执行硬退出，父进程重开 SQLite 并恢复，核对字节、块数和 Chunk ID；仍需扩展到多个崩溃位置和更大规模故障注入。
 5. 对 8K/128K/256K/512K/1M 输入重复运行，报告内存曲线和输入正确性。
 6. 多进程并发写入/重复请求的锁冲突和幂等语义测试。
 
