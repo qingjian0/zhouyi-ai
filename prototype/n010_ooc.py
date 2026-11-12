@@ -260,11 +260,13 @@ class N010StreamingDataset:
                 expected_rows = expected_families.get(split)
                 if not isinstance(expected_rows, list):
                     raise LearnableSROKError("generation provenance rule-family list is invalid")
-                actual_rows = self._db.execute(
-                    "SELECT DISTINCT rule_family FROM records WHERE split=? ORDER BY rule_family",
-                    (split,),
+                actual_rows = (
+                    row[0] for row in self._db.execute(
+                        "SELECT DISTINCT rule_family FROM records WHERE split=? ORDER BY rule_family",
+                        (split,),
+                    )
                 )
-                if any(left != right[0] for left, right in itertools.zip_longest(
+                if any(left != right for left, right in itertools.zip_longest(
                     expected_rows, actual_rows, fillvalue=None
                 )):
                     raise LearnableSROKError("generation provenance rule-family split mismatch")
