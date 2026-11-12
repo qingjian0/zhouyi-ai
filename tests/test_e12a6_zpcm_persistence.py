@@ -111,6 +111,7 @@ class PersistentLifecycleTests(unittest.TestCase):
         self.assertEqual(self.store.ledger.candidates[("rel:greater-than", 1)].state, CandidateState.PROPOSED)
 
     def test_runtime_ledger_collections_are_disk_backed_and_snapshot_is_explicit(self):
+        self.assertFalse(self.store._runtime_state.connection.in_transaction)
         self.assertEqual(type(self.store._ledger.candidates).__name__, "_SQLiteMapping")
         self.assertEqual(type(self.store._ledger.evidence).__name__, "_SQLiteMapping")
         self.assertEqual(type(self.store._ledger.actions).__name__, "_SQLiteSequence")
