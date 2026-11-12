@@ -186,7 +186,8 @@ The following results were checked against GitHub Actions run records. They are 
 | N0.10 streaming manifest guards (#352) | `3977ee14456c5c0b55832c0d806b58ff1fdd80ae` | checkpoint-integration succeeded | Must retain group-disjoint and data fingerprint guarantees |
 | N0.10 reiterable full-batch gradient (#359) | `e6b7b176494a951252fdfa2a732ba3c6b5e18381` | exact-head push + PR CI succeeded (run #43200865402 / #43200874953); 21 tests | Full-batch equivalence plus same-count content/order drift rejection; runner still materializes split rows, so end-to-end out-of-core training remains incomplete |
 | CPG-EI learnable gates (#344) | `03b3b14d28842763b0f3fef76f683d1cc5643ca6` | push + PR unit-test workflows succeeded | Finite predefined candidate universe; not open-world discovery |
-| CPG-EI multi-seed diagnostics (#360; replaces closed #353) | `817fc452e135dc00523bca64969385a8d9e66eed` | exact-head diagnostic workflow succeeded | 10 seeds: mean bit accuracy 0.92344, support recall 0.58333, exact 6-edge recovery 0/10, 8 false discoveries; finite synthetic universe only |
+| CPG-EI multi-seed diagnostics (#360; replaces closed #353) | `0dc9c0a664485aac8f4e432a927dce07b47b034b` | exact-head diagnostic workflow succeeded (run #43201228903) | 10 seeds: mean bit accuracy 0.92344, support recall 0.58333, exact 6-edge recovery 0/10, 8 false discoveries; finite synthetic universe only |
+| CPG-EI second teacher family (#362; supersedes closed stale #361) | `6cef996d9394aae021359c26868c0a650b98543d` | exact-head diagnostic workflow succeeded (run #43201905650; 7 tests) | GF(2) parity: mean bit accuracy 0.63368, support recall 0.30556, precision 1.0, exact 12-edge recovery 0/3; exact-support oracle 100% bit/state accuracy. Greedy discovery limitation, not representational impossibility |
 | Training readiness gates (#351) | `e8edf9bfa1eb77ca398a10f904164528fb1b13cb` | PR unit-test workflow succeeded | Specification/tests; not an end-to-end training certification |
 | E12-A6 indexed lifecycle projection (#350) | `a4c7bb35888f02e693dda728dfc8ba4926bb6d28` | tests + RSS benchmark workflows succeeded | Benchmark evidence is environment-specific; restore architecture still needs integration |
 | M2 paged TRLW/Yixiang/CSG integration (#294 validation / #292 stack) | `52baa8f0d2f4703544b15c941ac1c56b3e6ecba5` | research-branch validation + tests succeeded | #294 is validation-only; no code merge implied |
@@ -196,8 +197,16 @@ The following results were checked against GitHub Actions run records. They are 
 
 ### Latest research interpretation (2026-11-12 17:53 +08:00)
 
-- CPG-EI's ten-seed diagnostic is stable on predictive bit accuracy but does **not** recover the planted six-edge topology in any seed (0/10 exact recovery). The 0.58333 mean support recall and eight total false discoveries show that the current learner still needs stronger structure-identifiability controls; do not describe this as successful open-ended structure discovery.
+- CPG-EI's original sparse random-logit teacher remains prediction-stable but does **not** recover the planted six-edge topology in any seed (0/10 exact recovery; mean support recall 0.58333; eight false discoveries). The independent GF(2) parity teacher is harder: mean bit accuracy 0.63368, support recall 0.30556, precision 1.0 and exact recovery 0/3. An exact 12-edge support oracle reaches 100% bit and exact-state accuracy, proving the current feature basis can represent the teacher while the greedy residual-correlation proposal method fails to discover its complete support. Under independent uniform bits, parity's pairwise conjunction terms have zero marginal covariance with the target; the next experiment should test joint/conditional feature proposals and bounded subset search with matched-compute controls.
 - N0.10 now has a tested reiterable full-batch learner primitive with numerical equivalence to materialized training. The experiment runner still materializes split rows, so the next memory milestone is a file-backed/reopenable dataset stream through the complete runner, not another learner-only optimization.
-- PR #353 was closed without merge after its branch became stale; PR #360 is the rebased active replacement. Keep the old PR's passing run as historical evidence only.
+- PR #353 was closed without merge after its branch became stale; PR #360 is the rebased active replacement. PR #361 was closed without merge after its base moved; PR #362 is the clean rebased second-teacher extension. Keep superseded PR runs as historical evidence only.
 
 A failed earlier run on an older SHA is not evidence that the current exact head fails; conversely, an older successful SHA cannot certify a newer head. The table deliberately reports only observed exact-head outcomes and their scope limits.
+
+
+### Second teacher family exact-head result (2026-11-12 18:39 +08:00)
+
+- PR #362 head `6cef996d9394aae021359c26868c0a650b98543d`, run #43201905650: success; 7 tests.
+- Three GF(2) parity seeds: mean validation bit accuracy 0.6336806; mean support recall 0.3055556; mean support precision 1.0; false discoveries 0; exact 12-edge support recovery 0/3.
+- Exact-support oracle: bit accuracy 1.0 and exact-state accuracy 1.0 with the known 12-edge polynomial.
+- Interpretation: the feature basis is expressive enough, but the current residual-driven greedy proposal path is not structurally identifiable on this teacher. This is a concrete failure mode to address with joint/conditional proposal search, not a reason to increase epochs or relax pruning without preregistered controls.
