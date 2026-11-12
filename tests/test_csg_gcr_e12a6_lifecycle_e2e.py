@@ -103,7 +103,7 @@ class CSGGCRE12A6EndToEndTests(unittest.TestCase):
     def test_candidate_lifecycle_runs_from_csg_gcr_through_e09_e12_zpcm_and_restarts(self):
         support=add_reveal(self.authority,"SUPPORT","pred-support",episode=self.episode,
           scope=self.scope,track=self.track,label="PRIVATE_SUPPORT")
-        gate=add_reveal(self.e09,"GATE_FINAL","pred-gate",episode=self.episode,
+        gate=add_reveal(self.authority,"GATE_FINAL","pred-gate",episode=self.episode,
           scope=self.scope,track=self.track,label="PRIVATE_GATE")
         locked=add_reveal(self.e09,"LOCKED_TEST","pred-locked",episode=self.episode,
           scope=self.scope,track=self.track,label="PRIVATE_LOCKED")
