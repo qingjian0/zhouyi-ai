@@ -245,6 +245,15 @@ class Tests(unittest.TestCase):
   self.m=ZPCMMemory(self.path)
   count=self.m.db.execute("SELECT COUNT(*) FROM e12a6_authorization_consumptions").fetchone()[0]
   self.assertEqual(count,1)
+ def test_explicit_authorization_projection_rebuild_revalidates_full_history(self):
+  self.m.append_lifecycle_event(event_id="lifecycle:tamper",scope="s",
+      payload={"kind":"state_transition","value":1},expected_sequence=0)
+  self.m.db.execute(
+      "UPDATE memory_events SET payload_json=? WHERE event_id=?",
+      ('{"kind":"tampered"}',"lifecycle:tamper")
+  )
+  with self.assertRaises(ZPCMError):
+   self.m.rebuild_authorization_consumption_index()
  def test_lifecycle_append_and_checkpoint_update_are_atomic(self):
   before=self.m.db.execute(
       "SELECT high_water_seq,checkpoint_digest FROM e12a6_authorization_projection_checkpoint WHERE singleton=1"
