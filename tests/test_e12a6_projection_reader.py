@@ -96,6 +96,37 @@ class LifecycleProjectionReaderTests(unittest.TestCase):
         with self.assertRaises(Exception):
             list(reader.iter_candidates(page_size=0))
 
+    def test_projection_iterator_is_bounded_by_start_high_water(self):
+        self.writer.register_candidate(_candidate())
+        second = Candidate(
+            candidate_id="rel:lazy-reader-2", version=1, canonical_expression="x < y",
+            proposer_family="relational", supporting_families=("relational",),
+            input_types=("number", "number"), operator="LT",
+        )
+        third = Candidate(
+            candidate_id="rel:lazy-reader-3", version=1, canonical_expression="x == y",
+            proposer_family="relational", supporting_families=("relational",),
+            input_types=("number", "number"), operator="EQ",
+        )
+        self.writer.register_candidate(second)
+        reader = LifecycleProjectionReader(self.memory, scope="lazy-scope")
+
+        iterator = reader.iter_candidates(page_size=1)
+        first = next(iterator)
+        self.assertEqual(first.candidate_id, "rel:lazy-reader")
+
+        # Updating an already-yielded row moves its projection source_seq
+        # beyond the iterator's captured high-water mark. A new candidate is
+        # also appended after iterator creation. Neither may be revisited.
+        self.writer.apply(_propose())
+        self.writer.register_candidate(third)
+
+        remaining = list(iterator)
+        self.assertEqual(
+            [candidate.candidate_id for candidate in remaining],
+            ["rel:lazy-reader-2"],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
