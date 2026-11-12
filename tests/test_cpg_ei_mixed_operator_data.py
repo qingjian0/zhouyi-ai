@@ -14,7 +14,7 @@ class TestMixedOperatorCorpus(unittest.TestCase):
         self.assertEqual(manifest["family_count"], 400)
         self.assertEqual(manifest["states_per_family"], 256)
         self.assertEqual(manifest["row_count"], 102_400)
-        self.assertEqual(manifest["teacher_rule_count"], 320)
+        self.assertEqual(manifest["teacher_rule_count"], 3_200)
         self.assertEqual(manifest["operators"], list(OPERATORS))
 
     def test_all_operator_families_are_present_and_balanced(self):
