@@ -263,7 +263,7 @@ class E09AuthorityServiceTests(unittest.TestCase):
             clock=_FixedClock(datetime(2026, 11, 12, 0, 30, tzinfo=timezone.utc)),
             receipt_signer=_NamedSigner(Ed25519PrivateKey.generate(), self.keyring.verifier_id),
         )
-        with self.assertRaises(ValueError):
+        with self.assertRaises(E09AuthorizationError):
             verifier.issue_verification_receipt(
                 episode_id=self.episode, authorization_ref="grant-spoof",
                 parent_state_ref="parent-1", branch_ids=("left", "right"),
