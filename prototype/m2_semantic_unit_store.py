@@ -92,6 +92,8 @@ class PersistentM2SemanticUnitStore:
         self._event_kinds: dict[str, str] = {}
         self._predecessors: dict[str, str | None] = {}
         self._latest: dict[str, str] = {}
+        # Reverse index: current version ID -> stable root ID.
+        self._root_by_current: dict[str, str] = {}
         self._retracted: dict[str, str] = {}
         self._last_sequence = 0
         self._restore()
@@ -146,6 +148,7 @@ class PersistentM2SemanticUnitStore:
             versions, receipts, digests = {}, {}, {}
             event_kinds, predecessors = {}, {}
             latest, retracted = {}, {}
+            root_by_current: dict[str, str] = {}
             previous_sequence = 0
             for event in events:
                 seq = event["sequence"]
@@ -171,11 +174,12 @@ class PersistentM2SemanticUnitStore:
                         if event_id != f"m2:semantic-unit:{rid}" or rid in latest:
                             raise SemanticUnitStoreError("candidate event identity is inconsistent")
                         latest[rid] = rid
+                        root_by_current[rid] = rid
                     else:
                         prior = payload.get("previous_record_id")
                         if event_id != f"m2:semantic-unit:{rid}" or prior not in versions:
                             raise SemanticUnitStoreError("revision identity/predecessor is invalid")
-                        root = next((r for r, current in latest.items() if current == prior), None)
+                        root = root_by_current.get(prior)
                         if root is None or prior in retracted:
                             raise SemanticUnitStoreError("revision does not extend the current active version")
                         if candidate.envelope.derivation_refs.count(prior) != 1:
@@ -183,6 +187,8 @@ class PersistentM2SemanticUnitStore:
                         if candidate.envelope.scope != versions[prior].envelope.scope:
                             raise SemanticUnitStoreError("revision cannot cross scopes")
                         latest[root] = rid
+                        del root_by_current[prior]
+                        root_by_current[rid] = root
                     versions[rid] = candidate
                     digests[rid] = digest_value
                     event_kinds[rid] = kind
@@ -204,6 +210,7 @@ class PersistentM2SemanticUnitStore:
             self._versions, self._receipts, self._digests = versions, receipts, digests
             self._event_kinds, self._predecessors = event_kinds, predecessors
             self._latest, self._retracted = latest, retracted
+            self._root_by_current = root_by_current
             self._last_sequence = previous_sequence
         except (ZPCMError, ContractError, SemanticUnitStoreError):
             raise
@@ -220,6 +227,9 @@ class PersistentM2SemanticUnitStore:
             prior = self._receipts[rid]
             return SemanticUnitReceipt(prior.event_id, prior.sequence, prior.payload_digest,
                                        prior.record_digest, True)
+        root = rid if previous_id is None else self._root_by_current.get(previous_id)
+        if root is None:
+            raise SemanticUnitStoreError("revision predecessor is not the current indexed version")
         event_id = f"m2:semantic-unit:{rid}"
         kind = "candidate_revised" if previous_id is not None else "candidate_recorded"
         payload, body_digest = self._payload(kind, candidate, previous_id)
@@ -240,9 +250,11 @@ class PersistentM2SemanticUnitStore:
         self._last_sequence = receipt.sequence
         if previous_id is None:
             self._latest[rid] = rid
+            self._root_by_current[rid] = rid
         else:
-            root = next(root for root, current in self._latest.items() if current == previous_id)
             self._latest[root] = rid
+            del self._root_by_current[previous_id]
+            self._root_by_current[rid] = root
         return receipt
 
     def record_candidate(self, candidate: SemanticUnitCandidate) -> SemanticUnitReceipt:
