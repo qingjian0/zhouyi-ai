@@ -83,7 +83,8 @@ class SQLiteEvidenceIngestorTests(unittest.TestCase):
                 "doc-bad-tokenizer", "x", io.BytesIO(b"abc"), chunk_bytes=4,
                 tokenizer=lambda _: -1,
             )
-        self.assertIsNone(self.ingestor.document_state("doc-bad-tokenizer"))
+        self.assertEqual(self.ingestor.document_state("doc-bad-tokenizer"), (0, 0, False))
+        self.assertEqual(self.ingestor.get_chunks("doc-bad-tokenizer"), [])
 
     def test_invalid_utf8_is_not_silently_replaced(self):
         with self.assertRaises(UnicodeDecodeError):
@@ -91,12 +92,10 @@ class SQLiteEvidenceIngestorTests(unittest.TestCase):
                 "doc-invalid", "bad.bin", io.BytesIO(b"ok\xffbad"), chunk_bytes=8
             )
 
-        # The valid prefix is durably committed; the malformed byte is
-        # rejected and the cursor remains exactly at its start.
-        self.assertEqual(self.ingestor.document_state("doc-invalid"), (2, 1, False))
-        chunks = self.ingestor.get_chunks("doc-invalid")
-        self.assertEqual([chunk.text for chunk in chunks], ["ok"])
-        self.assertEqual(chunks[0].byte_end, 2)
+        # The whole bounded chunk is rejected; no partial source bytes
+        # are persisted and the durable cursor remains unchanged.
+        self.assertEqual(self.ingestor.document_state("doc-invalid"), (0, 0, False))
+        self.assertEqual(self.ingestor.get_chunks("doc-invalid"), [])
 
     def test_non_seekable_stream_is_rejected(self):
         class NonSeekable(io.BytesIO):
