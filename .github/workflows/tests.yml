@@ -2,9 +2,9 @@ name: tests
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'research/cpg-ei-learnable-gates-v3-2026-11-12']
   pull_request:
-    branches: [main, 'research/cpg-ei-learnable-gates-v1-2026-11-12']
+    branches: [main, 'train/cpg-ei-mvp-2026-11-12']
 
 jobs:
   unit-tests:
