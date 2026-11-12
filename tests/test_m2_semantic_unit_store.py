@@ -81,6 +81,10 @@ class PersistentM2SemanticUnitStoreTests(unittest.TestCase):
         self.assertEqual(receipt.sequence, retry.sequence)
         self.assertEqual(self.store.history, {"su-1": first, "su-2": revised})
         self.assertEqual(self.store.candidates, {"su-1": revised})
+        with self.assertRaises(SemanticUnitStoreError):
+            self.store.record_candidate(revised)
+        with self.assertRaises(SemanticUnitStoreError):
+            self.store.revise_candidate("obs-1", revised)
         self.assertEqual(len(self.memory.replay_domain_events(
             event_type="m2_semantic_unit", scope="project-a")), 2)
         self.memory.close()
