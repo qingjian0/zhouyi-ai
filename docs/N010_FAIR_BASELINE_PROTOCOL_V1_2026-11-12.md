@@ -88,3 +88,8 @@ A failure to transfer is still a useful result: retain the operator as an experi
 - exact parameter-count functions and integer width/rank selection under a declared relative tolerance.
 
 The reference test suite checks the 96/99/97 parameter example, deterministic training, finite probabilities and epoch-update equivalence. These implementations are not yet wired into the experiment runner, and passing unit tests do not constitute benchmark evidence. The Xiang fixed-random basis must be reported with both total stored parameters and trainable parameter count; its basis is frozen while the readout remains trainable.
+
+
+## Multi-seed execution
+
+`run_multi_seed_comparison(..., seeds=[...])` runs the four model variants independently for each supplied seed, writes per-seed reports and an aggregate JSON report with mean, sample standard deviation, per-seed values and a normal-approximation 95% confidence interval. Use at least 10 seeds for screening and 30 for final evaluation. The normal interval is a screening summary; final model comparisons should use paired bootstrap intervals over matched seeds and report paired deltas.
