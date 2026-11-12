@@ -4,7 +4,7 @@
 
 The current bounded Beam strategy ranks partial prefixes with their partial score. That score is not an admissible upper bound: a prefix with a weak unary/pairwise score can still become the global optimum after a positive third-order interaction is completed. Beam pruning can therefore discard the true optimum and must fail closed.
 
-The \`branch_bound\` strategy instead prunes only when a mathematically valid upper bound proves that a branch cannot enter the requested top-k.
+The `branch_bound` strategy instead prunes only when a mathematically valid upper bound proves that a branch cannot enter the requested top-k.
 
 ## Score decomposition
 
@@ -59,17 +59,17 @@ U_{\max}<s_k.
 
 The comparison is deliberately strict. If a remaining branch has a bound equal to \(s_k\), it may contain a tied candidate with a lexicographically earlier role binding, so it must still be explored to preserve deterministic ordering.
 
-For the public prediction API, the internal search retains at least two complete candidates even when \`result_limit=1\`, because the top-two score margin is required for the existing abstention rule.
+For the public prediction API, the internal search retains at least two complete candidates even when `result_limit=1`, because the top-two score margin is required for the existing abstention rule.
 
-If the expansion budget is exhausted before the stopping condition is proved, the result is marked \`SEARCH_BUDGET_EXHAUSTED\` and abstains. If the stopping condition is proved, the returned top-k ranking is exact relative to the finite candidate pools and current model weights, even when some lower-scoring branches were safely pruned.
+If the expansion budget is exhausted before the stopping condition is proved, the result is marked `SEARCH_BUDGET_EXHAUSTED` and abstains. If the stopping condition is proved, the returned top-k ranking is exact relative to the finite candidate pools and current model weights, even when some lower-scoring branches were safely pruned.
 
 ## Strategy boundaries
 
 | Strategy | Pruning rule | Completeness guarantee |
 |---|---|---|
-| \`product\` | None; enumerate the Cartesian product | Exact if the budget completes |
-| \`beam\` | Heuristic partial-score ranking | Approximate; any pruning causes abstention |
-| \`branch_bound\` | Admissible score upper bound | Exact top-k if the proof stopping rule completes |
+| `product` | None; enumerate the Cartesian product | Exact if the budget completes |
+| `beam` | Heuristic partial-score ranking | Approximate; any pruning causes abstention |
+| `branch_bound` | Admissible score upper bound | Exact top-k if the proof stopping rule completes |
 
 ## Initial validation
 
@@ -80,7 +80,7 @@ The observed ratio of branch-bound prefix extensions to Exact Product complete a
 ## Limitations and next measurements
 
 - The bound is intentionally conservative; independent term maxima can be mutually incompatible and reduce pruning.
-- Bound-evaluation CPU time and allocations are not included in \`expanded_search_states\`.
+- Bound-evaluation CPU time and allocations are not included in `expanded_search_states`.
 - Role-pair and role-triple term counts grow combinatorially with role count.
 - The result is exact only for the supplied finite candidate pools and current scoring function; it does not validate candidate recall, learned-weight quality, or natural-language grounding.
 - A dedicated benchmark must compare wall-clock time, upper-bound evaluations, memory, and exact-ranking agreement under identical candidate pools and a locked seed set.
