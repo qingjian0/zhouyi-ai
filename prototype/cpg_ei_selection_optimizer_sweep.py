@@ -184,13 +184,14 @@ def main(argv=None) -> int:
     parser.add_argument("--seeds", type=_parse_seeds, default=DEFAULT_SEEDS)
     parser.add_argument("--learning-rates", type=_parse_rates, default=DEFAULT_LEARNING_RATES)
     parser.add_argument("--epochs", type=int, default=50)
+    parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
     if args.epochs < 1:
         parser.error("--epochs must be positive")
     report = run_selection_optimizer_sweep(
         seeds=args.seeds, learning_rates=args.learning_rates, epochs=args.epochs
     )
-    print(json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2))
+    print(json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2) if args.json else report)
     return 0
 
 
