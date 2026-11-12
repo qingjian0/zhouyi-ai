@@ -180,6 +180,18 @@ class E09AuthorityUnixRPCTests(unittest.TestCase):
         )
         self.assertEqual(reveal["event_id"], reveal_event)
 
+        learned_feedback = self._call(
+            self.learner, "evidence.read_support_feedback",
+            {
+                "episode_id": self.episode,
+                "reveal_event_id": reveal_event,
+                "scope": self.scope,
+            },
+            "read-support-feedback-1",
+        )
+        self.assertEqual(learned_feedback["feedback"], "secret-label")
+        self.assertEqual(learned_feedback["prediction_id"], prediction_id)
+
         events = self.store.replay_episode(self.episode)
         by_id = {event["event_id"]: event for event in events}
         self.assertEqual(by_id[observation_event]["actor_role"], "observer")
@@ -191,6 +203,76 @@ class E09AuthorityUnixRPCTests(unittest.TestCase):
         )
         self.assertEqual(by_id[commit_event]["actor_role"], "learner")
         self.assertEqual(by_id[reveal_event]["payload"]["target_or_feedback"], "secret-label")
+
+    def test_learner_cannot_read_gate_feedback(self):
+        observation_event = f"{self.episode}:observation:gate-obs"
+        self._call(
+            self.observer, "observation.append",
+            {
+                "episode_id": self.episode,
+                "event_id": observation_event,
+                "observation_id": "gate-obs",
+                "query_id": "gate-query",
+                "scope": self.scope,
+                "split": "GATE_DEV",
+            },
+            "append-gate-observation",
+        )
+        prediction_id = "gate-prediction"
+        commit_event = f"{self.episode}:prediction:{prediction_id}"
+        digest = "b" * 64
+        commit = self._call(
+            self.learner, "prediction.commit",
+            {
+                "episode_id": self.episode,
+                "event_id": commit_event,
+                "causation_refs": [observation_event],
+                "payload": {
+                    "prediction_id": prediction_id,
+                    "observation_id": "gate-obs",
+                    "query_id": "gate-query",
+                    "scope": self.scope,
+                    "split": "GATE_DEV",
+                    "model_version": "model-1",
+                    "learner_track": "track-a",
+                    "decision_status": "PREDICT",
+                    "interop_commit_digest": digest,
+                },
+            },
+            "commit-gate-prediction",
+        )
+        reveal_event = f"{self.episode}:reveal:{prediction_id}"
+        self._call(
+            self.evaluator, "evidence.reveal",
+            {
+                "episode_id": self.episode,
+                "event_id": reveal_event,
+                "causation_refs": [commit_event],
+                "payload": {
+                    "prediction_id": prediction_id,
+                    "query_id": "gate-query",
+                    "scope": self.scope,
+                    "split": "GATE_DEV",
+                    "commit_digest": digest,
+                    "event_digest": commit["payload_digest"],
+                    "learner_track": "track-a",
+                    "target_or_feedback": "must-not-leak",
+                    "reveal_source": "test",
+                },
+            },
+            "reveal-gate-evidence",
+        )
+        with self.assertRaises(IPCRemoteError) as caught:
+            self._call(
+                self.learner, "evidence.read_support_feedback",
+                {
+                    "episode_id": self.episode,
+                    "reveal_event_id": reveal_event,
+                    "scope": self.scope,
+                },
+                "read-gate-feedback",
+            )
+        self.assertEqual(caught.exception.code, "permission_denied")
 
     def test_learner_cannot_append_observation_or_reveal(self):
         with self.assertRaises(IPCRemoteError) as observation_error:

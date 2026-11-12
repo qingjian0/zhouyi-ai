@@ -255,6 +255,81 @@ class E09AuthorityService:
             raise E09AuthorizationError("Observation has no durable input payload reference")
         return self._store.get_payload(payload_ref)
 
+    def read_support_feedback(
+        self,
+        credential: object,
+        *,
+        episode_id: str,
+        reveal_event_id: str,
+        scope: str,
+    ) -> dict[str, Any]:
+        """Release only lineage-verified SUPPORT feedback to the authorized learner."""
+        self._principal(credential, role="learner", scope=scope)
+        events = self._store.replay_episode(episode_id)
+        by_id = {event.get("event_id"): event for event in events}
+        reveal = by_id.get(reveal_event_id)
+        if not isinstance(reveal, dict) or reveal.get("event_type") != "evidence_reveal":
+            raise E09AuthorizationError("support feedback requires a durable Evidence Reveal")
+        reveal_payload = reveal.get("payload", {})
+        if (
+            reveal.get("actor_role") != "evaluator"
+            or reveal_payload.get("scope") != scope
+            or reveal_payload.get("split") != "SUPPORT"
+            or not isinstance(
+                reveal.get("integrity_metadata", {}).get("authenticated_workload"), dict
+            )
+        ):
+            raise E09AuthorizationError("only authenticated SUPPORT feedback is readable by Learner")
+        reveal_causes = reveal.get("causation_refs", [])
+        if not isinstance(reveal_causes, list) or len(reveal_causes) != 1:
+            raise E09AuthorizationError("Evidence Reveal must reference exactly one Prediction Commit")
+        commit = by_id.get(reveal_causes[0])
+        if not isinstance(commit, dict) or commit.get("event_type") != "prediction_commit":
+            raise E09AuthorizationError("Evidence Reveal has no durable Prediction Commit")
+        commit_payload = commit.get("payload", {})
+        if (
+            commit.get("actor_role") != "learner"
+            or commit_payload.get("scope") != scope
+            or commit_payload.get("split") != "SUPPORT"
+            or not isinstance(
+                commit.get("integrity_metadata", {}).get("authenticated_workload"), dict
+            )
+            or reveal_payload.get("prediction_id") != commit_payload.get("prediction_id")
+            or reveal_payload.get("query_id") != commit_payload.get("query_id")
+            or reveal_payload.get("learner_track") != commit_payload.get("learner_track")
+            or reveal_payload.get("commit_digest") != commit_payload.get("interop_commit_digest")
+            or reveal_payload.get("event_digest") != commit.get("payload_digest")
+        ):
+            raise E09AuthorizationError("Evidence Reveal does not match its authenticated SUPPORT Commit")
+        commit_causes = commit.get("causation_refs", [])
+        if not isinstance(commit_causes, list) or len(commit_causes) != 1:
+            raise E09AuthorizationError("Prediction Commit must reference exactly one Observation")
+        observation = by_id.get(commit_causes[0])
+        if not isinstance(observation, dict) or observation.get("event_type") != "observation":
+            raise E09AuthorizationError("Prediction Commit has no durable Observation")
+        observation_payload = observation.get("payload", {})
+        if (
+            observation.get("actor_role") != "observer"
+            or observation_payload.get("scope") != scope
+            or observation_payload.get("split") != "SUPPORT"
+            or observation_payload.get("observation_id") != commit_payload.get("observation_id")
+            or observation_payload.get("query_id") != commit_payload.get("query_id")
+            or not isinstance(
+                observation.get("integrity_metadata", {}).get("authenticated_workload"), dict
+            )
+        ):
+            raise E09AuthorizationError("Prediction Commit is not grounded in an authenticated SUPPORT Observation")
+        feedback = reveal_payload.get("target_or_feedback")
+        if feedback is None:
+            raise E09AuthorizationError("Evidence Reveal contains no SUPPORT feedback")
+        return {
+            "reveal_event_id": reveal_event_id,
+            "prediction_id": reveal_payload["prediction_id"],
+            "query_id": reveal_payload["query_id"],
+            "learner_track": reveal_payload["learner_track"],
+            "feedback": feedback,
+        }
+
     def append_observation(
         self,
         credential: object,
