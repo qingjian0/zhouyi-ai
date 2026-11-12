@@ -16,10 +16,10 @@
 
 | 分支 / PR | 核查到的 HEAD | 证据 | 当前判断 |
 |---|---|---|---|
-| #379 E09 → ZPCM crash replay | `1301a8c5a387488db6d046305b6f6867cf508b1c` | Actions run #43250969696，unit-tests 成功 | 单进程 SQLite 投影故障窗口及数据库重开后的幂等回放通过；不等于分布式 exactly-once 或 OS 进程隔离 |
+| #379 E09 → ZPCM crash replay | `423c53a6b90bb71bfe97fbe9d6f08114d4b71057` | 父 HEAD `1301a8c` 的完整 workflow #43250954184 成功；当前 HEAD 新增 fail-closed replay 断言，workflow #43253292643 / #43253306110 运行中 | 提交前/后崩溃、进程重启恢复和继续学习已有成功证据；新增失败状态 replay 拒绝测试待 exact-head CI |
 | #377 E12-A6 lazy projection reader | `0d30ce8d09ebeaedc5b3052b7e89182fa0359708` | Actions run #43250964080，full-validation 成功 | 分页读取和索引查询计划验证通过；仍不是 `PersistentLifecycleLedger._restore()` 的完整替代 |
 | #378 CPG-EI beam fail-closed | `c3149603c011cb5e00c13c353331b641982a391f` | Actions run #43245395515 成功 | pruning / budget exhaustion 显式 abstain；不证明 beam 召回率提升 |
-| #380 exact product vs beam | `33b14625baaf6657956ba2808c9b2b1a457700bd` | 本次未取得可确认的 exact-head workflow 结果 | 保持待验证；不能引用父分支 CI 代替当前 HEAD |
+| #380 exact product vs beam | `33b14625baaf6657956ba2808c9b2b1a457700bd` | full workflow #43250729401 与后续搜索状态指标测试 #43251196951 均成功 | 对抗性三阶信号下 exact product 找回全局最优；窄 beam 剪枝并 abstain；这是特定合成场景，不是普遍召回率结论 |
 | #363 bounded joint motifs | `176490351d4a3c5c62745f87834ce9ef48cde2b3` | 早期 exact-head 多种子及 matched-compute 结果记录在 PR | 有限 20 motif 合成空间的实验；不属于开放式关系发现 |
 | #365 N0.10 out-of-core runner | `974d7ae9f3b3178e3bae5b5e708c3adc6d108925` | PR 记录的 15 项 focused tests 成功 | 文件流式训练组件已存在；独立锁定测试进程仍是调用方约定 |
 | #374 N0.10 million-row signal/RSS | `84db642adf438a0b7976681a027916421492468b` | 两次百万行/双 epoch RSS 实验成功 | 约 5.08–5.29 MiB 增量峰值 RSS；只证明特定合成数据路径的内存行为和训练损失变化 |
@@ -80,8 +80,8 @@
 
 ## 下一阶段执行顺序
 
-1. 刷新 #380 exact-head CI；补齐 exact product 与 beam 的 recall / cost 结果。
-2. 为 CPG-EI 增加 conditional proposal / bounded subset search 的独立研究分支；先固定实验协议，再跑多 seed。
+1. **已完成：** #380 exact-head full workflow 通过；保留对抗性三阶 fixture 的 recall / expansion trade-off 结果。
+2. 下一步为 CPG-EI 增加 conditional proposal / bounded subset search 的独立研究分支；先固定实验协议，再跑多 seed。
 3. 将 #377 的 reader 接入正常启动路径，确保 ordinary restore 不调用全量 materialization。
 4. 为 E12-A6/ZPCM 增加 fresh-process crash/rebuild RSS benchmark。
 5. 将 N0.10 source-group provenance、checkpoint fingerprints、独立 locked evaluator 合并到一个明确集成祖先。
