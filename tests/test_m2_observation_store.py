@@ -173,8 +173,9 @@ class PersistentM2ObservationStoreTests(unittest.TestCase):
             )
         self.memory.close()
         self.memory = ZPCMMemory(self.memory_db)
+        restored = PersistentM2ObservationStore(self.memory, self.resolver, scope="project-a")
         with self.assertRaises(EvidenceResolutionError):
-            PersistentM2ObservationStore(self.memory, self.resolver, scope="project-a")
+            list(restored.iter_observations(page_size=1))
 
 
 if __name__ == "__main__":
