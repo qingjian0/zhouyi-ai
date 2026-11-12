@@ -35,6 +35,7 @@ class YixiangCsgGcrBridgeTests(unittest.TestCase):
         )
         self.assertGreaterEqual(len(rows), 1)
         for row in rows:
+            self.assertEqual(row.semantic_status, "HYPOTHESIS_ONLY")
             self.assertEqual(row.proposal.bindings, ())
             self.assertEqual(row.proposal.parent_state_ref, "world:0")
             self.assertEqual(row.hyperedge.relation_type, "effect_of")
@@ -60,6 +61,7 @@ class YixiangCsgGcrBridgeTests(unittest.TestCase):
         self.assertEqual(len(result.coordination.candidates), min(8, len(result.proposals)))
         if result.coordination.candidates:
             for candidate in result.coordination.candidates:
+                self.assertEqual(candidate.semantic_status, "HYPOTHESIS_ONLY")
                 self.assertEqual(len(candidate.coordinated.proposal_ids), 1)
                 self.assertEqual(candidate.coordinated.candidate_kinds[0].split(":")[0],
                                  "YIXIANG_HYPOTHESIS_ONLY")
