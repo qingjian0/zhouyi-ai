@@ -66,56 +66,86 @@ class ZPCMMemory:
             entity_version INTEGER NOT NULL DEFAULT 0,
             event_id TEXT NOT NULL UNIQUE,
             payload_digest TEXT NOT NULL,
+            candidate_id TEXT,
             FOREIGN KEY(event_id) REFERENCES memory_events(event_id)
         );
-        CREATE INDEX IF NOT EXISTS e12a6_lifecycle_entity_lookup
-            ON e12a6_lifecycle_event_projection(scope,kind,entity_id,entity_version,seq);
-        CREATE INDEX IF NOT EXISTS e12a6_lifecycle_candidate_history
-            ON e12a6_lifecycle_event_projection(scope,entity_id,entity_version,seq)
-            WHERE kind IN ('candidate_registered','revision_created','action_applied');
-        CREATE TRIGGER IF NOT EXISTS e12a6_lifecycle_projection_insert
-        AFTER INSERT ON memory_events
-        WHEN NEW.event_type='e12a6_lifecycle'
-        BEGIN
-            INSERT INTO e12a6_lifecycle_event_projection(
-                seq,scope,kind,entity_id,entity_version,event_id,payload_digest
-            ) VALUES (
-                NEW.seq,NEW.scope,
-                COALESCE(json_extract(NEW.payload_json,'$.kind'),'unknown'),
-                COALESCE(
-                    json_extract(NEW.payload_json,'$.body.candidate.candidate_id'),
-                    json_extract(NEW.payload_json,'$.body.evidence.evidence_id'),
-                    json_extract(NEW.payload_json,'$.body.action.action_id'),
-                    json_extract(NEW.payload_json,'$.body.receipt_id'),
-                    NEW.event_id
-                ),
-                COALESCE(
-                    json_extract(NEW.payload_json,'$.body.candidate.version'),
-                    json_extract(NEW.payload_json,'$.body.action.candidate_version'),
-                    0
-                ),
-                NEW.event_id,NEW.payload_digest
-            );
-        END;
-        INSERT OR IGNORE INTO e12a6_lifecycle_event_projection(
-            seq,scope,kind,entity_id,entity_version,event_id,payload_digest
-        )
-        SELECT seq,scope,
-            COALESCE(json_extract(payload_json,'$.kind'),'unknown'),
-            COALESCE(
-                json_extract(payload_json,'$.body.candidate.candidate_id'),
-                json_extract(payload_json,'$.body.evidence.evidence_id'),
-                json_extract(payload_json,'$.body.action.action_id'),
-                json_extract(payload_json,'$.body.receipt_id'),
-                event_id
-            ),
-            COALESCE(
-                json_extract(payload_json,'$.body.candidate.version'),
-                json_extract(payload_json,'$.body.action.candidate_version'),
-                0
-            ),
-            event_id,payload_digest
-        FROM memory_events WHERE event_type='e12a6_lifecycle';
+        """)
+        projection_columns = {
+            row["name"] for row in self.db.execute(
+                "PRAGMA table_info(e12a6_lifecycle_event_projection)"
+            )
+        }
+        if "candidate_id" not in projection_columns:
+            self.db.execute(
+                "ALTER TABLE e12a6_lifecycle_event_projection ADD COLUMN candidate_id TEXT"
+            )
+        # Rebuild the derived candidate-history index from the authoritative event log.
+        self.db.execute("DROP INDEX IF EXISTS e12a6_lifecycle_candidate_history")
+        self.db.execute("""
+            UPDATE e12a6_lifecycle_event_projection
+            SET candidate_id=(
+                SELECT COALESCE(
+                    json_extract(e.payload_json,'$.body.candidate.candidate_id'),
+                    json_extract(e.payload_json,'$.body.action.candidate_id'),
+                    json_extract(e.payload_json,'$.body.arguments.candidate_id'),
+                    json_extract(e.payload_json,'$.body.candidate_id')
+                )
+                FROM memory_events e
+                WHERE e.event_id=e12a6_lifecycle_event_projection.event_id
+            )
+            WHERE candidate_id IS NULL
+        """)
+        self.db.execute("""
+            CREATE INDEX e12a6_lifecycle_candidate_history
+            ON e12a6_lifecycle_event_projection(scope,candidate_id,entity_version,seq)
+            WHERE kind IN ('candidate_registered','revision_created','action_applied')
+        """)
+        self.db.execute("DROP TRIGGER IF EXISTS e12a6_lifecycle_projection_insert")
+        self.db.executescript("""
+            CREATE TRIGGER e12a6_lifecycle_projection_insert
+            AFTER INSERT ON memory_events
+            WHEN NEW.event_type='e12a6_lifecycle'
+            BEGIN
+                INSERT INTO e12a6_lifecycle_event_projection(
+                    seq,scope,kind,entity_id,entity_version,event_id,payload_digest,candidate_id
+                ) VALUES (
+                    NEW.seq,NEW.scope,
+                    COALESCE(json_extract(NEW.payload_json,'$.kind'),'unknown'),
+                    COALESCE(
+                        json_extract(NEW.payload_json,'$.body.candidate.candidate_id'),
+                        json_extract(NEW.payload_json,'$.body.evidence.evidence_id'),
+                        json_extract(NEW.payload_json,'$.body.action.action_id'),
+                        json_extract(NEW.payload_json,'$.body.receipt_id'),
+                        NEW.event_id
+                    ),
+                    COALESCE(
+                        json_extract(NEW.payload_json,'$.body.candidate.version'),
+                        json_extract(NEW.payload_json,'$.body.action.candidate_version'),
+                        0
+                    ),
+                    NEW.event_id,NEW.payload_digest,
+                    COALESCE(
+                        json_extract(NEW.payload_json,'$.body.candidate.candidate_id'),
+                        json_extract(NEW.payload_json,'$.body.action.candidate_id'),
+                        json_extract(NEW.payload_json,'$.body.arguments.candidate_id'),
+                        json_extract(NEW.payload_json,'$.body.candidate_id')
+                    )
+                );
+            END;
+        """)
+        self.db.execute("""
+            UPDATE e12a6_lifecycle_event_projection
+            SET candidate_id=(
+                SELECT COALESCE(
+                    json_extract(e.payload_json,'$.body.candidate.candidate_id'),
+                    json_extract(e.payload_json,'$.body.action.candidate_id'),
+                    json_extract(e.payload_json,'$.body.arguments.candidate_id'),
+                    json_extract(e.payload_json,'$.body.candidate_id')
+                )
+                FROM memory_events e
+                WHERE e.event_id=e12a6_lifecycle_event_projection.event_id
+            )
+            WHERE candidate_id IS NULL
         """)
         checkpoint_columns = {
             row["name"] for row in self.db.execute(
@@ -503,14 +533,16 @@ class ZPCMMemory:
         )
 
     def iter_lifecycle_projection(
-        self, *, scope: str, kind: str | None = None, after_sequence: int = 0,
-        page_size: int = 128,
+        self, *, scope: str, kind: str | None = None, candidate_id: str | None = None,
+        after_sequence: int = 0, page_size: int = 128,
     ) -> Iterator[dict[str, Any]]:
         """Yield indexed lifecycle projection metadata without materializing event bodies."""
         if not isinstance(scope, str) or not scope.strip():
             raise ZPCMError("scope must be non-empty")
         if kind is not None and (not isinstance(kind, str) or not kind.strip()):
             raise ZPCMError("kind must be non-empty when provided")
+        if candidate_id is not None and (not isinstance(candidate_id, str) or not candidate_id.strip()):
+            raise ZPCMError("candidate_id must be non-empty when provided")
         if isinstance(after_sequence, bool) or not isinstance(after_sequence, int) or after_sequence < 0:
             raise ZPCMError("after_sequence must be a non-negative integer")
         if isinstance(page_size, bool) or not isinstance(page_size, int) or page_size < 1:
@@ -518,13 +550,19 @@ class ZPCMMemory:
         cursor = after_sequence
         while True:
             query = (
-                "SELECT seq,scope,kind,entity_id,entity_version,event_id,payload_digest "
+                "SELECT seq,scope,kind,entity_id,entity_version,event_id,payload_digest,candidate_id "
                 "FROM e12a6_lifecycle_event_projection WHERE scope=? AND seq>?"
             )
             params: list[Any] = [scope, cursor]
             if kind is not None:
                 query += " AND kind=?"
                 params.append(kind)
+            if candidate_id is not None:
+                query += (
+                    " AND candidate_id=? "
+                    "AND kind IN ('candidate_registered','revision_created','action_applied')"
+                )
+                params.append(candidate_id)
             query += " ORDER BY seq LIMIT ?"
             params.append(page_size)
             with self.lock:
