@@ -312,6 +312,7 @@ class PersistentM2SemanticUnitStore:
 
     def _restore(self) -> None:
         if self._checkpoint_valid():
+            self._validate_current_projection_evidence()
             return
         with self._memory.lock:
             self._db.execute("BEGIN IMMEDIATE")
@@ -343,6 +344,24 @@ class PersistentM2SemanticUnitStore:
                 self._db.execute("ROLLBACK")
                 raise SemanticUnitStoreError(f"semantic-unit projection rebuild failed: {exc}") from exc
 
+    def _validate_current_projection_evidence(self) -> None:
+        """Revalidate only current working-set bodies, never historical candidate bodies."""
+        cursor = ""
+        while True:
+            with self._memory.lock:
+                rows = self._db.execute(
+                    "SELECT root_id,current_body_json FROM m2_semantic_unit_roots "
+                    "WHERE scope=? AND retracted_reason IS NULL AND root_id>? "
+                    "ORDER BY root_id LIMIT 32",
+                    (self.scope,cursor),
+                ).fetchall()
+            if not rows:
+                return
+            for row in rows:
+                candidate = _candidate_from_dict(json.loads(row["current_body_json"]))
+                self._verify_candidate(candidate)
+                cursor = row["root_id"]
+
     def _ensure_current(self) -> None:
         if not self._checkpoint_valid():
             self._restore()
@@ -362,16 +381,30 @@ class PersistentM2SemanticUnitStore:
 
     @property
     def candidates(self) -> dict[str, SemanticUnitCandidate]:
-        """Compatibility materialization of all active current candidates; prefer iter_candidates."""
-        return {root: candidate for root,candidate in self.iter_candidates()}
+        """Explicit compatibility materialization; use iter_candidates for bounded reads."""
+        result = {}
+        cursor = None
+        while True:
+            page = list(self.iter_candidates(limit=64, after_root_id=cursor, max_bytes=4194304))
+            if not page:
+                return result
+            result.update(page)
+            cursor = page[-1][0]
+            if len(page) < 64:
+                return result
 
-    def iter_candidates(self, *, limit: int = 64, after_root_id: str | None = None
+    def iter_candidates(self, *, limit: int = 64, after_root_id: str | None = None,
+                        max_bytes: int = 1048576
                         ) -> Iterator[tuple[str, SemanticUnitCandidate]]:
         if isinstance(limit,bool) or not isinstance(limit,int) or not 1 <= limit <= 4096:
             raise ValueError("limit must be an integer in [1, 4096]")
+        if isinstance(max_bytes,bool) or not isinstance(max_bytes,int) or max_bytes < 1:
+            raise ValueError("max_bytes must be a positive integer")
+        if max_bytes > self._memory.max_page_bytes:
+            raise ValueError("max_bytes cannot exceed ZPCM max_page_bytes")
         self._ensure_current()
-        sql = ("SELECT root_id,current_body_json FROM m2_semantic_unit_roots "
-               "WHERE scope=? AND retracted_reason IS NULL")
+        sql = ("SELECT root_id,length(CAST(current_body_json AS BLOB)) AS body_bytes "
+               "FROM m2_semantic_unit_roots WHERE scope=? AND retracted_reason IS NULL")
         args: list[Any] = [self.scope]
         if after_root_id is not None:
             sql += " AND root_id>?"
@@ -380,8 +413,27 @@ class PersistentM2SemanticUnitStore:
         args.append(limit)
         with self._memory.lock:
             rows = self._db.execute(sql,args).fetchall()
+        used = 0
         for row in rows:
-            yield row["root_id"],_candidate_from_dict(json.loads(row["current_body_json"]))
+            size = int(row["body_bytes"])
+            if size > max_bytes:
+                if used == 0:
+                    raise SemanticUnitStoreError("one current candidate exceeds iter_candidates byte budget")
+                return
+            if used + size > max_bytes:
+                return
+            with self._memory.lock:
+                body = self._db.execute(
+                    "SELECT current_body_json FROM m2_semantic_unit_roots "
+                    "WHERE scope=? AND root_id=? AND retracted_reason IS NULL",
+                    (self.scope,row["root_id"]),
+                ).fetchone()
+            if body is None:
+                continue
+            candidate = _candidate_from_dict(json.loads(body["current_body_json"]))
+            self._verify_candidate(candidate)
+            used += size
+            yield row["root_id"],candidate
 
     @property
     def history(self) -> dict[str, SemanticUnitCandidate]:
