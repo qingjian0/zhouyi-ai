@@ -72,14 +72,19 @@ def _candidate_from_dict(value: dict[str, Any]) -> SemanticUnitCandidate:
 class PersistentM2SemanticUnitStore:
     """Typed candidate history backed only by ZPCM memory_events."""
 
-    def __init__(self, memory: ZPCMMemory, resolver: SQLiteEvidenceRefResolver, *, scope: str):
+    def __init__(self, memory: ZPCMMemory, resolver: SQLiteEvidenceRefResolver, *,
+                 scope: str, replay_page_size: int = 128):
         if not isinstance(memory, ZPCMMemory):
             raise TypeError("memory must be ZPCMMemory")
         if not isinstance(resolver, SQLiteEvidenceRefResolver):
             raise TypeError("resolver must be SQLiteEvidenceRefResolver")
         if not isinstance(scope, str) or not scope.strip():
             raise ValueError("scope must be non-empty")
+        if (isinstance(replay_page_size, bool) or not isinstance(replay_page_size, int)
+                or not 1 <= replay_page_size <= 4096):
+            raise ValueError("replay_page_size must be an integer in [1, 4096]")
         self._memory, self._resolver, self.scope = memory, resolver, scope
+        self._replay_page_size = replay_page_size
         self._lock = RLock()
         self._versions: dict[str, SemanticUnitCandidate] = {}
         self._receipts: dict[str, SemanticUnitReceipt] = {}
@@ -134,7 +139,10 @@ class PersistentM2SemanticUnitStore:
 
     def _restore(self) -> None:
         try:
-            events = self._memory.replay_domain_events(event_type=EVENT_TYPE, scope=self.scope)
+            events = self._memory.iter_domain_events(
+                event_type=EVENT_TYPE, scope=self.scope,
+                page_size=self._replay_page_size,
+            )
             versions, receipts, digests = {}, {}, {}
             event_kinds, predecessors = {}, {}
             latest, retracted = {}, {}
@@ -288,8 +296,15 @@ class PersistentM2SemanticUnitStore:
             if record_id in self._retracted:
                 if self._retracted[record_id] != reason:
                     raise SemanticUnitStoreError("retraction reason conflicts with prior tombstone")
-                event = self._memory.replay_domain_events(event_type=EVENT_TYPE, scope=self.scope)
-                prior = next(e for e in event if e["event_id"] == f"m2:semantic-unit:{record_id}:retracted")
+                prior = next(
+                    (event for event in self._memory.iter_domain_events(
+                        event_type=EVENT_TYPE, scope=self.scope,
+                        page_size=self._replay_page_size,
+                    ) if event["event_id"] == f"m2:semantic-unit:{record_id}:retracted"),
+                    None,
+                )
+                if prior is None:
+                    raise SemanticUnitStoreError("retraction receipt is missing from the event log")
                 return SemanticUnitReceipt(prior["event_id"], prior["sequence"],
                     prior["payload_digest"], self._digests[record_id], True)
             event_id = f"m2:semantic-unit:{record_id}:retracted"
