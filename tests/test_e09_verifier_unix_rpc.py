@@ -230,6 +230,38 @@ class E09VerifierUnixRPCTests(unittest.TestCase):
             )
         self.assertEqual(caught.exception.code, "idempotency_conflict")
 
+    def test_idempotency_namespace_is_bound_to_authenticated_writer(self):
+        operation_id = "shared-operation-id"
+        self.client.request("receipt.issue", self._request(), operation_id=operation_id)
+        other_writer = "spiffe://zhouyi/e12a6-writer/other"
+        other_path = self.root / "other-writer.sock"
+        resolver = StaticUnixPeerResolver({
+            (os.getuid(), os.getgid()): (
+                other_writer, {"e12a6-writer"}, {self.scope},
+            ),
+        })
+        other_server = E09VerifierUnixRPC(
+            self.verifier,
+            peer_resolver=resolver,
+            socket_path=str(other_path),
+            receipt_ledger=self.ledger,
+            allowed_writer_workload_ids={other_writer},
+        )
+        other_server.start()
+        try:
+            deadline = time.monotonic() + 2
+            while not other_path.exists() and time.monotonic() < deadline:
+                time.sleep(0.01)
+            other_client = UnixJSONRPCClient(other_path)
+            with self.assertRaises(IPCRemoteError) as caught:
+                other_client.request(
+                    "receipt.issue", self._request(), operation_id=operation_id
+                )
+            self.assertEqual(caught.exception.code, "idempotency_conflict")
+            self.assertEqual(len(self.verifier.calls), 1)
+        finally:
+            other_server.close()
+
     def test_non_writer_peer_cannot_request_receipt(self):
         learner_path = self.root / "learner.sock"
         resolver = StaticUnixPeerResolver({
