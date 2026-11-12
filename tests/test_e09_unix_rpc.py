@@ -40,9 +40,13 @@ class _DomainRegistry:
 
 class _LearnerBindingRegistry:
     def resolve(self, *, episode_id, scope, learner_track):
-        if learner_track != "track-a":
+        assignments = {
+            "track-a": "spiffe://zhouyi/learner",
+            "track-b": "spiffe://zhouyi/learner-other",
+        }
+        if learner_track not in assignments:
             raise ValueError("unassigned learner track")
-        return "spiffe://zhouyi/learner"
+        return assignments[learner_track]
 
 
 def _principal(workload_id, role, scope):
@@ -387,7 +391,7 @@ class E09AuthorityUnixRPCTests(unittest.TestCase):
         self.assertEqual(feedback_error.exception.code, "permission_denied")
         other_projection = self._call(
             self.other_learner, "episode.read_for_learner",
-            {"episode_id": self.episode, "scope": self.scope, "learner_track": "track-a"},
+            {"episode_id": self.episode, "scope": self.scope, "learner_track": "track-b"},
             "other-learner-projection",
         )
         self.assertEqual(other_projection["events"], [])
