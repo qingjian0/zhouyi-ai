@@ -124,6 +124,34 @@ class ZPCMMemory:
                     "recorded_at": row["recorded_at"],
                 }
 
+    def get_domain_event(
+        self, *, event_type: str, scope: str, event_id: str,
+    ) -> dict[str, Any] | None:
+        """Fetch one indexed event without replaying or materializing its stream."""
+        if not isinstance(event_type, str) or not event_type.strip():
+            raise ZPCMError("event_type must be non-empty")
+        if not isinstance(scope, str) or not scope.strip():
+            raise ZPCMError("scope must be non-empty")
+        if not isinstance(event_id, str) or not event_id.strip():
+            raise ZPCMError("event_id must be non-empty")
+        with self.lock:
+            row = self.db.execute(
+                "SELECT seq,event_id,event_type,scope,payload_json,payload_digest,recorded_at "
+                "FROM memory_events WHERE event_id=? AND event_type=? AND scope=?",
+                (event_id, event_type, scope),
+            ).fetchone()
+        if row is None:
+            return None
+        payload = json.loads(row["payload_json"])
+        if digest(payload) != row["payload_digest"]:
+            raise ZPCMError(f"domain event digest mismatch: {event_id}")
+        return {
+            "sequence": row["seq"], "event_id": row["event_id"],
+            "event_type": row["event_type"], "scope": row["scope"],
+            "payload": payload, "payload_digest": row["payload_digest"],
+            "recorded_at": row["recorded_at"],
+        }
+
     def latest_domain_sequence(self, *, event_type: str, scope: str) -> int:
         """Return the current global event sequence for one typed scope stream."""
         if not isinstance(event_type, str) or not event_type.strip():
