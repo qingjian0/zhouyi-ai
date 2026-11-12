@@ -248,3 +248,18 @@ A failed earlier run on an older SHA is not evidence that the current exact head
 - #365 separates train/dev JSONL from the locked-test artifact and exposes a separate locked-test evaluator. It streams evaluation predictions directly to JSONL and uses a SQLite metadata-only index.
 - #366 persists field-scoped SHA-256 fingerprints for declared group/source-group/episode IDs in a SQLite sidecar and rejects held-out group overlap with train/dev before locked-test prediction.
 - Boundary: the guard can only enforce identifiers actually supplied by dataset producers. Missing source provenance cannot be inferred. The group sidecar must travel with the checkpoint. These tests establish logical isolation checks, not OS-level process sandboxing or measured RSS bounds.
+
+
+### N0.10 subprocess RSS sweep (2026-11-12)
+
+- PR #367 exact head `ebea32ea82193ba08e2e75de6d25086595c8f776`, workflow run #43214345607: success.
+- Fresh-process measurements, one full-batch epoch, 100,000 train + 100,000 dev records at the largest point:
+
+| Records per split | Total records | Peak RSS | Peak minus process baseline | Elapsed |
+|---:|---:|---:|---:|---:|
+| 1,000 | 2,000 | 25,032 KiB | 1,748 KiB | 0.147 s |
+| 10,000 | 20,000 | 27,156 KiB | 5,112 KiB | 1.288 s |
+| 100,000 | 200,000 | 27,172 KiB | 5,192 KiB | 13.095 s |
+
+- In this synthetic fixture, increasing from 10k to 100k records per split added only 16 KiB to absolute peak RSS; 100x more rows than the 1k point added about 2.1 MiB to absolute peak RSS. This is encouraging evidence for the SQLite-indexed streaming path.
+- Scope limitation: each row has only four small nodes, two-dimensional features, one epoch, and the benchmark is a single Ubuntu CI environment. It does not establish production memory bounds for large feature vectors, large per-row candidate pools, concurrent runs, or long training schedules. Continue measuring RSS and throughput on representative corpora.
