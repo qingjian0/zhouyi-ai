@@ -73,6 +73,8 @@ This branch now includes an executable, ephemeral TRLW projection in `prototype/
 
 The Yixiang adapter now also accepts a completed TRLW `MemoryPacket` through `compose_trlw_grounded_yixiang_hypotheses`. It uses only the bounded packet entries, requires the relation candidate and all role targets to be present, and carries packet status/source-completeness/budget-exhaustion into the result. A truncated packet may still produce hypotheses, but the result explicitly sets `search_exhaustive=False`; it never claims to have searched the complete durable history.
 
+The new `coordinate_trlw_grounded_yixiang_csg_gcr` entry point composes the bounded packet through explicit XSL role transformation, bounded SROK assignment search, and typed CSG-GCR coordination. It returns the packet completeness metadata beside the typed proposals. Every proposal remains `HYPOTHESIS_ONLY`; this function does not consume an E09 verification receipt and never advances E12-A6 lifecycle.
+
 This PR branch still does not itself contain the persistent ZPCM candidate store. The persistent candidate iterator is being developed separately in PR #273; once both branches are integrated, it can feed TRLW and then this packet adapter without materializing full history.
 
 ## Not implemented
