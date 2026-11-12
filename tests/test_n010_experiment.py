@@ -113,7 +113,7 @@ class N010ExperimentRunnerTests(unittest.TestCase):
         rows[0]["group_id"] = "shared-source"
         rows[3]["group_id"] = "shared-source"
         self.dataset.write_text(
-            "".join(json.dumps(row, sort_keys=True) + "\\n" for row in rows),
+            "".join(json.dumps(row, sort_keys=True) + "\n" for row in rows),
             encoding="utf-8",
         )
         with self.assertRaisesRegex(LearnableSROKError, "group_id leakage"):
