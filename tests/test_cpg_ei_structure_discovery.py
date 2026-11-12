@@ -4,7 +4,7 @@ import math
 import random
 import unittest
 
-from prototype.cpg_ei_mvp import CpgEiTransitionModel, Example, make_dataset
+from prototype.cpg_ei_mvp import CpgEiTransitionModel, Example, FEATURE_NAMES, make_dataset
 from prototype.cpg_ei_structure_discovery import grow_relation_graph
 
 
@@ -297,6 +297,38 @@ class TestCpgEiStructureDiscovery(unittest.TestCase):
             "measurements": measurements,
         }
         print("CPGEI_SECOND_TEACHER " + json.dumps(summary, sort_keys=True))
+
+
+
+    def test_parity_teacher_exact_support_oracle_confirms_representational_ceiling(self):
+        """The exact 12-edge polynomial must encode parity even if greedy growth misses it."""
+        triples = ((0, 1, 2), (1, 3, 4), (2, 4, 5))
+        support = parity_teacher_support()
+        indices = {FEATURE_NAMES.index(name) for name in support}
+        model = CpgEiTransitionModel.create(active_relation_indices=indices)
+        for index in indices:
+            model.gate_logits[index - 7] = 30.0
+        for head in range(6):
+            triple = triples[head // 2]
+            model.weights[head][0] = -0.5
+            for line in triple:
+                model.weights[head][1 + line] = 1.0
+            for pair in itertools.combinations(triple, 2):
+                model.weights[head][FEATURE_NAMES.index(
+                    "hyperedge_2_" + "_".join(map(str, pair))
+                )] = -2.0
+            model.weights[head][FEATURE_NAMES.index(
+                "hyperedge_3_" + "_".join(map(str, triple))
+            )] = 4.0
+        validation = make_parity_teacher_dataset(128, 9011)
+        metrics = evaluate(model, validation)
+        self.assertEqual(metrics["bit_accuracy"], 1.0)
+        self.assertEqual(metrics["exact_state_accuracy"], 1.0)
+        print("CPGEI_PARITY_ORACLE " + json.dumps({
+            "bit_accuracy": metrics["bit_accuracy"],
+            "exact_state_accuracy": metrics["exact_state_accuracy"],
+            "oracle_support_size": len(indices),
+        }, sort_keys=True))
 
 
 if __name__ == "__main__":
