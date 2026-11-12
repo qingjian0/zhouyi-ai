@@ -20,6 +20,23 @@ The known-support optimizer sweep indicates that the current SGD path is highly 
 
 The only configuration-ranking metric is mean post-update training BCE over the fixed seed/family set. Locked-set accuracy and full-domain accuracy are reported only as diagnostics and are not used to choose an optimizer, learning rate, or regularizer. The benchmark is not an independent confirmation study; any selected configuration must later be evaluated on new seeds and a separately locked split.
 
+## Gradient-objective consistency correction
+
+The exact-head audit found that the six output-head gradients were divided by the
+number of training examples, while the shared relation-gate gradient was divided
+by the number of examples times six heads. The benchmark objective is mean BCE
+over all six heads, so both gradient paths must use the same mean-over-heads
+normalization. The output-head gradient now uses `1 / (N * 6)`, with the
+existing L2 term applied afterward. A finite-difference regression test checks
+an output-head parameter against that exact objective, complementing the
+existing shared-gate finite-difference test.
+
+This changes the effective SGD step scale. Learning-rate conclusions from
+known-support and candidate-selection sweeps run before this correction must
+not be carried forward as directly comparable results. The exact-head
+SGD-versus-Adam workflow must be rerun on this corrected implementation before
+any optimizer recommendation is made.
+
 ## Implementation
 
 - optimizer='sgd' remains the default and preserves the existing update path.
