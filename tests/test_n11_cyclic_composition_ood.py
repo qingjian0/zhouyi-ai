@@ -44,6 +44,11 @@ class N11CyclicCompositionOODTests(unittest.TestCase):
         self.assertGreater(result["unary_pairwise_triple"]["accuracy"], 0.80)
         self.assertLess(result["unary_only"]["accuracy"], 0.70)
         self.assertLess(result["triple_model_after_triple_mask"]["accuracy"], 0.40)
+        self.assertEqual(result["validation_logit_sign"]["pairwise"], 1)
+        self.assertGreater(
+            result["pairwise_test_oracle_flipped_sign_diagnostic_only"]["accuracy"],
+            result["unary_pairwise"]["accuracy"],
+        )
         self.assertEqual(result["parameter_counts"]["full_model_total"], 35)
 
     def test_multiseed_summary_is_reproducible_in_shape(self):
