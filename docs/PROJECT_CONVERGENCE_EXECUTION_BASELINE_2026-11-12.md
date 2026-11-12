@@ -344,3 +344,44 @@ A failed earlier run on an older SHA is not evidence that the current exact head
 
 
 - PR #358 exact head `fd111d0ae89e335cc72470c468bd3d5169b1a839`, workflow #43231791503: architecture-baseline update is undergoing its exact-head full test workflow; final result must be refreshed after completion.
+
+
+### Exact-head refresh — CPG-EI selection protocol, bounded search, and E12-A6 replay state (2026-11-12 16:58Z)
+
+#### CPG-EI candidate selection isolation
+
+- PR #384 exact head `a87436d2068cce94257fcd99948d85848d9669ce`, full workflow #43263017253: success. The joint-motif routine now separates model fitting (train), candidate ranking (proposal-selection), and final locked evaluation (validation).
+- Exact call-boundary regression instruments both `train()` and BCE: every fit uses only train rows; all baseline/candidate ranking calls use only proposal rows; train and locked-test diagnostics occur only after selection, with locked test last.
+- The deterministic six-bit protocol partitions 64 possible inputs into 40 train / 12 proposal / 12 locked-test states. An alternate rule family is reported as a small diagnostic only; this is not statistically powered OOD evidence and does not prove general relation induction.
+- Decision: this split is now the required protocol for future candidate-search comparisons. Legacy calls without `proposal_examples` remain exploratory because training data is also used for candidate ranking.
+
+#### Exact-vs-beam search trade-off
+
+- PR #382 exact head `003046c4ff01da9e872c773ea0374824b7a9f2b1`; push workflow #43263370449 and PR workflow #43263353057: both success.
+- Five seeds × three candidate-pool sizes × ten beam widths = 150 comparisons. Reported Recall@5 0.7453, top-1 hit 0.7467, expanded-state ratio 0.8741, abstention 0.7000, complete-search rate 0.3000.
+- The complete-search subset had Recall@5 and top-1 hit both 1.0000. This is a subset-conditioned result; it must not be substituted for overall recall. The high abstention rate is intentional under the fail-closed rule: incomplete/pruned searches do not claim a global optimum.
+- Finite synthetic retrieval benchmark only; no natural-language grounding, learned-weight quality, distribution-shift robustness, or production latency claim.
+
+#### E12-A6 disk-backed semantic replay state
+
+- PR #385 introduces temporary SQLite-backed candidate/evidence/action-history/action-ID collections while preserving event-by-event semantic replay and validation. `.ledger` and `snapshot()` remain explicit full-materialization boundaries; `close()` and context-manager exit now remove the scratch database deterministically.
+- Benchmark run #43263891152 on runtime HEAD `d703bcfacea87fca76fa55f266258ae2167a0a59` succeeded. Against the prior in-memory restore baseline from PR #349:
+  - 1K events: 25.09 MB → 26.09 MB (about 1 MB fixed overhead).
+  - 10K events: 34.17 MB → 28.68 MB (about 16.1% lower).
+  - 50K events: 70.69 MB → 28.70 MB (about 59.4% lower).
+  - 50K peak RSS: approximately 70.58 MB → 28.62 MB.
+- These are observed Linux/Python 3.11.18 results, not a hard memory guarantee. The benchmark was subsequently extended to 100K and 500K events; exact latest-head run #43264128876 is pending. Full validation on latest PR #385 head `00ba6a48fad8967afc2af7367a992a9e78c82e05` is also pending at this refresh.
+- Architectural boundary: event log remains authoritative; no projection-only startup shortcut is approved. This change moves the accumulated semantic state to disk but does not yet eliminate full-history replay CPU cost. Startup latency, 100K/500K RSS, disk-full, abrupt process death, concurrent adapters, and stale scratch-file cleanup remain acceptance gates.
+
+#### Additional exact-head updates
+
+- PR #379 E09/ZPCM crash-replay exact head `423c53a6b90bb71bfe97fbe9d6f08114d4b71057`: both full CI workflows #43253292643 and #43253306110 succeeded, including fail-closed replay after projection uncertainty.
+- PR #381 execution snapshot head `1126a644e26458610ae8d867056551cfe5e819c0`: workflow #43253222365 succeeded.
+- PR #383 N0.10 search-strategy propagation head `1d361399f4f9c6ec6564621fd1398728fe2a157a`: focused and full validation succeeded. Dev and locked-test evaluation now receive the configured search strategy and beam width; checkpoint resume rejects incompatible settings.
+
+#### Current readiness decision
+
+- Component-level controlled training and synthetic research experiments remain permitted.
+- Unified end-to-end joint training is **not yet approved**. CPG-EI structure recovery and predictive generalization can diverge; E12-A6 startup cost and failure-mode acceptance remain open; N0.10's streaming evidence is specific to its measured row shape and execution profile.
+- The next gates are: finish the 100K/500K E12-A6 RSS sweep; complete latest-head semantic CI; measure startup latency and write/query overhead; stress temp-state cleanup and disk-full/crash recovery; and run multi-seed CPG-EI candidate-selection studies with structure metrics, locked predictive metrics, and OOD results reported separately.
+- `main` remains unchanged. All active work stays in Draft research stacks until exact-head evidence and dependency-chain review are complete.
