@@ -8,7 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 import json
 from threading import RLock
-from typing import Any
+from typing import Any, Iterator
 
 from prototype.evidence_ref_resolver import SQLiteEvidenceRefResolver
 from prototype.observation_contract import (
@@ -98,16 +98,22 @@ class PersistentM2ObservationStore:
         self._resolver = resolver
         self.scope = scope
         self._lock = RLock()
-        self._observations: dict[str, Observation] = {}
-        self._receipts: dict[str, ObservationReceipt] = {}
-        self._record_digests: dict[str, str] = {}
-        self._last_sequence = 0
-        self._restore()
+        # Do not restore the full observation history into process memory.
+        # The durable event stream is authoritative; callers page it on demand.
+        self._last_sequence = self._memory.latest_domain_sequence(
+            event_type=EVENT_TYPE, scope=self.scope,
+        )
 
     @property
     def observations(self) -> dict[str, Observation]:
-        with self._lock:
-            return dict(self._observations)
+        """Compatibility snapshot; explicit access materializes the full stream.
+
+        Runtime paths should use iter_observations() to keep memory bounded.
+        """
+        return {
+            observation.envelope.record_id: observation
+            for observation in self.iter_observations()
+        }
 
     def _verify_evidence(self, observation: Observation) -> None:
         if observation.envelope.scope != self.scope:
@@ -140,20 +146,27 @@ class PersistentM2ObservationStore:
             "body_digest": body_digest,
         }, body_digest
 
-    def _restore(self) -> None:
+    def iter_observations(
+        self, *, after_sequence: int = 0, page_size: int = 128,
+    ) -> Iterator[Observation]:
+        """Yield verified observations from ZPCM without restoring full history."""
         try:
-            events = self._memory.replay_domain_events(event_type=EVENT_TYPE, scope=self.scope)
-            previous = 0
-            staged: dict[str, Observation] = {}
-            receipts: dict[str, ObservationReceipt] = {}
-            record_digests: dict[str, str] = {}
-            for event in events:
+            previous = after_sequence
+            for event in self._memory.iter_domain_events(
+                event_type=EVENT_TYPE,
+                scope=self.scope,
+                after_sequence=after_sequence,
+                page_size=page_size,
+            ):
                 sequence = event["sequence"]
                 if isinstance(sequence, bool) or not isinstance(sequence, int) or sequence <= previous:
-                    raise ObservationStoreError("M2 observation event sequence is not strictly increasing")
+                    raise ObservationStoreError(
+                        "M2 observation event sequence is not strictly increasing"
+                    )
                 previous = sequence
                 payload = event["payload"]
-                if payload.get("schema_version") != EVENT_SCHEMA or payload.get("kind") != "observation_recorded":
+                if (payload.get("schema_version") != EVENT_SCHEMA
+                        or payload.get("kind") != "observation_recorded"):
                     raise ObservationStoreError("unsupported M2 observation event schema/kind")
                 body = payload.get("body")
                 if not isinstance(body, dict):
@@ -163,23 +176,10 @@ class PersistentM2ObservationStore:
                 digest_value = record_digest(observation)
                 if digest_value != payload.get("body_digest"):
                     raise ObservationStoreError("observation record digest mismatch")
-                record_id = observation.envelope.record_id
-                expected_event_id = f"m2:observation:{record_id}"
-                if event["event_id"] != expected_event_id or record_id in staged:
-                    raise ObservationStoreError("observation event identity is inconsistent or duplicated")
-                staged[record_id] = observation
-                record_digests[record_id] = digest_value
-                receipts[record_id] = ObservationReceipt(
-                    event_id=event["event_id"],
-                    sequence=sequence,
-                    payload_digest=event["payload_digest"],
-                    record_digest=digest_value,
-                    replayed=True,
-                )
-            self._observations = staged
-            self._receipts = receipts
-            self._record_digests = record_digests
-            self._last_sequence = previous
+                expected_event_id = f"m2:observation:{observation.envelope.record_id}"
+                if event["event_id"] != expected_event_id:
+                    raise ObservationStoreError("observation event identity is inconsistent")
+                yield observation
         except (ZPCMError, ContractError, ObservationStoreError):
             raise
         except Exception as exc:
@@ -192,15 +192,6 @@ class PersistentM2ObservationStore:
             self._verify_evidence(observation)
             record_id = observation.envelope.record_id
             digest_value = record_digest(observation)
-            old = self._observations.get(record_id)
-            if old is not None:
-                if self._record_digests[record_id] != digest_value:
-                    raise ObservationStoreError("observation record_id is immutable; create a new revision ID")
-                prior = self._receipts[record_id]
-                return ObservationReceipt(
-                    prior.event_id, prior.sequence, prior.payload_digest, prior.record_digest, True
-                )
-
             event_id = f"m2:observation:{record_id}"
             payload, body_digest = self._event_payload(observation)
             if body_digest != digest_value:
@@ -213,8 +204,12 @@ class PersistentM2ObservationStore:
                     payload=payload,
                     expected_sequence=self._last_sequence,
                 )
-            except ZPCMError:
-                raise
+            except ZPCMError as exc:
+                if "event ID content conflict" in str(exc):
+                    raise ObservationStoreError(
+                        "observation record_id is immutable; create a new revision ID"
+                    ) from exc
+                raise ObservationStoreError(f"ZPCM append failed: {exc}") from exc
             receipt = ObservationReceipt(
                 event_id=event_id,
                 sequence=raw["sequence"],
@@ -222,12 +217,5 @@ class PersistentM2ObservationStore:
                 record_digest=digest_value,
                 replayed=raw["replayed"],
             )
-            if receipt.replayed:
-                raise ObservationStoreError(
-                    "event exists in ZPCM outside this adapter's restored state; reconstruct before retry"
-                )
-            self._observations[record_id] = observation
-            self._receipts[record_id] = receipt
-            self._record_digests[record_id] = digest_value
-            self._last_sequence = receipt.sequence
+            self._last_sequence = max(self._last_sequence, receipt.sequence)
             return receipt
