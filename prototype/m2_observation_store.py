@@ -115,10 +115,19 @@ class PersistentM2ObservationStore:
         refs = observation.envelope.source_refs
         for reference in refs:
             self._resolver.resolve(reference)
-        if len(refs) == 1 and observation.source_locator.payload_version != refs[0].source_version:
-            raise ObservationStoreError(
-                "single-source locator payload_version must match its EvidenceRef source_version"
-            )
+        if len(refs) == 1:
+            reference = refs[0]
+            if observation.source_locator.payload_version != reference.source_version:
+                raise ObservationStoreError(
+                    "single-source locator payload_version must match its EvidenceRef source_version"
+                )
+            if observation.modality is Modality.TEXT and (
+                observation.source_locator.byte_start != reference.byte_start
+                or observation.source_locator.byte_end != reference.byte_end
+            ):
+                raise ObservationStoreError(
+                    "TEXT source locator byte span must match its single EvidenceRef"
+                )
 
     @staticmethod
     def _event_payload(observation: Observation) -> tuple[dict[str, Any], str]:
