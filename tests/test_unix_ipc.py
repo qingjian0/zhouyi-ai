@@ -138,6 +138,21 @@ class UnixJSONRPCTransportTests(unittest.TestCase):
                 socket_mode=0o666,
             )
 
+    def test_server_refuses_group_or_world_writable_socket_directory(self):
+        private_dir = Path(self.tmp.name) / "unsafe"
+        private_dir.mkdir(mode=0o700)
+        os.chmod(private_dir, 0o770)
+        server = UnixJSONRPCServer(
+            private_dir / "service.sock",
+            peer_resolver=self.resolver,
+            handlers={"test.echo": self._echo},
+        )
+        try:
+            with self.assertRaises(IPCTransportError):
+                server.start()
+        finally:
+            os.chmod(private_dir, 0o700)
+
     def test_unmapped_kernel_peer_is_denied(self):
         denied_path = Path(self.tmp.name) / "denied.sock"
         denied = UnixJSONRPCServer(
