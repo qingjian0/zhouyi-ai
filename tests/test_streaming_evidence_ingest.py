@@ -91,8 +91,12 @@ class SQLiteEvidenceIngestorTests(unittest.TestCase):
                 "doc-invalid", "bad.bin", io.BytesIO(b"ok\xffbad"), chunk_bytes=8
             )
 
-        self.assertEqual(self.ingestor.document_state("doc-invalid"), (0, 0, False))
-        self.assertEqual(self.ingestor.get_chunks("doc-invalid"), [])
+        # The valid prefix is durably committed; the malformed byte is
+        # rejected and the cursor remains exactly at its start.
+        self.assertEqual(self.ingestor.document_state("doc-invalid"), (2, 1, False))
+        chunks = self.ingestor.get_chunks("doc-invalid")
+        self.assertEqual([chunk.text for chunk in chunks], ["ok"])
+        self.assertEqual(chunks[0].byte_end, 2)
 
     def test_non_seekable_stream_is_rejected(self):
         class NonSeekable(io.BytesIO):
