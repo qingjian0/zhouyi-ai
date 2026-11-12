@@ -85,19 +85,19 @@ def resolve_e09_reveal(
     evidence_ref: str,
     scope: str,
     learner_track: str,
-    world_family: str,
+    world_family: str | None = None,
     measurement_cost: float = 0.0,
 ) -> Evidence:
     """Verify an E09 reveal→commit→observation chain and return a redacted DTO.
 
     SUPPORT maps to E12-A6 TRAIN because this E09 split is the learner-visible
     support/training partition. Gate and locked-test roles remain isolated.
-    world_family is mandatory caller-supplied context; it is never inferred
-    from the E09 scope string.
+    The domain binding is read from the authenticated Observation event.
+    The optional world_family argument is compatibility-only: when supplied,
+    it is checked as an assertion and is never used as the source of truth.
     """
     for name, value in (("episode_id", episode_id), ("evidence_ref", evidence_ref),
-                        ("scope", scope), ("learner_track", learner_track),
-                        ("world_family", world_family)):
+                        ("scope", scope), ("learner_track", learner_track)):
         if not isinstance(value, str) or not value.strip():
             raise E09EvidenceBindingError(f"{name} must be a non-empty string")
     if isinstance(measurement_cost, bool) or not isinstance(measurement_cost, (int, float)):
@@ -174,6 +174,31 @@ def resolve_e09_reveal(
         raise E09EvidenceBindingError("observation is not strict E09 v0.3")
     if observation.get("sequence_no", 0) >= commit.get("sequence_no", 0):
         raise E09EvidenceBindingError("observation must precede prediction commit")
+    if observation.get("actor_role") != "observer":
+        raise E09EvidenceBindingError("domain provenance requires an authenticated observer event")
+    identity = observation.get("integrity_metadata", {}).get("authenticated_workload")
+    if not isinstance(identity, dict) or any(
+        not isinstance(identity.get(field), str) or not identity[field].strip()
+        for field in ("workload_id", "issuer_id", "identity_provider",
+                      "authentication_method", "credential_fingerprint")
+    ):
+        raise E09EvidenceBindingError("observation lacks authenticated workload provenance")
+    domain_fields = (
+        "domain_provenance_schema", "domain_registry_id",
+        "domain_registry_version", "world_family",
+    )
+    if (op.get("domain_provenance_schema") != "e09-domain-provenance@1"
+            or any(not isinstance(op.get(field), str) or not op[field].strip()
+                   for field in domain_fields[1:])):
+        raise E09EvidenceBindingError("observation lacks trusted versioned domain provenance")
+    for event_name, event_payload in (("commit", cp), ("reveal", rp)):
+        for field in domain_fields:
+            if event_payload.get(field) != op.get(field):
+                raise E09EvidenceBindingError(
+                    f"E09 observation/{event_name} {field} mismatch"
+                )
+    if world_family is not None and world_family != op["world_family"]:
+        raise E09EvidenceBindingError("caller world_family assertion conflicts with trusted observation")
     for field in ("query_id", "scope", "split"):
         if op.get(field) != cp.get(field) or rp.get(field) != cp.get(field):
             raise E09EvidenceBindingError(f"E09 observation/commit/reveal {field} mismatch")
@@ -186,7 +211,7 @@ def resolve_e09_reveal(
     return Evidence(
         evidence_id=evidence_ref,
         episode_id=episode_id,
-        world_family=world_family,
+        world_family=op["world_family"],
         split_role=_SPLIT_ROLE[split],
         observation_id=observation_id,
         outcome=f"opaque-e09-evidence-ref:{evidence_ref}",
@@ -194,7 +219,8 @@ def resolve_e09_reveal(
         measurement_cost=float(measurement_cost),
         prediction_commit_step=commit["sequence_no"],
         label_visibility_step=reveal["sequence_no"],
-        provenance=f"opaque-e09-event-digest:{reveal_digest}",
+        provenance=(f"opaque-e09-event-digest:{reveal_digest}:"
+                    f"domain-registry:{op['domain_registry_id']}@{op['domain_registry_version']}"),
     )
 
 
@@ -219,8 +245,8 @@ def resolve_branch_merge_authorization(
     branch_ids: tuple[str, ...],
     scope: str,
     learner_track: str,
-    world_family_by_evidence: dict[str, str],
-    signature_verifier: Callable[[str, str, bytes, str], bool],
+    world_family_by_evidence: dict[str, str] | None = None,
+    signature_verifier: Callable[[str, str, bytes, str], bool] = None,
     verifier_id: str,
     now: datetime | None = None,
 ) -> VerifiedBranchMergeAuthorization:
@@ -241,8 +267,8 @@ def resolve_branch_merge_authorization(
         raise E09EvidenceBindingError("branch_ids must contain non-empty strings")
     if len(set(branch_ids)) != len(branch_ids):
         raise E09EvidenceBindingError("branch_ids must be unique")
-    if not isinstance(world_family_by_evidence, dict):
-        raise E09EvidenceBindingError("world_family_by_evidence must be a mapping")
+    if world_family_by_evidence is not None and not isinstance(world_family_by_evidence, dict):
+        raise E09EvidenceBindingError("world_family_by_evidence must be a mapping when supplied")
     if not callable(signature_verifier):
         raise E09EvidenceBindingError("signature_verifier must be callable")
 
@@ -276,10 +302,12 @@ def resolve_branch_merge_authorization(
         raise E09EvidenceBindingError("authorization evidence_refs must be non-empty and unique")
     if event.get("causation_refs") != evidence_refs:
         raise E09EvidenceBindingError("authorization causation refs must exactly match its evidence refs")
-    if set(world_family_by_evidence) != set(evidence_refs):
-        raise E09EvidenceBindingError("every authorization evidence ref requires explicit world-family context")
-    if any(not isinstance(value, str) or not value.strip() for value in world_family_by_evidence.values()):
-        raise E09EvidenceBindingError("world-family context values must be non-empty strings")
+    if world_family_by_evidence is not None and (
+        set(world_family_by_evidence) != set(evidence_refs)
+        or any(not isinstance(value, str) or not value.strip()
+               for value in world_family_by_evidence.values())
+    ):
+        raise E09EvidenceBindingError("legacy world-family assertions must exactly cover authorization evidence refs")
 
     try:
         issued = datetime.fromisoformat(payload["issued_at"].replace("Z", "+00:00"))
@@ -300,7 +328,8 @@ def resolve_branch_merge_authorization(
             raise E09EvidenceBindingError("authorization evidence must be prior E09 events")
         resolve_e09_reveal(
             store, episode_id=episode_id, evidence_ref=ref, scope=scope,
-            learner_track=learner_track, world_family=world_family_by_evidence[ref],
+            learner_track=learner_track,
+            world_family=(world_family_by_evidence[ref] if world_family_by_evidence is not None else None),
         )
 
     if event.get("payload_schema") != AUTHORIZATION_PAYLOAD_SCHEMA:
