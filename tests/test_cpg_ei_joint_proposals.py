@@ -1,9 +1,13 @@
 import itertools
 import json
 import math
+import random
 import unittest
+from itertools import product
+from unittest.mock import patch
 
 from prototype.cpg_ei_mvp import CpgEiTransitionModel, Example
+import prototype.cpg_ei_joint_proposals as joint_proposals
 from prototype.cpg_ei_joint_proposals import grow_relation_graph_joint_motifs
 from prototype.cpg_ei_structure_discovery import grow_relation_graph
 
@@ -43,7 +47,93 @@ def support_metrics(result, expected):
     }
 
 
+def partition_parity_splits(seed, triples):
+    states = list(product((0, 1), repeat=6))
+    random.Random(seed).shuffle(states)
+
+    def rows(part):
+        return [
+            Example(
+                state,
+                tuple(
+                    sum(state[index] for index in triples[head // 2]) % 2
+                    for head in range(6)
+                ),
+            )
+            for state in part
+        ]
+
+    return rows(states[:40]), rows(states[40:52]), rows(states[52:64])
+
+
 class TestCpgEiJointMotifProposals(unittest.TestCase):
+    def test_proposal_selection_is_disjoint_from_train_and_locked_test(self):
+        train_triples = ((0, 1, 2), (1, 3, 4), (2, 4, 5))
+        ood_triples = ((0, 2, 4), (1, 2, 5), (0, 3, 5))
+        train, proposal, locked_test = partition_parity_splits(77, train_triples)
+        _, _, ood_test = partition_parity_splits(77, ood_triples)
+
+        train_states = {row.state for row in train}
+        proposal_states = {row.state for row in proposal}
+        locked_states = {row.state for row in locked_test}
+        self.assertFalse(train_states & proposal_states)
+        self.assertFalse(train_states & locked_states)
+        self.assertFalse(proposal_states & locked_states)
+
+        model = CpgEiTransitionModel.create(active_relation_indices=set())
+        seen_datasets = []
+        fitted_datasets = []
+        original_bce = joint_proposals._binary_cross_entropy
+        original_train = CpgEiTransitionModel.train
+
+        def tracked_bce(candidate, examples):
+            seen_datasets.append(examples)
+            return original_bce(candidate, examples)
+
+        def tracked_train(candidate, examples, *args, **kwargs):
+            fitted_datasets.append(examples)
+            return original_train(candidate, examples, *args, **kwargs)
+
+        with (
+            patch.object(joint_proposals, "_binary_cross_entropy", tracked_bce),
+            patch.object(CpgEiTransitionModel, "train", tracked_train),
+        ):
+            result = grow_relation_graph_joint_motifs(
+                model,
+                train,
+                locked_test,
+                proposal_examples=proposal,
+                max_motifs=1,
+                epochs_per_candidate=3,
+                gate_l1=0.001,
+                edge_group_l1=0.001,
+            )
+
+        # Baseline and every candidate are ranked only on proposal data.
+        # Training must use only train data. Train/test BCE calls occur after
+        # selection, in that order, and the locked test is the final read.
+        ranking_calls = result["candidate_fits_total"] + 1
+        self.assertEqual(len(seen_datasets), ranking_calls + 2)
+        self.assertTrue(all(rows is proposal for rows in seen_datasets[:ranking_calls]))
+        self.assertIs(seen_datasets[-2], train)
+        self.assertIs(seen_datasets[-1], locked_test)
+        self.assertGreater(len(fitted_datasets), 1)
+        self.assertTrue(all(rows is train for rows in fitted_datasets))
+        self.assertEqual(result["proposal_selection_examples"], len(proposal))
+        self.assertTrue(math.isfinite(result["training_binary_cross_entropy"]))
+        self.assertTrue(math.isfinite(result["validation_binary_cross_entropy"]))
+
+        ood_metrics = joint_proposals.evaluate(model, ood_test)
+        self.assertTrue(math.isfinite(ood_metrics["bit_accuracy"]))
+        self.assertGreaterEqual(ood_metrics["bit_accuracy"], 0.0)
+        self.assertLessEqual(ood_metrics["bit_accuracy"], 1.0)
+        print("CPGEI_SPLIT_PROTOCOL " + json.dumps({
+            "train_examples": len(train),
+            "proposal_selection_examples": len(proposal),
+            "locked_test_examples": len(locked_test),
+            "ood_rule_family_bit_accuracy": ood_metrics["bit_accuracy"],
+            "selected_motifs": result["selected_motifs"],
+        }, sort_keys=True))
     def test_bounded_joint_search_recovers_synergistic_parity_motifs(self):
         expected = exact_parity_support()
         measurements = []
