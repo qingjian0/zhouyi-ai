@@ -12,7 +12,7 @@ import threading
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Iterable
+from typing import Any, Iterable, Protocol
 
 PROTOCOL_VERSION = "0.2"
 STRICT_PROTOCOL_VERSION = "0.3"
@@ -35,6 +35,13 @@ class SequenceConflict(ProtocolError):
 
 class MissingReference(ProtocolError):
     """An event references an unknown or not-yet-available event/version."""
+
+
+class EvidenceEpisodeReader(Protocol):
+    """Read-only interface consumed by E09 verification and evidence resolution."""
+
+    def replay_episode(self, episode_id: str, from_sequence: int = 1) -> list[dict[str, Any]]:
+        ...
 
 
 def canonical_json(value: Any) -> str:
@@ -445,3 +452,57 @@ class SQLiteEvidenceStore:
             "episode_id": episode_id, "sequence_no": row["sequence_no"], "event_id": row["event_id"],
             "payload": json.loads(row["payload_json"]), "payload_digest": row["payload_digest"],
         }
+
+
+class SQLiteEvidenceReader:
+    """Read-only SQLite view for the isolated E09 Verifier process.
+
+    This class intentionally exposes replay only. It does not initialize schema,
+    create payloads, append events or expose a write-capable connection.
+    For production WAL deployments, prefer an atomically produced consistent
+    snapshot owned by the verifier account.
+    """
+
+    def __init__(self, path: str | Path):
+        resolved = Path(path).resolve(strict=True)
+        if not resolved.is_file():
+            raise ValueError("evidence reader path must be an existing database file")
+        self.path = str(resolved)
+        self._lock = threading.RLock()
+        self._db = sqlite3.connect(
+            resolved.as_uri() + "?mode=ro",
+            uri=True,
+            isolation_level=None,
+            check_same_thread=False,
+        )
+        self._db.row_factory = sqlite3.Row
+        self._db.execute("PRAGMA query_only=ON")
+        self._db.execute("PRAGMA trusted_schema=OFF")
+
+    def replay_episode(self, episode_id: str, from_sequence: int = 1) -> list[dict[str, Any]]:
+        if not isinstance(episode_id, str) or not episode_id.strip():
+            raise ValueError("episode_id must be a non-empty string")
+        if isinstance(from_sequence, bool) or not isinstance(from_sequence, int) or from_sequence < 1:
+            raise ValueError("from_sequence must be a positive integer")
+        with self._lock:
+            rows = self._db.execute(
+                "SELECT episode_id, sequence_no, event_id, event_type, protocol_version, payload_json, "
+                "payload_digest, actor_role, causation_refs_json, payload_schema, integrity_metadata_json, created_at "
+                "FROM events WHERE episode_id=? AND sequence_no>=? ORDER BY sequence_no",
+                (episode_id, from_sequence),
+            ).fetchall()
+        result = []
+        for row in rows:
+            item = dict(row)
+            payload = json.loads(item.pop("payload_json"))
+            if item["protocol_version"] == "0.1" and item["event_type"] in {"prediction_commit", "evidence_reveal"}:
+                payload.setdefault("learner_track", LEGACY_LEARNER_TRACK)
+            item["payload"] = payload
+            item["causation_refs"] = json.loads(item.pop("causation_refs_json"))
+            item["integrity_metadata"] = json.loads(item.pop("integrity_metadata_json"))
+            result.append(item)
+        return result
+
+    def close(self) -> None:
+        with self._lock:
+            self._db.close()
