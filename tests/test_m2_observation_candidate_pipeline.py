@@ -136,7 +136,8 @@ class ObservationCandidatePipelineTests(unittest.TestCase):
             payload_digest="b" * 64,
             record_digest=record_digest(self.observation),
         )
-        with self.assertRaisesRegex(SemanticExtractionError, "does not identify"):
+        self.observation_store.verify_observation_receipt.side_effect = ValueError("receipt does not identify")
+        with self.assertRaisesRegex(SemanticExtractionError, "not verified by the durable store"):
             self.run_pipeline(receipt=wrong)
         self.store.record_candidate.assert_not_called()
 
@@ -147,7 +148,8 @@ class ObservationCandidatePipelineTests(unittest.TestCase):
             payload_digest="b" * 64,
             record_digest="c" * 64,
         )
-        with self.assertRaisesRegex(SemanticExtractionError, "digest"):
+        self.observation_store.verify_observation_receipt.side_effect = ValueError("receipt digest mismatch")
+        with self.assertRaisesRegex(SemanticExtractionError, "not verified by the durable store"):
             self.run_pipeline(receipt=wrong)
         self.store.record_candidate.assert_not_called()
 
