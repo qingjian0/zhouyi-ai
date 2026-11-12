@@ -357,6 +357,65 @@ class E09AuthorityServiceTests(unittest.TestCase):
         self.assertEqual(revision["integrity_metadata"]["authenticated_workload"]["workload_id"],
                          "spiffe://zhouyi/learner")
 
+    def test_gate_reveal_cannot_be_used_as_structure_support(self):
+        bootstrap_ref = f"{self.episode}:structure:gate-bootstrap"
+        self.authority.append_structure_version(
+            "learner-cert", episode_id=self.episode, event_id=bootstrap_ref,
+            idempotency_key=bootstrap_ref, scope=self.scope, learner_track=self.track,
+            payload={
+                "structure_id": "gate-rules", "version_id": "gate-v1",
+                "kind": "rule_set", "definition": {},
+                "parent_version_ids": [], "support_evidence_ids": [],
+            },
+        )
+        observation_id = "gate-only-observation"
+        observation_event = f"{self.episode}:observation:{observation_id}"
+        self.authority.append_observation(
+            "observer-cert", episode_id=self.episode, event_id=observation_event,
+            idempotency_key=observation_event, observation_id=observation_id,
+            query_id=observation_id, scope=self.scope, split="GATE_DEV",
+            learner_track=self.track,
+        )
+        prediction_id = "gate-only-prediction"
+        commit_event = f"{self.episode}:prediction:{prediction_id}"
+        commit_digest = hashlib.sha256(prediction_id.encode()).hexdigest()
+        commit = self.authority.append_prediction_commit(
+            "learner-cert", episode_id=self.episode, event_id=commit_event,
+            idempotency_key=commit_event, causation_refs=[observation_event],
+            payload={
+                "prediction_id": prediction_id, "observation_id": observation_id,
+                "query_id": observation_id, "scope": self.scope, "split": "GATE_DEV",
+                "model_version": "model-1", "learner_track": self.track,
+                "decision_status": "PREDICT", "interop_commit_digest": commit_digest,
+            },
+        )
+        reveal_ref = f"{self.episode}:reveal:{prediction_id}"
+        self.authority.append_evidence_reveal(
+            "evaluator-cert", episode_id=self.episode, event_id=reveal_ref,
+            idempotency_key=reveal_ref,
+            payload={
+                "prediction_id": prediction_id, "query_id": observation_id,
+                "scope": self.scope, "split": "GATE_DEV",
+                "commit_digest": commit_digest, "event_digest": commit.payload_digest,
+                "learner_track": self.track, "target_or_feedback": "gate-secret",
+            },
+            causation_refs=[commit_event],
+        )
+        with self.assertRaises(E09AuthorizationError):
+            self.authority.append_structure_version(
+                "learner-cert", episode_id=self.episode,
+                event_id=f"{self.episode}:structure:gate-v2",
+                idempotency_key=f"{self.episode}:structure:gate-v2",
+                scope=self.scope, learner_track=self.track,
+                causation_refs=[reveal_ref],
+                payload={
+                    "structure_id": "gate-rules", "version_id": "gate-v2",
+                    "kind": "rule_set", "definition": {},
+                    "parent_version_ids": ["gate-v1"],
+                    "support_evidence_ids": [reveal_ref],
+                },
+            )
+
     def test_structure_write_rejects_wrong_role_scope_and_unbound_support(self):
         bootstrap_ref = f"{self.episode}:structure:v1"
         with self.assertRaises(E09AuthorizationError):
