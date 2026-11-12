@@ -33,20 +33,26 @@ class _FakeVerifier:
 class VerifierReceiptLedgerTests(unittest.TestCase):
     def test_same_operation_and_request_returns_original_receipt(self):
         with tempfile.TemporaryDirectory() as directory:
-            ledger = SQLiteVerifierReceiptLedger(Path(directory) / "receipts.sqlite")
+            path = Path(directory) / "receipts.sqlite"
+            ledger = SQLiteVerifierReceiptLedger(path)
             calls = []
 
             def issue():
                 calls.append(True)
                 return {"receipt_id": "receipt-1", "nonce": "nonce-1"}
 
+            first = ledger.issue_once("operation-1", {"scope": "scope/a"}, issue)
+            ledger.close()
+            restarted = SQLiteVerifierReceiptLedger(path)
             try:
-                first = ledger.issue_once("operation-1", {"scope": "scope/a"}, issue)
-                second = ledger.issue_once("operation-1", {"scope": "scope/a"}, issue)
+                second = restarted.issue_once(
+                    "operation-1", {"scope": "scope/a"},
+                    lambda: self.fail("durable retry must not issue a second receipt"),
+                )
                 self.assertEqual(first, second)
                 self.assertEqual(len(calls), 1)
             finally:
-                ledger.close()
+                restarted.close()
 
     def test_same_operation_with_different_request_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -140,6 +146,33 @@ class E09VerifierUnixRPCTests(unittest.TestCase):
                 "receipt.issue", changed, operation_id="issue-receipt-2"
             )
         self.assertEqual(caught.exception.code, "idempotency_conflict")
+
+    def test_non_writer_peer_cannot_request_receipt(self):
+        learner_path = self.root / "learner.sock"
+        resolver = StaticUnixPeerResolver({
+            (os.getuid(), os.getgid()): (
+                "spiffe://zhouyi/learner", {"learner"}, {self.scope},
+            ),
+        })
+        denied_server = E09VerifierUnixRPC(
+            self.verifier,
+            peer_resolver=resolver,
+            socket_path=str(learner_path),
+            receipt_ledger=self.ledger,
+            allowed_writer_workload_ids={self.writer_id},
+        )
+        denied_server.start()
+        try:
+            deadline = time.monotonic() + 2
+            while not learner_path.exists() and time.monotonic() < deadline:
+                time.sleep(0.01)
+            client = UnixJSONRPCClient(learner_path)
+            with self.assertRaises(IPCRemoteError) as caught:
+                client.request("receipt.issue", self._request(), operation_id="learner-denied")
+            self.assertEqual(caught.exception.code, "permission_denied")
+            self.assertEqual(self.verifier.calls, [])
+        finally:
+            denied_server.close()
 
     def test_receipt_request_rejects_caller_selected_audience_or_issuer(self):
         body = self._request()
