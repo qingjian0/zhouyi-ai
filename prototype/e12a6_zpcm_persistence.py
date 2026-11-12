@@ -271,7 +271,8 @@ class PersistentLifecycleLedger:
         if not isinstance(memory,ZPCMMemory): raise TypeError("memory must be ZPCMMemory")
         if not isinstance(scope,str) or not scope.strip(): raise ValueError("scope required")
         self._memory=memory; self.scope=scope; self._lock=RLock()
-        self._ledger, self._runtime_state = _new_sqlite_lifecycle_ledger()
+        self._ledger = None
+        self._runtime_state = None
         self._last_sequence=0
         self._restore()
 
@@ -361,6 +362,7 @@ class PersistentLifecycleLedger:
         return payload["body"]
 
     def _restore(self) -> None:
+        staged_state = None
         try:
             events=self._memory.iter_lifecycle_events(scope=self.scope)
             staged, staged_state = _new_sqlite_lifecycle_ledger(); previous=0
@@ -439,8 +441,14 @@ class PersistentLifecycleLedger:
                         raise LifecyclePersistenceError("authorization consumption event ID mismatch")
                 else: raise LifecyclePersistenceError(f"unknown lifecycle event kind: {kind!r}")
             self._ledger=staged; self._runtime_state=staged_state; self._last_sequence=previous
-        except LifecyclePersistenceError: raise
-        except Exception as exc: raise LifecyclePersistenceError(f"lifecycle replay failed: {exc}") from exc
+        except LifecyclePersistenceError:
+            if staged_state is not None:
+                staged_state.close()
+            raise
+        except Exception as exc:
+            if staged_state is not None:
+                staged_state.close()
+            raise LifecyclePersistenceError(f"lifecycle replay failed: {exc}") from exc
 
     def _commit(self,event_id: str,payload: dict[str,Any],apply_state: Callable[[], None]) -> LifecycleEventReceipt:
         raw=self._memory.append_lifecycle_event(event_id=event_id,scope=self.scope,
