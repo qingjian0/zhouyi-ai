@@ -447,7 +447,38 @@ class LearnableSROK:
         if isinstance(max_assignments_per_example, bool) or not isinstance(max_assignments_per_example, int) or max_assignments_per_example < 1:
             raise LearnableSROKError("max_assignments_per_example must be a positive integer")
 
-        example_count = sum(1 for _ in examples_factory())
+        def stream_signature():
+            hasher = hashlib.sha256()
+            count = 0
+            for example in examples_factory():
+                if not isinstance(example, TrainingExample):
+                    raise LearnableSROKError("each streamed row must be a TrainingExample")
+                try:
+                    payload = {
+                        "target_ids": list(example.target_ids),
+                        "role_candidates": [[
+                            {
+                                "node_id": node.node_id,
+                                "node_type": node.node_type,
+                                "features": list(node.features),
+                                "tags": sorted(node.tags),
+                                "evidence_ids": list(node.evidence_ids),
+                            }
+                            for node in pool
+                        ] for pool in example.role_candidates],
+                    }
+                    encoded = json.dumps(
+                        payload, sort_keys=True, separators=(",", ":"),
+                        ensure_ascii=False, allow_nan=False,
+                    ).encode("utf-8")
+                except (AttributeError, TypeError, ValueError) as exc:
+                    raise LearnableSROKError("stream contains a malformed training example") from exc
+                hasher.update(len(encoded).to_bytes(8, "big"))
+                hasher.update(encoded)
+                count += 1
+            return count, hasher.hexdigest()
+
+        example_count, expected_signature = stream_signature()
         if example_count == 0:
             raise LearnableSROKError("training examples must not be empty")
 
@@ -457,7 +488,32 @@ class LearnableSROK:
             total_loss = 0.0
             gradient = [0.0] * width
             observed = 0
+            pass_hasher = hashlib.sha256()
             for example in examples_factory():
+                if not isinstance(example, TrainingExample):
+                    raise LearnableSROKError("each streamed row must be a TrainingExample")
+                try:
+                    payload = {
+                        "target_ids": list(example.target_ids),
+                        "role_candidates": [[
+                            {
+                                "node_id": node.node_id,
+                                "node_type": node.node_type,
+                                "features": list(node.features),
+                                "tags": sorted(node.tags),
+                                "evidence_ids": list(node.evidence_ids),
+                            }
+                            for node in pool
+                        ] for pool in example.role_candidates],
+                    }
+                    encoded = json.dumps(
+                        payload, sort_keys=True, separators=(",", ":"),
+                        ensure_ascii=False, allow_nan=False,
+                    ).encode("utf-8")
+                except (AttributeError, TypeError, ValueError) as exc:
+                    raise LearnableSROKError("stream contains a malformed training example") from exc
+                pass_hasher.update(len(encoded).to_bytes(8, "big"))
+                pass_hasher.update(encoded)
                 observed += 1
                 if len(example.role_candidates) != len(self.roles):
                     raise LearnableSROKError("training role pool count mismatch")
@@ -503,8 +559,8 @@ class LearnableSROK:
                     for column, value in enumerate(row):
                         gradient[column] += error * value
 
-            if observed != example_count:
-                raise LearnableSROKError("reiterable training stream changed record count")
+            if observed != example_count or pass_hasher.hexdigest() != expected_signature:
+                raise LearnableSROKError("reiterable training stream changed content, order, or record count")
             scale = 1.0 / example_count
             for column in range(width):
                 gradient[column] = gradient[column] * scale + l2 * self.weights[column]
