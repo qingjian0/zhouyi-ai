@@ -50,3 +50,9 @@ This is a learnable soft-selection layer over a fixed candidate set. It is
 **not** yet dynamic hypergraph structure discovery: the model cannot create a
 new candidate edge, change its arity, or rewrite its topology. Gate magnitudes
 are not probabilities that a relation is true.
+
+The current synthetic smoke run confirms that gate parameters update and stay
+bounded. It does **not** yet demonstrate reliable pruning or recovery of the
+teacher's true sparse relation set: the current teacher is dense, and all
+35 gates remain above 0.5. Treat gate means and active counts as diagnostics,
+not as evidence that the model has discovered a minimal structure.
