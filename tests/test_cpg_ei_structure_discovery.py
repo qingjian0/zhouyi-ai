@@ -1,8 +1,9 @@
 import json
 import math
+import random
 import unittest
 
-from prototype.cpg_ei_mvp import CpgEiTransitionModel, make_dataset
+from prototype.cpg_ei_mvp import CpgEiTransitionModel, Example, make_dataset
 from prototype.cpg_ei_structure_discovery import grow_relation_graph
 
 
@@ -89,6 +90,38 @@ class TestCpgEiStructureDiscovery(unittest.TestCase):
             "candidate_universe_size": 35,
         }
         print("CPGEI_MULTISEED_DIAGNOSTIC " + json.dumps(summary, sort_keys=True))
+
+
+    def test_label_shuffle_negative_control_reports_structure_recovery(self):
+        """A shuffled-label control must be measured, not silently treated as evidence."""
+        true_support = {
+            "hyperedge_2_0_1", "hyperedge_2_0_5", "hyperedge_2_2_4",
+            "hyperedge_3_0_1_3", "hyperedge_3_0_3_4", "hyperedge_3_1_4_5",
+        }
+        train = make_dataset(512, seed=211, sparse_teacher=True)
+        validation = make_dataset(128, seed=311, sparse_teacher=True)
+        shuffled_targets = [row.target for row in train]
+        random.Random(20261112).shuffle(shuffled_targets)
+        shuffled_train = [Example(row.state, target)
+                          for row, target in zip(train, shuffled_targets)]
+        model = CpgEiTransitionModel.create(active_relation_indices=set())
+        result = grow_relation_graph(
+            model, shuffled_train, validation, rounds=2, edges_per_round=2,
+            epochs_per_round=40, gate_l1=0.01, edge_group_l1=0.03,
+        )
+        discovered = set(result["active_edges"])
+        report = {
+            "control": "train_labels_shuffled",
+            "validation_bit_accuracy": result["validation"]["bit_accuracy"],
+            "support_recall": len(discovered & true_support) / len(true_support),
+            "false_discovery_count": len(discovered - true_support),
+            "active_edge_count": len(discovered),
+            "candidate_universe_size": 35,
+        }
+        self.assertTrue(math.isfinite(report["validation_bit_accuracy"]))
+        self.assertGreaterEqual(report["support_recall"], 0.0)
+        self.assertLessEqual(report["support_recall"], 1.0)
+        print("CPGEI_NEGATIVE_CONTROL " + json.dumps(report, sort_keys=True))
 
 if __name__ == "__main__":
     unittest.main()
