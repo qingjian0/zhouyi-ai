@@ -307,9 +307,9 @@ class SemanticUnitCandidate:
             raise ContractError("role_bindings must contain RoleBinding values")
         if self.ranking_score is not None and not isinstance(self.ranking_score, Score):
             raise ContractError("ranking_score must be a typed Score")
-        # Grounding describes provenance completeness, never truth.
-        if self.grounding_status == GroundingStatus.GROUNDED and self.truth_status != TruthStatus.UNKNOWN:
-            raise ContractError("grounded candidate cannot encode truth as an implicit consequence")
+        # Grounding and truth remain independent typed dimensions. A grounded
+        # candidate may later be supported/refuted by a separate adjudication;
+        # neither state is inferred from the other here.
 
 
 def canonical_json(record: Any) -> str:
