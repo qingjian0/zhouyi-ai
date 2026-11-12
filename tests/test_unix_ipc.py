@@ -10,6 +10,7 @@ from pathlib import Path
 
 from prototype.unix_ipc import (
     IPCRemoteError,
+    IPCTransportError,
     IPC_PROTOCOL,
     StaticUnixPeerResolver,
     UnixJSONRPCClient,
@@ -123,7 +124,7 @@ class UnixJSONRPCTransportTests(unittest.TestCase):
                 conn.sendall(struct.pack("!I", 129))
                 # Invalid oversized frames are closed without allocating or
                 # attempting to return an error frame that may exceed the cap.
-                with self.assertRaises(Exception):
+                with self.assertRaises(IPCTransportError):
                     _recv_frame(conn, 128)
         finally:
             server.close()
