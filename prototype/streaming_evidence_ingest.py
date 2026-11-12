@@ -198,7 +198,8 @@ class SQLiteEvidenceIngestor:
             raw = bytes(text_utf8)
             actual_digest = hashlib.sha256(raw).hexdigest()
             if (
-                ordinal != expected_ordinal or start != expected_start or end <= start
+                len(raw) > SQLiteEvidenceIngestor.DEFAULT_MAX_CHUNK_BYTES
+                or ordinal != expected_ordinal or start != expected_start or end <= start
                 or len(raw) != end - start or actual_digest != content_sha256
                 or chunk_id != SQLiteEvidenceIngestor._chunk_id(
                     document_id, ordinal, content_sha256
