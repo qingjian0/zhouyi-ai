@@ -79,8 +79,24 @@ class SQLiteEvidenceIngestor:
     and must provide the same source bytes when resuming a document ID.
     """
 
-    def __init__(self, database: str | Path) -> None:
+    DEFAULT_MAX_CHUNK_BYTES = 64 * 1024
+    DEFAULT_MAX_PAGE_BYTES = 1024 * 1024
+    MAX_PAGE_ROWS = 4096
+
+    def __init__(
+        self,
+        database: str | Path,
+        *,
+        max_chunk_bytes: int = DEFAULT_MAX_CHUNK_BYTES,
+        max_page_bytes: int = DEFAULT_MAX_PAGE_BYTES,
+    ) -> None:
+        if isinstance(max_chunk_bytes, bool) or not isinstance(max_chunk_bytes, int) or not 4 <= max_chunk_bytes <= self.DEFAULT_MAX_CHUNK_BYTES:
+            raise IngestContractError("max_chunk_bytes must be between 4 and 65536")
+        if isinstance(max_page_bytes, bool) or not isinstance(max_page_bytes, int) or not 1 <= max_page_bytes <= self.DEFAULT_MAX_PAGE_BYTES:
+            raise IngestContractError("max_page_bytes must be between 1 and 1048576")
         self.database = str(database)
+        self.max_chunk_bytes = max_chunk_bytes
+        self.max_page_bytes = max_page_bytes
         self._initialize()
 
     def _connect(self) -> sqlite3.Connection:
@@ -300,8 +316,13 @@ class SQLiteEvidenceIngestor:
             raise IngestContractError("document_id must be non-empty")
         if not source_name or not source_name.strip():
             raise IngestContractError("source_name must be non-empty")
-        if isinstance(chunk_bytes, bool) or not isinstance(chunk_bytes, int) or chunk_bytes < 4:
-            raise IngestContractError("chunk_bytes must be an integer >= 4")
+        if (
+            isinstance(chunk_bytes, bool) or not isinstance(chunk_bytes, int)
+            or not 4 <= chunk_bytes <= self.max_chunk_bytes
+        ):
+            raise IngestContractError(
+                f"chunk_bytes must be between 4 and configured max_chunk_bytes ({self.max_chunk_bytes})"
+            )
         if max_chunks is not None and (
             isinstance(max_chunks, bool) or not isinstance(max_chunks, int) or max_chunks < 1
         ):
@@ -392,28 +413,55 @@ class SQLiteEvidenceIngestor:
             token_count_known=token_counts_known,
         )
 
-    def get_chunks(self, document_id: str, *, limit: int = 100, offset: int = 0) -> list[EvidenceChunk]:
-        if isinstance(limit, bool) or not isinstance(limit, int) or limit < 1:
-            raise ValueError("limit must be a positive integer")
+    def get_chunks(
+        self, document_id: str, *, limit: int = 100, offset: int = 0,
+        page_bytes: int | None = None,
+    ) -> list[EvidenceChunk]:
+        if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= self.MAX_PAGE_ROWS:
+            raise ValueError(f"limit must be between 1 and {self.MAX_PAGE_ROWS}")
         if isinstance(offset, bool) or not isinstance(offset, int) or offset < 0:
             raise ValueError("offset must be a non-negative integer")
+        budget = self.max_page_bytes if page_bytes is None else page_bytes
+        if isinstance(budget, bool) or not isinstance(budget, int) or not 1 <= budget <= self.max_page_bytes:
+            raise ValueError(f"page_bytes must be between 1 and configured max_page_bytes ({self.max_page_bytes})")
+        result: list[EvidenceChunk] = []
+        consumed = 0
         with self._connect() as db:
-            rows = db.execute(
-                """SELECT chunk_id, document_id, ordinal, byte_start, byte_end,
-                          text_utf8, content_sha256, token_count
-                   FROM evidence_chunks WHERE document_id = ?
+            metadata = db.execute(
+                """SELECT chunk_id,document_id,ordinal,byte_start,byte_end,
+                          content_sha256,token_count,length(text_utf8)
+                   FROM evidence_chunks WHERE document_id=?
                    ORDER BY ordinal LIMIT ? OFFSET ?""",
                 (document_id, limit, offset),
-            ).fetchall()
-        return [
-            EvidenceChunk(
-                chunk_id=row[0], document_id=row[1], ordinal=row[2],
-                byte_start=row[3], byte_end=row[4],
-                text=bytes(row[5]).decode("utf-8"), content_sha256=row[6],
-                token_count=row[7],
             )
-            for row in rows
-        ]
+            for row in metadata:
+                payload_bytes = int(row[7])
+                if payload_bytes > self.max_chunk_bytes:
+                    raise IngestContractError("persisted evidence chunk exceeds configured hard chunk limit")
+                if payload_bytes > budget - consumed:
+                    if not result:
+                        raise IngestContractError("single evidence chunk exceeds requested page byte budget")
+                    break
+                payload = db.execute(
+                    "SELECT text_utf8 FROM evidence_chunks WHERE document_id=? AND chunk_id=?",
+                    (document_id, row[0]),
+                ).fetchone()
+                if payload is None:
+                    raise IngestContractError("evidence chunk disappeared during page read")
+                raw = bytes(payload[0])
+                if len(raw) != payload_bytes:
+                    raise IngestContractError("evidence chunk byte length changed during page read")
+                try:
+                    decoded = raw.decode("utf-8", errors="strict")
+                except UnicodeDecodeError as exc:
+                    raise IngestContractError("persisted evidence chunk is not valid UTF-8") from exc
+                result.append(EvidenceChunk(
+                    chunk_id=row[0], document_id=row[1], ordinal=row[2],
+                    byte_start=row[3], byte_end=row[4], text=decoded,
+                    content_sha256=row[5], token_count=row[6],
+                ))
+                consumed += payload_bytes
+        return result
 
     def document_state(self, document_id: str) -> tuple[int, int, bool] | None:
         with self._connect() as db:
