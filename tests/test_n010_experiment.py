@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from prototype.n09_learnable_srok import LearnableSROK, RoleSpec, TrainingExample
+from prototype.n09_learnable_srok import LearnableSROK, Node, RoleSpec, TrainingExample
 from prototype.n010_experiment import LearnableSROKError, load_dataset, run_experiment
 
 
