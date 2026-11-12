@@ -1,0 +1,37 @@
+name: cpg-ei-conditional-motif-e2e
+
+on:
+  push:
+    branches:
+      - research/cpg-ei-conditional-motif-e2e-2026-11-13
+  pull_request:
+    branches:
+      - research/cpg-ei-conditional-motif-proposals-2026-11-13
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  conditional-motif-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run end-to-end learner test
+        run: python -m unittest tests.test_cpg_ei_conditional_motif_e2e -v
+      - name: Run multi-seed held-out benchmark
+        run: |
+          set -o pipefail
+          mkdir -p benchmark-results
+          python -m prototype.cpg_ei_conditional_motif_e2e | tee benchmark-results/cpg-ei-conditional-motif-e2e.json
+      - name: Upload benchmark report
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpg-ei-conditional-motif-e2e-${{ github.sha }}
+          path: benchmark-results/cpg-ei-conditional-motif-e2e.json
+          if-no-files-found: error
+          retention-days: 30
