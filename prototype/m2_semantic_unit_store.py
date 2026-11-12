@@ -242,7 +242,8 @@ class PersistentM2SemanticUnitStore:
         cursor = after_sequence
         while cursor < high_water:
             metadata = db.execute(
-                """SELECT seq,event_id,payload_digest,recorded_at,length(payload_json)
+                """SELECT seq,event_id,payload_digest,recorded_at,
+                          length(CAST(payload_json AS BLOB))
                    FROM memory_events
                    WHERE event_type=? AND scope=? AND seq>? AND seq<=?
                    ORDER BY seq LIMIT ?""",
