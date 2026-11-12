@@ -325,7 +325,7 @@ class LearnableSROK:
                             True, pruned, expanded,
                         )
                     expanded += 1
-                    if any(existing.node_id == node.node_id for node in prefix):
+                    if any(existing.node_id == node.node_id for existing in prefix):
                         continue
                     proposals.append(prefix + (node,))
             proposals.sort(
