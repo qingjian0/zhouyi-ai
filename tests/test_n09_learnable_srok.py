@@ -341,8 +341,8 @@ class LearnableSROKTests(unittest.TestCase):
                     if beam_width >= pool_size ** 3:
                         # A width at least as large as the complete product
                         # retains every prefix and must match exact ranking.
-                        self.assertFalse(beam.abstained)
-                        self.assertEqual(beam.reason, "LOW_SCORE_MARGIN" if exact.abstained else None)
+                        self.assertEqual(beam.abstained, exact.abstained)
+                        self.assertEqual(beam.reason, exact.reason)
                         self.assertEqual(
                             [item.role_bindings for item in beam.candidates],
                             [item.role_bindings for item in exact.candidates],
