@@ -176,3 +176,30 @@ The test must inspect OS file permissions and process identities, not merely moc
 7. Add external checkpoint, KMS/HSM integration, key rotation/revocation, monitoring and backup restore drill.
 
 No phase may claim full process isolation until Gates A–D pass on the target deployment OS.
+
+
+## 13. Implementation status — 2026-11-12
+
+The current stacked implementation has reached the following code increments:
+
+| Layer | Implementation | Current scope |
+|---|---|---|
+| IPC transport | `prototype/unix_ipc.py` (PR #289) | Linux UDS framing, SO_PEERCRED mapping, bounded JSON, deadlines and worker limits |
+| E09 Authority | `prototype/e09_unix_rpc.py` (PR #295) | Observer input vault, Observation, Commit, Reveal, Structure and Revision RPCs |
+| Verifier storage | `SQLiteEvidenceReader` (PR #296) | Read-only SQLite replay interface for verification |
+| E09 Verifier | `prototype/e09_verifier_unix_rpc.py` (PR #297) | Writer-only receipt issuance, durable operation reservation and retry ledger |
+| E12-A6 Writer | `prototype/e12a6_writer_unix_rpc.py` (PR #301) | Typed DTO decoding, signed receipt binding, in-process recomputation and atomic lifecycle bundle write |
+
+These are service-boundary implementations and CI-tested local UDS integrations. They do **not** yet establish production process isolation.
+
+### Remaining production gates
+
+1. Provision separate non-root OS identities and service-owned database/key directories; test real cross-UID socket authorization and filesystem denials.
+2. Publish a transactionally consistent E09 snapshot to the Verifier identity; prove SQLite journal/WAL and sidecar access semantics.
+3. Move E09 Authority, Verifier and E12-A6 Writer signing material into separate KMS/HSM-backed identities.
+4. Split the current combined E09 adapter into observer ingress, learner and evaluator roles. Remove its direct SQLite handle, direct payload-vault access and unrestricted replay/memory projection.
+5. Add role-filtered learner reads: input payload only after authenticated Observation, SUPPORT feedback only when authorized, and no GATE_DEV/GATE_FINAL/LOCKED_TEST labels.
+6. Add E12 Writer OS deployment, DB-exclusive ownership, external monotonic checkpoint, backup/restore and receipt-consumption recovery tests.
+7. Run the full Observation → Commit → Reveal → Receipt → Writer → ZPCM → restart/replay vertical slice across separate OS processes, then execute Gates A–D from this contract.
+
+Until these gates pass on the target deployment OS, describe the system as **authenticated IPC prototype**, not production-isolated or production-secure.
