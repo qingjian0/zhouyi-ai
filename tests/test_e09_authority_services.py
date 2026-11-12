@@ -397,5 +397,55 @@ class E09AuthorityServiceTests(unittest.TestCase):
             )
 
 
+    def test_prediction_commit_requires_same_episode_observation_causation(self):
+        observation_id = "obs-causal"
+        observation_event = f"{self.episode}:observation:{observation_id}"
+        self.authority.append_observation(
+            "observer-cert", episode_id=self.episode, event_id=observation_event,
+            idempotency_key=observation_event, observation_id=observation_id,
+            query_id=observation_id, scope=self.scope, split="SUPPORT",
+        )
+        payload = {
+            "prediction_id": "prediction-causal", "observation_id": observation_id,
+            "query_id": observation_id, "scope": self.scope, "split": "SUPPORT",
+            "model_version": "model-1", "learner_track": self.track,
+            "decision_status": "PREDICT",
+        }
+        with self.assertRaises(E09AuthorizationError):
+            self.authority.append_prediction_commit(
+                "learner-cert", episode_id=self.episode, event_id="commit-no-cause",
+                idempotency_key="commit-no-cause", payload=payload, causation_refs=[],
+            )
+        with self.assertRaises(E09AuthorizationError):
+            self.authority.append_prediction_commit(
+                "learner-cert", episode_id="other-episode", event_id="commit-wrong-episode",
+                idempotency_key="commit-wrong-episode", payload=payload,
+                causation_refs=[observation_event],
+            )
+
+    def test_reveal_requires_causation_to_the_exact_committed_prediction(self):
+        reveal_ref = self._prior_prediction()
+        with self.assertRaises(E09AuthorizationError):
+            self.authority.append_evidence_reveal(
+                "evaluator-cert", episode_id=self.episode, event_id="reveal-no-cause",
+                idempotency_key="reveal-no-cause",
+                payload={"prediction_id": "prediction-1", "query_id": "obs-1",
+                         "scope": self.scope, "split": "SUPPORT",
+                         "commit_digest": "digest", "event_digest": "digest",
+                         "learner_track": self.track, "target_or_feedback": "x"},
+                causation_refs=[],
+            )
+
+    def test_adapter_workload_validation_requires_trusted_domain_registry(self):
+        authority_without_registry = E09AuthorityService(
+            self.store, authenticator=self.authenticator, signer=_Signer(self.private),
+        )
+        with self.assertRaises(E09AuthorizationError):
+            authority_without_registry.validate_adapter_workloads(
+                scope=self.scope, observer_credential="observer-cert",
+                learner_credential="learner-cert", evaluator_credential="evaluator-cert",
+            )
+
+
 if __name__ == "__main__":
     unittest.main()
