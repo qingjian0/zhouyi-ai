@@ -39,3 +39,11 @@ The near-matched compute comparison shows equal planted-support recall and highe
 - Report structural support metrics and held-out predictive metrics separately.
 - Next validation should test multiple seeds, calibrate candidate selection against a validation protocol that does not leak test data, and inspect whether motif-group regularization or minimum improvement thresholds improve generalization.
 - Do not claim open-ended relation discovery: the search space is explicitly bounded to 20 motifs.
+
+
+### Second parity teacher cross-check (exact head 2026-11-12)
+
+- Current PR #363 head: `75b8994567d8b2b07d1d7fa8589706a2f47e75df`; workflow #43213671969 succeeded (9 tests).
+- The distinct GF(2) three-input parity teacher diagnostic (greedy residual growth, 3 seeds) reports mean support precision 1.000, mean support recall 0.3056, mean validation bit accuracy 0.6337, zero false discoveries, and exact support recovery 0/3.
+- This is a second counter-signal: the finite model's exact 12-edge parity support is representationally sufficient (oracle test reaches 100% bit and exact-state accuracy), but current greedy structure growth does not recover most of that support. High precision here means the selected edges are plausible, not that discovery is complete.
+- Combined with the joint-vs-greedy matched-compute result above, do not promote joint motifs: its first teacher seed recovered full support but validation accuracy was only 0.5365 vs greedy 0.8229. More seeds and a clean train/selection/locked-test protocol are required.
