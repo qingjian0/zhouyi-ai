@@ -44,6 +44,44 @@ class Tests(unittest.TestCase):
   self.assertEqual(len(self.m.replay_domain_events(event_type="m2_cognition",scope="a")),1)
   self.assertEqual(len(self.m.replay_domain_events(event_type="m2_cognition",scope="b")),1)
   self.assertEqual(len(self.m.replay_domain_events(event_type="other_domain",scope="a")),1)
+ def test_lifecycle_iterator_is_incremental_and_verifies_digest(self):
+  for i in range(5):
+   self.m.append_lifecycle_event(event_id=f"life:{i}",scope="s",
+       payload={"kind":"state_transition","value":i},expected_sequence=i)
+  events=self.m.iter_lifecycle_events(scope="s",page_size=2)
+  first=next(events)
+  self.assertEqual(first["event_id"],"life:0")
+  self.assertEqual(next(events)["event_id"],"life:1")
+  self.assertEqual([x["event_id"] for x in events],["life:2","life:3","life:4"])
+
+ def test_lifecycle_iterator_enforces_aggregate_page_byte_budget(self):
+  m=ZPCMMemory(Path(self.tmp.name)/"lifecycle-budget.db",
+      max_event_payload_bytes=256,max_page_bytes=130)
+  try:
+   for i in range(4):
+    m.append_lifecycle_event(event_id=f"life:{i}",scope="s",
+        payload={"kind":"state_transition","value":"x"*20},expected_sequence=i)
+   events=list(m.iter_lifecycle_events(scope="s",page_size=10))
+   self.assertEqual([x["event_id"] for x in events],
+       ["life:0","life:1","life:2","life:3"])
+  finally:
+   m.close()
+
+ def test_lifecycle_iterator_rejects_corrupt_payload_digest(self):
+  self.m.append_lifecycle_event(event_id="life:tamper",scope="s",
+      payload={"kind":"state_transition"},expected_sequence=0)
+  self.m.db.execute("UPDATE memory_events SET payload_json=? WHERE event_id=?",
+      ('{"kind":"tampered"}',"life:tamper"))
+  with self.assertRaises(ZPCMError):
+   list(self.m.iter_lifecycle_events(scope="s"))
+
+ def test_lifecycle_list_api_remains_compatible(self):
+  self.m.append_lifecycle_event(event_id="life:compat",scope="s",
+      payload={"kind":"state_transition"},expected_sequence=0)
+  events=self.m.replay_lifecycle_events(scope="s")
+  self.assertIsInstance(events,list)
+  self.assertEqual(events[0]["event_id"],"life:compat")
+
  def test_domain_replay_verifies_payload_digest(self):
   self.m.append_domain_event(event_type="m2_cognition",event_id="m2:obs:1",
       scope="project",payload={"kind":"observation"},expected_sequence=0)
