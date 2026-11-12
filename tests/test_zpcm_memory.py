@@ -6,6 +6,19 @@ class Tests(unittest.TestCase):
  def setUp(self):
   self.tmp=tempfile.TemporaryDirectory();self.path=Path(self.tmp.name)/"m.db";self.m=ZPCMMemory(self.path)
  def tearDown(self):self.m.close();self.tmp.cleanup()
+ def test_domain_event_queries_have_composite_index(self):
+  index_names={row[1] for row in self.m.db.execute("PRAGMA index_list(memory_events)")}
+  self.assertIn("memory_events_type_scope_seq",index_names)
+  plans={
+   "forward": self.m.db.execute("EXPLAIN QUERY PLAN SELECT seq FROM memory_events WHERE event_type=? AND scope=? AND seq>? AND seq<=? ORDER BY seq LIMIT ?",("m2_cognition","s",0,100,10)).fetchall(),
+   "reverse": self.m.db.execute("EXPLAIN QUERY PLAN SELECT seq FROM memory_events WHERE event_type=? AND scope=? AND seq<? AND seq<=? ORDER BY seq DESC LIMIT ?",("m2_cognition","s",100,100,10)).fetchall(),
+   "latest": self.m.db.execute("EXPLAIN QUERY PLAN SELECT COALESCE(MAX(seq),0) FROM memory_events WHERE event_type=? AND scope=?",("m2_cognition","s")).fetchall(),
+  }
+  for query_name, rows in plans.items():
+   detail=" ".join(str(row[3]) for row in rows)
+   with self.subTest(query=query_name):
+    self.assertIn("memory_events_type_scope_seq",detail)
+
  def test_generic_domain_events_share_the_authoritative_event_log(self):
   first=self.m.append_domain_event(event_type="m2_cognition",event_id="m2:obs:1",
       scope="project",payload={"kind":"observation","record_id":"obs-1"},expected_sequence=0)
