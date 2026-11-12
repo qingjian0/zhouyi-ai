@@ -1,4 +1,5 @@
 import tempfile
+import hashlib
 import unittest
 from dataclasses import replace
 from pathlib import Path
@@ -8,34 +9,62 @@ from prototype.csg_gcr_e12a6_adapter import adapt_typed_candidate
 from prototype.csg_gcr_e12a6_ingestion import CSGGCRIngestionError, ingest_typed_candidate
 from prototype.csg_branch_delta import BranchDelta, BranchSnapshot, DeltaOperation, canonical_hash
 from prototype.e12a6_zpcm_persistence import LifecyclePersistenceError, PersistentLifecycleLedger
-from prototype.shared_evidence_protocol import STRICT_PROTOCOL_VERSION, SQLiteEvidenceStore
+from prototype.e09_authority_services import E09AuthenticatedWorkload, E09AuthorityService
+from prototype.e09_domain_registry import E09DomainBinding, StaticE09DomainRegistry
+from prototype.shared_evidence_protocol import SQLiteEvidenceStore
 from prototype.typed_csg_gcr import TypedCandidateCoordinator, TypedCandidateProposal
 from prototype.typed_hypergraph_unifier import HyperedgeProposal, RoleBinding, VariableRef, VariableSpec
 from prototype.zpcm_memory import ZPCMError, ZPCMMemory
 
 
-def make_e09_episode(store, *, episode="ep-1", scope="world/test", track="srok", label="SECRET_TARGET"):
-    evidence_ref=f"{episode}:reveal:pred-1"
+class _Authenticator:
+    def __init__(self, identities):
+        self.identities = identities
+    def authenticate(self, credential):
+        if credential not in self.identities:
+            raise ValueError("unknown credential")
+        return self.identities[credential]
+
+
+class _Signer:
+    def sign(self, issuer_id, message):
+        return "unused-test-signature"
+
+
+def _identity(name, role, scope):
+    return E09AuthenticatedWorkload(
+        workload_id=f"spiffe://test/{name}", issuer_id=f"issuer:{name}",
+        roles=frozenset({role}), scopes=frozenset({scope}),
+        identity_provider="test-spiffe", authentication_method="mTLS",
+        credential_fingerprint=hashlib.sha256(name.encode()).hexdigest(),
+    )
+
+
+def make_e09_episode(authority, *, episode="ep-1", scope="world/test", track="srok", label="SECRET_TARGET"):
     observation_id="obs-1"
     observation_event=f"{episode}:observation:{observation_id}"
-    store.append_event(episode_id=episode,event_id=observation_event,event_type="observation",
-      idempotency_key="obs-1",actor_role="runner",
-      payload={"observation_id":observation_id,"query_id":observation_id,"scope":scope,"split":"SUPPORT"},
-      protocol_version=STRICT_PROTOCOL_VERSION)
+    authority.append_observation(
+      "observer", episode_id=episode, event_id=observation_event,
+      idempotency_key="obs-1",
+      payload={"observation_id":observation_id,"query_id":observation_id,
+               "scope":scope,"split":"SUPPORT"})
     commit_event=f"{episode}:prediction:pred-1"
-    commit_digest="a"*64
-    commit=store.append_event(episode_id=episode,event_id=commit_event,event_type="prediction_commit",
-      idempotency_key="pred-1",actor_role="learner",causation_refs=[observation_event],
-      payload={"prediction_id":"pred-1","observation_id":observation_id,"query_id":observation_id,
-        "scope":scope,"split":"SUPPORT","model_version":"model-1","learner_track":track,
-        "decision_status":"PREDICT","interop_commit_digest":commit_digest},
-      protocol_version=STRICT_PROTOCOL_VERSION)
-    store.append_event(episode_id=episode,event_id=evidence_ref,event_type="evidence_reveal",
-      idempotency_key=evidence_ref,actor_role="evaluator",causation_refs=[commit_event],
-      payload={"prediction_id":"pred-1","query_id":observation_id,"scope":scope,"split":"SUPPORT",
-        "commit_digest":commit_digest,"event_digest":commit.payload_digest,
-        "learner_track":track,"target_or_feedback":label,"reveal_source":"test"},
-      protocol_version=STRICT_PROTOCOL_VERSION)
+    commit_digest=hashlib.sha256(b"pred-1").hexdigest()
+    commit=authority.append_prediction_commit(
+      "learner", episode_id=episode, event_id=commit_event,
+      idempotency_key="pred-1", causation_refs=[observation_event],
+      payload={"prediction_id":"pred-1","observation_id":observation_id,
+        "query_id":observation_id,"scope":scope,"split":"SUPPORT",
+        "model_version":"model-1","learner_track":track,
+        "decision_status":"PREDICT","interop_commit_digest":commit_digest})
+    evidence_ref=f"{episode}:reveal:pred-1"
+    authority.append_evidence_reveal(
+      "evaluator", episode_id=episode, event_id=evidence_ref,
+      idempotency_key=evidence_ref, causation_refs=[commit_event],
+      payload={"prediction_id":"pred-1","query_id":observation_id,
+        "scope":scope,"split":"SUPPORT","commit_digest":commit_digest,
+        "event_digest":commit.payload_digest,"learner_track":track,
+        "target_or_feedback":label})
     return evidence_ref
 
 
@@ -56,14 +85,25 @@ class CSGGCRAtomicIngestionTests(unittest.TestCase):
         self.e09=SQLiteEvidenceStore(Path(self.tmp.name)/"e09.db")
         self.memory=ZPCMMemory(Path(self.tmp.name)/"zpcm.db")
         self.ledger=PersistentLifecycleLedger(self.memory,scope="csg-gcr/project")
-        self.ref=make_e09_episode(self.e09)
+        self.scope="world/test"
+        self.track="srok"
+        self.registry=StaticE09DomainRegistry({
+          self.scope:E09DomainBinding("domain:test","finite-rule-world","registry:test","v1")
+        })
+        self.authority=E09AuthorityService(
+          self.e09,authenticator=_Authenticator({
+            "observer":_identity("observer","observer",self.scope),
+            "learner":_identity("learner","learner",self.scope),
+            "evaluator":_identity("evaluator","evaluator",self.scope),
+          }),signer=_Signer(),domain_registry=self.registry)
+        self.ref=make_e09_episode(self.authority)
         self.result=make_candidate(self.ref)
     def tearDown(self):
         self.e09.close(); self.memory.close(); self.tmp.cleanup()
     def ingest(self):
         return ingest_typed_candidate(self.result,ledger=self.ledger,e09_store=self.e09,
-          episode_id="ep-1",scope="world/test",learner_track="srok",grammar_version="csg-v1",
-          world_family_by_evidence={self.ref:"finite-rule-world"})
+          episode_id="ep-1",scope=self.scope,learner_track=self.track,grammar_version="csg-v1",
+          domain_registry=self.registry)
     def test_candidate_and_e09_evidence_are_registered_as_one_bundle(self):
         result=self.ingest()
         snapshot=self.ledger.snapshot()
@@ -81,18 +121,23 @@ class CSGGCRAtomicIngestionTests(unittest.TestCase):
         self.assertTrue(second.receipt.replayed)
         self.assertEqual(len(self.memory.replay_lifecycle_events(scope="csg-gcr/project")),count)
         self.assertEqual(first.receipt.candidate.sequence,second.receipt.candidate.sequence)
-    def test_missing_world_family_fails_before_any_write(self):
-        with self.assertRaises(CSGGCRIngestionError):
+    def test_missing_trusted_registry_fails_before_any_write(self):
+        with self.assertRaisesRegex(CSGGCRIngestionError,"trusted domain registry is required"):
             ingest_typed_candidate(self.result,ledger=self.ledger,e09_store=self.e09,
-              episode_id="ep-1",scope="world/test",learner_track="srok",grammar_version="v1",
-              world_family_by_evidence={})
+              episode_id="ep-1",scope=self.scope,learner_track=self.track,grammar_version="v1")
+        self.assertEqual(self.memory.replay_lifecycle_events(scope="csg-gcr/project"),[])
+    def test_caller_world_family_override_is_rejected(self):
+        with self.assertRaisesRegex(CSGGCRIngestionError,"caller-supplied"):
+            ingest_typed_candidate(self.result,ledger=self.ledger,e09_store=self.e09,
+              episode_id="ep-1",scope=self.scope,learner_track=self.track,grammar_version="v1",
+              domain_registry=self.registry,world_family_by_evidence={self.ref:"attacker-family"})
         self.assertEqual(self.memory.replay_lifecycle_events(scope="csg-gcr/project"),[])
     def test_invalid_e09_reference_fails_before_any_write(self):
         bad=make_candidate("ep-1:reveal:missing")
         with self.assertRaises(ValueError):
             ingest_typed_candidate(bad,ledger=self.ledger,e09_store=self.e09,
               episode_id="ep-1",scope="world/test",learner_track="srok",grammar_version="v1",
-              world_family_by_evidence={"ep-1:reveal:missing":"finite-rule-world"})
+              domain_registry=self.registry)
         self.assertEqual(self.memory.replay_lifecycle_events(scope="csg-gcr/project"),[])
     def test_cross_branch_candidate_fails_closed(self):
         coordinated=replace(self.result.coordinated,branch_ids=("branch-1","branch-2"))
@@ -101,7 +146,7 @@ class CSGGCRAtomicIngestionTests(unittest.TestCase):
         with self.assertRaisesRegex(CSGGCRIngestionError,"cross-branch"):
             ingest_typed_candidate(bad,ledger=self.ledger,e09_store=self.e09,
               episode_id="ep-1",scope="world/test",learner_track="srok",grammar_version="v1",
-              world_family_by_evidence={self.ref:"finite-rule-world"})
+              domain_registry=self.registry)
         self.assertEqual(self.memory.replay_lifecycle_events(scope="csg-gcr/project"),[])
     def test_append_failure_leaves_bundle_and_ledger_unchanged(self):
         before=self.ledger.snapshot()
@@ -157,10 +202,10 @@ class CSGGCRAtomicIngestionTests(unittest.TestCase):
             )
 
 
-def resolve_for_test(store, ref):
+def resolve_for_test(store, ref, registry):
     from prototype.e09_e12a6_evidence_bridge import resolve_e09_reveal
     return resolve_e09_reveal(store,episode_id="ep-1",evidence_ref=ref,scope="world/test",
-      learner_track="srok",world_family="finite-rule-world")
+      learner_track="srok",domain_registry=registry)
 
 
 if __name__=="__main__": unittest.main()
