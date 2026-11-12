@@ -150,6 +150,7 @@ class E09AuthorityUnixRPC:
             "prediction.commit": self._safe(self._append_prediction),
             "evidence.reveal": self._safe(self._append_reveal),
             "evidence.read_support_feedback": self._safe(self._read_support_feedback),
+            "episode.read_for_learner": self._safe(self._read_learner_episode),
             "structure.append": self._safe(self._append_structure),
             "revision.append": self._safe(self._append_revision),
         }
@@ -223,6 +224,17 @@ class E09AuthorityUnixRPC:
             observation_id=body["observation_id"], scope=body["scope"],
         )
         return {"payload": payload}
+
+    def _read_learner_episode(self, context: IPCRequestContext, body: dict[str, Any]) -> dict[str, Any]:
+        _fields(body, required={"episode_id", "scope", "learner_track"})
+        _require_text(body, "episode_id", "scope", "learner_track")
+        events = self.authority.read_learner_episode(
+            context.peer,
+            episode_id=body["episode_id"],
+            scope=body["scope"],
+            learner_track=body["learner_track"],
+        )
+        return {"events": events}
 
     def _read_support_feedback(self, context: IPCRequestContext, body: dict[str, Any]) -> dict[str, Any]:
         _fields(body, required={"episode_id", "reveal_event_id", "scope"})
