@@ -1,15 +1,16 @@
-"""Append-only M2 SemanticUnitCandidate lifecycle on the shared ZPCM event log.
+"""Append-only M2 semantic-unit lifecycle with SQLite-derived bounded startup projection.
 
-Candidates are hypotheses/semantic extraction products, not world facts. Revisions
-append a new immutable record linked to the previous record; retractions append a
-tombstone event and never erase history.
+The memory_events table remains the sole source of truth. The projection stores
+only version metadata and each root's current body; historical bodies are read
+from the event log only through the explicit history API or projection rebuild.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
+import hashlib
 import json
 from threading import RLock
-from typing import Any
+from typing import Any, Iterator
 
 from prototype.evidence_ref_resolver import SQLiteEvidenceRefResolver
 from prototype.observation_contract import (
@@ -22,6 +23,7 @@ from prototype.zpcm_memory import ZPCMError, ZPCMMemory
 
 EVENT_TYPE = "m2_semantic_unit"
 EVENT_SCHEMA = "m2-semantic-unit-event-v1"
+PROJECTION_SCHEMA = "m2-semantic-unit-sqlite-projection-v1"
 
 
 class SemanticUnitStoreError(RuntimeError):
@@ -70,7 +72,7 @@ def _candidate_from_dict(value: dict[str, Any]) -> SemanticUnitCandidate:
 
 
 class PersistentM2SemanticUnitStore:
-    """Typed candidate history backed only by ZPCM memory_events."""
+    """SQLite-backed M2 lifecycle; initialization never materializes full history."""
 
     def __init__(self, memory: ZPCMMemory, resolver: SQLiteEvidenceRefResolver, *,
                  scope: str, replay_page_size: int = 128):
@@ -86,33 +88,130 @@ class PersistentM2SemanticUnitStore:
         self._memory, self._resolver, self.scope = memory, resolver, scope
         self._replay_page_size = replay_page_size
         self._lock = RLock()
-        self._versions: dict[str, SemanticUnitCandidate] = {}
-        self._receipts: dict[str, SemanticUnitReceipt] = {}
-        self._digests: dict[str, str] = {}
-        self._event_kinds: dict[str, str] = {}
-        self._predecessors: dict[str, str | None] = {}
-        self._latest: dict[str, str] = {}
-        # Reverse index: current version ID -> stable root ID.
-        self._root_by_current: dict[str, str] = {}
-        self._retracted: dict[str, str] = {}
-        self._last_sequence = 0
+        self._ensure_projection_schema()
         self._restore()
 
     @property
-    def candidates(self) -> dict[str, SemanticUnitCandidate]:
-        with self._lock:
-            return {root: self._versions[current] for root, current in self._latest.items()
-                    if current not in self._retracted}
+    def _db(self):
+        return self._memory.db
 
-    @property
-    def history(self) -> dict[str, SemanticUnitCandidate]:
-        with self._lock:
-            return dict(self._versions)
+    def _ensure_projection_schema(self) -> None:
+        with self._memory.lock:
+            self._db.executescript("""
+            CREATE TABLE IF NOT EXISTS m2_semantic_unit_versions(
+                scope TEXT NOT NULL,
+                record_id TEXT NOT NULL,
+                root_id TEXT NOT NULL,
+                predecessor_id TEXT,
+                event_kind TEXT NOT NULL,
+                event_id TEXT NOT NULL,
+                sequence INTEGER NOT NULL,
+                payload_digest TEXT NOT NULL,
+                record_digest TEXT NOT NULL,
+                PRIMARY KEY(scope,record_id),
+                UNIQUE(scope,event_id)
+            );
+            CREATE INDEX IF NOT EXISTS m2_semantic_unit_versions_root
+                ON m2_semantic_unit_versions(scope,root_id,sequence);
+            CREATE TABLE IF NOT EXISTS m2_semantic_unit_roots(
+                scope TEXT NOT NULL,
+                root_id TEXT NOT NULL,
+                current_record_id TEXT NOT NULL,
+                current_body_json TEXT NOT NULL,
+                current_record_digest TEXT NOT NULL,
+                current_event_id TEXT NOT NULL,
+                current_sequence INTEGER NOT NULL,
+                retracted_reason TEXT,
+                PRIMARY KEY(scope,root_id),
+                UNIQUE(scope,current_record_id)
+            );
+            CREATE INDEX IF NOT EXISTS m2_semantic_unit_roots_active
+                ON m2_semantic_unit_roots(scope,retracted_reason,current_sequence);
+            CREATE TABLE IF NOT EXISTS m2_semantic_unit_projection_state(
+                scope TEXT PRIMARY KEY,
+                generation INTEGER NOT NULL CHECK(generation>=0)
+            );
+            CREATE TABLE IF NOT EXISTS m2_semantic_unit_projection_checkpoint(
+                scope TEXT PRIMARY KEY,
+                schema_version TEXT NOT NULL,
+                high_water_seq INTEGER NOT NULL CHECK(high_water_seq>=0),
+                projection_generation INTEGER NOT NULL,
+                checkpoint_digest TEXT NOT NULL
+            );
+            """)
+            self._db.execute(
+                "INSERT OR IGNORE INTO m2_semantic_unit_projection_state(scope,generation) VALUES(?,0)",
+                (self.scope,),
+            )
+            # One generic trigger per table/operation avoids per-scope trigger fan-out.
+            for operation, timing in (("INSERT", "insert"), ("UPDATE", "update"), ("DELETE", "delete")):
+                for table in ("m2_semantic_unit_versions", "m2_semantic_unit_roots"):
+                    trigger = f"m2_{table.rsplit('_', 1)[-1]}_{timing}_generation"
+                    self._db.execute(
+                        f"CREATE TRIGGER IF NOT EXISTS {trigger} AFTER {operation} ON {table} "
+                        "BEGIN UPDATE m2_semantic_unit_projection_state "
+                        "SET generation=generation+1 WHERE scope=NEW.scope; END"
+                        if operation != "DELETE" else
+                        f"CREATE TRIGGER IF NOT EXISTS {trigger} AFTER DELETE ON {table} "
+                        "BEGIN UPDATE m2_semantic_unit_projection_state "
+                        "SET generation=generation+1 WHERE scope=OLD.scope; END"
+                    )
+            self._db.execute(
+                "INSERT OR IGNORE INTO m2_semantic_unit_projection_state(scope,generation) VALUES(?,0)",
+                (self.scope,),
+            )
 
-    @property
-    def retractions(self) -> dict[str, str]:
-        with self._lock:
-            return dict(self._retracted)
+    def _latest_sequence(self) -> int:
+        with self._memory.lock:
+            return int(self._db.execute(
+                "SELECT COALESCE(MAX(seq),0) FROM memory_events WHERE event_type=? AND scope=?",
+                (EVENT_TYPE, self.scope),
+            ).fetchone()[0])
+
+    @staticmethod
+    def _checkpoint_digest(scope: str, high_water: int, generation: int) -> str:
+        value = {
+            "schema_version": PROJECTION_SCHEMA, "scope": scope,
+            "high_water_seq": high_water, "projection_generation": generation,
+        }
+        return hashlib.sha256(canonical_json(value).encode("utf-8")).hexdigest()
+
+    def _checkpoint_valid(self) -> bool:
+        with self._memory.lock:
+            checkpoint = self._db.execute(
+                "SELECT schema_version,high_water_seq,projection_generation,checkpoint_digest "
+                "FROM m2_semantic_unit_projection_checkpoint WHERE scope=?", (self.scope,)
+            ).fetchone()
+            state = self._db.execute(
+                "SELECT generation FROM m2_semantic_unit_projection_state WHERE scope=?",
+                (self.scope,),
+            ).fetchone()
+            if checkpoint is None or state is None:
+                return False
+            high_water, generation = self._latest_sequence(), int(state["generation"])
+            return (
+                checkpoint["schema_version"] == PROJECTION_SCHEMA
+                and int(checkpoint["high_water_seq"]) == high_water
+                and int(checkpoint["projection_generation"]) == generation
+                and checkpoint["checkpoint_digest"]
+                    == self._checkpoint_digest(self.scope, high_water, generation)
+            )
+
+    def _write_checkpoint(self, high_water: int) -> None:
+        generation = int(self._db.execute(
+            "SELECT generation FROM m2_semantic_unit_projection_state WHERE scope=?",
+            (self.scope,),
+        ).fetchone()[0])
+        self._db.execute(
+            "INSERT INTO m2_semantic_unit_projection_checkpoint("
+            "scope,schema_version,high_water_seq,projection_generation,checkpoint_digest) "
+            "VALUES(?,?,?,?,?) ON CONFLICT(scope) DO UPDATE SET "
+            "schema_version=excluded.schema_version,high_water_seq=excluded.high_water_seq,"
+            "projection_generation=excluded.projection_generation,"
+            "checkpoint_digest=excluded.checkpoint_digest",
+            (self.scope, PROJECTION_SCHEMA, high_water, generation,
+             self._checkpoint_digest(self.scope, high_water, generation)),
+        )
 
     def _verify_candidate(self, candidate: SemanticUnitCandidate) -> None:
         if candidate.envelope.scope != self.scope:
@@ -120,7 +219,6 @@ class PersistentM2SemanticUnitStore:
         refs = list(candidate.envelope.source_refs)
         for attribute in candidate.typed_attributes:
             refs.extend(attribute.source_refs)
-        # Validate every reference; duplicate refs are harmless but wasteful.
         seen = set()
         for ref in refs:
             key = (ref.document_id, ref.chunk_id, ref.content_sha256,
@@ -130,7 +228,8 @@ class PersistentM2SemanticUnitStore:
                 seen.add(key)
 
     @staticmethod
-    def _payload(kind: str, candidate: SemanticUnitCandidate, previous_id: str | None = None):
+    def _payload(kind: str, candidate: SemanticUnitCandidate,
+                 previous_id: str | None = None):
         body = json.loads(canonical_json(candidate))
         digest_value = record_digest(candidate)
         payload = {"schema_version": EVENT_SCHEMA, "kind": kind,
@@ -139,195 +238,456 @@ class PersistentM2SemanticUnitStore:
             payload["previous_record_id"] = previous_id
         return payload, digest_value
 
-    def _restore(self) -> None:
-        try:
-            events = self._memory.iter_domain_events(
-                event_type=EVENT_TYPE, scope=self.scope,
-                page_size=self._replay_page_size,
+    def _project_event(self, event: dict[str, Any]) -> None:
+        payload, event_id, seq = event["payload"], event["event_id"], event["sequence"]
+        if payload.get("schema_version") != EVENT_SCHEMA:
+            raise SemanticUnitStoreError("unsupported semantic-unit event schema")
+        kind = payload.get("kind")
+        if kind in ("candidate_recorded", "candidate_revised"):
+            body = payload.get("body")
+            if not isinstance(body, dict):
+                raise SemanticUnitStoreError("candidate event body must be an object")
+            candidate = _candidate_from_dict(body)
+            self._verify_candidate(candidate)
+            rid = candidate.envelope.record_id
+            candidate_digest = record_digest(candidate)
+            if candidate_digest != payload.get("body_digest"):
+                raise SemanticUnitStoreError("candidate body digest mismatch")
+            if kind == "candidate_recorded":
+                if event_id != f"m2:semantic-unit:{rid}":
+                    raise SemanticUnitStoreError("candidate event identity is inconsistent")
+                root = rid
+                self._db.execute(
+                    "INSERT INTO m2_semantic_unit_versions VALUES(?,?,?,?,?,?,?,?,?)",
+                    (self.scope,rid,root,None,kind,event_id,seq,event["payload_digest"],candidate_digest),
+                )
+                self._db.execute(
+                    "INSERT INTO m2_semantic_unit_roots VALUES(?,?,?,?,?,?,?,NULL)",
+                    (self.scope,root,rid,canonical_json(candidate),candidate_digest,event_id,seq),
+                )
+                return
+            previous = payload.get("previous_record_id")
+            prior = self._db.execute(
+                "SELECT root_id FROM m2_semantic_unit_versions WHERE scope=? AND record_id=?",
+                (self.scope, previous),
+            ).fetchone()
+            active = self._db.execute(
+                "SELECT root_id,current_record_id FROM m2_semantic_unit_roots "
+                "WHERE scope=? AND current_record_id=? AND retracted_reason IS NULL",
+                (self.scope, previous),
+            ).fetchone()
+            if (event_id != f"m2:semantic-unit:{rid}" or prior is None or active is None
+                    or candidate.envelope.derivation_refs.count(previous) != 1):
+                raise SemanticUnitStoreError("revision identity/predecessor is invalid")
+            root = prior["root_id"]
+            if active["root_id"] != root:
+                raise SemanticUnitStoreError("revision root projection is inconsistent")
+            self._db.execute(
+                "INSERT INTO m2_semantic_unit_versions VALUES(?,?,?,?,?,?,?,?,?)",
+                (self.scope,rid,root,previous,kind,event_id,seq,event["payload_digest"],candidate_digest),
             )
-            versions, receipts, digests = {}, {}, {}
-            event_kinds, predecessors = {}, {}
-            latest, retracted = {}, {}
-            root_by_current: dict[str, str] = {}
-            previous_sequence = 0
-            for event in events:
-                seq = event["sequence"]
-                if isinstance(seq, bool) or not isinstance(seq, int) or seq <= previous_sequence:
-                    raise SemanticUnitStoreError("semantic-unit event sequence is not strictly increasing")
-                previous_sequence = seq
-                payload = event["payload"]
-                if payload.get("schema_version") != EVENT_SCHEMA:
-                    raise SemanticUnitStoreError("unsupported semantic-unit event schema")
-                kind = payload.get("kind")
-                event_id = event["event_id"]
-                if kind in ("candidate_recorded", "candidate_revised"):
-                    body = payload.get("body")
-                    if not isinstance(body, dict):
-                        raise SemanticUnitStoreError("candidate event body must be an object")
-                    candidate = _candidate_from_dict(body)
-                    self._verify_candidate(candidate)
-                    rid = candidate.envelope.record_id
-                    digest_value = record_digest(candidate)
-                    if digest_value != payload.get("body_digest") or rid in versions:
-                        raise SemanticUnitStoreError("candidate digest mismatch or duplicate record ID")
-                    if kind == "candidate_recorded":
-                        if event_id != f"m2:semantic-unit:{rid}" or rid in latest:
-                            raise SemanticUnitStoreError("candidate event identity is inconsistent")
-                        latest[rid] = rid
-                        root_by_current[rid] = rid
-                    else:
-                        prior = payload.get("previous_record_id")
-                        if event_id != f"m2:semantic-unit:{rid}" or prior not in versions:
-                            raise SemanticUnitStoreError("revision identity/predecessor is invalid")
-                        root = root_by_current.get(prior)
-                        if root is None or prior in retracted:
-                            raise SemanticUnitStoreError("revision does not extend the current active version")
-                        if candidate.envelope.derivation_refs.count(prior) != 1:
-                            raise SemanticUnitStoreError("revision must cite its predecessor exactly once")
-                        if candidate.envelope.scope != versions[prior].envelope.scope:
-                            raise SemanticUnitStoreError("revision cannot cross scopes")
-                        latest[root] = rid
-                        del root_by_current[prior]
-                        root_by_current[rid] = root
-                    versions[rid] = candidate
-                    digests[rid] = digest_value
-                    event_kinds[rid] = kind
-                    predecessors[rid] = payload.get("previous_record_id") if kind == "candidate_revised" else None
-                    receipts[rid] = SemanticUnitReceipt(
-                        event_id, seq, event["payload_digest"], digest_value, True)
-                elif kind == "candidate_retracted":
-                    rid = payload.get("record_id")
-                    reason = payload.get("reason")
-                    if event_id != f"m2:semantic-unit:{rid}:retracted" or rid not in versions:
-                        raise SemanticUnitStoreError("retraction identity/target is invalid")
-                    if not isinstance(reason, str) or not reason.strip() or rid in retracted:
-                        raise SemanticUnitStoreError("invalid or duplicate candidate retraction")
-                    if rid not in latest.values():
-                        raise SemanticUnitStoreError("only the current candidate version can be retracted")
-                    retracted[rid] = reason
-                else:
-                    raise SemanticUnitStoreError("unknown semantic-unit event kind")
-            self._versions, self._receipts, self._digests = versions, receipts, digests
-            self._event_kinds, self._predecessors = event_kinds, predecessors
-            self._latest, self._retracted = latest, retracted
-            self._root_by_current = root_by_current
-            self._last_sequence = previous_sequence
-        except (ZPCMError, ContractError, SemanticUnitStoreError):
-            raise
-        except Exception as exc:
-            raise SemanticUnitStoreError(f"semantic-unit replay failed: {exc}") from exc
+            changed = self._db.execute(
+                "UPDATE m2_semantic_unit_roots SET current_record_id=?,current_body_json=?,"
+                "current_record_digest=?,current_event_id=?,current_sequence=? "
+                "WHERE scope=? AND root_id=? AND current_record_id=? AND retracted_reason IS NULL",
+                (rid,canonical_json(candidate),candidate_digest,event_id,seq,
+                 self.scope,root,previous),
+            ).rowcount
+            if changed != 1:
+                raise SemanticUnitStoreError("revision projection update lost its current predecessor")
+            return
+        if kind == "candidate_retracted":
+            rid, reason = payload.get("record_id"), payload.get("reason")
+            if event_id != f"m2:semantic-unit:{rid}:retracted" or not isinstance(reason,str) or not reason.strip():
+                raise SemanticUnitStoreError("retraction identity/reason is invalid")
+            changed = self._db.execute(
+                "UPDATE m2_semantic_unit_roots SET retracted_reason=? "
+                "WHERE scope=? AND current_record_id=? AND retracted_reason IS NULL",
+                (reason,self.scope,rid),
+            ).rowcount
+            if changed != 1:
+                raise SemanticUnitStoreError("only the current active candidate can be retracted")
+            return
+        raise SemanticUnitStoreError("unknown semantic-unit event kind")
 
-    def _append_candidate(self, candidate: SemanticUnitCandidate, *, previous_id: str | None):
-        self._verify_candidate(candidate)
-        rid = candidate.envelope.record_id
-        digest_value = record_digest(candidate)
-        if rid in self._versions:
-            if self._digests[rid] != digest_value:
-                raise SemanticUnitStoreError("candidate record_id is immutable")
-            prior = self._receipts[rid]
-            return SemanticUnitReceipt(prior.event_id, prior.sequence, prior.payload_digest,
-                                       prior.record_digest, True)
-        root = rid if previous_id is None else self._root_by_current.get(previous_id)
-        if root is None:
-            raise SemanticUnitStoreError("revision predecessor is not the current indexed version")
-        event_id = f"m2:semantic-unit:{rid}"
-        kind = "candidate_revised" if previous_id is not None else "candidate_recorded"
-        payload, body_digest = self._payload(kind, candidate, previous_id)
-        if body_digest != digest_value:
-            raise SemanticUnitStoreError("candidate digest changed during serialization")
-        raw = self._memory.append_domain_event(
-            event_type=EVENT_TYPE, event_id=event_id, scope=self.scope,
-            payload=payload, expected_sequence=self._last_sequence)
-        if raw["replayed"]:
-            raise SemanticUnitStoreError("event exists outside restored adapter state; reconstruct before retry")
-        receipt = SemanticUnitReceipt(event_id, raw["sequence"], raw["payload_digest"],
-                                      digest_value, False)
-        self._versions[rid] = candidate
-        self._digests[rid] = digest_value
-        self._event_kinds[rid] = kind
-        self._predecessors[rid] = previous_id
-        self._receipts[rid] = receipt
-        self._last_sequence = receipt.sequence
-        if previous_id is None:
-            self._latest[rid] = rid
-            self._root_by_current[rid] = rid
-        else:
-            self._latest[root] = rid
-            del self._root_by_current[previous_id]
-            self._root_by_current[rid] = root
-        return receipt
+    def _restore(self) -> None:
+        if self._checkpoint_valid():
+            self._validate_current_projection_evidence()
+            return
+        with self._memory.lock:
+            self._db.execute("BEGIN IMMEDIATE")
+            try:
+                self._db.execute("DELETE FROM m2_semantic_unit_projection_checkpoint WHERE scope=?",
+                                 (self.scope,))
+                self._db.execute("DELETE FROM m2_semantic_unit_versions WHERE scope=?", (self.scope,))
+                self._db.execute("DELETE FROM m2_semantic_unit_roots WHERE scope=?", (self.scope,))
+                self._db.execute(
+                    "INSERT OR IGNORE INTO m2_semantic_unit_projection_state(scope,generation) VALUES(?,0)",
+                    (self.scope,),
+                )
+                previous_sequence = 0
+                for event in self._memory.iter_domain_events(
+                    event_type=EVENT_TYPE, scope=self.scope, page_size=self._replay_page_size
+                ):
+                    seq = event["sequence"]
+                    if isinstance(seq,bool) or not isinstance(seq,int) or seq <= previous_sequence:
+                        raise SemanticUnitStoreError("semantic-unit event sequence is not strictly increasing")
+                    previous_sequence = seq
+                    self._project_event(event)
+                high_water = self._latest_sequence()
+                self._write_checkpoint(high_water)
+                self._db.execute("COMMIT")
+            except (ZPCMError, ContractError, SemanticUnitStoreError):
+                self._db.execute("ROLLBACK")
+                raise
+            except Exception as exc:
+                self._db.execute("ROLLBACK")
+                raise SemanticUnitStoreError(f"semantic-unit projection rebuild failed: {exc}") from exc
+
+    def _validate_current_projection_evidence(self) -> None:
+        """Revalidate only current working-set bodies, never historical candidate bodies."""
+        cursor = ""
+        while True:
+            with self._memory.lock:
+                rows = self._db.execute(
+                    "SELECT root_id,length(CAST(current_body_json AS BLOB)) AS body_bytes "
+                    "FROM m2_semantic_unit_roots WHERE scope=? AND retracted_reason IS NULL "
+                    "AND root_id>? ORDER BY root_id LIMIT 32",
+                    (self.scope,cursor),
+                ).fetchall()
+            if not rows:
+                return
+            used = 0
+            for row in rows:
+                size = int(row["body_bytes"])
+                if size > self._memory.max_page_bytes or used + size > self._memory.max_page_bytes:
+                    if used == 0:
+                        raise SemanticUnitStoreError("current candidate exceeds projection validation byte budget")
+                    break
+                with self._memory.lock:
+                    body = self._db.execute(
+                        "SELECT current_body_json FROM m2_semantic_unit_roots "
+                        "WHERE scope=? AND root_id=? AND retracted_reason IS NULL",
+                        (self.scope,row["root_id"]),
+                    ).fetchone()
+                if body is None:
+                    cursor = row["root_id"]
+                    continue
+                candidate = _candidate_from_dict(json.loads(body["current_body_json"]))
+                self._verify_candidate(candidate)
+                used += size
+                cursor = row["root_id"]
+
+    def _ensure_current(self) -> None:
+        if not self._checkpoint_valid():
+            self._restore()
+
+    def _version_row(self, record_id: str):
+        with self._memory.lock:
+            return self._db.execute(
+                "SELECT * FROM m2_semantic_unit_versions WHERE scope=? AND record_id=?",
+                (self.scope,record_id),
+            ).fetchone()
+
+    @staticmethod
+    def _receipt(row, *, replayed: bool) -> SemanticUnitReceipt:
+        return SemanticUnitReceipt(
+            row["event_id"],int(row["sequence"]),row["payload_digest"],
+            row["record_digest"],replayed,
+        )
+
+    @property
+    def candidates(self) -> dict[str, SemanticUnitCandidate]:
+        """Explicit compatibility materialization; use iter_candidates for bounded reads."""
+        result = {}
+        cursor = None
+        while True:
+            page = list(self.iter_candidates(limit=64, after_root_id=cursor, max_bytes=4194304))
+            if not page:
+                return result
+            result.update(page)
+            cursor = page[-1][0]
+
+    def iter_candidates(self, *, limit: int = 64, after_root_id: str | None = None,
+                        max_bytes: int = 1048576
+                        ) -> Iterator[tuple[str, SemanticUnitCandidate]]:
+        if isinstance(limit,bool) or not isinstance(limit,int) or not 1 <= limit <= 4096:
+            raise ValueError("limit must be an integer in [1, 4096]")
+        if isinstance(max_bytes,bool) or not isinstance(max_bytes,int) or max_bytes < 1:
+            raise ValueError("max_bytes must be a positive integer")
+        if max_bytes > self._memory.max_page_bytes:
+            raise ValueError("max_bytes cannot exceed ZPCM max_page_bytes")
+        self._ensure_current()
+        sql = ("SELECT root_id,length(CAST(current_body_json AS BLOB)) AS body_bytes "
+               "FROM m2_semantic_unit_roots WHERE scope=? AND retracted_reason IS NULL")
+        args: list[Any] = [self.scope]
+        if after_root_id is not None:
+            sql += " AND root_id>?"
+            args.append(after_root_id)
+        sql += " ORDER BY root_id LIMIT ?"
+        args.append(limit)
+        with self._memory.lock:
+            rows = self._db.execute(sql,args).fetchall()
+        used = 0
+        for row in rows:
+            size = int(row["body_bytes"])
+            if size > max_bytes:
+                if used == 0:
+                    raise SemanticUnitStoreError("one current candidate exceeds iter_candidates byte budget")
+                return
+            if used + size > max_bytes:
+                return
+            with self._memory.lock:
+                body = self._db.execute(
+                    "SELECT current_body_json FROM m2_semantic_unit_roots "
+                    "WHERE scope=? AND root_id=? AND retracted_reason IS NULL",
+                    (self.scope,row["root_id"]),
+                ).fetchone()
+            if body is None:
+                continue
+            candidate = _candidate_from_dict(json.loads(body["current_body_json"]))
+            self._verify_candidate(candidate)
+            used += size
+            yield row["root_id"],candidate
+
+    @property
+    def history(self) -> dict[str, SemanticUnitCandidate]:
+        """Explicit full-history materialization for export and compatibility only."""
+        result = {}
+        for event in self._memory.iter_domain_events(
+            event_type=EVENT_TYPE,scope=self.scope,page_size=self._replay_page_size
+        ):
+            payload = event["payload"]
+            if payload.get("kind") in ("candidate_recorded","candidate_revised"):
+                candidate = _candidate_from_dict(payload["body"])
+                self._verify_candidate(candidate)
+                if record_digest(candidate) != payload.get("body_digest"):
+                    raise SemanticUnitStoreError("candidate body digest mismatch during history materialization")
+                rid = candidate.envelope.record_id
+                if rid in result:
+                    raise SemanticUnitStoreError("duplicate candidate record ID in history")
+                result[rid] = candidate
+        return result
+
+    @property
+    def retractions(self) -> dict[str, str]:
+        self._ensure_current()
+        with self._memory.lock:
+            rows = self._db.execute(
+                "SELECT current_record_id,retracted_reason FROM m2_semantic_unit_roots "
+                "WHERE scope=? AND retracted_reason IS NOT NULL",(self.scope,)
+            ).fetchall()
+        return {row["current_record_id"]:row["retracted_reason"] for row in rows}
+
+    @property
+    def _root_by_current(self) -> dict[str,str]:
+        self._ensure_current()
+        with self._memory.lock:
+            rows = self._db.execute(
+                "SELECT root_id,current_record_id,retracted_reason FROM m2_semantic_unit_roots WHERE scope=?",
+                (self.scope,),
+            ).fetchall()
+        return {row["current_record_id"]:row["root_id"] for row in rows
+                if row["retracted_reason"] is None}
+
+    @property
+    def _receipts(self) -> dict[str,SemanticUnitReceipt]:
+        self._ensure_current()
+        with self._memory.lock:
+            rows = self._db.execute(
+                "SELECT record_id,event_id,sequence,payload_digest,record_digest "
+                "FROM m2_semantic_unit_versions WHERE scope=?",(self.scope,)
+            ).fetchall()
+        return {row["record_id"]:self._receipt(row,replayed=True) for row in rows}
+
+    def _append_projected(self, *, event_id: str, payload: dict[str,Any],
+                          action: str, candidate: SemanticUnitCandidate | None = None,
+                          previous_id: str | None = None, record_id: str | None = None,
+                          reason: str | None = None) -> SemanticUnitReceipt:
+        self._ensure_current()
+        with self._memory.lock:
+            self._db.execute("BEGIN IMMEDIATE")
+            try:
+                if not self._checkpoint_valid():
+                    raise SemanticUnitStoreError(
+                        "M2 projection changed concurrently; reconstruct the store before retry"
+                    )
+                seq,replayed = self._memory._append(event_id,EVENT_TYPE,self.scope,payload)
+                if replayed:
+                    row = self._version_row(candidate.envelope.record_id) if candidate else None
+                    if action == "retract":
+                        event = self._memory.get_domain_event(
+                            event_type=EVENT_TYPE, scope=self.scope, event_id=event_id
+                        )
+                        if event is None:
+                            raise SemanticUnitStoreError("replayed retraction event is missing")
+                        root = self._db.execute(
+                            "SELECT current_record_digest FROM m2_semantic_unit_roots "
+                            "WHERE scope=? AND current_record_id=?",
+                            (self.scope, record_id),
+                        ).fetchone()
+                        if root is None:
+                            raise SemanticUnitStoreError("replayed retraction target is missing")
+                        self._db.execute("COMMIT")
+                        return SemanticUnitReceipt(
+                            event_id, event["sequence"], event["payload_digest"],
+                            root["current_record_digest"], True,
+                        )
+                    if row is None:
+                        raise SemanticUnitStoreError("event exists without its matching M2 projection")
+                    self._db.execute("COMMIT")
+                    return self._receipt(row,replayed=True)
+                if action == "record":
+                    assert candidate is not None
+                    rid = candidate.envelope.record_id
+                    body_digest = record_digest(candidate)
+                    self._db.execute(
+                        "INSERT INTO m2_semantic_unit_versions VALUES(?,?,?,?,?,?,?,?,?)",
+                        (self.scope,rid,rid,None,"candidate_recorded",event_id,seq,
+                         hashlib.sha256(canonical_json(payload).encode("utf-8")).hexdigest(),body_digest),
+                    )
+                    self._db.execute(
+                        "INSERT INTO m2_semantic_unit_roots VALUES(?,?,?,?,?,?,?,NULL)",
+                        (self.scope,rid,rid,canonical_json(candidate),body_digest,event_id,seq),
+                    )
+                elif action == "revise":
+                    assert candidate is not None and previous_id is not None
+                    prior = self._version_row(previous_id)
+                    active = self._db.execute(
+                        "SELECT root_id FROM m2_semantic_unit_roots WHERE scope=? "
+                        "AND current_record_id=? AND retracted_reason IS NULL",
+                        (self.scope,previous_id),
+                    ).fetchone()
+                    if prior is None or active is None or prior["root_id"] != active["root_id"]:
+                        raise SemanticUnitStoreError("revision predecessor is no longer current")
+                    rid = candidate.envelope.record_id
+                    body_digest = record_digest(candidate)
+                    self._db.execute(
+                        "INSERT INTO m2_semantic_unit_versions VALUES(?,?,?,?,?,?,?,?,?)",
+                        (self.scope,rid,active["root_id"],previous_id,"candidate_revised",
+                         event_id,seq,hashlib.sha256(canonical_json(payload).encode("utf-8")).hexdigest(),body_digest),
+                    )
+                    changed = self._db.execute(
+                        "UPDATE m2_semantic_unit_roots SET current_record_id=?,current_body_json=?,"
+                        "current_record_digest=?,current_event_id=?,current_sequence=? "
+                        "WHERE scope=? AND root_id=? AND current_record_id=? AND retracted_reason IS NULL",
+                        (rid,canonical_json(candidate),body_digest,event_id,seq,
+                         self.scope,active["root_id"],previous_id),
+                    ).rowcount
+                    if changed != 1:
+                        raise SemanticUnitStoreError("revision lost a concurrent predecessor race")
+                elif action == "retract":
+                    assert record_id is not None and reason is not None
+                    changed = self._db.execute(
+                        "UPDATE m2_semantic_unit_roots SET retracted_reason=? "
+                        "WHERE scope=? AND current_record_id=? AND retracted_reason IS NULL",
+                        (reason,self.scope,record_id),
+                    ).rowcount
+                    if changed != 1:
+                        raise SemanticUnitStoreError("retraction target is no longer current")
+                else:
+                    raise SemanticUnitStoreError("unknown projection action")
+                self._write_checkpoint(seq)
+                row = self._version_row(candidate.envelope.record_id) if candidate else self._version_row(record_id)
+                if row is None:
+                    raise SemanticUnitStoreError("projection receipt row is missing after append")
+                if action == "retract":
+                    result = SemanticUnitReceipt(
+                        event_id, seq, hashlib.sha256(canonical_json(payload).encode("utf-8")).hexdigest(),
+                        row["record_digest"], False,
+                    )
+                else:
+                    result = self._receipt(row,replayed=False)
+                self._db.execute("COMMIT")
+                return result
+            except Exception:
+                self._db.execute("ROLLBACK")
+                raise
 
     def record_candidate(self, candidate: SemanticUnitCandidate) -> SemanticUnitReceipt:
-        if not isinstance(candidate, SemanticUnitCandidate):
+        if not isinstance(candidate,SemanticUnitCandidate):
             raise TypeError("candidate must be SemanticUnitCandidate")
         with self._lock:
-            record_id = candidate.envelope.record_id
-            if record_id in self._versions and self._event_kinds[record_id] != "candidate_recorded":
-                raise SemanticUnitStoreError("record_candidate cannot replay a revision event")
-            return self._append_candidate(candidate, previous_id=None)
+            self._ensure_current()
+            self._verify_candidate(candidate)
+            rid = candidate.envelope.record_id
+            existing = self._version_row(rid)
+            if existing is not None:
+                if existing["event_kind"] != "candidate_recorded" or existing["record_digest"] != record_digest(candidate):
+                    raise SemanticUnitStoreError("candidate record_id is immutable")
+                return self._receipt(existing,replayed=True)
+            payload,body_digest = self._payload("candidate_recorded",candidate)
+            return self._append_projected(
+                event_id=f"m2:semantic-unit:{rid}",payload=payload,action="record",candidate=candidate
+            )
 
     def revise_candidate(self, previous_record_id: str,
                          candidate: SemanticUnitCandidate) -> SemanticUnitReceipt:
-        if not isinstance(previous_record_id, str) or not previous_record_id.strip():
+        if not isinstance(previous_record_id,str) or not previous_record_id.strip():
             raise ValueError("previous_record_id must be non-empty")
-        if not isinstance(candidate, SemanticUnitCandidate):
+        if not isinstance(candidate,SemanticUnitCandidate):
             raise TypeError("candidate must be SemanticUnitCandidate")
         with self._lock:
-            # Retry after a committed revision remains idempotent even though
-            # its predecessor is no longer the current version.
-            candidate_id = candidate.envelope.record_id
-            if candidate_id in self._versions:
-                if (self._event_kinds[candidate_id] != "candidate_revised"
-                        or self._predecessors[candidate_id] != previous_record_id
-                        or self._digests[candidate_id] != record_digest(candidate)
+            self._ensure_current()
+            self._verify_candidate(candidate)
+            rid = candidate.envelope.record_id
+            existing = self._version_row(rid)
+            if existing is not None:
+                if (existing["event_kind"] != "candidate_revised"
+                        or existing["predecessor_id"] != previous_record_id
+                        or existing["record_digest"] != record_digest(candidate)
                         or candidate.envelope.derivation_refs.count(previous_record_id) != 1):
                     raise SemanticUnitStoreError("candidate revision identity/predecessor is immutable")
-                receipt = self._receipts[candidate_id]
-                return SemanticUnitReceipt(receipt.event_id, receipt.sequence,
-                    receipt.payload_digest, receipt.record_digest, True)
-            if previous_record_id not in self._versions:
+                return self._receipt(existing,replayed=True)
+            prior = self._version_row(previous_record_id)
+            if prior is None:
                 raise SemanticUnitStoreError("revision predecessor does not exist")
-            if previous_record_id in self._retracted or previous_record_id not in self._latest.values():
+            with self._memory.lock:
+                active = self._db.execute(
+                    "SELECT root_id FROM m2_semantic_unit_roots WHERE scope=? "
+                    "AND current_record_id=? AND retracted_reason IS NULL",
+                    (self.scope,previous_record_id),
+                ).fetchone()
+            if active is None or prior["root_id"] != active["root_id"]:
                 raise SemanticUnitStoreError("only the current active candidate can be revised")
             if candidate.envelope.derivation_refs.count(previous_record_id) != 1:
                 raise SemanticUnitStoreError("revision must cite predecessor exactly once in derivation_refs")
-            if candidate.envelope.record_id == previous_record_id:
-                raise SemanticUnitStoreError("revision requires a new immutable record_id")
-            if candidate.envelope.scope != self.scope:
-                raise SemanticUnitStoreError("revision cannot cross scopes")
-            return self._append_candidate(candidate, previous_id=previous_record_id)
+            if rid == previous_record_id or candidate.envelope.scope != self.scope:
+                raise SemanticUnitStoreError("revision requires a new ID and matching scope")
+            payload,_ = self._payload("candidate_revised",candidate,previous_record_id)
+            return self._append_projected(
+                event_id=f"m2:semantic-unit:{rid}",payload=payload,action="revise",
+                candidate=candidate,previous_id=previous_record_id,
+            )
 
     def retract_candidate(self, record_id: str, *, reason: str) -> SemanticUnitReceipt:
-        if not isinstance(record_id, str) or not record_id.strip():
+        if not isinstance(record_id,str) or not record_id.strip():
             raise ValueError("record_id must be non-empty")
-        if not isinstance(reason, str) or not reason.strip():
+        if not isinstance(reason,str) or not reason.strip():
             raise ValueError("reason must be non-empty")
         with self._lock:
-            if record_id not in self._versions or record_id not in self._latest.values():
+            self._ensure_current()
+            with self._memory.lock:
+                existing = self._db.execute(
+                    "SELECT * FROM m2_semantic_unit_roots WHERE scope=? AND current_record_id=?",
+                    (self.scope,record_id),
+                ).fetchone()
+            if existing is None:
                 raise SemanticUnitStoreError("only the current candidate version can be retracted")
-            if record_id in self._retracted:
-                if self._retracted[record_id] != reason:
+            if existing["retracted_reason"] is not None:
+                if existing["retracted_reason"] != reason:
                     raise SemanticUnitStoreError("retraction reason conflicts with prior tombstone")
-                prior = next(
-                    (event for event in self._memory.iter_domain_events(
-                        event_type=EVENT_TYPE, scope=self.scope,
-                        page_size=self._replay_page_size,
-                    ) if event["event_id"] == f"m2:semantic-unit:{record_id}:retracted"),
-                    None,
+                event = self._memory.get_domain_event(
+                    event_type=EVENT_TYPE,scope=self.scope,
+                    event_id=f"m2:semantic-unit:{record_id}:retracted",
                 )
-                if prior is None:
+                if event is None:
                     raise SemanticUnitStoreError("retraction receipt is missing from the event log")
-                return SemanticUnitReceipt(prior["event_id"], prior["sequence"],
-                    prior["payload_digest"], self._digests[record_id], True)
-            event_id = f"m2:semantic-unit:{record_id}:retracted"
-            payload = {"schema_version": EVENT_SCHEMA, "kind": "candidate_retracted",
-                       "record_id": record_id, "reason": reason}
-            raw = self._memory.append_domain_event(
-                event_type=EVENT_TYPE, event_id=event_id, scope=self.scope,
-                payload=payload, expected_sequence=self._last_sequence)
-            if raw["replayed"]:
-                raise SemanticUnitStoreError("retraction event exists outside restored adapter state")
-            self._retracted[record_id] = reason
-            self._last_sequence = raw["sequence"]
-            return SemanticUnitReceipt(event_id, raw["sequence"], raw["payload_digest"],
-                                       self._digests[record_id], False)
+                return SemanticUnitReceipt(event["event_id"],event["sequence"],
+                    event["payload_digest"],existing["current_record_digest"],True)
+            payload = {"schema_version":EVENT_SCHEMA,"kind":"candidate_retracted",
+                       "record_id":record_id,"reason":reason}
+            return self._append_projected(
+                event_id=f"m2:semantic-unit:{record_id}:retracted",payload=payload,
+                action="retract",record_id=record_id,reason=reason,
+            )
