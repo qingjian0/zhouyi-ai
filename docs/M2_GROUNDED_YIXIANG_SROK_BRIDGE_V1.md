@@ -71,7 +71,9 @@ This branch now includes an executable, ephemeral TRLW projection in `prototype/
 - Ranking scores have an explicit `trlw-ranking` semantic and are not conflated with extractor confidence, truth probability, or SROK priority.
 - The byte budget applies to canonical serialized record bytes, **not** Python heap/RSS. Runtime memory still requires separate measurement.
 
-This is not yet a durable ZPCM-to-TRLW integration. In particular, the current TRLW builder requires an upstream iterable of already materialized `SemanticUnitCandidate` values. It does not itself page semantic candidates from ZPCM, and the M2 persistence slice currently persists Observations rather than SemanticUnitCandidate revisions/retractions.
+The Yixiang adapter now also accepts a completed TRLW `MemoryPacket` through `compose_trlw_grounded_yixiang_hypotheses`. It uses only the bounded packet entries, requires the relation candidate and all role targets to be present, and carries packet status/source-completeness/budget-exhaustion into the result. A truncated packet may still produce hypotheses, but the result explicitly sets `search_exhaustive=False`; it never claims to have searched the complete durable history.
+
+This PR branch still does not itself contain the persistent ZPCM candidate store. The persistent candidate iterator is being developed separately in PR #273; once both branches are integrated, it can feed TRLW and then this packet adapter without materializing full history.
 
 ## Not implemented
 
