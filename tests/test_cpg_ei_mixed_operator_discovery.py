@@ -3,6 +3,7 @@ import unittest
 
 from prototype.cpg_ei_mixed_operator_data import generate_mixed_corpus
 from prototype.cpg_ei_mixed_operator_discovery import (
+    _truth_mask,
     enumerate_rule_hypotheses,
     run_discovery_benchmark,
 )
@@ -30,12 +31,27 @@ class TestMixedOperatorDiscoveryBaseline(unittest.TestCase):
                 )
                 self.assertIn(key, candidates)
 
-    def test_discovery_report_is_complete_and_finite(self):
+    def test_and_or_are_semantically_aliased_by_threshold(self):
+        self.assertEqual(
+            _truth_mask(RelationRule("and", (0, 1)), 2),
+            _truth_mask(RelationRule("threshold", (0, 1), threshold=2), 2),
+        )
+        self.assertEqual(
+            _truth_mask(RelationRule("or", (0, 1)), 2),
+            _truth_mask(RelationRule("threshold", (0, 1), threshold=1), 2),
+        )
+
+    def test_discovery_report_separates_semantic_and_structural_recovery(self):
         corpus = generate_mixed_corpus(
             family_count=10, input_dim=4, output_dim=7, seed=123
         )
         report = run_discovery_benchmark(corpus)
         self.assertGreater(report["candidate_hypothesis_count"], 0)
+        self.assertGreater(report["candidate_truth_function_count"], 0)
+        self.assertEqual(
+            report["candidate_structural_alias_count"],
+            report["candidate_hypothesis_count"] - report["candidate_truth_function_count"],
+        )
         self.assertEqual(report["family_split_results"]["train"]["families"], 6)
         self.assertEqual(report["family_split_results"]["development"]["families"], 2)
         self.assertEqual(report["family_split_results"]["locked"]["families"], 2)
@@ -43,7 +59,16 @@ class TestMixedOperatorDiscoveryBaseline(unittest.TestCase):
             if split["outputs"]:
                 self.assertTrue(0.0 <= split["mean_locked_bit_accuracy"] <= 1.0)
                 self.assertTrue(0.0 <= split["operator_recovery_rate"] <= 1.0)
+                self.assertTrue(0.0 <= split["teacher_function_identifiability_rate"] <= 1.0)
         self.assertEqual(len(report["family_results"]), 10)
+        for family in report["family_results"]:
+            for output in family["output_results"]:
+                self.assertGreaterEqual(output["teacher_function_equivalence_class_size"], 1)
+                self.assertGreaterEqual(output["selected_function_equivalence_class_size"], 1)
+                self.assertEqual(
+                    output["teacher_function_structurally_identifiable"],
+                    output["teacher_function_equivalence_class_size"] == 1,
+                )
 
     def test_locked_labels_do_not_change_selected_hypotheses(self):
         corpus = generate_mixed_corpus(
