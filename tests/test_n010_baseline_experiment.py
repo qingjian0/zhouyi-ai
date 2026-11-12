@@ -23,7 +23,7 @@ class N010BaselineExperimentTests(unittest.TestCase):
                 noise_rate=0.0, missing_rate=0.0,
             )
             report = run_comparison(
-                dataset, roles, 4, output, latent_dim=2, seed=7,
+                dataset, roles, 4, output, latent_dim=8, seed=7,
                 epochs=3, learning_rate=0.02, max_expansions=8,
             )
             expected = {
@@ -34,8 +34,8 @@ class N010BaselineExperimentTests(unittest.TestCase):
             self.assertEqual(report["config"]["train_relation_examples"], 40)
             self.assertEqual(report["models"]["learnable_xiang"]["dev"]["examples"], 2)
             self.assertEqual(report["models"]["learnable_xiang"]["locked_test"]["examples"], 2)
-            self.assertEqual(report["models"]["parameter_matched_mlp"]["parameter_count"], 25)
-            self.assertEqual(report["models"]["parameter_matched_low_rank_tensor"]["parameter_count"], 25)
+            self.assertEqual(report["models"]["parameter_matched_mlp"]["parameter_count"], 99)
+            self.assertEqual(report["models"]["parameter_matched_low_rank_tensor"]["parameter_count"], 97)
             saved = json.loads(output.read_text(encoding="utf-8"))
             self.assertEqual(saved["schema"], "zhouyi-ai.n010-baseline-comparison-v1")
 
