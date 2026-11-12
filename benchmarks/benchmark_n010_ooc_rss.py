@@ -68,7 +68,7 @@ def _write_dataset(path: Path, records_per_split: int) -> None:
                     "source_group_id": f"{prefix}-document-{index // 4}",
                     "nodes": nodes, "target_ids": targets,
                 }
-                sink.write(json.dumps(row, sort_keys=True, separators=(",", ":")) + "\\n")
+                sink.write(json.dumps(row, sort_keys=True, separators=(",", ":")) + "\n")
 
 
 def _worker(dataset: Path, records: int, epochs: int) -> dict:
