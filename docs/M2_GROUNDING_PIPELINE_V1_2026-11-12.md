@@ -26,3 +26,13 @@ The injected resolver is a trusted dependency and must enforce registry access, 
 ## Non-claims
 
 This is not an NLP parser, open-world entity linker, knowledge graph truth engine, or E09 authority. It does not demonstrate semantic extraction quality, cross-domain analogy, or general natural-language understanding. Those require separate datasets, locked OOD tests, hard negatives, calibration, and human-audited labels.
+
+## Validation
+
+Focused contract test:
+
+```bash
+python -m unittest tests.test_m2_grounding_pipeline -v
+```
+
+Repository validation is provided by the `research-branch-validation` workflow on this `research/*` branch. CI success validates contract behavior only; it does not validate resolver quality or entity-linking accuracy.
