@@ -9,6 +9,7 @@ This is a small synthetic-reasoning prototype, not a language model.
 from __future__ import annotations
 from dataclasses import dataclass
 import hashlib
+import heapq
 import json
 from itertools import combinations, product
 import math
@@ -65,9 +66,9 @@ class Prediction:
         """Number of expanded search states, including partial beam prefixes.
 
         expanded_assignments is retained as a compatibility alias. Exact
-        product search expands complete assignments; beam search also expands
-        partial prefixes, so the older field name is not precise for all
-        strategies.
+        product search expands complete assignments; beam and branch-bound
+        also expand partial prefixes, so the older field name is not precise
+        for all strategies.
         """
         return self.expanded_assignments
 
@@ -351,6 +352,135 @@ class LearnableSROK:
         complete = [item for item in beam if len(item) == len(self.roles)]
         return complete, False, pruned, expanded
 
+    def _assignment_upper_bound(self, prefix: Sequence[Node], pools) -> float:
+        """Admissible upper bound for every completion of a role prefix.
+
+        Each unary/pairwise/third-order feature term is bounded independently
+        over the remaining role pools. Ignoring cross-term candidate coupling
+        and distinct-member constraints can only make the bound optimistic.
+        """
+        assigned = len(prefix)
+        role_count = len(self.roles)
+        if assigned > role_count or len(pools) != role_count:
+            raise LearnableSROKError("partial assignment or pool role count mismatch")
+        for node in prefix:
+            self._validate_node(node)
+        if any(not pool for pool in pools):
+            raise LearnableSROKError("upper-bound candidate pools must be non-empty")
+
+        def maximum_contribution(term_roles, weight_index, feature_index):
+            min_product = 1.0
+            max_product = 1.0
+            for role_index in term_roles:
+                if role_index < assigned:
+                    values = (prefix[role_index].features[feature_index],)
+                else:
+                    values = tuple(
+                        node.features[feature_index] for node in pools[role_index]
+                    )
+                low, high = min(values), max(values)
+                products = (
+                    min_product * low, min_product * high,
+                    max_product * low, max_product * high,
+                )
+                if any(not math.isfinite(value) for value in products):
+                    raise LearnableSROKError("upper-bound interaction product overflowed")
+                min_product = min(products)
+                max_product = max(products)
+            weight = self.weights[weight_index]
+            contribution = weight * (
+                max_product if weight >= 0.0 else min_product
+            )
+            if not math.isfinite(contribution):
+                raise LearnableSROKError("upper-bound contribution is non-finite")
+            return contribution
+
+        dim = self.feature_dim
+        terms = []
+        for role_index in range(role_count):
+            for feature_index in range(dim):
+                terms.append(maximum_contribution(
+                    (role_index,), role_index * dim + feature_index,
+                    feature_index,
+                ))
+
+        pair_offset = role_count * dim
+        for pair_index, pair in enumerate(self.pairs):
+            for feature_index in range(dim):
+                terms.append(maximum_contribution(
+                    pair,
+                    pair_offset + pair_index * dim + feature_index,
+                    feature_index,
+                ))
+
+        triple_offset = pair_offset + len(self.pairs) * dim
+        for triple_index, triple in enumerate(self.triples):
+            for feature_index in range(dim):
+                terms.append(maximum_contribution(
+                    triple,
+                    triple_offset + triple_index * dim + feature_index,
+                    feature_index,
+                ))
+
+        try:
+            bound = math.fsum(terms)
+        except OverflowError as exc:
+            raise LearnableSROKError("upper-bound score overflowed") from exc
+        if not math.isfinite(bound):
+            raise LearnableSROKError("upper-bound score is non-finite")
+        return bound
+
+    def _branch_bound_enumerate(self, pools, max_expansions: int, top_k: int):
+        """Best-first exact top-k search using an admissible score upper bound.
+
+        Unlike beam search, branches are discarded only after their optimistic
+        score is strictly below the current kth complete score. Equal-score
+        branches remain searchable so deterministic tie ordering is exact.
+        """
+        if isinstance(max_expansions, bool) or not isinstance(max_expansions, int) or max_expansions < 1:
+            raise LearnableSROKError("max_expansions must be a positive integer")
+        if isinstance(top_k, bool) or not isinstance(top_k, int) or top_k < 2:
+            raise LearnableSROKError("branch-and-bound top_k must be at least two")
+
+        root = ()
+        serial = 0
+        root_bound = self._assignment_upper_bound(root, pools)
+        frontier = [(-root_bound, (), serial, root)]
+        best = []
+        expanded = 0
+        role_count = len(self.roles)
+
+        while frontier:
+            best_remaining_bound = -frontier[0][0]
+            if len(best) >= top_k and best_remaining_bound < best[-1][0]:
+                break
+
+            _negative_bound, _node_ids, _serial, prefix = heapq.heappop(frontier)
+            if len(prefix) == role_count:
+                score = self.score(prefix)
+                best.append((score, prefix))
+                best.sort(key=lambda item: (
+                    -item[0], tuple(node.node_id for node in item[1])
+                ))
+                if len(best) > top_k:
+                    best.pop()
+                continue
+
+            role_index = len(prefix)
+            for node in pools[role_index]:
+                if expanded >= max_expansions:
+                    return [assignment for _score, assignment in best], True, expanded
+                expanded += 1
+                if any(existing.node_id == node.node_id for existing in prefix):
+                    continue
+                child = prefix + (node,)
+                bound = self._assignment_upper_bound(child, pools)
+                serial += 1
+                node_ids = tuple(item.node_id for item in child)
+                heapq.heappush(frontier, (-bound, node_ids, serial, child))
+
+        return [assignment for _score, assignment in best], False, expanded
+
     def fit(
         self, examples: Iterable[TrainingExample], *, epochs: int = 80,
         learning_rate: float = 0.2, l2: float = 1e-4,
@@ -616,8 +746,10 @@ class LearnableSROK:
         """Retrieve, compose, score, and optionally abstain under fixed budgets.
 
         unary preserves role-wise Top-K retrieval. joint retains every
-        type/tag-compatible candidate and ranks complete assignments using
-        relational scores, bounded by max_expansions.
+        type/tag-compatible candidate. Product exhaustively enumerates the
+        Cartesian product; Beam is approximate and abstains after pruning;
+        branch_bound uses an admissible upper bound to certify exact top-k
+        results when it finishes within max_expansions.
         """
         if isinstance(result_limit, bool) or not isinstance(result_limit, int) or result_limit < 1:
             raise LearnableSROKError("result_limit must be a positive integer")
@@ -629,8 +761,8 @@ class LearnableSROK:
             raise LearnableSROKError("abstain_margin must be finite and non-negative")
         if retrieval_mode not in ("unary", "joint"):
             raise LearnableSROKError("retrieval_mode must be 'unary' or 'joint'")
-        if search_strategy not in ("product", "beam"):
-            raise LearnableSROKError("search_strategy must be 'product' or 'beam'")
+        if search_strategy not in ("product", "beam", "branch_bound"):
+            raise LearnableSROKError("search_strategy must be 'product', 'beam', or 'branch_bound'")
         if isinstance(beam_width, bool) or not isinstance(beam_width, int) or beam_width < 1:
             raise LearnableSROKError("beam_width must be a positive integer")
         node_list = tuple(nodes)
@@ -659,9 +791,15 @@ class LearnableSROK:
         if any(not pool for pool in pools):
             return Prediction((), True, "NO_ROLE_CANDIDATES", 0, False, sizes)
         pruned = False
+        if search_strategy == "branch_bound" and retrieval_mode != "joint":
+            raise LearnableSROKError("branch_bound search requires retrieval_mode='joint'")
         if retrieval_mode == "joint" and search_strategy == "beam":
             assignments, exhausted, pruned, expanded = self._beam_enumerate(
                 pools, max_expansions, beam_width
+            )
+        elif retrieval_mode == "joint" and search_strategy == "branch_bound":
+            assignments, exhausted, expanded = self._branch_bound_enumerate(
+                pools, max_expansions, max(result_limit, 2)
             )
         else:
             assignments, exhausted, expanded = self._enumerate(pools, max_expansions)

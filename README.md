@@ -31,6 +31,7 @@ Zhouyi-AI 以**非序列中心认知计算**为顶层原则：内部认知以类
 - [研究总纲](docs/RESEARCH_CHARTER.md)
 - [易象模块研究](docs/YIXIANG_MODULE.md)
 - [实验计划](docs/EXPERIMENTS.md)
+- [CPG-EI 可证明完备的联合搜索（Exact Product / Beam / Branch-and-Bound）](docs/CPG_EI_ADMISSIBLE_BRANCH_BOUND_2026-11-12.md)
 - [风险与证伪条件](docs/RISKS_AND_FALSIFICATION.md)
 
 ## 当前工程状态
