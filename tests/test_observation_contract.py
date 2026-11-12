@@ -108,7 +108,7 @@ class ObservationTests(unittest.TestCase):
         with self.assertRaises(ContractError):
             Observation(
                 envelope("Observation"),
-                Modality.PDF,
+                Modality.TEXT,
                 SourceLocator(Modality.PDF, "pdf-v1", page_number=1),
                 "parser", "1", ExtractionMethod.RULE, ParseStatus.PARSED,
             )
@@ -148,9 +148,10 @@ class SemanticCandidateTests(unittest.TestCase):
         self.assertEqual(candidate.grounding_status, GroundingStatus.GROUNDED)
         self.assertEqual(candidate.truth_status, TruthStatus.UNKNOWN)
 
-    def test_grounded_does_not_implicitly_authorize_truth(self):
-        with self.assertRaises(ContractError):
-            self.make_candidate(truth_status=TruthStatus.SUPPORTED)
+    def test_truth_status_is_explicit_and_independent_of_grounding(self):
+        candidate = self.make_candidate(truth_status=TruthStatus.SUPPORTED)
+        self.assertEqual(candidate.grounding_status, GroundingStatus.GROUNDED)
+        self.assertEqual(candidate.truth_status, TruthStatus.SUPPORTED)
 
     def test_role_bindings_preserve_order_and_named_roles(self):
         candidate = self.make_candidate()
