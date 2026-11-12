@@ -69,3 +69,22 @@ inactive. The regression test checks held-out bit accuracy and that fewer than
 This is controlled support recovery on a six-bit synthetic task, not evidence
 of open-domain relation discovery. The true sparse support is fixed by the
 synthetic generator; the model still selects from a predefined candidate set.
+
+
+## Residual-driven dynamic candidate activation
+
+The structure-discovery prototype starts with only bias and six unary features.
+For each round it:
+
+1. Trains the current active topology.
+2. Applies group-L1 shrinkage and removes zero-weight relation groups.
+3. Builds an orthonormal basis of active feature columns.
+4. Residualizes each inactive pair/triple candidate against the active basis.
+5. Scores candidates by residual-gradient correlation across the six outputs.
+6. Activates the highest-scoring candidates and repeats.
+
+This is a greedy grow/prune procedure over the fixed 35-edge candidate universe.
+It demonstrates data-driven topology activation in a finite six-line benchmark;
+it does not create arbitrary new nodes, infer unrestricted relation arity, or
+prove natural-language class-image discovery. The sparse-teacher regression
+test measures held-out accuracy and recovery of the known synthetic support.
