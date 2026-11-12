@@ -1,0 +1,24 @@
+name: n010-ooc-rss-benchmark
+
+on:
+  push:
+    branches:
+      - research/n010-ooc-rss-benchmark-2026-11-12
+  pull_request:
+    branches:
+      - research/n010-heldout-group-isolation-2026-11-12
+      - research/n010-true-out-of-core-streaming-2026-11-12
+
+jobs:
+  ooc-rss:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Test platform RSS unit normalization
+        run: python -m unittest tests.test_n010_ooc_rss_benchmark -v
+      - name: Measure out-of-core RSS through one million records per split with a verified training update
+        run: python benchmarks/benchmark_n010_ooc_rss.py --sizes 1000 10000 100000 1000000 --epochs 2
