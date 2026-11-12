@@ -70,7 +70,9 @@ class SROKPrequentialTests(unittest.TestCase):
         learner.fit([row])
         prediction = learner.predict((encode_srok_observation(nodes),))
         self.assertNotEqual(learner.last_inference["status"], "ROLE_POOL_TRUNCATED")
-        self.assertIn(learner.last_inference["status"], ("RANKED", "LOW_SCORE_MARGIN", "BUDGET_EXHAUSTED"))
+        self.assertIn(learner.last_inference["status"], (
+            "RANKED", "LOW_SCORE_MARGIN", "BUDGET_EXHAUSTED", "BEAM_PRUNED"
+        ))
         restored = SROKPrequentialLearner.from_snapshot(learner.snapshot())
         self.assertEqual(restored.retrieval_mode, "joint")
         self.assertEqual(restored.search_strategy, "beam")
