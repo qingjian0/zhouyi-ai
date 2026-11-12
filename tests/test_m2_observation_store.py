@@ -128,7 +128,7 @@ class PersistentM2ObservationStoreTests(unittest.TestCase):
             )
         self.memory.close()
         self.memory = ZPCMMemory(self.memory_db)
-        with self.assertRaises(Exception):
+        with self.assertRaises(EvidenceResolutionError):
             PersistentM2ObservationStore(self.memory, self.resolver, scope="project-a")
 
 
