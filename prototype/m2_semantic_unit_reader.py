@@ -95,6 +95,48 @@ class PersistentM2SemanticUnitReader:
             current = previous
         raise SemanticUnitStoreError("semantic-unit revision chain exceeds depth limit")
 
+    def get_current_candidate(
+        self, record_id: str, *, max_events: int = 4096,
+    ) -> SemanticUnitCandidate | None:
+        """Resolve one candidate ID to its latest active version using indexed reads."""
+        if not isinstance(record_id, str) or not record_id.strip():
+            raise ValueError("record_id must be non-empty")
+        if isinstance(max_events, bool) or not isinstance(max_events, int) or not 1 <= max_events <= 65536:
+            raise ValueError("max_events must be an integer in [1, 65536]")
+        root = self._root_record_id(record_id)
+        scanned = 0
+        for event in self._memory.iter_domain_events_reverse(
+            event_type=EVENT_TYPE, scope=self.scope, page_size=self.page_size,
+        ):
+            scanned += 1
+            if scanned > max_events:
+                raise ScanBudgetExceeded(scanned - 1)
+            payload = event["payload"]
+            if payload.get("schema_version") != EVENT_SCHEMA:
+                raise SemanticUnitStoreError("unsupported semantic-unit event schema")
+            kind = payload.get("kind")
+            if kind in ("candidate_recorded", "candidate_revised"):
+                body = payload.get("body")
+                if not isinstance(body, dict):
+                    raise SemanticUnitStoreError("candidate event body must be an object")
+                candidate = _candidate_from_dict(body)
+                if candidate.envelope.record_id != event["event_id"].removeprefix("m2:semantic-unit:"):
+                    raise SemanticUnitStoreError("candidate event identity mismatch")
+                if self._root_record_id(candidate.envelope.record_id) == root:
+                    self._verify_candidate(candidate)
+                    if record_digest(candidate) != payload.get("body_digest"):
+                        raise SemanticUnitStoreError("candidate event digest mismatch")
+                    return candidate
+            elif kind == "candidate_retracted":
+                target_id = payload.get("record_id")
+                if not isinstance(target_id, str) or not target_id.strip():
+                    raise SemanticUnitStoreError("invalid candidate retraction event")
+                if self._root_record_id(target_id) == root:
+                    return None
+            else:
+                raise SemanticUnitStoreError("unknown semantic-unit event kind")
+        return None
+
     def iter_current_candidates(self, *, max_events: int = 4096) -> Iterator[SemanticUnitCandidate]:
         """Yield current, non-retracted candidate versions newest lifecycle event first.
 
