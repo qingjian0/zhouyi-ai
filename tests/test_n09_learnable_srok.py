@@ -553,7 +553,7 @@ class LearnableSROKTests(unittest.TestCase):
             f"complete_top1_hit={sum(complete_top1_hits) / len(complete_top1_hits):.4f}"
         )
         self.assertEqual(comparisons, 375)
-        self.assertEqual(complete_searches, 30)
+        self.assertEqual(complete_searches, 150)
         self.assertEqual(exact_top1_stability[0.0], [1] * 15)
         self.assertTrue(all(value == 1.0 for value in complete_recalls))
         self.assertTrue(all(value == 1 for value in complete_top1_hits))
