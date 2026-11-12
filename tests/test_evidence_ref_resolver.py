@@ -37,6 +37,16 @@ class SQLiteEvidenceRefResolverTests(unittest.TestCase):
         self.assertEqual(ref.content_sha256, chunk.content_sha256)
         self.assertTrue(ref.source_version.startswith("manifest-sha256:"))
 
+    def test_durable_cursor_must_match_manifest(self):
+        self.ingest_complete()
+        with sqlite3.connect(self.database) as db:
+            db.execute(
+                "UPDATE ingest_documents SET next_ordinal = next_ordinal + 1 WHERE document_id = ?",
+                ("doc-resolve",),
+            )
+        with self.assertRaises(EvidenceResolutionError):
+            self.resolver.document_version("doc-resolve")
+
     def test_incomplete_document_cannot_be_versioned_or_resolved(self):
         self.store.ingest(
             "doc-incomplete", "fixture.txt", io.BytesIO(b"abcdefghijk"),
