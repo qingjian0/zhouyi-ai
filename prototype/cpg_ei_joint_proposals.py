@@ -98,6 +98,7 @@ def grow_relation_graph_joint_motifs(
         best_model = None
         best_motif = None
         best_loss = current_loss
+        best_candidate_loss = math.inf
         for motif in _three_line_motifs():
             if motif in selected:
                 continue
@@ -116,6 +117,7 @@ def grow_relation_graph_joint_motifs(
             # ranking uses proposal_rows; validation_examples is never consulted
             # until the final locked evaluation below.
             score = _binary_cross_entropy(candidate, proposal_rows)
+            best_candidate_loss = min(best_candidate_loss, score)
             if score < best_loss - 1e-12:
                 best_loss = score
                 best_model = candidate
@@ -129,6 +131,9 @@ def grow_relation_graph_joint_motifs(
                 "proposal_selection_bce_before": current_loss,
                 "proposal_selection_bce_after": current_loss,
                 "proposal_selection_bce_improvement": 0.0,
+                "best_candidate_proposal_bce": best_candidate_loss,
+                "best_candidate_proposal_improvement": current_loss - best_candidate_loss,
+                "proposal_acceptance_threshold": min_training_improvement,
                 "candidate_fits": round_candidate_fits,
             })
             break
@@ -144,6 +149,9 @@ def grow_relation_graph_joint_motifs(
             "proposal_selection_bce_before": current_loss + improvement,
             "proposal_selection_bce_after": current_loss,
             "proposal_selection_bce_improvement": improvement,
+            "best_candidate_proposal_bce": best_candidate_loss,
+            "best_candidate_proposal_improvement": current_loss + improvement - best_candidate_loss,
+            "proposal_acceptance_threshold": min_training_improvement,
             "candidate_fits": round_candidate_fits,
         })
 
