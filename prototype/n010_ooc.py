@@ -7,6 +7,7 @@ or parses the locked-test file.
 from __future__ import annotations
 
 import hashlib
+import itertools
 import json
 import os
 import sqlite3
@@ -207,15 +208,29 @@ class N010StreamingDataset:
             if overlap:
                 raise LearnableSROKError(f"{field} leakage across dataset splits")
 
-        family_rows = self._db.execute(
+        family_hashers = {
+            split: hashlib.sha256() for split in self.expected_splits
+        }
+        family_unique_counts = {split: 0 for split in self.expected_splits}
+        family_record_counts = {split: 0 for split in self.expected_splits}
+        family_cursor = self._db.execute(
             "SELECT split, rule_family, COUNT(*) FROM records "
             "GROUP BY split, rule_family ORDER BY split, rule_family"
-        ).fetchall()
-        families_by_split = {split: [] for split in self.expected_splits}
-        family_counts_by_split = {split: {} for split in self.expected_splits}
-        for split, family, count in family_rows:
-            families_by_split[split].append(family)
-            family_counts_by_split[split][family] = count
+        )
+        for split, family, count in family_cursor:
+            encoded = _canonical_json([family, count]).encode("utf-8")
+            family_hashers[split].update(len(encoded).to_bytes(8, "big"))
+            family_hashers[split].update(encoded)
+            family_unique_counts[split] += 1
+            family_record_counts[split] += count
+        families_by_split = {
+            split: {
+                "unique_family_count": family_unique_counts[split],
+                "family_index_sha256": family_hashers[split].hexdigest(),
+                "record_count": family_record_counts[split],
+            }
+            for split in self.expected_splits
+        }
 
         group_counts = {}
         for field in ("group_id", "source_group_id", "episode_id"):
@@ -242,7 +257,16 @@ class N010StreamingDataset:
             if not isinstance(expected_families, dict):
                 raise LearnableSROKError("generation provenance family map is invalid")
             for split in self.expected_splits:
-                if expected_families.get(split) != families_by_split[split]:
+                expected_rows = expected_families.get(split)
+                if not isinstance(expected_rows, list):
+                    raise LearnableSROKError("generation provenance rule-family list is invalid")
+                actual_rows = self._db.execute(
+                    "SELECT DISTINCT rule_family FROM records WHERE split=? ORDER BY rule_family",
+                    (split,),
+                )
+                if any(left != right[0] for left, right in itertools.zip_longest(
+                    expected_rows, actual_rows, fillvalue=None
+                )):
                     raise LearnableSROKError("generation provenance rule-family split mismatch")
 
         manifest = {
