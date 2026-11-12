@@ -143,4 +143,41 @@ class Tests(unittest.TestCase):
        scope="s",payload=payload,expected_sequence=0)
   self.assertEqual(self.m.db.execute("SELECT COUNT(*) FROM memory_events").fetchone()[0],0)
 
+ def test_event_payload_hard_limit_rejects_before_append(self):
+  m=ZPCMMemory(Path(self.tmp.name)/"limited.db",max_event_payload_bytes=64,max_page_bytes=128)
+  try:
+   with self.assertRaises(ZPCMError):
+    m.append_domain_event(event_type="x",event_id="too-big",scope="s",
+        payload={"text":"x"*100},expected_sequence=0)
+   self.assertEqual(m.db.execute("SELECT COUNT(*) FROM memory_events").fetchone()[0],0)
+  finally:m.close()
+ def test_forward_and_reverse_pages_obey_aggregate_byte_budget(self):
+  m=ZPCMMemory(Path(self.tmp.name)/"paged.db",max_event_payload_bytes=256,max_page_bytes=130)
+  try:
+   for i in range(3):
+    m.append_domain_event(event_type="x",event_id=f"e{i}",scope="s",
+        payload={"text":"x"*70,"i":i},expected_sequence=i)
+   forward=list(m.iter_domain_events(event_type="x",scope="s",page_size=10))
+   reverse=list(m.iter_domain_events_reverse(event_type="x",scope="s",page_size=10))
+   self.assertEqual([x["event_id"] for x in forward],["e0","e1","e2"])
+   self.assertEqual([x["event_id"] for x in reverse],["e2","e1","e0"])
+   payload_sizes=[len(canonical({"text":"x"*70,"i":i}).encode("utf-8")) for i in range(3)]
+   self.assertTrue(all(size <= 130 for size in payload_sizes))
+  finally:m.close()
+ def test_persisted_oversized_event_fails_closed_before_decode(self):
+  m=ZPCMMemory(Path(self.tmp.name)/"corrupt.db",max_event_payload_bytes=64,max_page_bytes=128)
+  try:
+   raw='{"text":"'+"x"*100+'"}'
+   m.db.execute("INSERT INTO memory_events(event_id,event_type,scope,payload_json,payload_digest,recorded_at) VALUES(?,?,?,?,?,?)",
+       ("legacy-large","x","s",raw,"invalid","now"))
+   with self.assertRaises(ZPCMError):
+    list(m.iter_domain_events(event_type="x",scope="s"))
+   with self.assertRaises(ZPCMError):
+    m.get_domain_event(event_type="x",scope="s",event_id="legacy-large")
+  finally:m.close()
+ def test_invalid_byte_budgets_are_rejected(self):
+  for event_limit,page_limit in ((0,1),(True,128),(128,64),(128,True)):
+   with self.subTest(event_limit=event_limit,page_limit=page_limit),self.assertRaises(ZPCMError):
+    ZPCMMemory(Path(self.tmp.name)/"invalid.db",max_event_payload_bytes=event_limit,max_page_bytes=page_limit)
+
 if __name__=="__main__":unittest.main()
