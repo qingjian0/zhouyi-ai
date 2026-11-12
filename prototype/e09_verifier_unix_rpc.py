@@ -294,10 +294,14 @@ class E09VerifierUnixRPC:
         _string_mapping(body, "candidate_evidence_world_family_by_ref")
         self._authorize_writer(context, body["scope"])
         request = dict(body)
+        ledger_request = {
+            "authenticated_workload_id": context.peer.workload_id,
+            "request": request,
+        }
         try:
             return self.receipt_ledger.issue_once(
                 context.operation_id,
-                request,
+                ledger_request,
                 lambda identity: self.verifier.issue_verification_receipt_with_identity(
                     **request,
                     _receipt_id=identity["receipt_id"],
