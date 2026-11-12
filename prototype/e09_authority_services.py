@@ -236,6 +236,13 @@ class E09AuthorityService:
                 if not isinstance(value, str) or not value.strip():
                     raise E09AuthorizationError(f"{field} must be a non-empty string")
                 payload[field] = value
+        if payload_ref is not None:
+            try:
+                self._store.get_payload(payload_ref)
+            except Exception as exc:
+                raise E09AuthorizationError(
+                    "observation payload_ref must reference an existing digest-verified payload"
+                ) from exc
         return self._store.append_event(
             episode_id=episode_id, event_id=event_id, event_type="observation",
             idempotency_key=idempotency_key, payload=payload,
