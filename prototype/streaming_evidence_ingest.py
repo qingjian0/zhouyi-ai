@@ -159,6 +159,8 @@ class SQLiteEvidenceIngestor:
 
         committed = 0
         with self._connect() as db:
+            # Register the document independently. Every evidence chunk and
+            # its resume cursor are then committed atomically as one unit.
             db.execute("BEGIN IMMEDIATE")
             row = db.execute(
                 """SELECT source_name, chunk_bytes, next_byte_offset, next_ordinal, complete
@@ -180,16 +182,20 @@ class SQLiteEvidenceIngestor:
                         "resume metadata mismatch: source_name and chunk_bytes are immutable"
                     )
                 if complete:
+                    db.commit()
                     return IngestResult(document_id, 0, offset, True, tokenizer is not None)
+            db.commit()
 
             stream.seek(offset)
             while max_chunks is None or committed < max_chunks:
                 raw = _read_utf8_chunk(stream, offset, chunk_bytes)
                 if not raw:
+                    db.execute("BEGIN IMMEDIATE")
                     db.execute(
                         "UPDATE ingest_documents SET complete = 1 WHERE document_id = ?",
                         (document_id,),
                     )
+                    db.commit()
                     complete = 1
                     break
 
@@ -203,6 +209,7 @@ class SQLiteEvidenceIngestor:
 
                 end = offset + len(raw)
                 chunk_id = self._chunk_id(document_id, ordinal, digest)
+                db.execute("BEGIN IMMEDIATE")
                 db.execute(
                     """INSERT INTO evidence_chunks
                        (chunk_id, document_id, ordinal, byte_start, byte_end,
@@ -210,16 +217,16 @@ class SQLiteEvidenceIngestor:
                        VALUES (?, ?, ?, ?, ?, ?, ?, ?)""",
                     (chunk_id, document_id, ordinal, offset, end, raw, digest, token_count),
                 )
-                offset, ordinal = end, ordinal + 1
-                committed += 1
+                next_ordinal = ordinal + 1
                 db.execute(
                     """UPDATE ingest_documents
                        SET next_byte_offset = ?, next_ordinal = ?
                        WHERE document_id = ?""",
-                    (offset, ordinal, document_id),
+                    (end, next_ordinal, document_id),
                 )
-
-            db.commit()
+                db.commit()
+                offset, ordinal = end, next_ordinal
+                committed += 1
 
         return IngestResult(
             document_id=document_id,
