@@ -158,3 +158,99 @@ PR #252 exact head `ee13ffd9ca8a9b1a596a2c28a0c06f0b0e4691a7` 对应 workflow ru
 6. CI 至少覆盖 Linux IPC 集成测试；Windows 目标必须另行实现并验证锁/IPC backend，不能将 POSIX 通过结果外推到 Windows。
 
 **成熟度结论：** #248 提供单写者本地进程基线，#252 提供可复用的 Linux peer-authenticated transport primitive；二者尚未形成可验收的端到端生产 writer 服务。不要把“SO_PEERCRED 已实现”表述为“writer IPC 安全链已完成”。
+
+
+## 10. N0.10 高阶必要性审计与 Yixiang/XSL 可证伪接线方案
+
+### 10.1 N0.10 当前测试存在可由 unary 特征解决的标签生成方式
+
+审计文件：`prototype/n09_learnable_srok.py`、`tests/test_n09_learnable_srok.py`。
+
+当前 `make_training(seed, count)` 的生成逻辑是：
+
+- 每个样本为 r0/r1/r2 各生成 4 个候选；
+- 对每个角色，candidate_index == 0 时，将该候选在与 role_index 对应的 feature 维度设为 `2.5 + random()`；
+- `target_ids` 始终选取每个角色的 candidate_index == 0；
+- 测试只要求 held-out seed 上 top-1 exact structure accuracy ≥ 0.95。
+
+因此目标可通过 role-conditioned unary retrieval 找到。模型虽然显式构造 pairwise 与 third-order feature，但当前成功指标没有隔离或证明这些交互项对解题是必要的。该测试可以证明当前合成分布上的可学习角色检索，不可证明高阶结构能力。
+
+### 10.2 必须新增的 pairwise-preserving 高阶任务族
+
+建议新增独立 benchmark，不要覆盖或删除现有 N0.10 smoke test。新任务至少包含以下族：
+
+| 任务族 | 构造约束 | 主要排除项 |
+|---|---|---|
+| T3-PARITY | 三个角色的局部符号/状态按平衡三阶 parity 规则组合；各单变量和任意二元边缘分布匹配 | unary / pairwise shortcut |
+| T3-ROLE-PERMUTE | 交换角色位置后，只有保留正确角色绑定的三阶关系才有效 | 无角色集合匹配 |
+| T3-RELATION-SWAP | 保持节点、标签、所有 unary 与 pairwise 统计不变，只改变三阶关系真值 | 节点频率与二元共现 |
+| T3-OOD-COMPOSITION | 训练中见过局部值与二元组合，测试只改变三元组合规则/组合方式 | 记忆训练组合 |
+| T3-COUNTEREXAMPLE | 提供表面相似但违反关键三阶不变量的 hard negatives | similarity-only analogy |
+
+关键实验原则：
+
+1. 在数据生成层面证明 unary 与 pairwise baseline 的 Bayes 最优表现不高于任务定义允许的上限；不能只在训练后观察其分数较低。
+2. 训练/验证/锁定测试按生成规则、组合模板或关系变换分组隔离；不能只按随机样本拆分。
+3. 比较 unary-only、pairwise-only、third-order、完整模型、随机三阶权重、打乱角色、打乱三阶标签和简单 MLP/通用图模型。
+4. 对照匹配参数量、训练样本、候选池、展开预算与总推理成本。
+5. 报告多随机种子均值/方差、置信区间、校准、拒答、预算耗尽和 hard-negative 误接受率。
+6. 只有 third-order 相对 pairwise 在锁定 OOD 测试上稳定提升，且随机/错配三阶先验不能复现该提升，才能称为“观察到高阶必要性证据”。
+
+Parity 可作为严格的 pairwise-indistinguishable 核心任务，但不能只做一个 XOR demo 就宣称类象有效；必须覆盖角色置换、关系交换、噪声、缺失证据与 OOD 组合。
+
+### 10.3 Yixiang / XSL 应被实现为可证伪的结构算子，不是标签词典
+
+架构文件已定义“象、数、理、变、类、择、综”的候选算子族，但本轮仍未在同一 exact head 上确认其可执行注册表、核心调用点、训练入口和测试链。因此当前成熟度仍是接口/研究规格，不得升级为核心能力。
+
+建议以统一 `OperatorSpec` 约束所有算子：
+
+- identity/version/schema；
+- typed input/output signatures；
+- preconditions/postconditions；
+- preserved invariants 与允许改变的量；
+- domain applicability / out-of-domain rejection；
+- learnable parameters 与初始化来源；
+- computational cost / budget；
+- evidence refs、counterexample refs；
+- validation status、数据与代码版本。
+
+候选职责应严格区分：
+
+| 算子族 | 可执行定义方向 | 必须通过的反例 |
+|---|---|---|
+| 象 Xiang | 从 observation 投影到有来源的属性/关系视角，不将解析候选升级为事实 | 丢失 source span、不同模态伪同一 |
+| 数 Shu | 类型化离散状态/层次/组合空间编码，保留量纲与编码版本 | 不同单位混同、离散化边界扰动 |
+| 理 Li | 关系约束、符号影响与候选不变量 | 相关性冒充因果、遗漏条件 |
+| 变 Bian | 事件差分、状态转移和干预候选 | 时间倒置、混淆观察与干预 |
+| 类 Lei / XSL | 部分结构映射；只在明确声明的关系集合上检查保持性 | 表面相似但关键关系不保持的 hard negatives |
+| 择 Ze | 在目标、时位、资源与证据约束下排序/选择路径 | 目标变化、预算变化、不可行候选 |
+| 综 Zong | 多视角变换与反向检查，显式记录变换前后不变量 | 变换不闭合、逆变换失败、信息丢失 |
+
+**类象的核心验收应是结构保持而非 embedding 相似度。** 给定源域图/超图与目标域候选，算子提出部分映射 (f)，并声明需保持的关系签名集合 (R^*)。只有对每条声明保持的关系都满足角色对应、方向/极性、约束与时间条件，映射才可通过；未声明保持的维度必须标记为未知，不能静默外推。XSL 负责映射证据、适用域和反例审计，不能自行把映射提升为事实或因果。
+
+### 10.4 接入核心链路的最小垂直切片
+
+不要一次性接入七类算子。先选一个可证伪、可产生结构差异的 Lei/XSL 算子，构造：
+
+`Observation → Grounding → typed source hypergraph → XSL partial mapping proposal → invariant checker → TRLW work state → SROK → CSG-GCR`
+
+每一步保留 source refs、schema/operator version、uncertainty、budget 与 explicit status。算子只能提交 proposal，不得直接写 E09、E12-A6 或 ZPCM。最终候选仍复用现有证据和生命周期权威。
+
+最小验收：
+- 正例：关系保持的跨域映射；
+- 负例：节点相似但角色关系/方向/极性不保持；
+- 缺失：必要关系缺失时返回 UNKNOWN/AMBIGUOUS，而不是补全成事实；
+- OOD：未见过的实体词汇、关系组合和目标域；
+- 消融：无 XSL、随机映射、通用结构映射、固定先验、可学习映射；
+- 归因：同预算、同候选池，分别报告结构恢复率、错误类比接受率、拒答率和资源成本。
+
+### 10.5 安全 PR 的 exact-head CI 证据更正
+
+本轮按 run ID 查询 GitHub Actions jobs，确认：
+
+- PR #248 exact head `c80b2761054dec89502ec78c760c43e8cc2b38c2`：workflow run `43087258741` 的 `unit-tests` job 成功，E01–E02-D 步骤均成功。
+- PR #252 exact head `ee13ffd9ca8a9b1a596a2c28a0c06f0b0e4691a7`：workflow run `43088689689` 的 `unit-tests` job 成功，E01–E02-D 步骤均成功。
+- PR #252 源码 `E12A6UnixSocketServer.start` 已使用父目录 `lstat()` 拒绝 symlink，并在 `tests/test_e12a6_unix_socket.py` 覆盖 symlink parent。之前把该问题归到 #252 是错误的；父目录 symlink 加固建议只针对 PR #248 的 writer lock/database path。
+- #252 仍然只是 transport primitive：它将 peer credentials 交给 dispatcher；生产 UID/GID → principal 映射、operation/schema allowlist、WriterService 调用和真实端到端持久化恢复仍未实现。
+
+CI 通过只说明 exact-head workflow 测试成功，不代表生产安全隔离、R4 科学有效性或完整认知链路已通过。
