@@ -210,3 +210,10 @@ A failed earlier run on an older SHA is not evidence that the current exact head
 - Three GF(2) parity seeds: mean validation bit accuracy 0.6336806; mean support recall 0.3055556; mean support precision 1.0; false discoveries 0; exact 12-edge support recovery 0/3.
 - Exact-support oracle: bit accuracy 1.0 and exact-state accuracy 1.0 with the known 12-edge polynomial.
 - Interpretation: the feature basis is expressive enough, but the current residual-driven greedy proposal path is not structurally identifiable on this teacher. This is a concrete failure mode to address with joint/conditional proposal search, not a reason to increase epochs or relax pruning without preregistered controls.
+
+
+### Candidate-score normalization result (2026-11-12)
+
+- PR #360 exact-head `0dc9c0a664485aac8f4e432a927dce07b47b034b`, workflow run #43201228903: success; 5 tests.
+- Paired five-seed raw vs residual-norm-normalized scoring: mean support recall 0.5667 vs 0.4667; exact six-edge recovery 0/5 for both; mean false discoveries 0.8 for both. Per-seed validation bit accuracy was unchanged.
+- Decision: raw scoring remains the default. Normalization reduced active edges but also reduced recall, with no exact-recovery or false-discovery improvement. Keep normalized scoring as an explicit ablation only; do not present it as a structural-discovery fix.
