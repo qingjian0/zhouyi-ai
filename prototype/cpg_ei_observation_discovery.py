@@ -49,6 +49,8 @@ def _support_identifiability_audit(train_rows: list[dict], input_dim: int) -> di
     for index in range(input_dim):
         matched_pairs = 0
         influence_flips = 0
+        observed_contexts = set()
+        influence_contexts = set()
         for state, target in observed.items():
             if state[index] != 0:
                 continue
@@ -57,8 +59,12 @@ def _support_identifiability_audit(train_rows: list[dict], input_dim: int) -> di
             other = tuple(counterpart)
             if other not in observed:
                 continue
+            context = tuple(value for position, value in enumerate(state) if position != index)
+            observed_contexts.add(context)
             matched_pairs += 1
-            influence_flips += int(observed[other] != target)
+            if observed[other] != target:
+                influence_flips += 1
+                influence_contexts.add(context)
         if influence_flips:
             status = "observed_influence"
         elif matched_pairs == 0:
@@ -69,6 +75,10 @@ def _support_identifiability_audit(train_rows: list[dict], input_dim: int) -> di
             "index": index,
             "matched_pair_count": matched_pairs,
             "influence_flip_count": influence_flips,
+            "context_space_size": 2 ** (input_dim - 1),
+            "observed_context_count": len(observed_contexts),
+            "influence_context_count": len(influence_contexts),
+            "context_coverage": len(observed_contexts) / (2 ** (input_dim - 1)),
             "status": status,
         })
     return {
