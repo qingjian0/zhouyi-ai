@@ -1,4 +1,5 @@
 import unittest
+from dataclasses import replace
 
 from prototype.csg_gcr_e12a6_adapter import adapt_typed_candidate
 from prototype.srok0_kernel import Node as SrokNode
@@ -32,6 +33,17 @@ class YixiangHypothesisLifecycleGuardTests(unittest.TestCase):
                 coordinated.coordination.candidates[0],
                 scope="world/test",
                 grammar_version="csg-gcr-v1",
+            )
+        # Typed epistemic status remains authoritative even if a display label changes.
+        candidate = coordinated.coordination.candidates[0]
+        relabeled = replace(
+            candidate,
+            coordinated=replace(candidate.coordinated, candidate_kinds=("generic",)),
+        )
+        self.assertEqual(relabeled.semantic_status, "HYPOTHESIS_ONLY")
+        with self.assertRaisesRegex(ValueError, "hypothesis-only candidates"):
+            adapt_typed_candidate(
+                relabeled, scope="world/test", grammar_version="csg-gcr-v1",
             )
 
 
