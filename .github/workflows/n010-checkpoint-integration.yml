@@ -4,6 +4,7 @@ on:
   pull_request:
     branches:
       - research/n010-pairwise-parity-benchmark-2026-11-12
+      - work/n010-checkpoint-joint-retrieval-integration-2026-11-12
 
 jobs:
   n010-checkpoint-tests:
