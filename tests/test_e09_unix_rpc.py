@@ -101,7 +101,7 @@ class E09AuthorityUnixRPCTests(unittest.TestCase):
         finally:
             server.close()
 
-    def test_observer_learner_evaluator_use_separate_kernel_identities(self):
+    def test_observer_learner_evaluator_rpc_roles_and_lineage(self):
         observation_input = {"features": ["wind", "rain"], "value": 7}
         stored = self._call(
             self.observer, "observation.put_input",
