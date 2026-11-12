@@ -120,28 +120,32 @@ class LearnableXiangOperator:
     def fit(self, examples: Iterable[RelationClassificationExample], *,
             epochs: int = 100, learning_rate: float = 0.03,
             l2: float = 1e-4) -> list[float]:
+        """Train readout and (when enabled) shared basis by exact full-batch gradients."""
         rows = tuple(examples)
         if not rows:
             raise LearnableSROKError("relation examples must not be empty")
         if isinstance(epochs, bool) or not isinstance(epochs, int) or epochs < 1:
             raise LearnableSROKError("epochs must be positive")
-        if not math.isfinite(learning_rate) or learning_rate <= 0:
+        if isinstance(learning_rate, bool) or not isinstance(learning_rate, (int, float)) or not math.isfinite(learning_rate) or learning_rate <= 0:
             raise LearnableSROKError("learning_rate must be finite and positive")
-        if not math.isfinite(l2) or l2 < 0:
+        if isinstance(l2, bool) or not isinstance(l2, (int, float)) or not math.isfinite(l2) or l2 < 0:
             raise LearnableSROKError("l2 must be finite and non-negative")
         prepared = []
         for row in rows:
-            if not isinstance(row, RelationClassificationExample) or row.label not in (-1, 1):
+            if not isinstance(row, RelationClassificationExample) or type(row.label) is not int or row.label not in (-1, 1):
                 raise LearnableSROKError("invalid relation classification row")
             features, embeddings = self._features_and_embeddings(row.assignment)
-            prepared.append((features, embeddings, 1.0 if row.label == 1 else 0.0))
+            prepared.append((row.assignment, features, embeddings, 1.0 if row.label == 1 else 0.0))
+
         n, width, latent = len(prepared), len(self.readout), self.config.latent_dim
         history = []
         for _ in range(epochs):
             grad_readout = [0.0] * width
-            grad_z = [[0.0] * latent for _ in self.roles]
+            grad_basis = [[0.0] * self.feature_dim for _ in range(latent)]
+            grad_bias = [0.0] * latent
             loss = 0.0
-            for features, embeddings, target in prepared:
+            # All gradients use the same pre-update parameter snapshot.
+            for assignment, features, z, target in prepared:
                 logit = math.fsum(w * x for w, x in zip(self.readout, features))
                 probability = self._sigmoid(logit)
                 clipped = min(max(probability, 1e-15), 1.0 - 1e-15)
@@ -149,6 +153,8 @@ class LearnableXiangOperator:
                 error = probability - target
                 for q, value in enumerate(features):
                     grad_readout[q] += error * value
+
+                grad_z = [[0.0] * latent for _ in self.roles]
                 cursor = 0
                 for role_index in range(len(self.roles)):
                     for q in range(latent):
@@ -156,59 +162,44 @@ class LearnableXiangOperator:
                     cursor += latent
                 for i, j in self.pairs:
                     for q in range(latent):
-                        grad_z[i][q] += error * self.readout[cursor + q] * embeddings[j][q]
-                        grad_z[j][q] += error * self.readout[cursor + q] * embeddings[i][q]
+                        w = error * self.readout[cursor + q]
+                        grad_z[i][q] += w * z[j][q]
+                        grad_z[j][q] += w * z[i][q]
                     cursor += latent
                 for i, j, k in self.triples:
                     for q in range(latent):
-                        weight = self.readout[cursor + q]
-                        grad_z[i][q] += error * weight * embeddings[j][q] * embeddings[k][q]
-                        grad_z[j][q] += error * weight * embeddings[i][q] * embeddings[k][q]
-                        grad_z[k][q] += error * weight * embeddings[i][q] * embeddings[j][q]
+                        w = error * self.readout[cursor + q]
+                        grad_z[i][q] += w * z[j][q] * z[k][q]
+                        grad_z[j][q] += w * z[i][q] * z[k][q]
+                        grad_z[k][q] += w * z[i][q] * z[j][q]
                     cursor += latent
-            for q in range(width):
-                grad_readout[q] = grad_readout[q] / n + l2 * self.readout[q]
-                self.readout[q] -= learning_rate * grad_readout[q]
-            if self.config.basis_mode == "learnable":
-                grad_basis = [[0.0] * self.feature_dim for _ in range(latent)]
-                grad_bias = [0.0] * latent
-                for features, embeddings, target in prepared:
-                    logit = math.fsum(w * x for w, x in zip(self.readout, features))
-                    error = self._sigmoid(logit) - target
-                    # Recompute derivatives using current readout and the same
-                    # compositional feature layout; stop-gradient readout update
-                    # is avoided by the readout-gradient path above.
-                    _, current_z = self._features_and_embeddings_from_cache(features, embeddings)
-                    del current_z
-                    # Backpropagate through tanh using the relation feature
-                    # gradient accumulated for this batch.
-                    for role_index, node_z in enumerate(embeddings):
-                        for q in range(latent):
-                            dz = error * grad_z[role_index][q] / max(abs(error), 1e-12)
-                            delta = dz * (1.0 - node_z[q] * node_z[q])
-                            grad_bias[q] += delta
-                            # Node features are reconstructed from prepared
-                            # examples below through the aligned row index.
-                # The basis update uses cached raw inputs to remain explicit.
-                for row_index, (_, embeddings, _) in enumerate(prepared):
-                    assignment = rows[row_index].assignment
+
+                if self.config.basis_mode == "learnable":
                     for role_index, node in enumerate(assignment):
                         for q in range(latent):
-                            delta = grad_z[role_index][q] / n * (1.0 - embeddings[q] ** 2)
-                            for f, value in enumerate(node.features):
-                                grad_basis[q][f] += delta * value
+                            delta = grad_z[role_index][q] * (1.0 - z[role_index][q] ** 2)
                             grad_bias[q] += delta
+                            for f_index, value in enumerate(node.features):
+                                grad_basis[q][f_index] += delta * value
+
+            for q in range(width):
+                gradient = grad_readout[q] / n + l2 * self.readout[q]
+                if not math.isfinite(gradient):
+                    raise LearnableSROKError("non-finite Xiang readout gradient")
+                self.readout[q] -= learning_rate * gradient
+            if self.config.basis_mode == "learnable":
                 for q in range(latent):
-                    for f in range(self.feature_dim):
-                        self.basis[q][f] -= learning_rate * grad_basis[q][f]
-                    self.bias[q] -= learning_rate * grad_bias[q]
+                    for f_index in range(self.feature_dim):
+                        gradient = grad_basis[q][f_index] / n + l2 * self.basis[q][f_index]
+                        if not math.isfinite(gradient):
+                            raise LearnableSROKError("non-finite Xiang basis gradient")
+                        self.basis[q][f_index] -= learning_rate * gradient
+                    self.bias[q] -= learning_rate * grad_bias[q] / n
+            if any(not math.isfinite(v) for row in self.basis for v in row) or any(not math.isfinite(v) for v in self.bias + self.readout):
+                raise LearnableSROKError("Xiang parameters became non-finite")
             history.append(loss / n)
             self.training_steps += 1
         return history
-
-    @staticmethod
-    def _features_and_embeddings_from_cache(features, embeddings):
-        return features, embeddings
 
     def checkpoint_json(self) -> str:
         payload = {
