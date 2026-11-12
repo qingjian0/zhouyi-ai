@@ -75,6 +75,10 @@ class PersistentM2SemanticUnitStoreTests(unittest.TestCase):
         revised = self.candidate("su-2", predecessor="su-1",
                                  surface="甲通过工具处理乙", confidence=0.9)
         receipt = self.store.revise_candidate("su-1", revised)
+        retry = self.store.revise_candidate("su-1", revised)
+        self.assertFalse(receipt.replayed)
+        self.assertTrue(retry.replayed)
+        self.assertEqual(receipt.sequence, retry.sequence)
         self.assertEqual(self.store.history, {"su-1": first, "su-2": revised})
         self.assertEqual(self.store.candidates, {"su-1": revised})
         self.assertEqual(len(self.memory.replay_domain_events(
