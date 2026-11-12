@@ -509,7 +509,18 @@ def run_experiment_ooc(dataset_path: str | Path, roles: Sequence[RoleSpec],
         dataset_path, roles, feature_dim, expected_splits=("train", "dev")
     ) as dataset:
         group_index_path = checkpoint.with_suffix(checkpoint.suffix + ".groups.sqlite3")
-        dataset.write_group_index(group_index_path)
+        if resume:
+            if not checkpoint.exists():
+                raise LearnableSROKError("resume checkpoint does not exist")
+            if not group_index_path.is_file():
+                raise LearnableSROKError("resume group index is missing")
+            bundle = json.loads(checkpoint.read_text(encoding="utf-8"))
+            expected_group_index_sha256 = bundle.get("group_index_sha256")
+            if (not isinstance(expected_group_index_sha256, str)
+                    or _sha256_file(group_index_path) != expected_group_index_sha256):
+                raise LearnableSROKError("resume group index integrity mismatch")
+        else:
+            dataset.write_group_index(group_index_path)
         group_index_sha256 = _sha256_file(group_index_path)
         config = {
             "epochs": epochs,
@@ -523,9 +534,6 @@ def run_experiment_ooc(dataset_path: str | Path, roles: Sequence[RoleSpec],
         history = []
         completed_epochs = 0
         if resume:
-            if not checkpoint.exists():
-                raise LearnableSROKError("resume checkpoint does not exist")
-            bundle = json.loads(checkpoint.read_text(encoding="utf-8"))
             if (bundle.get("schema") != OOC_RUN_SCHEMA
                     or bundle.get("dataset_manifest") != dataset.manifest):
                 raise LearnableSROKError("resume dataset/schema does not match")
