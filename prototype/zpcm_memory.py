@@ -77,7 +77,7 @@ class ZPCMMemory:
             (self.AUTHORIZATION_PROJECTION_VERSION,target,self._authorization_checkpoint_digest(target)),
         )
 
-    def _rebuild_authorization_consumption_index(self):
+    def _rebuild_authorization_consumption_index(self, *, force: bool = False):
         """Incrementally validate lifecycle events and maintain a crash-atomic projection checkpoint.
 
         A missing/invalid checkpoint triggers a streaming full rebuild. A valid
@@ -95,7 +95,7 @@ class ZPCMMemory:
             ).fetchone()
             valid = False
             cursor = 0
-            if checkpoint is not None:
+            if checkpoint is not None and not force:
                 try:
                     saved = int(checkpoint["high_water_seq"])
                     valid = (
@@ -191,6 +191,11 @@ class ZPCMMemory:
         except Exception:
             self.db.execute("ROLLBACK")
             raise
+
+    def rebuild_authorization_consumption_index(self) -> None:
+        """Explicit full replay/repair of the derived authorization projection."""
+        with self.lock:
+            self._rebuild_authorization_consumption_index(force=True)
 
     def _append(self,event_id,event_type,scope,payload):
         if not all(isinstance(x,str) and x.strip() for x in (event_id,event_type,scope)):raise ZPCMError("event identifiers/type/scope required")
