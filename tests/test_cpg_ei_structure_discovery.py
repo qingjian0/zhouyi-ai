@@ -55,7 +55,7 @@ class TestCpgEiStructureDiscovery(unittest.TestCase):
             "hyperedge_3_1_4_5",
         }
         measurements = []
-        for seed in (7, 17, 29):
+        for seed in (7, 17, 29, 41, 53, 67, 79, 83, 97, 109):
             train = make_dataset(512, seed=seed, sparse_teacher=True)
             validation = make_dataset(128, seed=seed + 100, sparse_teacher=True)
             model = CpgEiTransitionModel.create(active_relation_indices=set())
@@ -72,20 +72,41 @@ class TestCpgEiStructureDiscovery(unittest.TestCase):
             self.assertGreaterEqual(recall, 0.0)
             self.assertLessEqual(recall, 1.0)
             self.assertLessEqual(len(discovered), 35)
+            false_discoveries = len(discovered - true_support)
             measurements.append({
                 "seed": seed,
                 "validation_bit_accuracy": accuracy,
                 "support_recall": recall,
+                "support_precision": (
+                    len(discovered & true_support) / len(discovered)
+                    if discovered else 0.0
+                ),
+                "false_discovery_count": false_discoveries,
                 "active_edges": len(discovered),
+                "exact_support_recovered": discovered == true_support,
             })
+        accuracies = [item["validation_bit_accuracy"] for item in measurements]
+        recalls = [item["support_recall"] for item in measurements]
+        active_counts = [item["active_edges"] for item in measurements]
         summary = {
             "seeds": len(measurements),
-            "mean_validation_bit_accuracy": sum(
-                item["validation_bit_accuracy"] for item in measurements
-            ) / len(measurements),
-            "mean_support_recall": sum(
-                item["support_recall"] for item in measurements
-            ) / len(measurements),
+            "mean_validation_bit_accuracy": sum(accuracies) / len(accuracies),
+            "std_validation_bit_accuracy": math.sqrt(
+                sum((value - sum(accuracies) / len(accuracies)) ** 2
+                    for value in accuracies) / len(accuracies)
+            ),
+            "min_validation_bit_accuracy": min(accuracies),
+            "max_validation_bit_accuracy": max(accuracies),
+            "mean_support_recall": sum(recalls) / len(recalls),
+            "min_support_recall": min(recalls),
+            "max_support_recall": max(recalls),
+            "mean_active_edges": sum(active_counts) / len(active_counts),
+            "exact_support_recovery_count": sum(
+                item["exact_support_recovered"] for item in measurements
+            ),
+            "total_false_discoveries": sum(
+                item["false_discovery_count"] for item in measurements
+            ),
             "measurements": measurements,
             "candidate_universe_size": 35,
         }

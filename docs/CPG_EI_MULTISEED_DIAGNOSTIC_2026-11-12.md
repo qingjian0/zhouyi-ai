@@ -11,7 +11,8 @@ It reports, per seed:
 - held-out validation bit accuracy;
 - recall of the six teacher support edges;
 - number of active edges;
-- aggregate mean accuracy and support recall.
+- aggregate mean, population standard deviation, minimum and maximum validation accuracy;
+- mean/minimum/maximum support recall, support precision, false-discovery count, active-edge count and exact-support recovery count.
 
 The candidate universe remains the same finite 35-edge pairwise/third-order feature set. This does not test arbitrary node creation, unseen relation arities, open-world graph induction, or natural-language transfer.
 
@@ -24,7 +25,7 @@ The next stronger validation should add:
 2. label-shuffle and feature-permutation negative controls;
 3. pairwise-only and matched-compute baselines;
 4. false-discovery rate and exact-support recovery;
-5. confidence intervals over at least 10 independent seeds.
+5. preregistered confidence intervals and power analysis over a larger seed set.
 
 A successful diagnostic is not evidence of open-ended relation discovery.
 
@@ -35,3 +36,8 @@ A deterministic negative control shuffles training targets across training state
 
 
 A second negative control independently permutes each training feature column across examples while preserving each feature's marginal distribution and leaving labels untouched. It reports the same structure-recovery metrics as the shuffled-label control. This tests whether the learner depends on the original joint feature/target structure rather than marginal feature frequencies alone.
+
+
+## Ten-seed reporting
+
+The CI diagnostic now uses ten fixed independent seed pairs and emits per-seed precision/recall, false discoveries, active-edge count and exact-support recovery, plus descriptive mean/standard deviation/minimum/maximum summaries. These are descriptive synthetic-benchmark statistics; no pass threshold or generalization claim is inferred from them.
