@@ -287,32 +287,79 @@ class E09AuthorityService:
         if not isinstance(learner_track, str) or not learner_track.strip():
             raise E09AuthorizationError("learner_track must be a non-empty string")
         events = self._store.replay_episode(episode_id)
-        own_commit_ids = set()
-        own_observation_ids = set()
+        by_id = {event.get("event_id"): event for event in events}
+        own_commit_ids: set[str] = set()
+        own_observation_ids: set[str] = set()
         for event in events:
             if event.get("event_type") != "prediction_commit":
                 continue
             payload = event.get("payload", {})
             workload = event.get("integrity_metadata", {}).get("authenticated_workload", {})
+            causes = event.get("causation_refs", [])
             if (
-                event.get("actor_role") == "learner"
-                and payload.get("scope") == scope
-                and payload.get("learner_track") == learner_track
-                and isinstance(workload, dict)
-                and workload.get("workload_id") == principal.workload_id
+                event.get("actor_role") != "learner"
+                or payload.get("scope") != scope
+                or payload.get("learner_track") != learner_track
+                or not isinstance(workload, dict)
+                or workload.get("workload_id") != principal.workload_id
+                or not isinstance(causes, list)
+                or len(causes) != 1
             ):
-                own_commit_ids.add(event.get("event_id"))
-                own_observation_ids.update(event.get("causation_refs", []))
-        own_reveal_ids = {
-            event.get("event_id")
-            for event in events
-            if event.get("event_type") == "evidence_reveal"
-            and event.get("payload", {}).get("scope") == scope
-            and event.get("payload", {}).get("learner_track") == learner_track
-            and event.get("actor_role") == "evaluator"
-            and isinstance(event.get("integrity_metadata", {}).get("authenticated_workload"), dict)
-            and set(event.get("causation_refs", [])) & own_commit_ids
-        }
+                continue
+            observation = by_id.get(causes[0])
+            if not isinstance(observation, dict) or observation.get("event_type") != "observation":
+                continue
+            observation_payload = observation.get("payload", {})
+            observation_workload = observation.get("integrity_metadata", {}).get(
+                "authenticated_workload", {}
+            )
+            if (
+                observation.get("actor_role") != "observer"
+                or observation_payload.get("scope") != scope
+                or observation_payload.get("learner_track") != learner_track
+                or observation_payload.get("learner_workload_id") != principal.workload_id
+                or observation_payload.get("observation_id") != payload.get("observation_id")
+                or observation_payload.get("query_id") != payload.get("query_id")
+                or not isinstance(observation_workload, dict)
+                or not isinstance(observation_workload.get("workload_id"), str)
+            ):
+                continue
+            own_commit_ids.add(event.get("event_id"))
+            own_observation_ids.add(observation.get("event_id"))
+
+        own_reveal_ids: set[str] = set()
+        for reveal in events:
+            if reveal.get("event_type") != "evidence_reveal":
+                continue
+            reveal_payload = reveal.get("payload", {})
+            reveal_workload = reveal.get("integrity_metadata", {}).get(
+                "authenticated_workload", {}
+            )
+            reveal_causes = reveal.get("causation_refs", [])
+            if (
+                reveal.get("actor_role") != "evaluator"
+                or not isinstance(reveal_workload, dict)
+                or not isinstance(reveal_workload.get("workload_id"), str)
+                or reveal_payload.get("scope") != scope
+                or reveal_payload.get("split") != "SUPPORT"
+                or reveal_payload.get("learner_track") != learner_track
+                or not isinstance(reveal_causes, list)
+                or len(reveal_causes) != 1
+                or reveal_causes[0] not in own_commit_ids
+            ):
+                continue
+            commit = by_id.get(reveal_causes[0])
+            commit_payload = commit.get("payload", {}) if isinstance(commit, dict) else {}
+            if (
+                not isinstance(commit, dict)
+                or reveal_payload.get("prediction_id") != commit_payload.get("prediction_id")
+                or reveal_payload.get("query_id") != commit_payload.get("query_id")
+                or reveal_payload.get("learner_track") != commit_payload.get("learner_track")
+                or reveal_payload.get("commit_digest") != commit_payload.get("interop_commit_digest")
+                or reveal_payload.get("event_digest") != commit.get("payload_digest")
+            ):
+                continue
+            own_reveal_ids.add(reveal.get("event_id"))
         expected_roles = {
             "observation": "observer",
             "prediction_commit": "learner",
