@@ -205,6 +205,7 @@ class E09AuthorityServiceTests(unittest.TestCase):
         )
         self.assertEqual(permit.issuer_id, "issuer-authority")
         self.assertEqual(permit.verifier_id, self.keyring.verifier_id)
+        self.assertTrue(permit.domain_provenance_verified)
 
     def test_verifier_issues_signed_redacted_cross_process_receipt(self):
         reveal_ref = self._prior_prediction()
