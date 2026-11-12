@@ -1,4 +1,6 @@
+import json
 import os
+import sqlite3
 import socket
 import tempfile
 import time
@@ -10,6 +12,7 @@ from prototype.e09_verifier_unix_rpc import (
     SQLiteVerifierReceiptLedger,
     VerifierReceiptIdempotencyConflict,
 )
+from prototype.shared_evidence_protocol import digest_payload
 from prototype.unix_ipc import (
     IPCRemoteError,
     StaticUnixPeerResolver,
@@ -78,6 +81,36 @@ class VerifierReceiptLedgerTests(unittest.TestCase):
                             "receipt_id": identity["receipt_id"], "nonce": identity["nonce"],
                         },
                     )
+            finally:
+                ledger.close()
+
+    def test_legacy_non_nullable_receipt_ledger_is_migrated(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "receipts.sqlite"
+            request = {"scope": "scope/legacy"}
+            receipt = {"receipt_id": "legacy-id", "nonce": "legacy-nonce"}
+            db = sqlite3.connect(path)
+            db.execute(
+                "CREATE TABLE issued_receipts ("
+                "operation_id TEXT PRIMARY KEY, request_digest TEXT NOT NULL, "
+                "receipt_id TEXT NOT NULL UNIQUE, nonce TEXT NOT NULL UNIQUE, "
+                "receipt_json TEXT NOT NULL, created_at TEXT NOT NULL)"
+            )
+            db.execute(
+                "INSERT INTO issued_receipts VALUES(?,?,?,?,?,?)",
+                ("legacy-operation", digest_payload(request), "legacy-id", "legacy-nonce",
+                 json.dumps(receipt), "2026-11-12T00:00:00+00:00"),
+            )
+            db.commit()
+            db.close()
+
+            ledger = SQLiteVerifierReceiptLedger(path)
+            try:
+                result = ledger.issue_once(
+                    "legacy-operation", request,
+                    lambda identity: self.fail("legacy committed receipt must be preserved"),
+                )
+                self.assertEqual(result, receipt)
             finally:
                 ledger.close()
 
