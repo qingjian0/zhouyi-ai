@@ -163,6 +163,8 @@ class Tests(unittest.TestCase):
    self.assertEqual([x["event_id"] for x in reverse],["e2","e1","e0"])
    payload_sizes=[len(canonical({"text":"x"*70,"i":i}).encode("utf-8")) for i in range(3)]
    self.assertTrue(all(size <= 130 for size in payload_sizes))
+   self.assertGreater(payload_sizes[0]+payload_sizes[1],130)
+   self.assertEqual(m.get_domain_event(event_type="x",scope="s",event_id="e1")["event_id"],"e1")
   finally:m.close()
  def test_persisted_oversized_event_fails_closed_before_decode(self):
   m=ZPCMMemory(Path(self.tmp.name)/"corrupt.db",max_event_payload_bytes=64,max_page_bytes=128)
