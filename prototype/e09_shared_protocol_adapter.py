@@ -13,6 +13,7 @@ from prototype.shared_evidence_protocol import (
     EVIDENCE_SPLITS, STRICT_PROTOCOL_VERSION, SQLiteEvidenceStore, digest_payload,
 )
 from prototype.e09_authority_services import E09AuthorityService
+from prototype.e09_role_ports import E09ObserverPort, E09LearnerPort, E09EvaluatorPort
 from prototype.e09_prequential import (
     PrequentialRunner, PrequentialError,
     PredictionCommit as RunnerPredictionCommit,
@@ -33,7 +34,7 @@ class E09ProtocolAdapterError(RuntimeError):
 class E09SharedProtocolAdapter:
     LEARNER_TRACK = "e09"
 
-    def __init__(self, runner: PrequentialRunner, store: SQLiteEvidenceStore,
+    def __init__(self, runner: PrequentialRunner, store: SQLiteEvidenceStore | None,
                  *, episode_id: str, scope: str, split: str = "SUPPORT",
                  learner_track: str = LEARNER_TRACK,
                  structure_id: str = "e09-rule-set",
@@ -43,7 +44,10 @@ class E09SharedProtocolAdapter:
                  authority: E09AuthorityService | None = None,
                  observer_credential: object | None = None,
                  learner_credential: object | None = None,
-                 evaluator_credential: object | None = None) -> None:
+                 evaluator_credential: object | None = None,
+                 observer_port: E09ObserverPort | None = None,
+                 learner_port: E09LearnerPort | None = None,
+                 evaluator_port: E09EvaluatorPort | None = None) -> None:
         if not isinstance(episode_id, str) or not episode_id.strip():
             raise ValueError("episode_id must be non-empty")
         if not isinstance(learner_track, str) or not learner_track.strip():
@@ -67,12 +71,35 @@ class E09SharedProtocolAdapter:
         self.structure_kind = structure_kind
         self.version_prefix = version_prefix
         self.memory_projection = memory_projection
-        self._configure_authority(
-            authority=authority,
-            observer_credential=observer_credential,
-            learner_credential=learner_credential,
-            evaluator_credential=evaluator_credential,
+        self._configure_ports(
+            observer_port=observer_port,
+            learner_port=learner_port,
+            evaluator_port=evaluator_port,
         )
+        if self._observer_port is not None:
+            if store is not None or authority is not None or any(
+                value is not None for value in (
+                    observer_credential, learner_credential, evaluator_credential
+                )
+            ):
+                raise E09ProtocolAdapterError(
+                    "remote role-port mode must not receive a local SQLite store or in-process Authority credentials"
+                )
+            self._authority = None
+            self._observer_credential = None
+            self._learner_credential = None
+            self._evaluator_credential = None
+        else:
+            if not isinstance(store, SQLiteEvidenceStore):
+                raise E09ProtocolAdapterError(
+                    "local/legacy adapter mode requires a SQLiteEvidenceStore"
+                )
+            self._configure_authority(
+                authority=authority,
+                observer_credential=observer_credential,
+                learner_credential=learner_credential,
+                evaluator_credential=evaluator_credential,
+            )
         self._failed = False
         self._committed_predictions: set[str] = set()
         self._commit_digests: dict[str, str] = {}
@@ -81,12 +108,44 @@ class E09SharedProtocolAdapter:
         self._prediction_queries: dict[str, str] = {}
         self._reveals: dict[str, str] = {}
         self._version_id = f"{self.version_prefix}-v{runner.model_version}"
-        if self.store.replay_episode(self.episode_id):
+        existing_events = (
+            self._learner_port.memory_source(
+                scope=self.scope, learner_track=self.learner_track
+            ).replay_episode(self.episode_id)
+            if self._learner_port is not None
+            else self.store.replay_episode(self.episode_id)
+        )
+        if existing_events:
             raise E09ProtocolAdapterError(
-                "adapter currently requires a fresh episode; replay/resume is not implemented"
+                "adapter constructor requires a fresh episode; use resume_srok for local recovery"
             )
         self._append_initial_structure()
         self._sync_memory()
+
+    def _configure_ports(
+        self,
+        *,
+        observer_port: E09ObserverPort | None,
+        learner_port: E09LearnerPort | None,
+        evaluator_port: E09EvaluatorPort | None,
+    ) -> None:
+        supplied = (observer_port, learner_port, evaluator_port)
+        if not any(port is not None for port in supplied):
+            self._observer_port = None
+            self._learner_port = None
+            self._evaluator_port = None
+            return
+        if not all((
+            isinstance(observer_port, E09ObserverPort),
+            isinstance(learner_port, E09LearnerPort),
+            isinstance(evaluator_port, E09EvaluatorPort),
+        )):
+            raise E09ProtocolAdapterError(
+                "remote mode requires Observer, Learner and Evaluator role ports"
+            )
+        self._observer_port = observer_port
+        self._learner_port = learner_port
+        self._evaluator_port = evaluator_port
 
     def _configure_authority(
         self,
@@ -130,8 +189,14 @@ class E09SharedProtocolAdapter:
         if self.memory_projection is None:
             return
         try:
+            source = (
+                self._learner_port.memory_source(
+                    scope=self.scope, learner_track=self.learner_track
+                )
+                if self._learner_port is not None else self.store
+            )
             self.memory_projection.sync_episode(
-                self.store, episode_id=self.episode_id, scope=self.scope,
+                source, episode_id=self.episode_id, scope=self.scope,
                 learner_track=self.learner_track,
             )
         except Exception as exc:
@@ -207,6 +272,9 @@ class E09SharedProtocolAdapter:
         instance.structure_kind = latest_payload["kind"]
         instance.version_prefix = version_prefix
         instance.memory_projection = memory_projection
+        instance._observer_port = None
+        instance._learner_port = None
+        instance._evaluator_port = None
         instance._configure_authority(
             authority=authority,
             observer_credential=observer_credential,
@@ -384,7 +452,13 @@ class E09SharedProtocolAdapter:
             "scope": self.scope,
             "learner_track": self.learner_track,
         }
-        if self._authority is not None:
+        if self._learner_port is not None:
+            self._learner_port.append_structure(
+                episode_id=self.episode_id, event_id=event_id, scope=self.scope,
+                learner_track=self.learner_track, payload=payload,
+                operation_id=event_id,
+            )
+        elif self._authority is not None:
             self._authority.append_structure_version(
                 self._learner_credential, episode_id=self.episode_id,
                 event_id=event_id, idempotency_key=event_id, scope=self.scope,
@@ -403,16 +477,26 @@ class E09SharedProtocolAdapter:
         try:
             input_values = tuple(inputs)
             input_payload = {"inputs": self._jsonable(input_values)}
-            if self._authority is not None:
+            observation_event_id = f"{self.episode_id}:observation:{observation_id}"
+            if self._observer_port is not None:
+                observed = self._observer_port.observe(
+                    episode_id=self.episode_id, observation_id=observation_id,
+                    query_id=observation_id, scope=self.scope, split=self.split,
+                    learner_track=self.learner_track, input_payload=input_payload,
+                    put_operation_id=f"{observation_event_id}:payload",
+                    observation_operation_id=observation_event_id,
+                    feature_schema_version="e09-categorical-input-v1",
+                )
+                input_digest = observed["payload_ref"]
+            elif self._authority is not None:
                 input_digest = self._authority.put_observation_input(
                     self._observer_credential, scope=self.scope, payload=input_payload
                 )
             else:
                 input_digest = digest_payload(input_payload)
                 self.store.put_payload(input_digest, input_payload)
-            observation_event_id = f"{self.episode_id}:observation:{observation_id}"
             # The durable observation is sequenced before the learner predicts.
-            if self._authority is not None:
+            if self._observer_port is None and self._authority is not None:
                 self._authority.append_observation(
                     self._observer_credential, episode_id=self.episode_id,
                     event_id=observation_event_id, idempotency_key=observation_event_id,
@@ -421,7 +505,7 @@ class E09SharedProtocolAdapter:
                     feature_schema_version="e09-categorical-input-v1",
                     learner_track=self.learner_track,
                 )
-            else:
+            elif self._observer_port is None:
                 self.store.append_event(
                     episode_id=self.episode_id, event_id=observation_event_id,
                     event_type="observation", idempotency_key=observation_event_id,
@@ -477,7 +561,13 @@ class E09SharedProtocolAdapter:
                 },
             }
             prediction_event_id = f"{self.episode_id}:prediction:{commit.prediction_id}"
-            if self._authority is not None:
+            if self._learner_port is not None:
+                prediction_receipt = self._learner_port.commit_prediction(
+                    episode_id=self.episode_id, prediction_id=commit.prediction_id,
+                    payload=prediction_payload, observation_event_id=observation_event_id,
+                    operation_id=prediction_event_id,
+                )
+            elif self._authority is not None:
                 prediction_receipt = self._authority.append_prediction_commit(
                     self._learner_credential, episode_id=self.episode_id,
                     event_id=prediction_event_id, idempotency_key=prediction_event_id,
@@ -492,7 +582,11 @@ class E09SharedProtocolAdapter:
                 )
             self._committed_predictions.add(commit.prediction_id)
             self._commit_digests[commit.prediction_id] = interop_commit.commit_digest
-            self._event_digests[commit.prediction_id] = prediction_receipt.payload_digest
+            self._event_digests[commit.prediction_id] = (
+                prediction_receipt.get("payload_digest")
+                if isinstance(prediction_receipt, dict)
+                else prediction_receipt.payload_digest
+            )
             self._interop_commits[commit.prediction_id] = interop_commit
             self._prediction_queries[commit.prediction_id] = observation_id
             self._sync_memory()
@@ -543,7 +637,14 @@ class E09SharedProtocolAdapter:
                 "reveal_source": source,
             }
             reveal_causes = [f"{self.episode_id}:prediction:{prediction_id}"]
-            if self._authority is not None:
+            if self._evaluator_port is not None:
+                self._evaluator_port.reveal(
+                    episode_id=self.episode_id, prediction_id=prediction_id,
+                    reveal_id=reveal_id, payload=reveal_payload,
+                    commit_event_id=reveal_causes[0],
+                    operation_id=event_id,
+                )
+            elif self._authority is not None:
                 self._authority.append_evidence_reveal(
                     self._evaluator_credential, episode_id=self.episode_id,
                     event_id=event_id, idempotency_key=event_id,
@@ -600,7 +701,14 @@ class E09SharedProtocolAdapter:
                 "support_evidence_ids": [reveal_event_id],
                 "scope": self.scope, "learner_track": self.learner_track,
             }
-            if self._authority is not None:
+            if self._learner_port is not None:
+                self._learner_port.append_structure(
+                    episode_id=self.episode_id, event_id=structure_event_id,
+                    scope=self.scope, learner_track=self.learner_track,
+                    payload=structure_payload, operation_id=structure_event_id,
+                    causation_refs=(reveal_event_id,),
+                )
+            elif self._authority is not None:
                 self._authority.append_structure_version(
                     self._learner_credential, episode_id=self.episode_id,
                     event_id=structure_event_id, idempotency_key=structure_event_id,
@@ -624,7 +732,14 @@ class E09SharedProtocolAdapter:
                 "candidate_evaluations": revision.candidate_evaluations,
             }
             revision_causes = [reveal_event_id, structure_event_id]
-            if self._authority is not None:
+            if self._learner_port is not None:
+                self._learner_port.append_revision(
+                    episode_id=self.episode_id, event_id=revision_event_id,
+                    scope=self.scope, learner_track=self.learner_track,
+                    payload=revision_payload, causation_refs=tuple(revision_causes),
+                    operation_id=revision_event_id,
+                )
+            elif self._authority is not None:
                 self._authority.append_revision(
                     self._learner_credential, episode_id=self.episode_id,
                     event_id=revision_event_id, idempotency_key=revision_event_id,
@@ -655,6 +770,10 @@ class E09SharedProtocolAdapter:
 
     def replay(self) -> list[dict[str, Any]]:
         self._assert_healthy()
+        if self._learner_port is not None:
+            return self._learner_port.memory_source(
+                scope=self.scope, learner_track=self.learner_track
+            ).replay_episode(self.episode_id)
         return self.store.replay_episode(self.episode_id)
 
     def score(self) -> dict[str, Any]:

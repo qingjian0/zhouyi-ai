@@ -1,5 +1,8 @@
 import hashlib
+import os
+import socket
 import tempfile
+import time
 import unittest
 from pathlib import Path
 
@@ -10,6 +13,11 @@ from prototype.e09_shared_protocol_adapter import E09SharedProtocolAdapter, E09P
 from prototype.e09_authority_services import (
     E09AuthenticatedWorkload, E09AuthorityService, E09DomainBinding,
 )
+from prototype.e09_authority_client import E09AuthorityRPCClient
+from prototype.e09_role_ports import E09ObserverPort, E09LearnerPort, E09EvaluatorPort
+from prototype.e09_unix_rpc import E09AuthorityUnixRPC, UnixPeerWorkloadAuthenticator
+from prototype.unix_ipc import StaticUnixPeerResolver, UnixJSONRPCClient
+from prototype.zpcm_memory import ZPCMMemory
 from prototype.e09_evaluator_projection import E09EvaluatorProjection
 from prototype.shared_evidence_protocol import SQLiteEvidenceStore
 
@@ -150,6 +158,108 @@ class E09SharedProtocolAdapterTests(unittest.TestCase):
         resumed.predict_and_commit("obs-after-resume", (0, 0, 2))
         self.assertEqual(resumed.replay()[-1]["event_type"], "prediction_commit")
         self.assertEqual(resumed.replay()[-2]["actor_role"], "observer")
+
+    @unittest.skipUnless(hasattr(socket, "SO_PEERCRED"), "Linux SO_PEERCRED is required")
+    def test_remote_role_ports_run_adapter_without_sqlite_handle(self):
+        principals = {
+            "observer": E09AuthenticatedWorkload(
+                "spiffe://test/observer", "issuer-observer", frozenset({"observer"}),
+                frozenset({"e09/test"}), "test-idp", "SO_PEERCRED",
+                hashlib.sha256(b"observer").hexdigest(),
+            ),
+            "learner": E09AuthenticatedWorkload(
+                "spiffe://test/learner", "issuer-learner", frozenset({"learner"}),
+                frozenset({"e09/test"}), "test-idp", "SO_PEERCRED",
+                hashlib.sha256(b"learner").hexdigest(),
+            ),
+            "evaluator": E09AuthenticatedWorkload(
+                "spiffe://test/evaluator", "issuer-evaluator", frozenset({"evaluator"}),
+                frozenset({"e09/test"}), "test-idp", "SO_PEERCRED",
+                hashlib.sha256(b"evaluator").hexdigest(),
+            ),
+        }
+        authenticator = UnixPeerWorkloadAuthenticator({
+            principal.workload_id: principal for principal in principals.values()
+        })
+
+        class Signer:
+            def sign(self, issuer_id, message):
+                return "unused-test-signature"
+
+        class DomainRegistry:
+            def resolve(self, *, episode_id, scope, observation_id):
+                return E09DomainBinding("family-e09", "test-registry", "v1")
+
+        class LearnerBindingRegistry:
+            def resolve(self, *, episode_id, scope, learner_track):
+                if learner_track != "e09":
+                    raise ValueError("unassigned learner track")
+                return "spiffe://test/learner"
+
+        authority = E09AuthorityService(
+            self.store, authenticator=authenticator, signer=Signer(),
+            domain_registry=DomainRegistry(),
+            learner_binding_resolver=LearnerBindingRegistry(),
+        )
+        servers = []
+        ports = {}
+        try:
+            for role in ("observer", "learner", "evaluator"):
+                principal = principals[role]
+                socket_path = Path(self.tmp.name) / f"{role}.sock"
+                resolver = StaticUnixPeerResolver({
+                    (os.getuid(), os.getgid()): (
+                        principal.workload_id, principal.roles, principal.scopes,
+                    ),
+                })
+                server = E09AuthorityUnixRPC(
+                    authority, peer_resolver=resolver, socket_path=str(socket_path)
+                )
+                server.start()
+                servers.append(server)
+                deadline = time.monotonic() + 2
+                while not socket_path.exists() and time.monotonic() < deadline:
+                    time.sleep(0.01)
+                client = E09AuthorityRPCClient(UnixJSONRPCClient(socket_path))
+                if role == "observer":
+                    ports[role] = E09ObserverPort(client)
+                elif role == "learner":
+                    ports[role] = E09LearnerPort(client)
+                else:
+                    ports[role] = E09EvaluatorPort(client)
+
+            learner = IncrementalConjunctionLearner(DOMAINS, min_support=2)
+            runner = PrequentialRunner(learner, revision_mode="INCREMENTAL_INDEX")
+            runner.bootstrap(BOOTSTRAP)
+            memory = ZPCMMemory(Path(self.tmp.name) / "zpcm-remote.sqlite3")
+            try:
+                adapter = E09SharedProtocolAdapter(
+                    runner, None, episode_id="episode-remote-ports", scope="e09/test",
+                    memory_projection=memory,
+                    observer_port=ports["observer"],
+                    learner_port=ports["learner"],
+                    evaluator_port=ports["evaluator"],
+                )
+                self.assertIsNone(adapter.store)
+                committed = adapter.predict_and_commit("obs-remote", (0, 0, 2))
+                reveal_event_id = adapter.reveal(
+                    committed["prediction_id"], "never-in-zpcm-remote"
+                )
+                adapter.revise(committed["prediction_id"])
+
+                events = adapter.replay()
+                reveal = next(event for event in events if event["event_id"] == reveal_event_id)
+                self.assertNotIn("target_or_feedback", reveal["payload"])
+                self.assertNotIn("reveal_source", reveal["payload"])
+                durable = self.store.replay_episode("episode-remote-ports")
+                self.assertIn("never-in-zpcm-remote", str(durable))
+                self.assertNotIn("never-in-zpcm-remote", str(memory.retrieve(scope="e09/test")))
+                self.assertTrue(memory.verify_integrity()["ok"])
+            finally:
+                memory.close()
+        finally:
+            for server in reversed(servers):
+                server.close()
 
     def test_secure_mode_requires_all_credentials_and_trusted_domain_registry(self):
         learner = IncrementalConjunctionLearner(DOMAINS, min_support=2)
