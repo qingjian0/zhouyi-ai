@@ -62,7 +62,8 @@ def main() -> None:
             python_before, _ = tracemalloc.get_traced_memory()
             tracemalloc.reset_peak()
             rss_peak = rss_before
-            count = 0
+            records_read = 0
+            payload_bytes_touched = 0
             started = time.perf_counter()
             for event in memory.iter_domain_events(
                 event_type="benchmark_semantic_unit",
@@ -70,7 +71,8 @@ def main() -> None:
                 page_size=args.page_size,
             ):
                 # Touch decoded data so the benchmark includes JSON payloads.
-                count += len(event["payload"]["payload"])
+                records_read += 1
+                payload_bytes_touched += len(event["payload"]["payload"])
                 rss_now = current_rss_bytes()
                 if rss_now is not None:
                     rss_peak = rss_now if rss_peak is None else max(rss_peak, rss_now)
@@ -80,7 +82,8 @@ def main() -> None:
 
             print(json.dumps({
                 "events_requested": args.events,
-                "events_read": args.events if count == args.events * args.payload_bytes else None,
+                "events_read": records_read,
+                "payload_bytes_touched": payload_bytes_touched,
                 "page_size": args.page_size,
                 "payload_bytes_per_event": args.payload_bytes,
                 "elapsed_seconds": round(elapsed, 6),
