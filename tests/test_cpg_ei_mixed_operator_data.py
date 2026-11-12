@@ -11,7 +11,7 @@ class TestMixedOperatorCorpus(unittest.TestCase):
 
     def test_default_scale_and_dimensions(self):
         manifest = self.corpus["manifest"]
-        self.assertEqual(manifest["family_count"], 40)
+        self.assertEqual(manifest["family_count"], 400)
         self.assertEqual(manifest["states_per_family"], 256)
         self.assertEqual(manifest["row_count"], 10_240)
         self.assertEqual(manifest["teacher_rule_count"], 320)
