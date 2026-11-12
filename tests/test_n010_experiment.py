@@ -160,8 +160,32 @@ class N010ExperimentRunnerTests(unittest.TestCase):
             if len(calls) == 1:
                 return iter([TrainingExample((), ())])
             return iter(())
-        with self.assertRaisesRegex(LearnableSROKError, "changed record count"):
+        with self.assertRaisesRegex(LearnableSROKError, "record count"):
             model.fit_reiterable(unstable, epochs=1)
+
+    def test_reiterable_fullbatch_rejects_same_count_content_drift(self):
+        model = LearnableSROK(self.roles, 1)
+        original = TrainingExample(
+            role_candidates=(
+                (Node("a", "r0", (1.0,), frozenset({"eligible"})),),
+                (Node("b", "r1", (1.0,), frozenset({"eligible"})),),
+            ),
+            target_ids=("a", "b"),
+        )
+        changed = TrainingExample(
+            role_candidates=(
+                (Node("a", "r0", (2.0,), frozenset({"eligible"})),),
+                (Node("b", "r1", (1.0,), frozenset({"eligible"})),),
+            ),
+            target_ids=("a", "b"),
+        )
+        calls = []
+        def drifting():
+            calls.append(1)
+            return iter([original] if len(calls) == 1 else [changed])
+        with self.assertRaisesRegex(LearnableSROKError, "changed content"):
+            model.fit_reiterable(drifting, epochs=1)
+        self.assertEqual(model.training_steps, 0)
 
 
 if __name__ == "__main__":
