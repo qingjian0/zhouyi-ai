@@ -66,7 +66,9 @@ def grow_relation_graph_joint_motifs(
 
     Each round evaluates every not-yet-selected 3-line motif from an identical
     copy of the current model. The whole group is enabled and optimized
-    together; the candidate with the lowest training BCE is retained.
+    together on train_examples; the candidate with the lowest proposal-split BCE
+    is retained. If proposal_examples is omitted, train_examples is used for
+    ranking for backward compatibility (exploratory mode only).
     """
     if not train_examples or not validation_examples:
         raise ValueError("train and locked-test examples must be non-empty")
