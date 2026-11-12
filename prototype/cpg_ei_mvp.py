@@ -57,13 +57,26 @@ def encode_state(state: Sequence[int]) -> tuple[float, ...]:
     return tuple(features)
 
 
-def _teacher(seed: int) -> tuple[tuple[float, ...], ...]:
+def _teacher(
+    seed: int, *, sparse_relations: bool = False
+) -> tuple[tuple[float, ...], ...]:
     rng = random.Random(seed)
-    # Six independent but jointly state-conditioned transition heads.
-    return tuple(
-        tuple(rng.gauss(0.0, 0.9) for _ in FEATURE_NAMES)
-        for _ in range(6)
-    )
+    if not sparse_relations:
+        # Six independent but jointly state-conditioned transition heads.
+        return tuple(
+            tuple(rng.gauss(0.0, 0.9) for _ in FEATURE_NAMES)
+            for _ in range(6)
+        )
+    # Controlled sparse teacher: 3 of 15 pair edges and 3 of 20 triple edges.
+    active_pairs = {0, 4, 10}
+    active_triples = {1, 7, 15}
+    heads = []
+    for _ in range(6):
+        row = [rng.gauss(0.0, 0.9) for _ in range(7)]
+        row.extend(rng.gauss(0.0, 0.9) if i in active_pairs else 0.0 for i in range(15))
+        row.extend(rng.gauss(0.0, 0.9) if i in active_triples else 0.0 for i in range(20))
+        heads.append(tuple(row))
+    return tuple(heads)
 
 
 def _target(state: Sequence[int], weights: Sequence[Sequence[float]]) -> tuple[int, ...]:
@@ -78,11 +91,12 @@ def make_dataset(
     count: int,
     seed: int,
     teacher_seed: int = 20261112,
+    sparse_teacher: bool = False,
 ) -> list[Example]:
     if count < 1:
         raise ValueError("count must be positive")
     rng = random.Random(seed)
-    teacher = _teacher(teacher_seed)
+    teacher = _teacher(teacher_seed, sparse_relations=sparse_teacher)
     rows = []
     for _ in range(count):
         state = tuple(rng.randrange(2) for _ in range(6))
@@ -130,10 +144,12 @@ class CpgEiTransitionModel:
         learning_rate: float = 0.35,
         l2: float = 1e-4,
         gate_l1: float = 1e-4,
+        edge_group_l1: float = 0.0,
     ) -> list[float]:
         if not examples:
             raise ValueError("training data must not be empty")
-        if epochs < 1 or learning_rate <= 0.0 or l2 < 0.0 or gate_l1 < 0.0:
+        if (epochs < 1 or learning_rate <= 0.0 or l2 < 0.0
+                or gate_l1 < 0.0 or edge_group_l1 < 0.0):
             raise ValueError("invalid optimizer configuration")
         rows = [(encode_state(row.state), row.target) for row in examples]
         losses = []
@@ -172,9 +188,28 @@ class CpgEiTransitionModel:
                     + gate_l1 * gate_derivatives[gate_index]
                 )
                 self.gate_logits[gate_index] -= learning_rate * gate_gradients[gate_index]
+
+            # Proximal group-L1 over each relation's six output weights. This
+            # removes whole candidate edges rather than sparsifying each head
+            # independently.
+            group_norm_sum = 0.0
+            if edge_group_l1:
+                for feature_index in range(7, len(FEATURE_NAMES)):
+                    norm = math.sqrt(sum(
+                        self.weights[head_index][feature_index] ** 2
+                        for head_index in range(6)
+                    ))
+                    group_norm_sum += norm
+                    shrink = max(
+                        0.0,
+                        1.0 - learning_rate * edge_group_l1 / max(norm, 1e-12),
+                    )
+                    for head_index in range(6):
+                        self.weights[head_index][feature_index] *= shrink
             losses.append(
                 total_loss / (n * 6.0)
                 + gate_l1 * sum(gates) / 6.0
+                + edge_group_l1 * group_norm_sum
             )
         return losses
 
