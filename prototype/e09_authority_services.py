@@ -534,6 +534,14 @@ class E09AuthorityService:
         after_event_ids = {event["event_id"] for event in after_events}
         if not after_event_ids.issubset(set(causes)):
             raise E09AuthorizationError("revision causation must include its resulting structure version events")
+        before_ids = set(before)
+        for after_event in after_events:
+            after_payload = after_event["payload"]
+            if (not before_ids.intersection(set(after_payload.get("parent_version_ids", [])))
+                    or not set(triggers).issubset(set(after_payload.get("support_evidence_ids", [])))):
+                raise E09AuthorizationError(
+                    "resulting structure version must descend from the declared parent and cite every trigger"
+                )
         return self._store.append_event(
             episode_id=episode_id, event_id=event_id, event_type="revision",
             idempotency_key=idempotency_key, payload=normalized,
