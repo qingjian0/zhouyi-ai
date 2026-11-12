@@ -4,7 +4,7 @@ import math
 import random
 import unittest
 
-from prototype.cpg_ei_mvp import CpgEiTransitionModel, Example, FEATURE_NAMES, make_dataset
+from prototype.cpg_ei_mvp import CpgEiTransitionModel, Example, FEATURE_NAMES, evaluate, make_dataset
 from prototype.cpg_ei_structure_discovery import grow_relation_graph
 
 
