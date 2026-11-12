@@ -11,7 +11,14 @@ import argparse
 import json
 import platform
 import statistics
+import sys
 import time
+from pathlib import Path
+
+# Support both direct-script and module execution from arbitrary working dirs.
+_REPO_ROOT = str(Path(__file__).resolve().parents[1])
+if _REPO_ROOT not in sys.path:
+    sys.path.insert(0, _REPO_ROOT)
 
 from prototype.n09_learnable_srok import (
     LearnableSROK,
