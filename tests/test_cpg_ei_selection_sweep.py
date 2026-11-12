@@ -22,6 +22,7 @@ class CpgEiSelectionSweepTests(unittest.TestCase):
             self.assertEqual(len(row['ood_bit_accuracy_by_family']), 2)
             self.assertEqual(len(row['oracle_ood_bit_accuracy_by_family']), 2)
             self.assertTrue(math.isfinite(row['oracle_final_train_loss']))
+            self.assertEqual(row['oracle_training_passes'], 2)
             self.assertIn(row['selection_protocol'], ('proposal_split', 'legacy_train_ranked'))
             self.assertEqual(row['proposal_examples'], 12 if row['selection_protocol'] == 'proposal_split' else 0)
             self.assertEqual(row['selection_metric_source'], 'proposal' if row['selection_protocol'] == 'proposal_split' else 'train')
