@@ -44,7 +44,7 @@ class PersistentM2SemanticUnitStoreTests(unittest.TestCase):
                 record_kind="SemanticUnitCandidate", producer="test-extractor",
                 producer_version="1.0", recorded_at="2026-11-12T00:00:00Z",
                 scope=scope, source_refs=(self.reference,),
-                derivation_refs=(predecessor,) if predecessor else (),
+                derivation_refs=("obs-1",) + ((predecessor,) if predecessor else ()),
             ),
             kind=UnitKind.EVENT, surface_forms=(surface,),
             typed_attributes=(TypedAttribute(
@@ -73,7 +73,7 @@ class PersistentM2SemanticUnitStoreTests(unittest.TestCase):
         first = self.candidate("su-1")
         self.store.record_candidate(first)
         revised = self.candidate("su-2", predecessor="su-1",
-                                 surface="甲通过工具处理乙", confidence=0.9)
+                                 surface="通过工具", confidence=0.9)
         receipt = self.store.revise_candidate("su-1", revised)
         retry = self.store.revise_candidate("su-1", revised)
         self.assertFalse(receipt.replayed)
