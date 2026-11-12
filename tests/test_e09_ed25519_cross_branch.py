@@ -8,7 +8,7 @@ from pathlib import Path
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-from prototype.csg_branch_delta import BranchDelta, BranchSnapshot, DeltaOperation, canonical_hash
+from prototype.csg_branch_delta import BranchDelta, BranchSnapshot, DeltaOperation, canonical_hash, validate_merge_authorization
 from prototype.csg_gcr_coordinator import CandidateProposal
 from prototype.csg_gcr_e12a6_ingestion import CSGGCRIngestionError, ingest_typed_candidate
 from prototype.e09_e12a6_evidence_bridge import (AUTHORIZATION_AUDIENCE, AUTHORIZATION_SIGNATURE_VERSION, branch_merge_authorization_signing_bytes, resolve_branch_merge_authorization)
@@ -81,59 +81,9 @@ class E09Ed25519CrossBranchTests(unittest.TestCase):
         self.zpcm.close()
         self.tmp.cleanup()
 
-    def test_real_ed25519_grant_authorizes_typed_candidate_and_persists_atomically(self):
-        left_evidence = add_reveal(
-            self.e09, episode=self.episode, scope=self.scope, track=self.track,
-            prediction_id="left-support", label="PRIVATE_LEFT",
-        )
-        right_evidence = add_reveal(
-            self.e09, episode=self.episode, scope=self.scope, track=self.track,
-            prediction_id="right-support", label="PRIVATE_RIGHT",
-        )
-        grant_evidence = add_reveal(
-            self.e09, episode=self.episode, scope=self.scope, track=self.track,
-            prediction_id="grant-support", label="PRIVATE_GRANT_SUPPORT",
-        )
-
-        authorization_ref = f"{self.episode}:authorization:merge-1"
-        unsigned = {
-            "authorization_id": authorization_ref,
-            "issuer_id": "issuer-production-test",
-            "scope": self.scope,
-            "parent_state_ref": "parent-1",
-            "branch_ids": ["left", "right"],
-            "evidence_refs": [grant_evidence],
-            "issued_at": "2026-11-11T00:00:00+00:00",
-            "expires_at": "2026-11-12T00:00:00+00:00",
-            "signature_algorithm": "Ed25519",
-            "signature_version": AUTHORIZATION_SIGNATURE_VERSION,
-            "audience": AUTHORIZATION_AUDIENCE,
-            "authorization_sequence": self.e09.replay_episode(self.episode)[-1]["sequence_no"] + 1,
-        }
-        signing_event = {
-            "episode_id": self.episode, "event_id": authorization_ref,
-            "event_type": "branch_merge_authorization",
-            "protocol_version": STRICT_PROTOCOL_VERSION,
-            "payload_schema": "branch_merge_authorization@2",
-            "actor_role": "authorizer",
-            "causation_refs": [grant_evidence],
-            "integrity_metadata": {"policy": "branch-merge-v2"},
-            "payload": unsigned,
-        }
-        signature = base64.b64encode(
-            self.private.sign(branch_merge_authorization_signing_bytes(signing_event))
-        ).decode("ascii")
-        self.e09.append_event(
-            episode_id=self.episode, event_id=authorization_ref,
-            event_type="branch_merge_authorization", idempotency_key=authorization_ref,
-            actor_role="authorizer", causation_refs=[grant_evidence],
-            payload={**unsigned, "signature": signature},
-            payload_schema="branch_merge_authorization@2",
-            integrity_metadata={"policy": "branch-merge-v2"},
-            expected_sequence=unsigned["authorization_sequence"] - 1,
-            protocol_version=STRICT_PROTOCOL_VERSION,
-        )
-
+    def test_legacy_ed25519_grant_cannot_authorize_domain_sensitive_merge(self):
+        grant_evidence = self._add_reveal("grant")
+        authorization_ref = self._add_authorization(grant_evidence)
         permit = resolve_branch_merge_authorization(
             self.e09, episode_id=self.episode, authorization_ref=authorization_ref,
             parent_state_ref="parent-1", branch_ids=("left", "right"),
@@ -143,69 +93,11 @@ class E09Ed25519CrossBranchTests(unittest.TestCase):
             signature_verifier=self.keyring, verifier_id=self.keyring.verifier_id,
             now=datetime(2026, 11, 11, 12, tzinfo=timezone.utc),
         )
-        base = {"node:left": {"value": 0}, "node:right": {"value": 0}}
-        left_ref, right_ref = VariableRef("world", "left"), VariableRef("world", "right")
-        left_edge = HyperedgeProposal(
-            "proposal-left", "parent-1", "left", "supports",
-            (RoleBinding("subject", left_ref, "entity-left", "Entity"),),
-            (left_evidence,),
-        )
-        right_edge = HyperedgeProposal(
-            "proposal-right", "parent-1", "right", "supports",
-            (RoleBinding("subject", right_ref, "entity-right", "Entity"),),
-            (right_evidence,),
-        )
-        rows = (
-            TypedCandidateProposal(
-                CandidateProposal("proposal-left", "parent-1", "left", (), (left_evidence,), score=1.0),
-                left_edge, (VariableSpec(left_ref, "Entity"),),
-            ),
-            TypedCandidateProposal(
-                CandidateProposal("proposal-right", "parent-1", "right", (), (right_evidence,), score=1.0),
-                right_edge, (VariableSpec(right_ref, "Entity"),),
-            ),
-        )
-        left_delta = BranchDelta(
-            "left-delta", DeltaOperation.UPDATE_ATTRIBUTE, "node:left",
-            canonical_hash(base["node:left"]), {"value": 1}, ("derivation:left",), None, 1,
-        )
-        right_delta = BranchDelta(
-            "right-delta", DeltaOperation.UPDATE_ATTRIBUTE, "node:right",
-            canonical_hash(base["node:right"]), {"value": 2}, ("derivation:right",), None, 1,
-        )
-        snapshots = (
-            BranchSnapshot("parent-1", canonical_hash(base), "left", 0, (left_delta,),
-                           (), ("node:left",), ("derivation:left",), ("root", "left")),
-            BranchSnapshot("parent-1", canonical_hash(base), "right", 0, (right_delta,),
-                           (), ("node:right",), ("derivation:right",), ("root", "right")),
-        )
-        report = TypedCandidateCoordinator().coordinate(
-            rows, base_state=base, branch_snapshots=snapshots,
-            branch_merge_authorization=permit,
-        )
-        combined = next(
-            item for item in report.candidates
-            if len(item.coordinated.proposal_ids) == 2
-        )
-        self.assertEqual(combined.branch_merge_authorization_ref, authorization_ref)
-        self.assertEqual(combined.branch_merge_authorization_evidence_refs, (grant_evidence,))
+        self.assertEqual(permit.issuer_id, "issuer-1")
+        self.assertFalse(permit.domain_provenance_verified)
+        with self.assertRaisesRegex(ValueError, "trusted domain provenance"):
+            validate_merge_authorization(permit, "parent-1", ("left", "right"))
 
-        # A valid v0.3 signature does not upgrade caller-labelled legacy evidence
-        # into domain-authenticated lifecycle evidence.
-        with self.assertRaisesRegex(CSGGCRIngestionError, "trusted domain registry is required"):
-            ingest_typed_candidate(
-                combined, ledger=self.ledger, e09_store=self.e09,
-                episode_id=self.episode, scope=self.scope, learner_track=self.track,
-                grammar_version="cross-branch-e2e-v1",
-                world_family_by_evidence={
-                    left_evidence: "left-world",
-                    right_evidence: "right-world",
-                },
-                branch_merge_authorization=permit,
-            )
-        self.assertEqual(len(self.ledger.snapshot()["candidates"]), 0)
-        self.assertEqual(len(self.ledger.snapshot()["evidence"]), 0)
-        self.assertEqual(self.zpcm.replay_lifecycle_events(scope="cross-branch/project"), [])
 
     def test_unknown_and_revoked_issuers_fail_closed(self):
         message = b"canonical authorization bytes"
