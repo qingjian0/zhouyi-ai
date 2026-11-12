@@ -223,6 +223,7 @@ class E09AuthorityServiceTests(unittest.TestCase):
             verifier_id=self.keyring.verifier_id,
             clock=_FixedClock(datetime(2026, 11, 12, 0, 30, tzinfo=timezone.utc)),
             receipt_signer=_NamedSigner(verifier_private, self.keyring.verifier_id),
+            domain_registry=self.domain_registry,
         )
         receipt = verifier.issue_verification_receipt(
             episode_id=self.episode, authorization_ref="grant-receipt",
@@ -242,6 +243,27 @@ class E09AuthorityServiceTests(unittest.TestCase):
         self.assertEqual(verified.authorization_ref, "grant-receipt")
         self.assertEqual(verified.evidence[0].outcome, f"opaque-e09-evidence-ref:{reveal_ref}")
         self.assertNotIn("target_or_feedback", receipt["evidence"][0])
+
+    def test_verifier_rejects_caller_supplied_world_family_override(self):
+        reveal_ref = self._prior_prediction()
+        self.authority.issue_branch_merge_authorization(
+            "authorizer-cert", episode_id=self.episode, authorization_id="grant-override",
+            scope=self.scope, parent_state_ref="parent-1", branch_ids=["left", "right"],
+            evidence_refs=[reveal_ref], ttl=timedelta(minutes=45),
+        )
+        verifier = E09VerifierService(
+            self.store, signature_verifier=self.keyring.verify,
+            verifier_id=self.keyring.verifier_id,
+            clock=_FixedClock(datetime(2026, 11, 12, 0, 30, tzinfo=timezone.utc)),
+            domain_registry=self.domain_registry,
+        )
+        with self.assertRaisesRegex(E09AuthorizationError, "overrides are forbidden"):
+            verifier.verify_branch_merge_authorization(
+                episode_id=self.episode, authorization_ref="grant-override",
+                parent_state_ref="parent-1", branch_ids=("left", "right"),
+                scope=self.scope, learner_track=self.track,
+                world_family_by_evidence={reveal_ref: "attacker-selected-family"},
+            )
 
     def test_caller_cannot_supply_verification_time(self):
         verifier = E09VerifierService(
