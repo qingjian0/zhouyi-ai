@@ -13,7 +13,7 @@ class TestMixedOperatorCorpus(unittest.TestCase):
         manifest = self.corpus["manifest"]
         self.assertEqual(manifest["family_count"], 400)
         self.assertEqual(manifest["states_per_family"], 256)
-        self.assertEqual(manifest["row_count"], 10_240)
+        self.assertEqual(manifest["row_count"], 102_400)
         self.assertEqual(manifest["teacher_rule_count"], 320)
         self.assertEqual(manifest["operators"], list(OPERATORS))
 
