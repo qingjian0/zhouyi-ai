@@ -77,6 +77,7 @@ class TRLWWorkingSetTests(unittest.TestCase):
             ["high", "middle"],
         )
         self.assertEqual(packet.status, PacketStatus.BUDGET_EXHAUSTED)
+        self.assertTrue(packet.budget_exhausted)
         self.assertLessEqual(packet.serialized_bytes, packet.byte_budget)
         self.assertEqual(packet.returned_records, 2)
 
@@ -105,16 +106,27 @@ class TRLWWorkingSetTests(unittest.TestCase):
             [row], self.query(byte_budget=size - 1), source_complete=True,
         )
         self.assertEqual(packet.status, PacketStatus.BUDGET_EXHAUSTED)
+        self.assertTrue(packet.budget_exhausted)
         self.assertEqual(packet.entries, ())
         self.assertEqual(packet.serialized_bytes, 0)
 
-    def test_incomplete_upstream_projection_is_never_reported_complete(self):
+    def test_incomplete_source_is_distinct_from_budget_exhaustion(self):
         packet = build_trlw_working_set(
             [candidate("one")], self.query(), source_complete=False,
         )
-        self.assertEqual(packet.status, PacketStatus.BUDGET_EXHAUSTED)
+        self.assertEqual(packet.status, PacketStatus.SOURCE_INCOMPLETE)
         self.assertFalse(packet.complete)
+        self.assertFalse(packet.budget_exhausted)
         self.assertFalse(packet.source_complete)
+
+    def test_incomplete_source_and_budget_exhaustion_are_both_reported(self):
+        row = candidate("large-record")
+        size = len(canonical_json(row).encode("utf-8"))
+        packet = build_trlw_working_set(
+            [row], self.query(byte_budget=size - 1), source_complete=False,
+        )
+        self.assertEqual(packet.status, PacketStatus.SOURCE_INCOMPLETE)
+        self.assertTrue(packet.budget_exhausted)
 
     def test_empty_complete_source_reports_not_found(self):
         packet = build_trlw_working_set([], self.query(), source_complete=True)
