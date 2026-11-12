@@ -482,7 +482,10 @@ class LearnableSROK:
             # constraints remain active; relational scoring ranks complete
             # distinct assignments after bounded enumeration.
             pools = tuple(
-                tuple(node for node in node_list if self._compatible(node, role))
+                tuple(sorted(
+                    (node for node in node_list if self._compatible(node, role)),
+                    key=lambda node: node.node_id,
+                ))
                 for role in self.roles
             )
         sizes = tuple((role.name, len(pool)) for role, pool in zip(self.roles, pools))
