@@ -134,10 +134,22 @@ def main() -> None:
                 "--epochs", str(args.epochs),
             ]
             completed = subprocess.run(
-                command, check=True, capture_output=True, text=True,
+                command, check=False, capture_output=True, text=True,
                 cwd=str(ROOT),
             )
-            results.append(json.loads(completed.stdout.strip().splitlines()[-1]))
+            if completed.returncode != 0:
+                raise RuntimeError(
+                    "RSS worker failed for "
+                    f"{size} records per split (exit {completed.returncode}):\\n"
+                    f"stdout:\\n{completed.stdout}\\nstderr:\\n{completed.stderr}"
+                )
+            try:
+                results.append(json.loads(completed.stdout.strip().splitlines()[-1]))
+            except (IndexError, json.JSONDecodeError) as exc:
+                raise RuntimeError(
+                    f"RSS worker emitted invalid JSON for {size} records per split: "
+                    f"{completed.stdout!r}; stderr={completed.stderr!r}"
+                ) from exc
 
     output = {
         "benchmark": "n010_ooc_subprocess_peak_rss",
