@@ -2,7 +2,7 @@
 from __future__ import annotations
 import argparse, itertools, json, math, random
 from typing import Iterable, Sequence
-from prototype.cpg_ei_mvp import CpgEiTransitionModel, Example, evaluate
+from prototype.cpg_ei_mvp import CpgEiTransitionModel, Example, FEATURE_NAMES, evaluate
 from prototype.cpg_ei_joint_proposals import grow_relation_graph_joint_motifs
 
 RULE_FAMILIES = {
@@ -52,6 +52,7 @@ def run_sweep(*, seeds: Sequence[int] = DEFAULT_SEEDS, epochs: int | Sequence[in
             train = make_examples(train_states, triples)
             proposal = make_examples(proposal_states, triples)
             locked = make_examples(locked_states, triples)
+            oracle_indices = {FEATURE_NAMES.index(name) for name in exact_support(triples)}
             for epoch_budget in epoch_budgets:
               for protocol in ("proposal_split", "legacy_train_ranked"):
                 model = CpgEiTransitionModel.create(active_relation_indices=set())
@@ -62,6 +63,17 @@ def run_sweep(*, seeds: Sequence[int] = DEFAULT_SEEDS, epochs: int | Sequence[in
                     gate_l1=0.001, edge_group_l1=0.001,
                 )
                 support = _support_metrics(result["active_edges"], exact_support(triples))
+                oracle_model = CpgEiTransitionModel.create(active_relation_indices=oracle_indices)
+                oracle_model.train(
+                    train, epochs=epoch_budget, gate_l1=0.001, edge_group_l1=0.001,
+                )
+                oracle_locked = evaluate(oracle_model, locked)["bit_accuracy"]
+                oracle_ood = {}
+                for other_family, other_triples in RULE_FAMILIES.items():
+                    if other_family != family:
+                        oracle_ood[other_family] = evaluate(
+                            oracle_model, make_examples(locked_states, other_triples)
+                        )["bit_accuracy"]
                 ood = {}
                 for other_family, other_triples in RULE_FAMILIES.items():
                     if other_family != family:
@@ -83,11 +95,14 @@ def run_sweep(*, seeds: Sequence[int] = DEFAULT_SEEDS, epochs: int | Sequence[in
                     "locked_test_bce": result["validation_binary_cross_entropy"],
                     "locked_test_bit_accuracy": result["validation"]["bit_accuracy"],
                     "ood_bit_accuracy_by_family": ood,
+                    "oracle_locked_test_bit_accuracy": oracle_locked,
+                    "oracle_ood_bit_accuracy_by_family": oracle_ood,
                     **support,
                 }
                 values = [
                     record["selection_bce"], record["locked_test_bce"],
-                    record["locked_test_bit_accuracy"], *ood.values(),
+                    record["locked_test_bit_accuracy"], record["oracle_locked_test_bit_accuracy"],
+                    *ood.values(), *oracle_ood.values(),
                 ]
                 if not all(math.isfinite(value) for value in values):
                     raise AssertionError("non-finite selection benchmark metric")
@@ -104,7 +119,12 @@ def run_sweep(*, seeds: Sequence[int] = DEFAULT_SEEDS, epochs: int | Sequence[in
             "mean_support_precision": mean("support_precision"),
             "mean_support_recall": mean("support_recall"),
             "mean_locked_test_bit_accuracy": mean("locked_test_bit_accuracy"),
+            "mean_oracle_locked_test_bit_accuracy": mean("oracle_locked_test_bit_accuracy"),
             "mean_ood_bit_accuracy": sum(ood_values) / len(ood_values),
+            "mean_oracle_ood_bit_accuracy": sum(
+                value for row in rows
+                for value in row["oracle_ood_bit_accuracy_by_family"].values()
+            ) / (2 * len(rows)),
             "mean_selected_motifs": mean("selected_motif_count"),
             "mean_training_passes": mean("training_passes"),
             "exact_support_recovery_count": sum(
