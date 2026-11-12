@@ -40,8 +40,20 @@ def _node_from_json(value: dict) -> Node:
 
 
 def load_dataset(path: str | Path, roles: Sequence[RoleSpec], feature_dim: int):
-    raw = Path(path).read_bytes()
+    dataset_path = Path(path)
+    raw = dataset_path.read_bytes()
     digest = hashlib.sha256(raw).hexdigest()
+    provenance_path = dataset_path.with_suffix(dataset_path.suffix + ".manifest.json")
+    generation_provenance = None
+    if provenance_path.exists():
+        try:
+            generation_provenance = json.loads(provenance_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError) as exc:
+            raise LearnableSROKError("invalid generation provenance manifest") from exc
+        if not isinstance(generation_provenance, dict) or generation_provenance.get("schema") != "zhouyi-ai.n010-synthetic-rule-families-v1":
+            raise LearnableSROKError("unsupported generation provenance schema")
+        if generation_provenance.get("dataset_sha256") != digest:
+            raise LearnableSROKError("generation provenance dataset hash mismatch")
     rows = []
     seen = set()
     for line_number, line in enumerate(raw.decode("utf-8").splitlines(), 1):
@@ -94,6 +106,19 @@ def load_dataset(path: str | Path, roles: Sequence[RoleSpec], feature_dim: int):
               for name in ("train", "dev", "locked_test")}
     if not splits["train"] or not splits["dev"] or not splits["locked_test"]:
         raise LearnableSROKError("train, dev, and locked_test must all be non-empty")
+    actual_families = {
+        name: sorted({row["rule_family"] for row in group})
+        for name, group in splits.items()
+    }
+    if generation_provenance is not None:
+        expected_families = generation_provenance.get("rule_families_by_split")
+        if not isinstance(expected_families, dict) or {
+            name: expected_families.get(name) for name in ("train", "dev", "locked_test")
+        } != actual_families:
+            raise LearnableSROKError("generation provenance rule-family split mismatch")
+        held_out = set(actual_families["locked_test"])
+        if held_out.intersection(actual_families["train"]) or held_out.intersection(actual_families["dev"]):
+            raise LearnableSROKError("generated locked-test rule family leaks into train/dev")
     manifest = {
         "schema": DATASET_SCHEMA, "sha256": digest, "records": len(rows),
         "split_ids": {name: [row["id"] for row in group]
@@ -106,6 +131,8 @@ def load_dataset(path: str | Path, roles: Sequence[RoleSpec], feature_dim: int):
         "roles": [{"name": r.name, "allowed_types": sorted(r.allowed_types),
                    "required_tags": sorted(r.required_tags)} for r in roles],
     }
+    if generation_provenance is not None:
+        manifest["generation_provenance"] = generation_provenance
     return splits, manifest
 
 
