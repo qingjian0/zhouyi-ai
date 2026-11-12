@@ -12,7 +12,7 @@ import hashlib
 import json
 from itertools import combinations, product
 import math
-from typing import Iterable, Sequence
+from typing import Callable, Iterable, Sequence
 
 
 @dataclass(frozen=True)
@@ -417,6 +417,159 @@ class LearnableSROK:
                 if not math.isfinite(self.weights[column]):
                     raise LearnableSROKError("model weights became non-finite")
             mean_loss = total_loss / len(prepared)
+            if not math.isfinite(mean_loss):
+                raise LearnableSROKError("training loss became non-finite")
+            history.append(mean_loss)
+            self.training_steps += 1
+        return history
+
+
+    def fit_reiterable(
+        self, examples_factory: Callable[[], Iterable[TrainingExample]], *,
+        epochs: int = 80, learning_rate: float = 0.2, l2: float = 1e-4,
+        max_assignments_per_example: int = 4096,
+    ) -> list[float]:
+        """Exact full-batch updates from a re-openable stream, retaining one example at a time.
+
+        The factory must return the same ordered dataset on every call. Each epoch
+        accumulates the complete-dataset gradient against frozen weights and applies
+        exactly one update, so this is not mini-batch SGD. Memory is bounded by one
+        example's candidate assignments plus the parameter/gradient vectors.
+        """
+        if not callable(examples_factory):
+            raise LearnableSROKError("examples_factory must be callable")
+        if isinstance(epochs, bool) or not isinstance(epochs, int) or epochs < 1:
+            raise LearnableSROKError("epochs must be a positive integer")
+        if not isinstance(learning_rate, (int, float)) or isinstance(learning_rate, bool) or not math.isfinite(learning_rate) or learning_rate <= 0:
+            raise LearnableSROKError("learning_rate must be finite and positive")
+        if not isinstance(l2, (int, float)) or isinstance(l2, bool) or not math.isfinite(l2) or l2 < 0:
+            raise LearnableSROKError("l2 must be finite and non-negative")
+        if isinstance(max_assignments_per_example, bool) or not isinstance(max_assignments_per_example, int) or max_assignments_per_example < 1:
+            raise LearnableSROKError("max_assignments_per_example must be a positive integer")
+
+        def stream_signature():
+            hasher = hashlib.sha256()
+            count = 0
+            for example in examples_factory():
+                if not isinstance(example, TrainingExample):
+                    raise LearnableSROKError("each streamed row must be a TrainingExample")
+                try:
+                    payload = {
+                        "target_ids": list(example.target_ids),
+                        "role_candidates": [[
+                            {
+                                "node_id": node.node_id,
+                                "node_type": node.node_type,
+                                "features": list(node.features),
+                                "tags": sorted(node.tags),
+                                "evidence_ids": list(node.evidence_ids),
+                            }
+                            for node in pool
+                        ] for pool in example.role_candidates],
+                    }
+                    encoded = json.dumps(
+                        payload, sort_keys=True, separators=(",", ":"),
+                        ensure_ascii=False, allow_nan=False,
+                    ).encode("utf-8")
+                except (AttributeError, TypeError, ValueError) as exc:
+                    raise LearnableSROKError("stream contains a malformed training example") from exc
+                hasher.update(len(encoded).to_bytes(8, "big"))
+                hasher.update(encoded)
+                count += 1
+            return count, hasher.hexdigest()
+
+        example_count, expected_signature = stream_signature()
+        if example_count == 0:
+            raise LearnableSROKError("training examples must not be empty")
+
+        history = []
+        width = len(self.weights)
+        for _ in range(epochs):
+            total_loss = 0.0
+            gradient = [0.0] * width
+            observed = 0
+            pass_hasher = hashlib.sha256()
+            for example in examples_factory():
+                if not isinstance(example, TrainingExample):
+                    raise LearnableSROKError("each streamed row must be a TrainingExample")
+                try:
+                    payload = {
+                        "target_ids": list(example.target_ids),
+                        "role_candidates": [[
+                            {
+                                "node_id": node.node_id,
+                                "node_type": node.node_type,
+                                "features": list(node.features),
+                                "tags": sorted(node.tags),
+                                "evidence_ids": list(node.evidence_ids),
+                            }
+                            for node in pool
+                        ] for pool in example.role_candidates],
+                    }
+                    encoded = json.dumps(
+                        payload, sort_keys=True, separators=(",", ":"),
+                        ensure_ascii=False, allow_nan=False,
+                    ).encode("utf-8")
+                except (AttributeError, TypeError, ValueError) as exc:
+                    raise LearnableSROKError("stream contains a malformed training example") from exc
+                pass_hasher.update(len(encoded).to_bytes(8, "big"))
+                pass_hasher.update(encoded)
+                observed += 1
+                if len(example.role_candidates) != len(self.roles):
+                    raise LearnableSROKError("training role pool count mismatch")
+                if len(example.target_ids) != len(self.roles) or any(
+                    not isinstance(value, str) or not value.strip()
+                    for value in example.target_ids
+                ):
+                    raise LearnableSROKError("target IDs must match the role count and be non-empty strings")
+                if len(set(example.target_ids)) != len(example.target_ids):
+                    raise LearnableSROKError("target IDs must be unique across roles")
+                pools = []
+                for role, pool in zip(self.roles, example.role_candidates):
+                    if not pool:
+                        raise LearnableSROKError("training role pools must be non-empty")
+                    pool_ids = [node.node_id for node in pool]
+                    if len(pool_ids) != len(set(pool_ids)):
+                        raise LearnableSROKError("node IDs must be unique within each role pool")
+                    for node in pool:
+                        self._validate_node(node)
+                        if not self._compatible(node, role):
+                            raise LearnableSROKError("training pool violates role constraints")
+                    pools.append(tuple(pool))
+                assignments, truncated, _expanded = self._enumerate(
+                    pools, max_assignments_per_example
+                )
+                if truncated:
+                    raise LearnableSROKError("training assignment budget truncated")
+                target = next((
+                    index for index, assignment in enumerate(assignments)
+                    if tuple(node.node_id for node in assignment) == example.target_ids
+                ), None)
+                if target is None:
+                    raise LearnableSROKError("target assignment missing or violates uniqueness")
+                features = [self._assignment_features(item) for item in assignments]
+                scores = [self._dot(self.weights, row) for row in features]
+                peak = max(scores)
+                exp_scores = [math.exp(max(-60.0, score - peak)) for score in scores]
+                denominator = sum(exp_scores)
+                probabilities = [value / denominator for value in exp_scores]
+                total_loss += -math.log(max(probabilities[target], 1e-15))
+                for index, row in enumerate(features):
+                    error = probabilities[index] - (1.0 if index == target else 0.0)
+                    for column, value in enumerate(row):
+                        gradient[column] += error * value
+
+            if observed != example_count or pass_hasher.hexdigest() != expected_signature:
+                raise LearnableSROKError("reiterable training stream changed content, order, or record count")
+            scale = 1.0 / example_count
+            for column in range(width):
+                gradient[column] = gradient[column] * scale + l2 * self.weights[column]
+                if not math.isfinite(gradient[column]):
+                    raise LearnableSROKError("training gradient became non-finite")
+                self.weights[column] -= learning_rate * gradient[column]
+                if not math.isfinite(self.weights[column]):
+                    raise LearnableSROKError("model weights became non-finite")
+            mean_loss = total_loss / example_count
             if not math.isfinite(mean_loss):
                 raise LearnableSROKError("training loss became non-finite")
             history.append(mean_loss)
