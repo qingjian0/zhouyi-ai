@@ -55,6 +55,10 @@ def main(argv: list[str] | None = None) -> int:
     if args.chunk_bytes < 4:
         parser.error("--chunk-bytes must be >= 4")
 
+    # SQLite can create the database file, but it cannot create missing parent
+    # directories. Make the requested output location usable before opening it.
+    database_path.parent.mkdir(parents=True, exist_ok=True)
+
     tokenizer = _load_tokenizer(args.tokenizer) if args.tokenizer else None
     before = source_path.stat()
     baseline = sample_process_memory()
