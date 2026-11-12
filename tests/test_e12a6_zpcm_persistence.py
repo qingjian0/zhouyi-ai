@@ -361,4 +361,13 @@ class PersistentLifecycleTests(unittest.TestCase):
           ('{"tampered":true}',"e12a6:candidate:rel:greater-than@1"))
         with self.assertRaises(LifecyclePersistenceError): PersistentLifecycleLedger(self.memory,scope="project-a")
 
+
+    def test_restore_uses_streaming_iterator_not_materializing_compatibility_api(self):
+        self.store.register_candidate(candidate())
+        self.memory.replay_lifecycle_events = lambda **kwargs: (_ for _ in ()).throw(
+            AssertionError("restore must not materialize lifecycle history")
+        )
+        restored = PersistentLifecycleLedger(self.memory, scope="project-a")
+        self.assertIn(("rel:greater-than", 1), restored.ledger.candidates)
+
 if __name__=="__main__": unittest.main()
