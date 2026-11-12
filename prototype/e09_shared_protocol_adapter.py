@@ -402,8 +402,14 @@ class E09SharedProtocolAdapter:
         self._assert_healthy()
         try:
             input_values = tuple(inputs)
-            input_digest = digest_payload({"inputs": self._jsonable(input_values)})
-            self.store.put_payload(input_digest, {"inputs": self._jsonable(input_values)})
+            input_payload = {"inputs": self._jsonable(input_values)}
+            if self._authority is not None:
+                input_digest = self._authority.put_observation_input(
+                    self._observer_credential, scope=self.scope, payload=input_payload
+                )
+            else:
+                input_digest = digest_payload(input_payload)
+                self.store.put_payload(input_digest, input_payload)
             observation_event_id = f"{self.episode_id}:observation:{observation_id}"
             # The durable observation is sequenced before the learner predicts.
             if self._authority is not None:
@@ -413,6 +419,7 @@ class E09SharedProtocolAdapter:
                     observation_id=observation_id, query_id=observation_id,
                     scope=self.scope, split=self.split, payload_ref=input_digest,
                     feature_schema_version="e09-categorical-input-v1",
+                    learner_track=self.learner_track,
                 )
             else:
                 self.store.append_event(
