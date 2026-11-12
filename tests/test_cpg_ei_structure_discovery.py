@@ -7,6 +7,32 @@ from prototype.cpg_ei_mvp import CpgEiTransitionModel, Example, make_dataset
 from prototype.cpg_ei_structure_discovery import grow_relation_graph
 
 
+
+def make_parity_teacher_dataset(count, seed):
+    """Generate a distinct GF(2) parity teacher, not a sampled linear-logit teacher."""
+    rng = random.Random(seed)
+    triples = ((0, 1, 2), (1, 3, 4), (2, 4, 5))
+    rows = []
+    for _ in range(count):
+        state = tuple(rng.randrange(2) for _ in range(6))
+        targets = tuple(
+            sum(state[index] for index in triples[head // 2]) % 2
+            for head in range(6)
+        )
+        rows.append(Example(state, targets))
+    return rows
+
+
+def parity_teacher_support():
+    triples = ((0, 1, 2), (1, 3, 4), (2, 4, 5))
+    support = set()
+    for triple in triples:
+        support.add("hyperedge_3_" + "_".join(map(str, triple)))
+        for pair in __import__("itertools").combinations(triple, 2):
+            support.add("hyperedge_2_" + "_".join(map(str, pair)))
+    return support
+
+
 class TestCpgEiStructureDiscovery(unittest.TestCase):
     def test_residual_growth_and_group_pruning_recover_sparse_support(self):
         train = make_dataset(1024, seed=7, sparse_teacher=True)
@@ -183,6 +209,54 @@ class TestCpgEiStructureDiscovery(unittest.TestCase):
         self.assertGreaterEqual(report["support_recall"], 0.0)
         self.assertLessEqual(report["support_recall"], 1.0)
         print("CPGEI_NEGATIVE_CONTROL " + json.dumps(report, sort_keys=True))
+
+
+    def test_second_teacher_family_gf2_parity_structure_diagnostic(self):
+        """Measure recovery on a distinct deterministic parity-generating mechanism."""
+        true_support = parity_teacher_support()
+        measurements = []
+        for seed in (11, 23, 37):
+            train = make_parity_teacher_dataset(512, seed)
+            validation = make_parity_teacher_dataset(128, seed + 1000)
+            model = CpgEiTransitionModel.create(active_relation_indices=set())
+            result = grow_relation_graph(
+                model, train, validation, rounds=4, edges_per_round=3,
+                epochs_per_round=60, gate_l1=0.01, edge_group_l1=0.03,
+            )
+            discovered = set(result["active_edges"])
+            accuracy = result["validation"]["bit_accuracy"]
+            recall = len(discovered & true_support) / len(true_support)
+            precision = len(discovered & true_support) / len(discovered) if discovered else 0.0
+            self.assertTrue(math.isfinite(accuracy))
+            self.assertGreaterEqual(accuracy, 0.0)
+            self.assertLessEqual(accuracy, 1.0)
+            self.assertGreaterEqual(recall, 0.0)
+            self.assertLessEqual(recall, 1.0)
+            self.assertGreaterEqual(precision, 0.0)
+            self.assertLessEqual(precision, 1.0)
+            measurements.append({
+                "seed": seed,
+                "validation_bit_accuracy": accuracy,
+                "support_recall": recall,
+                "support_precision": precision,
+                "false_discovery_count": len(discovered - true_support),
+                "active_edges": len(discovered),
+                "exact_support_recovered": discovered == true_support,
+            })
+        summary = {
+            "teacher_family": "gf2_three_input_parity",
+            "seeds": len(measurements),
+            "candidate_universe_size": 35,
+            "true_support_size": len(true_support),
+            "mean_validation_bit_accuracy": sum(x["validation_bit_accuracy"] for x in measurements) / len(measurements),
+            "mean_support_recall": sum(x["support_recall"] for x in measurements) / len(measurements),
+            "mean_support_precision": sum(x["support_precision"] for x in measurements) / len(measurements),
+            "total_false_discoveries": sum(x["false_discovery_count"] for x in measurements),
+            "exact_support_recovery_count": sum(x["exact_support_recovered"] for x in measurements),
+            "measurements": measurements,
+        }
+        print("CPGEI_SECOND_TEACHER " + json.dumps(summary, sort_keys=True))
+
 
 if __name__ == "__main__":
     unittest.main()
