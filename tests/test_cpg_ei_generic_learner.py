@@ -38,6 +38,29 @@ class GenericRelationalLearnerTests(unittest.TestCase):
         self.assertLess(losses[-1], losses[0])
         self.assertEqual(metrics["exact_state_accuracy"], 1.0)
 
+
+    def test_corpus_adapter_keeps_state_splits_isolated(self):
+        rows = [
+            {"family_id": "t1", "state_split": split,
+             "state": list(state), "target": [sum(state) % 2]}
+            for split, states in (
+                ("train", [(0, 0), (0, 1)]),
+                ("development", [(1, 0)]),
+                ("locked", [(1, 1)]),
+            )
+            for state in states
+        ]
+        train = examples_from_corpus_rows(rows, family_id="t1", split="train")
+        dev = examples_from_corpus_rows(rows, family_id="t1", split="development")
+        locked = examples_from_corpus_rows(rows, family_id="t1", split="locked")
+        self.assertEqual(len(train), 2)
+        self.assertEqual(len(dev), 1)
+        self.assertEqual(len(locked), 1)
+        self.assertFalse({row.state for row in train} & {row.state for row in dev})
+        self.assertFalse({row.state for row in train} & {row.state for row in locked})
+        with self.assertRaises(ValueError):
+            examples_from_corpus_rows(rows, family_id="t1", split="all")
+
     def test_eight_by_eight_model_contract(self):
         model = RelationalTransitionModel.create(8, 8, 1, 6)
         self.assertEqual(model.input_dim, 8)
