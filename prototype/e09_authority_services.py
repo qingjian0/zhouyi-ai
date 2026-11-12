@@ -758,6 +758,27 @@ class E09VerifierService:
         )
 
     def issue_verification_receipt(self, **request: Any) -> dict[str, Any]:
+        """Verify and issue a fresh receipt for direct in-process callers."""
+        return self._issue_verification_receipt(request)
+
+    def issue_verification_receipt_with_identity(
+        self, *, _receipt_id: str, _nonce: str, _issued_at: str, **request: Any
+    ) -> dict[str, Any]:
+        """Issue using a verifier-owned durable identity reserved by the authenticated RPC."""
+        if (not isinstance(_receipt_id, str) or not _receipt_id
+                or not isinstance(_nonce, str) or not _nonce
+                or not isinstance(_issued_at, str) or not _issued_at):
+            raise E09AuthenticationError("durable receipt identity is invalid")
+        return self._issue_verification_receipt(
+            request,
+            receipt_identity={
+                "receipt_id": _receipt_id, "nonce": _nonce, "issued_at": _issued_at,
+            },
+        )
+
+    def _issue_verification_receipt(
+        self, request: dict[str, Any], *, receipt_identity: dict[str, str] | None = None
+    ) -> dict[str, Any]:
         """Verify a grant and issue a signed receipt for all candidate evidence refs."""
         if self._receipt_signer is None:
             raise E09AuthorizationError("verifier receipt signer is not configured")
@@ -781,7 +802,21 @@ class E09VerifierService:
             raise E09AuthenticationError("verified authorization event disappeared from E09 replay")
         grant_payload = matches[0]["payload"]
         grant_expiry = datetime.fromisoformat(grant_payload["expires_at"].replace("Z", "+00:00"))
-        expires_at = min(grant_expiry, current + self._receipt_ttl)
+        issued_at = current
+        receipt_id = secrets.token_hex(16)
+        nonce = secrets.token_urlsafe(32)
+        if receipt_identity is not None:
+            try:
+                issued_at = datetime.fromisoformat(
+                    receipt_identity["issued_at"].replace("Z", "+00:00")
+                )
+            except (TypeError, ValueError) as exc:
+                raise E09AuthenticationError("durable receipt timestamp is invalid") from exc
+            if issued_at.tzinfo is None:
+                raise E09AuthenticationError("durable receipt timestamp must be timezone-aware")
+            issued_at = issued_at.astimezone(timezone.utc)
+            receipt_id, nonce = receipt_identity["receipt_id"], receipt_identity["nonce"]
+        expires_at = min(grant_expiry, issued_at + self._receipt_ttl)
         if expires_at <= current:
             raise E09AuthorizationError("grant expires before a verifier receipt can be issued")
 
@@ -842,8 +877,8 @@ class E09VerifierService:
 
         receipt = {
             "schema_version": "e09_verification_receipt@1",
-            "receipt_id": secrets.token_hex(16),
-            "nonce": secrets.token_urlsafe(32),
+            "receipt_id": receipt_id,
+            "nonce": nonce,
             "audience": "e12a6-lifecycle-writer",
             "verifier_id": self.verifier_id,
             "episode_id": episode_id,
@@ -855,7 +890,7 @@ class E09VerifierService:
             "evidence_refs": list(all_evidence_refs),
             "issuer_id": permit.issuer_id,
             "authorization_event_digest": permit.event_digest,
-            "issued_at": current.isoformat(),
+            "issued_at": issued_at.isoformat(),
             "expires_at": expires_at.isoformat(),
             "evidence": evidence,
             "signature_algorithm": "Ed25519",
