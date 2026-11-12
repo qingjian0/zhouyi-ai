@@ -54,11 +54,21 @@ training and cross-domain transfer.
 ## Trust and deployment boundary
 
 The included `StaticE09DomainRegistry` is a reference/test implementation,
-not a production registry service. Production must inject a managed,
-versioned registry and ensure that only the authenticated E09 authority
-process can write the E09 database. Learner and evaluator processes must not
-have direct database-file access; use the dedicated authenticated IPC/service
-boundary in the security stack.
+not a production registry service. `E09AuthorityRuntime` provides the
+reference process boundary: the database lives in a service-owned 0700
+directory with a 0600 file; the IPC socket lives in a separate 0710
+service-owned/client-group directory with a 0660 socket; and client UIDs must
+differ from the database-owner UID. Kernel `SO_PEERCRED` selects a
+server-side UID-to-workload-credential binding. Requests cannot provide
+credentials, roles, UIDs, domain fields, or integrity metadata. Only the
+authority runtime opens the database.
+
+The same-UID mode is explicitly test-only. A production deployment must run
+the authority under a dedicated service UID, configure the socket client
+group, map each runner/learner/evaluator UID to a distinct workload
+credential, and inject a managed versioned registry. The tests prove the
+filesystem/IPC policy and peer rejection; they do not claim that this service
+has already been deployed on a production host.
 
 Receipt signatures prove that the trusted verifier signed the receipt bytes.
 The source domain is trustworthy only because the signed receipt binds values
