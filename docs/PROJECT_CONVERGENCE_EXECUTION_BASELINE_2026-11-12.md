@@ -224,3 +224,11 @@ A failed earlier run on an older SHA is not evidence that the current exact head
 - PR #363 head `a036e4c7a70da02c68b429db04ec55be89bc97ed`, workflow run #43210009367: success; 8 tests.
 - The new proposal operator searches a bounded universe of 20 four-edge motifs (three pairwise conjunctions plus the corresponding third-order edge). On two GF(2) parity seeds, it selected one motif and recovered 4/12 planted edges per seed (support recall 0.3333, precision 1.0).
 - This is preliminary evidence that joint proposals can recover a synergistic motif missed by marginal residual scoring. It is not yet a matched-compute comparison, full-support recovery, or open-ended discovery result. Next validation: compare joint and greedy proposals on identical seeds/data/splits and report cost, recall, false discoveries, and exact support.
+
+
+### N0.10 file-backed runner exact-head result (2026-11-12)
+
+- PR #364 head `e51d0d7b46c63de0b3ad54d51f6a7eab3dafd8b1`, push + PR workflows #43211118291 / #43211108372: both succeeded; 13 tests each.
+- The opt-in `prototype/n010_streaming_runner.py` performs JSONL preflight with disk-backed SQLite uniqueness/group indexes, compact split fingerprints, reiterable full-batch training, streaming aggregate-only dev/locked-test evaluation, and atomic checkpoint replacement.
+- Tests establish numerical equivalence with the materialized runner on the fixture, resume equivalence, group-leakage rejection, and compact manifest behavior.
+- Scope boundary: this is Python-level row-streaming evidence, not an OS RSS guarantee. Large-corpus peak RSS, throughput, and disk-index scaling must be benchmarked before claiming bounded-memory production readiness. The original `run_experiment` path still materializes split rows; #364 adds a separate opt-in path.
