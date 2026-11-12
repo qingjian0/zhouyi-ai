@@ -89,7 +89,8 @@ class PersistentM2SemanticUnitStoreTests(unittest.TestCase):
             event_type="m2_semantic_unit", scope="project-a")), 2)
         self.memory.close()
         self.memory = ZPCMMemory(self.memory_db)
-        restored = PersistentM2SemanticUnitStore(self.memory, self.resolver, scope="project-a")
+        restored = PersistentM2SemanticUnitStore(
+            self.memory, self.resolver, scope="project-a", replay_page_size=1)
         self.assertEqual(restored.history, {"su-1": first, "su-2": revised})
         self.assertEqual(restored.candidates, {"su-1": revised})
         self.assertTrue(restored._receipts["su-2"].replayed)
@@ -131,6 +132,14 @@ class PersistentM2SemanticUnitStoreTests(unittest.TestCase):
             self.store.record_candidate(bad)
         self.assertEqual(self.memory.replay_domain_events(
             event_type="m2_semantic_unit", scope="project-a"), [])
+
+    def test_replay_page_size_is_validated(self):
+        with self.assertRaises(ValueError):
+            PersistentM2SemanticUnitStore(
+                self.memory, self.resolver, scope="project-a", replay_page_size=0)
+        with self.assertRaises(ValueError):
+            PersistentM2SemanticUnitStore(
+                self.memory, self.resolver, scope="project-a", replay_page_size=True)
 
     def test_replay_fails_closed_after_source_mutation(self):
         self.store.record_candidate(self.candidate("su-1"))
