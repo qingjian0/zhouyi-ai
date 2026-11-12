@@ -137,8 +137,10 @@ class E09SharedProtocolAdapterTests(unittest.TestCase):
             adapter.reveal(commit["prediction_id"], "no")
         memory.sync_episode = original_sync
 
+        # The adapter intentionally fails closed after projection uncertainty.
+        # Read the authoritative E09 event log directly for reconciliation.
         reveal = next(
-            event for event in adapter.replay()
+            event for event in self.store.replay_episode(adapter.episode_id)
             if event["event_type"] == "evidence_reveal"
         )
         item_id = "protocol:" + reveal["event_id"]
@@ -150,7 +152,7 @@ class E09SharedProtocolAdapterTests(unittest.TestCase):
         # Replaying the authoritative E09 log must be safe after the caller
         # observes an exception even though the ZPCM transaction committed.
         memory.sync_episode(
-            self.store, episode_id="episode-INCREMENTAL_INDEX",
+            self.store, episode_id=adapter.episode_id,
             scope="e09/test", learner_track="e09",
         )
         count = memory.db.execute(
@@ -161,7 +163,7 @@ class E09SharedProtocolAdapterTests(unittest.TestCase):
         memory.close()
         memory = ZPCMMemory(projection_path)
         memory.sync_episode(
-            self.store, episode_id="episode-INCREMENTAL_INDEX",
+            self.store, episode_id=adapter.episode_id,
             scope="e09/test", learner_track="e09",
         )
         count = memory.db.execute(
