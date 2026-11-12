@@ -225,7 +225,11 @@ class LearnableXiangOperator:
     def from_checkpoint_json(cls, raw: str) -> "LearnableXiangOperator":
         try:
             env = json.loads(raw)
+            if not isinstance(env, dict):
+                raise ValueError("checkpoint root must be an object")
             digest = env.pop("sha256")
+            if not isinstance(digest, str):
+                raise ValueError("checkpoint digest must be a string")
             canonical = json.dumps(env, sort_keys=True, separators=(",", ":"),
                                    ensure_ascii=False, allow_nan=False)
         except (TypeError, ValueError, KeyError) as exc:
@@ -237,15 +241,34 @@ class LearnableXiangOperator:
             raise LearnableSROKError("Xiang checkpoint fields mismatch")
         if env["format"] != cls.FORMAT or env["schema_version"] != cls.VERSION:
             raise LearnableSROKError("unsupported Xiang checkpoint")
-        roles = tuple(RoleSpec(x["name"], frozenset(x["allowed_types"]),
-                               frozenset(x["required_tags"])) for x in env["roles"])
-        config = XiangConfig(**env["config"])
-        model = cls(roles, env["feature_dim"], config)
-        for name in ("basis", "bias", "readout"):
-            values = env[name]
-            flat = [v for row in values for v in row] if name == "basis" else values
-            if any(isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) for v in flat):
-                raise LearnableSROKError("Xiang checkpoint contains non-finite parameters")
+        try:
+            if not isinstance(env["roles"], list) or not isinstance(env["config"], dict):
+                raise ValueError("roles/config have invalid types")
+            role_rows = env["roles"]
+            if any(not isinstance(x, dict) or set(x) != {"name", "allowed_types", "required_tags"}
+                   or not isinstance(x["name"], str)
+                   or not isinstance(x["allowed_types"], list)
+                   or not isinstance(x["required_tags"], list)
+                   or any(not isinstance(v, str) for v in x["allowed_types"] + x["required_tags"])
+                   for x in role_rows):
+                raise ValueError("invalid role schema")
+            if set(env["config"]) != {"latent_dim", "basis_mode", "seed"}:
+                raise ValueError("invalid config schema")
+            roles = tuple(RoleSpec(x["name"], frozenset(x["allowed_types"]),
+                                   frozenset(x["required_tags"])) for x in role_rows)
+            config = XiangConfig(**env["config"])
+            model = cls(roles, env["feature_dim"], config)
+            if any(not isinstance(env[name], list) for name in ("basis", "bias", "readout")):
+                raise ValueError("parameter arrays must be lists")
+            if any(not isinstance(row, list) for row in env["basis"]):
+                raise ValueError("basis rows must be lists")
+            for name in ("basis", "bias", "readout"):
+                values = env[name]
+                flat = [v for row in values for v in row] if name == "basis" else values
+                if any(isinstance(v, bool) or not isinstance(v, (int, float)) or not math.isfinite(v) for v in flat):
+                    raise LearnableSROKError("Xiang checkpoint contains non-finite parameters")
+        except (KeyError, TypeError, ValueError) as exc:
+            raise LearnableSROKError("invalid Xiang checkpoint schema") from exc
         if len(env["basis"]) != config.latent_dim or any(len(row) != model.feature_dim for row in env["basis"]):
             raise LearnableSROKError("Xiang basis shape mismatch")
         if len(env["bias"]) != config.latent_dim or len(env["readout"]) != len(model.readout):
