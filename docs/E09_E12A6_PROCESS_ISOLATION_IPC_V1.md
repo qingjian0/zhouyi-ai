@@ -193,6 +193,7 @@ The current stacked implementation has reached the following code increments:
 | Learner memory projection | `read_learner_episode` (PR #304) | Authenticated workload-bound event projection with raw reveal labels and checkpoint blobs redacted |
 | Learner checkpoint | `structure.read_checkpoint` (PR #311) | Returns only the requesting learner's latest checkpoint; validates snapshot digest and support evidence references |
 | Remote ZPCM sync | `E09AuthorityRPCClient` / `E09LearnerMemorySource` (PR #312) | Learner-safe episode replay is now consumable by ZPCMMemory without a local E09 store handle |
+| Role-specific ports | `prototype/e09_role_ports.py` (PR #313) | Separate Observer, Learner and Evaluator client surfaces; still require separate OS workloads to become a security boundary |
 
 These are service-boundary implementations and CI-tested local UDS integrations. They do **not** yet establish production process isolation.
 
