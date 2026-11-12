@@ -356,9 +356,14 @@ class LearnableSROK:
     def predict(
         self, nodes: Iterable[Node], *, top_k_per_role: int = 8,
         max_expansions: int = 4096, result_limit: int = 5,
-        abstain_margin: float = 0.0,
+        abstain_margin: float = 0.0, retrieval_mode: str = "unary",
     ) -> Prediction:
-        """Retrieve, compose, score, and optionally abstain under fixed budgets."""
+        """Retrieve, compose, score, and optionally abstain under fixed budgets.
+
+        unary preserves role-wise Top-K retrieval. joint retains every
+        type/tag-compatible candidate and ranks complete assignments using
+        relational scores, bounded by max_expansions.
+        """
         if isinstance(result_limit, bool) or not isinstance(result_limit, int) or result_limit < 1:
             raise LearnableSROKError("result_limit must be a positive integer")
         if isinstance(top_k_per_role, bool) or not isinstance(top_k_per_role, int) or top_k_per_role < 1:
@@ -367,16 +372,27 @@ class LearnableSROK:
             raise LearnableSROKError("max_expansions must be a positive integer")
         if not isinstance(abstain_margin, (int, float)) or isinstance(abstain_margin, bool) or not math.isfinite(abstain_margin) or abstain_margin < 0:
             raise LearnableSROKError("abstain_margin must be finite and non-negative")
+        if retrieval_mode not in ("unary", "joint"):
+            raise LearnableSROKError("retrieval_mode must be 'unary' or 'joint'")
         node_list = tuple(nodes)
         for node in node_list:
             self._validate_node(node)
         if len({node.node_id for node in node_list}) != len(node_list):
             raise LearnableSROKError("node IDs must be unique")
-        retrieved = tuple(
-            self.retrieve(i, node_list, top_k=top_k_per_role)
-            for i in range(len(self.roles))
-        )
-        pools = tuple(tuple(node for node, _ in items) for items in retrieved)
+        if retrieval_mode == "unary":
+            retrieved = tuple(
+                self.retrieve(i, node_list, top_k=top_k_per_role)
+                for i in range(len(self.roles))
+            )
+            pools = tuple(tuple(node for node, _ in items) for items in retrieved)
+        else:
+            # Joint mode avoids unary Top-K truncation. Hard type/tag
+            # constraints remain active; relational scoring ranks complete
+            # distinct assignments after bounded enumeration.
+            pools = tuple(
+                tuple(node for node in node_list if self._compatible(node, role))
+                for role in self.roles
+            )
         sizes = tuple((role.name, len(pool)) for role, pool in zip(self.roles, pools))
         if any(not pool for pool in pools):
             return Prediction((), True, "NO_ROLE_CANDIDATES", 0, False, sizes)
