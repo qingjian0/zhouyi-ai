@@ -209,8 +209,7 @@ class E09VerifierUnixRPC:
         ):
             raise IPCRequestError("permission_denied", "Peer is not an authorized E12-A6 Writer")
 
-    @staticmethod
-    def _health(context: IPCRequestContext, body: dict[str, Any]) -> dict[str, Any]:
+    def _health(self, context: IPCRequestContext, body: dict[str, Any]) -> dict[str, Any]:
         _fields(body, required=set())
         if (
             "e12a6-writer" not in context.peer.roles
