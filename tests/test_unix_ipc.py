@@ -121,9 +121,10 @@ class UnixJSONRPCTransportTests(unittest.TestCase):
                 conn.settimeout(2)
                 conn.connect(str(small_path))
                 conn.sendall(struct.pack("!I", 129))
-                response = _recv_frame(conn, 128)
-            self.assertEqual(response["status"], "error")
-            self.assertEqual(response["body"]["code"], "invalid_request")
+                # Invalid oversized frames are closed without allocating or
+                # attempting to return an error frame that may exceed the cap.
+                with self.assertRaises(Exception):
+                    _recv_frame(conn, 128)
         finally:
             server.close()
 
