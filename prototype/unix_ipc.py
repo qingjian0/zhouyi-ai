@@ -306,7 +306,6 @@ class UnixJSONRPCServer:
         try:
             conn.settimeout(self.io_timeout_seconds)
             pid, uid, gid = _peer_credentials(conn)
-            peer = self.peer_resolver.resolve(pid=pid, uid=uid, gid=gid)
             request = _recv_frame(conn, self.max_frame_bytes)
             expected = {"protocol", "request_id", "operation_id", "operation", "deadline_ms", "body"}
             if set(request) != expected:
@@ -332,6 +331,9 @@ class UnixJSONRPCServer:
             body = request["body"]
             if not isinstance(body, dict):
                 raise IPCRequestError("invalid_body", "IPC request body must be an object")
+            # Authenticate the kernel peer only after a valid request ID is
+            # available, so authorization errors can be correlated safely.
+            peer = self.peer_resolver.resolve(pid=pid, uid=uid, gid=gid)
             context = IPCRequestContext(
                 peer=peer, request_id=request_id, operation_id=operation_id,
                 operation=operation, deadline_monotonic=time.monotonic() + deadline_ms / 1000,
