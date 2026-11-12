@@ -1,0 +1,20 @@
+name: n010-out-of-core-streaming
+
+on:
+  push:
+    branches:
+      - research/n010-true-out-of-core-streaming-2026-11-12
+  pull_request:
+    branches:
+      - research/n010-reiterable-fullbatch-gradient-2026-11-12
+
+jobs:
+  out-of-core-streaming:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run N0.10 out-of-core streaming tests
+        run: python -m unittest tests.test_n010_ooc tests.test_n010_ooc_memory tests.test_n010_experiment -v
