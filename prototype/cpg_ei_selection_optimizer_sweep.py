@@ -24,7 +24,7 @@ from prototype.cpg_ei_selection_sweep import (
     partition_states,
 )
 
-DEFAULT_LEARNING_RATES = (0.15, 0.35, 0.7)
+DEFAULT_LEARNING_RATES = (0.9, 2.1, 4.2)
 
 
 def _support_metrics(active_edges, expected):
