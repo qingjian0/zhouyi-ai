@@ -109,7 +109,7 @@ class VerifiedBranchMergeAuthorization(BranchMergeAuthorization):
         self, authorization_ref: str, parent_state_ref: str,
         branch_ids: tuple[str, ...], evidence_refs: tuple[str, ...],
         issuer_id: str, event_digest: str, verifier_id: str,
-        domain_provenance_verified: bool, *, _seal: object | None = None,
+        domain_provenance_verified: bool = False, *, _seal: object | None = None,
     ) -> None:
         if _seal is not _VERIFIED_AUTHORIZATION_SEAL:
             raise TypeError("VerifiedBranchMergeAuthorization must come from the E09 verifier")
@@ -126,7 +126,7 @@ class VerifiedBranchMergeAuthorization(BranchMergeAuthorization):
 def _issue_verified_branch_merge_authorization(
     authorization_ref: str, parent_state_ref: str, branch_ids: tuple[str, ...],
     evidence_refs: tuple[str, ...], issuer_id: str, event_digest: str, verifier_id: str,
-    domain_provenance_verified: bool,
+    domain_provenance_verified: bool = False,
 ) -> VerifiedBranchMergeAuthorization:
     """Internal factory called only after the E09 signature verifier succeeds."""
     return VerifiedBranchMergeAuthorization(
