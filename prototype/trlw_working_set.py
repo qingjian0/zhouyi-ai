@@ -135,7 +135,7 @@ def _matches_time(record: SemanticUnitCandidate, query: TRLWQuery) -> bool:
     return record_start < query_end and query_start < record_end
 
 
-def build_tr lw_working_set(
+def build_trlw_working_set(
     records: Iterable[SemanticUnitCandidate],
     query: TRLWQuery,
     *,
