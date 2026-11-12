@@ -249,6 +249,13 @@ class E09AuthorityService:
         for field in ("query_id", "scope", "split"):
             if payload[field] != observed[field]:
                 raise E09AuthorizationError(f"prediction commit {field} differs from observation")
+        current_binding = self._trusted_domain(payload["scope"])
+        if self._domain_payload(current_binding) != {
+            field: observed[field] for field in (
+                "domain_id", "world_family", "domain_registry_id", "domain_registry_version",
+            )
+        }:
+            raise E09AuthorizationError("observation domain provenance is no longer trusted")
         event_payload = {**payload, **{field: observed[field] for field in (
             "domain_id", "world_family", "domain_registry_id", "domain_registry_version",
         )}}
@@ -277,22 +284,71 @@ class E09AuthorityService:
         causation_refs: tuple[str, ...] | list[str],
         expected_sequence: int | None = None,
     ) -> EventReceipt:
-        """Append an evaluator reveal; the event role is derived, never supplied."""
+        """Append a reveal; v0.4 domain provenance is copied from trusted observation."""
         if not isinstance(payload, dict):
             raise TypeError("payload must be a dictionary")
         scope = payload.get("scope")
         principal = self._principal(credential, role="evaluator", scope=scope)
+        if self._domain_registry is None:
+            # Compatibility path for quarantined v0.3 episodes only.
+            return self._store.append_event(
+                episode_id=episode_id,
+                event_id=event_id,
+                event_type="evidence_reveal",
+                idempotency_key=idempotency_key,
+                payload=payload,
+                actor_role="evaluator",
+                causation_refs=causation_refs,
+                integrity_metadata=_identity_metadata(principal),
+                expected_sequence=expected_sequence,
+                protocol_version=STRICT_PROTOCOL_VERSION,
+            )
+
+        required = {
+            "prediction_id", "learner_track", "target_or_feedback", "query_id",
+            "scope", "split", "commit_digest", "event_digest",
+        }
+        if set(payload) != required:
+            raise E09AuthorizationError("reveal request must use the exact v0.4 caller schema")
+        if not isinstance(causation_refs, (tuple, list)) or not all(
+            isinstance(ref, str) and ref.strip() for ref in causation_refs
+        ):
+            raise E09AuthorizationError("reveal causation refs must be non-empty strings")
+        events = self._store.replay_episode(episode_id)
+        commits = [
+            event for event in events
+            if event.get("event_type") == "prediction_commit"
+            and event.get("payload", {}).get("prediction_id") == payload["prediction_id"]
+            and event.get("payload", {}).get("learner_track") == payload["learner_track"]
+        ]
+        if len(commits) != 1:
+            raise E09AuthorizationError("reveal requires exactly one prior prediction commit")
+        commit = commits[0]
+        if commit.get("protocol_version") != DOMAIN_BOUND_PROTOCOL_VERSION:
+            raise E09AuthorizationError("legacy v0.3 predictions are quarantined from v0.4 reveals")
+        if commit.get("event_id") not in causation_refs:
+            raise E09AuthorizationError("reveal must cite its prediction commit event")
+        committed = commit["payload"]
+        for field in ("query_id", "scope", "split"):
+            if payload[field] != committed[field]:
+                raise E09AuthorizationError(f"reveal {field} differs from prediction commit")
+        current_binding = self._trusted_domain(scope)
+        trusted = self._domain_payload(current_binding)
+        if trusted != {field: committed[field] for field in trusted}:
+            raise E09AuthorizationError("prediction domain provenance is no longer trusted")
+        event_payload = {**payload, **trusted}
         return self._store.append_event(
             episode_id=episode_id,
             event_id=event_id,
             event_type="evidence_reveal",
             idempotency_key=idempotency_key,
-            payload=payload,
+            payload=event_payload,
             actor_role="evaluator",
             causation_refs=causation_refs,
             integrity_metadata=_identity_metadata(principal),
+            payload_schema="evidence_reveal@4",
             expected_sequence=expected_sequence,
-            protocol_version=STRICT_PROTOCOL_VERSION,
+            protocol_version=DOMAIN_BOUND_PROTOCOL_VERSION,
         )
 
     def issue_branch_merge_authorization(
