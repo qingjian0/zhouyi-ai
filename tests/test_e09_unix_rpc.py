@@ -127,6 +127,14 @@ class E09AuthorityUnixRPCTests(unittest.TestCase):
             "append-observation-1",
         )
         self.assertEqual(observation["event_id"], observation_event)
+        stored_observation = next(
+            event for event in self.store.replay_episode(self.episode)
+            if event["event_id"] == observation_event
+        )
+        self.assertEqual(
+            stored_observation["payload"].get("learner_workload_id"),
+            self.learner.workload_id,
+        )
 
         loaded = self._call(
             self.learner, "observation.read_input",
