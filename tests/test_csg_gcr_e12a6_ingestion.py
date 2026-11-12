@@ -18,9 +18,15 @@ def make_e09_episode(store, *, episode="ep-1", scope="world/test", track="srok",
     evidence_ref=f"{episode}:reveal:pred-1"
     observation_id="obs-1"
     observation_event=f"{episode}:observation:{observation_id}"
+    domain={"domain_provenance_schema":"e09-domain-provenance@1",
+      "domain_registry_id":"zhouyi-domain-registry","domain_registry_version":"2026-11-12.1",
+      "world_family":"finite-rule-world"}
     store.append_event(episode_id=episode,event_id=observation_event,event_type="observation",
-      idempotency_key="obs-1",actor_role="runner",
-      payload={"observation_id":observation_id,"query_id":observation_id,"scope":scope,"split":"SUPPORT"},
+      idempotency_key="obs-1",actor_role="observer",
+      integrity_metadata={"authenticated_workload":{"workload_id":"spiffe://zhouyi/test-observer",
+        "issuer_id":"issuer-test","identity_provider":"test-spiffe","authentication_method":"mTLS",
+        "credential_fingerprint":"a"*64}},
+      payload={"observation_id":observation_id,"query_id":observation_id,"scope":scope,"split":"SUPPORT",**domain},
       protocol_version=STRICT_PROTOCOL_VERSION)
     commit_event=f"{episode}:prediction:pred-1"
     commit_digest="a"*64
@@ -28,13 +34,13 @@ def make_e09_episode(store, *, episode="ep-1", scope="world/test", track="srok",
       idempotency_key="pred-1",actor_role="learner",causation_refs=[observation_event],
       payload={"prediction_id":"pred-1","observation_id":observation_id,"query_id":observation_id,
         "scope":scope,"split":"SUPPORT","model_version":"model-1","learner_track":track,
-        "decision_status":"PREDICT","interop_commit_digest":commit_digest},
+        "decision_status":"PREDICT","interop_commit_digest":commit_digest,**domain},
       protocol_version=STRICT_PROTOCOL_VERSION)
     store.append_event(episode_id=episode,event_id=evidence_ref,event_type="evidence_reveal",
       idempotency_key=evidence_ref,actor_role="evaluator",causation_refs=[commit_event],
       payload={"prediction_id":"pred-1","query_id":observation_id,"scope":scope,"split":"SUPPORT",
         "commit_digest":commit_digest,"event_digest":commit.payload_digest,
-        "learner_track":track,"target_or_feedback":label,"reveal_source":"test"},
+        "learner_track":track,"target_or_feedback":label,"reveal_source":"test",**domain},
       protocol_version=STRICT_PROTOCOL_VERSION)
     return evidence_ref
 
