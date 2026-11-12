@@ -406,7 +406,7 @@ class SQLiteEvidenceStore:
             raise ProtocolError("episode_id, event_id, event_type and idempotency_key must be non-empty strings")
         if event_type not in EVENT_TYPES:
             raise ProtocolError(f"unsupported event_type: {event_type}")
-        if protocol_version not in {PROTOCOL_VERSION, STRICT_PROTOCOL_VERSION}:
+        if protocol_version not in {PROTOCOL_VERSION, STRICT_PROTOCOL_VERSION, DOMAIN_BOUND_PROTOCOL_VERSION}:
             raise ProtocolError(f"unsupported protocol_version: {protocol_version}")
         if not isinstance(payload, dict):
             raise ProtocolError("payload must be an object")
@@ -444,7 +444,31 @@ class SQLiteEvidenceStore:
                 ).fetchone()[0]
                 if expected_sequence is not None and expected_sequence != current:
                     raise SequenceConflict(f"expected sequence {expected_sequence}, current sequence is {current}")
+                if protocol_version == DOMAIN_BOUND_PROTOCOL_VERSION:
+                    self._validate_v04_envelope(
+                        event_type, payload, payload_schema, actor_role,
+                        json.loads(integrity_metadata_json),
+                    )
                 self._validate_semantics(episode_id, event_type, payload, protocol_version)
+                if protocol_version == DOMAIN_BOUND_PROTOCOL_VERSION:
+                    causations = json.loads(causation_refs_json)
+                    if event_type == "prediction_commit":
+                        prior = self._db.execute(
+                            "SELECT event_id FROM events WHERE episode_id=? AND event_type='observation' "
+                            "AND json_extract(payload_json, '$.observation_id')=?",
+                            (episode_id, payload["observation_id"]),
+                        ).fetchone()
+                        if prior is None or prior["event_id"] not in causations:
+                            raise ProtocolError("v0.4 prediction_commit must cite its observation event")
+                    elif event_type == "evidence_reveal":
+                        prior = self._db.execute(
+                            "SELECT event_id FROM events WHERE episode_id=? AND event_type='prediction_commit' "
+                            "AND json_extract(payload_json, '$.prediction_id')=? "
+                            "AND json_extract(payload_json, '$.learner_track')=?",
+                            (episode_id, payload["prediction_id"], payload["learner_track"]),
+                        ).fetchone()
+                        if prior is None or prior["event_id"] not in causations:
+                            raise ProtocolError("v0.4 evidence_reveal must cite its prediction commit event")
                 seq = current + 1
                 created_at = datetime.now(timezone.utc).isoformat()
                 self._db.execute(
