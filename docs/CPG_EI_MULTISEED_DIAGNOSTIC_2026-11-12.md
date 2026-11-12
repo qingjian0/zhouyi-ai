@@ -27,3 +27,8 @@ The next stronger validation should add:
 5. confidence intervals over at least 10 independent seeds.
 
 A successful diagnostic is not evidence of open-ended relation discovery.
+
+
+## Negative control: shuffled training labels
+
+A deterministic negative control shuffles training targets across training states while leaving validation examples untouched. It reports validation bit accuracy, recovery of the known teacher support, false discoveries, active-edge count, and the finite candidate-universe size. This is a diagnostic measurement only; no post-hoc acceptance threshold is imposed. The control is intended to expose spurious structure recovery when the state/target relationship is destroyed.
