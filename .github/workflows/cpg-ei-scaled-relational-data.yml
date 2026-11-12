@@ -1,0 +1,50 @@
+name: CPG-EI scaled relational data
+
+on:
+  push:
+    branches:
+      - research/cpg-ei-scaled-relational-benchmark-v1-2026-11-13
+    paths:
+      - "prototype/cpg_ei_scaled_relational_data.py"
+      - "tests/test_cpg_ei_scaled_relational_data.py"
+      - ".github/workflows/cpg-ei-scaled-relational-data.yml"
+  pull_request:
+    paths:
+      - "prototype/cpg_ei_scaled_relational_data.py"
+      - "tests/test_cpg_ei_scaled_relational_data.py"
+      - ".github/workflows/cpg-ei-scaled-relational-data.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  scaled-relational-data:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run generator contract tests
+        run: python -m unittest tests.test_cpg_ei_scaled_relational_data -v
+      - name: Generate the 16x target corpus
+        run: |
+          python -m prototype.cpg_ei_scaled_relational_data --jsonl /tmp/zhouyi-cpg-ei-scaled-v1.jsonl > /tmp/zhouyi-cpg-ei-scaled-v1-manifest.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          manifest = json.loads(Path("/tmp/zhouyi-cpg-ei-scaled-v1-manifest.json").read_text())
+          assert manifest["family_count"] == 40
+          assert manifest["states_per_family"] == 256
+          assert manifest["row_count"] == 10240
+          assert manifest["candidate_support_count"] == 238
+          print(json.dumps(manifest, indent=2))
+          PY
+      - name: Upload generated corpus and manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: zhouyi-cpg-ei-scaled-relational-v1
+          path: |
+            /tmp/zhouyi-cpg-ei-scaled-v1.jsonl
+            /tmp/zhouyi-cpg-ei-scaled-v1-manifest.json
+          if-no-files-found: error
