@@ -10,7 +10,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
 from prototype.csg_branch_delta import BranchDelta, BranchSnapshot, DeltaOperation, canonical_hash
 from prototype.csg_gcr_coordinator import CandidateProposal
-from prototype.csg_gcr_e12a6_ingestion import ingest_typed_candidate
+from prototype.csg_gcr_e12a6_ingestion import CSGGCRIngestionError, ingest_typed_candidate
 from prototype.e09_e12a6_evidence_bridge import (AUTHORIZATION_AUDIENCE, AUTHORIZATION_SIGNATURE_VERSION, branch_merge_authorization_signing_bytes, resolve_branch_merge_authorization)
 from prototype.e09_ed25519_keyring import E09Ed25519IssuerKeyring
 from prototype.e12a6_zpcm_persistence import PersistentLifecycleLedger
@@ -139,6 +139,7 @@ class E09Ed25519CrossBranchTests(unittest.TestCase):
             parent_state_ref="parent-1", branch_ids=("left", "right"),
             scope=self.scope, learner_track=self.track,
             world_family_by_evidence={grant_evidence: "authorization-world"},
+            allow_legacy_migration=True,
             signature_verifier=self.keyring, verifier_id=self.keyring.verifier_id,
             now=datetime(2026, 11, 11, 12, tzinfo=timezone.utc),
         )
@@ -189,25 +190,22 @@ class E09Ed25519CrossBranchTests(unittest.TestCase):
         self.assertEqual(combined.branch_merge_authorization_ref, authorization_ref)
         self.assertEqual(combined.branch_merge_authorization_evidence_refs, (grant_evidence,))
 
-        ingestion = ingest_typed_candidate(
-            combined, ledger=self.ledger, e09_store=self.e09,
-            episode_id=self.episode, scope=self.scope, learner_track=self.track,
-            grammar_version="cross-branch-e2e-v1",
-            world_family_by_evidence={
-                left_evidence: "left-world",
-                right_evidence: "right-world",
-            },
-            branch_merge_authorization=permit,
-        )
-        self.assertEqual(len(self.ledger.snapshot()["candidates"]), 1)
-        self.assertEqual(len(self.ledger.snapshot()["evidence"]), 2)
-        durable = self.zpcm.replay_lifecycle_events(scope="cross-branch/project")
-        self.assertEqual(len(durable), 3)
-        self.assertNotIn("PRIVATE_LEFT", str(durable))
-        self.assertNotIn("PRIVATE_RIGHT", str(durable))
-        self.assertNotIn("PRIVATE_GRANT_SUPPORT", str(durable))
-        self.assertTrue(ingestion.receipt.candidate.event_id.startswith("e12a6:candidate:"))
-        self.assertEqual(len(ingestion.receipt.evidence), 2)
+        # A valid v0.3 signature does not upgrade caller-labelled legacy evidence
+        # into domain-authenticated lifecycle evidence.
+        with self.assertRaisesRegex(CSGGCRIngestionError, "trusted domain registry is required"):
+            ingest_typed_candidate(
+                combined, ledger=self.ledger, e09_store=self.e09,
+                episode_id=self.episode, scope=self.scope, learner_track=self.track,
+                grammar_version="cross-branch-e2e-v1",
+                world_family_by_evidence={
+                    left_evidence: "left-world",
+                    right_evidence: "right-world",
+                },
+                branch_merge_authorization=permit,
+            )
+        self.assertEqual(len(self.ledger.snapshot()["candidates"]), 0)
+        self.assertEqual(len(self.ledger.snapshot()["evidence"]), 0)
+        self.assertEqual(self.zpcm.replay_lifecycle_events(scope="cross-branch/project"), [])
 
     def test_unknown_and_revoked_issuers_fail_closed(self):
         message = b"canonical authorization bytes"
