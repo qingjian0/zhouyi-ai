@@ -152,7 +152,7 @@ def sample_process_memory(*, include_tracemalloc: bool = False) -> ProcessMemory
     On platforms without a current-RSS provider, OS peak RSS may still be
     reported, but rss_bytes remains None rather than being guessed.
     """
-    observed: tuple[int, int] | None = None
+    observed: tuple[int, int | None] | None = None
     source = "unavailable"
 
     if sys.platform.startswith("linux"):
