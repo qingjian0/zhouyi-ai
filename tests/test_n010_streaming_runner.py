@@ -3,7 +3,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from prototype.n09_learnable_srok import RoleSpec
+from prototype.n09_learnable_srok import LearnableSROKError, RoleSpec
 from prototype.n010_experiment import run_experiment
 from prototype.n010_streaming_runner import (
     run_streaming_experiment, scan_stream_dataset,
@@ -99,7 +99,7 @@ class N010StreamingRunnerTests(unittest.TestCase):
             "".join(json.dumps(row, sort_keys=True) + "\n" for row in rows),
             encoding="utf-8",
         )
-        with self.assertRaisesRegex(Exception, "group_id leakage"):
+        with self.assertRaisesRegex(LearnableSROKError, "group_id leakage"):
             scan_stream_dataset(self.dataset, self.roles, 1)
 
     def test_streaming_preflight_uses_disk_backed_compact_manifest(self):
