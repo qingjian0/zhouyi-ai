@@ -69,6 +69,10 @@ def _parse_record(raw: bytes, line_number: int, roles: Sequence[RoleSpec],
                 if not isinstance(value, str) or not value.strip():
                     raise ValueError(f"{field} must be a non-empty string")
                 group_ids[field] = value
+        if not group_ids:
+            raise ValueError(
+                "each record must declare group_id, source_group_id, or episode_id"
+            )
         if not isinstance(item["nodes"], list) or not isinstance(item["target_ids"], list):
             raise ValueError("nodes and target_ids must be lists")
         nodes = tuple(_node_from_json(node) for node in item["nodes"])
