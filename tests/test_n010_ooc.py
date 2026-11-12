@@ -65,6 +65,8 @@ class N010OutOfCoreTests(unittest.TestCase):
                     "id": f"{prefix}-{index}",
                     "split": split,
                     "rule_family": "family-A" if split != "locked_test" else "family-OOD",
+                    "group_id": f"{prefix}-source-{index // 2}",
+                    "source_group_id": f"{prefix}-document-{index // 2}",
                     "nodes": nodes,
                     "target_ids": targets,
                 })
@@ -157,6 +159,20 @@ class N010OutOfCoreTests(unittest.TestCase):
                 .read_text(encoding="utf-8").splitlines()),
             4,
         )
+
+    def test_locked_test_evaluator_rejects_training_group_overlap(self):
+        checkpoint = self.root / "isolated.json"
+        run_experiment_ooc(
+            self.train_dev, self.roles, 1, checkpoint,
+            epochs=1, max_expansions=64, git_sha="isolation-test",
+        )
+        rows = self._rows(("locked_test",))
+        rows[0]["group_id"] = "tr-source-0"
+        self._write(self.locked_test, rows)
+        with self.assertRaisesRegex(LearnableSROKError, "overlaps training/dev"):
+            evaluate_locked_test_ooc(
+                self.locked_test, self.roles, 1, checkpoint, max_expansions=64
+            )
 
     def test_ooc_checkpoint_resume_is_exact(self):
         partial = self.root / "partial-ooc.json"
