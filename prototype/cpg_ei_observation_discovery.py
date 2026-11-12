@@ -259,6 +259,10 @@ def run_discovery_baseline(
                 len(x["support_identifiability_audit"]["unresolved_variable_indices"])
                 for x in items
             ) / count,
+            "mean_observed_irrelevant_variables": sum(
+                len(x["support_identifiability_audit"]["observed_irrelevant_variable_indices"])
+                for x in items
+            ) / count,
             "mean_input_context_coverage": sum(
                 sum(variable["context_coverage"]
                     for variable in x["support_identifiability_audit"]["variables"])
