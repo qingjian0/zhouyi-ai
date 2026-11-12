@@ -8,6 +8,8 @@ from prototype.e09_prequential import PrequentialError, PrequentialRunner
 from prototype.e09_shared_protocol_adapter import E09SharedProtocolAdapter
 from prototype.e09_evaluator_projection import E09EvaluatorProjection
 from prototype.shared_evidence_protocol import SQLiteEvidenceStore
+from prototype.zpcm_memory import ZPCMMemory
+from prototype.e09_shared_protocol_adapter import E09ProtocolAdapterError
 
 
 DOMAINS = ((0, 1), (0, 1), (0, 1, 2))
@@ -29,7 +31,7 @@ class E09SharedProtocolAdapterTests(unittest.TestCase):
         self.store.close()
         self.tmp.cleanup()
 
-    def make_adapter(self, mode, split="SUPPORT"):
+    def make_adapter(self, mode, split="SUPPORT", memory_projection=None):
         if mode == "INCREMENTAL_INDEX":
             learner = IncrementalConjunctionLearner(DOMAINS, min_support=2)
         else:
@@ -37,7 +39,8 @@ class E09SharedProtocolAdapterTests(unittest.TestCase):
         runner = PrequentialRunner(learner, revision_mode=mode)
         runner.bootstrap(BOOTSTRAP)
         return E09SharedProtocolAdapter(
-            runner, self.store, episode_id=f"episode-{mode}", scope="e09/test", split=split
+            runner, self.store, episode_id=f"episode-{mode}", scope="e09/test", split=split,
+            memory_projection=memory_projection,
         )
 
     def test_incremental_arm_persists_full_causal_chain(self):
@@ -115,6 +118,57 @@ class E09SharedProtocolAdapterTests(unittest.TestCase):
         )
         self.assertEqual(reveal["protocol_version"], "0.3")
         self.assertEqual(reveal["payload"]["split"], "LOCKED_TEST")
+
+    def test_projection_commit_then_crash_replays_without_duplicate_items(self):
+        projection_path = Path(self.tmp.name) / "zpcm.sqlite3"
+        memory = ZPCMMemory(projection_path)
+        adapter = self.make_adapter(
+            "INCREMENTAL_INDEX", memory_projection=memory
+        )
+        commit = adapter.predict_and_commit("obs-projection-crash", (0, 0, 2))
+        original_sync = memory.sync_episode
+
+        def commit_then_crash(*args, **kwargs):
+            original_sync(*args, **kwargs)
+            raise RuntimeError("simulated crash after ZPCM commit")
+
+        memory.sync_episode = commit_then_crash
+        with self.assertRaises(E09ProtocolAdapterError):
+            adapter.reveal(commit["prediction_id"], "no")
+        memory.sync_episode = original_sync
+
+        reveal = next(
+            event for event in adapter.replay()
+            if event["event_type"] == "evidence_reveal"
+        )
+        item_id = "protocol:" + reveal["event_id"]
+        count = memory.db.execute(
+            "SELECT COUNT(*) FROM memory_items WHERE item_id=?", (item_id,)
+        ).fetchone()[0]
+        self.assertEqual(count, 1)
+
+        # Replaying the authoritative E09 log must be safe after the caller
+        # observes an exception even though the ZPCM transaction committed.
+        memory.sync_episode(
+            self.store, episode_id="episode-INCREMENTAL_INDEX",
+            scope="e09/test", learner_track="e09",
+        )
+        count = memory.db.execute(
+            "SELECT COUNT(*) FROM memory_items WHERE item_id=?", (item_id,)
+        ).fetchone()[0]
+        self.assertEqual(count, 1)
+
+        memory.close()
+        memory = ZPCMMemory(projection_path)
+        memory.sync_episode(
+            self.store, episode_id="episode-INCREMENTAL_INDEX",
+            scope="e09/test", learner_track="e09",
+        )
+        count = memory.db.execute(
+            "SELECT COUNT(*) FROM memory_items WHERE item_id=?", (item_id,)
+        ).fetchone()[0]
+        self.assertEqual(count, 1)
+        memory.close()
 
     def test_locked_test_is_scored_by_evaluator_projection_only(self):
         adapter = self.make_adapter("INCREMENTAL_INDEX", split="LOCKED_TEST")
