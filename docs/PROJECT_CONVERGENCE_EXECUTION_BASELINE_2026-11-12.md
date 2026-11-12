@@ -217,3 +217,10 @@ A failed earlier run on an older SHA is not evidence that the current exact head
 - PR #360 exact-head `0dc9c0a664485aac8f4e432a927dce07b47b034b`, workflow run #43201228903: success; 5 tests.
 - Paired five-seed raw vs residual-norm-normalized scoring: mean support recall 0.5667 vs 0.4667; exact six-edge recovery 0/5 for both; mean false discoveries 0.8 for both. Per-seed validation bit accuracy was unchanged.
 - Decision: raw scoring remains the default. Normalization reduced active edges but also reduced recall, with no exact-recovery or false-discovery improvement. Keep normalized scoring as an explicit ablation only; do not present it as a structural-discovery fix.
+
+
+### Bounded joint-motif proposal result (2026-11-12)
+
+- PR #363 head `a036e4c7a70da02c68b429db04ec55be89bc97ed`, workflow run #43210009367: success; 8 tests.
+- The new proposal operator searches a bounded universe of 20 four-edge motifs (three pairwise conjunctions plus the corresponding third-order edge). On two GF(2) parity seeds, it selected one motif and recovered 4/12 planted edges per seed (support recall 0.3333, precision 1.0).
+- This is preliminary evidence that joint proposals can recover a synergistic motif missed by marginal residual scoring. It is not yet a matched-compute comparison, full-support recovery, or open-ended discovery result. Next validation: compare joint and greedy proposals on identical seeds/data/splits and report cost, recall, false discoveries, and exact support.
