@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main, research/n10-learnable-role-composition-2026-11-11, research/n11-cyclic-ood-transfer-2026-11-12]
+    branches: [main, research/n10-learnable-role-composition-2026-11-11, research/n11-cyclic-ood-transfer-2026-11-12, research/n12-parameter-matched-mlp-baselines-2026-11-12]
 
 jobs:
   unit-tests:
@@ -95,6 +95,33 @@ jobs:
         with:
           name: n12-mlp-baseline-results
           path: n12-mlp-baselines.json
+          if-no-files-found: error
+      - name: Run N0.13 phase-window robustness sweep
+        run: |
+          python -m unittest tests.test_n13_phase_window_robustness -v
+          python -m prototype.n13_phase_window_robustness \
+            --seeds 3 --start-seed 7 --train-samples 600 \
+            --validation-samples 300 --test-samples 300 \
+            --epochs 80 --json > n13-phase-robustness.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          result = json.loads(Path("n13-phase-robustness.json").read_text())
+          overall = result["overall"]
+          assert result["condition_count"] == 12
+          assert result["total_runs"] == 36
+          assert overall["triple"]["accuracy_mean"] >= 0.80
+          assert overall["minimum_condition_triple_accuracy"] >= 0.70
+          assert 0.38 <= overall["unary"]["accuracy_mean"] <= 0.62
+          assert overall["triple_masked"]["accuracy_mean"] <= 0.40
+          print(json.dumps({"overall": overall,
+                            "conditions": result["condition_summary"]}, indent=2))
+          PY
+      - name: Upload N0.13 phase robustness artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: n13-phase-robustness-results
+          path: n13-phase-robustness.json
           if-no-files-found: error
       - name: Run E01 demonstration
         run: python -m prototype.e01_sparse_composition --json
