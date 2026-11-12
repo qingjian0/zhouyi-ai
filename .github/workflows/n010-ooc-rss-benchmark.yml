@@ -8,6 +8,7 @@ on:
     branches:
       - research/n010-heldout-group-isolation-2026-11-12
       - research/n010-true-out-of-core-streaming-2026-11-12
+      - research/n010-heldout-group-isolation-rebased-2026-11-12
 
 jobs:
   ooc-rss:
