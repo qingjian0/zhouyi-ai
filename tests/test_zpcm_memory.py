@@ -26,6 +26,42 @@ class Tests(unittest.TestCase):
    with self.subTest(query=query_name):
     self.assertIn("memory_events_type_scope_seq",detail)
 
+ def test_e12a6_lifecycle_projection_indexes_candidate_evidence_and_actions(self):
+  events=[
+   {"event_id":"candidate:rule@1","payload":{"kind":"candidate_registered","body":{"candidate":{"candidate_id":"rule","version":1}}}},
+   {"event_id":"evidence:train","payload":{"kind":"evidence_registered","body":{"evidence":{"evidence_id":"train"}}}},
+   {"event_id":"action:propose","payload":{"kind":"action_applied","body":{"action":{"action_id":"propose","candidate_id":"rule","candidate_version":1}}}},
+  ]
+  self.m.append_lifecycle_events(events=events,scope="scope-a",expected_sequence=0)
+  candidate=self.m.get_lifecycle_projection_event(
+      scope="scope-a",kind="candidate_registered",entity_id="rule",entity_version=1)
+  evidence=self.m.get_lifecycle_projection_event(
+      scope="scope-a",kind="evidence_registered",entity_id="train")
+  action=self.m.get_lifecycle_projection_event(
+      scope="scope-a",kind="action_applied",entity_id="propose")
+  self.assertEqual(candidate["event_id"],"candidate:rule@1")
+  self.assertEqual(evidence["event_id"],"evidence:train")
+  self.assertEqual(action["event_id"],"action:propose")
+  metadata=list(self.m.iter_lifecycle_projection(scope="scope-a",page_size=2))
+  self.assertEqual(len(metadata),3)
+  self.assertEqual(metadata[-1]["kind"],"action_applied")
+  plan=self.m.db.execute(
+      "EXPLAIN QUERY PLAN SELECT event_id FROM e12a6_lifecycle_event_projection "
+      "WHERE scope=? AND kind=? AND entity_id=? AND entity_version=? ORDER BY seq DESC LIMIT 1",
+      ("scope-a","candidate_registered","rule",1),
+  ).fetchall()
+  self.assertIn("e12a6_lifecycle_entity_lookup"," ".join(row["detail"] for row in plan))
+
+ def test_lifecycle_projection_backfills_existing_authoritative_events(self):
+  self.m._append("candidate:legacy@1","e12a6_lifecycle","scope-a",{
+      "kind":"candidate_registered","body":{"candidate":{"candidate_id":"legacy","version":1}}})
+  self.m.db.execute("DELETE FROM e12a6_lifecycle_event_projection")
+  self.m.close()
+  self.m=ZPCMMemory(self.path)
+  found=self.m.get_lifecycle_projection_event(
+      scope="scope-a",kind="candidate_registered",entity_id="legacy",entity_version=1)
+  self.assertEqual(found["event_id"],"candidate:legacy@1")
+
  def test_generic_domain_events_share_the_authoritative_event_log(self):
   first=self.m.append_domain_event(event_type="m2_cognition",event_id="m2:obs:1",
       scope="project",payload={"kind":"observation","record_id":"obs-1"},expected_sequence=0)
