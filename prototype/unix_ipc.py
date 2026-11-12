@@ -337,8 +337,10 @@ class UnixJSONRPCServer:
                 operation=operation, deadline_monotonic=time.monotonic() + deadline_ms / 1000,
             )
             context.remaining_seconds()
+            # Handlers must check the deadline before committing durable state.
+            # Do not turn a successful post-commit response into a timeout error:
+            # clients resolve an ambiguous disconnect by retrying operation_id.
             result = self.handlers[operation](context, body)
-            context.remaining_seconds()
             if not isinstance(result, dict):
                 raise IPCRequestError("invalid_handler_result", "IPC handler returned an invalid response")
             response = {
