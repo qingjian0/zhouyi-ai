@@ -5,6 +5,7 @@ import unittest
 from pathlib import Path
 
 from prototype.n010_synthetic import generate_dataset
+from prototype.n010_experiment import LearnableSROKError, load_dataset
 
 
 class N010SyntheticRuleFamilyTests(unittest.TestCase):
@@ -101,7 +102,30 @@ class N010SyntheticRuleFamilyTests(unittest.TestCase):
             self.assertEqual(report["training_examples"], 18)
             self.assertEqual(report["dataset_manifest"]["rule_families_by_split"]["locked_test"],
                              ["parity-odd"])
+            self.assertEqual(
+                report["dataset_manifest"]["generation_provenance"]["dataset_sha256"],
+                report["dataset_manifest"]["sha256"],
+            )
             self.assertEqual(report["locked_test"]["examples"], 4)
+
+
+    def test_runner_rejects_tampered_generation_family_manifest(self):
+        from prototype.n09_learnable_srok import RoleSpec
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "generated.jsonl"
+            generate_dataset(path, seed=23, train_count=2, dev_count=2,
+                             locked_test_count=2, candidates_per_role=2)
+            sidecar = path.with_suffix(path.suffix + ".manifest.json")
+            manifest = json.loads(sidecar.read_text(encoding="utf-8"))
+            manifest["rule_families_by_split"]["locked_test"] = ["parity-even"]
+            sidecar.write_text(json.dumps(manifest), encoding="utf-8")
+            roles = tuple(
+                RoleSpec(name, frozenset({name}), frozenset({"candidate"}))
+                for name in ("r0", "r1", "r2")
+            )
+            with self.assertRaises(LearnableSROKError):
+                load_dataset(path, roles, 4)
 
     def test_invalid_generator_parameters_are_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
