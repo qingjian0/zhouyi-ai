@@ -1,0 +1,53 @@
+name: CPG-EI mixed operator corpus
+
+on:
+  push:
+    branches:
+      - research/cpg-ei-mixed-operator-corpus-v1-2026-11-13
+    paths:
+      - "prototype/cpg_ei_relation_operators.py"
+      - "prototype/cpg_ei_mixed_operator_data.py"
+      - "tests/test_cpg_ei_mixed_operator_data.py"
+      - ".github/workflows/cpg-ei-mixed-operator-corpus.yml"
+  pull_request:
+    paths:
+      - "prototype/cpg_ei_relation_operators.py"
+      - "prototype/cpg_ei_mixed_operator_data.py"
+      - "tests/test_cpg_ei_mixed_operator_data.py"
+      - ".github/workflows/cpg-ei-mixed-operator-corpus.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  mixed-operator-corpus:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run operator and corpus contracts
+        run: |
+          python -m unittest tests.test_cpg_ei_relation_operators -v
+          python -m unittest tests.test_cpg_ei_mixed_operator_data -v
+      - name: Generate 10,240-row mixed operator corpus
+        run: |
+          python -m prototype.cpg_ei_mixed_operator_data --jsonl /tmp/zhouyi-cpg-ei-mixed-v1.jsonl > /tmp/zhouyi-cpg-ei-mixed-v1-manifest.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          manifest = json.loads(Path("/tmp/zhouyi-cpg-ei-mixed-v1-manifest.json").read_text())
+          assert manifest["row_count"] == 10240
+          assert manifest["teacher_rule_count"] == 320
+          assert len(manifest["operator_rule_counts"]) == 7
+          print(json.dumps(manifest, indent=2))
+          PY
+      - name: Upload corpus and manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: zhouyi-cpg-ei-mixed-operator-v1
+          path: |
+            /tmp/zhouyi-cpg-ei-mixed-v1.jsonl
+            /tmp/zhouyi-cpg-ei-mixed-v1-manifest.json
+          if-no-files-found: error
