@@ -1,40 +1,48 @@
 # E09 Direct Store-Write Audit v1
 
 Date: 2026-11-12
-Audited revision: `ce8145525ed148e6d00592be4875282b3fb7157f`
+Original audit revision: `ce8145525ed148e6d00592be4875282b3fb7157f`
+Migration revision: `security/e09-adapter-authority-migration-v1-2026-11-12`
 Scope: Python runtime/prototype modules under `prototype/`; test fixtures are not production writers.
 
-## Result
+## Original inventory
 
-The audit found two production modules with direct event-store writes:
+The original source-level scan found two runtime modules containing low-level event-store writes:
 
 1. `prototype/e09_authority_services.py`
-   - Expected and intentional authority boundary.
-   - Its narrow methods authenticate a workload, derive the actor role, bind the domain registry tuple, and then call the private store writer.
-   - The class has no generic caller-facing append method.
+   - Intended authority boundary.
+   - Narrow methods authenticate workload identity, derive actor role, bind domain provenance, and then write through the store.
 2. `prototype/e09_shared_protocol_adapter.py`
-   - Legacy trusted-runner integration, not an authenticated workload boundary.
-   - Directly writes `structure_version`, `observation`, `prediction_commit`, `evidence_reveal`, and `revision` events through `SQLiteEvidenceStore` methods.
-   - It remains usable for its legacy prequential/training experiments, but it is not eligible to create trusted verifier receipts. The receipt resolver rejects runner-role observations and observations without authenticated, registry-bound domain provenance.
+   - Contains a compatibility-only legacy trusted-runner path.
+   - The default legacy mode writes Observation, Commit, Reveal, StructureVersion and Revision events directly and remains non-receipt-eligible.
 
-No other `prototype/` Python runtime module in the audited tree directly invokes `append_event`, `commit_prediction`, `reveal_evidence`, `append_revision`, or constructs `SQLiteEvidenceStore` as an event writer. The shared store implementation necessarily owns the generic low-level append primitives. Tests contain direct writes as protocol fixtures and are not production entry points.
+## Authenticated adapter migration
 
-## Security interpretation
+The adapter now has an explicit secure mode requiring:
+- an `E09AuthorityService` with a configured trusted `E09DomainRegistry`;
+- observer, learner and evaluator credentials, validated against the adapter scope before bootstrap;
+- authority-routed Observation, Prediction Commit, Evidence Reveal, StructureVersion and Revision writes.
 
-This is a source-level call-site audit, not proof of process isolation. `E09AuthorityService` and `SQLiteEvidenceStore` currently coexist in one Python process, and code holding the store object can bypass the facade. Hash chains and signed receipts do not prevent a process with database write access from fabricating source events.
+The secure mode uses narrow authority operations only. The adapter still uses the store for payload-vault writes, replay/read access and memory projection; these are not event-writer operations. Legacy mode remains available for historical prequential experiments and is not upgraded implicitly. Its runner-role Observation events remain ineligible for trusted receipts.
 
-Therefore the current guarantee is:
+The authority facade now validates:
+- authenticated learner role and scope for StructureVersion and Revision;
+- learner-track and scope binding on the persisted payload;
+- prior parent versions and support reveals within the same episode, structure, scope and learner track;
+- explicit causation links from support/trigger evidence and from resulting structure events.
 
-- Trusted receipt issuance is fail-closed against legacy runner observations and caller-controlled domain relabeling.
-- The legacy adapter remains a non-authoritative experiment path.
-- Production-grade source authentication still requires a dedicated authority process, restricted database permissions, authenticated IPC, and removal of learner/evaluator direct database write access.
+## Static guard
 
-## Follow-up required before production promotion
+`tests/test_e09_store_write_allowlist.py` keeps the two reviewed low-level writer modules explicitly allowlisted. This is a source-level guard: it does not prove that secure-mode control flow can never reach a legacy branch, nor does it establish a process boundary. Secure-mode integration tests exercise the authority-routed path and assert authenticated actor metadata across the full event chain.
 
-1. Add authenticated facade operations for the adapter's structure-version and revision events, with learner identity and strict causation/evidence binding.
-2. Migrate `E09SharedProtocolAdapter` observation, prediction commit, and reveal writes to authenticated observer/learner/evaluator credentials and the configured domain registry.
-3. Keep legacy mode explicitly non-receipt-eligible; do not silently upgrade old runner events.
-4. Add a static architecture guard over production `prototype/` modules so new direct store-writer call sites must be explicitly allowlisted and reviewed.
-5. Move the authority/store behind a process boundary and verify that learner/evaluator workloads cannot open or mutate the underlying SQLite database.
+## Security boundary and remaining work
 
-Until these steps are complete, this audit must not be described as production-grade process isolation.
+This remains an in-process reference implementation. `E09AuthorityService` and `SQLiteEvidenceStore` coexist in one Python process; code holding the store object can bypass the facade. Hash chains and signed receipts do not prevent a process with database write access from fabricating source events.
+
+Before production promotion:
+1. Move authority and store into a dedicated authority process.
+2. Restrict database file and write permissions so learner/evaluator workloads cannot open or mutate it.
+3. Expose authenticated IPC with role-, scope-, episode- and track-bound request schemas.
+4. Test process-level denial, restart/replay and partial-failure recovery across the IPC boundary.
+
+Current guarantee: secure adapter calls are authenticated and registry-bound through the in-process facade; legacy mode remains explicitly non-authoritative; production-grade process isolation is not yet implemented.
