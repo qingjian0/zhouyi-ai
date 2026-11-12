@@ -42,8 +42,12 @@ class SQLiteVerifierReceiptLedger:
             raise ValueError("verifier receipt ledger must not be a symlink")
         if self.path.exists():
             file_stat = self.path.stat()
-            if not stat.S_ISREG(file_stat.st_mode) or file_stat.st_mode & 0o077:
-                raise ValueError("existing verifier receipt ledger must be a private regular file")
+            if (
+                not stat.S_ISREG(file_stat.st_mode)
+                or file_stat.st_mode & 0o077
+                or file_stat.st_uid != os.geteuid()
+            ):
+                raise ValueError("existing verifier receipt ledger must be owned by this service and private")
         else:
             descriptor = os.open(
                 self.path, os.O_CREAT | os.O_EXCL | os.O_RDWR, 0o600
@@ -178,6 +182,8 @@ class E09VerifierUnixRPC:
             raise TypeError("verifier must implement issue_verification_receipt")
         if not isinstance(receipt_ledger, SQLiteVerifierReceiptLedger):
             raise TypeError("receipt_ledger must be SQLiteVerifierReceiptLedger")
+        if isinstance(allowed_writer_workload_ids, str):
+            raise ValueError("allowed_writer_workload_ids must be a collection, not a string")
         writers = frozenset(allowed_writer_workload_ids)
         if not writers or any(not isinstance(value, str) or not value.strip() for value in writers):
             raise ValueError("allowed_writer_workload_ids must be non-empty strings")
@@ -206,7 +212,10 @@ class E09VerifierUnixRPC:
     @staticmethod
     def _health(context: IPCRequestContext, body: dict[str, Any]) -> dict[str, Any]:
         _fields(body, required=set())
-        if "e12a6-writer" not in context.peer.roles:
+        if (
+            "e12a6-writer" not in context.peer.roles
+            or context.peer.workload_id not in self.allowed_writer_workload_ids
+        ):
             raise IPCRequestError("permission_denied", "Peer is not an authorized E12-A6 Writer")
         return {"service": "e09-verifier", "protocol": "zhouyi-ipc/1", "ready": True}
 
