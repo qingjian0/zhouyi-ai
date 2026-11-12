@@ -8,7 +8,6 @@ import unittest
 from pathlib import Path
 
 from prototype.evidence_ref_resolver import (
-    EvidenceResolutionError,
     SQLiteEvidenceRefResolver,
 )
 from prototype.m2_extraction_dataset import (
@@ -64,6 +63,31 @@ class GoldEvidenceVerifierTests(unittest.TestCase):
         self.assertEqual(receipt.verified_unit_count, 1)
         self.assertEqual(len(receipt.verification_sha256), 64)
 
+    def test_verifies_multibyte_unicode_offsets_as_bytes_not_characters(self):
+        source = "甲🙂乙".encode("utf-8")
+        result = self.ingestor.ingest(
+            "doc-unicode", "unicode.txt", io.BytesIO(source), chunk_bytes=64,
+        )
+        self.assertTrue(result.complete)
+        chunk = self.ingestor.get_chunks("doc-unicode")[0]
+        reference = self.resolver.make_reference("doc-unicode", chunk.chunk_id)
+        emoji = "🙂".encode("utf-8")
+        span = GoldUnitEvidenceSpan(
+            unit_index=0, evidence_ref=reference,
+            byte_start=3, byte_end=7,
+            span_sha256=hashlib.sha256(emoji).hexdigest(),
+        )
+        record = AnnotatedExtractionRecord(
+            case=ExtractionGoldCase(
+                "unicode", "general", (GoldSemanticUnit(UnitKind.CONCEPT, "emoji"),),
+            ),
+            split=DatasetSplit.TRAIN, source_lineage_ids=("unicode-lineage",),
+            evidence_refs=(reference,), annotation_status=AnnotationStatus.REVIEWED,
+            gold_evidence_spans=(span,),
+        )
+        receipt = verify_gold_evidence_spans(record, self.resolver)
+        self.assertEqual(receipt.verified_span_count, 1)
+
     def test_rejects_wrong_gold_span_digest(self):
         record, reference, _ = self.make_record()
         bad_span = GoldUnitEvidenceSpan(
@@ -81,7 +105,7 @@ class GoldEvidenceVerifierTests(unittest.TestCase):
             verify_gold_evidence_spans(bad_record, self.resolver)
 
     def test_rejects_m1_source_tampering_before_span_verification(self):
-        record, reference, chunk = self.make_record()
+        record, _, chunk = self.make_record()
         with sqlite3.connect(self.database) as db:
             db.execute(
                 "UPDATE evidence_chunks SET text_utf8 = ? WHERE chunk_id = ?",
@@ -108,7 +132,7 @@ class GoldEvidenceVerifierTests(unittest.TestCase):
         self.assertEqual(receipt.resolved_evidence_refs, (reference,))
 
     def test_rejects_resolver_that_returns_different_reference(self):
-        record, reference, _ = self.make_record()
+        record, _, _ = self.make_record()
 
         class WrongResolver:
             def resolve(self, _):

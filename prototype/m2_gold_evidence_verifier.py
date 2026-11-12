@@ -39,19 +39,27 @@ def verify_gold_evidence_spans(
     record: AnnotatedExtractionRecord,
     resolver: EvidenceResolver,
 ) -> GoldEvidenceVerificationReceipt:
-    """Resolve every referenced M1 chunk and verify every gold span digest.
+    """Resolve one M1 chunk at a time and verify every gold span digest.
 
-    Gold span offsets are absolute source-byte offsets. This function first
-    relies on the resolver to authenticate each full EvidenceRef/chunk, then
-    slices the resolved UTF-8 bytes using offsets relative to that chunk.
-    No source text is copied into the receipt.
+    Gold span offsets are absolute source-byte offsets. The resolver authenticates
+    each full EvidenceRef/chunk; this function then slices the UTF-8 bytes using
+    offsets relative to that chunk. Source bytes are discarded before resolving
+    the next chunk, so working memory is bounded by the largest referenced
+    chunk plus the record's small span metadata.
     """
     if not isinstance(record, AnnotatedExtractionRecord):
         raise TypeError("record must be AnnotatedExtractionRecord")
     if not callable(getattr(resolver, "resolve", None)):
         raise TypeError("resolver must provide resolve(EvidenceRef)")
 
-    resolved_bytes: dict[EvidenceRef, bytes] = {}
+    spans_by_reference: dict[EvidenceRef, list] = {
+        reference: [] for reference in record.evidence_refs
+    }
+    for span in record.gold_evidence_spans:
+        spans_by_reference[span.evidence_ref].append(span)
+
+    verified_span_material = []
+    covered_units: set[int] = set()
     for reference in record.evidence_refs:
         try:
             resolved = resolver.resolve(reference)
@@ -69,30 +77,28 @@ def verify_gold_evidence_spans(
             raise GoldEvidenceVerificationError("resolved UTF-8 byte length does not match EvidenceRef span")
         if hashlib.sha256(raw).hexdigest() != reference.content_sha256:
             raise GoldEvidenceVerificationError("resolved source bytes do not match EvidenceRef content hash")
-        resolved_bytes[reference] = raw
 
-    verified_span_material = []
-    covered_units: set[int] = set()
-    for span in record.gold_evidence_spans:
-        raw = resolved_bytes[span.evidence_ref]
-        local_start = span.byte_start - span.evidence_ref.byte_start
-        local_end = span.byte_end - span.evidence_ref.byte_start
-        source_slice = raw[local_start:local_end]
-        if len(source_slice) != span.byte_end - span.byte_start:
-            raise GoldEvidenceVerificationError("gold span offsets exceed resolved source bytes")
-        actual_digest = hashlib.sha256(source_slice).hexdigest()
-        if actual_digest != span.span_sha256:
-            raise GoldEvidenceVerificationError(
-                f"gold evidence span digest mismatch for unit index {span.unit_index}"
-            )
-        covered_units.add(span.unit_index)
-        verified_span_material.append({
-            "unit_index": span.unit_index,
-            "evidence_ref": span.evidence_ref,
-            "byte_start": span.byte_start,
-            "byte_end": span.byte_end,
-            "span_sha256": actual_digest,
-        })
+        for span in spans_by_reference[reference]:
+            local_start = span.byte_start - reference.byte_start
+            local_end = span.byte_end - reference.byte_start
+            source_slice = raw[local_start:local_end]
+            if len(source_slice) != span.byte_end - span.byte_start:
+                raise GoldEvidenceVerificationError("gold span offsets exceed resolved source bytes")
+            actual_digest = hashlib.sha256(source_slice).hexdigest()
+            if actual_digest != span.span_sha256:
+                raise GoldEvidenceVerificationError(
+                    f"gold evidence span digest mismatch for unit index {span.unit_index}"
+                )
+            covered_units.add(span.unit_index)
+            verified_span_material.append({
+                "unit_index": span.unit_index,
+                "evidence_ref": span.evidence_ref,
+                "byte_start": span.byte_start,
+                "byte_end": span.byte_end,
+                "span_sha256": actual_digest,
+            })
+        # Do not retain raw chunk bytes after its spans have been checked.
+        del raw
 
     expected_units = set(range(len(record.case.expected_units)))
     if covered_units != expected_units:
