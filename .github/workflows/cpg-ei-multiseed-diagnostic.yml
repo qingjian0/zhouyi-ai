@@ -5,10 +5,12 @@ on:
     branches:
       - research/cpg-ei-multiseed-diagnostics-rebased-2026-11-12
       - research/cpg-ei-second-parity-teacher-rebased-2026-11-12
+      - research/cpg-ei-joint-motif-proposals-2026-11-12
   pull_request:
     branches:
       - research/cpg-ei-learnable-gates-v3-2026-11-12
       - research/cpg-ei-multiseed-diagnostics-rebased-2026-11-12
+      - research/cpg-ei-second-parity-teacher-rebased-2026-11-12
 
 jobs:
   multiseed-diagnostic:
@@ -19,4 +21,4 @@ jobs:
         with:
           python-version: "3.11"
       - name: Run CPG-EI structure discovery tests
-        run: python -m unittest tests.test_cpg_ei_structure_discovery -v
+        run: python -m unittest tests.test_cpg_ei_structure_discovery tests.test_cpg_ei_joint_proposals -v
