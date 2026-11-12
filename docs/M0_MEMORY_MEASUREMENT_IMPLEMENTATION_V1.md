@@ -63,6 +63,10 @@ print([row.to_dict() for row in ledger.snapshot()])
 4. 用锁定测试集检查长上下文信息保持，不以压缩率代替能力指标。
 5. 将轮询采样结果与 OS high-water / cgroup 峰值交叉核对。
 
+## CI 触发
+
+仓库测试工作流的 push 与 pull_request 分支过滤已加入本研发分支。提交新的 M0 head 后应触发完整 unittest 工作流；是否触发及最终状态以 GitHub Actions 实际运行记录为准。
+
 ## 运行环境说明
 
 CI 的 pull_request 分支过滤此前没有包含长上下文规格分支。为使本 PR 的精确 head 能触发仓库测试工作流，已在父规格分支补入对应目标分支过滤项。没有将“未触发”误报为“通过”。
