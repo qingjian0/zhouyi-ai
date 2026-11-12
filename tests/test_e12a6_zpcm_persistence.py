@@ -189,6 +189,18 @@ class PersistentLifecycleTests(unittest.TestCase):
         self.assertEqual(self.store._last_sequence, 2)
         self.assertIsNot(self.store._ledger, original_ledger)
 
+    def test_close_is_safe_after_fail_closed_recovery(self):
+        original_ledger = self.store._ledger
+        with patch.object(original_ledger, "add_candidate", side_effect=RuntimeError("scratch write failed")):
+            with patch.object(persistence, "_new_sqlite_lifecycle_ledger", side_effect=RuntimeError("replay state unavailable")):
+                with self.assertRaises(LifecyclePersistenceError):
+                    self.store.register_candidate(candidate())
+        self.assertIsNone(self.store._runtime_state)
+        self.assertIsNone(self.store._ledger)
+        # Fail-closed recovery releases the scratch state; explicit close must remain idempotent.
+        self.store.close()
+        self.store.close()
+
     def test_append_failure_does_not_mutate_in_memory_ledger(self):
         self.store.register_candidate(candidate()); before=self.store.snapshot(); original=self.memory.append_lifecycle_event
         self.memory.append_lifecycle_event=lambda **kwargs: (_ for _ in ()).throw(ZPCMError("disk failure"))
