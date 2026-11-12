@@ -15,9 +15,10 @@ from prototype.csg_branch_delta import (
 from prototype.e12a6_lifecycle_contract import Evidence, SplitRole
 from prototype.e12a6_zpcm_persistence import LifecycleEventReceipt, PersistentLifecycleLedger
 from prototype.shared_evidence_protocol import (
-    DOMAIN_BOUND_PROTOCOL_VERSION, DOMAIN_FIELDS, STRICT_PROTOCOL_VERSION, SQLiteEvidenceStore,
+    DOMAIN_BOUND_PROTOCOL_VERSION, DOMAIN_FIELDS, STRICT_PROTOCOL_VERSION,
+    SQLiteEvidenceStore, canonical_json, digest_payload,
 )
-from prototype.e09_domain_registry import E09DomainRegistry, canonical_json, digest_payload
+from prototype.e09_domain_registry import E09DomainRegistry
 
 
 class E09EvidenceBindingError(ValueError):
