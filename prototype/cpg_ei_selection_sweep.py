@@ -32,7 +32,7 @@ def _support_metrics(active_edges: Sequence[str], expected: set[str]):
     discovered = set(active_edges)
     true_positive = len(discovered & expected)
     return {
-        "support_precision": true_positive / len(discovered) if discovered else 0.0,
+        "support_precision": true_positive / len(discovered) if discovered else None,
         "support_recall": true_positive / len(expected),
         "active_edge_count": len(discovered),
     }
@@ -114,9 +114,17 @@ def run_sweep(*, seeds: Sequence[int] = DEFAULT_SEEDS, epochs: int | Sequence[in
             value for row in rows
             for value in row["ood_bit_accuracy_by_family"].values()
         ]
+        precision_values = [
+            float(row["support_precision"])
+            for row in rows if row["support_precision"] is not None
+        ]
         return {
             "experiments": len(rows),
-            "mean_support_precision": mean("support_precision"),
+            "support_precision_defined_experiments": len(precision_values),
+            "mean_support_precision_when_selected": (
+                sum(precision_values) / len(precision_values) if precision_values else None
+            ),
+            "no_support_discovery_experiments": sum(row["active_edge_count"] == 0 for row in rows),
             "mean_support_recall": mean("support_recall"),
             "mean_locked_test_bit_accuracy": mean("locked_test_bit_accuracy"),
             "mean_oracle_locked_test_bit_accuracy": mean("oracle_locked_test_bit_accuracy"),
