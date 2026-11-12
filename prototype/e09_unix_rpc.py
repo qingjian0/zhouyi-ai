@@ -84,6 +84,40 @@ def _receipt(receipt: Any) -> dict[str, Any]:
     return value
 
 
+def _require_text(body: dict[str, Any], *names: str) -> None:
+    for name in names:
+        value = body.get(name)
+        if not isinstance(value, str) or not value.strip():
+            raise IPCRequestError("invalid_body", f"{name} must be a non-empty string")
+
+
+def _require_string_list(
+    body: dict[str, Any], name: str, *, optional: bool = False
+) -> None:
+    if name not in body and optional:
+        return
+    values = body.get(name)
+    if not isinstance(values, list):
+        raise IPCRequestError("invalid_body", f"{name} must be a JSON array")
+    if any(not isinstance(value, str) or not value.strip() for value in values):
+        raise IPCRequestError("invalid_body", f"{name} must contain non-empty strings")
+    if len(values) != len(set(values)):
+        raise IPCRequestError("invalid_body", f"{name} must not contain duplicates")
+
+
+def _require_payload(body: dict[str, Any]) -> None:
+    if not isinstance(body.get("payload"), dict):
+        raise IPCRequestError("invalid_body", "payload must be a JSON object")
+
+
+def _require_sequence(body: dict[str, Any]) -> None:
+    if "expected_sequence" not in body:
+        return
+    value = body["expected_sequence"]
+    if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+        raise IPCRequestError("invalid_body", "expected_sequence must be a non-negative integer")
+
+
 class E09AuthorityUnixRPC:
     """Allowlisted E09 Authority operations over a Linux UDS server."""
 
@@ -147,6 +181,7 @@ class E09AuthorityUnixRPC:
 
     def _put_input(self, context: IPCRequestContext, body: dict[str, Any]) -> dict[str, Any]:
         _fields(body, required={"scope", "payload"})
+        _require_text(body, "scope")
         payload_ref = self.authority.put_observation_input(
             context.peer, scope=body["scope"], payload=body["payload"]
         )
@@ -158,6 +193,14 @@ class E09AuthorityUnixRPC:
             required={"episode_id", "event_id", "observation_id", "query_id", "scope", "split"},
             optional={"payload_ref", "feature_schema_version", "causation_refs", "expected_sequence"},
         )
+        _require_text(body, "episode_id", "event_id", "observation_id", "query_id", "scope", "split")
+        for field in ("payload_ref", "feature_schema_version"):
+            if field in body and body[field] is not None and (
+                not isinstance(body[field], str) or not body[field].strip()
+            ):
+                raise IPCRequestError("invalid_body", f"{field} must be a non-empty string")
+        _require_string_list(body, "causation_refs", optional=True)
+        _require_sequence(body)
         receipt = self.authority.append_observation(
             context.peer,
             episode_id=body["episode_id"], event_id=body["event_id"],
@@ -173,6 +216,7 @@ class E09AuthorityUnixRPC:
 
     def _read_input(self, context: IPCRequestContext, body: dict[str, Any]) -> dict[str, Any]:
         _fields(body, required={"episode_id", "observation_id", "scope"})
+        _require_text(body, "episode_id", "observation_id", "scope")
         payload = self.authority.read_observation_input(
             context.peer, episode_id=body["episode_id"],
             observation_id=body["observation_id"], scope=body["scope"],
@@ -184,6 +228,10 @@ class E09AuthorityUnixRPC:
             body, required={"episode_id", "event_id", "payload", "causation_refs"},
             optional={"expected_sequence"},
         )
+        _require_text(body, "episode_id", "event_id")
+        _require_payload(body)
+        _require_string_list(body, "causation_refs")
+        _require_sequence(body)
         receipt = self.authority.append_prediction_commit(
             context.peer,
             episode_id=body["episode_id"], event_id=body["event_id"],
@@ -198,6 +246,10 @@ class E09AuthorityUnixRPC:
             body, required={"episode_id", "event_id", "payload", "causation_refs"},
             optional={"expected_sequence"},
         )
+        _require_text(body, "episode_id", "event_id")
+        _require_payload(body)
+        _require_string_list(body, "causation_refs")
+        _require_sequence(body)
         receipt = self.authority.append_evidence_reveal(
             context.peer,
             episode_id=body["episode_id"], event_id=body["event_id"],
@@ -213,6 +265,10 @@ class E09AuthorityUnixRPC:
             required={"episode_id", "event_id", "scope", "learner_track", "payload"},
             optional={"causation_refs", "expected_sequence"},
         )
+        _require_text(body, "episode_id", "event_id", "scope", "learner_track")
+        _require_payload(body)
+        _require_string_list(body, "causation_refs", optional=True)
+        _require_sequence(body)
         receipt = self.authority.append_structure_version(
             context.peer,
             episode_id=body["episode_id"], event_id=body["event_id"],
@@ -229,6 +285,10 @@ class E09AuthorityUnixRPC:
             required={"episode_id", "event_id", "scope", "learner_track", "payload", "causation_refs"},
             optional={"expected_sequence"},
         )
+        _require_text(body, "episode_id", "event_id", "scope", "learner_track")
+        _require_payload(body)
+        _require_string_list(body, "causation_refs")
+        _require_sequence(body)
         receipt = self.authority.append_revision(
             context.peer,
             episode_id=body["episode_id"], event_id=body["event_id"],
