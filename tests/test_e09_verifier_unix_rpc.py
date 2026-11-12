@@ -21,11 +21,14 @@ class _FakeVerifier:
     def __init__(self):
         self.calls = []
 
-    def issue_verification_receipt(self, **request):
+    def issue_verification_receipt_with_identity(
+        self, *, _receipt_id, _nonce, _issued_at, **request
+    ):
         self.calls.append(dict(request))
         return {
-            "receipt_id": f"receipt-{len(self.calls)}",
-            "nonce": f"nonce-{len(self.calls)}",
+            "receipt_id": _receipt_id,
+            "nonce": _nonce,
+            "issued_at": _issued_at,
             "signature": "test-signature",
         }
 
@@ -37,9 +40,13 @@ class VerifierReceiptLedgerTests(unittest.TestCase):
             ledger = SQLiteVerifierReceiptLedger(path)
             calls = []
 
-            def issue():
-                calls.append(True)
-                return {"receipt_id": "receipt-1", "nonce": "nonce-1"}
+            def issue(identity):
+                calls.append(dict(identity))
+                return {
+                    "receipt_id": identity["receipt_id"],
+                    "nonce": identity["nonce"],
+                    "issued_at": identity["issued_at"],
+                }
 
             first = ledger.issue_once("operation-1", {"scope": "scope/a"}, issue)
             ledger.close()
@@ -47,7 +54,7 @@ class VerifierReceiptLedgerTests(unittest.TestCase):
             try:
                 second = restarted.issue_once(
                     "operation-1", {"scope": "scope/a"},
-                    lambda: self.fail("durable retry must not issue a second receipt"),
+                    lambda identity: self.fail("durable retry must not issue a second receipt"),
                 )
                 self.assertEqual(first, second)
                 self.assertEqual(len(calls), 1)
@@ -60,15 +67,51 @@ class VerifierReceiptLedgerTests(unittest.TestCase):
             try:
                 ledger.issue_once(
                     "operation-1", {"scope": "scope/a"},
-                    lambda: {"receipt_id": "receipt-1", "nonce": "nonce-1"},
+                    lambda identity: {
+                        "receipt_id": identity["receipt_id"], "nonce": identity["nonce"],
+                    },
                 )
                 with self.assertRaises(VerifierReceiptIdempotencyConflict):
                     ledger.issue_once(
                         "operation-1", {"scope": "scope/b"},
-                        lambda: {"receipt_id": "receipt-2", "nonce": "nonce-2"},
+                        lambda identity: {
+                            "receipt_id": identity["receipt_id"], "nonce": identity["nonce"],
+                        },
                     )
             finally:
                 ledger.close()
+
+    def test_pending_reservation_survives_crash_and_reuses_same_identity(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "receipts.sqlite"
+            first = SQLiteVerifierReceiptLedger(path)
+            seen = []
+
+            def crash_after_reservation(identity):
+                seen.append(dict(identity))
+                raise RuntimeError("simulated crash before receipt persistence")
+
+            with self.assertRaises(RuntimeError):
+                first.issue_once("operation-crash", {"scope": "scope/a"}, crash_after_reservation)
+            first.close()
+
+            restarted = SQLiteVerifierReceiptLedger(path)
+            try:
+                def retry(identity):
+                    seen.append(dict(identity))
+                    return {
+                        "receipt_id": identity["receipt_id"],
+                        "nonce": identity["nonce"],
+                        "issued_at": identity["issued_at"],
+                        "signature": "deterministic-test-signature",
+                    }
+
+                receipt = restarted.issue_once("operation-crash", {"scope": "scope/a"}, retry)
+                self.assertEqual(seen[0], seen[1])
+                self.assertEqual(receipt["receipt_id"], seen[0]["receipt_id"])
+                self.assertEqual(receipt["nonce"], seen[0]["nonce"])
+            finally:
+                restarted.close()
 
     def test_ledger_rejects_world_accessible_file(self):
         with tempfile.TemporaryDirectory() as directory:
