@@ -91,14 +91,15 @@ def _windows_memory() -> tuple[int, int] | None:
         return None
 
 
-def _psutil_memory() -> tuple[int, int] | None:
+def _psutil_memory() -> tuple[int, int | None] | None:
     try:
         import psutil  # Optional; the core module has no psutil dependency.
 
         info = psutil.Process(os.getpid()).memory_info()
         current = int(info.rss)
-        peak = int(getattr(info, "peak_wset", 0) or current)
-        return current, max(current, peak)
+        peak_value = getattr(info, "peak_wset", None)
+        peak = int(peak_value) if peak_value else None
+        return current, max(current, peak) if peak is not None else None
     except (ImportError, OSError, AttributeError):
         return None
 
@@ -161,7 +162,9 @@ def sample_process_memory(*, include_tracemalloc: bool = False) -> ProcessMemory
             source = "psutil"
 
     rss = observed[0] if observed is not None else None
-    peak = observed[1] if observed is not None else _resource_peak_bytes()
+    peak = observed[1] if observed is not None else None
+    if peak is None:
+        peak = _resource_peak_bytes()
     if peak is not None and rss is not None:
         peak = max(peak, rss)
 
@@ -308,6 +311,7 @@ class MemoryPoolLedger:
         self._validate_amount(total_limit_bytes, "total_limit_bytes", allow_zero=False)
         self.total_limit_bytes = total_limit_bytes
         self._pools: dict[str, _PoolState] = {}
+        self._peak_total_bytes = 0
 
     @staticmethod
     def _validate_amount(amount: int, field: str, *, allow_zero: bool = True) -> None:
@@ -322,8 +326,8 @@ class MemoryPoolLedger:
         self._validate_amount(limit_bytes, "limit_bytes", allow_zero=False)
         if name in self._pools:
             raise ValueError(f"pool already registered: {name}")
-        if sum(pool.limit_bytes for pool in self._pools.values()) + limit_bytes > self.total_limit_bytes:
-            raise MemoryBudgetExceeded("registered pool limits exceed aggregate budget")
+        # Per-pool limits may sum above the global cap; the aggregate check
+        # below remains authoritative when reservations are made.
         self._pools[name] = _PoolState(limit_bytes=limit_bytes)
 
     def reserve(self, name: str, amount_bytes: int) -> None:
@@ -337,6 +341,7 @@ class MemoryPoolLedger:
             raise MemoryBudgetExceeded("aggregate memory budget exceeded")
         pool.current_bytes = new_pool
         pool.peak_bytes = max(pool.peak_bytes, new_pool)
+        self._peak_total_bytes = max(self._peak_total_bytes, new_total)
         if amount_bytes:
             pool.reserve_count += 1
 
@@ -368,7 +373,7 @@ class MemoryPoolLedger:
 
     @property
     def peak_bytes(self) -> int:
-        return sum(pool.peak_bytes for pool in self._pools.values())
+        return self._peak_total_bytes
 
     def snapshot(self) -> tuple[MemoryPoolSnapshot, ...]:
         return tuple(
