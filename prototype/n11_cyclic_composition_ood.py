@@ -232,7 +232,8 @@ def run(
             "test_role_a_phase": "[0, pi/2)",
             "role_b_phase": "[0, 2*pi) in train, validation, and test",
             "role_c_phase": "[0, 2*pi) in train, validation, and test",
-            "train_test_role_a_regions_are_disjoint": True,\n            "validation_uses_training_region_only": True,
+            "train_test_role_a_regions_are_disjoint": True,
+            "validation_uses_training_region_only": True,
         },
         "encoding": (
             "Five-dimensional role-specific Fourier factors. The four "
@@ -253,7 +254,8 @@ def run(
             "Synthetic continuous-phase task with a known analytic target.",
             "The Fourier factorization is supplied as an inductive bias; this does not discover the representation from raw data.",
             "The OOD shift holds out a phase region for one role, not an unseen semantic rule family.",
-            "Logit orientation is selected on a validation set drawn only from the training phase region; test labels do not select model orientation.\n            "A test-oracle flipped-sign metric is diagnostic only and is never used for model selection.\n            "The ablations share one model family but are not parameter-matched to MLP, GNN, or Transformer baselines.",
+            "Logit orientation is selected on a validation set drawn only from the training phase region; test labels do not select model orientation.\n            "A test-oracle flipped-sign metric is diagnostic only and is never used for model selection.",
+            "The ablations share one model family but are not parameter-matched to MLP, GNN, or Transformer baselines.",
             "No natural-language, causal, or general-intelligence claim is supported.",
         ],
     }
