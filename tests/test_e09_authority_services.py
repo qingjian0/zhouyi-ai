@@ -59,6 +59,16 @@ class _NamedSigner:
         return base64.b64encode(self.private_key.sign(message)).decode("ascii")
 
 
+class _DomainRegistry:
+    def resolve(self, *, episode_id, scope, observation_id):
+        from prototype.e09_authority_services import E09DomainBinding
+        return E09DomainBinding(
+            world_family="family-a",
+            registry_id="zhouyi-domain-registry",
+            registry_version="2026-11-12.1",
+        )
+
+
 def _identity(workload_id, issuer_id, roles, scopes):
     return E09AuthenticatedWorkload(
         workload_id=workload_id,
@@ -85,6 +95,8 @@ class E09AuthorityServiceTests(unittest.TestCase):
         )
         self.keyring = E09Ed25519IssuerKeyring({"issuer-authority": public})
         self.authenticator = _Authenticator({
+            "observer-cert": _identity("spiffe://zhouyi/observer", "issuer-observer",
+                                        {"observer"}, {self.scope}),
             "evaluator-cert": _identity("spiffe://zhouyi/evaluator", "issuer-evaluator",
                                          {"evaluator"}, {self.scope}),
             "authorizer-cert": _identity("spiffe://zhouyi/authorizer", "issuer-authority",
@@ -98,6 +110,7 @@ class E09AuthorityServiceTests(unittest.TestCase):
             self.store, authenticator=self.authenticator, signer=_Signer(self.private),
             clock=_FixedClock(datetime(2026, 11, 12, 0, 0, tzinfo=timezone.utc)),
             max_grant_ttl=timedelta(hours=1),
+            domain_registry=_DomainRegistry(),
         )
 
     def tearDown(self):
@@ -107,26 +120,21 @@ class E09AuthorityServiceTests(unittest.TestCase):
     def _prior_prediction(self):
         observation_id = "obs-1"
         observation_event = f"{self.episode}:observation:{observation_id}"
-        self.store.append_event(
-            episode_id=self.episode, event_id=observation_event,
-            event_type="observation", idempotency_key=observation_event,
-            actor_role="runner",
-            payload={"observation_id": observation_id, "query_id": observation_id,
-                     "scope": self.scope, "split": "SUPPORT"},
-            protocol_version=STRICT_PROTOCOL_VERSION,
+        self.authority.append_observation(
+            "observer-cert", episode_id=self.episode, event_id=observation_event,
+            idempotency_key=observation_event, observation_id=observation_id,
+            query_id=observation_id, scope=self.scope, split="SUPPORT",
         )
         prediction_id = "prediction-1"
         commit_event = f"{self.episode}:prediction:{prediction_id}"
         semantic_digest = hashlib.sha256(prediction_id.encode()).hexdigest()
-        commit = self.store.append_event(
-            episode_id=self.episode, event_id=commit_event,
-            event_type="prediction_commit", idempotency_key=commit_event,
-            actor_role="learner", causation_refs=[observation_event],
+        commit = self.authority.append_prediction_commit(
+            "learner-cert", episode_id=self.episode, event_id=commit_event,
+            idempotency_key=commit_event, causation_refs=[observation_event],
             payload={"prediction_id": prediction_id, "observation_id": observation_id,
                      "query_id": observation_id, "scope": self.scope, "split": "SUPPORT",
                      "model_version": "model-1", "learner_track": self.track,
                      "decision_status": "PREDICT", "interop_commit_digest": semantic_digest},
-            protocol_version=STRICT_PROTOCOL_VERSION,
         )
         reveal_ref = f"{self.episode}:reveal:{prediction_id}"
         self.authority.append_evidence_reveal(
