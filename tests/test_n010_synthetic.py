@@ -79,6 +79,30 @@ class N010SyntheticRuleFamilyTests(unittest.TestCase):
             self.assertTrue(all(node["evidence_ids"] == [] for row in rows for node in row["nodes"]))
             self.assertTrue(all(node["features"][3] == 1.0 for row in rows for node in row["nodes"]))
 
+
+    def test_generated_jsonl_runs_through_n010_runner(self):
+        from prototype.n09_learnable_srok import RoleSpec
+        from prototype.n010_experiment import run_experiment
+
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "generated.jsonl"
+            generate_dataset(path, seed=19, train_count=18, dev_count=4,
+                             locked_test_count=4, candidates_per_role=2,
+                             noise_rate=0.0, missing_rate=0.0)
+            roles = tuple(
+                RoleSpec(name, frozenset({name}), frozenset({"candidate"}))
+                for name in ("r0", "r1", "r2")
+            )
+            report = run_experiment(
+                path, roles, 4, Path(directory) / "run.json",
+                epochs=2, max_assignments_per_example=16,
+                max_expansions=64, beam_width=8, git_sha="synthetic-test",
+            )
+            self.assertEqual(report["training_examples"], 18)
+            self.assertEqual(report["dataset_manifest"]["rule_families_by_split"]["locked_test"],
+                             ["parity-odd"])
+            self.assertEqual(report["locked_test"]["examples"], 4)
+
     def test_invalid_generator_parameters_are_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "data.jsonl"
