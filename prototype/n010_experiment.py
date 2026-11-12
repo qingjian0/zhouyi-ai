@@ -39,10 +39,27 @@ def _node_from_json(value: dict) -> Node:
     return node
 
 
-def load_dataset(path: str | Path, roles: Sequence[RoleSpec], feature_dim: int):
+def _streaming_sha256(path: Path, *, chunk_bytes: int = 1024 * 1024) -> str:
+    """Hash a JSONL dataset without retaining its complete byte representation."""
+    hasher = hashlib.sha256()
+    with path.open("rb") as source:
+        while chunk := source.read(chunk_bytes):
+            hasher.update(chunk)
+    return hasher.hexdigest()
+
+
+def load_dataset(path: str | Path, roles: Sequence[RoleSpec], feature_dim: int,
+                 *, max_record_bytes: int = 8 * 1024 * 1024):
+    """Parse JSONL incrementally; decoded examples remain resident for full-batch fitting.
+
+    The two-pass design avoids simultaneously retaining raw bytes, decoded text and
+    parsed rows. It is not a fully out-of-core trainer: the structured examples and
+    full-batch learner state are still proportional to dataset size.
+    """
     dataset_path = Path(path)
-    raw = dataset_path.read_bytes()
-    digest = hashlib.sha256(raw).hexdigest()
+    if isinstance(max_record_bytes, bool) or not isinstance(max_record_bytes, int) or max_record_bytes < 1:
+        raise LearnableSROKError("max_record_bytes must be a positive integer")
+    digest = _streaming_sha256(dataset_path)
     provenance_path = dataset_path.with_suffix(dataset_path.suffix + ".manifest.json")
     generation_provenance = None
     if provenance_path.exists():
@@ -56,50 +73,66 @@ def load_dataset(path: str | Path, roles: Sequence[RoleSpec], feature_dim: int):
             raise LearnableSROKError("generation provenance dataset hash mismatch")
     rows = []
     seen = set()
-    for line_number, line in enumerate(raw.decode("utf-8").splitlines(), 1):
-        if not line.strip():
-            continue
-        try:
-            item = json.loads(line)
-            if not isinstance(item, dict) or not {
-                "id", "split", "nodes", "target_ids"
-            }.issubset(item) or set(item) - {
-                "id", "split", "nodes", "target_ids", "rule_family"
-            }:
-                raise ValueError("record fields do not match schema")
-            example_id, split = item["id"], item["split"]
-            rule_family = item.get("rule_family", "unspecified")
-            if not isinstance(rule_family, str) or not rule_family.strip():
-                raise ValueError("rule_family must be a non-empty string")
-            if not isinstance(example_id, str) or not example_id.strip() or example_id in seen:
-                raise ValueError("example IDs must be unique non-empty strings")
-            if split not in ("train", "dev", "locked_test"):
-                raise ValueError("split must be train, dev, or locked_test")
-            if not isinstance(item["nodes"], list) or not isinstance(item["target_ids"], list):
-                raise ValueError("nodes and target_ids must be lists")
-            nodes = tuple(_node_from_json(node) for node in item["nodes"])
-            if not nodes or len({node.node_id for node in nodes}) != len(nodes):
-                raise ValueError("each row requires non-empty unique nodes")
-            if any(len(node.features) != feature_dim for node in nodes):
-                raise ValueError("node feature dimension mismatch")
-            if any(not isinstance(target, str) or not target for target in item["target_ids"]):
-                raise ValueError("target IDs must be non-empty strings")
-            if len(item["target_ids"]) != len(roles) or len(set(item["target_ids"])) != len(roles):
-                raise ValueError("target IDs must uniquely match role count")
-            pools = tuple(tuple(node for node in nodes if
-                (not role.allowed_types or node.node_type in role.allowed_types)
-                and role.required_tags.issubset(node.tags)) for role in roles)
-            if any(not pool for pool in pools):
-                raise ValueError("every role requires at least one compatible candidate")
-            rows.append({
-                "id": example_id, "split": split, "rule_family": rule_family, "nodes": nodes,
-                "target_ids": tuple(item["target_ids"]), "pools": pools,
-            })
-            seen.add(example_id)
-        except (json.JSONDecodeError, TypeError, ValueError) as exc:
-            raise LearnableSROKError(
-                f"invalid dataset row {line_number}: {exc}"
-            ) from exc
+    with dataset_path.open("rb") as source:
+        for line_number, raw_line in enumerate(source, 1):
+            if len(raw_line) > max_record_bytes:
+                raise LearnableSROKError(
+                    f"dataset row {line_number} exceeds max_record_bytes={max_record_bytes}"
+                )
+            if not raw_line.strip():
+                continue
+            try:
+                line = raw_line.decode("utf-8")
+                item = json.loads(line)
+                allowed = {
+                    "id", "split", "nodes", "target_ids", "rule_family",
+                    "group_id", "source_group_id", "episode_id",
+                }
+                if not isinstance(item, dict) or not {
+                    "id", "split", "nodes", "target_ids"
+                }.issubset(item) or set(item) - allowed:
+                    raise ValueError("record fields do not match schema")
+                example_id, split = item["id"], item["split"]
+                rule_family = item.get("rule_family", "unspecified")
+                if not isinstance(rule_family, str) or not rule_family.strip():
+                    raise ValueError("rule_family must be a non-empty string")
+                if not isinstance(example_id, str) or not example_id.strip() or example_id in seen:
+                    raise ValueError("example IDs must be unique non-empty strings")
+                if split not in ("train", "dev", "locked_test"):
+                    raise ValueError("split must be train, dev, or locked_test")
+                group_ids = {}
+                for field in ("group_id", "source_group_id", "episode_id"):
+                    value = item.get(field)
+                    if value is not None:
+                        if not isinstance(value, str) or not value.strip():
+                            raise ValueError(f"{field} must be a non-empty string when supplied")
+                        group_ids[field] = value
+                if not isinstance(item["nodes"], list) or not isinstance(item["target_ids"], list):
+                    raise ValueError("nodes and target_ids must be lists")
+                nodes = tuple(_node_from_json(node) for node in item["nodes"])
+                if not nodes or len({node.node_id for node in nodes}) != len(nodes):
+                    raise ValueError("each row requires non-empty unique nodes")
+                if any(len(node.features) != feature_dim for node in nodes):
+                    raise ValueError("node feature dimension mismatch")
+                if any(not isinstance(target, str) or not target for target in item["target_ids"]):
+                    raise ValueError("target IDs must be non-empty strings")
+                if len(item["target_ids"]) != len(roles) or len(set(item["target_ids"])) != len(roles):
+                    raise ValueError("target IDs must uniquely match role count")
+                pools = tuple(tuple(node for node in nodes if
+                    (not role.allowed_types or node.node_type in role.allowed_types)
+                    and role.required_tags.issubset(node.tags)) for role in roles)
+                if any(not pool for pool in pools):
+                    raise ValueError("every role requires at least one compatible candidate")
+                rows.append({
+                    "id": example_id, "split": split, "rule_family": rule_family,
+                    "group_ids": group_ids, "nodes": nodes,
+                    "target_ids": tuple(item["target_ids"]), "pools": pools,
+                })
+                seen.add(example_id)
+            except (UnicodeDecodeError, json.JSONDecodeError, TypeError, ValueError) as exc:
+                raise LearnableSROKError(
+                    f"invalid dataset row {line_number}: {exc}"
+                ) from exc
     if not rows:
         raise LearnableSROKError("dataset is empty")
     splits = {name: [row for row in rows if row["split"] == name]
@@ -110,6 +143,21 @@ def load_dataset(path: str | Path, roles: Sequence[RoleSpec], feature_dim: int):
         name: sorted({row["rule_family"] for row in group})
         for name, group in splits.items()
     }
+    group_ids_by_split = {
+        field: {
+            name: sorted({row["group_ids"][field] for row in group if field in row["group_ids"]})
+            for name, group in splits.items()
+        }
+        for field in ("group_id", "source_group_id", "episode_id")
+    }
+    for field, memberships in group_ids_by_split.items():
+        names = ("train", "dev", "locked_test")
+        for index, left in enumerate(names):
+            for right in names[index + 1:]:
+                if set(memberships[left]).intersection(memberships[right]):
+                    raise LearnableSROKError(
+                        f"{field} leakage between {left} and {right} splits"
+                    )
     if generation_provenance is not None:
         expected_families = generation_provenance.get("rule_families_by_split")
         if not isinstance(expected_families, dict) or {
@@ -123,13 +171,13 @@ def load_dataset(path: str | Path, roles: Sequence[RoleSpec], feature_dim: int):
         "schema": DATASET_SCHEMA, "sha256": digest, "records": len(rows),
         "split_ids": {name: [row["id"] for row in group]
                       for name, group in splits.items()},
-        "rule_families_by_split": {
-            name: sorted({row["rule_family"] for row in group})
-            for name, group in splits.items()
-        },
+        "rule_families_by_split": actual_families,
+        "group_ids_by_split": group_ids_by_split,
         "feature_dim": feature_dim,
         "roles": [{"name": r.name, "allowed_types": sorted(r.allowed_types),
                    "required_tags": sorted(r.required_tags)} for r in roles],
+        "max_record_bytes": max_record_bytes,
+        "loader": "two_pass_streaming_jsonl",
     }
     if generation_provenance is not None:
         manifest["generation_provenance"] = generation_provenance
