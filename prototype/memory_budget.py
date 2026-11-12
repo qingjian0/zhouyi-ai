@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 from dataclasses import asdict, dataclass
 import json
+import math
 import os
 import sys
 import threading
@@ -79,6 +80,13 @@ def _windows_memory() -> tuple[int, int] | None:
         counters.cb = ctypes.sizeof(counters)
         psapi = ctypes.WinDLL("Psapi.dll")
         kernel32 = ctypes.WinDLL("Kernel32.dll")
+        kernel32.GetCurrentProcess.restype = wintypes.HANDLE
+        psapi.GetProcessMemoryInfo.argtypes = (
+            wintypes.HANDLE,
+            ctypes.POINTER(PROCESS_MEMORY_COUNTERS),
+            wintypes.DWORD,
+        )
+        psapi.GetProcessMemoryInfo.restype = wintypes.BOOL
         ok = psapi.GetProcessMemoryInfo(
             kernel32.GetCurrentProcess(),
             ctypes.byref(counters),
@@ -214,8 +222,13 @@ class ProcessMemoryMeasurement:
     """
 
     def __init__(self, interval_seconds: float = 0.01) -> None:
-        if isinstance(interval_seconds, bool) or interval_seconds <= 0:
-            raise ValueError("interval_seconds must be positive")
+        if (
+            isinstance(interval_seconds, bool)
+            or not isinstance(interval_seconds, (int, float))
+            or not math.isfinite(interval_seconds)
+            or interval_seconds <= 0
+        ):
+            raise ValueError("interval_seconds must be a finite positive number")
         self.interval_seconds = float(interval_seconds)
         self.baseline: ProcessMemorySample | None = None
         self.report: ProcessMemoryReport | None = None
