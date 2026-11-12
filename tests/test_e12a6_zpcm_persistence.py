@@ -77,14 +77,14 @@ def propose():
 
 
 
-def _writer_bundle_commit_then_block(path, candidate_item, evidence_item, receipt, now, identity, committed, release):
+def _writer_bundle_commit_then_block(path, candidate_item, evidence_item, receipt, now, identity, committed_sender, release):
     memory = ZPCMMemory(path)
     try:
         store = PersistentLifecycleLedger(memory, scope="project-a")
         append = memory.append_lifecycle_events
         def commit_then_block(**kwargs):
             result = append(**kwargs)
-            committed.put([dict(item) for item in result])
+            committed_sender.send([dict(item) for item in result])
             release.wait(30)
             return result
         memory.append_lifecycle_events = commit_then_block
@@ -223,15 +223,17 @@ class PersistentLifecycleTests(unittest.TestCase):
         now = datetime(2026, 11, 12, 0, 30, tzinfo=timezone.utc)
         identity = writer_identity()
         self.memory.close()
-        committed = context.Queue()
+        committed_receiver, committed_sender = context.Pipe(duplex=False)
         release = context.Event()
         child = context.Process(
             target=_writer_bundle_commit_then_block,
-            args=(str(self.path), candidate_item, evidence_item, receipt, now, identity, committed, release),
+            args=(str(self.path), candidate_item, evidence_item, receipt, now, identity, committed_sender, release),
         )
         child.start()
+        committed_sender.close()
         try:
-            committed_rows = committed.get(timeout=10)
+            self.assertTrue(committed_receiver.poll(10), "child did not publish committed lifecycle bundle")
+            committed_rows = committed_receiver.recv()
             self.assertEqual(
                 [row["payload"]["kind"] for row in committed_rows],
                 ["evidence_registered", "candidate_registered", "authorization_consumed"],
@@ -261,8 +263,7 @@ class PersistentLifecycleTests(unittest.TestCase):
                 child.kill()
                 child.join(timeout=5)
             release.set()
-            committed.close()
-            committed.join_thread()
+            committed_receiver.close()
 
     def test_receipt_consumption_requires_and_audits_authenticated_writer_identity(self):
         item = evidence()
