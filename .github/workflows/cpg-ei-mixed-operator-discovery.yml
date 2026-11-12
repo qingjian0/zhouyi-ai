@@ -1,9 +1,9 @@
-name: CPG-EI mixed-operator discovery baseline
+name: CPG-EI semantic identifiability audit
 
 on:
   push:
     branches:
-      - research/cpg-ei-mixed-operator-discovery-v1-2026-11-13
+      - research/cpg-ei-semantic-identifiability-v1-2026-11-13
   pull_request:
     types: [opened, synchronize, reopened]
 
@@ -11,7 +11,7 @@ permissions:
   contents: read
 
 jobs:
-  mixed-operator-discovery:
+  semantic-identifiability:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -23,14 +23,14 @@ jobs:
         run: |
           python -m unittest discover -s tests -p 'test_cpg_ei_mixed_operator_data.py' -v
           python -m unittest discover -s tests -p 'test_cpg_ei_mixed_operator_discovery.py' -v
-      - name: Run full 102,400-row discovery baseline
+      - name: Run full 102,400-row semantic identifiability audit
         run: |
           python -m prototype.cpg_ei_mixed_operator_discovery \
             --families 400 --input-dim 8 --output-dim 8 \
-            --seed 20261114 --json artifacts/mixed-operator-discovery.json
+            --seed 20261114 --json artifacts/mixed-operator-identifiability.json
       - name: Upload reproducible report
         uses: actions/upload-artifact@v4
         with:
-          name: zhouyi-cpg-ei-mixed-operator-discovery-v1
-          path: artifacts/mixed-operator-discovery.json
+          name: zhouyi-cpg-ei-semantic-identifiability-v1
+          path: artifacts/mixed-operator-identifiability.json
           if-no-files-found: error
