@@ -59,9 +59,12 @@ class E09AuthorityUnixRPCTests(unittest.TestCase):
         self.episode = "episode-rpc-test"
         self.observer = _principal("spiffe://zhouyi/observer", "observer", self.scope)
         self.learner = _principal("spiffe://zhouyi/learner", "learner", self.scope)
+        self.other_learner = _principal("spiffe://zhouyi/learner-other", "learner", self.scope)
         self.evaluator = _principal("spiffe://zhouyi/evaluator", "evaluator", self.scope)
         self.authenticator = UnixPeerWorkloadAuthenticator({
-            p.workload_id: p for p in (self.observer, self.learner, self.evaluator)
+            p.workload_id: p for p in (
+                self.observer, self.learner, self.other_learner, self.evaluator
+            )
         })
         self.store = SQLiteEvidenceStore(self.root / "e09.sqlite")
         self.authority = E09AuthorityService(
@@ -303,6 +306,65 @@ class E09AuthorityUnixRPCTests(unittest.TestCase):
                 "read-gate-feedback",
             )
         self.assertEqual(caught.exception.code, "permission_denied")
+
+    def test_support_feedback_and_replay_are_bound_to_the_committing_learner(self):
+        observation_event = f"{self.episode}:observation:identity-obs"
+        self._call(
+            self.observer, "observation.append",
+            {
+                "episode_id": self.episode, "event_id": observation_event,
+                "observation_id": "identity-obs", "query_id": "identity-query",
+                "scope": self.scope, "split": "SUPPORT",
+            },
+            "identity-observation",
+        )
+        prediction_id = "identity-prediction"
+        commit_event = f"{self.episode}:prediction:{prediction_id}"
+        digest = "c" * 64
+        commit = self._call(
+            self.learner, "prediction.commit",
+            {
+                "episode_id": self.episode, "event_id": commit_event,
+                "causation_refs": [observation_event],
+                "payload": {
+                    "prediction_id": prediction_id, "observation_id": "identity-obs",
+                    "query_id": "identity-query", "scope": self.scope,
+                    "split": "SUPPORT", "model_version": "model-1",
+                    "learner_track": "track-a", "decision_status": "PREDICT",
+                    "interop_commit_digest": digest,
+                },
+            },
+            "identity-commit",
+        )
+        reveal_event = f"{self.episode}:reveal:{prediction_id}"
+        self._call(
+            self.evaluator, "evidence.reveal",
+            {
+                "episode_id": self.episode, "event_id": reveal_event,
+                "causation_refs": [commit_event],
+                "payload": {
+                    "prediction_id": prediction_id, "query_id": "identity-query",
+                    "scope": self.scope, "split": "SUPPORT",
+                    "commit_digest": digest, "event_digest": commit["payload_digest"],
+                    "learner_track": "track-a", "target_or_feedback": "private-to-learner-a",
+                    "reveal_source": "test",
+                },
+            },
+            "identity-reveal",
+        )
+        with self.assertRaises(IPCRemoteError) as feedback_error:
+            self._call(
+                self.other_learner, "evidence.read_support_feedback",
+                {"episode_id": self.episode, "reveal_event_id": reveal_event, "scope": self.scope},
+                "other-learner-feedback",
+            )
+        self.assertEqual(feedback_error.exception.code, "permission_denied")
+        other_projection = self._call(
+            self.other_learner, "episode.read_for_learner",
+            {"episode_id": self.episode, "scope": self.scope, "learner_track": "track-a"},
+            "other-learner-projection",
+        )
+        self.assertEqual(other_projection["events"], [])
 
     def test_learner_cannot_append_observation_or_reveal(self):
         with self.assertRaises(IPCRemoteError) as observation_error:
