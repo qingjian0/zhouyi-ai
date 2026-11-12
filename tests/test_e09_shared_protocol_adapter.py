@@ -111,6 +111,36 @@ class E09SharedProtocolAdapterTests(unittest.TestCase):
         for event in events:
             self.assertIn("authenticated_workload", event["integrity_metadata"])
 
+        # Restart the SQLite connection and reattach only through fresh
+        # authenticated workload validation; legacy events are not upgraded.
+        self.store.close()
+        self.store = SQLiteEvidenceStore(self.db)
+        resumed_authority = E09AuthorityService(
+            self.store, authenticator=Authenticator(), signer=Signer(),
+            domain_registry=DomainRegistry(),
+        )
+
+        def restore_incremental(snapshot):
+            restored = IncrementalConjunctionLearner(
+                DOMAINS, min_support=snapshot["min_support"]
+            )
+            for record in snapshot["observations"]:
+                for label in record["labels"]:
+                    restored.observe(tuple(record["inputs"]), label)
+            return restored
+
+        resumed = E09SharedProtocolAdapter.resume_srok(
+            self.store, episode_id="episode-secure", scope="e09/test",
+            split="SUPPORT", learner_track="e09", version_prefix="e09",
+            learner_factory=restore_incremental, authority=resumed_authority,
+            observer_credential="observer", learner_credential="learner",
+            evaluator_credential="evaluator",
+        )
+        self.assertEqual(resumed._version_id, "e09-v2")
+        resumed.predict_and_commit("obs-after-resume", (0, 0, 2))
+        self.assertEqual(resumed.replay()[-1]["event_type"], "prediction_commit")
+        self.assertEqual(resumed.replay()[-2]["actor_role"], "observer")
+
     def test_secure_mode_requires_all_credentials_and_trusted_domain_registry(self):
         learner = IncrementalConjunctionLearner(DOMAINS, min_support=2)
         runner = PrequentialRunner(learner, revision_mode="INCREMENTAL_INDEX")
