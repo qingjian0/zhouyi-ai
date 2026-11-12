@@ -190,7 +190,7 @@ class CSGGCRAtomicIngestionTests(unittest.TestCase):
         self.assertEqual(self.memory.replay_lifecycle_events(scope="atomic-test"),[])
     def test_partial_bundle_replay_is_rejected(self):
         from prototype.e12a6_zpcm_persistence import _safe_evidence, _evidence_to_dict, EVENT_SCHEMA
-        safe=_safe_evidence(resolve_for_test(self.e09,self.ref))
+        safe=_safe_evidence(resolve_for_test(self.e09,self.ref,self.registry))
         self.memory.append_lifecycle_event(event_id=f"e12a6:evidence:{safe.evidence_id}",
           scope="csg-gcr/project",payload={"schema_version":EVENT_SCHEMA,"kind":"evidence_registered",
           "body":{"evidence":_evidence_to_dict(safe)}},expected_sequence=0)
