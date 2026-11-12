@@ -293,8 +293,8 @@ class UnixJSONRPCServer:
             os.chmod(self.socket_path, self.socket_mode, follow_symlinks=False)
             listener.listen()
             listener.settimeout(0.2)
-            stat = self.socket_path.lstat()
-            self._socket_inode = (stat.st_dev, stat.st_ino)
+            socket_stat = self.socket_path.lstat()
+            self._socket_inode = (socket_stat.st_dev, socket_stat.st_ino)
             self._listener = listener
             self._stop.clear()
             self._accept_thread = threading.Thread(target=self._accept_loop, daemon=True)
