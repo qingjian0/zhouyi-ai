@@ -154,7 +154,7 @@ class E09RemoteZPCMMemoryTests(unittest.TestCase):
                 self.assertTrue(memory.verify_integrity()["ok"])
                 self.assertFalse(hasattr(source, "store"))
 
-                snapshot = {"weights": [0.1, 0.9], "step": 1}
+                initial_snapshot = {"weights": [0.5, 0.5], "step": 0}
                 rpc.append_structure_version(
                     episode_id=episode,
                     event_id=f"{episode}:structure:checkpoint-1",
@@ -165,18 +165,40 @@ class E09RemoteZPCMMemoryTests(unittest.TestCase):
                         "version_id": "learner-state-v1",
                         "kind": "categorical",
                         "definition": {
+                            "snapshot": initial_snapshot,
+                            "snapshot_digest": digest_payload(initial_snapshot),
+                            "ledger_snapshot": {"records": []},
+                        },
+                        "parent_version_ids": [],
+                        "support_evidence_ids": [],
+                    },
+                    operation_id="append-checkpoint-1",
+                )
+                snapshot = {"weights": [0.1, 0.9], "step": 1}
+                rpc.append_structure_version(
+                    episode_id=episode,
+                    event_id=f"{episode}:structure:checkpoint-2",
+                    scope=scope,
+                    learner_track="track-a",
+                    payload={
+                        "structure_id": "learner-state",
+                        "version_id": "learner-state-v2",
+                        "kind": "categorical",
+                        "definition": {
                             "snapshot": snapshot,
                             "snapshot_digest": digest_payload(snapshot),
                             "ledger_snapshot": {"records": []},
                         },
-                        "parent_version_ids": [],
+                        "parent_version_ids": ["learner-state-v1"],
                         "support_evidence_ids": [f"{episode}:reveal:pred-1"],
                     },
-                    operation_id="append-checkpoint",
+                    causation_refs=(f"{episode}:reveal:pred-1",),
+                    operation_id="append-checkpoint-2",
                 )
                 checkpoint = rpc.read_learner_checkpoint(
                     episode_id=episode, scope=scope, learner_track="track-a"
                 )
+                self.assertEqual(checkpoint["payload"]["version_id"], "learner-state-v2")
                 self.assertEqual(
                     checkpoint["payload"]["definition"]["snapshot"], snapshot
                 )
