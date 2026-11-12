@@ -227,6 +227,39 @@ class E09AuthorityService:
             raise E09AuthorizationError("workload is not authorized for the requested scope")
         return principal
 
+    def _resolve_learner_binding(
+        self, *, episode_id: str, scope: str, learner_track: str
+    ) -> str:
+        if not isinstance(learner_track, str) or not learner_track.strip():
+            raise E09AuthorizationError("learner_track must be a non-empty string")
+        if self._learner_binding_resolver is None:
+            raise E09AuthorizationError("trusted learner binding resolver is not configured")
+        try:
+            workload_id = self._learner_binding_resolver.resolve(
+                episode_id=episode_id, scope=scope, learner_track=learner_track
+            )
+        except Exception as exc:
+            raise E09AuthorizationError(
+                "no trusted learner workload is assigned to this episode/scope/track"
+            ) from exc
+        if not isinstance(workload_id, str) or not workload_id.strip():
+            raise E09AuthenticationError("learner binding resolver returned an invalid workload ID")
+        return workload_id
+
+    def _require_learner_assignment(
+        self,
+        principal: E09AuthenticatedWorkload,
+        *,
+        episode_id: str,
+        scope: str,
+        learner_track: str,
+    ) -> None:
+        expected = self._resolve_learner_binding(
+            episode_id=episode_id, scope=scope, learner_track=learner_track
+        )
+        if principal.workload_id != expected:
+            raise E09AuthorizationError("workload is not assigned to the requested learner track")
+
     def put_observation_input(
         self, credential: object, *, scope: str, payload: Any
     ) -> str:
@@ -284,8 +317,9 @@ class E09AuthorityService:
     ) -> list[dict[str, Any]]:
         """Return a learner-safe, provenance-checked event projection for ZPCM sync."""
         principal = self._principal(credential, role="learner", scope=scope)
-        if not isinstance(learner_track, str) or not learner_track.strip():
-            raise E09AuthorizationError("learner_track must be a non-empty string")
+        self._require_learner_assignment(
+            principal, episode_id=episode_id, scope=scope, learner_track=learner_track
+        )
         events = self._store.replay_episode(episode_id)
         by_id = {event.get("event_id"): event for event in events}
         own_commit_ids: set[str] = set()
@@ -460,6 +494,10 @@ class E09AuthorityService:
         if not isinstance(commit, dict) or commit.get("event_type") != "prediction_commit":
             raise E09AuthorizationError("Evidence Reveal has no durable Prediction Commit")
         commit_payload = commit.get("payload", {})
+        self._require_learner_assignment(
+            principal, episode_id=episode_id, scope=scope,
+            learner_track=commit_payload.get("learner_track"),
+        )
         if (
             commit.get("actor_role") != "learner"
             or commit_payload.get("scope") != scope
@@ -551,18 +589,9 @@ class E09AuthorityService:
                 if not isinstance(value, str) or not value.strip():
                     raise E09AuthorizationError(f"{field} must be a non-empty string")
                 payload[field] = value
-        if not isinstance(learner_track, str) or not learner_track.strip():
-            raise E09AuthorizationError("learner_track must be a non-empty string")
-        if self._learner_binding_resolver is None:
-            raise E09AuthorizationError("trusted learner binding resolver is not configured")
-        try:
-            learner_workload_id = self._learner_binding_resolver.resolve(
-                episode_id=episode_id, scope=scope, learner_track=learner_track
-            )
-        except Exception as exc:
-            raise E09AuthorizationError("no trusted learner workload is assigned to this track") from exc
-        if not isinstance(learner_workload_id, str) or not learner_workload_id.strip():
-            raise E09AuthenticationError("learner binding resolver returned an invalid workload ID")
+        learner_workload_id = self._resolve_learner_binding(
+            episode_id=episode_id, scope=scope, learner_track=learner_track
+        )
         payload["learner_track"] = learner_track
         payload["learner_workload_id"] = learner_workload_id
         if payload_ref is not None:
@@ -620,6 +649,10 @@ class E09AuthorityService:
             raise TypeError("payload must be a dictionary")
         scope = payload.get("scope")
         principal = self._principal(credential, role="learner", scope=scope)
+        self._require_learner_assignment(
+            principal, episode_id=episode_id, scope=scope,
+            learner_track=payload.get("learner_track"),
+        )
         events = self._store.replay_episode(episode_id)
         observation_id = payload.get("observation_id")
         observations = [
@@ -728,8 +761,9 @@ class E09AuthorityService:
     ) -> EventReceipt:
         """Append a learner structure checkpoint after validating its causal support."""
         principal = self._principal(credential, role="learner", scope=scope)
-        if not isinstance(learner_track, str) or not learner_track.strip():
-            raise E09AuthorizationError("learner_track must be a non-empty string")
+        self._require_learner_assignment(
+            principal, episode_id=episode_id, scope=scope, learner_track=learner_track
+        )
         if not isinstance(payload, dict):
             raise TypeError("payload must be a dictionary")
         normalized = dict(payload)
@@ -821,8 +855,9 @@ class E09AuthorityService:
     ) -> EventReceipt:
         """Append a learner revision bound to prior reveals and structure versions."""
         principal = self._principal(credential, role="learner", scope=scope)
-        if not isinstance(learner_track, str) or not learner_track.strip():
-            raise E09AuthorizationError("learner_track must be a non-empty string")
+        self._require_learner_assignment(
+            principal, episode_id=episode_id, scope=scope, learner_track=learner_track
+        )
         if not isinstance(payload, dict):
             raise TypeError("payload must be a dictionary")
         normalized = dict(payload)
