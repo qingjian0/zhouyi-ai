@@ -1,5 +1,6 @@
 import hashlib
 import os
+import socket
 import tempfile
 import time
 import unittest
@@ -7,6 +8,7 @@ from pathlib import Path
 
 from prototype.e09_authority_services import (
     E09AuthenticatedWorkload,
+    E09AuthenticationError,
     E09AuthorityService,
     E09DomainBinding,
 )
@@ -48,7 +50,7 @@ def _principal(workload_id, role, scope):
     )
 
 
-@unittest.skipUnless(hasattr(__import__("socket").socket, "SO_PEERCRED"), "Linux SO_PEERCRED is required")
+@unittest.skipUnless(hasattr(socket, "SO_PEERCRED"), "Linux SO_PEERCRED is required")
 class E09AuthorityUnixRPCTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -217,9 +219,10 @@ class E09AuthorityUnixRPCTests(unittest.TestCase):
 
     def test_peer_claims_must_match_authority_workload_policy(self):
         forged = _principal("spiffe://zhouyi/observer", "learner", self.scope)
-        with self.assertRaises(Exception):
+        from prototype.unix_ipc import UnixPeerIdentity
+        with self.assertRaises(E09AuthenticationError):
             self.authenticator.authenticate(
-                __import__("prototype.unix_ipc", fromlist=["UnixPeerIdentity"]).UnixPeerIdentity(
+                UnixPeerIdentity(
                     pid=os.getpid(), uid=os.getuid(), gid=os.getgid(),
                     workload_id=forged.workload_id,
                     roles=forged.roles, scopes=forged.scopes,
