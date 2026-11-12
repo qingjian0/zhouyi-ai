@@ -304,5 +304,98 @@ class E09AuthorityServiceTests(unittest.TestCase):
         self.assertFalse(receipt.replayed)
 
 
+    def test_authenticated_structure_and_revision_writes_bind_scope_track_and_causation(self):
+        bootstrap_ref = f"{self.episode}:structure:v1"
+        self.authority.append_structure_version(
+            "learner-cert", episode_id=self.episode, event_id=bootstrap_ref,
+            idempotency_key=bootstrap_ref, scope=self.scope, learner_track=self.track,
+            payload={"structure_id": "rules", "version_id": "v1", "kind": "rule_set",
+                     "definition": {"snapshot": {"rules": []}},
+                     "parent_version_ids": [], "support_evidence_ids": []},
+        )
+        reveal_ref = self._prior_prediction()
+        next_ref = f"{self.episode}:structure:v2"
+        self.authority.append_structure_version(
+            "learner-cert", episode_id=self.episode, event_id=next_ref,
+            idempotency_key=next_ref, scope=self.scope, learner_track=self.track,
+            causation_refs=[reveal_ref],
+            payload={"structure_id": "rules", "version_id": "v2", "kind": "rule_set",
+                     "definition": {"snapshot": {"rules": ["r1"]}},
+                     "parent_version_ids": ["v1"], "support_evidence_ids": [reveal_ref]},
+        )
+        revision_ref = f"{self.episode}:revision:rev-1"
+        self.authority.append_revision(
+            "learner-cert", episode_id=self.episode, event_id=revision_ref,
+            idempotency_key=revision_ref, scope=self.scope, learner_track=self.track,
+            causation_refs=[reveal_ref, next_ref],
+            payload={"revision_id": "rev-1", "operation": "ADD_RULE",
+                     "trigger_evidence_ids": [reveal_ref],
+                     "before_version_ids": ["v1"], "after_version_ids": ["v2"]},
+        )
+        events = self.store.replay_episode(self.episode)
+        structure = next(e for e in events if e["event_id"] == next_ref)
+        revision = next(e for e in events if e["event_id"] == revision_ref)
+        self.assertEqual(structure["actor_role"], "learner")
+        self.assertEqual(structure["payload"]["scope"], self.scope)
+        self.assertEqual(structure["payload"]["learner_track"], self.track)
+        self.assertEqual(revision["actor_role"], "learner")
+        self.assertEqual(revision["integrity_metadata"]["authenticated_workload"]["workload_id"],
+                         "spiffe://zhouyi/learner")
+
+    def test_structure_write_rejects_wrong_role_scope_and_unbound_support(self):
+        bootstrap_ref = f"{self.episode}:structure:v1"
+        with self.assertRaises(E09AuthorizationError):
+            self.authority.append_structure_version(
+                "evaluator-cert", episode_id=self.episode, event_id=bootstrap_ref,
+                idempotency_key=bootstrap_ref, scope=self.scope, learner_track=self.track,
+                payload={"structure_id": "rules", "version_id": "v1", "kind": "rule_set",
+                         "definition": {}, "parent_version_ids": [], "support_evidence_ids": []},
+            )
+        with self.assertRaises(E09AuthorizationError):
+            self.authority.append_structure_version(
+                "wrong-scope-cert", episode_id=self.episode, event_id=bootstrap_ref,
+                idempotency_key=bootstrap_ref, scope=self.scope, learner_track=self.track,
+                payload={"structure_id": "rules", "version_id": "v1", "kind": "rule_set",
+                         "definition": {}, "parent_version_ids": [], "support_evidence_ids": []},
+            )
+        with self.assertRaises(E09AuthorizationError):
+            self.authority.append_structure_version(
+                "learner-cert", episode_id=self.episode, event_id=bootstrap_ref,
+                idempotency_key=bootstrap_ref, scope=self.scope, learner_track=self.track,
+                causation_refs=[],
+                payload={"structure_id": "rules", "version_id": "v1", "kind": "rule_set",
+                         "definition": {}, "parent_version_ids": ["missing"],
+                         "support_evidence_ids": ["missing-reveal"]},
+            )
+
+    def test_revision_requires_trigger_and_resulting_structure_causation(self):
+        bootstrap_ref = f"{self.episode}:structure:v1"
+        self.authority.append_structure_version(
+            "learner-cert", episode_id=self.episode, event_id=bootstrap_ref,
+            idempotency_key=bootstrap_ref, scope=self.scope, learner_track=self.track,
+            payload={"structure_id": "rules", "version_id": "v1", "kind": "rule_set",
+                     "definition": {}, "parent_version_ids": [], "support_evidence_ids": []},
+        )
+        reveal_ref = self._prior_prediction()
+        next_ref = f"{self.episode}:structure:v2"
+        self.authority.append_structure_version(
+            "learner-cert", episode_id=self.episode, event_id=next_ref,
+            idempotency_key=next_ref, scope=self.scope, learner_track=self.track,
+            causation_refs=[reveal_ref],
+            payload={"structure_id": "rules", "version_id": "v2", "kind": "rule_set",
+                     "definition": {}, "parent_version_ids": ["v1"],
+                     "support_evidence_ids": [reveal_ref]},
+        )
+        with self.assertRaises(E09AuthorizationError):
+            self.authority.append_revision(
+                "learner-cert", episode_id=self.episode, event_id="revision-missing-cause",
+                idempotency_key="revision-missing-cause", scope=self.scope,
+                learner_track=self.track, causation_refs=[reveal_ref],
+                payload={"revision_id": "rev-bad", "operation": "ADD_RULE",
+                         "trigger_evidence_ids": [reveal_ref],
+                         "before_version_ids": ["v1"], "after_version_ids": ["v2"]},
+            )
+
+
 if __name__ == "__main__":
     unittest.main()
