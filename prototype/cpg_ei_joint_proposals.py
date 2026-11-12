@@ -4,8 +4,8 @@ The proposal unit is a four-edge motif induced by one 3-line subset:
 its three pairwise conjunctions plus the matching third-order hyperedge.
 This is a deliberately bounded search space (C(6, 3) = 20 motifs), not
 unrestricted combinatorial search. Candidate groups are trained jointly and
-ranked on held-out validation log loss so individually weak edges can be
-selected as a coherent structure.
+ranked on training log loss; held-out validation is reported separately so
+individually weak edges can be selected without tuning directly to validation.
 """
 from __future__ import annotations
 
@@ -114,9 +114,9 @@ def grow_relation_graph_joint_motifs(
             trace.append({
                 "round": round_index,
                 "selected_motif": None,
-                "validation_bce_before": current_loss,
-                "validation_bce_after": current_loss,
-                "validation_bce_improvement": 0.0,
+                "training_bce_before": current_loss,
+                "training_bce_after": current_loss,
+                "training_bce_improvement": 0.0,
             })
             break
 
@@ -128,9 +128,9 @@ def grow_relation_graph_joint_motifs(
             "selected_motif": [
                 FEATURE_NAMES[index] for index in best_motif
             ],
-            "validation_bce_before": current_loss + improvement,
-            "validation_bce_after": current_loss,
-            "validation_bce_improvement": improvement,
+            "training_bce_before": current_loss + improvement,
+            "training_bce_after": current_loss,
+            "training_bce_improvement": improvement,
         })
 
     # Copy the selected model state back into the caller-owned instance.
