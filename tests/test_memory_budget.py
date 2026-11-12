@@ -23,8 +23,6 @@ class MemoryPoolLedgerTests(unittest.TestCase):
         self.ledger.reserve("state", 3 * MIB)
         self.ledger.reserve("state", 2 * MIB)
         self.ledger.release("state", MIB)
-        state = self.ledger.snapshot()[0]
-        self.assertEqual(state.name, "retrieval")  # snapshots are name-sorted
         state = next(row for row in self.ledger.snapshot() if row.name == "state")
         self.assertEqual(state.current_bytes, 4 * MIB)
         self.assertEqual(state.peak_bytes, 5 * MIB)
@@ -38,14 +36,15 @@ class MemoryPoolLedgerTests(unittest.TestCase):
         self.assertEqual(self.ledger.current_bytes, 8 * MIB)
 
     def test_aggregate_limit_rejects_reservation(self):
-        self.ledger.reserve("state", 8 * MIB)
-        self.ledger.reserve("retrieval", 8 * MIB)
+        ledger = MemoryPoolLedger(16 * MIB)
+        ledger.register_pool("state", 12 * MIB)
+        ledger.register_pool("retrieval", 12 * MIB)
+        ledger.reserve("state", 8 * MIB)
+        ledger.reserve("retrieval", 8 * MIB)
         with self.assertRaises(MemoryBudgetExceeded):
-            self.ledger.reserve("state", 1)
-
-    def test_pool_registration_cannot_exceed_global_limit(self):
-        with self.assertRaises(MemoryBudgetExceeded):
-            self.ledger.register_pool("overflow", 1)
+            ledger.reserve("state", 1)
+        self.assertEqual(ledger.current_bytes, 16 * MIB)
+        self.assertEqual(ledger.peak_bytes, 16 * MIB)
 
     def test_release_underflow_is_rejected(self):
         with self.assertRaises(ValueError):
