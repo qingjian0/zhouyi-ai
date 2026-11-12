@@ -1,6 +1,6 @@
 import tempfile,unittest
 from pathlib import Path
-from prototype.zpcm_memory import ZPCMError,ZPCMMemory
+from prototype.zpcm_memory import ZPCMError,ZPCMMemory,canonical
 from prototype.shared_evidence_protocol import SQLiteEvidenceStore
 class Tests(unittest.TestCase):
  def setUp(self):
