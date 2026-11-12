@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 from unittest.mock import patch
 
-from prototype.n09_learnable_srok import Node, RoleSpec, TrainingExample
+from prototype.n09_learnable_srok import LearnableSROK, RoleSpec, TrainingExample
 from prototype.n010_experiment import LearnableSROKError, load_dataset, run_experiment
 
 
@@ -130,12 +130,8 @@ class N010ExperimentRunnerTests(unittest.TestCase):
             TrainingExample(tuple(row["pools"]), tuple(row["target_ids"]))
             for row in splits["train"]
         ]
-        materialized = __import__(
-            "prototype.n09_learnable_srok", fromlist=["LearnableSROK"]
-        ).LearnableSROK(self.roles, 1)
-        streamed = __import__(
-            "prototype.n09_learnable_srok", fromlist=["LearnableSROK"]
-        ).LearnableSROK(self.roles, 1)
+        materialized = LearnableSROK(self.roles, 1)
+        streamed = LearnableSROK(self.roles, 1)
         expected = materialized.fit(
             examples, epochs=5, learning_rate=0.17, l2=0.003,
             max_assignments_per_example=64,
@@ -155,7 +151,6 @@ class N010ExperimentRunnerTests(unittest.TestCase):
         self.assertEqual(len(factory_calls), 6)  # count pass + one complete pass per epoch
 
     def test_reiterable_fullbatch_rejects_empty_or_unstable_stream(self):
-        from prototype.n09_learnable_srok import LearnableSROK
         model = LearnableSROK(self.roles, 1)
         with self.assertRaisesRegex(LearnableSROKError, "must not be empty"):
             model.fit_reiterable(lambda: iter(()), epochs=1)
