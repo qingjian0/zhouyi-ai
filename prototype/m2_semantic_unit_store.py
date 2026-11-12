@@ -9,7 +9,6 @@ from __future__ import annotations
 from dataclasses import dataclass
 import hashlib
 import json
-import sqlite3
 from threading import RLock
 from typing import Any, Iterator
 
@@ -144,11 +143,10 @@ class PersistentM2SemanticUnitStore:
                 "INSERT OR IGNORE INTO m2_semantic_unit_projection_state(scope,generation) VALUES(?,0)",
                 (self.scope,),
             )
-            # Triggers make out-of-band projection mutation invalidate the checkpoint.
-            trigger_suffix = hashlib.sha256(self.scope.encode("utf-8")).hexdigest()[:16]
+            # One generic trigger per table/operation avoids per-scope trigger fan-out.
             for operation, timing in (("INSERT", "insert"), ("UPDATE", "update"), ("DELETE", "delete")):
                 for table in ("m2_semantic_unit_versions", "m2_semantic_unit_roots"):
-                    trigger = f"m2_{table.rsplit('_', 1)[-1]}_{timing}_{trigger_suffix}"
+                    trigger = f"m2_{table.rsplit('_', 1)[-1]}_{timing}_generation"
                     self._db.execute(
                         f"CREATE TRIGGER IF NOT EXISTS {trigger} AFTER {operation} ON {table} "
                         "BEGIN UPDATE m2_semantic_unit_projection_state "
