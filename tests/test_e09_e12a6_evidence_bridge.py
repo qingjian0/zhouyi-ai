@@ -29,7 +29,8 @@ class E09EvidenceBridgeTests(unittest.TestCase):
         self.zpcm.close()
         self.tmp.cleanup()
 
-    def add_reveal(self, *, split="SUPPORT", label="PRIVATE_LABEL", track=None, scope=None):
+    def add_reveal(self, *, split="SUPPORT", label="PRIVATE_LABEL", track=None, scope=None,
+                   include_domain=True, commit_domain_override=None, reveal_domain_override=None):
         track = track or self.track
         scope = scope or self.scope
         obs_id = "obs-" + split.lower()
@@ -38,7 +39,7 @@ class E09EvidenceBridgeTests(unittest.TestCase):
             "domain_registry_id": "zhouyi-domain-registry",
             "domain_registry_version": "2026-11-12.1",
             "world_family": self.world,
-        }
+        } if include_domain else {}
         self.e09.append_event(
             episode_id=self.episode, event_id=f"{self.episode}:observation:{obs_id}",
             event_type="observation", idempotency_key=f"obs-key-{split}",
@@ -62,7 +63,8 @@ class E09EvidenceBridgeTests(unittest.TestCase):
             causation_refs=[f"{self.episode}:observation:{obs_id}"],
             payload={"prediction_id":prediction_id,"observation_id":obs_id,"query_id":obs_id,
               "scope":scope,"split":split,"model_version":"model-7","learner_track":track,
-              "decision_status":"PREDICT","interop_commit_digest":commit_digest,**domain},
+              "decision_status":"PREDICT","interop_commit_digest":commit_digest,
+              **domain, **(commit_domain_override or {})},
             protocol_version=STRICT_PROTOCOL_VERSION,
         )
         reveal_event = f"{self.episode}:reveal:{prediction_id}"
@@ -72,7 +74,8 @@ class E09EvidenceBridgeTests(unittest.TestCase):
             causation_refs=[commit_event],
             payload={"prediction_id":prediction_id,"query_id":obs_id,"scope":scope,"split":split,
               "commit_digest":commit_digest,"event_digest":commit.payload_digest,
-              "learner_track":track,"target_or_feedback":label,"reveal_source":"test",**domain},
+              "learner_track":track,"target_or_feedback":label,"reveal_source":"test",
+              **domain, **(reveal_domain_override or {})},
             protocol_version=STRICT_PROTOCOL_VERSION,
         )
         return reveal_event
@@ -121,6 +124,38 @@ class E09EvidenceBridgeTests(unittest.TestCase):
         with self.assertRaises(E09EvidenceBindingError):
             resolve_e09_reveal(self.e09,episode_id=self.episode,evidence_ref=ref,
               scope=self.scope,learner_track=self.track,world_family="")
+
+    def test_caller_cannot_relabel_world_family(self):
+        ref = self.add_reveal()
+        with self.assertRaises(E09EvidenceBindingError):
+            resolve_e09_reveal(
+                self.e09, episode_id=self.episode, evidence_ref=ref,
+                scope=self.scope, learner_track=self.track, world_family="attacker-family",
+            )
+
+    def test_missing_trusted_domain_provenance_fails_closed(self):
+        ref = self.add_reveal(include_domain=False)
+        with self.assertRaises(E09EvidenceBindingError):
+            resolve_e09_reveal(
+                self.e09, episode_id=self.episode, evidence_ref=ref,
+                scope=self.scope, learner_track=self.track,
+            )
+
+    def test_commit_domain_registry_mismatch_is_rejected(self):
+        ref = self.add_reveal(commit_domain_override={"domain_registry_version": "attacker-version"})
+        with self.assertRaises(E09EvidenceBindingError):
+            resolve_e09_reveal(
+                self.e09, episode_id=self.episode, evidence_ref=ref,
+                scope=self.scope, learner_track=self.track,
+            )
+
+    def test_reveal_domain_world_family_mismatch_is_rejected(self):
+        ref = self.add_reveal(reveal_domain_override={"world_family": "attacker-family"})
+        with self.assertRaises(E09EvidenceBindingError):
+            resolve_e09_reveal(
+                self.e09, episode_id=self.episode, evidence_ref=ref,
+                scope=self.scope, learner_track=self.track,
+            )
 
     def test_commit_event_digest_tampering_is_rejected(self):
         ref=self.add_reveal()
