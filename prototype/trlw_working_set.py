@@ -27,6 +27,7 @@ class PacketStatus:
     COMPLETE = "COMPLETE"
     NOT_FOUND = "NOT_FOUND"
     BUDGET_EXHAUSTED = "BUDGET_EXHAUSTED"
+    SOURCE_INCOMPLETE = "SOURCE_INCOMPLETE"
 
 
 def _nonempty(value: str, field: str) -> None:
@@ -106,6 +107,7 @@ class MemoryPacket:
     byte_budget: int
     max_records: int
     source_complete: bool
+    budget_exhausted: bool
 
     @property
     def complete(self) -> bool:
@@ -157,7 +159,7 @@ def build_trlw_working_set(
     selected_bytes = 0
     seen = 0
     matched = 0
-    truncated = not source_complete
+    budget_exhausted = False
 
     for record in records:
         seen += 1
@@ -178,7 +180,7 @@ def build_trlw_working_set(
             raise TRLWError("ranker must return Score with semantics='trlw-ranking'")
         encoded_size = len(canonical_json(record).encode("utf-8"))
         if encoded_size > query.byte_budget:
-            truncated = True
+            budget_exhausted = True
             continue
 
         if any(entry.record.envelope.record_id == record.envelope.record_id for entry in selected):
@@ -194,12 +196,16 @@ def build_trlw_working_set(
         ):
             removed = selected.pop()
             selected_bytes -= removed.serialized_bytes
-            truncated = True
+            budget_exhausted = True
 
-    if not selected:
-        status = PacketStatus.BUDGET_EXHAUSTED if truncated else PacketStatus.NOT_FOUND
+    if not source_complete:
+        status = PacketStatus.SOURCE_INCOMPLETE
+    elif budget_exhausted:
+        status = PacketStatus.BUDGET_EXHAUSTED
+    elif not selected:
+        status = PacketStatus.NOT_FOUND
     else:
-        status = PacketStatus.BUDGET_EXHAUSTED if truncated else PacketStatus.COMPLETE
+        status = PacketStatus.COMPLETE
     return MemoryPacket(
         query_goal=query.query_goal,
         scope=query.scope,
@@ -212,4 +218,5 @@ def build_trlw_working_set(
         byte_budget=query.byte_budget,
         max_records=query.max_records,
         source_complete=source_complete,
+        budget_exhausted=budget_exhausted,
     )
