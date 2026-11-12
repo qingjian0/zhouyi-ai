@@ -112,6 +112,10 @@ class _SQLiteRuntimeState:
         except FileNotFoundError:
             pass
 
+    def close(self) -> None:
+        """Close and remove the scratch database immediately; safe to call repeatedly."""
+        self._finalizer()
+
 
 def _dump_state(value: Any) -> sqlite3.Binary:
     return sqlite3.Binary(pickle.dumps(value, protocol=5))
@@ -281,6 +285,18 @@ class PersistentLifecycleLedger:
             snapshot.actions = list(self._ledger.actions)
             snapshot._action_ids = set(self._ledger._action_ids)
             return snapshot
+
+    def close(self) -> None:
+        """Release the disk-backed replay state and remove its temporary database."""
+        with self._lock:
+            self._runtime_state.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.close()
+        return False
 
     def _get_event_payload(self, event_id: str) -> dict[str, Any] | None:
         """Read one immutable payload from the authoritative ZPCM event log."""
