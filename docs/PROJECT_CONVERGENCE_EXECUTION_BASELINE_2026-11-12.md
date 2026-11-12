@@ -184,13 +184,13 @@ The following results were checked against GitHub Actions run records. They are 
 | E09 trusted learner binding (#327) | `591507b6d5cdd502d0e21d180099bb81945a8157` | push + PR unit-test workflows succeeded | Does not prove cross-process OS isolation or full E01/E02 acceptance |
 | N0.10 checkpoint integration (#347) | `dc6af2540ea9459d927ff212ace07055f0fbbe6e` | exact-head checkpoint-integration + tests succeeded | Component/integration branch only; parent benchmark branch is not merged |
 | N0.10 streaming manifest guards (#352) | `3977ee14456c5c0b55832c0d806b58ff1fdd80ae` | checkpoint-integration succeeded | Must retain group-disjoint and data fingerprint guarantees |
-| N0.10 reiterable full-batch gradient (#359) | `54f7c5404ebc6e12b47a7fed617120242270879d` | exact-head equivalence workflow succeeded; 20 tests | Learner primitive is bounded/reiterable; runner still materializes split rows, so end-to-end out-of-core training remains incomplete |
+| N0.10 reiterable full-batch gradient (#359) | `e6b7b176494a951252fdfa2a732ba3c6b5e18381` | exact-head push + PR CI succeeded (run #43200865402 / #43200874953); 21 tests | Full-batch equivalence plus same-count content/order drift rejection; runner still materializes split rows, so end-to-end out-of-core training remains incomplete |
 | CPG-EI learnable gates (#344) | `03b3b14d28842763b0f3fef76f683d1cc5643ca6` | push + PR unit-test workflows succeeded | Finite predefined candidate universe; not open-world discovery |
 | CPG-EI multi-seed diagnostics (#360; replaces closed #353) | `817fc452e135dc00523bca64969385a8d9e66eed` | exact-head diagnostic workflow succeeded | 10 seeds: mean bit accuracy 0.92344, support recall 0.58333, exact 6-edge recovery 0/10, 8 false discoveries; finite synthetic universe only |
 | Training readiness gates (#351) | `e8edf9bfa1eb77ca398a10f904164528fb1b13cb` | PR unit-test workflow succeeded | Specification/tests; not an end-to-end training certification |
 | E12-A6 indexed lifecycle projection (#350) | `a4c7bb35888f02e693dda728dfc8ba4926bb6d28` | tests + RSS benchmark workflows succeeded | Benchmark evidence is environment-specific; restore architecture still needs integration |
 | M2 paged TRLW/Yixiang/CSG integration (#294 validation / #292 stack) | `52baa8f0d2f4703544b15c941ac1c56b3e6ecba5` | research-branch validation + tests succeeded | #294 is validation-only; no code merge implied |
-| This convergence baseline (#358) | `f7af9842a9bef243d2ac7a4c9ea36ded998c7b8d` | exact-head PR unit-test workflow succeeded (run #43185052663) | Documentation-only change; this follow-up documentation commit must receive its own exact-head CI |
+| This convergence baseline (#358) | `21414401faec9820bc24a463c0cd73d59624579e` | exact-head PR unit-test workflow succeeded (run #43195657234) | Documentation-only change; any subsequent documentation commit must receive its own exact-head CI |
 
 
 
