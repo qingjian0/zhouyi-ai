@@ -38,6 +38,13 @@ class _DomainRegistry:
         )
 
 
+class _LearnerBindingRegistry:
+    def resolve(self, *, episode_id, scope, learner_track):
+        if learner_track != "track-a":
+            raise ValueError("unassigned learner track")
+        return "spiffe://zhouyi/learner"
+
+
 def _principal(workload_id, role, scope):
     return E09AuthenticatedWorkload(
         workload_id=workload_id,
@@ -72,6 +79,7 @@ class E09AuthorityUnixRPCTests(unittest.TestCase):
             authenticator=self.authenticator,
             signer=_UnusedSigner(),
             domain_registry=_DomainRegistry(),
+            learner_binding_resolver=_LearnerBindingRegistry(),
         )
         self._counter = 0
 
@@ -120,7 +128,7 @@ class E09AuthorityUnixRPCTests(unittest.TestCase):
                 "query_id": "query-1",
                 "scope": self.scope,
                 "split": "SUPPORT",
-                "learner_workload_id": self.learner.workload_id,
+                "learner_track": "track-a",
                 "payload_ref": stored["payload_ref"],
                 "feature_schema_version": "features-v1",
             },
@@ -264,6 +272,7 @@ class E09AuthorityUnixRPCTests(unittest.TestCase):
                 "query_id": "gate-query",
                 "scope": self.scope,
                 "split": "GATE_DEV",
+                "learner_track": "track-a",
             },
             "append-gate-observation",
         )
@@ -331,7 +340,7 @@ class E09AuthorityUnixRPCTests(unittest.TestCase):
                 "episode_id": self.episode, "event_id": observation_event,
                 "observation_id": "identity-obs", "query_id": "identity-query",
                 "scope": self.scope, "split": "SUPPORT",
-                "learner_workload_id": self.learner.workload_id,
+                "learner_track": "track-a",
             },
             "identity-observation",
         )
