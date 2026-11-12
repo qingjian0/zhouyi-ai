@@ -1,6 +1,10 @@
 import unittest
 
-from benchmarks.benchmark_n010_model_compute import build_examples, throughput
+from benchmarks.benchmark_n010_model_compute import (
+    build_examples,
+    run_case,
+    throughput,
+)
 
 
 class N010ModelComputeBenchmarkTests(unittest.TestCase):
@@ -27,6 +31,12 @@ class N010ModelComputeBenchmarkTests(unittest.TestCase):
     def test_rejects_nonpositive_elapsed_time(self):
         with self.assertRaises(ValueError):
             throughput(100, 5, 0.0)
+
+    def test_model_compute_path_learns_third_order_parity(self):
+        result = run_case(8, epochs=100, repeats=1)
+        self.assertEqual(result["training_accuracy_median"], 1.0)
+        self.assertGreater(result["training_example_epochs_per_second"], 0.0)
+        self.assertGreater(result["scoring_assignments_per_second"], 0.0)
 
 
 if __name__ == "__main__":
