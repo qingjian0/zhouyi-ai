@@ -139,12 +139,11 @@ class PersistentM2SemanticUnitStore:
                 projection_generation INTEGER NOT NULL,
                 checkpoint_digest TEXT NOT NULL
             );
-            INSERT OR IGNORE INTO m2_semantic_unit_projection_state(scope,generation)
-                VALUES("unused",0);
-            """.replace(
-                "VALUES('unused',0);",
-                "VALUES(" + "'" + self.scope.replace("'", "''") + "'" + ",0);"
-            ))
+            """)
+            self._db.execute(
+                "INSERT OR IGNORE INTO m2_semantic_unit_projection_state(scope,generation) VALUES(?,0)",
+                (self.scope,),
+            )
             # Triggers make out-of-band projection mutation invalidate the checkpoint.
             trigger_suffix = hashlib.sha256(self.scope.encode("utf-8")).hexdigest()[:16]
             for operation, timing in (("INSERT", "insert"), ("UPDATE", "update"), ("DELETE", "delete")):
@@ -436,7 +435,10 @@ class PersistentM2SemanticUnitStore:
         with self._memory.lock:
             self._db.execute("BEGIN IMMEDIATE")
             try:
-                current = self._latest_sequence()
+                if not self._checkpoint_valid():
+                    raise SemanticUnitStoreError(
+                        "M2 projection changed concurrently; reconstruct the store before retry"
+                    )
                 seq,replayed = self._memory._append(event_id,EVENT_TYPE,self.scope,payload)
                 if replayed:
                     row = self._version_row(candidate.envelope.record_id) if candidate else None
@@ -448,7 +450,24 @@ class PersistentM2SemanticUnitStore:
                         ).fetchone()
                     if row is None:
                         raise SemanticUnitStoreError("event exists without its matching M2 projection")
-                    self.db_unused = None
+                    if action == "retract":
+                        event = self._memory.get_domain_event(
+                            event_type=EVENT_TYPE, scope=self.scope, event_id=event_id
+                        )
+                        if event is None:
+                            raise SemanticUnitStoreError("replayed retraction event is missing")
+                        root = self._db.execute(
+                            "SELECT current_record_digest FROM m2_semantic_unit_roots "
+                            "WHERE scope=? AND current_record_id=?",
+                            (self.scope, record_id),
+                        ).fetchone()
+                        if root is None:
+                            raise SemanticUnitStoreError("replayed retraction target is missing")
+                        self._db.execute("COMMIT")
+                        return SemanticUnitReceipt(
+                            event_id, event["sequence"], event["payload_digest"],
+                            root["current_record_digest"], True,
+                        )
                     self._db.execute("COMMIT")
                     return self._receipt(row,replayed=True)
                 if action == "record":
@@ -458,7 +477,7 @@ class PersistentM2SemanticUnitStore:
                     self._db.execute(
                         "INSERT INTO m2_semantic_unit_versions VALUES(?,?,?,?,?,?,?,?,?)",
                         (self.scope,rid,rid,None,"candidate_recorded",event_id,seq,
-                         self._memory._append_digest(payload),body_digest),
+                         hashlib.sha256(canonical_json(payload).encode("utf-8")).hexdigest(),body_digest),
                     )
                     self._db.execute(
                         "INSERT INTO m2_semantic_unit_roots VALUES(?,?,?,?,?,?,?,NULL)",
@@ -479,7 +498,7 @@ class PersistentM2SemanticUnitStore:
                     self._db.execute(
                         "INSERT INTO m2_semantic_unit_versions VALUES(?,?,?,?,?,?,?,?,?)",
                         (self.scope,rid,active["root_id"],previous_id,"candidate_revised",
-                         event_id,seq,self._memory._append_digest(payload),body_digest),
+                         event_id,seq,hashlib.sha256(canonical_json(payload).encode("utf-8")).hexdigest(),body_digest),
                     )
                     changed = self._db.execute(
                         "UPDATE m2_semantic_unit_roots SET current_record_id=?,current_body_json=?,"
@@ -503,10 +522,17 @@ class PersistentM2SemanticUnitStore:
                     raise SemanticUnitStoreError("unknown projection action")
                 self._write_checkpoint(seq)
                 row = self._version_row(candidate.envelope.record_id) if candidate else self._version_row(record_id)
-                self._db.execute("COMMIT")
                 if row is None:
                     raise SemanticUnitStoreError("projection receipt row is missing after append")
-                return self._receipt(row,replayed=False)
+                if action == "retract":
+                    result = SemanticUnitReceipt(
+                        event_id, seq, hashlib.sha256(canonical_json(payload).encode("utf-8")).hexdigest(),
+                        row["record_digest"], False,
+                    )
+                else:
+                    result = self._receipt(row,replayed=False)
+                self._db.execute("COMMIT")
+                return result
             except Exception:
                 self._db.execute("ROLLBACK")
                 raise
@@ -515,6 +541,7 @@ class PersistentM2SemanticUnitStore:
         if not isinstance(candidate,SemanticUnitCandidate):
             raise TypeError("candidate must be SemanticUnitCandidate")
         with self._lock:
+            self._ensure_current()
             self._verify_candidate(candidate)
             rid = candidate.envelope.record_id
             existing = self._version_row(rid)
@@ -534,6 +561,7 @@ class PersistentM2SemanticUnitStore:
         if not isinstance(candidate,SemanticUnitCandidate):
             raise TypeError("candidate must be SemanticUnitCandidate")
         with self._lock:
+            self._ensure_current()
             self._verify_candidate(candidate)
             rid = candidate.envelope.record_id
             existing = self._version_row(rid)
