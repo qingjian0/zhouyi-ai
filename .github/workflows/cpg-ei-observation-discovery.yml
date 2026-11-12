@@ -8,11 +8,14 @@ on:
       - "prototype/cpg_ei_relation_operators.py"
       - "prototype/cpg_ei_mixed_operator_data.py"
       - "prototype/cpg_ei_observation_discovery.py"
+      - "prototype/cpg_ei_context_coverage_sweep.py"
       - "tests/test_cpg_ei_observation_discovery.py"
       - "tests/test_cpg_ei_observation_support_audit.py"
       - "docs/CPG_EI_OBSERVATION_SUPPORT_IDENTIFIABILITY_AUDIT_V1.md"
       - "tests/test_cpg_ei_counterfactual_context_coverage.py"
+      - "tests/test_cpg_ei_context_coverage_sweep.py"
       - "docs/CPG_EI_COUNTERFACTUAL_CONTEXT_COVERAGE_AUDIT_V1.md"
+      - "docs/CPG_EI_CONDITIONAL_CONTEXT_COVERAGE_SWEEP_V1.md"
       - ".github/workflows/cpg-ei-observation-discovery.yml"
   pull_request:
     paths:
@@ -42,9 +45,19 @@ jobs:
           python -m unittest tests.test_cpg_ei_observation_discovery -v
           python -m unittest tests.test_cpg_ei_observation_support_audit -v
           python -m unittest tests.test_cpg_ei_counterfactual_context_coverage -v
+          python -m unittest tests.test_cpg_ei_context_coverage_sweep -v
       - name: Run full 102,400-row observation discovery benchmark
         run: |
           python -m prototype.cpg_ei_observation_discovery --output /tmp/zhouyi-cpg-ei-discovery-v1.json
+      - name: Run conditional context coverage sweep
+        run: |
+          python -m prototype.cpg_ei_context_coverage_sweep --output /tmp/zhouyi-cpg-ei-context-coverage-sweep-v1.json
+      - name: Upload context coverage sweep
+        uses: actions/upload-artifact@v4
+        with:
+          name: zhouyi-cpg-ei-context-coverage-sweep-v1
+          path: /tmp/zhouyi-cpg-ei-context-coverage-sweep-v1.json
+          if-no-files-found: error
       - name: Upload discovery report
         uses: actions/upload-artifact@v4
         with:
