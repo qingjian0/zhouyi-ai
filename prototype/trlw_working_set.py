@@ -10,6 +10,8 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Callable, Iterable
 
+from prototype.stream_budget import ScanBudgetExceeded
+
 from prototype.observation_contract import (
     GroundingStatus,
     Score,
@@ -58,6 +60,7 @@ class TRLWQuery:
     )
     valid_time_start: str | None = None
     valid_time_end: str | None = None
+    max_scan_events: int = 4096
 
     def __post_init__(self) -> None:
         _nonempty(self.query_goal, "query_goal")
@@ -78,6 +81,9 @@ class TRLWQuery:
             raise TRLWError("allowed_grounding_statuses must be a non-empty typed tuple")
         if len(set(self.allowed_grounding_statuses)) != len(self.allowed_grounding_statuses):
             raise TRLWError("allowed_grounding_statuses must be unique")
+        if (isinstance(self.max_scan_events, bool) or not isinstance(self.max_scan_events, int)
+                or not 1 <= self.max_scan_events <= 65536):
+            raise TRLWError("max_scan_events must be an integer in [1, 65536]")
         if (self.valid_time_start is None) != (self.valid_time_end is None):
             raise TRLWError("valid-time query endpoints must be supplied together")
         if self.valid_time_start is not None:
@@ -92,6 +98,7 @@ class TRLWEntry:
     record: SemanticUnitCandidate
     ranking_score: Score
     serialized_bytes: int
+    source_order: int = 0
 
 
 @dataclass(frozen=True)
@@ -160,45 +167,50 @@ def build_trlw_working_set(
     seen = 0
     matched = 0
     budget_exhausted = False
+    effective_source_complete = source_complete
 
-    for record in records:
-        seen += 1
-        if not isinstance(record, SemanticUnitCandidate):
-            raise TRLWError("input records must be SemanticUnitCandidate values")
-        if record.envelope.scope != query.scope:
-            continue
-        if query.required_types and record.kind not in query.required_types:
-            continue
-        if record.grounding_status not in query.allowed_grounding_statuses:
-            continue
-        if not _matches_time(record, query):
-            continue
-        matched += 1
+    try:
+        for record in records:
+            seen += 1
+            if not isinstance(record, SemanticUnitCandidate):
+                raise TRLWError("input records must be SemanticUnitCandidate values")
+            if record.envelope.scope != query.scope:
+                continue
+            if query.required_types and record.kind not in query.required_types:
+                continue
+            if record.grounding_status not in query.allowed_grounding_statuses:
+                continue
+            if not _matches_time(record, query):
+                continue
+            matched += 1
+    
+            score = scorer(record, query)
+            if not isinstance(score, Score) or score.semantics != "trlw-ranking":
+                raise TRLWError("ranker must return Score with semantics='trlw-ranking'")
+            encoded_size = len(canonical_json(record).encode("utf-8"))
+            if encoded_size > query.byte_budget:
+                budget_exhausted = True
+                continue
+    
+            if any(entry.record.envelope.record_id == record.envelope.record_id for entry in selected):
+                continue
+            candidate = TRLWEntry(record, score, encoded_size, source_order=seen)
+            selected.append(candidate)
+            selected.sort(key=lambda item: (
+                -float(item.ranking_score.value), item.source_order,
+            ))
+            selected_bytes += encoded_size
+            while selected and (
+                len(selected) > query.max_records or selected_bytes > query.byte_budget
+            ):
+                removed = selected.pop()
+                selected_bytes -= removed.serialized_bytes
+                budget_exhausted = True
+    except ScanBudgetExceeded:
+        effective_source_complete = False
+        budget_exhausted = True
 
-        score = scorer(record, query)
-        if not isinstance(score, Score) or score.semantics != "trlw-ranking":
-            raise TRLWError("ranker must return Score with semantics='trlw-ranking'")
-        encoded_size = len(canonical_json(record).encode("utf-8"))
-        if encoded_size > query.byte_budget:
-            budget_exhausted = True
-            continue
-
-        if any(entry.record.envelope.record_id == record.envelope.record_id for entry in selected):
-            continue
-        candidate = TRLWEntry(record, score, encoded_size)
-        selected.append(candidate)
-        selected.sort(key=lambda item: (
-            -float(item.ranking_score.value), item.record.envelope.record_id,
-        ))
-        selected_bytes += encoded_size
-        while selected and (
-            len(selected) > query.max_records or selected_bytes > query.byte_budget
-        ):
-            removed = selected.pop()
-            selected_bytes -= removed.serialized_bytes
-            budget_exhausted = True
-
-    if not source_complete:
+    if not effective_source_complete:
         status = PacketStatus.SOURCE_INCOMPLETE
     elif budget_exhausted:
         status = PacketStatus.BUDGET_EXHAUSTED
@@ -217,6 +229,20 @@ def build_trlw_working_set(
         serialized_bytes=selected_bytes,
         byte_budget=query.byte_budget,
         max_records=query.max_records,
-        source_complete=source_complete,
+        source_complete=effective_source_complete,
         budget_exhausted=budget_exhausted,
+    )
+
+
+def build_trlw_working_set_from_store(
+    reader, query: TRLWQuery, *, ranker: Ranker | None = None,
+) -> MemoryPacket:
+    """Build a TRLW packet directly from the bounded persistent M2 reader."""
+    if not isinstance(query, TRLWQuery):
+        raise TRLWError("query must be TRLWQuery")
+    if getattr(reader, "scope", None) != query.scope:
+        raise TRLWError("semantic-unit reader scope does not match TRLW query")
+    records = reader.iter_current_candidates(max_events=query.max_scan_events)
+    return build_trlw_working_set(
+        records, query, ranker=ranker, source_complete=True,
     )
