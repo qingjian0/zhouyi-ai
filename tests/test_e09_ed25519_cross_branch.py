@@ -60,6 +60,44 @@ def add_reveal(store, *, episode, scope, track, prediction_id, label):
     return reveal_event
 
 
+def add_authorization(store, private_key, *, episode, scope, evidence_ref):
+    authorization_ref = f"{episode}:authorization:grant-1"
+    sequence = store.replay_episode(episode)[-1]["sequence_no"] + 1
+    payload = {
+        "authorization_id": authorization_ref,
+        "issuer_id": "issuer-production-test",
+        "scope": scope,
+        "parent_state_ref": "parent-1",
+        "branch_ids": ["left", "right"],
+        "evidence_refs": [evidence_ref],
+        "issued_at": "2026-11-11T00:00:00+00:00",
+        "expires_at": "2026-11-12T00:00:00+00:00",
+        "signature_algorithm": "Ed25519",
+        "signature_version": AUTHORIZATION_SIGNATURE_VERSION,
+        "audience": AUTHORIZATION_AUDIENCE,
+        "authorization_sequence": sequence,
+    }
+    envelope = {
+        "episode_id": episode, "event_id": authorization_ref,
+        "event_type": "branch_merge_authorization",
+        "protocol_version": STRICT_PROTOCOL_VERSION,
+        "payload_schema": "branch_merge_authorization@2",
+        "actor_role": "authorizer", "causation_refs": [evidence_ref],
+        "integrity_metadata": {}, "payload": payload,
+    }
+    payload["signature"] = base64.b64encode(
+        private_key.sign(branch_merge_authorization_signing_bytes(envelope))
+    ).decode("ascii")
+    store.append_event(
+        episode_id=episode, event_id=authorization_ref,
+        event_type="branch_merge_authorization", idempotency_key=authorization_ref,
+        actor_role="authorizer", causation_refs=[evidence_ref], payload=payload,
+        payload_schema="branch_merge_authorization@2", integrity_metadata={},
+        expected_sequence=sequence - 1, protocol_version=STRICT_PROTOCOL_VERSION,
+    )
+    return authorization_ref
+
+
 class E09Ed25519CrossBranchTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -82,8 +120,14 @@ class E09Ed25519CrossBranchTests(unittest.TestCase):
         self.tmp.cleanup()
 
     def test_legacy_ed25519_grant_cannot_authorize_domain_sensitive_merge(self):
-        grant_evidence = self._add_reveal("grant")
-        authorization_ref = self._add_authorization(grant_evidence)
+        grant_evidence = add_reveal(
+            self.e09, episode=self.episode, scope=self.scope, track=self.track,
+            prediction_id="grant", label="PRIVATE_GRANT_SUPPORT",
+        )
+        authorization_ref = add_authorization(
+            self.e09, self.private, episode=self.episode, scope=self.scope,
+            evidence_ref=grant_evidence,
+        )
         permit = resolve_branch_merge_authorization(
             self.e09, episode_id=self.episode, authorization_ref=authorization_ref,
             parent_state_ref="parent-1", branch_ids=("left", "right"),
@@ -93,7 +137,7 @@ class E09Ed25519CrossBranchTests(unittest.TestCase):
             signature_verifier=self.keyring, verifier_id=self.keyring.verifier_id,
             now=datetime(2026, 11, 11, 12, tzinfo=timezone.utc),
         )
-        self.assertEqual(permit.issuer_id, "issuer-1")
+        self.assertEqual(permit.issuer_id, "issuer-production-test")
         self.assertFalse(permit.domain_provenance_verified)
         with self.assertRaisesRegex(ValueError, "trusted domain provenance"):
             validate_merge_authorization(permit, "parent-1", ("left", "right"))
