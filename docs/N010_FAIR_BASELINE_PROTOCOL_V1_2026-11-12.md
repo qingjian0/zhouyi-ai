@@ -48,7 +48,8 @@ The fixed-random control is essential: if learnable Xiang does not beat it, gain
 - Identical JSONL records, train/dev/locked-test split, candidate pools, evidence masks and labels.
 - Same optimizer family (full-batch gradient descent for the first comparison), epochs, learning-rate search budget, L2 search budget and seed list.
 - Same inference candidate enumeration and maximum expansion budget. Do not compare one model's exact product search with another model's beam-pruned search.
-- Match trainable parameters within ±5%; report exact counts.
+- Match trainable parameters within ±5% for learnable Xiang, MLP and low-rank tensor; report exact counts.
+- Treat fixed-random Xiang as a frozen-feature control, not a trainable-parameter-matched model: its total stored parameter count matches learnable Xiang, but only the readout is trainable. Report both counts and do not conflate its reduced trainable capacity with a matched-capacity result.
 - Use at least 10 fixed seeds for screening and 30 for a final claim.
 - Lock the test family before hyperparameter selection. Select hyperparameters using train/dev only.
 - Report mean, standard deviation and 95% bootstrap confidence intervals across seeds.
@@ -87,7 +88,7 @@ A failure to transfer is still a useful result: retain the operator as an experi
 - `ParameterMatchedLowRankTensor`: CP-style rank-K multiplicative interaction over role-specific linear projections, trained with deterministic full-batch BCE gradients.
 - exact parameter-count functions and integer width/rank selection under a declared relative tolerance.
 
-The reference test suite checks the 96/99/97 parameter example, deterministic training, finite probabilities and epoch-update equivalence. The baseline comparison runner now trains all four variants on identical train-only relation rows and candidate pools. Reports preserve `parameter_count` as a compatibility alias and expose `total_parameter_count` plus `trainable_parameter_count`. Fixed-random Xiang stores the full basis but trains only its readout; for R=3, F=4, L=8, that is 96 stored parameters and 56 trainable parameters. Learnable Xiang trains all 96; MLP and tensor baselines train all of their reported parameters.
+The reference test suite checks the 96/99/97 parameter example, deterministic training, finite probabilities and epoch-update equivalence. The baseline comparison runner now trains all four variants on identical train-only relation rows and candidate pools. Reports preserve `parameter_count` as a compatibility alias and expose `total_parameter_count` plus `trainable_parameter_count`. Fixed-random Xiang stores the full basis but trains only its readout; for R=3, F=4, L=8, that is 96 stored parameters and 56 trainable parameters. It is explicitly a frozen-feature control, not a trainable-parameter-matched control. The matched-trainable comparison group is learnable Xiang (96), MLP (99) and tensor (97); MLP and tensor train all of their reported parameters.
 
 
 ## Multi-seed execution
