@@ -120,6 +120,7 @@ class E09AuthorityUnixRPCTests(unittest.TestCase):
                 "query_id": "query-1",
                 "scope": self.scope,
                 "split": "SUPPORT",
+                "learner_workload_id": self.learner.workload_id,
                 "payload_ref": stored["payload_ref"],
                 "feature_schema_version": "features-v1",
             },
@@ -133,6 +134,13 @@ class E09AuthorityUnixRPCTests(unittest.TestCase):
             "read-input-1",
         )
         self.assertEqual(loaded["payload"], observation_input)
+        with self.assertRaises(IPCRemoteError) as input_error:
+            self._call(
+                self.other_learner, "observation.read_input",
+                {"episode_id": self.episode, "observation_id": "obs-1", "scope": self.scope},
+                "read-other-learners-input",
+            )
+        self.assertEqual(input_error.exception.code, "permission_denied")
 
         prediction_id = "prediction-1"
         commit_event = f"{self.episode}:prediction:{prediction_id}"
@@ -315,6 +323,7 @@ class E09AuthorityUnixRPCTests(unittest.TestCase):
                 "episode_id": self.episode, "event_id": observation_event,
                 "observation_id": "identity-obs", "query_id": "identity-query",
                 "scope": self.scope, "split": "SUPPORT",
+                "learner_workload_id": self.learner.workload_id,
             },
             "identity-observation",
         )
