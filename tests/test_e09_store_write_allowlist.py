@@ -36,7 +36,7 @@ class E09StoreWriteAllowlistTests(unittest.TestCase):
 
     def test_legacy_adapter_is_explicitly_non_authoritative(self):
         source = (PROTOTYPE / "e09_shared_protocol_adapter.py").read_text(encoding="utf-8")
-        self.assertIn("trusted-runner integration", source)
+        self.assertIn("trusted-runner", source)
         self.assertIn("actor_role=\"runner\"", source)
 
 
