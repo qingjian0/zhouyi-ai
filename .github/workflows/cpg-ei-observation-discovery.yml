@@ -20,6 +20,10 @@ on:
       - "prototype/cpg_ei_mixed_operator_data.py"
       - "prototype/cpg_ei_observation_discovery.py"
       - "tests/test_cpg_ei_observation_discovery.py"
+      - "tests/test_cpg_ei_observation_support_audit.py"
+      - "tests/test_cpg_ei_counterfactual_context_coverage.py"
+      - "docs/CPG_EI_OBSERVATION_SUPPORT_IDENTIFIABILITY_AUDIT_V1.md"
+      - "docs/CPG_EI_COUNTERFACTUAL_CONTEXT_COVERAGE_AUDIT_V1.md"
       - ".github/workflows/cpg-ei-observation-discovery.yml"
 
 permissions:
