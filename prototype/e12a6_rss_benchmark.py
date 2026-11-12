@@ -100,6 +100,7 @@ def _restore_report(path: Path, scope: str) -> dict[str, int | None]:
     before = _current_rss_bytes()
     memory = ZPCMMemory(path)
     after_zpcm = _current_rss_bytes()
+    store = None
     try:
         store = PersistentLifecycleLedger(memory, scope=scope)
         after_restore = _current_rss_bytes()
@@ -118,6 +119,8 @@ def _restore_report(path: Path, scope: str) -> dict[str, int | None]:
             ).fetchone()[0]),
         }
     finally:
+        if store is not None:
+            store.close()
         memory.close()
 
 
