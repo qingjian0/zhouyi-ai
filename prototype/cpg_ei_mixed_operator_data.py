@@ -190,7 +190,7 @@ def write_jsonl(corpus: dict, path: str | Path) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--families", type=int, default=40)
+    parser.add_argument("--families", type=int, default=400)
     parser.add_argument("--input-dim", type=int, default=8)
     parser.add_argument("--output-dim", type=int, default=8)
     parser.add_argument("--seed", type=int, default=20261114)
