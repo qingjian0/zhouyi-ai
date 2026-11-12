@@ -167,3 +167,15 @@ Do not multiply the clean corpus by near-identical noise copies and report them 
 ## Claim boundary
 
 This is a proposed scaled synthetic benchmark. It is not a result, a real-world semantic dataset, or evidence that CPG-EI outperforms Transformer architectures. The 16x data target is achieved by increasing both independent teacher count and state-space size; it must be verified by the generator and manifest before being reported as delivered.
+
+
+## External benchmark design references
+
+These works inform benchmark construction and evaluation design; they are not evidence that this repository's model already has the corresponding capabilities.
+
+- **GraphLog / logical generalization**: diverse procedurally generated logical domains and rule-family transfer. Use it as a reminder that the number and diversity of rule systems matter, not just the number of rows. https://arxiv.org/abs/2003.06560
+- **Synthetic datasets and evaluation tools for inductive neural reasoning**: emphasizes interpretable rules, diverse dependencies, and adequate dataset scale; useful for rule-generator and metric design. https://lr2020.iit.demokritos.gr/online/Cornelio.pdf
+- **ReAlE / relational algebra over hypergraphs**: motivates operation-complete and depth-varying relation compositions, including renaming, projection, selection, union, and difference. https://jmlr.org/papers/volume24/22-063/22-063.pdf
+- **HYPER (ICLR 2026)**: studies inductive link prediction over unseen entities and relation types with varying arities; supports explicitly separating entity-inductive, relation-inductive, and arity-transfer tests. https://proceedings.iclr.cc/paper_files/paper/2026/hash/cdf80d651420b47da80f789f2631b1b5-Abstract-Conference.html
+
+The scaled benchmark should borrow the evaluation discipline and task diversity, not assume that its synthetic operators are equivalent to real-world semantics.
