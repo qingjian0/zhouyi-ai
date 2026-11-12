@@ -40,3 +40,7 @@ Use controlled sampling to measure how context coverage affects support precisio
 ## Claim boundary
 
 This is a diagnostic enhancement to a synthetic Boolean benchmark. It is not a learned neural relation-discovery model and does not establish causal, natural-language, Yi-Xue, or real-world reasoning.
+
+## Aggregate report fields
+
+The benchmark summary now aggregates mean input-context coverage and mean influence-context count across evaluated rules, alongside unresolved-support rates. The unit contract checks that aggregate coverage is bounded in [0, 1].
