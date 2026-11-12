@@ -3,7 +3,7 @@ from __future__ import annotations
 import hashlib,json,sqlite3,threading
 from datetime import datetime,timezone
 from pathlib import Path
-from typing import Any,Iterable,Sequence
+from typing import Any,Iterable,Iterator,Sequence
 
 class ZPCMError(ValueError): pass
 def canonical(v): return json.dumps(v,ensure_ascii=False,sort_keys=True,separators=(",",":"),allow_nan=False)
@@ -87,6 +87,112 @@ class ZPCMMemory:
             return old["seq"],True
         cur=self.db.execute("INSERT INTO memory_events(event_id,event_type,scope,payload_json,payload_digest,recorded_at) VALUES(?,?,?,?,?,?)",(event_id,event_type,scope,raw,d,datetime.now(timezone.utc).isoformat()))
         return cur.lastrowid,False
+
+    def append_domain_event(self, *, event_type: str, event_id: str, scope: str,
+                            payload: dict[str, Any], expected_sequence: int) -> dict[str, Any]:
+        """Append one namespaced domain event to the shared append-only ZPCM log.
+
+        Sequence checks are scoped by (event_type, scope). This is a generic
+        extension point, not a second event table or independent ledger.
+        """
+        if not isinstance(payload, dict):
+            raise ZPCMError("domain event payload must be an object")
+        if not isinstance(event_type, str) or not event_type.strip():
+            raise ZPCMError("event_type must be non-empty")
+        if not isinstance(expected_sequence, int) or isinstance(expected_sequence, bool) or expected_sequence < 0:
+            raise ZPCMError("expected_sequence must be a non-negative integer")
+        with self.lock:
+            self.db.execute("BEGIN IMMEDIATE")
+            try:
+                prior = self.db.execute(
+                    "SELECT seq,event_type,scope,payload_digest FROM memory_events WHERE event_id=?",
+                    (event_id,),
+                ).fetchone()
+                if prior is not None:
+                    seq, replay = self._append(event_id, event_type, scope, payload)
+                    self.db.execute("COMMIT")
+                    return {"sequence": seq, "payload_digest": prior["payload_digest"], "replayed": replay}
+                current = self.db.execute(
+                    "SELECT COALESCE(MAX(seq),0) FROM memory_events WHERE event_type=? AND scope=?",
+                    (event_type, scope),
+                ).fetchone()[0]
+                if current != expected_sequence:
+                    raise ZPCMError(
+                        f"stale domain sequence for {event_type}/{scope}: "
+                        f"expected {expected_sequence}, current {current}"
+                    )
+                seq, replay = self._append(event_id, event_type, scope, payload)
+                self.db.execute("COMMIT")
+                return {"sequence": seq, "payload_digest": digest(payload), "replayed": replay}
+            except Exception:
+                self.db.execute("ROLLBACK")
+                raise
+
+    def iter_domain_events(
+        self, *, event_type: str, scope: str, after_sequence: int = 0,
+        page_size: int = 128,
+    ) -> Iterator[dict[str, Any]]:
+        """Keyset-page a stable snapshot of one typed event stream.
+
+        The high-water mark is captured once, so concurrent appends do not
+        extend this iteration indefinitely. Each page is fetched and released
+        before yielding; memory use is bounded by page_size decoded events.
+        """
+        if not isinstance(event_type, str) or not event_type.strip():
+            raise ZPCMError("event_type must be non-empty")
+        if not isinstance(scope, str) or not scope.strip():
+            raise ZPCMError("scope must be non-empty")
+        if isinstance(after_sequence, bool) or not isinstance(after_sequence, int) or after_sequence < 0:
+            raise ZPCMError("after_sequence must be a non-negative integer")
+        if isinstance(page_size, bool) or not isinstance(page_size, int) or not 1 <= page_size <= 4096:
+            raise ZPCMError("page_size must be an integer in [1, 4096]")
+
+        with self.lock:
+            high_water = self.db.execute(
+                "SELECT COALESCE(MAX(seq), 0) FROM memory_events WHERE event_type=? AND scope=?",
+                (event_type, scope),
+            ).fetchone()[0]
+        cursor = after_sequence
+        while cursor < high_water:
+            with self.lock:
+                rows = self.db.execute(
+                    "SELECT seq,event_id,event_type,scope,payload_json,payload_digest,recorded_at "
+                    "FROM memory_events WHERE event_type=? AND scope=? AND seq>? AND seq<=? "
+                    "ORDER BY seq LIMIT ?",
+                    (event_type, scope, cursor, high_water, page_size),
+                ).fetchall()
+            if not rows:
+                return
+            for row in rows:
+                payload = json.loads(row["payload_json"])
+                if digest(payload) != row["payload_digest"]:
+                    raise ZPCMError(f"domain event digest mismatch: {row['event_id']}")
+                cursor = row["seq"]
+                yield {
+                    "sequence": row["seq"], "event_id": row["event_id"],
+                    "event_type": row["event_type"], "scope": row["scope"],
+                    "payload": payload, "payload_digest": row["payload_digest"],
+                    "recorded_at": row["recorded_at"],
+                }
+
+    def latest_domain_sequence(self, *, event_type: str, scope: str) -> int:
+        """Return the current global event sequence for one typed scope stream."""
+        if not isinstance(event_type, str) or not event_type.strip():
+            raise ZPCMError("event_type must be non-empty")
+        if not isinstance(scope, str) or not scope.strip():
+            raise ZPCMError("scope must be non-empty")
+        with self.lock:
+            return int(self.db.execute(
+                "SELECT COALESCE(MAX(seq), 0) FROM memory_events WHERE event_type=? AND scope=?",
+                (event_type, scope),
+            ).fetchone()[0])
+
+    def replay_domain_events(self, *, event_type: str, scope: str,
+                             after_sequence: int = 0) -> list[dict[str, Any]]:
+        """Materialize a complete typed stream; prefer iter_domain_events for bounded reads."""
+        return list(self.iter_domain_events(
+            event_type=event_type, scope=scope, after_sequence=after_sequence,
+        ))
 
     def append_lifecycle_event(self, *, event_id: str, scope: str, payload: dict[str, Any],
                                expected_sequence: int) -> dict[str, Any]:
