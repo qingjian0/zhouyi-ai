@@ -87,7 +87,9 @@ def compile_yixiang_typed_proposals(
             variables.append(VariableSpec(variable, member_type))
             role_bindings.append(RoleBinding(role, variable, member_id, member_type))
 
-        evidence_refs = tuple(sorted(set(candidate.evidence_ids)))
+        evidence_refs = tuple(sorted(set(candidate.evidence_ids).union(
+            result.source_relation_evidence_refs
+        )))
         edge = HyperedgeProposal(
             edge_id=proposal_id,
             parent_state_ref=parent_state_ref,
