@@ -8,6 +8,7 @@ from __future__ import annotations
 import json
 import os
 import socket
+import stat
 import struct
 import threading
 import time
@@ -261,7 +262,17 @@ class UnixJSONRPCServer:
     def start(self) -> None:
         if self._listener is not None:
             raise IPCTransportError("IPC server is already started")
-        self.socket_path.parent.mkdir(parents=True, exist_ok=True)
+        # The service manager must provision this directory. Creating it
+        # here would inherit ambient umask/ownership and could create an
+        # attacker-controlled IPC namespace.
+        try:
+            parent = self.socket_path.parent.resolve(strict=True)
+            parent_stat = parent.stat()
+        except OSError as exc:
+            raise IPCTransportError("IPC socket parent directory must already exist") from exc
+        if not stat.S_ISDIR(parent_stat.st_mode) or parent_stat.st_mode & 0o022:
+            raise IPCTransportError("IPC socket parent must be a non-group/world-writable directory")
+        self.socket_path = parent / self.socket_path.name
         if self.socket_path.exists() or self.socket_path.is_symlink():
             raise IPCTransportError("refusing to replace an existing IPC socket path")
         listener = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
