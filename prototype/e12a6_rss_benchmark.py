@@ -112,6 +112,10 @@ def _restore_report(path: Path, scope: str) -> dict[str, int | None]:
             "cgroup_memory_peak_bytes": _cgroup_memory_bytes("memory.peak"),
             "last_sequence": store._last_sequence,
             "restored_candidate_count": len(store._ledger.candidates),
+            "indexed_lifecycle_projection_count": int(memory.db.execute(
+                "SELECT COUNT(*) FROM e12a6_lifecycle_event_projection WHERE scope=?",
+                (scope,),
+            ).fetchone()[0]),
         }
     finally:
         memory.close()
