@@ -56,12 +56,18 @@ class ZPCMMemory:
             "high_water_seq": high_water_seq,
         })
 
-    def _advance_authorization_projection_checkpoint(self, high_water_seq: int) -> None:
+    def _advance_authorization_projection_checkpoint(
+        self, high_water_seq: int, *, expected_previous_high_water: int | None = None,
+    ) -> None:
         """Advance the derived-index checkpoint inside the caller's event transaction."""
         row = self.db.execute(
             "SELECT high_water_seq FROM e12a6_authorization_projection_checkpoint WHERE singleton=1"
         ).fetchone()
         current = int(row["high_water_seq"]) if row is not None else 0
+        if expected_previous_high_water is not None and current != expected_previous_high_water:
+            # A legacy/concurrent writer may have left events beyond the
+            # checkpoint. Do not jump over them; startup will catch them up.
+            return
         target = max(current, int(high_water_seq))
         self.db.execute(
             "INSERT INTO e12a6_authorization_projection_checkpoint(singleton,schema_version,high_water_seq,checkpoint_digest) "
@@ -624,15 +630,20 @@ class ZPCMMemory:
                                         (event_id,)).fetchone()
                 if prior is not None:
                     seq, replay = self._append(event_id, "e12a6_lifecycle", scope, payload)
-                    self._advance_authorization_projection_checkpoint(seq)
                     self.db.execute("COMMIT")
                     return {"sequence":seq,"payload_digest":prior["payload_digest"],"replayed":replay}
                 current = self.db.execute("SELECT COALESCE(MAX(seq),0) FROM memory_events WHERE event_type='e12a6_lifecycle' AND scope=?",
                                           (scope,)).fetchone()[0]
                 if current != expected_sequence:
                     raise ZPCMError(f"stale lifecycle sequence: expected {expected_sequence}, current {current}")
+                previous_high_water = int(self.db.execute(
+                    "SELECT COALESCE(MAX(seq),0) FROM memory_events"
+                ).fetchone()[0])
                 seq, replay = self._append(event_id, "e12a6_lifecycle", scope, payload)
-                self._advance_authorization_projection_checkpoint(seq)
+                if not replay:
+                    self._advance_authorization_projection_checkpoint(
+                        seq, expected_previous_high_water=previous_high_water
+                    )
                 self.db.execute("COMMIT")
                 return {"sequence":seq,"payload_digest":digest(payload),"replayed":replay}
             except sqlite3.IntegrityError as exc:
@@ -804,7 +815,11 @@ class ZPCMMemory:
                 existing_count = sum(row is not None for row in prior_rows)
                 if existing_count not in (0, len(normalized)):
                     raise ZPCMError("partial lifecycle batch replay conflict")
+                previous_high_water = None
                 if existing_count == 0:
+                    previous_high_water = int(self.db.execute(
+                        "SELECT COALESCE(MAX(seq),0) FROM memory_events"
+                    ).fetchone()[0])
                     current = self.db.execute(
                         "SELECT COALESCE(MAX(seq),0) FROM memory_events "
                         "WHERE event_type='e12a6_lifecycle' AND scope=?",
@@ -828,9 +843,10 @@ class ZPCMMemory:
                         "event_id": event_id, "sequence": seq,
                         "payload_digest": digest(payload), "replayed": replay,
                     })
-                if receipts:
+                if receipts and previous_high_water is not None:
                     self._advance_authorization_projection_checkpoint(
-                        max(item["sequence"] for item in receipts)
+                        max(item["sequence"] for item in receipts),
+                        expected_previous_high_water=previous_high_water,
                     )
                 self.db.execute("COMMIT")
                 return receipts
