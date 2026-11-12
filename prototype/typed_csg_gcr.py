@@ -45,6 +45,7 @@ class TypedCandidateProposal:
     hyperedge: HyperedgeProposal
     variables: tuple[VariableSpec, ...]
     constraints: UnificationConstraints = UnificationConstraints()
+    semantic_status: str = "CANDIDATE"
 
 
 @dataclass(frozen=True)
@@ -55,6 +56,7 @@ class TypedCoordinatedCandidate:
     branch_merge_authorization_ref: str | None = None
     branch_merge_authorization_evidence_refs: tuple[str, ...] = ()
     branch_merge_evidence_refs: tuple[str, ...] = ()
+    semantic_status: str = "CANDIDATE"
 
 
 @dataclass(frozen=True)
@@ -91,6 +93,8 @@ def _validate_pair(item: TypedCandidateProposal) -> None:
         raise CoordinationError("variables must be a tuple of VariableSpec")
     if not isinstance(item.constraints, UnificationConstraints):
         raise CoordinationError("constraints must be UnificationConstraints")
+    if item.semantic_status not in ("CANDIDATE", "HYPOTHESIS_ONLY"):
+        raise CoordinationError("semantic_status must be CANDIDATE or HYPOTHESIS_ONLY")
 
 
 def _merge_contract(rows: tuple[TypedCandidateProposal, ...]):
@@ -353,9 +357,14 @@ class TypedCandidateCoordinator:
                 if len({row.proposal.branch_id for row in selected}) > 1:
                     authorization_ref = branch_merge_authorization.authorization_ref
                     authorization_evidence_refs = branch_merge_authorization.evidence_refs
+            semantic_status = (
+                "HYPOTHESIS_ONLY"
+                if any(row.semantic_status == "HYPOTHESIS_ONLY" for row in selected)
+                else "CANDIDATE"
+            )
             accepted.append(TypedCoordinatedCandidate(
                 candidate, result, branch_merge, authorization_ref,
-                authorization_evidence_refs, branch_evidence_refs,
+                authorization_evidence_refs, branch_evidence_refs, semantic_status,
             ))
 
         accepted.sort(key=lambda item: (
