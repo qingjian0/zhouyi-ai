@@ -8,7 +8,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Iterable, Protocol
 
-from prototype.m2_observation_store import ObservationReceipt
+from prototype.m2_observation_store import (
+    ObservationReceipt,
+    PersistentM2ObservationStore,
+)
 from prototype.m2_semantic_unit_store import (
     PersistentSemanticUnitCandidateStore,
     SemanticUnitReceipt,
@@ -58,6 +61,7 @@ class ObservationCandidatePipeline:
         self,
         extractor: SemanticUnitExtractor,
         candidate_store: PersistentSemanticUnitCandidateStore,
+        observation_store: PersistentM2ObservationStore,
         *,
         max_candidates_per_observation: int = 64,
     ) -> None:
@@ -65,14 +69,19 @@ class ObservationCandidatePipeline:
             raise TypeError("extractor must provide extract(observation)")
         if not callable(getattr(candidate_store, "record_candidate", None)):
             raise TypeError("candidate_store must provide record_candidate(candidate)")
+        if not callable(getattr(observation_store, "verify_observation_receipt", None)):
+            raise TypeError("observation_store must verify durable observation receipts")
         if not isinstance(getattr(candidate_store, "scope", None), str):
             raise TypeError("candidate_store must expose a scope")
         if (isinstance(max_candidates_per_observation, bool)
                 or not isinstance(max_candidates_per_observation, int)
                 or max_candidates_per_observation < 1):
             raise ValueError("max_candidates_per_observation must be a positive integer")
+        if getattr(observation_store, "scope", None) != getattr(candidate_store, "scope", None):
+            raise ValueError("observation and candidate stores must use the same scope")
         self._extractor = extractor
         self._store = candidate_store
+        self._observation_store = observation_store
         self._limit = max_candidates_per_observation
 
     def extract_and_persist(
@@ -87,14 +96,14 @@ class ObservationCandidatePipeline:
             raise TypeError("observation_receipt must be an ObservationReceipt")
         observation_id = observation.envelope.record_id
         event_ref = f"m2:observation:{observation_id}"
-        if observation_receipt.event_id != event_ref:
-            raise SemanticExtractionError("observation receipt does not identify this observation")
-        if observation_receipt.record_digest != record_digest(observation):
-            raise SemanticExtractionError("observation receipt digest does not match the supplied record")
-        if observation_receipt.sequence < 1:
-            raise SemanticExtractionError("observation receipt sequence must be positive")
         if observation.envelope.scope != self._store.scope:
             raise SemanticExtractionError("observation scope does not match candidate store")
+        try:
+            self._observation_store.verify_observation_receipt(observation, observation_receipt)
+        except Exception as exc:
+            raise SemanticExtractionError(
+                f"observation receipt is not verified by the durable store: {exc}"
+            ) from exc
         if observation.parse_status in (ParseStatus.UNPARSEABLE, ParseStatus.REJECTED):
             raise SemanticExtractionError(
                 f"observation parse status {observation.parse_status.value} is not extractable"
