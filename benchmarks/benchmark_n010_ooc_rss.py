@@ -32,6 +32,16 @@ def _ru_maxrss_kib(value: int | float, platform: str | None = None) -> int:
     return int(value)
 
 
+def _throughput_rates(train_records: int, total_records: int, elapsed_seconds: float) -> dict[str, float]:
+    """Report end-to-end rates; elapsed includes indexing, training, and dev traversal."""
+    if elapsed_seconds <= 0:
+        raise ValueError("elapsed_seconds must be positive")
+    return {
+        "train_rows_per_second_end_to_end": round(train_records / elapsed_seconds, 3),
+        "total_rows_per_second_end_to_end": round(total_records / elapsed_seconds, 3),
+    }
+
+
 def _rss_kib() -> int:
     try:
         with open("/proc/self/status", "r", encoding="utf-8") as status:
@@ -93,6 +103,7 @@ def _worker(dataset: Path, records: int, epochs: int) -> dict:
         manifest = stream.manifest
     elapsed = time.perf_counter() - started
     peak = _ru_maxrss_kib(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
+    rates = _throughput_rates(records, manifest["records"], elapsed)
     return {
         "records_per_split": records,
         "total_records": manifest["records"],
@@ -103,6 +114,7 @@ def _worker(dataset: Path, records: int, epochs: int) -> dict:
         "dev_rows_streamed": dev_count,
         "final_loss": losses[-1],
         "elapsed_seconds": round(elapsed, 3),
+        **rates,
         "index": manifest["index"],
     }
 
