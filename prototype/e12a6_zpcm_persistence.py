@@ -82,17 +82,22 @@ class PersistentLifecycleLedger:
         if not isinstance(scope,str) or not scope.strip(): raise ValueError("scope required")
         self._memory=memory; self.scope=scope; self._lock=RLock()
         self._ledger=LifecycleLedger(); self._last_sequence=0
-        self._receipts={}; self._event_payloads={}; self._consumed_receipts={}
+        self._receipts={}; self._consumed_receipts={}
         self._restore()
 
     @property
     def ledger(self) -> LifecycleLedger:
         with self._lock: return deepcopy(self._ledger)
 
+    def _get_event_payload(self, event_id: str) -> dict[str, Any] | None:
+        """Read one authoritative event payload on demand; never cache full history."""
+        event = self._memory.get_lifecycle_event(scope=self.scope, event_id=event_id)
+        return None if event is None else event["payload"]
+
     def _restore(self) -> None:
         try:
             events=self._memory.iter_lifecycle_events(scope=self.scope)
-            staged=LifecycleLedger(); previous=0; receipts={}; payloads={}; consumed_receipts={}; consumed_nonces=set()
+            staged=LifecycleLedger(); previous=0; receipts={}; consumed_receipts={}; consumed_nonces=set()
             for event in events:
                 seq=event["sequence"]
                 if isinstance(seq,bool) or not isinstance(seq,int) or seq<=previous:
@@ -171,9 +176,8 @@ class PersistentLifecycleLedger:
                 else: raise LifecyclePersistenceError(f"unknown lifecycle event kind: {kind!r}")
                 eid=event["event_id"]
                 receipts[eid]=LifecycleEventReceipt(eid,seq,event["payload_digest"],True)
-                payloads[eid]=payload
             self._ledger=staged; self._last_sequence=previous
-            self._receipts=receipts; self._event_payloads=payloads; self._consumed_receipts=consumed_receipts
+            self._receipts=receipts; self._consumed_receipts=consumed_receipts
         except LifecyclePersistenceError: raise
         except Exception as exc: raise LifecyclePersistenceError(f"lifecycle replay failed: {exc}") from exc
 
@@ -182,11 +186,11 @@ class PersistentLifecycleLedger:
           payload=payload,expected_sequence=self._last_sequence)
         receipt=LifecycleEventReceipt(event_id,raw["sequence"],raw["payload_digest"],raw["replayed"])
         if receipt.replayed:
-            if self._event_payloads.get(event_id)!=payload:
+            if self._get_event_payload(event_id)!=payload:
                 raise LifecyclePersistenceError("replayed event differs from local history")
             return receipt
         self._ledger=staged; self._last_sequence=receipt.sequence
-        self._receipts[event_id]=receipt; self._event_payloads[event_id]=payload
+        self._receipts[event_id]=receipt; 
         return receipt
 
     def register_candidate(self,candidate: Candidate) -> LifecycleEventReceipt:
@@ -195,7 +199,7 @@ class PersistentLifecycleLedger:
         with self._lock:
             key=(candidate.candidate_id,candidate.version); old=self._ledger.candidates.get(key)
             if old is not None:
-                if old!=candidate or self._event_payloads.get(eid)!=payload: raise LifecyclePersistenceError("candidate ID content conflict")
+                if old!=candidate or self._get_event_payload(eid)!=payload: raise LifecyclePersistenceError("candidate ID content conflict")
                 r=self._receipts[eid]; return LifecycleEventReceipt(r.event_id,r.sequence,r.payload_digest,True)
             staged=deepcopy(self._ledger); staged.add_candidate(candidate)
             return self._commit(eid,payload,staged)
@@ -207,7 +211,7 @@ class PersistentLifecycleLedger:
         with self._lock:
             old=self._ledger.evidence.get(safe_evidence.evidence_id)
             if old is not None:
-                if old!=safe_evidence or self._event_payloads.get(eid)!=payload: raise LifecyclePersistenceError("evidence ID content conflict")
+                if old!=safe_evidence or self._get_event_payload(eid)!=payload: raise LifecyclePersistenceError("evidence ID content conflict")
                 r=self._receipts[eid]; return LifecycleEventReceipt(r.event_id,r.sequence,r.payload_digest,True)
             staged=deepcopy(self._ledger); staged.add_evidence(safe_evidence)
             return self._commit(eid,payload,staged)
@@ -372,7 +376,7 @@ class PersistentLifecycleLedger:
                 expected_payloads = dict(evidence_events + [(candidate_id, candidate_payload)])
                 if authorization_event is not None:
                     expected_payloads[authorization_event[0]] = authorization_event[1]
-                if any(self._event_payloads.get(eid) != payload for eid, payload in expected_payloads.items()):
+                if any(self._get_event_payload(eid) != payload for eid, payload in expected_payloads.items()):
                     raise LifecyclePersistenceError("candidate bundle event history mismatch")
                 evidence_receipts = tuple(
                     LifecycleEventReceipt(
@@ -414,12 +418,10 @@ class PersistentLifecycleLedger:
             self._last_sequence = raw_receipts[-1]["sequence"]
             for event_id, payload in evidence_events + [(candidate_id, candidate_payload)]:
                 self._receipts[event_id] = receipts[event_id]
-                self._event_payloads[event_id] = payload
             auth_receipt = None
             if authorization_event is not None:
                 auth_event_id, auth_payload = authorization_event
                 self._receipts[auth_event_id] = receipts[auth_event_id]
-                self._event_payloads[auth_event_id] = auth_payload
                 self._consumed_receipts[authorization_receipt.receipt_id] = authorization_body
                 auth_receipt = receipts[auth_event_id]
             return LifecycleBundleReceipt(
@@ -435,7 +437,7 @@ class PersistentLifecycleLedger:
         with self._lock:
             if action.action_id in self._ledger._action_ids:
                 r=self._receipts.get(eid)
-                if r is None or self._event_payloads.get(eid)!=payload: raise LifecyclePersistenceError("action ID content conflict")
+                if r is None or self._get_event_payload(eid)!=payload: raise LifecyclePersistenceError("action ID content conflict")
                 return LifecycleEventReceipt(r.event_id,r.sequence,r.payload_digest,True)
             staged=deepcopy(self._ledger); staged.apply(action)
             return self._commit(eid,payload,staged)
@@ -452,7 +454,7 @@ class PersistentLifecycleLedger:
                 recorded={k:list(v) if isinstance(v,tuple) else v for k,v in recorded.items()}
                 expected={"schema_version":EVENT_SCHEMA,"kind":"revision_created",
                   "body":{"arguments":recorded,"candidate":_candidate_to_dict(existing)}}
-                if self._event_payloads.get(eid)!=expected:
+                if self._get_event_payload(eid)!=expected:
                     raise LifecyclePersistenceError("revision identity reused with different content")
                 r=self._receipts[eid]
                 return existing,LifecycleEventReceipt(r.event_id,r.sequence,r.payload_digest,True)

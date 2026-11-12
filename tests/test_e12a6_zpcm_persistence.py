@@ -370,4 +370,18 @@ class PersistentLifecycleTests(unittest.TestCase):
         restored = PersistentLifecycleLedger(self.memory, scope="project-a")
         self.assertIn(("rel:greater-than", 1), restored.ledger.candidates)
 
+
+    def test_event_payloads_are_loaded_on_demand_not_cached(self):
+        self.store.register_candidate(candidate())
+        self.assertFalse(hasattr(self.store, "_event_payloads"))
+        self.assertEqual(
+            self.store._get_event_payload("e12a6:candidate:rel:greater-than@1")["kind"],
+            "candidate_registered",
+        )
+        replay = self.store.register_candidate(candidate())
+        self.assertTrue(replay.replayed)
+        altered = replace(candidate(), canonical_expression="x >= y")
+        with self.assertRaises(LifecyclePersistenceError):
+            self.store.register_candidate(altered)
+
 if __name__=="__main__": unittest.main()
