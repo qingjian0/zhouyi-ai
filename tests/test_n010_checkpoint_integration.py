@@ -71,6 +71,8 @@ class N010CheckpointIntegrationTests(unittest.TestCase):
         ))
         self.assertEqual(prediction.expanded_assignments, 12)
         self.assertFalse(prediction.budget_exhausted)
+        self.assertTrue(prediction.abstained)
+        self.assertEqual(prediction.reason, "BEAM_PRUNED")
 
 
     def test_joint_beam_search_reports_truncated_budget_without_partial_predictions(self):
