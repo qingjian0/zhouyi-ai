@@ -57,13 +57,14 @@ class YixiangCsgGcrBridgeTests(unittest.TestCase):
             constraints=GlobalConstraints(result_limit=8),
         )
         self.assertEqual(result.semantic_status, "HYPOTHESIS_ONLY")
-        self.assertEqual(len(result.coordination.candidates), min(1, len(result.proposals)))
+        self.assertEqual(len(result.coordination.candidates), min(8, len(result.proposals)))
         if result.coordination.candidates:
-            candidate = result.coordination.candidates[0]
-            self.assertEqual(candidate.coordinated.candidate_kinds[0].split(":")[0],
-                             "YIXIANG_HYPOTHESIS_ONLY")
-            self.assertEqual(candidate.unification.evidence_refs,
-                             candidate.coordinated.evidence_refs)
+            for candidate in result.coordination.candidates:
+                self.assertEqual(len(candidate.coordinated.proposal_ids), 1)
+                self.assertEqual(candidate.coordinated.candidate_kinds[0].split(":")[0],
+                                 "YIXIANG_HYPOTHESIS_ONLY")
+                self.assertEqual(candidate.unification.evidence_refs,
+                                 candidate.coordinated.evidence_refs)
 
     def test_transform_prior_is_not_observational_evidence(self):
         result = coordinate_yixiang_compositions(
