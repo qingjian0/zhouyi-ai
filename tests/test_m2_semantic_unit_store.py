@@ -156,6 +156,10 @@ class PersistentM2SemanticUnitStoreTests(unittest.TestCase):
         candidate = self.candidate("projection-repair")
         self.store.record_candidate(candidate)
         self.memory.db.execute(
+            "DELETE FROM m2_semantic_unit_heads WHERE scope=? AND root_id=?",
+            ("project-a", "projection-repair"),
+        )
+        self.memory.db.execute(
             "DELETE FROM m2_semantic_unit_records WHERE scope=? AND record_id=?",
             ("project-a", "projection-repair"),
         )
