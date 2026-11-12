@@ -43,13 +43,13 @@ class _FakeVerifier:
 
 
 
-def _crash_during_receipt_signing(ledger_path, started_sender, release):
+def _crash_during_receipt_signing(ledger_path, started_sender):
     """Child process blocks in the issuer after the durable reservation commit."""
     ledger = SQLiteVerifierReceiptLedger(ledger_path)
     try:
         def blocked_issuer(identity):
             started_sender.send(dict(identity))
-            release.wait(30)
+            time.sleep(60)
             return {
                 "receipt_id": identity["receipt_id"],
                 "nonce": identity["nonce"],
@@ -189,10 +189,9 @@ class VerifierReceiptLedgerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "receipts.sqlite"
             started_receiver, started_sender = context.Pipe(duplex=False)
-            release = context.Event()
             child = context.Process(
                 target=_crash_during_receipt_signing,
-                args=(str(path), started_sender, release),
+                args=(str(path), started_sender),
             )
             child.start()
             started_sender.close()
@@ -234,7 +233,6 @@ class VerifierReceiptLedgerTests(unittest.TestCase):
                 if child.is_alive():
                     child.kill()
                     child.join(timeout=5)
-                release.set()
                 started_receiver.close()
 
     def test_ledger_rejects_world_accessible_file(self):
