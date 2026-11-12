@@ -781,6 +781,8 @@ class E09AuthorityService:
             if (parent is None
                     or parent.get("actor_role") != "learner"
                     or not isinstance(parent.get("integrity_metadata", {}).get("authenticated_workload"), dict)
+                    or parent.get("integrity_metadata", {}).get("authenticated_workload", {}).get("workload_id")
+                        != principal.workload_id
                     or parent["payload"].get("structure_id") != normalized["structure_id"]
                     or parent["payload"].get("learner_track") != learner_track
                     or parent["payload"].get("scope") != scope):
@@ -793,6 +795,9 @@ class E09AuthorityService:
                     or reveal["payload"].get("scope") != scope
                     or reveal["payload"].get("learner_track") != learner_track):
                 raise E09AuthorizationError("support evidence is missing or outside the authorized scope/track")
+            self.read_support_feedback(
+                credential, episode_id=episode_id, reveal_event_id=evidence_id, scope=scope
+            )
         return self._store.append_event(
             episode_id=episode_id, event_id=event_id, event_type="structure_version",
             idempotency_key=idempotency_key, payload=normalized,
@@ -865,6 +870,9 @@ class E09AuthorityService:
                     or reveal["payload"].get("scope") != scope
                     or reveal["payload"].get("learner_track") != learner_track):
                 raise E09AuthorizationError("revision trigger evidence is missing or outside the authorized scope/track")
+            self.read_support_feedback(
+                credential, episode_id=episode_id, reveal_event_id=evidence_id, scope=scope
+            )
         before_events = [structures.get(version_id) for version_id in before]
         after_events = [structures.get(version_id) for version_id in after]
         if any(event is None for event in before_events + after_events):
@@ -875,6 +883,8 @@ class E09AuthorityService:
         if len(structure_ids) != 1 or any(
             event.get("actor_role") != "learner"
             or not isinstance(event.get("integrity_metadata", {}).get("authenticated_workload"), dict)
+            or event.get("integrity_metadata", {}).get("authenticated_workload", {}).get("workload_id")
+                != principal.workload_id
             or event["payload"].get("learner_track") != learner_track
             or event["payload"].get("scope") != scope
             for event in before_events + after_events
