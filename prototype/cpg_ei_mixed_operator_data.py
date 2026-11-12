@@ -50,7 +50,7 @@ def _split_families(family_count: int, seed: int) -> dict[int, str]:
 
 
 def generate_mixed_corpus(
-    *, family_count: int = 40, input_dim: int = 8, output_dim: int = 8,
+    *, family_count: int = 400, input_dim: int = 8, output_dim: int = 8,
     seed: int = 20261114,
 ) -> dict:
     if isinstance(family_count, bool) or not isinstance(family_count, int) or family_count < 5:
