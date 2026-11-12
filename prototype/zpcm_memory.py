@@ -52,6 +52,12 @@ class ZPCMMemory:
         );
         INSERT OR IGNORE INTO e12a6_authorization_projection_state(singleton,generation) VALUES(1,0);
         CREATE INDEX IF NOT EXISTS memory_events_type_seq ON memory_events(event_type,seq);
+        CREATE INDEX IF NOT EXISTS e12a6_auth_candidate_lookup ON memory_events(
+            scope,
+            json_extract(payload_json,'$.body.candidate_id'),
+            json_extract(payload_json,'$.body.candidate_version')
+        ) WHERE event_type='e12a6_lifecycle'
+          AND json_extract(payload_json,'$.kind')='authorization_consumed';
         """)
         checkpoint_columns = {
             row["name"] for row in self.db.execute(
