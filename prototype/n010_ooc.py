@@ -141,7 +141,11 @@ class N010StreamingDataset:
         self._db.execute("CREATE INDEX records_family_idx ON records(rule_family, split)")
         self._db.commit()
         self.sha256 = _sha256_file(self.path)
-        self.manifest = self._build_index()
+        try:
+            self.manifest = self._build_index()
+        except Exception:
+            self.close()
+            raise
 
     def close(self) -> None:
         if getattr(self, "_db", None) is not None:
@@ -494,7 +498,7 @@ def run_experiment_ooc(dataset_path: str | Path, roles: Sequence[RoleSpec],
             "loss_history": history,
             "dev": dev_metrics,
             "checkpoint": str(checkpoint),
-            "locked_test_policy": "separate_artifact_and_evaluator_process",
+            "locked_test_policy": "separate_artifact_and_evaluator_entry_point",
         }
         _atomic_write_json(
             checkpoint.with_suffix(checkpoint.suffix + ".report.json"), report
@@ -506,7 +510,7 @@ def evaluate_locked_test_ooc(locked_test_path: str | Path, roles: Sequence[RoleS
                              feature_dim: int, checkpoint_path: str | Path, *,
                              max_expansions: int = 4096,
                              beam_width: int = 64) -> dict:
-    """Separate evaluator entry point; run in a process after training is frozen."""
+    """Separate evaluator entry point; invoke in a separate process after training is frozen."""
     checkpoint = Path(checkpoint_path)
     if not checkpoint.exists():
         raise LearnableSROKError("training checkpoint does not exist")
@@ -517,6 +521,11 @@ def evaluate_locked_test_ooc(locked_test_path: str | Path, roles: Sequence[RoleS
     with N010StreamingDataset(
         locked_test_path, roles, feature_dim, expected_splits=("locked_test",)
     ) as dataset:
+        training_manifest = bundle.get("dataset_manifest", {})
+        if (training_manifest.get("feature_dim") != dataset.manifest["feature_dim"]
+                or training_manifest.get("roles") != dataset.manifest["roles"]
+                or model.feature_dim != feature_dim):
+            raise LearnableSROKError("locked-test schema does not match the frozen training model")
         metrics = evaluate_to_jsonl(
             model, dataset.iter_split_rows("locked_test"),
             checkpoint.with_suffix(checkpoint.suffix + ".locked-test-predictions.jsonl"),
