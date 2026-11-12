@@ -1,7 +1,7 @@
 import math
 import unittest
 
-from prototype.cpg_ei_mvp import CpgEiTransitionModel, FEATURE_NAMES
+from prototype.cpg_ei_mvp import CpgEiTransitionModel, Example, FEATURE_NAMES
 from prototype.cpg_ei_oracle_optimizer_sweep import (
     REGULARIZERS,
     _mean_bce,
@@ -63,7 +63,7 @@ class TestOracleOptimizerSweep(unittest.TestCase):
 
     def test_mean_bce_uses_current_model_parameters(self):
         model = CpgEiTransitionModel.create(active_relation_indices=())
-        rows = make_examples(((0, 0, 0, 0, 0, 0),), ())
+        rows = [Example((0, 0, 0, 0, 0, 0), (0, 0, 0, 0, 0, 0))]
         self.assertAlmostEqual(_mean_bce(model, rows), math.log(2.0), places=12)
 
     def test_rejects_invalid_schedules(self):
