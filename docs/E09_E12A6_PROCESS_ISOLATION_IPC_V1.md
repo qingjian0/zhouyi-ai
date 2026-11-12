@@ -190,7 +190,8 @@ The current stacked implementation has reached the following code increments:
 | E09 Verifier | `prototype/e09_verifier_unix_rpc.py` (PR #297) | Writer-only receipt issuance, durable operation reservation and retry ledger |
 | E12-A6 Writer | `prototype/e12a6_writer_unix_rpc.py` (PR #301) | Typed DTO decoding, signed receipt binding, in-process recomputation and atomic lifecycle bundle write |
 | Learner feedback | `read_support_feedback` (PR #302) | Learner-only release of lineage-verified SUPPORT feedback; gate/test labels remain blocked |
-| Learner memory projection | `read_learner_episode` (PR #304) | Authenticated event projection with raw reveal labels and checkpoint blobs redacted |
+| Learner memory projection | `read_learner_episode` (PR #304) | Authenticated workload-bound event projection with raw reveal labels and checkpoint blobs redacted |
+| Learner checkpoint | `structure.read_checkpoint` (PR #311) | Returns only the requesting learner's latest checkpoint; validates snapshot digest and support evidence references |
 
 These are service-boundary implementations and CI-tested local UDS integrations. They do **not** yet establish production process isolation.
 
@@ -200,7 +201,7 @@ These are service-boundary implementations and CI-tested local UDS integrations.
 2. Publish a transactionally consistent E09 snapshot to the Verifier identity; prove SQLite journal/WAL and sidecar access semantics.
 3. Move E09 Authority, Verifier and E12-A6 Writer signing material into separate KMS/HSM-backed identities.
 4. Split the current combined E09 adapter into observer ingress, learner and evaluator roles. Remove its direct SQLite handle, direct payload-vault access and unrestricted replay/memory projection.
-5. Add a dedicated learner checkpoint-read API that validates ledger snapshot records against authorized SUPPORT evidence; the redacted ZPCM projection intentionally omits restart snapshots.
+5. Finish checkpoint hardening by validating every in-episode ledger record against SUPPORT evidence and bootstrap provenance; the current checkpoint API validates snapshot digest and declared support references, while the redacted ZPCM projection intentionally omits restart snapshots.
 6. Add E12 Writer OS deployment, DB-exclusive ownership, external monotonic checkpoint, backup/restore and receipt-consumption recovery tests.
 7. Run the full Observation → Commit → Reveal → Receipt → Writer → ZPCM → restart/replay vertical slice across separate OS processes, then execute Gates A–D from this contract.
 
