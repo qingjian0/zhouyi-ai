@@ -17,6 +17,7 @@ from prototype.shared_evidence_protocol import (
     STRICT_PROTOCOL_VERSION,
     EventReceipt,
     EvidenceEpisodeReader,
+    MissingReference,
     SQLiteEvidenceStore,
     digest_payload,
 )
@@ -258,6 +259,72 @@ class E09AuthorityService:
         if not isinstance(payload_ref, str) or not payload_ref:
             raise E09AuthorizationError("Observation has no durable input payload reference")
         return self._store.get_payload(payload_ref)
+
+    def read_learner_checkpoint(
+        self,
+        credential: object,
+        *,
+        episode_id: str,
+        scope: str,
+        learner_track: str,
+    ) -> dict[str, Any]:
+        """Return the latest authenticated checkpoint only to its owning learner workload."""
+        principal = self._principal(credential, role="learner", scope=scope)
+        if not isinstance(learner_track, str) or not learner_track.strip():
+            raise E09AuthorizationError("learner_track must be a non-empty string")
+        events = self._store.replay_episode(episode_id)
+        checkpoints = [
+            event for event in events
+            if event.get("event_type") == "structure_version"
+            and event.get("payload", {}).get("scope") == scope
+            and event.get("payload", {}).get("learner_track") == learner_track
+            and event.get("actor_role") == "learner"
+            and isinstance(event.get("integrity_metadata", {}).get("authenticated_workload"), dict)
+            and event.get("integrity_metadata", {}).get("authenticated_workload", {}).get("workload_id")
+                == principal.workload_id
+        ]
+        if not checkpoints:
+            raise MissingReference("no authenticated learner checkpoint exists for this episode/track")
+        latest = max(checkpoints, key=lambda event: event.get("sequence_no", 0))
+        payload = latest.get("payload", {})
+        definition = payload.get("definition")
+        if not isinstance(definition, dict):
+            raise E09AuthorizationError("learner checkpoint definition is malformed")
+        snapshot = definition.get("snapshot")
+        ledger_snapshot = definition.get("ledger_snapshot")
+        if not isinstance(snapshot, dict) or not isinstance(ledger_snapshot, dict):
+            raise E09AuthorizationError("learner checkpoint is missing snapshot or ledger state")
+        if definition.get("snapshot_digest") != digest_payload(snapshot):
+            raise E09AuthorizationError("learner checkpoint snapshot digest mismatch")
+        records = ledger_snapshot.get("records")
+        if not isinstance(records, list):
+            raise E09AuthorizationError("learner checkpoint ledger records are malformed")
+        for record in records:
+            if (
+                not isinstance(record, dict)
+                or not isinstance(record.get("sample_id"), str)
+                or not isinstance(record.get("inputs"), list)
+                or "label" not in record
+            ):
+                raise E09AuthorizationError("learner checkpoint contains a malformed training record")
+        support_refs = payload.get("support_evidence_ids", [])
+        if not isinstance(support_refs, list) or any(
+            not isinstance(ref, str) or not ref.strip() for ref in support_refs
+        ):
+            raise E09AuthorizationError("learner checkpoint support evidence references are malformed")
+        for reveal_event_id in support_refs:
+            self.read_support_feedback(
+                credential,
+                episode_id=episode_id,
+                reveal_event_id=reveal_event_id,
+                scope=scope,
+            )
+        return {
+            "event_id": latest["event_id"],
+            "sequence_no": latest["sequence_no"],
+            "payload_digest": latest["payload_digest"],
+            "payload": payload,
+        }
 
     def read_learner_episode(
         self,
