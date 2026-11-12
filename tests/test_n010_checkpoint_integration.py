@@ -125,6 +125,21 @@ class N010CheckpointIntegrationTests(unittest.TestCase):
         self.assertEqual(prediction.expanded_assignments, 1)
         self.assertEqual(len(prediction.candidates), 1)
 
+    def test_joint_search_is_candidate_order_invariant_under_fixed_budget(self):
+        model = LearnableSROK(self.roles, feature_dim=2)
+        forward = model.predict(
+            self.nodes, retrieval_mode="joint", max_expansions=5, result_limit=5
+        )
+        reverse = model.predict(
+            tuple(reversed(self.nodes)),
+            retrieval_mode="joint",
+            max_expansions=5,
+            result_limit=5,
+        )
+        self.assertEqual(forward, reverse)
+        self.assertTrue(forward.abstained)
+        self.assertEqual(forward.reason, "SEARCH_BUDGET_EXHAUSTED")
+
 
 if __name__ == "__main__":
     unittest.main()
