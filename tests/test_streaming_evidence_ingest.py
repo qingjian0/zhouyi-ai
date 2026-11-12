@@ -244,6 +244,43 @@ with open(source_path, "rb") as stream:
         self.assertEqual(self.ingestor.document_state("doc-invalid"), (0, 0, False))
         self.assertEqual(self.ingestor.get_chunks("doc-invalid"), [])
 
+    def test_ingest_rejects_chunk_size_above_hard_limit(self):
+        with self.assertRaises(IngestContractError):
+            self.ingestor.ingest(
+                "doc-too-large", "large.txt", io.BytesIO(b"abcdefgh"),
+                chunk_bytes=self.ingestor.max_chunk_bytes + 1,
+            )
+        self.assertIsNone(self.ingestor.document_state("doc-too-large"))
+
+    def test_get_chunks_enforces_aggregate_page_byte_budget(self):
+        self.ingestor.ingest(
+            "doc-page-budget", "page.txt", io.BytesIO(b"abcdefghijkl"),
+            chunk_bytes=4,
+        )
+        page = self.ingestor.get_chunks(
+            "doc-page-budget", limit=10, page_bytes=8,
+        )
+        self.assertEqual([chunk.ordinal for chunk in page], [0, 1])
+        self.assertEqual(sum(len(chunk.text.encode("utf-8")) for chunk in page), 8)
+
+    def test_get_chunks_fails_closed_when_single_chunk_exceeds_page_budget(self):
+        self.ingestor.ingest(
+            "doc-single-over-budget", "single.txt", io.BytesIO(b"abcdefgh"),
+            chunk_bytes=8,
+        )
+        with self.assertRaises(IngestContractError):
+            self.ingestor.get_chunks(
+                "doc-single-over-budget", limit=10, page_bytes=7,
+            )
+
+    def test_get_chunks_rejects_unbounded_limit_and_page_budget(self):
+        with self.assertRaises(ValueError):
+            self.ingestor.get_chunks("doc-none", limit=4097)
+        with self.assertRaises(ValueError):
+            self.ingestor.get_chunks(
+                "doc-none", page_bytes=self.ingestor.max_page_bytes + 1,
+            )
+
     def test_non_seekable_stream_is_rejected(self):
         class NonSeekable(io.BytesIO):
             def seekable(self):
