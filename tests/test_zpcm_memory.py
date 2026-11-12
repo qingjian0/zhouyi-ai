@@ -245,6 +245,27 @@ class Tests(unittest.TestCase):
   self.m=ZPCMMemory(self.path)
   count=self.m.db.execute("SELECT COUNT(*) FROM e12a6_authorization_consumptions").fetchone()[0]
   self.assertEqual(count,1)
+ def test_projection_row_mutation_invalidates_checkpoint_and_rebuilds(self):
+  body={"receipt_id":"receipt-projection","nonce":"nonce-projection","scope":"s"}
+  payload={"kind":"authorization_consumed","body":body}
+  event_id="e12a6:authorization-consumed:receipt-projection"
+  self.m._append(event_id,"e12a6_lifecycle","s",payload)
+  self.m.close()
+  self.m=ZPCMMemory(self.path)
+  self.assertEqual(self.m.db.execute(
+      "SELECT COUNT(*) FROM e12a6_authorization_consumptions"
+  ).fetchone()[0],1)
+  self.m.db.execute(
+      "DELETE FROM e12a6_authorization_consumptions WHERE receipt_id=?",
+      (body["receipt_id"],),
+  )
+  self.m.close()
+  self.m=ZPCMMemory(self.path)
+  row=self.m.db.execute(
+      "SELECT receipt_id,nonce,event_id,scope FROM e12a6_authorization_consumptions"
+  ).fetchone()
+  self.assertEqual(tuple(row),(body["receipt_id"],body["nonce"],event_id,"s"))
+
  def test_explicit_authorization_projection_rebuild_revalidates_full_history(self):
   self.m.append_lifecycle_event(event_id="lifecycle:tamper",scope="s",
       payload={"kind":"state_transition","value":1},expected_sequence=0)
