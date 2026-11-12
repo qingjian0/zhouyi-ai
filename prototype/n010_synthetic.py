@@ -214,7 +214,7 @@ def generate_compositional_dataset(output_path: str | Path, *, seed: int = 0,
                 candidates_per_role, noise_rate, missing_rate,
             ))
     encoded = "".join(json.dumps(row, sort_keys=True, separators=(",", ":"),
-                                 ensure_ascii=False, allow_nan=False) + "\\n"
+                                 ensure_ascii=False, allow_nan=False) + "\n"
                       for row in rows).encode("utf-8")
     path = Path(output_path)
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -236,7 +236,7 @@ def generate_compositional_dataset(output_path: str | Path, *, seed: int = 0,
         "split_policy": "locked-test cycle direction is disjoint from train and dev",
     }
     path.with_suffix(path.suffix + ".manifest.json").write_text(
-        json.dumps(manifest, sort_keys=True, indent=2, ensure_ascii=False) + "\\n",
+        json.dumps(manifest, sort_keys=True, indent=2, ensure_ascii=False) + "\n",
         encoding="utf-8",
     )
     return manifest
