@@ -257,6 +257,107 @@ class LearnableSROKTests(unittest.TestCase):
                 beam.expanded_search_states, exact.expanded_search_states
             )
 
+    def test_seeded_mixed_interaction_beam_recall_sweep(self):
+        # Deterministic synthetic sweep across seeds, candidate-pool sizes,
+        # and beam widths. Exact Cartesian search is the top-k reference.
+        # Randomized unary/pairwise/third-order weights create mixed signals;
+        # this is a controlled retrieval benchmark, not a natural-language
+        # or real-world generalization claim.
+        seeds = (11, 23, 47, 89, 131)
+        pool_sizes = (3, 5, 8)
+        beam_widths = (1, 2, 4, 8)
+        recalls = []
+        top1_hits = []
+        expansion_ratios = []
+        abstentions = 0
+        comparisons = 0
+
+        for seed in seeds:
+            rng = random.Random(seed)
+            for pool_size in pool_sizes:
+                model = LearnableSROK(self.roles, feature_dim=2)
+                model.weights = [
+                    rng.uniform(-0.8, 0.8) for _ in model.weights
+                ]
+                nodes = []
+                for role in ("r0", "r1", "r2"):
+                    for index in range(pool_size):
+                        features = (
+                            rng.gauss(0.0, 1.0),
+                            rng.gauss(0.0, 1.0),
+                        )
+                        nodes.append(Node(
+                            f"{role}-{index}", role, features,
+                            frozenset({"eligible"}),
+                        ))
+
+                exact = model.predict(
+                    nodes, retrieval_mode="joint", search_strategy="product",
+                    max_expansions=pool_size ** 3, result_limit=5,
+                )
+                self.assertEqual(exact.expanded_search_states, pool_size ** 3)
+                exact_top_k = {
+                    candidate.role_bindings for candidate in exact.candidates
+                }
+                self.assertTrue(exact_top_k)
+
+                for beam_width in beam_widths:
+                    beam = model.predict(
+                        nodes, retrieval_mode="joint", search_strategy="beam",
+                        beam_width=beam_width, max_expansions=10_000,
+                        result_limit=5,
+                    )
+                    reversed_beam = model.predict(
+                        list(reversed(nodes)), retrieval_mode="joint",
+                        search_strategy="beam", beam_width=beam_width,
+                        max_expansions=10_000, result_limit=5,
+                    )
+                    beam_top_k = {
+                        candidate.role_bindings for candidate in beam.candidates
+                    }
+                    recall = len(exact_top_k & beam_top_k) / len(exact_top_k)
+                    top1 = int(
+                        bool(beam.candidates)
+                        and beam.candidates[0].role_bindings
+                        == exact.candidates[0].role_bindings
+                    )
+                    self.assertGreaterEqual(recall, 0.0)
+                    self.assertLessEqual(recall, 1.0)
+                    self.assertLessEqual(
+                        beam.expanded_search_states, 10_000
+                    )
+                    self.assertEqual(beam.reason, reversed_beam.reason)
+                    self.assertEqual(
+                        beam.expanded_search_states,
+                        reversed_beam.expanded_search_states,
+                    )
+                    self.assertEqual(
+                        [item.role_bindings for item in beam.candidates],
+                        [item.role_bindings for item in reversed_beam.candidates],
+                    )
+
+                    recalls.append(recall)
+                    top1_hits.append(top1)
+                    expansion_ratios.append(
+                        beam.expanded_search_states / exact.expanded_search_states
+                    )
+                    abstentions += int(beam.abstained)
+                    comparisons += 1
+
+        mean_recall = sum(recalls) / comparisons
+        mean_top1 = sum(top1_hits) / comparisons
+        mean_expansion_ratio = sum(expansion_ratios) / comparisons
+        abstention_rate = abstentions / comparisons
+        print(
+            "CPG_EI_SEEDED_SWEEP "
+            f"comparisons={comparisons} "
+            f"recall_at_5={mean_recall:.4f} "
+            f"top1_hit={mean_top1:.4f} "
+            f"expansion_ratio={mean_expansion_ratio:.4f} "
+            f"abstention_rate={abstention_rate:.4f}"
+        )
+        self.assertEqual(comparisons, 60)
+
     def test_beam_search_is_deterministic_under_input_permutation(self):
         model = LearnableSROK(self.roles, feature_dim=3)
         nodes = [
