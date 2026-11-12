@@ -109,6 +109,26 @@ class PersistentLifecycleTests(unittest.TestCase):
             self.store.apply(propose())
         self.assertEqual(self.store.ledger.candidates[("rel:greater-than", 1)].state, CandidateState.PROPOSED)
 
+    def test_runtime_ledger_collections_are_disk_backed_and_snapshot_is_explicit(self):
+        self.assertEqual(type(self.store._ledger.candidates).__name__, "_SQLiteMapping")
+        self.assertEqual(type(self.store._ledger.evidence).__name__, "_SQLiteMapping")
+        self.assertEqual(type(self.store._ledger.actions).__name__, "_SQLiteSequence")
+        self.assertEqual(type(self.store._ledger._action_ids).__name__, "_SQLiteSet")
+        self.store.register_candidate(candidate())
+        self.store.register_evidence(evidence())
+        self.store.apply(propose())
+        snapshot = self.store.ledger
+        self.assertIsInstance(snapshot.candidates, dict)
+        self.assertIsInstance(snapshot.evidence, dict)
+        self.assertIsInstance(snapshot.actions, list)
+        self.assertIsInstance(snapshot._action_ids, set)
+        before = self.store.snapshot()
+        self.memory.close()
+        self.memory = ZPCMMemory(self.path)
+        self.store = PersistentLifecycleLedger(self.memory, scope="project-a")
+        self.assertEqual(self.store.snapshot(), before)
+        self.assertEqual(type(self.store._ledger.candidates).__name__, "_SQLiteMapping")
+
     def test_append_failure_does_not_mutate_in_memory_ledger(self):
         self.store.register_candidate(candidate()); before=self.store.snapshot(); original=self.memory.append_lifecycle_event
         self.memory.append_lifecycle_event=lambda **kwargs: (_ for _ in ()).throw(ZPCMError("disk failure"))
