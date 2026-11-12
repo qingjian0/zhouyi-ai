@@ -2,6 +2,12 @@
 from __future__ import annotations
 from copy import deepcopy
 import json
+import os
+import pickle
+import sqlite3
+import tempfile
+import weakref
+from collections.abc import MutableMapping, MutableSet, MutableSequence
 from datetime import datetime
 from dataclasses import dataclass, replace
 from threading import RLock
@@ -75,18 +81,206 @@ def _safe_evidence(evidence: Evidence) -> Evidence:
         provenance=f"opaque-provenance-ref:{evidence.evidence_id}",
     )
 
+class _SQLiteRuntimeState:
+    """Disk-backed scratch state for semantic replay; Python retains only bounded pages."""
+    def __init__(self) -> None:
+        fd, self.path = tempfile.mkstemp(prefix="zhouyi-e12a6-replay-", suffix=".sqlite3")
+        os.close(fd)
+        self.connection = sqlite3.connect(self.path, isolation_level=None, check_same_thread=False)
+        self.connection.execute("PRAGMA journal_mode=DELETE")
+        self.connection.execute("PRAGMA synchronous=OFF")
+        self.connection.execute("PRAGMA temp_store=FILE")
+        self.connection.execute("PRAGMA cache_size=-2048")
+        self.connection.execute("PRAGMA mmap_size=0")
+        self.connection.executescript("""
+            CREATE TABLE mapping_values(name TEXT NOT NULL, key BLOB NOT NULL, value BLOB NOT NULL,
+                PRIMARY KEY(name,key));
+            CREATE TABLE set_values(name TEXT NOT NULL, value BLOB NOT NULL, PRIMARY KEY(name,value));
+            CREATE TABLE sequence_values(name TEXT NOT NULL, position INTEGER PRIMARY KEY AUTOINCREMENT,
+                value BLOB NOT NULL);
+        """)
+        self._finalizer = weakref.finalize(self, self._cleanup, self.connection, self.path)
+
+    @staticmethod
+    def _cleanup(connection, path: str) -> None:
+        try:
+            connection.close()
+        except Exception:
+            pass
+        try:
+            os.unlink(path)
+        except FileNotFoundError:
+            pass
+
+
+def _dump_state(value: Any) -> sqlite3.Binary:
+    return sqlite3.Binary(pickle.dumps(value, protocol=5))
+
+
+class _SQLiteMapping(MutableMapping):
+    def __init__(self, state: _SQLiteRuntimeState, name: str) -> None:
+        self.state, self.name = state, name
+
+    def __getitem__(self, key):
+        row = self.state.connection.execute(
+            "SELECT value FROM mapping_values WHERE name=? AND key=?",
+            (self.name, _dump_state(key)),
+        ).fetchone()
+        if row is None:
+            raise KeyError(key)
+        return pickle.loads(row[0])
+
+    def __setitem__(self, key, value) -> None:
+        self.state.connection.execute(
+            "INSERT OR REPLACE INTO mapping_values(name,key,value) VALUES(?,?,?)",
+            (self.name, _dump_state(key), _dump_state(value)),
+        )
+
+    def __delitem__(self, key) -> None:
+        cursor = self.state.connection.execute(
+            "DELETE FROM mapping_values WHERE name=? AND key=?",
+            (self.name, _dump_state(key)),
+        )
+        if cursor.rowcount == 0:
+            raise KeyError(key)
+
+    def __iter__(self):
+        cursor = self.state.connection.execute(
+            "SELECT key FROM mapping_values WHERE name=? ORDER BY rowid", (self.name,)
+        )
+        while True:
+            rows = cursor.fetchmany(128)
+            if not rows:
+                return
+            for row in rows:
+                yield pickle.loads(row[0])
+
+    def __len__(self) -> int:
+        return int(self.state.connection.execute(
+            "SELECT COUNT(*) FROM mapping_values WHERE name=?", (self.name,)
+        ).fetchone()[0])
+
+
+class _SQLiteSet(MutableSet):
+    def __init__(self, state: _SQLiteRuntimeState, name: str) -> None:
+        self.state, self.name = state, name
+
+    def __contains__(self, value) -> bool:
+        return self.state.connection.execute(
+            "SELECT 1 FROM set_values WHERE name=? AND value=?",
+            (self.name, _dump_state(value)),
+        ).fetchone() is not None
+
+    def __iter__(self):
+        cursor = self.state.connection.execute(
+            "SELECT value FROM set_values WHERE name=? ORDER BY rowid", (self.name,)
+        )
+        while True:
+            rows = cursor.fetchmany(128)
+            if not rows:
+                return
+            for row in rows:
+                yield pickle.loads(row[0])
+
+    def __len__(self) -> int:
+        return int(self.state.connection.execute(
+            "SELECT COUNT(*) FROM set_values WHERE name=?", (self.name,)
+        ).fetchone()[0])
+
+    def add(self, value) -> None:
+        self.state.connection.execute(
+            "INSERT OR IGNORE INTO set_values(name,value) VALUES(?,?)",
+            (self.name, _dump_state(value)),
+        )
+
+    def discard(self, value) -> None:
+        self.state.connection.execute(
+            "DELETE FROM set_values WHERE name=? AND value=?",
+            (self.name, _dump_state(value)),
+        )
+
+
+class _SQLiteSequence(MutableSequence):
+    def __init__(self, state: _SQLiteRuntimeState, name: str) -> None:
+        self.state, self.name = state, name
+
+    def __len__(self) -> int:
+        return int(self.state.connection.execute(
+            "SELECT COUNT(*) FROM sequence_values WHERE name=?", (self.name,)
+        ).fetchone()[0])
+
+    def __getitem__(self, index):
+        if isinstance(index, slice):
+            return list(self)[index]
+        if index < 0:
+            index += len(self)
+        row = self.state.connection.execute(
+            "SELECT value FROM sequence_values WHERE name=? ORDER BY position LIMIT 1 OFFSET ?",
+            (self.name, index),
+        ).fetchone()
+        if row is None:
+            raise IndexError(index)
+        return pickle.loads(row[0])
+
+    def __setitem__(self, index, value) -> None:
+        raise TypeError("SQLite lifecycle action history is append-only")
+
+    def __delitem__(self, index) -> None:
+        raise TypeError("SQLite lifecycle action history is append-only")
+
+    def insert(self, index, value) -> None:
+        if index != len(self):
+            raise TypeError("SQLite lifecycle action history is append-only")
+        self.append(value)
+
+    def append(self, value) -> None:
+        self.state.connection.execute(
+            "INSERT INTO sequence_values(name,value) VALUES(?,?)",
+            (self.name, _dump_state(value)),
+        )
+
+    def __iter__(self):
+        cursor = self.state.connection.execute(
+            "SELECT value FROM sequence_values WHERE name=? ORDER BY position", (self.name,)
+        )
+        while True:
+            rows = cursor.fetchmany(128)
+            if not rows:
+                return
+            for row in rows:
+                yield pickle.loads(row[0])
+
+
+def _new_sqlite_lifecycle_ledger() -> tuple[LifecycleLedger, _SQLiteRuntimeState]:
+    state = _SQLiteRuntimeState()
+    ledger = LifecycleLedger()
+    ledger.candidates = _SQLiteMapping(state, "candidates")
+    ledger.evidence = _SQLiteMapping(state, "evidence")
+    ledger.actions = _SQLiteSequence(state, "actions")
+    ledger._action_ids = _SQLiteSet(state, "action_ids")
+    return ledger, state
+
+
 class PersistentLifecycleLedger:
     """E12 validates; ZPCM persists immutable events; replay revalidates transitions."""
     def __init__(self, memory: ZPCMMemory, *, scope: str) -> None:
         if not isinstance(memory,ZPCMMemory): raise TypeError("memory must be ZPCMMemory")
         if not isinstance(scope,str) or not scope.strip(): raise ValueError("scope required")
         self._memory=memory; self.scope=scope; self._lock=RLock()
-        self._ledger=LifecycleLedger(); self._last_sequence=0
+        self._ledger, self._runtime_state = _new_sqlite_lifecycle_ledger()
+        self._last_sequence=0
         self._restore()
 
     @property
     def ledger(self) -> LifecycleLedger:
-        with self._lock: return deepcopy(self._ledger)
+        """Explicitly materialize an ordinary in-memory snapshot of the current ledger."""
+        with self._lock:
+            snapshot = LifecycleLedger()
+            snapshot.candidates = dict(self._ledger.candidates.items())
+            snapshot.evidence = dict(self._ledger.evidence.items())
+            snapshot.actions = list(self._ledger.actions)
+            snapshot._action_ids = set(self._ledger._action_ids)
+            return snapshot
 
     def _get_event_payload(self, event_id: str) -> dict[str, Any] | None:
         """Read one immutable payload from the authoritative ZPCM event log."""
@@ -153,7 +347,7 @@ class PersistentLifecycleLedger:
     def _restore(self) -> None:
         try:
             events=self._memory.iter_lifecycle_events(scope=self.scope)
-            staged=LifecycleLedger(); previous=0
+            staged, staged_state = _new_sqlite_lifecycle_ledger(); previous=0
             for event in events:
                 seq=event["sequence"]
                 if isinstance(seq,bool) or not isinstance(seq,int) or seq<=previous:
@@ -228,7 +422,7 @@ class PersistentLifecycleLedger:
                     if event["event_id"] != f"e12a6:authorization-consumed:{receipt_id}":
                         raise LifecyclePersistenceError("authorization consumption event ID mismatch")
                 else: raise LifecyclePersistenceError(f"unknown lifecycle event kind: {kind!r}")
-            self._ledger=staged; self._last_sequence=previous
+            self._ledger=staged; self._runtime_state=staged_state; self._last_sequence=previous
         except LifecyclePersistenceError: raise
         except Exception as exc: raise LifecyclePersistenceError(f"lifecycle replay failed: {exc}") from exc
 
