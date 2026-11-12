@@ -235,8 +235,12 @@ class PersistentLifecycleTests(unittest.TestCase):
             self.assertTrue(committed_receiver.poll(10), "child did not publish committed lifecycle bundle")
             committed_rows = committed_receiver.recv()
             self.assertEqual(
-                [row["payload"]["kind"] for row in committed_rows],
-                ["evidence_registered", "candidate_registered", "authorization_consumed"],
+                [row["event_id"] for row in committed_rows],
+                [
+                    "e12a6:evidence:train-1",
+                    "e12a6:candidate:rel:greater-than@1",
+                    "e12a6:authorization-consumed:receipt-process-kill",
+                ],
             )
             child.kill()
             child.join(timeout=5)
