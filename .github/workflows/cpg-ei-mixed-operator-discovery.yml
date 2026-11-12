@@ -1,0 +1,36 @@
+name: CPG-EI mixed-operator discovery baseline
+
+on:
+  push:
+    branches:
+      - research/cpg-ei-mixed-operator-discovery-v1-2026-11-13
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  mixed-operator-discovery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run focused discovery contract tests
+        run: |
+          python -m unittest tests.test_cpg_ei_mixed_operator_data
+          python -m unittest tests.test_cpg_ei_mixed_operator_discovery
+      - name: Run full 102,400-row discovery baseline
+        run: |
+          python -m prototype.cpg_ei_mixed_operator_discovery \
+            --families 400 --input-dim 8 --output-dim 8 \
+            --seed 20261114 --json artifacts/mixed-operator-discovery.json
+      - name: Upload reproducible report
+        uses: actions/upload-artifact@v4
+        with:
+          name: zhouyi-cpg-ei-mixed-operator-discovery-v1
+          path: artifacts/mixed-operator-discovery.json
+          if-no-files-found: error
