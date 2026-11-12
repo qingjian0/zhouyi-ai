@@ -1,0 +1,21 @@
+name: n010-reiterable-fullbatch-gradient
+
+on:
+  push:
+    branches:
+      - research/n010-reiterable-fullbatch-gradient-2026-11-12
+  pull_request:
+    branches:
+      - work/n010-streaming-manifest-guards-2026-11-12
+
+jobs:
+  fullbatch-streaming-equivalence:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run N0.10 learner and experiment tests
+        run: |
+          python -m unittest tests.test_n09_learnable_srok tests.test_n010_experiment -v
