@@ -21,6 +21,7 @@ python -m prototype.n010_experiment \
   --feature-dim 8 \
   --roles-json '[{"name":"subject","allowed_types":["entity"],"required_tags":[]},{"name":"relation","allowed_types":["relation"],"required_tags":[]}]' \
   --epochs 30 \
+  --beam-width 64 \
   --git-sha "$(git rev-parse HEAD)"
 ```
 
@@ -38,6 +39,7 @@ The runner writes an integrity-checked model checkpoint after every epoch and a 
 - `dev` and `locked_test` rows are evaluated after training; their target labels are not supplied to the learner.
 - Locked-test labels are used only by the evaluator for final metrics.
 - Reports include exact-match accuracy, coverage, abstention, budget-exhaustion rate and covered accuracy.
+- Both exact product enumeration and bounded beam inference are evaluated with the same maximum expansion budget; beam width is recorded separately.
 - The dataset manifest records rule families by split. For an OOD claim, ensure the held-out family is absent from train/dev; the runner records provenance but does not silently enforce a particular family policy.
 
 ## Resume semantics
@@ -46,4 +48,4 @@ N0.10's current optimizer is deterministic full-batch gradient descent without m
 
 ## Limitations
 
-This runner is for the N0.10 structured component. It is not a language-model pretraining pipeline, does not establish general semantic reasoning, and does not certify full-model training readiness. Current evaluation uses exact structured role binding and product search; beam-vs-exact search comparisons and parameter/FLOP-matched MLP, graph, tensor and transformer baselines remain separate gates.
+This runner is for the N0.10 structured component. It is not a language-model pretraining pipeline, does not establish general semantic reasoning, and does not certify full-model training readiness. Current evaluation uses exact structured role binding and reports both product and beam search; parameter/FLOP-matched MLP, graph, tensor and transformer baselines remain separate gates.
