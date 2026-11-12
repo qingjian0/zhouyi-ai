@@ -225,7 +225,7 @@ def run_multi_seed_comparison(dataset_path: str | Path, roles: Sequence[RoleSpec
     }
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(result, sort_keys=True, indent=2,
-                                 ensure_ascii=False, allow_nan=False) + "\\n",
+                                 ensure_ascii=False, allow_nan=False) + "\n",
                       encoding="utf-8")
     return result
 
