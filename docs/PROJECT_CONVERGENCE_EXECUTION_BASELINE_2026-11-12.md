@@ -1,7 +1,7 @@
 # Zhouyi-AI 全项目架构收敛与阶段收尾基线
 
 日期：2026-11-12  
-状态：工程治理基线 / 待 PR 验证；不是全项目已集成、训练就绪或生产就绪声明。  
+状态：工程治理基线 / 文档 exact-head CI 已通过（本次增补后需重新验证）；不是全项目已集成、训练就绪或生产就绪声明。  
 稳定基线：`main` @ `b8b43926e666d83a9ce09d2e71eb9294b2d86c97`
 
 ## 0. 收敛结论
@@ -97,8 +97,8 @@ Observation
 
 - #339：首个可训练 CPG-EI MVP。
 - #344：pairwise / third-order learnable gates。
-- #347 / #352：N0.10 relation learner checkpoint、streaming JSONL、group-disjoint split。
-- #353：multi-seed structure discovery diagnostics。
+- #347 / #352 / #359：N0.10 relation learner checkpoint、streaming JSONL、group-disjoint split、reiterable full-batch gradient accumulation。
+- #360：rebased multi-seed structure discovery diagnostics（原 #353 已关闭未合并，由 #360 接续）。
 - #351：training readiness / convergence gates。
 
 集成要求：拆开 candidate generation、candidate scoring、structure selection、OOD transfer；固定数据版本、split provenance、seed、代码 SHA、超参和 evaluator；加入 label shuffle、feature permutation、pairwise-only、matched MLP/graph/tensor/Transformer baselines；记录 FDR、support precision/recall、参数量、FLOPs、延迟和 RSS。固定有限候选集上的门控学习不能宣称 open-ended relation discovery。
@@ -182,13 +182,13 @@ The following results were checked against GitHub Actions run records. They are 
 | Workstream | Exact head | Observed result | Scope boundary |
 |---|---|---|---|
 | E09 trusted learner binding (#327) | `591507b6d5cdd502d0e21d180099bb81945a8157` | push + PR unit-test workflows succeeded | Does not prove cross-process OS isolation or full E01/E02 acceptance |
-| N0.10 checkpoint integration (#347) | `c8194d4ea133fcde1415356db537930db980347a` | checkpoint-integration + tests succeeded on PR event | Component/integration branch only |
-| N0.10 streaming manifest guards (#352) | `3977ee14456c5c0b55832c0d806b58ff1fdd80ae` | checkpoint-integration succeeded | Must retain group-disjoint and data fingerprint guarantees |
+| N0.10 checkpoint integration (#347) | `dc6af2540ea9459d927ff212ace07055f0fbbe6e` | exact-head checkpoint-integration + tests succeeded | Component/integration branch only; parent benchmark branch is not merged |
+| N0.10 streaming manifest guards (#352) | `3977ee14456c5c0b55832c0d806b58ff1fdd80ae` | checkpoint-integration succeeded | Must retain group-disjoint and data fingerprint guarantees |\n| N0.10 reiterable full-batch gradient (#359) | `54f7c5404ebc6e12b47a7fed617120242270879d` | exact-head equivalence workflow succeeded; 20 tests | Learner primitive is bounded/reiterable; runner still materializes split rows, so end-to-end out-of-core training remains incomplete |
 | CPG-EI learnable gates (#344) | `03b3b14d28842763b0f3fef76f683d1cc5643ca6` | push + PR unit-test workflows succeeded | Finite predefined candidate universe; not open-world discovery |
-| CPG-EI multi-seed diagnostics (#353) | `4e40ad6c95e9aa1ff8ced83b5cef56f4221082b9` | diagnostic workflow succeeded | Diagnostic has no post-hoc pass threshold; synthetic finite universe |
+| CPG-EI multi-seed diagnostics (#360; replaces closed #353) | `817fc452e135dc00523bca64969385a8d9e66eed` | exact-head diagnostic workflow succeeded | 10 seeds: mean bit accuracy 0.92344, support recall 0.58333, exact 6-edge recovery 0/10, 8 false discoveries; finite synthetic universe only |
 | Training readiness gates (#351) | `e8edf9bfa1eb77ca398a10f904164528fb1b13cb` | PR unit-test workflow succeeded | Specification/tests; not an end-to-end training certification |
 | E12-A6 indexed lifecycle projection (#350) | `a4c7bb35888f02e693dda728dfc8ba4926bb6d28` | tests + RSS benchmark workflows succeeded | Benchmark evidence is environment-specific; restore architecture still needs integration |
 | M2 paged TRLW/Yixiang/CSG integration (#294 validation / #292 stack) | `52baa8f0d2f4703544b15c941ac1c56b3e6ecba5` | research-branch validation + tests succeeded | #294 is validation-only; no code merge implied |
-| This convergence baseline (#358) | `f8f337e2a348afe48706d498fc6d1fed90373e73` | PR unit-test job was still in progress at the time of inspection | Documentation-only change; await exact-head completion |
+| This convergence baseline (#358) | `f7af9842a9bef243d2ac7a4c9ea36ded998c7b8d` | exact-head PR unit-test workflow succeeded (run #43185052663) | Documentation-only change; this follow-up documentation commit must receive its own exact-head CI |
 
-A failed earlier run on an older SHA is not evidence that the current exact head fails; conversely, an older successful SHA cannot certify a newer head. The table deliberately reports only observed exact-head outcomes and their scope limits.
+\n\n### Latest research interpretation (2026-11-12 17:53 +08:00)\n\n- CPG-EI's ten-seed diagnostic is stable on predictive bit accuracy but does **not** recover the planted six-edge topology in any seed (0/10 exact recovery). The 0.58333 mean support recall and eight total false discoveries show that the current learner still needs stronger structure-identifiability controls; do not describe this as successful open-ended structure discovery.\n- N0.10 now has a tested reiterable full-batch learner primitive with numerical equivalence to materialized training. The experiment runner still materializes split rows, so the next memory milestone is a file-backed/reopenable dataset stream through the complete runner, not another learner-only optimization.\n- PR #353 was closed without merge after its branch became stale; PR #360 is the rebased active replacement. Keep the old PR's passing run as historical evidence only.\n\nA failed earlier run on an older SHA is not evidence that the current exact head fails; conversely, an older successful SHA cannot certify a newer head. The table deliberately reports only observed exact-head outcomes and their scope limits.
