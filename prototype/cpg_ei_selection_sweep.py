@@ -51,52 +51,73 @@ def run_sweep(*, seeds: Sequence[int] = DEFAULT_SEEDS, epochs: int = 12, max_mot
             train = make_examples(train_states, triples)
             proposal = make_examples(proposal_states, triples)
             locked = make_examples(locked_states, triples)
-            model = CpgEiTransitionModel.create(active_relation_indices=set())
-            result = grow_relation_graph_joint_motifs(
-                model, train, locked, proposal_examples=proposal,
-                max_motifs=max_motifs, epochs_per_candidate=epochs,
-                gate_l1=0.001, edge_group_l1=0.001,
-            )
-            support = _support_metrics(result['active_edges'], exact_support(triples))
-            ood = {}
-            for other_family, other_triples in RULE_FAMILIES.items():
-                if other_family != family:
-                    ood[other_family] = evaluate(model, make_examples(locked_states, other_triples))['bit_accuracy']
-            record = {
-                "seed": seed, "train_family": family,
-                "train_examples": len(train), "proposal_examples": len(proposal),
-                "locked_test_examples": len(locked),
-                "selected_motif_count": len(result["selected_motifs"]),
-                "candidate_fits": result["candidate_fits_total"],
-                "training_passes": epochs * (1 + result["candidate_fits_total"]),
-                "proposal_selection_bce": result["proposal_selection_binary_cross_entropy"],
-                "locked_test_bce": result["validation_binary_cross_entropy"],
-                "locked_test_bit_accuracy": result["validation"]["bit_accuracy"],
-                "ood_bit_accuracy_by_family": ood,
-                **support,
-            }
-            values = [record['proposal_selection_bce'], record['locked_test_bce'], record['locked_test_bit_accuracy'], *ood.values()]
-            if not all(math.isfinite(value) for value in values):
-                raise AssertionError("non-finite selection benchmark metric")
-            records.append(record)
-    def mean(key):
-        return sum(float(row[key]) for row in records) / len(records)
-    ood_values = [value for row in records for value in row['ood_bit_accuracy_by_family'].values()]
-    return {
-        "benchmark": "cpg-ei-proposal-selection-multiseed-v1",
-        "seeds": list(seeds), "rule_families": list(RULE_FAMILIES),
-        "split_sizes": {"train": 40, "proposal_selection": 12, "locked_test": 12},
-        "optimizer": {"epochs_per_candidate": epochs, "max_motifs": max_motifs},
-        "aggregate": {
-            "experiments": len(records),
+            for protocol in ("proposal_split", "legacy_train_ranked"):
+                model = CpgEiTransitionModel.create(active_relation_indices=set())
+                kwargs = {"proposal_examples": proposal} if protocol == "proposal_split" else {}
+                result = grow_relation_graph_joint_motifs(
+                    model, train, locked, **kwargs,
+                    max_motifs=max_motifs, epochs_per_candidate=epochs,
+                    gate_l1=0.001, edge_group_l1=0.001,
+                )
+                support = _support_metrics(result["active_edges"], exact_support(triples))
+                ood = {}
+                for other_family, other_triples in RULE_FAMILIES.items():
+                    if other_family != family:
+                        ood[other_family] = evaluate(
+                            model, make_examples(locked_states, other_triples)
+                        )["bit_accuracy"]
+                record = {
+                    "seed": seed, "train_family": family,
+                    "selection_protocol": protocol,
+                    "train_examples": len(train),
+                    "proposal_examples": len(proposal) if protocol == "proposal_split" else 0,
+                    "locked_test_examples": len(locked),
+                    "selected_motif_count": len(result["selected_motifs"]),
+                    "candidate_fits": result["candidate_fits_total"],
+                    "training_passes": epochs * (1 + result["candidate_fits_total"]),
+                    "proposal_selection_bce": result["proposal_selection_binary_cross_entropy"],
+                    "locked_test_bce": result["validation_binary_cross_entropy"],
+                    "locked_test_bit_accuracy": result["validation"]["bit_accuracy"],
+                    "ood_bit_accuracy_by_family": ood,
+                    **support,
+                }
+                values = [
+                    record["proposal_selection_bce"], record["locked_test_bce"],
+                    record["locked_test_bit_accuracy"], *ood.values(),
+                ]
+                if not all(math.isfinite(value) for value in values):
+                    raise AssertionError("non-finite selection benchmark metric")
+                records.append(record)
+    def summarize(rows):
+        def mean(key):
+            return sum(float(row[key]) for row in rows) / len(rows)
+        ood_values = [
+            value for row in rows
+            for value in row["ood_bit_accuracy_by_family"].values()
+        ]
+        return {
+            "experiments": len(rows),
             "mean_support_precision": mean("support_precision"),
             "mean_support_recall": mean("support_recall"),
             "mean_locked_test_bit_accuracy": mean("locked_test_bit_accuracy"),
             "mean_ood_bit_accuracy": sum(ood_values) / len(ood_values),
             "mean_selected_motifs": mean("selected_motif_count"),
             "mean_training_passes": mean("training_passes"),
-            "exact_support_recovery_count": sum(row["support_precision"] == 1.0 and row["support_recall"] == 1.0 for row in records),
-        },
+            "exact_support_recovery_count": sum(
+                row["support_precision"] == 1.0 and row["support_recall"] == 1.0
+                for row in rows
+            ),
+        }
+    by_protocol = {
+        protocol: summarize([row for row in records if row["selection_protocol"] == protocol])
+        for protocol in ("proposal_split", "legacy_train_ranked")
+    }
+    return {
+        "benchmark": "cpg-ei-proposal-selection-multiseed-v1",
+        "seeds": list(seeds), "rule_families": list(RULE_FAMILIES),
+        "split_sizes": {"train": 40, "proposal_selection": 12, "locked_test": 12},
+        "optimizer": {"epochs_per_candidate": epochs, "max_motifs": max_motifs},
+        "aggregate_by_protocol": by_protocol,
         "claim_boundary": "Synthetic finite six-bit rule families only; not open-ended relation induction or natural-language reasoning.",
         "records": records,
     }
