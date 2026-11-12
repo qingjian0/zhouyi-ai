@@ -248,6 +248,20 @@ class PersistentM2SemanticUnitStoreTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             list(self.store.iter_candidates(limit=1, max_bytes=self.memory.max_page_bytes + 1))
 
+    def test_store_keeps_historical_candidate_bodies_out_of_python_state(self):
+        self.store.record_candidate(self.candidate("disk-backed-1"))
+        self.store.record_candidate(self.candidate("disk-backed-2"))
+        self.assertFalse(hasattr(self.store, "_versions"))
+        self.assertFalse(hasattr(self.store, "_digests"))
+        self.assertFalse(hasattr(self.store, "_latest"))
+        self.assertEqual(
+            self.memory.db.execute(
+                "SELECT COUNT(*) FROM m2_semantic_unit_versions WHERE scope='project-a'"
+            ).fetchone()[0],
+            2,
+        )
+
+
 
 if __name__ == "__main__":
     unittest.main()
