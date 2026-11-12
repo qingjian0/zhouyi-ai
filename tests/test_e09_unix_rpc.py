@@ -16,7 +16,7 @@ from prototype.e09_unix_rpc import (
     E09AuthorityUnixRPC,
     UnixPeerWorkloadAuthenticator,
 )
-from prototype.shared_evidence_protocol import SQLiteEvidenceStore
+from prototype.shared_evidence_protocol import SQLiteEvidenceStore, digest_payload
 from prototype.unix_ipc import (
     IPCRemoteError,
     StaticUnixPeerResolver,
@@ -430,6 +430,89 @@ class E09AuthorityUnixRPCTests(unittest.TestCase):
                 "unassigned-learner-track",
             )
         self.assertEqual(unassigned.exception.code, "permission_denied")
+
+    def test_checkpoint_read_is_bound_to_assigned_learner_and_validates_snapshot(self):
+        snapshot = {"weights": [0.25, 0.75], "version": 1}
+        payload = {
+            "structure_id": "srok-main",
+            "version_id": "srok-main-v1",
+            "kind": "categorical",
+            "definition": {
+                "revision_mode": "incremental",
+                "snapshot": snapshot,
+                "snapshot_digest": digest_payload(snapshot),
+                "ledger_snapshot": {"records": []},
+            },
+            "parent_version_ids": [],
+            "support_evidence_ids": [],
+        }
+        self._call(
+            self.learner, "structure.append",
+            {
+                "episode_id": self.episode,
+                "event_id": f"{self.episode}:structure:srok-main-v1",
+                "scope": self.scope,
+                "learner_track": "track-a",
+                "payload": payload,
+            },
+            "append-bootstrap-checkpoint",
+        )
+        checkpoint = self._call(
+            self.learner, "structure.read_checkpoint",
+            {
+                "episode_id": self.episode,
+                "scope": self.scope,
+                "learner_track": "track-a",
+            },
+            "read-own-checkpoint",
+        )
+        self.assertEqual(checkpoint["payload"]["definition"]["snapshot"], snapshot)
+        self.assertEqual(checkpoint["payload"]["definition"]["ledger_snapshot"]["records"], [])
+
+        with self.assertRaises(IPCRemoteError) as caught:
+            self._call(
+                self.other_learner, "structure.read_checkpoint",
+                {
+                    "episode_id": self.episode,
+                    "scope": self.scope,
+                    "learner_track": "track-a",
+                },
+                "read-other-checkpoint",
+            )
+        self.assertEqual(caught.exception.code, "permission_denied")
+
+        invalid_snapshot = {"weights": [1.0], "version": 2}
+        self._call(
+            self.learner, "structure.append",
+            {
+                "episode_id": self.episode,
+                "event_id": f"{self.episode}:structure:srok-main-v2",
+                "scope": self.scope,
+                "learner_track": "track-a",
+                "payload": {
+                    **payload,
+                    "version_id": "srok-main-v2",
+                    "definition": {
+                        "revision_mode": "incremental",
+                        "snapshot": invalid_snapshot,
+                        "snapshot_digest": "not-the-snapshot-digest",
+                        "ledger_snapshot": {"records": []},
+                    },
+                },
+            },
+            "append-invalid-checkpoint",
+        )
+        with self.assertRaises(IPCRemoteError) as digest_error:
+            self._call(
+                self.learner, "structure.read_checkpoint",
+                {
+                    "episode_id": self.episode,
+                    "scope": self.scope,
+                    "learner_track": "track-a",
+                },
+                "read-invalid-checkpoint",
+            )
+        self.assertEqual(digest_error.exception.code, "permission_denied")
 
     def test_learner_cannot_append_observation_or_reveal(self):
         with self.assertRaises(IPCRemoteError) as observation_error:

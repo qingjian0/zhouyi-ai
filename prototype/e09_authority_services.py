@@ -314,6 +314,111 @@ class E09AuthorityService:
             raise E09AuthorizationError("Observation has no durable input payload reference")
         return self._store.get_payload(payload_ref)
 
+    def read_learner_checkpoint(
+        self,
+        credential: object,
+        *,
+        episode_id: str,
+        scope: str,
+        learner_track: str,
+    ) -> dict[str, Any]:
+        """Return the latest checkpoint only to its assigned learner workload."""
+        principal = self._principal(credential, role="learner", scope=scope)
+        self._require_learner_assignment(
+            principal, episode_id=episode_id, scope=scope, learner_track=learner_track
+        )
+        events = self._store.replay_episode(episode_id)
+        def is_owned_checkpoint(event: dict[str, Any]) -> bool:
+            metadata = event.get("integrity_metadata")
+            workload = (
+                metadata.get("authenticated_workload")
+                if isinstance(metadata, dict) else None
+            )
+            return (
+                event.get("event_type") == "structure_version"
+                and event.get("payload", {}).get("scope") == scope
+                and event.get("payload", {}).get("learner_track") == learner_track
+                and event.get("actor_role") == "learner"
+                and isinstance(workload, dict)
+                and workload.get("workload_id") == principal.workload_id
+            )
+
+        checkpoints = [event for event in events if is_owned_checkpoint(event)]
+        if not checkpoints:
+            raise MissingReference("no authenticated learner checkpoint exists for this episode/track")
+        latest = max(checkpoints, key=lambda event: event.get("sequence_no", 0))
+        payload = latest.get("payload", {})
+        definition = payload.get("definition")
+        if not isinstance(definition, dict):
+            raise E09AuthorizationError("learner checkpoint definition is malformed")
+        snapshot = definition.get("snapshot")
+        ledger_snapshot = definition.get("ledger_snapshot")
+        if not isinstance(snapshot, dict) or not isinstance(ledger_snapshot, dict):
+            raise E09AuthorizationError("learner checkpoint is missing snapshot or ledger state")
+        if definition.get("snapshot_digest") != digest_payload(snapshot):
+            raise E09AuthorizationError("learner checkpoint snapshot digest mismatch")
+        records = ledger_snapshot.get("records")
+        if not isinstance(records, list):
+            raise E09AuthorizationError("learner checkpoint ledger records are malformed")
+        for record in records:
+            if (
+                not isinstance(record, dict)
+                or not isinstance(record.get("sample_id"), str)
+                or not record.get("sample_id").strip()
+                or not isinstance(record.get("inputs"), list)
+                or "label" not in record
+            ):
+                raise E09AuthorizationError("learner checkpoint contains a malformed training record")
+
+        parents = payload.get("parent_version_ids", [])
+        support_refs = payload.get("support_evidence_ids", [])
+        causes = latest.get("causation_refs", [])
+        if (
+            not isinstance(causes, list)
+            or any(not isinstance(item, str) or not item.strip() for item in causes)
+            or len(causes) != len(set(causes))
+            or not isinstance(parents, list)
+            or any(not isinstance(item, str) or not item.strip() for item in parents)
+            or len(parents) != len(set(parents))
+            or not isinstance(support_refs, list)
+            or any(not isinstance(item, str) or not item.strip() for item in support_refs)
+            or len(support_refs) != len(set(support_refs))
+            or bool(parents) != bool(support_refs)
+            or not set(support_refs).issubset(set(causes))
+        ):
+            raise E09AuthorizationError("learner checkpoint lineage references are malformed")
+        structures = {
+            event.get("payload", {}).get("version_id"): event
+            for event in events if event.get("event_type") == "structure_version"
+        }
+        for parent_id in parents:
+            parent = structures.get(parent_id)
+            parent_workload = (
+                parent.get("integrity_metadata", {}).get("authenticated_workload", {})
+                if isinstance(parent, dict) else {}
+            )
+            if (
+                not isinstance(parent, dict)
+                or parent.get("actor_role") != "learner"
+                or not isinstance(parent_workload, dict)
+                or parent_workload.get("workload_id") != principal.workload_id
+                or parent.get("payload", {}).get("scope") != scope
+                or parent.get("payload", {}).get("learner_track") != learner_track
+                or parent.get("payload", {}).get("structure_id") != payload.get("structure_id")
+            ):
+                raise E09AuthorizationError("learner checkpoint parent is outside its owner/track lineage")
+        for reveal_event_id in support_refs:
+            self.read_support_feedback(
+                credential, episode_id=episode_id,
+                reveal_event_id=reveal_event_id, scope=scope,
+            )
+        return {
+            "event_id": latest["event_id"],
+            "sequence_no": latest["sequence_no"],
+            "payload_digest": latest["payload_digest"],
+            "payload": payload,
+        }
+
     def read_learner_episode(
         self,
         credential: object,
