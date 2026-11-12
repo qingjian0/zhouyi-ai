@@ -88,9 +88,9 @@ Do not expose generic `append_event`, arbitrary SQL, arbitrary file paths, unsco
 
 ### Data-flow correction required
 
-The current secure adapter still writes payload-vault records directly through `store.put_payload`, reads through `store.get_payload`, and uses the store for replay/memory projection. It also stores reveal content in E09 event payloads. These database dependencies must be removed from learner/evaluator processes before claiming isolation.
+PR #327 moves secure-mode input payload writes behind `E09AuthorityService.put_observation_input`; the legacy adapter mode still writes directly to the store. The combined adapter nevertheless retains a concrete `SQLiteEvidenceStore` handle for startup checks, replay and memory projection, and its legacy fallback still performs direct writes. These remaining database dependencies must be removed from learner/evaluator processes before claiming isolation.
 
-Authority owns payload persistence. Learner input reads are explicitly role-filtered. Evaluator reveal writes are isolated. Raw target/feedback is readable only to the Verifier and authorized evaluator process; learner-facing replay must not return it.
+Authority owns secure-mode payload persistence. Learner input reads and learner replay are explicitly role-filtered. Evaluator reveal writes are isolated. Raw target/feedback remains in E09 evidence events and is released only through the verifier/evaluator policy; learner-facing replay must not return it. The next adapter increment must replace the concrete store dependency with a transport-neutral client and add a separately authorized learner checkpoint-read contract before restart recovery is moved off the store.
 
 ## 6. E09 Verifier API
 
