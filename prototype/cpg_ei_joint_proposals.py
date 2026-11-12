@@ -57,6 +57,7 @@ def grow_relation_graph_joint_motifs(
     max_motifs: int = 3,
     epochs_per_candidate: int = 50,
     learning_rate: float = 2.1,
+    optimizer: str = "sgd",
     gate_l1: float = 0.01,
     edge_group_l1: float = 0.03,
     min_training_improvement: float = 1e-5,
@@ -66,8 +67,9 @@ def grow_relation_graph_joint_motifs(
 
     Each round evaluates every not-yet-selected 3-line motif from an identical
     copy of the current model. The whole group is enabled and optimized
-    together on train_examples; the candidate with the lowest proposal-split BCE
-    is retained. If proposal_examples is omitted, train_examples is used for
+    together on train_examples with the selected optimizer; the candidate with
+    the lowest proposal-split BCE is retained. If proposal_examples is omitted,
+    train_examples is used for
     ranking for backward compatibility (exploratory mode only).
     """
     if not train_examples or not validation_examples:
@@ -87,6 +89,7 @@ def grow_relation_graph_joint_motifs(
         train_examples,
         epochs=epochs_per_candidate,
         learning_rate=learning_rate,
+        optimizer=optimizer,
         gate_l1=gate_l1,
         edge_group_l1=edge_group_l1,
     )
@@ -98,6 +101,7 @@ def grow_relation_graph_joint_motifs(
         best_model = None
         best_motif = None
         best_loss = current_loss
+        best_candidate_loss = math.inf
         for motif in _three_line_motifs():
             if motif in selected:
                 continue
@@ -109,6 +113,7 @@ def grow_relation_graph_joint_motifs(
                 train_examples,
                 epochs=epochs_per_candidate,
                 learning_rate=learning_rate,
+                optimizer=optimizer,
                 gate_l1=gate_l1,
                 edge_group_l1=edge_group_l1,
             )
@@ -116,6 +121,7 @@ def grow_relation_graph_joint_motifs(
             # ranking uses proposal_rows; validation_examples is never consulted
             # until the final locked evaluation below.
             score = _binary_cross_entropy(candidate, proposal_rows)
+            best_candidate_loss = min(best_candidate_loss, score)
             if score < best_loss - 1e-12:
                 best_loss = score
                 best_model = candidate
@@ -129,6 +135,9 @@ def grow_relation_graph_joint_motifs(
                 "proposal_selection_bce_before": current_loss,
                 "proposal_selection_bce_after": current_loss,
                 "proposal_selection_bce_improvement": 0.0,
+                "best_candidate_proposal_bce": best_candidate_loss,
+                "best_candidate_proposal_improvement": current_loss - best_candidate_loss,
+                "proposal_acceptance_threshold": min_training_improvement,
                 "candidate_fits": round_candidate_fits,
             })
             break
@@ -144,6 +153,9 @@ def grow_relation_graph_joint_motifs(
             "proposal_selection_bce_before": current_loss + improvement,
             "proposal_selection_bce_after": current_loss,
             "proposal_selection_bce_improvement": improvement,
+            "best_candidate_proposal_bce": best_candidate_loss,
+            "best_candidate_proposal_improvement": current_loss + improvement - best_candidate_loss,
+            "proposal_acceptance_threshold": min_training_improvement,
             "candidate_fits": round_candidate_fits,
         })
 
@@ -168,4 +180,6 @@ def grow_relation_graph_joint_motifs(
         "validation_binary_cross_entropy": _binary_cross_entropy(model, validation_examples),
         "candidate_motif_universe_size": len(_three_line_motifs()),
         "candidate_fits_total": total_candidate_fits,
+        "optimizer": optimizer,
+        "learning_rate": learning_rate,
     }
