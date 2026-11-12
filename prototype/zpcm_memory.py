@@ -436,6 +436,8 @@ class ZPCMMemory:
             raw=self.db.execute(
                 "SELECT payload_json FROM memory_events WHERE event_id=?",(event_id,)
             ).fetchone()
+        if raw is None:
+            raise ZPCMError(f"event disappeared during indexed lookup: {event_id}")
         payload=json.loads(raw["payload_json"])
         if digest(payload) != row["payload_digest"]:
             raise ZPCMError(f"domain event digest mismatch: {event_id}")
