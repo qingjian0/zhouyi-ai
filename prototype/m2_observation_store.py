@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import json
+import re
 from threading import RLock
 from typing import Any, Iterator
 
@@ -184,6 +185,63 @@ class PersistentM2ObservationStore:
             raise
         except Exception as exc:
             raise ObservationStoreError(f"M2 observation replay failed: {exc}") from exc
+
+    def verify_observation_receipt(
+        self, observation: Observation, receipt: ObservationReceipt,
+    ) -> None:
+        """Verify a receipt against the exact durable ZPCM event.
+
+        This proves local append-log membership and payload integrity only. It
+        is not a cryptographic attestation or an E09 authorization receipt.
+        """
+        if not isinstance(observation, Observation):
+            raise TypeError("observation must be an Observation")
+        if not isinstance(receipt, ObservationReceipt):
+            raise TypeError("receipt must be an ObservationReceipt")
+        if observation.envelope.scope != self.scope:
+            raise ObservationStoreError("observation scope does not match the store scope")
+        if receipt.event_id != f"m2:observation:{observation.envelope.record_id}":
+            raise ObservationStoreError("receipt event ID does not identify the observation")
+        if (isinstance(receipt.sequence, bool) or not isinstance(receipt.sequence, int)
+                or receipt.sequence < 1):
+            raise ObservationStoreError("receipt sequence must be a positive integer")
+        if (not isinstance(receipt.payload_digest, str)
+                or not re.fullmatch(r"[0-9a-f]{64}", receipt.payload_digest)):
+            raise ObservationStoreError("receipt payload_digest must be lowercase SHA-256")
+        expected_record_digest = record_digest(observation)
+        if receipt.record_digest != expected_record_digest:
+            raise ObservationStoreError("receipt record digest does not match observation")
+
+        try:
+            events = self._memory.iter_domain_events(
+                event_type=EVENT_TYPE,
+                scope=self.scope,
+                after_sequence=receipt.sequence - 1,
+                page_size=1,
+            )
+            event = next(events, None)
+        except Exception as exc:
+            raise ObservationStoreError(f"cannot verify observation receipt: {exc}") from exc
+        if event is None or event.get("sequence") != receipt.sequence:
+            raise ObservationStoreError("receipt sequence does not identify a durable observation event")
+        if (event.get("event_id") != receipt.event_id
+                or event.get("event_type") != EVENT_TYPE
+                or event.get("scope") != self.scope
+                or event.get("payload_digest") != receipt.payload_digest):
+            raise ObservationStoreError("receipt does not match the durable ZPCM event")
+        payload = event.get("payload")
+        if (not isinstance(payload, dict)
+                or payload.get("schema_version") != EVENT_SCHEMA
+                or payload.get("kind") != "observation_recorded"
+                or payload.get("body_digest") != expected_record_digest):
+            raise ObservationStoreError("durable observation payload does not match receipt")
+        try:
+            persisted = _observation_from_dict(payload["body"])
+            self._verify_evidence(persisted)
+        except Exception as exc:
+            raise ObservationStoreError(f"persisted observation failed verification: {exc}") from exc
+        if persisted != observation:
+            raise ObservationStoreError("supplied observation differs from the durable record")
 
     def record_observation(self, observation: Observation) -> ObservationReceipt:
         if not isinstance(observation, Observation):

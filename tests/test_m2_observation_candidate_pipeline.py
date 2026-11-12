@@ -105,8 +105,11 @@ class ObservationCandidatePipelineTests(unittest.TestCase):
         self.receipt = receipt_for(self.observation)
         self.store = Mock()
         self.store.scope = "test-scope"
+        self.observation_store = Mock()
+        self.observation_store.scope = "test-scope"
+        self.observation_store.verify_observation_receipt.return_value = None
         self.store.record_candidate.side_effect = lambda candidate: candidate.envelope.record_id
-        self.pipeline = ObservationCandidatePipeline(_Extractor([]), self.store)
+        self.pipeline = ObservationCandidatePipeline(_Extractor([]), self.store, self.observation_store)
 
     def run_pipeline(self, pipeline=None, observation=None, receipt=None):
         return (pipeline or self.pipeline).extract_and_persist(
@@ -116,9 +119,12 @@ class ObservationCandidatePipelineTests(unittest.TestCase):
 
     def test_valid_batch_preserves_observation_provenance(self):
         candidate = make_candidate(self.observation)
-        pipeline = ObservationCandidatePipeline(_Extractor([candidate]), self.store)
+        pipeline = ObservationCandidatePipeline(_Extractor([candidate]), self.store, self.observation_store)
         result = self.run_pipeline(pipeline)
         self.assertEqual(result.candidate_count, 1)
+        self.observation_store.verify_observation_receipt.assert_called_once_with(
+            self.observation, self.receipt,
+        )
         self.assertEqual(result.observation_event_ref, "m2:observation:obs-1")
         self.assertEqual(result.candidate_receipts, ("candidate-1",))
         self.store.record_candidate.assert_called_once_with(candidate)
@@ -130,7 +136,8 @@ class ObservationCandidatePipelineTests(unittest.TestCase):
             payload_digest="b" * 64,
             record_digest=record_digest(self.observation),
         )
-        with self.assertRaisesRegex(SemanticExtractionError, "does not identify"):
+        self.observation_store.verify_observation_receipt.side_effect = ValueError("receipt does not identify")
+        with self.assertRaisesRegex(SemanticExtractionError, "not verified by the durable store"):
             self.run_pipeline(receipt=wrong)
         self.store.record_candidate.assert_not_called()
 
@@ -141,13 +148,14 @@ class ObservationCandidatePipelineTests(unittest.TestCase):
             payload_digest="b" * 64,
             record_digest="c" * 64,
         )
-        with self.assertRaisesRegex(SemanticExtractionError, "digest"):
+        self.observation_store.verify_observation_receipt.side_effect = ValueError("receipt digest mismatch")
+        with self.assertRaisesRegex(SemanticExtractionError, "not verified by the durable store"):
             self.run_pipeline(receipt=wrong)
         self.store.record_candidate.assert_not_called()
 
     def test_rejects_missing_observation_derivation_reference(self):
         candidate = make_candidate(self.observation, derivation_refs=("other-event",))
-        pipeline = ObservationCandidatePipeline(_Extractor([candidate]), self.store)
+        pipeline = ObservationCandidatePipeline(_Extractor([candidate]), self.store, self.observation_store)
         with self.assertRaisesRegex(SemanticExtractionError, "derivation_refs"):
             self.run_pipeline(pipeline)
         self.store.record_candidate.assert_not_called()
@@ -159,14 +167,14 @@ class ObservationCandidatePipelineTests(unittest.TestCase):
         ):
             with self.subTest(kwargs=kwargs):
                 candidate = make_candidate(self.observation, **kwargs)
-                pipeline = ObservationCandidatePipeline(_Extractor([candidate]), self.store)
+                pipeline = ObservationCandidatePipeline(_Extractor([candidate]), self.store, self.observation_store)
                 with self.assertRaises(SemanticExtractionError):
                     self.run_pipeline(pipeline)
         self.store.record_candidate.assert_not_called()
 
     def test_rejects_duplicate_ids_before_any_append(self):
         candidate = make_candidate(self.observation)
-        pipeline = ObservationCandidatePipeline(_Extractor([candidate, candidate]), self.store)
+        pipeline = ObservationCandidatePipeline(_Extractor([candidate, candidate]), self.store, self.observation_store)
         with self.assertRaisesRegex(SemanticExtractionError, "duplicate"):
             self.run_pipeline(pipeline)
         self.store.record_candidate.assert_not_called()
@@ -175,7 +183,7 @@ class ObservationCandidatePipelineTests(unittest.TestCase):
         candidate = make_candidate(self.observation)
         pipeline = ObservationCandidatePipeline(
             _Extractor([candidate, make_candidate(self.observation, record_id="candidate-2")]),
-            self.store, max_candidates_per_observation=1,
+            self.store, self.observation_store, max_candidates_per_observation=1,
         )
         with self.assertRaisesRegex(SemanticExtractionError, "limit"):
             self.run_pipeline(pipeline)
@@ -190,7 +198,7 @@ class ObservationCandidatePipelineTests(unittest.TestCase):
     def test_marks_partial_parse_without_promoting_it(self):
         observation = make_observation(parse_status=ParseStatus.PARTIAL)
         candidate = make_candidate(observation)
-        pipeline = ObservationCandidatePipeline(_Extractor([candidate]), self.store)
+        pipeline = ObservationCandidatePipeline(_Extractor([candidate]), self.store, self.observation_store)
         result = self.run_pipeline(pipeline, observation, receipt_for(observation))
         self.assertTrue(result.partial_observation)
 

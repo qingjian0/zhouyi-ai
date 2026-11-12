@@ -66,6 +66,35 @@ class PersistentM2ObservationStoreTests(unittest.TestCase):
             parse_status=ParseStatus.PARSED,
         )
 
+    def test_verifies_receipt_against_exact_durable_event(self):
+        observation = self.make_observation()
+        receipt = self.store.record_observation(observation)
+        self.store.verify_observation_receipt(observation, receipt)
+
+    def test_rejects_forged_receipt_payload_digest(self):
+        observation = self.make_observation()
+        receipt = self.store.record_observation(observation)
+        forged = type(receipt)(
+            event_id=receipt.event_id,
+            sequence=receipt.sequence,
+            payload_digest="0" * 64,
+            record_digest=receipt.record_digest,
+        )
+        with self.assertRaisesRegex(ObservationStoreError, "does not match the durable"):
+            self.store.verify_observation_receipt(observation, forged)
+
+    def test_rejects_receipt_for_nonexistent_sequence(self):
+        observation = self.make_observation()
+        receipt = self.store.record_observation(observation)
+        forged = type(receipt)(
+            event_id=receipt.event_id,
+            sequence=receipt.sequence + 100,
+            payload_digest=receipt.payload_digest,
+            record_digest=receipt.record_digest,
+        )
+        with self.assertRaises(ObservationStoreError):
+            self.store.verify_observation_receipt(observation, forged)
+
     def test_persists_only_typed_reference_and_restores_after_reopen(self):
         observation = self.make_observation()
         receipt = self.store.record_observation(observation)
