@@ -210,7 +210,7 @@ class CpgEiTransitionModel:
             for head_index, head in enumerate(self.weights):
                 grad = weight_gradients[head_index]
                 for j in range(len(head)):
-                    grad[j] = grad[j] / n + l2 * head[j]
+                    grad[j] = grad[j] / (n * 6.0) + l2 * head[j]
                     head[j] -= learning_rate * grad[j]
             for gate_index in range(len(self.gate_logits)):
                 gate = gates[gate_index]
