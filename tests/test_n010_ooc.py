@@ -223,6 +223,31 @@ class N010OutOfCoreTests(unittest.TestCase):
                 self.locked_test, self.roles, 1, checkpoint, max_expansions=64
             )
 
+    def test_checkpoint_rejects_implementation_fingerprint_drift(self):
+        checkpoint = self.root / "fingerprint.json"
+        run_experiment_ooc(
+            self.train_dev, self.roles, 1, checkpoint,
+            epochs=1, max_expansions=64, git_sha="fingerprint-test",
+        )
+        bundle = json.loads(checkpoint.read_text(encoding="utf-8"))
+        bundle["implementation_fingerprint"]["n09_learnable_srok_sha256"] = "0" * 64
+        checkpoint.write_text(json.dumps(bundle), encoding="utf-8")
+
+        with self.assertRaisesRegex(
+            LearnableSROKError, "resume implementation fingerprint does not match"
+        ):
+            run_experiment_ooc(
+                self.train_dev, self.roles, 1, checkpoint,
+                epochs=2, max_expansions=64, git_sha="fingerprint-test",
+                resume=True,
+            )
+        with self.assertRaisesRegex(
+            LearnableSROKError, "locked-test evaluator implementation fingerprint does not match"
+        ):
+            evaluate_locked_test_ooc(
+                self.locked_test, self.roles, 1, checkpoint, max_expansions=64
+            )
+
     def test_ooc_checkpoint_resume_is_exact(self):
         partial = self.root / "partial-ooc.json"
         full = self.root / "full-ooc.json"
