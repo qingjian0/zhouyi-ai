@@ -81,7 +81,7 @@ class E09SharedProtocolAdapterTests(unittest.TestCase):
             self.store, authenticator=Authenticator(), signer=Signer(),
             domain_registry=DomainRegistry(),
         )
-        learner = CounterexampleRuleLearner(DOMAINS, min_support=2)
+        learner = IncrementalConjunctionLearner(DOMAINS, min_support=2)
         runner = PrequentialRunner(learner, revision_mode="INCREMENTAL_INDEX")
         runner.bootstrap(BOOTSTRAP)
         adapter = E09SharedProtocolAdapter(
@@ -112,7 +112,7 @@ class E09SharedProtocolAdapterTests(unittest.TestCase):
             self.assertIn("authenticated_workload", event["integrity_metadata"])
 
     def test_secure_mode_requires_all_credentials_and_trusted_domain_registry(self):
-        learner = CounterexampleRuleLearner(DOMAINS, min_support=2)
+        learner = IncrementalConjunctionLearner(DOMAINS, min_support=2)
         runner = PrequentialRunner(learner, revision_mode="INCREMENTAL_INDEX")
         runner.bootstrap(BOOTSTRAP)
         with self.assertRaises(E09ProtocolAdapterError):
