@@ -215,6 +215,7 @@ def run(
         "unary_pairwise",
         "unary_pairwise_triple",
         "triple_model_after_triple_mask",
+        "pairwise_test_oracle_flipped_sign_diagnostic_only",
     )
     summary = {}
     for key in metrics:
