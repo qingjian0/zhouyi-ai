@@ -389,12 +389,13 @@ class E09AuthorityUnixRPCTests(unittest.TestCase):
                 "other-learner-feedback",
             )
         self.assertEqual(feedback_error.exception.code, "permission_denied")
-        other_projection = self._call(
-            self.other_learner, "episode.read_for_learner",
-            {"episode_id": self.episode, "scope": self.scope, "learner_track": "track-b"},
-            "other-learner-projection",
-        )
-        self.assertEqual(other_projection["events"], [])
+        with self.assertRaises(IPCRemoteError) as projection_error:
+            self._call(
+                self.other_learner, "episode.read_for_learner",
+                {"episode_id": self.episode, "scope": self.scope, "learner_track": "track-a"},
+                "other-learner-projection",
+            )
+        self.assertEqual(projection_error.exception.code, "permission_denied")
 
     def test_observer_cannot_choose_learner_workload_or_unassigned_track(self):
         with self.assertRaises(IPCRemoteError) as forged:
