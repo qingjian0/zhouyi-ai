@@ -8,7 +8,7 @@ The `branch_bound` strategy instead prunes only when a mathematically valid uppe
 
 ## Score decomposition
 
-For role assignment (x=(x_0,\ldots,x_{R-1})) and feature dimension \\(d\\), the current SROK score is a finite sum of unary, pairwise, and third-order terms:
+For role assignment \(x=(x_0,\ldots,x_{R-1})\) and feature dimension \\(d\\), the current SROK score is a finite sum of unary, pairwise, and third-order terms:
 
 \[
 S(x)=
