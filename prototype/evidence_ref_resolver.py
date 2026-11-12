@@ -25,7 +25,7 @@ class ResolvedEvidence:
     ordinal: int
 
 
-def _manifest_digest(document_id: str, rows) -> str:
+def _manifest_digest(document_id: str, rows) -> tuple[str, int, int]:
     digest = hashlib.sha256()
     digest.update(b"zhouyi-evidence-document-manifest-v1\0")
     expected_ordinal = 0
