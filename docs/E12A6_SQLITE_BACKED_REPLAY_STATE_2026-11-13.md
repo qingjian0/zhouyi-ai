@@ -75,3 +75,12 @@ as an acceptance metric until reconciled.
 This is an intermediate engineering step. It does not replace semantic event
 replay with SQL triggers, skip replay validation on startup, or establish
 bounded memory for every ordinary write/query path.
+
+
+## Restore-latency instrumentation
+
+The benchmark now reports `restore_duration_seconds` and
+`restore_events_per_second` around `PersistentLifecycleLedger` construction.
+This separates E12-A6 semantic replay time from fixture generation and ZPCM
+initialization. Throughput is descriptive for the tested synthetic event mix;
+it is not a production SLA or a claim that every lifecycle event has equal cost.
