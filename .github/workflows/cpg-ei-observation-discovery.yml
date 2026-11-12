@@ -1,0 +1,42 @@
+name: CPG-EI observation-only discovery baseline
+
+on:
+  push:
+    branches:
+      - research/cpg-ei-observation-discovery-baseline-v1-2026-11-13
+    paths:
+      - "prototype/cpg_ei_relation_operators.py"
+      - "prototype/cpg_ei_mixed_operator_data.py"
+      - "prototype/cpg_ei_observation_discovery.py"
+      - "tests/test_cpg_ei_observation_discovery.py"
+      - ".github/workflows/cpg-ei-observation-discovery.yml"
+  pull_request:
+    paths:
+      - "prototype/cpg_ei_relation_operators.py"
+      - "prototype/cpg_ei_mixed_operator_data.py"
+      - "prototype/cpg_ei_observation_discovery.py"
+      - "tests/test_cpg_ei_observation_discovery.py"
+      - ".github/workflows/cpg-ei-observation-discovery.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  observation-discovery:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run discovery baseline tests
+        run: python -m unittest tests.test_cpg_ei_observation_discovery -v
+      - name: Run full 102,400-row observation discovery benchmark
+        run: |
+          python -m prototype.cpg_ei_observation_discovery --output /tmp/zhouyi-cpg-ei-discovery-v1.json
+      - name: Upload discovery report
+        uses: actions/upload-artifact@v4
+        with:
+          name: zhouyi-cpg-ei-observation-discovery-v1
+          path: /tmp/zhouyi-cpg-ei-discovery-v1.json
+          if-no-files-found: error
