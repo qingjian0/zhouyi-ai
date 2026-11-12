@@ -4,8 +4,10 @@ on:
   push:
     branches:
       - research/n010-true-out-of-core-streaming-2026-11-12
+      - fix/n010-ooc-search-strategy-propagation-2026-11-12
   pull_request:
     branches:
+      - main
       - research/n010-reiterable-fullbatch-gradient-2026-11-12
 
 jobs:
