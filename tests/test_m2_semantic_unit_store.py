@@ -36,7 +36,7 @@ class PersistentM2SemanticUnitStoreTests(unittest.TestCase):
         self.memory.close()
         self.temp.cleanup()
 
-    def candidate(self, rid, *, predecessor=None, surface="甲使用工具处理乙",
+    def candidate(self, rid, *, predecessor=None, surface="使用工具",
                    confidence=0.8, scope="project-a"):
         return SemanticUnitCandidate(
             envelope=RecordEnvelope(
