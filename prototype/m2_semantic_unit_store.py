@@ -484,7 +484,7 @@ class PersistentM2SemanticUnitStore:
         self._ensure_current()
         with self._memory.lock:
             rows = self._db.execute(
-                "SELECT root_id,current_record_id FROM m2_semantic_unit_roots WHERE scope=?",
+                "SELECT root_id,current_record_id,retracted_reason FROM m2_semantic_unit_roots WHERE scope=?",
                 (self.scope,),
             ).fetchall()
         return {row["current_record_id"]:row["root_id"] for row in rows
