@@ -252,6 +252,91 @@ class LearnableSROK:
             assignments.append(tuple(candidate))
         return assignments, exhausted, expanded
 
+    def _partial_score(self, assignment: Sequence[Node]) -> float:
+        """Score all unary/pair/triple terms whose roles are already assigned."""
+        count = len(assignment)
+        if count > len(self.roles):
+            raise LearnableSROKError("partial assignment role count mismatch")
+        features: list[float] = []
+        for node in assignment:
+            self._validate_node(node)
+        for node in assignment:
+            features.extend(node.features)
+        for left, right in combinations(range(count), 2):
+            features.extend(
+                a * b for a, b in zip(
+                    assignment[left].features, assignment[right].features
+                )
+            )
+        for first, second, third in combinations(range(count), 3):
+            features.extend(
+                a * b * c for a, b, c in zip(
+                    assignment[first].features,
+                    assignment[second].features,
+                    assignment[third].features,
+                )
+            )
+        # Feature blocks in the model are ordered by role, then role-pair,
+        # then role-triple. Build the matching weight indices explicitly.
+        indices: list[int] = []
+        dim = self.feature_dim
+        indices.extend(range(count * dim))
+        pair_offset = len(self.roles) * dim
+        all_pairs = tuple(combinations(range(len(self.roles)), 2))
+        for pair in combinations(range(count), 2):
+            indices.extend(
+                range(pair_offset + all_pairs.index(pair) * dim,
+                      pair_offset + (all_pairs.index(pair) + 1) * dim)
+            )
+        triple_offset = pair_offset + len(all_pairs) * dim
+        all_triples = tuple(combinations(range(len(self.roles)), 3))
+        for triple in combinations(range(count), 3):
+            index = all_triples.index(triple)
+            indices.extend(range(triple_offset + index * dim,
+                                 triple_offset + (index + 1) * dim))
+        if len(indices) != len(features):
+            raise LearnableSROKError("partial feature layout mismatch")
+        return self._dot([self.weights[index] for index in indices], features)
+
+    def _beam_enumerate(self, pools, max_expansions: int, beam_width: int):
+        """Bounded deterministic beam search over role prefixes.
+
+        The partial score is an ordering heuristic, not an admissible upper
+        bound. Beam search is therefore approximate; the exhaustion flag
+        reports budget truncation but cannot certify recall.
+        """
+        if isinstance(beam_width, bool) or not isinstance(beam_width, int) or beam_width < 1:
+            raise LearnableSROKError("beam_width must be a positive integer")
+        beam: list[tuple[Node, ...]] = [()]
+        expanded = 0
+        for pool in pools:
+            proposals: list[tuple[Node, ...]] = []
+            for prefix in beam:
+                for node in pool:
+                    if expanded >= max_expansions:
+                        ranked = sorted(
+                            proposals,
+                            key=lambda item: (-self._partial_score(item),
+                                              tuple(value.node_id for value in item)),
+                        )
+                        return (
+                            [item for item in ranked if len(item) == len(self.roles)],
+                            True, expanded,
+                        )
+                    expanded += 1
+                    if any(existing.node_id == node.node_id for existing in prefix):
+                        continue
+                    proposals.append(prefix + (node,))
+            proposals.sort(
+                key=lambda item: (-self._partial_score(item),
+                                  tuple(value.node_id for value in item))
+            )
+            beam = proposals[:beam_width]
+            if not beam:
+                break
+        complete = [item for item in beam if len(item) == len(self.roles)]
+        return complete, False, expanded
+
     def fit(
         self, examples: Iterable[TrainingExample], *, epochs: int = 80,
         learning_rate: float = 0.2, l2: float = 1e-4,
@@ -359,6 +444,7 @@ class LearnableSROK:
         self, nodes: Iterable[Node], *, top_k_per_role: int = 8,
         max_expansions: int = 4096, result_limit: int = 5,
         abstain_margin: float = 0.0, retrieval_mode: str = "unary",
+        search_strategy: str = "product", beam_width: int = 64,
     ) -> Prediction:
         """Retrieve, compose, score, and optionally abstain under fixed budgets.
 
@@ -376,6 +462,10 @@ class LearnableSROK:
             raise LearnableSROKError("abstain_margin must be finite and non-negative")
         if retrieval_mode not in ("unary", "joint"):
             raise LearnableSROKError("retrieval_mode must be 'unary' or 'joint'")
+        if search_strategy not in ("product", "beam"):
+            raise LearnableSROKError("search_strategy must be 'product' or 'beam'")
+        if isinstance(beam_width, bool) or not isinstance(beam_width, int) or beam_width < 1:
+            raise LearnableSROKError("beam_width must be a positive integer")
         node_list = tuple(nodes)
         for node in node_list:
             self._validate_node(node)
@@ -398,7 +488,12 @@ class LearnableSROK:
         sizes = tuple((role.name, len(pool)) for role, pool in zip(self.roles, pools))
         if any(not pool for pool in pools):
             return Prediction((), True, "NO_ROLE_CANDIDATES", 0, False, sizes)
-        assignments, exhausted, expanded = self._enumerate(pools, max_expansions)
+        if retrieval_mode == "joint" and search_strategy == "beam":
+            assignments, exhausted, expanded = self._beam_enumerate(
+                pools, max_expansions, beam_width
+            )
+        else:
+            assignments, exhausted, expanded = self._enumerate(pools, max_expansions)
         ranked = sorted(
             assignments,
             key=lambda assignment: (
