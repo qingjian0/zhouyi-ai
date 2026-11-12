@@ -49,6 +49,10 @@ class TestCpgEiMvp(unittest.TestCase):
             math.sqrt(sum(model.weights[h][j] ** 2 for h in range(6))) > 1e-5
             for j in range(7, len(FEATURE_NAMES))
         )
+        print(
+            f"CPGEI_SPARSE_SUPPORT bit_accuracy={metrics['bit_accuracy']:.6f} "
+            f"active_relation_groups={active_groups}/35"
+        )
         self.assertLess(losses[-1], losses[0])
         self.assertGreater(metrics["bit_accuracy"], 0.90)
         self.assertLess(active_groups, 20)
