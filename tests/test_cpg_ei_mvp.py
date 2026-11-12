@@ -3,6 +3,7 @@ import unittest
 
 from prototype.cpg_ei_mvp import (
     CpgEiTransitionModel,
+    Example,
     FEATURE_NAMES,
     encode_state,
     evaluate,
@@ -60,8 +61,8 @@ class TestCpgEiMvp(unittest.TestCase):
 
     def test_shared_gate_gradient_matches_mean_bce_objective(self):
         examples = [
-            type("Example", (), {"state": (1, 1, 0, 0, 0, 0), "target": (1, 0, 1, 0, 1, 0)})(),
-            type("Example", (), {"state": (0, 1, 1, 0, 0, 0), "target": (0, 1, 0, 1, 0, 1)})(),
+            Example((1, 1, 0, 0, 0, 0), (1, 0, 1, 0, 1, 0)),
+            Example((0, 1, 1, 0, 0, 0), (0, 1, 0, 1, 0, 1)),
         ]
         model = CpgEiTransitionModel.create(active_relation_indices={7})
         model.gate_logits[0] = -0.4
