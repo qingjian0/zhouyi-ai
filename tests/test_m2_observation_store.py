@@ -3,22 +3,18 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from prototype.evidence_ref_resolver import SQLiteEvidenceRefResolver
+from prototype.evidence_ref_resolver import EvidenceResolutionError, SQLiteEvidenceRefResolver
 from prototype.m2_observation_store import (
     ObservationStoreError,
     PersistentM2ObservationStore,
 )
 from prototype.observation_contract import (
-    EpistemicStatus,
     ExtractionMethod,
-    GroundingStatus,
     Modality,
     Observation,
     ParseStatus,
     RecordEnvelope,
     SourceLocator,
-    TruthStatus,
-    SQLiteEvidenceRefResolver as _Unused,
 )
 from prototype.streaming_evidence_ingest import SQLiteEvidenceIngestor
 from prototype.zpcm_memory import ZPCMMemory
@@ -114,7 +110,7 @@ class PersistentM2ObservationStoreTests(unittest.TestCase):
         )
         observation = self.make_observation()
         object.__setattr__(observation.envelope, "source_refs", (forged,))
-        with self.assertRaises(Exception):
+        with self.assertRaises(EvidenceResolutionError):
             self.store.record_observation(observation)
         self.assertEqual(
             self.memory.replay_domain_events(event_type="m2_observation", scope="project-a"),
