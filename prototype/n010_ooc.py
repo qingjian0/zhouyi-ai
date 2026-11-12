@@ -281,7 +281,6 @@ class N010StreamingDataset:
             "records": sum(counts.values()),
             "split_counts": counts,
             "rule_families_by_split": families_by_split,
-            "rule_family_counts_by_split": family_counts_by_split,
             "group_counts_by_split": group_counts,
             "feature_dim": self.feature_dim,
             "roles": [
