@@ -1,0 +1,36 @@
+name: cpg-ei-oracle-optimizer-sweep
+
+on:
+  push:
+    branches:
+      - research/cpg-ei-oracle-optimizer-sweep-2026-11-13
+  pull_request:
+    branches:
+      - research/cpg-ei-oracle-optimizer-sweep-2026-11-13
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  oracle-optimizer-sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run optimizer sweep tests
+        run: python -m unittest tests.test_cpg_ei_oracle_optimizer_sweep -v
+      - name: Run two-seed, three-family known-support optimizer sweep
+        run: |
+          mkdir -p benchmark-results
+          python -m prototype.cpg_ei_oracle_optimizer_sweep --epochs 800 | tee benchmark-results/cpg-ei-oracle-optimizer-sweep.json
+      - name: Upload optimizer sweep report
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpg-ei-oracle-optimizer-sweep-${{ github.sha }}
+          path: benchmark-results/cpg-ei-oracle-optimizer-sweep.json
+          if-no-files-found: error
+          retention-days: 30
