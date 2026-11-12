@@ -406,7 +406,7 @@ class LearnableSROKTests(unittest.TestCase):
         # 1) exact-ranking stability under perturbed input features;
         # 2) beam retrieval quality relative to exact search on the same
         #    perturbed inputs. This does not treat exact as semantic ground truth.
-        seeds = (11, 23, 47, 89, 131)
+        seeds = tuple(range(11, 36))
         pool_sizes = (3, 5, 8)
         noise_levels = (0.0, 0.1, 0.25, 0.5, 1.0)
         beam_widths = (2, 8, 32, 128, 512)
@@ -552,9 +552,9 @@ class LearnableSROKTests(unittest.TestCase):
             f"complete_recall_at_5={sum(complete_recalls) / len(complete_recalls):.4f} "
             f"complete_top1_hit={sum(complete_top1_hits) / len(complete_top1_hits):.4f}"
         )
-        self.assertEqual(comparisons, 375)
-        self.assertEqual(complete_searches, 150)
-        self.assertEqual(exact_top1_stability[0.0], [1] * 15)
+        self.assertEqual(comparisons, 1875)
+        self.assertEqual(complete_searches, 750)
+        self.assertEqual(exact_top1_stability[0.0], [1] * 75)
         self.assertTrue(all(value == 1.0 for value in complete_recalls))
         self.assertTrue(all(value == 1 for value in complete_top1_hits))
 
