@@ -507,6 +507,7 @@ def run_experiment_ooc(dataset_path: str | Path, roles: Sequence[RoleSpec],
     ) as dataset:
         group_index_path = checkpoint.with_suffix(checkpoint.suffix + ".groups.sqlite3")
         dataset.write_group_index(group_index_path)
+        group_index_sha256 = _sha256_file(group_index_path)
         config = {
             "epochs": epochs,
             "learning_rate": learning_rate,
@@ -525,6 +526,8 @@ def run_experiment_ooc(dataset_path: str | Path, roles: Sequence[RoleSpec],
             if (bundle.get("schema") != OOC_RUN_SCHEMA
                     or bundle.get("dataset_manifest") != dataset.manifest):
                 raise LearnableSROKError("resume dataset/schema does not match")
+            if bundle.get("group_index_sha256") != group_index_sha256:
+                raise LearnableSROKError("resume group index integrity mismatch")
             saved_config = bundle.get("config", {})
             if {k: v for k, v in saved_config.items() if k != "epochs"} != {
                 k: v for k, v in config.items() if k != "epochs"
@@ -552,6 +555,7 @@ def run_experiment_ooc(dataset_path: str | Path, roles: Sequence[RoleSpec],
                 "schema": OOC_RUN_SCHEMA,
                 "dataset_manifest": dataset.manifest,
                 "group_index_path": str(group_index_path),
+                "group_index_sha256": group_index_sha256,
                 "config": config,
                 "completed_epochs": epoch + 1,
                 "loss_history": history,
@@ -597,6 +601,10 @@ def evaluate_locked_test_ooc(locked_test_path: str | Path, roles: Sequence[RoleS
     ) as dataset:
         training_manifest = bundle.get("dataset_manifest", {})
         group_index_path = checkpoint.with_suffix(checkpoint.suffix + ".groups.sqlite3")
+        expected_group_index_sha256 = bundle.get("group_index_sha256")
+        if (not isinstance(expected_group_index_sha256, str)
+                or _sha256_file(group_index_path) != expected_group_index_sha256):
+            raise LearnableSROKError("training group index integrity mismatch")
         dataset.assert_no_group_overlap(group_index_path)
         if (training_manifest.get("feature_dim") != dataset.manifest["feature_dim"]
                 or training_manifest.get("roles") != dataset.manifest["roles"]
