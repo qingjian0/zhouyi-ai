@@ -82,13 +82,22 @@ class TestCpgEiJointMotifProposals(unittest.TestCase):
 
         model = CpgEiTransitionModel.create(active_relation_indices=set())
         seen_datasets = []
+        fitted_datasets = []
         original_bce = joint_proposals._binary_cross_entropy
+        original_train = CpgEiTransitionModel.train
 
         def tracked_bce(candidate, examples):
             seen_datasets.append(examples)
             return original_bce(candidate, examples)
 
-        with patch.object(joint_proposals, "_binary_cross_entropy", tracked_bce):
+        def tracked_train(candidate, examples, *args, **kwargs):
+            fitted_datasets.append(examples)
+            return original_train(candidate, examples, *args, **kwargs)
+
+        with (
+            patch.object(joint_proposals, "_binary_cross_entropy", tracked_bce),
+            patch.object(CpgEiTransitionModel, "train", tracked_train),
+        ):
             result = grow_relation_graph_joint_motifs(
                 model,
                 train,
@@ -100,15 +109,24 @@ class TestCpgEiJointMotifProposals(unittest.TestCase):
                 edge_group_l1=0.001,
             )
 
-        # Baseline and every candidate are ranked on proposal only. The final
-        # BCE call is the locked test diagnostic, after selection has finished.
-        self.assertGreater(sum(rows is proposal for rows in seen_datasets), 1)
+        # Baseline and every candidate are ranked only on proposal data.
+        # Training must use only train data. Train/test BCE calls occur after
+        # selection, in that order, and the locked test is the final read.
+        ranking_calls = result["candidate_fits_total"] + 1
+        self.assertEqual(len(seen_datasets), ranking_calls + 2)
+        self.assertTrue(all(rows is proposal for rows in seen_datasets[:ranking_calls]))
+        self.assertIs(seen_datasets[-2], train)
         self.assertIs(seen_datasets[-1], locked_test)
+        self.assertGreater(len(fitted_datasets), 1)
+        self.assertTrue(all(rows is train for rows in fitted_datasets))
         self.assertEqual(result["proposal_selection_examples"], len(proposal))
         self.assertTrue(math.isfinite(result["training_binary_cross_entropy"]))
         self.assertTrue(math.isfinite(result["validation_binary_cross_entropy"]))
 
         ood_metrics = joint_proposals.evaluate(model, ood_test)
+        self.assertTrue(math.isfinite(ood_metrics["bit_accuracy"]))
+        self.assertGreaterEqual(ood_metrics["bit_accuracy"], 0.0)
+        self.assertLessEqual(ood_metrics["bit_accuracy"], 1.0)
         print("CPGEI_SPLIT_PROTOCOL " + json.dumps({
             "train_examples": len(train),
             "proposal_selection_examples": len(proposal),
