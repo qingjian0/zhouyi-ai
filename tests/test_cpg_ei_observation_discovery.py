@@ -21,6 +21,7 @@ class TestObservationDiscoveryBaseline(unittest.TestCase):
         self.assertIn("locked_consensus_accuracy_rate", overall)
         self.assertIn("mean_input_context_coverage", overall)
         self.assertIn("mean_influence_context_count", overall)
+        self.assertIn("mean_observed_irrelevant_variables", overall)
         self.assertGreaterEqual(overall["mean_input_context_coverage"], 0.0)
         self.assertLessEqual(overall["mean_input_context_coverage"], 1.0)
         self.assertEqual(set(self.report["by_operator"]), {
