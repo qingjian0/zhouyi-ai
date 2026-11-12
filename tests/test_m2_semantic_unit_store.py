@@ -1,171 +1,155 @@
 import io
+import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
 
 from prototype.evidence_ref_resolver import EvidenceResolutionError, SQLiteEvidenceRefResolver
 from prototype.m2_semantic_unit_store import (
-    PersistentSemanticUnitCandidateStore,
-    SemanticUnitStoreError,
+    PersistentM2SemanticUnitStore, SemanticUnitStoreError,
 )
 from prototype.observation_contract import (
-    EpistemicStatus,
-    GroundingStatus,
-    RecordEnvelope,
-    SemanticUnitCandidate,
-    TruthStatus,
-    UnitKind,
+    EpistemicStatus, GroundingStatus, RecordEnvelope, RoleBinding,
+    SemanticUnitCandidate, TruthStatus, TypedAttribute, UnitKind,
 )
 from prototype.streaming_evidence_ingest import SQLiteEvidenceIngestor
 from prototype.zpcm_memory import ZPCMMemory
-from prototype.trlw_working_set import PacketStatus, TRLWQuery, build_trlw_working_set
 
 
-class PersistentSemanticUnitCandidateStoreTests(unittest.TestCase):
+class PersistentM2SemanticUnitStoreTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         root = Path(self.temp.name)
-        self.evidence_db = root / "evidence.sqlite3"
-        self.memory_db = root / "zpcm.sqlite3"
+        self.evidence_db, self.memory_db = root / "evidence.sqlite3", root / "zpcm.sqlite3"
         ingestor = SQLiteEvidenceIngestor(self.evidence_db)
         source = "甲使用工具处理乙".encode("utf-8")
-        result = ingestor.ingest("doc-1", "fixture.txt", io.BytesIO(source), chunk_bytes=128)
-        self.assertTrue(result.complete)
+        self.assertTrue(ingestor.ingest("doc-1", "fixture.txt", io.BytesIO(source),
+                                        chunk_bytes=128).complete)
         chunk = ingestor.get_chunks("doc-1")[0]
         self.resolver = SQLiteEvidenceRefResolver(self.evidence_db)
         self.reference = self.resolver.make_reference("doc-1", chunk.chunk_id)
         self.memory = ZPCMMemory(self.memory_db)
-        self.store = PersistentSemanticUnitCandidateStore(
-            self.memory, self.resolver, scope="project-a",
-        )
+        self.store = PersistentM2SemanticUnitStore(self.memory, self.resolver, scope="project-a")
 
     def tearDown(self):
         self.memory.close()
         self.temp.cleanup()
 
-    def make_candidate(self, *, record_id="candidate-1", surface="甲"):
+    def candidate(self, rid, *, predecessor=None, surface="使用工具",
+                   confidence=0.8, scope="project-a"):
         return SemanticUnitCandidate(
             envelope=RecordEnvelope(
-                schema_version="m2-record-v1",
-                record_id=record_id,
-                record_kind="SemanticUnitCandidate",
-                producer="test-grounder",
-                producer_version="1.0",
-                recorded_at="2026-11-12T00:00:00Z",
-                scope="project-a",
-                source_refs=(self.reference,),
+                schema_version="m2-record-v1", record_id=rid,
+                record_kind="SemanticUnitCandidate", producer="test-extractor",
+                producer_version="1.0", recorded_at="2026-11-12T00:00:00Z",
+                scope=scope, source_refs=(self.reference,),
+                derivation_refs=("obs-1",) + ((predecessor,) if predecessor else ()),
             ),
-            kind=UnitKind.ENTITY,
-            surface_forms=(surface,),
+            kind=UnitKind.EVENT, surface_forms=(surface,),
+            typed_attributes=(TypedAttribute(
+                "agent", "entity_ref", "entity:甲", source_refs=(self.reference,)),),
+            role_bindings=(RoleBinding("agent", "entity:甲"),
+                           RoleBinding("patient", "entity:乙")),
             grounding_status=GroundingStatus.GROUNDED,
             epistemic_status=EpistemicStatus.ASSERTED,
+            extractor_confidence=confidence,
             truth_status=TruthStatus.UNKNOWN,
         )
 
-    def test_persists_and_streams_candidate_without_a_second_ledger(self):
-        candidate = self.make_candidate()
-        receipt = self.store.record_candidate(candidate)
-        self.assertFalse(receipt.replayed)
-        self.assertEqual(
-            self.memory.db.execute("SELECT COUNT(*) FROM memory_events").fetchone()[0],
-            1,
-        )
-        self.assertEqual(
-            self.memory.db.execute(
-                "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name LIKE '%semantic%'"
-            ).fetchone()[0],
-            0,
-        )
-        restored = list(self.store.iter_candidates(page_size=1))
-        self.assertEqual(restored, [candidate])
-        event = next(self.memory.iter_domain_events(
-            event_type="m2_semantic_unit_candidate", scope="project-a", page_size=1,
-        ))
-        self.assertEqual(event["event_id"], "m2:semantic-unit:candidate-1")
-        self.assertEqual(event["payload"]["body_digest"], receipt.record_digest)
-
-    def test_identical_retry_is_idempotent_and_record_id_is_immutable(self):
-        candidate = self.make_candidate()
+    def test_candidate_round_trip_and_idempotency(self):
+        candidate = self.candidate("su-1")
         first = self.store.record_candidate(candidate)
         retry = self.store.record_candidate(candidate)
+        self.assertFalse(first.replayed)
         self.assertTrue(retry.replayed)
         self.assertEqual(first.sequence, retry.sequence)
-        with self.assertRaises(SemanticUnitStoreError):
-            self.store.record_candidate(self.make_candidate(surface="甲（修订）"))
+        self.assertEqual(self.store.candidates["su-1"], candidate)
+        events = self.memory.replay_domain_events(event_type="m2_semantic_unit", scope="project-a")
+        self.assertEqual(len(events), 1)
+        self.assertNotIn("甲使用工具处理乙", str(events[0]["payload"]))
 
-    def test_rejects_wrong_scope_and_invalid_source_evidence(self):
-        wrong_scope = self.make_candidate()
-        object.__setattr__(wrong_scope.envelope, "scope", "project-b")
+    def test_revision_is_append_only_and_restores_latest_version(self):
+        first = self.candidate("su-1")
+        self.store.record_candidate(first)
+        revised = self.candidate("su-2", predecessor="su-1",
+                                 surface="通过工具", confidence=0.9)
+        receipt = self.store.revise_candidate("su-1", revised)
+        retry = self.store.revise_candidate("su-1", revised)
+        self.assertFalse(receipt.replayed)
+        self.assertTrue(retry.replayed)
+        self.assertEqual(receipt.sequence, retry.sequence)
+        self.assertEqual(self.store.history, {"su-1": first, "su-2": revised})
+        self.assertEqual(self.store.candidates, {"su-1": revised})
         with self.assertRaises(SemanticUnitStoreError):
-            self.store.record_candidate(wrong_scope)
+            self.store.record_candidate(revised)
+        with self.assertRaises(SemanticUnitStoreError):
+            self.store.revise_candidate("obs-1", revised)
+        self.assertEqual(len(self.memory.replay_domain_events(
+            event_type="m2_semantic_unit", scope="project-a")), 2)
+        self.memory.close()
+        self.memory = ZPCMMemory(self.memory_db)
+        restored = PersistentM2SemanticUnitStore(
+            self.memory, self.resolver, scope="project-a", replay_page_size=1)
+        self.assertEqual(restored.history, {"su-1": first, "su-2": revised})
+        self.assertEqual(restored.candidates, {"su-1": revised})
+        self.assertTrue(restored._receipts["su-2"].replayed)
 
+    def test_revision_requires_explicit_predecessor_and_new_immutable_id(self):
+        self.store.record_candidate(self.candidate("su-1"))
+        with self.assertRaises(SemanticUnitStoreError):
+            self.store.revise_candidate("su-1", self.candidate("su-2"))
+        with self.assertRaises(SemanticUnitStoreError):
+            self.store.revise_candidate("su-1", self.candidate("su-1", predecessor="su-1"))
+
+    def test_retraction_is_tombstone_and_never_deletes_history(self):
+        candidate = self.candidate("su-1")
+        self.store.record_candidate(candidate)
+        receipt = self.store.retract_candidate("su-1", reason="source contradicted")
+        retry = self.store.retract_candidate("su-1", reason="source contradicted")
+        self.assertFalse(receipt.replayed)
+        self.assertTrue(retry.replayed)
+        self.assertEqual(self.store.candidates, {})
+        self.assertEqual(self.store.history, {"su-1": candidate})
+        with self.assertRaises(SemanticUnitStoreError):
+            self.store.retract_candidate("su-1", reason="different reason")
+        self.memory.close()
+        self.memory = ZPCMMemory(self.memory_db)
+        restored = PersistentM2SemanticUnitStore(self.memory, self.resolver, scope="project-a")
+        self.assertEqual(restored.candidates, {})
+        self.assertEqual(restored.retractions, {"su-1": "source contradicted"})
+
+    def test_rejects_scope_mismatch_and_invalid_evidence(self):
+        with self.assertRaises(SemanticUnitStoreError):
+            self.store.record_candidate(self.candidate("bad-scope", scope="project-b"))
         forged = type(self.reference)(
-            document_id=self.reference.document_id,
-            chunk_id=self.reference.chunk_id,
-            content_sha256="0" * 64,
-            byte_start=self.reference.byte_start,
-            byte_end=self.reference.byte_end,
-            source_version=self.reference.source_version,
-        )
-        forged_candidate = self.make_candidate()
-        object.__setattr__(forged_candidate.envelope, "source_refs", (forged,))
+            document_id=self.reference.document_id, chunk_id=self.reference.chunk_id,
+            content_sha256="0" * 64, byte_start=self.reference.byte_start,
+            byte_end=self.reference.byte_end, source_version=self.reference.source_version)
+        bad = self.candidate("bad-evidence")
+        object.__setattr__(bad.envelope, "source_refs", (forged,))
         with self.assertRaises(EvidenceResolutionError):
-            self.store.record_candidate(forged_candidate)
-        self.assertEqual(
-            list(self.store.iter_candidates()),
-            [],
-        )
+            self.store.record_candidate(bad)
+        self.assertEqual(self.memory.replay_domain_events(
+            event_type="m2_semantic_unit", scope="project-a"), [])
 
-    def test_paged_iteration_is_ordered_and_resumable(self):
-        receipts = [
-            self.store.record_candidate(self.make_candidate(record_id=f"candidate-{i}", surface=f"实体{i}"))
-            for i in range(3)
-        ]
-        iterator = self.store.iter_candidates(page_size=1)
-        first = next(iterator)
-        self.assertEqual(first.envelope.record_id, "candidate-0")
-        tail = list(self.store.iter_candidates(after_sequence=receipts[0].sequence, page_size=1))
-        self.assertEqual(
-            [item.envelope.record_id for item in tail],
-            ["candidate-1", "candidate-2"],
-        )
+    def test_replay_page_size_is_validated(self):
+        with self.assertRaises(ValueError):
+            PersistentM2SemanticUnitStore(
+                self.memory, self.resolver, scope="project-a", replay_page_size=0)
+        with self.assertRaises(ValueError):
+            PersistentM2SemanticUnitStore(
+                self.memory, self.resolver, scope="project-a", replay_page_size=True)
 
-    def test_persistent_candidate_stream_feeds_bounded_trlw_packet(self):
-        for index in range(3):
-            self.store.record_candidate(self.make_candidate(
-                record_id=f"candidate-{index}", surface=f"实体{index}",
-            ))
-        query = TRLWQuery(
-            query_goal="retrieve grounded entities",
-            scope="project-a",
-            max_records=2,
-            byte_budget=8192,
-        )
-        packet = build_trlw_working_set(
-            self.store.iter_candidates(page_size=1),
-            query,
-            source_complete=True,
-        )
-        self.assertEqual(packet.returned_records, 2)
-        self.assertTrue(packet.source_complete)
-        self.assertTrue(packet.budget_exhausted)
-        self.assertEqual(packet.status, PacketStatus.BUDGET_EXHAUSTED)
-        self.assertEqual(
-            {entry.record.envelope.record_id for entry in packet.entries},
-            {"candidate-0", "candidate-1"},
-        )
-
-    def test_replay_fails_closed_when_source_evidence_changes(self):
-        self.store.record_candidate(self.make_candidate())
-        import sqlite3
+    def test_replay_fails_closed_after_source_mutation(self):
+        self.store.record_candidate(self.candidate("su-1"))
         with sqlite3.connect(self.evidence_db) as db:
-            db.execute(
-                "UPDATE evidence_chunks SET text_utf8 = ? WHERE chunk_id = ?",
-                (b"tampered", self.reference.chunk_id),
-            )
+            db.execute("UPDATE evidence_chunks SET text_utf8=? WHERE chunk_id=?",
+                       (b"tampered", self.reference.chunk_id))
+        self.memory.close()
+        self.memory = ZPCMMemory(self.memory_db)
         with self.assertRaises(EvidenceResolutionError):
-            list(self.store.iter_candidates(page_size=1))
+            PersistentM2SemanticUnitStore(self.memory, self.resolver, scope="project-a")
 
 
 if __name__ == "__main__":
