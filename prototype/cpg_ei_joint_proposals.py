@@ -4,8 +4,9 @@ The proposal unit is a four-edge motif induced by one 3-line subset:
 its three pairwise conjunctions plus the matching third-order hyperedge.
 This is a deliberately bounded search space (C(6, 3) = 20 motifs), not
 unrestricted combinatorial search. Candidate groups are trained jointly and
-ranked on training log loss; held-out validation is reported separately so
-individually weak edges can be selected without tuning directly to validation.
+ranked on a separate proposal-selection split when supplied. A final locked
+set is evaluated only after selection; omitting the split preserves legacy
+training-loss ranking and must be treated as exploratory.
 """
 from __future__ import annotations
 
@@ -59,6 +60,7 @@ def grow_relation_graph_joint_motifs(
     gate_l1: float = 0.01,
     edge_group_l1: float = 0.03,
     min_training_improvement: float = 1e-5,
+    proposal_examples: Sequence[Example] | None = None,
 ) -> dict:
     """Select bounded four-edge motifs by joint fit, not marginal edge scores.
 
@@ -67,7 +69,10 @@ def grow_relation_graph_joint_motifs(
     together; the candidate with the lowest training BCE is retained.
     """
     if not train_examples or not validation_examples:
-        raise ValueError("train and validation examples must be non-empty")
+        raise ValueError("train and locked-test examples must be non-empty")
+    proposal_rows = train_examples if proposal_examples is None else proposal_examples
+    if not proposal_rows:
+        raise ValueError("proposal_examples must be non-empty when supplied")
     if not 1 <= max_motifs <= 20 or epochs_per_candidate < 1:
         raise ValueError("invalid joint-motif search schedule")
     if min_training_improvement < 0.0:
@@ -83,7 +88,7 @@ def grow_relation_graph_joint_motifs(
         gate_l1=gate_l1,
         edge_group_l1=edge_group_l1,
     )
-    current_loss = _binary_cross_entropy(current, train_examples)
+    current_loss = _binary_cross_entropy(current, proposal_rows)
 
     total_candidate_fits = 0
     for round_index in range(1, max_motifs + 1):
@@ -105,9 +110,10 @@ def grow_relation_graph_joint_motifs(
                 gate_l1=gate_l1,
                 edge_group_l1=edge_group_l1,
             )
-            # Candidate generation is fitted/ranked on training data only;
-            # validation remains a strictly held-out diagnostic, not a search oracle.
-            score = _binary_cross_entropy(candidate, train_examples)
+            # Candidate weights are fitted only on train_examples. Candidate
+            # ranking uses proposal_rows; validation_examples is never consulted
+            # until the final locked evaluation below.
+            score = _binary_cross_entropy(candidate, proposal_rows)
             if score < best_loss - 1e-12:
                 best_loss = score
                 best_model = candidate
@@ -118,9 +124,9 @@ def grow_relation_graph_joint_motifs(
             trace.append({
                 "round": round_index,
                 "selected_motif": None,
-                "training_bce_before": current_loss,
-                "training_bce_after": current_loss,
-                "training_bce_improvement": 0.0,
+                "proposal_selection_bce_before": current_loss,
+                "proposal_selection_bce_after": current_loss,
+                "proposal_selection_bce_improvement": 0.0,
                 "candidate_fits": round_candidate_fits,
             })
             break
@@ -133,9 +139,9 @@ def grow_relation_graph_joint_motifs(
             "selected_motif": [
                 FEATURE_NAMES[index] for index in best_motif
             ],
-            "training_bce_before": current_loss + improvement,
-            "training_bce_after": current_loss,
-            "training_bce_improvement": improvement,
+            "proposal_selection_bce_before": current_loss + improvement,
+            "proposal_selection_bce_after": current_loss,
+            "proposal_selection_bce_improvement": improvement,
             "candidate_fits": round_candidate_fits,
         })
 
@@ -154,7 +160,9 @@ def grow_relation_graph_joint_motifs(
         ],
         "active_edge_count": len(model.active_relation_indices),
         "validation": evaluate(model, validation_examples),
-        "training_binary_cross_entropy": current_loss,
+        "training_binary_cross_entropy": _binary_cross_entropy(model, train_examples),
+        "proposal_selection_binary_cross_entropy": current_loss,
+        "proposal_selection_examples": len(proposal_rows),
         "validation_binary_cross_entropy": _binary_cross_entropy(model, validation_examples),
         "candidate_motif_universe_size": len(_three_line_motifs()),
         "candidate_fits_total": total_candidate_fits,
