@@ -34,7 +34,7 @@ class TestMatchedBaselineComparison(unittest.TestCase):
             report = {"ok": True, "value": 7}
             write_json_report(report, path)
             raw = path.read_text(encoding="utf-8")
-            self.assertTrue(raw.endswith("\\n"))
+            self.assertTrue(raw.endswith("\n"))
             self.assertEqual(json.loads(raw), report)
 
     def test_deterministic_corpus_identity(self):
