@@ -2,9 +2,9 @@ name: tests
 
 on:
   push:
-    branches: [main, 'research/cpg-ei-learnable-gates-v3-2026-11-12', 'research/cpg-ei-selection-split-2026-11-13', 'research/cpg-ei-selection-multiseed-2026-11-13', 'research/cpg-ei-oracle-optimizer-sweep-2026-11-13']
+    branches: [main, 'research/cpg-ei-learnable-gates-v3-2026-11-12', 'research/cpg-ei-selection-split-2026-11-13', 'research/cpg-ei-selection-multiseed-2026-11-13', 'research/cpg-ei-oracle-optimizer-sweep-2026-11-13', 'research/cpg-ei-lr-confirmation-2026-11-13', 'research/cpg-ei-selection-optimizer-sweep-2026-11-13', 'research/cpg-ei-adam-optimizer-comparison-v2-2026-11-13', 'research/cpg-ei-discovery-optimizer-comparison-2026-11-13', 'research/cpg-ei-proximal-regularization-calibration-2026-11-13']
   pull_request:
-    branches: [main, 'train/cpg-ei-mvp-2026-11-12', 'research/cpg-ei-selection-split-2026-11-13']
+    branches: [main, 'train/cpg-ei-mvp-2026-11-12', 'research/cpg-ei-selection-split-2026-11-13', 'research/cpg-ei-oracle-optimizer-sweep-2026-11-13', 'research/cpg-ei-adam-optimizer-comparison-v2-2026-11-13']
 
 jobs:
   unit-tests:
