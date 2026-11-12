@@ -21,8 +21,8 @@ jobs:
           python-version: "3.11"
       - name: Run focused discovery contract tests
         run: |
-          python -m unittest tests.test_cpg_ei_mixed_operator_data
-          python -m unittest tests.test_cpg_ei_mixed_operator_discovery
+          python -m unittest discover -s tests -p 'test_cpg_ei_mixed_operator_data.py' -v
+          python -m unittest discover -s tests -p 'test_cpg_ei_mixed_operator_discovery.py' -v
       - name: Run full 102,400-row discovery baseline
         run: |
           python -m prototype.cpg_ei_mixed_operator_discovery \
