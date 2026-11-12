@@ -14,7 +14,6 @@ from pathlib import Path
 import resource
 import subprocess
 import sys
-import time
 import tempfile
 import time
 from typing import Iterable
@@ -28,16 +27,21 @@ from prototype.e12a6_zpcm_persistence import (
 from prototype.zpcm_memory import ZPCMMemory
 
 
-def _current_rss_bytes() -> int | None:
-    """Return current resident set size from procfs where available."""
+def _proc_status_memory_bytes(field: str) -> int | None:
+    """Read a Linux /proc/self/status memory field, expressed in bytes."""
     try:
         with open("/proc/self/status", encoding="ascii") as stream:
             for line in stream:
-                if line.startswith("VmRSS:"):
+                if line.startswith(f"{field}:"):
                     return int(line.split()[1]) * 1024
     except (OSError, ValueError, IndexError):
         return None
     return None
+
+
+def _current_rss_bytes() -> int | None:
+    """Return current resident set size from procfs where available."""
+    return _proc_status_memory_bytes("VmRSS")
 
 
 def _cgroup_memory_bytes(filename: str) -> int | None:
@@ -53,6 +57,10 @@ def _cgroup_memory_bytes(filename: str) -> int | None:
 
 
 def _peak_rss_bytes() -> int:
+    """Prefer VmHWM so peak and current RSS use the same procfs accounting."""
+    high_water = _proc_status_memory_bytes("VmHWM")
+    if high_water is not None:
+        return high_water
     value = int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
     # Linux/BSD report KiB; macOS reports bytes.
     return value if sys.platform == "darwin" else value * 1024
