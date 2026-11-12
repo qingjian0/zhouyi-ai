@@ -56,6 +56,9 @@ jobs:
           assert summary["unary_pairwise_triple.balanced_accuracy"]["mean"] >= 0.85
           assert 0.38 <= summary["unary_only.accuracy"]["mean"] <= 0.62
           assert summary["triple_model_after_triple_mask.accuracy"]["mean"] <= 0.35
+          assert summary["pairwise_test_oracle_flipped_sign_diagnostic_only.accuracy"]["mean"] > (
+              summary["unary_pairwise.accuracy"]["mean"] + 0.50
+          )
           assert 0.45 <= summary["unary_pairwise_triple.positive_rate"]["mean"] <= 0.55
           print(json.dumps({"summary": summary}, indent=2))
           PY
