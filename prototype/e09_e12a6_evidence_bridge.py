@@ -132,8 +132,8 @@ def resolve_e09_reveal(
             raise E09EvidenceBindingError("v0.4 evidence requires the trusted domain registry")
         if reveal.get("payload_schema") != "evidence_reveal@4":
             raise E09EvidenceBindingError("v0.4 reveal requires the closed evidence_reveal@4 schema")
-    elif world_family is None:
-        raise E09EvidenceBindingError("legacy v0.3 evidence requires explicit migration context")
+    elif not isinstance(world_family, str) or not world_family.strip():
+        raise E09EvidenceBindingError("legacy v0.3 evidence requires non-empty explicit migration context")
     if reveal.get("actor_role") != "evaluator":
         raise E09EvidenceBindingError("evidence reveal must be committed by the evaluator role")
 
