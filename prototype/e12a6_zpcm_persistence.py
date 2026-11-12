@@ -90,7 +90,7 @@ class _SQLiteRuntimeState:
         self.connection.execute("PRAGMA journal_mode=DELETE")
         self.connection.execute("PRAGMA synchronous=OFF")
         self.connection.execute("PRAGMA temp_store=FILE")
-        self.connection.execute("PRAGMA cache_size=-2048")
+        self.connection.execute("PRAGMA cache_size=-8192")
         self.connection.execute("PRAGMA mmap_size=0")
         self.connection.executescript("""
             CREATE TABLE mapping_values(name TEXT NOT NULL, key BLOB NOT NULL, value BLOB NOT NULL,
