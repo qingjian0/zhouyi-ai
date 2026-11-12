@@ -17,4 +17,4 @@ jobs:
       - name: Test in-memory benchmark helpers
         run: python -m unittest tests.test_n010_model_compute_benchmark -v
       - name: Measure SROK in-memory training and scoring
-        run: python benchmarks/benchmark_n010_model_compute.py --sizes 8 64 256 1024 --epochs 100 --repeats 3
+        run: python -m benchmarks.benchmark_n010_model_compute --sizes 8 64 256 1024 --epochs 100 --repeats 3
