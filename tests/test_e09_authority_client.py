@@ -12,7 +12,7 @@ from prototype.e09_authority_services import (
     E09DomainBinding,
 )
 from prototype.e09_unix_rpc import E09AuthorityUnixRPC, UnixPeerWorkloadAuthenticator
-from prototype.shared_evidence_protocol import SQLiteEvidenceStore
+from prototype.shared_evidence_protocol import SQLiteEvidenceStore, digest_payload
 from prototype.unix_ipc import StaticUnixPeerResolver, UnixJSONRPCClient
 from prototype.zpcm_memory import ZPCMMemory
 
@@ -153,6 +153,33 @@ class E09RemoteZPCMMemoryTests(unittest.TestCase):
                 self.assertNotIn("never-in-zpcm", str(retrieved))
                 self.assertTrue(memory.verify_integrity()["ok"])
                 self.assertFalse(hasattr(source, "store"))
+
+                snapshot = {"weights": [0.1, 0.9], "step": 1}
+                rpc.append_structure_version(
+                    episode_id=episode,
+                    event_id=f"{episode}:structure:checkpoint-1",
+                    scope=scope,
+                    learner_track="track-a",
+                    payload={
+                        "structure_id": "learner-state",
+                        "version_id": "learner-state-v1",
+                        "kind": "categorical",
+                        "definition": {
+                            "snapshot": snapshot,
+                            "snapshot_digest": digest_payload(snapshot),
+                            "ledger_snapshot": {"records": []},
+                        },
+                        "parent_version_ids": [],
+                        "support_evidence_ids": [f"{episode}:reveal:pred-1"],
+                    },
+                    operation_id="append-checkpoint",
+                )
+                checkpoint = rpc.read_learner_checkpoint(
+                    episode_id=episode, scope=scope, learner_track="track-a"
+                )
+                self.assertEqual(
+                    checkpoint["payload"]["definition"]["snapshot"], snapshot
+                )
             finally:
                 memory.close()
                 server.close()
