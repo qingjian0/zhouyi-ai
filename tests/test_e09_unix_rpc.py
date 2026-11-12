@@ -217,6 +217,20 @@ class E09AuthorityUnixRPCTests(unittest.TestCase):
             )
         self.assertEqual(reveal_error.exception.code, "permission_denied")
 
+    def test_rpc_rejects_malformed_causation_array_before_store_access(self):
+        with self.assertRaises(IPCRemoteError) as caught:
+            self._call(
+                self.learner, "prediction.commit",
+                {
+                    "episode_id": self.episode,
+                    "event_id": "commit-invalid",
+                    "causation_refs": "not-an-array",
+                    "payload": {},
+                },
+                "commit-invalid",
+            )
+        self.assertEqual(caught.exception.code, "invalid_body")
+
     def test_peer_claims_must_match_authority_workload_policy(self):
         forged = _principal("spiffe://zhouyi/observer", "learner", self.scope)
         from prototype.unix_ipc import UnixPeerIdentity
