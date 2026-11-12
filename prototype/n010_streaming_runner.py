@@ -284,6 +284,10 @@ def run_streaming_experiment(dataset_path: str | Path, roles: Sequence[RoleSpec]
     if completed_epochs > epochs:
         raise LearnableSROKError("checkpoint has more completed epochs than requested")
 
+    def assert_dataset_unchanged():
+        if _streaming_sha256(dataset) != manifest["sha256"]:
+            raise LearnableSROKError("dataset changed after streaming preflight")
+
     def training_factory():
         for row in iter_dataset_split(
             dataset, roles, feature_dim, "train", max_record_bytes=max_record_bytes
@@ -291,10 +295,12 @@ def run_streaming_experiment(dataset_path: str | Path, roles: Sequence[RoleSpec]
             yield TrainingExample(row["pools"], row["target_ids"])
 
     for epoch in range(completed_epochs, epochs):
+        assert_dataset_unchanged()
         history.extend(model.fit_reiterable(
             training_factory, epochs=1, learning_rate=learning_rate, l2=l2,
             max_assignments_per_example=max_assignments_per_example,
         ))
+        assert_dataset_unchanged()
         bundle = {
             "schema": RUN_SCHEMA, "dataset_manifest": manifest, "config": config,
             "completed_epochs": epoch + 1, "loss_history": history,
@@ -306,6 +312,8 @@ def run_streaming_experiment(dataset_path: str | Path, roles: Sequence[RoleSpec]
             bundle, sort_keys=True, indent=2, ensure_ascii=False, allow_nan=False
         ) + "\n", encoding="utf-8")
         temporary.replace(output)
+
+    assert_dataset_unchanged()
 
     def rows_factory(split):
         return lambda: iter_dataset_split(
