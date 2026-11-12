@@ -146,3 +146,30 @@ def evaluate(model: RelationalTransitionModel,
         "exact_state_accuracy": correct / len(rows),
         "bit_accuracy": bit_correct / (len(rows) * model.output_dim),
     }
+
+
+def examples_from_corpus_rows(
+    rows: Iterable[dict], *, family_id: str, split: str
+) -> list[TransitionExample]:
+    """Load one teacher's explicitly selected state split from generated JSON rows.
+
+    The caller must choose train, development, or locked explicitly. This
+    prevents accidental mixing of state partitions in benchmark runners.
+    """
+    if not family_id:
+        raise ValueError("family_id must be non-empty")
+    if split not in {"train", "development", "locked"}:
+        raise ValueError("split must be train, development, or locked")
+    selected = [
+        row for row in rows
+        if row.get("family_id") == family_id and row.get("state_split") == split
+    ]
+    if not selected:
+        raise ValueError("no corpus rows found for the requested family and split")
+    states = [tuple(row["state"]) for row in selected]
+    if len(states) != len(set(states)):
+        raise ValueError("duplicate states found inside selected family split")
+    return [
+        TransitionExample(tuple(row["state"]), tuple(row["target"]))
+        for row in selected
+    ]
