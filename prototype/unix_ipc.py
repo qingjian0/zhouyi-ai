@@ -232,8 +232,8 @@ class UnixJSONRPCServer:
             raise ValueError("handlers must be a non-empty operation-to-callable mapping")
         if socket_mode & ~0o777:
             raise ValueError("socket_mode contains invalid permission bits")
-        if isinstance(max_frame_bytes, bool) or not 2 <= max_frame_bytes <= 64 * 1024 * 1024:
-            raise ValueError("max_frame_bytes is outside the supported range")
+        if isinstance(max_frame_bytes, bool) or not 2 <= max_frame_bytes <= _DEFAULT_MAX_FRAME_BYTES:
+            raise ValueError("max_frame_bytes must be between 2 bytes and the 4 MiB protocol ceiling")
         if isinstance(max_deadline_ms, bool) or not 1 <= max_deadline_ms <= 300_000:
             raise ValueError("max_deadline_ms is outside the supported range")
         if isinstance(max_workers, bool) or not 1 <= max_workers <= 1024:
@@ -414,8 +414,8 @@ class UnixJSONRPCClient:
         max_frame_bytes: int = _DEFAULT_MAX_FRAME_BYTES,
         connect_timeout_seconds: float = 5.0,
     ) -> None:
-        if max_frame_bytes < 2:
-            raise ValueError("max_frame_bytes must be at least two")
+        if isinstance(max_frame_bytes, bool) or not 2 <= max_frame_bytes <= _DEFAULT_MAX_FRAME_BYTES:
+            raise ValueError("max_frame_bytes must be between 2 bytes and the 4 MiB protocol ceiling")
         if connect_timeout_seconds <= 0:
             raise ValueError("connect_timeout_seconds must be positive")
         self.socket_path = str(socket_path)
