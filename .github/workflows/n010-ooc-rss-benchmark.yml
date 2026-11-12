@@ -1,0 +1,21 @@
+name: n010-ooc-rss-benchmark
+
+on:
+  push:
+    branches:
+      - research/n010-ooc-rss-benchmark-2026-11-12
+  pull_request:
+    branches:
+      - research/n010-heldout-group-isolation-2026-11-12
+      - research/n010-true-out-of-core-streaming-2026-11-12
+
+jobs:
+  ooc-rss:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Measure out-of-core RSS at two corpus sizes
+        run: python benchmarks/benchmark_n010_ooc_rss.py --sizes 1000 10000 --epochs 1
