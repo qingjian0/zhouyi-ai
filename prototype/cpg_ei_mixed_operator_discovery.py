@@ -122,6 +122,20 @@ def _discover_one(
     locked_errors = ((selected_mask ^ target_mask) & locked_mask).bit_count()
     full_errors = (selected_mask ^ target_mask).bit_count()
     selected_spec = rule_manifest(selected_rule, input_dim)
+    selected_equivalence_size = sum(
+        prediction_mask == selected_mask for _, prediction_mask in candidates
+    )
+    teacher_object = RelationRule(
+        teacher_rule["operator"], tuple(teacher_rule["support"]),
+        threshold=teacher_rule["threshold"],
+        context_index=teacher_rule["context_index"],
+        context_value=(teacher_rule["context_value"]
+                       if teacher_rule["context_value"] is not None else 1),
+    )
+    teacher_mask = _truth_mask(teacher_object, input_dim)
+    teacher_equivalence_size = sum(
+        prediction_mask == teacher_mask for _, prediction_mask in candidates
+    )
     return {
         "train_errors": train_error,
         "development_errors": best_dev,
@@ -133,6 +147,10 @@ def _discover_one(
         "exact_rule_recovered": selected_spec == teacher_rule,
         "train_minimizer_count": len(scored),
         "development_tie_count": len(finalists),
+        "selected_function_equivalence_class_size": selected_equivalence_size,
+        "selected_function_structurally_identifiable": selected_equivalence_size == 1,
+        "teacher_function_equivalence_class_size": teacher_equivalence_size,
+        "teacher_function_structurally_identifiable": teacher_equivalence_size == 1,
         "selected_rule": selected_spec,
     }
 
@@ -193,6 +211,12 @@ def run_discovery_benchmark(corpus: dict) -> dict[str, Any]:
             "mean_development_tie_count": sum(
                 item["development_tie_count"] for item in outputs
             ) / count,
+            "teacher_function_identifiability_rate": sum(
+                item["teacher_function_structurally_identifiable"] for item in outputs
+            ) / count,
+            "mean_teacher_function_equivalence_class_size": sum(
+                item["teacher_function_equivalence_class_size"] for item in outputs
+            ) / count,
         }
 
     by_split = {
@@ -210,6 +234,16 @@ def run_discovery_benchmark(corpus: dict) -> dict[str, Any]:
         "selection_protocol": (
             "minimum train error; development error breaks train ties; "
             "locked states are report-only"
+        ),
+        "family_split_interpretation": (
+            "The family split is a reporting stratum, not a zero-shot transfer test: "
+            "every family, including the locked family stratum, receives its own "
+            "train and development states for per-family symbolic adaptation. "
+            "Only state_split=locked is held out from candidate selection."
+        ),
+        "candidate_truth_function_count": len({mask for _, mask in candidates}),
+        "candidate_structural_alias_count": (
+            len(candidates) - len({mask for _, mask in candidates})
         ),
         "family_split_results": by_split,
         "family_results": family_results,
