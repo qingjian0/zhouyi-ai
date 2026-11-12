@@ -1,6 +1,6 @@
 # N0.12：参数预算匹配的 MLP 对照
 
-**状态：已加入可执行基准与单元测试，等待 CI 和正式五种子结果。**
+**状态：五种子正式基准已通过 N0.12 CI gate，结果 artifact 已生成。**
 
 ## 研究问题
 
@@ -25,6 +25,25 @@ MLP 使用一层 tanh 隐藏层和 sigmoid 二分类输出，训练使用确定�
 python -m unittest tests.test_n12_parameter_matched_baselines -v
 python -m prototype.n12_parameter_matched_baselines --seeds 5 --start-seed 7 --train-samples 3000 --validation-samples 750 --test-samples 1500 --epochs 120 --json
 ```
+
+## 五种子结果
+
+正式配置：5 个种子；每个种子 3,000 train / 750 validation / 1,500 held-out-region test；120 epochs。所有模型的 logit 方向只由同分布 validation 选择。
+
+| 模型 | 参数量 | OOD accuracy（均值 ± 样本标准差） |
+|---|---:|---:|
+| SROK | 35 | **92.41% ± 0.62%** |
+| MLP-4 | 33 | 66.55% ± 3.32% |
+| MLP-5 | 41 | 73.32% ± 2.75% |
+| MLP-12 | 97 | 90.83% ± 1.37% |
+
+本任务下，35 参数 SROK 比最接近预算的 33 参数 MLP-4 高 25.86 个百分点；也比 41 参数 MLP-5 高 19.09 个百分点。97 参数 MLP-12 达到 90.83%，与 SROK 接近，但参数量约为 SROK 的 2.77 倍。
+
+**不能据此宣称 SROK 普遍优于 MLP。**五个种子不足以证明 SROK 对 MLP-12 的小幅准确率差距具有统计显著性；MLP 只测试了三个预先指定宽度，未做完整超参数搜索。这个结果支持的是：在当前已知 Fourier 输入和当前 OOD 划分上，显式三阶张量分解呈现出值得继续验证的参数效率优势。
+
+- N0.12 CI workflow： [Run 43138049581](https://github.com/qingjian0/zhouyi-ai/actions/runs/43138049581)
+- N0.12 专项实验和 artifact 上传步骤已通过；同一 workflow 后续既有 E01/E02 步骤仍在执行中。
+- Artifact：`n12-mlp-baseline-results`，ID `13908865898`。
 
 ## 解释边界
 
