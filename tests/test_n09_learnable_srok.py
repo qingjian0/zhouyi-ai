@@ -206,6 +206,55 @@ class LearnableSROKTests(unittest.TestCase):
         self.assertTrue(result.budget_exhausted)
         self.assertEqual(result.expanded_assignments, 2)
 
+    def test_exact_product_vs_beam_recall_and_expansion_tradeoff(self):
+        # Adversarial higher-order fixture: only the all-signal assignment
+        # receives a positive third-order score. Prefixes have no unary or
+        # pairwise signal, so a narrow beam has no admissible way to retain
+        # the globally best branch. This measures the recall/cost tradeoff;
+        # it is not a general-purpose performance claim.
+        for pool_size in (3, 5, 8):
+            model = LearnableSROK(self.roles, feature_dim=1)
+            model.weights[6] = 1.0  # the sole third-order interaction weight
+            nodes = []
+            for role in ("r0", "r1", "r2"):
+                nodes.extend(
+                    Node(
+                        f"a-{role}-decoy-{index}", role, (0.0,),
+                        frozenset({"eligible"}),
+                    )
+                    for index in range(pool_size - 1)
+                )
+                nodes.append(
+                    Node(f"z-{role}-signal", role, (1.0,), frozenset({"eligible"}))
+                )
+
+            exact = model.predict(
+                nodes, retrieval_mode="joint", search_strategy="product",
+                max_expansions=pool_size ** 3, result_limit=1,
+            )
+            beam = model.predict(
+                nodes, retrieval_mode="joint", search_strategy="beam",
+                beam_width=1, max_expansions=pool_size ** 3, result_limit=1,
+            )
+
+            self.assertFalse(exact.abstained)
+            self.assertEqual(
+                exact.candidates[0].role_bindings,
+                (("r0", f"z-r0-signal"), ("r1", f"z-r1-signal"),
+                 ("r2", f"z-r2-signal")),
+            )
+            self.assertTrue(beam.abstained)
+            self.assertEqual(beam.reason, "BEAM_PRUNED")
+            self.assertNotEqual(
+                beam.candidates[0].role_bindings,
+                exact.candidates[0].role_bindings,
+            )
+            self.assertEqual(exact.expanded_assignments, pool_size ** 3)
+            self.assertEqual(beam.expanded_assignments, 3 * pool_size)
+            self.assertLess(
+                beam.expanded_assignments, exact.expanded_assignments
+            )
+
     def test_beam_search_is_deterministic_under_input_permutation(self):
         model = LearnableSROK(self.roles, feature_dim=3)
         nodes = [
