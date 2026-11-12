@@ -95,6 +95,7 @@ class E09ToE12A6UnixEndToEndTests(E12A6WriterUnixRPCTests):
             )
             self.assertEqual(issued["audience"], "e12a6-lifecycle-writer")
             self.assertEqual(issued["verifier_id"], self.verifier_id)
+            self.assertEqual(issued["issued_at"], self.now.isoformat())
             self.assertEqual(
                 set(issued["evidence_refs"]),
                 {
