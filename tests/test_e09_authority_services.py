@@ -436,6 +436,16 @@ class E09AuthorityServiceTests(unittest.TestCase):
                 causation_refs=[],
             )
 
+    def test_observation_rejects_missing_payload_vault_reference(self):
+        with self.assertRaises(E09AuthorizationError):
+            self.authority.append_observation(
+                "observer-cert", episode_id=self.episode,
+                event_id=f"{self.episode}:observation:missing-payload",
+                idempotency_key=f"{self.episode}:observation:missing-payload",
+                observation_id="missing-payload", query_id="missing-payload",
+                scope=self.scope, split="SUPPORT", payload_ref="sha256:does-not-exist",
+            )
+
     def test_adapter_workload_validation_requires_trusted_domain_registry(self):
         authority_without_registry = E09AuthorityService(
             self.store, authenticator=self.authenticator, signer=_Signer(self.private),
