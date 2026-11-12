@@ -49,8 +49,11 @@ def fit_with_early_stopping(
 ) -> dict[str, Any]:
     if not training or not development:
         raise ValueError("training and development examples must both be non-empty")
-    if (isinstance(max_epochs, bool) or max_epochs < 1
-            or isinstance(patience, bool) or patience < 1
+    numeric = (min_delta, learning_rate, l2)
+    if (isinstance(max_epochs, bool) or not isinstance(max_epochs, int) or max_epochs < 1
+            or isinstance(patience, bool) or not isinstance(patience, int) or patience < 1
+            or any(isinstance(value, bool) or not isinstance(value, (int, float))
+                   or not math.isfinite(value) for value in numeric)
             or min_delta < 0 or learning_rate <= 0 or l2 < 0):
         raise ValueError("invalid early-stopping or optimizer configuration")
 
