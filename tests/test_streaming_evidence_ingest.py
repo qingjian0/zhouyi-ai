@@ -114,6 +114,76 @@ with open(source_path, "rb") as stream:
         self.assertEqual(len(chunks), 15)
         self.assertEqual(len({chunk.chunk_id for chunk in chunks}), 15)
 
+    def test_hard_process_exit_recovers_across_multiple_commit_boundaries(self):
+        source_path = Path(self.temp.name) / "multi-crash-source.txt"
+        source = b"abcdefgh" * 15
+        source_path.write_bytes(source)
+
+        # Each value is the number of chunks committed before the child exits.
+        # The callback exits before the next chunk's transaction begins.
+        for committed_before_exit in (0, 1, 4, 8, 14):
+            with self.subTest(committed_before_exit=committed_before_exit):
+                database = Path(self.temp.name) / f"crash-{committed_before_exit}.sqlite3"
+                script = r"""
+import os
+import sys
+from prototype.streaming_evidence_ingest import SQLiteEvidenceIngestor
+
+database, source_path = sys.argv[1], sys.argv[2]
+exit_on_call = int(sys.argv[3]) + 1
+calls = 0
+def crash_at_boundary(text):
+    global calls
+    calls += 1
+    if calls == exit_on_call:
+        os._exit(73)
+    return 1
+
+store = SQLiteEvidenceIngestor(database)
+with open(source_path, "rb") as stream:
+    store.ingest("doc-multi-crash", source_path, stream,
+                 chunk_bytes=8, tokenizer=crash_at_boundary)
+"""
+                child = subprocess.run(
+                    [
+                        sys.executable,
+                        "-c",
+                        script,
+                        str(database),
+                        str(source_path),
+                        str(committed_before_exit),
+                    ],
+                    cwd=Path(__file__).resolve().parents[1],
+                    check=False,
+                )
+                self.assertEqual(child.returncode, 73)
+                restarted = SQLiteEvidenceIngestor(database)
+                self.assertEqual(
+                    restarted.document_state("doc-multi-crash"),
+                    (committed_before_exit * 8, committed_before_exit, False),
+                )
+                resumed = restarted.ingest(
+                    "doc-multi-crash",
+                    str(source_path),
+                    io.BytesIO(source),
+                    chunk_bytes=8,
+                )
+                self.assertTrue(resumed.complete)
+                chunks = restarted.get_chunks("doc-multi-crash", limit=1000)
+                self.assertEqual(len(chunks), 15)
+                self.assertEqual(
+                    b"".join(chunk.text.encode("utf-8") for chunk in chunks),
+                    source,
+                )
+                self.assertEqual(
+                    len({chunk.chunk_id for chunk in chunks}),
+                    15,
+                )
+                self.assertEqual(
+                    [(chunk.byte_start, chunk.byte_end) for chunk in chunks],
+                    [(index * 8, (index + 1) * 8) for index in range(15)],
+                )
+
     def test_tokenizer_coverage_reflects_persisted_chunks(self):
         source = io.BytesIO(b"abcdefgh")
         first = self.ingestor.ingest(
