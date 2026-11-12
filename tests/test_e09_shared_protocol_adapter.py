@@ -105,7 +105,7 @@ class E09SharedProtocolAdapterTests(unittest.TestCase):
         self.assertEqual(events[-1]["payload"]["learner_track"], "e09")
         self.assertEqual(adapter.score()["revealed_observations"], 0)
         self.assertEqual(commit["decision_status"], "PREDICT")
- 
+
     def test_locked_gate_reveal_is_not_delivered_to_learner(self):
         adapter = self.make_adapter("INCREMENTAL_INDEX", split="LOCKED_TEST")
         commit = adapter.predict_and_commit("obs-locked", (0, 0, 2))
@@ -170,6 +170,66 @@ class E09SharedProtocolAdapterTests(unittest.TestCase):
             "SELECT COUNT(*) FROM memory_items WHERE item_id=?", (item_id,)
         ).fetchone()[0]
         self.assertEqual(count, 1)
+        memory.close()
+
+    def test_process_restart_resumes_e09_and_continues_learning(self):
+        projection_path = Path(self.tmp.name) / "zpcm-resume.sqlite3"
+        memory = ZPCMMemory(projection_path)
+        adapter = self.make_adapter(
+            "INCREMENTAL_INDEX", memory_projection=memory
+        )
+        commit = adapter.predict_and_commit("obs-process-restart", (0, 0, 2))
+        original_sync = memory.sync_episode
+
+        def commit_then_crash(*args, **kwargs):
+            original_sync(*args, **kwargs)
+            raise RuntimeError("simulated process loss after projection commit")
+
+        memory.sync_episode = commit_then_crash
+        with self.assertRaises(E09ProtocolAdapterError):
+            adapter.reveal(commit["prediction_id"], "no")
+
+        # Simulate a real process restart: close both SQLite connections and
+        # reopen them before rebuilding the learner exclusively from E09.
+        memory.close()
+        self.store.close()
+        self.store = SQLiteEvidenceStore(self.db)
+        memory = ZPCMMemory(projection_path)
+
+        def restore_incremental(snapshot):
+            learner = IncrementalConjunctionLearner(
+                DOMAINS, min_support=snapshot["min_support"]
+            )
+            for record in snapshot["observations"]:
+                for label in record["labels"]:
+                    learner.observe(tuple(record["inputs"]), label)
+            return learner
+
+        resumed = E09SharedProtocolAdapter.resume_srok(
+            self.store,
+            episode_id="episode-INCREMENTAL_INDEX",
+            scope="e09/test",
+            split="SUPPORT",
+            learner_track="e09",
+            version_prefix="e09",
+            learner_factory=restore_incremental,
+            memory_projection=memory,
+        )
+        self.assertEqual(resumed.score()["revealed_observations"], 1)
+        self.assertEqual(len(resumed.replay()), 4)
+
+        revision = resumed.revise(commit["prediction_id"])
+        self.assertEqual(revision["operation"], "INCREMENTAL_INDEX")
+        self.assertEqual(revision["before_version_id"], "e09-v1")
+        self.assertEqual(revision["after_version_id"], "e09-v2")
+        events = resumed.replay()
+        self.assertEqual(
+            [event["event_type"] for event in events],
+            ["structure_version", "observation", "prediction_commit",
+             "evidence_reveal", "structure_version", "revision"],
+        )
+        self.assertEqual(resumed.score()["revealed_observations"], 1)
+        self.assertTrue(memory.verify_integrity()["ok"])
         memory.close()
 
     def test_locked_test_is_scored_by_evaluator_projection_only(self):
