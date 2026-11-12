@@ -124,6 +124,18 @@ class ZPCMMemory:
                     "recorded_at": row["recorded_at"],
                 }
 
+    def latest_domain_sequence(self, *, event_type: str, scope: str) -> int:
+        """Return the current global event sequence for one typed scope stream."""
+        if not isinstance(event_type, str) or not event_type.strip():
+            raise ZPCMError("event_type must be non-empty")
+        if not isinstance(scope, str) or not scope.strip():
+            raise ZPCMError("scope must be non-empty")
+        with self.lock:
+            return int(self.db.execute(
+                "SELECT COALESCE(MAX(seq), 0) FROM memory_events WHERE event_type=? AND scope=?",
+                (event_type, scope),
+            ).fetchone()[0])
+
     def replay_domain_events(self, *, event_type: str, scope: str,
                              after_sequence: int = 0) -> list[dict[str, Any]]:
         """Materialize a complete typed stream; prefer iter_domain_events for bounded reads."""
