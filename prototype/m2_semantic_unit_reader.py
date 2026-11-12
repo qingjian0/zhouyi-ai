@@ -101,8 +101,8 @@ class PersistentM2SemanticUnitReader:
         Raises MemoryScanBudgetExceeded rather than silently treating a truncated
         scan as a complete or not-found result.
         """
-        if isinstance(max_events, bool) or not isinstance(max_events, int) or max_events < 1:
-            raise ValueError("max_events must be a positive integer")
+        if isinstance(max_events, bool) or not isinstance(max_events, int) or not 1 <= max_events <= 65536:
+            raise ValueError("max_events must be an integer in [1, 65536]")
         seen_roots: set[str] = set()
         scanned = 0
         try:
