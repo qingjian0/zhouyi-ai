@@ -27,7 +27,7 @@ class ResolvedEvidence:
 
 def _manifest_digest(document_id: str, rows) -> str:
     digest = hashlib.sha256()
-    digest.update(b"zhouyi-evidence-document-manifest-v1\\0")
+    digest.update(b"zhouyi-evidence-document-manifest-v1\0")
     expected_ordinal = 0
     expected_start = 0
     for ordinal, start, end, chunk_id, content_sha256, text_utf8 in rows:
@@ -37,12 +37,12 @@ def _manifest_digest(document_id: str, rows) -> str:
         actual_digest = hashlib.sha256(raw).hexdigest()
         if len(raw) != end - start or actual_digest != content_sha256:
             raise EvidenceResolutionError("M1 stored chunk bytes do not match their committed span/hash")
-        material = f"zhouyi-evidence-chunk-v1\\0{document_id}\\0{ordinal}\\0{content_sha256}"
+        material = f"zhouyi-evidence-chunk-v1\0{document_id}\0{ordinal}\0{content_sha256}"
         expected_chunk_id = hashlib.sha256(material.encode("utf-8")).hexdigest()
         if chunk_id != expected_chunk_id:
             raise EvidenceResolutionError("M1 chunk ID does not match its immutable identity fields")
         digest.update(
-            f"{ordinal}:{start}:{end}:{chunk_id}:{content_sha256}\\n".encode("ascii")
+            f"{ordinal}:{start}:{end}:{chunk_id}:{content_sha256}\n".encode("ascii")
         )
         expected_ordinal += 1
         expected_start = end
