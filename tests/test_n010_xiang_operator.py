@@ -54,6 +54,53 @@ class LearnableXiangOperatorTests(unittest.TestCase):
         self.assertEqual(together.readout, sequential.readout)
         self.assertEqual(together.training_steps, sequential.training_steps)
 
+    @staticmethod
+    def _binary_loss(model, rows):
+        total = 0.0
+        for row in rows:
+            p = min(max(model.predict_probability(row.assignment), 1e-15), 1 - 1e-15)
+            target = 1.0 if row.label == 1 else 0.0
+            import math
+            total -= target * math.log(p) + (1 - target) * math.log(1 - p)
+        return total / len(rows)
+
+    def test_analytic_readout_and_basis_gradients_match_finite_difference(self):
+        import copy
+        rows = [
+            RelationClassificationExample(self.assignment((1, -1, 1)), 1),
+            RelationClassificationExample(self.assignment((-1, 1, -1)), -1),
+        ]
+        model = LearnableXiangOperator(self.roles, 2, XiangConfig(3, "learnable", 17))
+        eps = 1e-5
+        baseline = copy.deepcopy(model)
+        numeric = {}
+        for name, index in (("readout", 0), ("basis", (0, 0))):
+            plus, minus = copy.deepcopy(baseline), copy.deepcopy(baseline)
+            if name == "readout":
+                plus.readout[index] += eps
+                minus.readout[index] -= eps
+            else:
+                plus.basis[index[0]][index[1]] += eps
+                minus.basis[index[0]][index[1]] -= eps
+            numeric[name] = (self._binary_loss(plus, rows) -
+                             self._binary_loss(minus, rows)) / (2 * eps)
+        lr = 1e-6
+        model.fit(rows, epochs=1, learning_rate=lr, l2=0.0)
+        inferred_readout = (baseline.readout[0] - model.readout[0]) / lr
+        inferred_basis = (baseline.basis[0][0] - model.basis[0][0]) / lr
+        self.assertAlmostEqual(inferred_readout, numeric["readout"], delta=2e-5)
+        self.assertAlmostEqual(inferred_basis, numeric["basis"], delta=2e-5)
+
+    def test_initialization_and_training_are_seed_deterministic(self):
+        rows = [RelationClassificationExample(self.assignment((a, b, c)),
+                    1 if a*b*c == 1 else -1)
+                for a in (-1, 1) for b in (-1, 1) for c in (-1, 1)]
+        left = LearnableXiangOperator(self.roles, 2, XiangConfig(4, "learnable", 31))
+        right = LearnableXiangOperator(self.roles, 2, XiangConfig(4, "learnable", 31))
+        left.fit(rows, epochs=4, learning_rate=0.05)
+        right.fit(rows, epochs=4, learning_rate=0.05)
+        self.assertEqual(left.checkpoint_json(), right.checkpoint_json())
+
     def test_checkpoint_rejects_malformed_shapes_and_non_object(self):
         model = LearnableXiangOperator(self.roles, 2, XiangConfig(3))
         payload = json.loads(model.checkpoint_json())
