@@ -314,6 +314,10 @@ class N010StreamingDataset:
             manifest["generation_provenance_sha256"] = hashlib.sha256(
                 _canonical_json(provenance).encode("utf-8")
             ).hexdigest()
+        # Bind the metadata index to one stable byte snapshot. The initial
+        # digest is captured before indexing; re-hash after the scan so a file
+        # replaced or edited during index construction cannot be accepted.
+        self._assert_unchanged()
         return manifest
 
     def write_group_index(self, output_path: str | Path) -> Path:
