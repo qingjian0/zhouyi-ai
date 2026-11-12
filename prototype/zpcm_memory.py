@@ -11,6 +11,7 @@ def digest(v): return hashlib.sha256(canonical(v).encode()).hexdigest()
 
 class ZPCMMemory:
     SCHEMA_VERSION="zpcm-memory-v0.1"
+    AUTHORIZATION_PROJECTION_VERSION="e12a6-auth-projection-v1"
     def __init__(self,path:str|Path, *, max_event_payload_bytes:int=1048576, max_page_bytes:int=4194304):
         if isinstance(max_event_payload_bytes,bool) or not isinstance(max_event_payload_bytes,int) or max_event_payload_bytes < 1:
             raise ZPCMError("max_event_payload_bytes must be a positive integer")
@@ -38,52 +39,209 @@ class ZPCMMemory:
             scope TEXT NOT NULL,
             FOREIGN KEY(event_id) REFERENCES memory_events(event_id)
         );
+        CREATE TABLE IF NOT EXISTS e12a6_authorization_projection_checkpoint(
+            singleton INTEGER PRIMARY KEY CHECK(singleton=1),
+            schema_version TEXT NOT NULL,
+            high_water_seq INTEGER NOT NULL CHECK(high_water_seq>=0),
+            checkpoint_digest TEXT NOT NULL,
+            projection_generation INTEGER NOT NULL DEFAULT -1
+        );
+        CREATE TABLE IF NOT EXISTS e12a6_authorization_projection_state(
+            singleton INTEGER PRIMARY KEY CHECK(singleton=1),
+            generation INTEGER NOT NULL CHECK(generation>=0)
+        );
+        INSERT OR IGNORE INTO e12a6_authorization_projection_state(singleton,generation) VALUES(1,0);
+        CREATE INDEX IF NOT EXISTS memory_events_type_seq ON memory_events(event_type,seq);
+        """)
+        checkpoint_columns = {
+            row["name"] for row in self.db.execute(
+                "PRAGMA table_info(e12a6_authorization_projection_checkpoint)"
+            )
+        }
+        if "projection_generation" not in checkpoint_columns:
+            self.db.execute(
+                "ALTER TABLE e12a6_authorization_projection_checkpoint "
+                "ADD COLUMN projection_generation INTEGER NOT NULL DEFAULT -1"
+            )
+        self.db.executescript("""
+        CREATE TRIGGER IF NOT EXISTS e12a6_projection_generation_insert
+        AFTER INSERT ON e12a6_authorization_consumptions
+        BEGIN
+            UPDATE e12a6_authorization_projection_state
+            SET generation=generation+1 WHERE singleton=1;
+        END;
+        CREATE TRIGGER IF NOT EXISTS e12a6_projection_generation_update
+        AFTER UPDATE ON e12a6_authorization_consumptions
+        BEGIN
+            UPDATE e12a6_authorization_projection_state
+            SET generation=generation+1 WHERE singleton=1;
+        END;
+        CREATE TRIGGER IF NOT EXISTS e12a6_projection_generation_delete
+        AFTER DELETE ON e12a6_authorization_consumptions
+        BEGIN
+            UPDATE e12a6_authorization_projection_state
+            SET generation=generation+1 WHERE singleton=1;
+        END;
         """)
         self._rebuild_authorization_consumption_index()
     def close(self):
         with self.lock:self.db.close()
-    def _rebuild_authorization_consumption_index(self):
-        """Backfill and validate DB-enforced unique receipt/nonce consumption."""
+    def _authorization_checkpoint_digest(self, high_water_seq: int) -> str:
+        return digest({
+            "schema_version": self.AUTHORIZATION_PROJECTION_VERSION,
+            "high_water_seq": high_water_seq,
+        })
+
+    def _advance_authorization_projection_checkpoint(
+        self, high_water_seq: int, *, expected_previous_high_water: int | None = None,
+    ) -> None:
+        """Advance the derived-index checkpoint inside the caller's event transaction."""
+        row = self.db.execute(
+            "SELECT high_water_seq FROM e12a6_authorization_projection_checkpoint WHERE singleton=1"
+        ).fetchone()
+        current = int(row["high_water_seq"]) if row is not None else 0
+        if expected_previous_high_water is not None and current != expected_previous_high_water:
+            # A legacy/concurrent writer may have left events beyond the
+            # checkpoint. Do not jump over them; startup will catch them up.
+            return
+        target = max(current, int(high_water_seq))
+        projection_generation = int(self.db.execute(
+            "SELECT generation FROM e12a6_authorization_projection_state WHERE singleton=1"
+        ).fetchone()[0])
+        self.db.execute(
+            "INSERT INTO e12a6_authorization_projection_checkpoint("
+            "singleton,schema_version,high_water_seq,checkpoint_digest,projection_generation) "
+            "VALUES(1,?,?,?,?) ON CONFLICT(singleton) DO UPDATE SET "
+            "schema_version=excluded.schema_version,high_water_seq=excluded.high_water_seq,"
+            "checkpoint_digest=excluded.checkpoint_digest,"
+            "projection_generation=excluded.projection_generation",
+            (self.AUTHORIZATION_PROJECTION_VERSION,target,
+             self._authorization_checkpoint_digest(target),projection_generation),
+        )
+
+    def _rebuild_authorization_consumption_index(self, *, force: bool = False):
+        """Incrementally validate lifecycle events and maintain a crash-atomic projection checkpoint.
+
+        A missing/invalid checkpoint triggers a streaming full rebuild. A valid
+        checkpoint scans only later lifecycle events. The event log remains the
+        sole authority; the table is a rebuildable uniqueness projection.
+        """
         self.db.execute("BEGIN IMMEDIATE")
         try:
-            rows = self.db.execute(
-                "SELECT event_id,scope,payload_json,payload_digest FROM memory_events "
-                "WHERE event_type='e12a6_lifecycle'"
-            ).fetchall()
-            for row in rows:
-                payload = json.loads(row["payload_json"])
-                if digest(payload) != row["payload_digest"]:
-                    raise ZPCMError("authorization consumption event digest mismatch")
-                if payload.get("kind") != "authorization_consumed":
-                    continue
-                body = payload.get("body")
-                if not isinstance(body, dict):
-                    raise ZPCMError("authorization consumption body must be an object")
-                receipt_id, nonce = body.get("receipt_id"), body.get("nonce")
-                if (not isinstance(receipt_id, str) or not receipt_id.strip()
-                        or not isinstance(nonce, str) or not nonce.strip()
-                        or body.get("scope") != row["scope"]
-                        or row["event_id"] != f"e12a6:authorization-consumed:{receipt_id}"):
-                    raise ZPCMError("authorization consumption index data is malformed")
-                existing = self.db.execute(
-                    "SELECT receipt_id,nonce,event_id,scope FROM e12a6_authorization_consumptions "
-                    "WHERE receipt_id=? OR nonce=? OR event_id=?",
-                    (receipt_id, nonce, row["event_id"]),
-                ).fetchone()
-                expected = (receipt_id, nonce, row["event_id"], row["scope"])
-                if existing is not None:
-                    actual = (existing["receipt_id"], existing["nonce"], existing["event_id"], existing["scope"])
-                    if actual != expected:
-                        raise ZPCMError("duplicate receipt ID or nonce in persisted lifecycle history")
-                    continue
+            max_seq = int(self.db.execute(
+                "SELECT COALESCE(MAX(seq),0) FROM memory_events"
+            ).fetchone()[0])
+            checkpoint = self.db.execute(
+                "SELECT schema_version,high_water_seq,checkpoint_digest,projection_generation "
+                "FROM e12a6_authorization_projection_checkpoint WHERE singleton=1"
+            ).fetchone()
+            projection_generation = int(self.db.execute(
+                "SELECT generation FROM e12a6_authorization_projection_state WHERE singleton=1"
+            ).fetchone()[0])
+            valid = False
+            cursor = 0
+            if checkpoint is not None and not force:
+                try:
+                    saved = int(checkpoint["high_water_seq"])
+                    valid = (
+                        checkpoint["schema_version"] == self.AUTHORIZATION_PROJECTION_VERSION
+                        and 0 <= saved <= max_seq
+                        and checkpoint["checkpoint_digest"] == self._authorization_checkpoint_digest(saved)
+                        and int(checkpoint["projection_generation"]) == projection_generation
+                    )
+                    if valid:
+                        cursor = saved
+                except (TypeError, ValueError, OverflowError):
+                    valid = False
+            if not valid:
+                self.db.execute("DELETE FROM e12a6_authorization_consumptions")
                 self.db.execute(
-                    "INSERT INTO e12a6_authorization_consumptions(receipt_id,nonce,event_id,scope) "
-                    "VALUES(?,?,?,?)", expected,
+                    "DELETE FROM e12a6_authorization_projection_checkpoint WHERE singleton=1"
                 )
+                cursor = 0
+
+            while True:
+                rows = self.db.execute(
+                    "SELECT seq,event_id,scope,length(CAST(payload_json AS BLOB)) AS payload_bytes,payload_digest "
+                    "FROM memory_events WHERE event_type='e12a6_lifecycle' AND seq>? "
+                    "ORDER BY seq LIMIT 128",
+                    (cursor,),
+                ).fetchall()
+                if not rows:
+                    break
+                selected = []
+                page_bytes = 0
+                for row in rows:
+                    payload_bytes = int(row["payload_bytes"])
+                    if payload_bytes > self.max_event_payload_bytes:
+                        raise ZPCMError(
+                            f"authorization event exceeds max_event_payload_bytes: {row['event_id']}"
+                        )
+                    if page_bytes + payload_bytes > self.max_page_bytes:
+                        break
+                    selected.append(row)
+                    page_bytes += payload_bytes
+                if not selected:
+                    raise ZPCMError("authorization projection rebuild cannot progress within max_page_bytes")
+
+                for row in selected:
+                    raw = self.db.execute(
+                        "SELECT payload_json FROM memory_events WHERE seq=?",
+                        (row["seq"],),
+                    ).fetchone()
+                    if raw is None:
+                        raise ZPCMError("authorization event disappeared during projection rebuild")
+                    payload = json.loads(raw["payload_json"])
+                    if not isinstance(payload, dict) or digest(payload) != row["payload_digest"]:
+                        raise ZPCMError("authorization consumption event digest mismatch")
+                    if payload.get("kind") == "authorization_consumed":
+                        body = payload.get("body")
+                        if not isinstance(body, dict):
+                            raise ZPCMError("authorization consumption body must be an object")
+                        receipt_id, nonce = body.get("receipt_id"), body.get("nonce")
+                        if (
+                            not isinstance(receipt_id, str) or not receipt_id.strip()
+                            or not isinstance(nonce, str) or not nonce.strip()
+                            or body.get("scope") != row["scope"]
+                            or row["event_id"] != f"e12a6:authorization-consumed:{receipt_id}"
+                        ):
+                            raise ZPCMError("authorization consumption index data is malformed")
+                        existing = self.db.execute(
+                            "SELECT receipt_id,nonce,event_id,scope FROM e12a6_authorization_consumptions "
+                            "WHERE receipt_id=? OR nonce=? OR event_id=?",
+                            (receipt_id,nonce,row["event_id"]),
+                        ).fetchone()
+                        expected = (receipt_id,nonce,row["event_id"],row["scope"])
+                        if existing is not None:
+                            actual = (
+                                existing["receipt_id"],existing["nonce"],
+                                existing["event_id"],existing["scope"],
+                            )
+                            if actual != expected:
+                                raise ZPCMError(
+                                    "duplicate receipt ID or nonce in persisted lifecycle history"
+                                )
+                        else:
+                            self.db.execute(
+                                "INSERT INTO e12a6_authorization_consumptions(receipt_id,nonce,event_id,scope) "
+                                "VALUES(?,?,?,?)",
+                                expected,
+                            )
+                    cursor = int(row["seq"])
+
+            # Advance over unrelated event types too. The checkpoint is a
+            # global event-log high-water mark, so later lifecycle inserts
+            # can be detected without rescanning earlier history.
+            self._advance_authorization_projection_checkpoint(max_seq)
             self.db.execute("COMMIT")
         except Exception:
             self.db.execute("ROLLBACK")
             raise
+
+    def rebuild_authorization_consumption_index(self) -> None:
+        """Explicit full replay/repair of the derived authorization projection."""
+        with self.lock:
+            self._rebuild_authorization_consumption_index(force=True)
 
     def _append(self,event_id,event_type,scope,payload):
         if not all(isinstance(x,str) and x.strip() for x in (event_id,event_type,scope)):raise ZPCMError("event identifiers/type/scope required")
@@ -529,7 +687,14 @@ class ZPCMMemory:
                                           (scope,)).fetchone()[0]
                 if current != expected_sequence:
                     raise ZPCMError(f"stale lifecycle sequence: expected {expected_sequence}, current {current}")
+                previous_high_water = int(self.db.execute(
+                    "SELECT COALESCE(MAX(seq),0) FROM memory_events"
+                ).fetchone()[0])
                 seq, replay = self._append(event_id, "e12a6_lifecycle", scope, payload)
+                if not replay:
+                    self._advance_authorization_projection_checkpoint(
+                        seq, expected_previous_high_water=previous_high_water
+                    )
                 self.db.execute("COMMIT")
                 return {"sequence":seq,"payload_digest":digest(payload),"replayed":replay}
             except sqlite3.IntegrityError as exc:
@@ -701,7 +866,11 @@ class ZPCMMemory:
                 existing_count = sum(row is not None for row in prior_rows)
                 if existing_count not in (0, len(normalized)):
                     raise ZPCMError("partial lifecycle batch replay conflict")
+                previous_high_water = None
                 if existing_count == 0:
+                    previous_high_water = int(self.db.execute(
+                        "SELECT COALESCE(MAX(seq),0) FROM memory_events"
+                    ).fetchone()[0])
                     current = self.db.execute(
                         "SELECT COALESCE(MAX(seq),0) FROM memory_events "
                         "WHERE event_type='e12a6_lifecycle' AND scope=?",
@@ -725,6 +894,11 @@ class ZPCMMemory:
                         "event_id": event_id, "sequence": seq,
                         "payload_digest": digest(payload), "replayed": replay,
                     })
+                if receipts and previous_high_water is not None:
+                    self._advance_authorization_projection_checkpoint(
+                        max(item["sequence"] for item in receipts),
+                        expected_previous_high_water=previous_high_water,
+                    )
                 self.db.execute("COMMIT")
                 return receipts
             except sqlite3.IntegrityError as exc:

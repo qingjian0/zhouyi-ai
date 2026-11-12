@@ -182,4 +182,115 @@ class Tests(unittest.TestCase):
    with self.subTest(event_limit=event_limit,page_limit=page_limit),self.assertRaises(ZPCMError):
     ZPCMMemory(Path(self.tmp.name)/"invalid.db",max_event_payload_bytes=event_limit,max_page_bytes=page_limit)
 
+ def test_authorization_projection_checkpoint_advances_with_lifecycle_append(self):
+  first=self.m.append_lifecycle_event(event_id="lifecycle:1",scope="s",
+      payload={"kind":"state_transition","value":1},expected_sequence=0)
+  checkpoint=self.m.db.execute(
+      "SELECT high_water_seq,schema_version FROM e12a6_authorization_projection_checkpoint WHERE singleton=1"
+  ).fetchone()
+  self.assertEqual(checkpoint["high_water_seq"],first["sequence"])
+  self.assertEqual(checkpoint["schema_version"],self.m.AUTHORIZATION_PROJECTION_VERSION)
+ def test_authorization_projection_incrementally_catches_legacy_append(self):
+  self.m.append_lifecycle_event(event_id="lifecycle:1",scope="s",
+      payload={"kind":"state_transition","value":1},expected_sequence=0)
+  legacy_seq,_=self.m._append("legacy:lifecycle:2","e12a6_lifecycle","s",
+      {"kind":"state_transition","value":2})
+  self.m.close()
+  self.m=ZPCMMemory(self.path)
+  checkpoint=self.m.db.execute(
+      "SELECT high_water_seq FROM e12a6_authorization_projection_checkpoint WHERE singleton=1"
+  ).fetchone()
+  self.assertEqual(checkpoint["high_water_seq"],legacy_seq)
+ def test_checkpoint_does_not_jump_over_unseen_legacy_lifecycle_events(self):
+  self.m.append_lifecycle_event(event_id="lifecycle:1",scope="s",
+      payload={"kind":"state_transition","value":1},expected_sequence=0)
+  legacy_seq,_=self.m._append("legacy:lifecycle:2","e12a6_lifecycle","s",
+      {"kind":"state_transition","value":2})
+  self.m.append_lifecycle_event(event_id="lifecycle:3",scope="s",
+      payload={"kind":"state_transition","value":3},expected_sequence=legacy_seq)
+  checkpoint=self.m.db.execute(
+      "SELECT high_water_seq FROM e12a6_authorization_projection_checkpoint WHERE singleton=1"
+  ).fetchone()
+  self.assertEqual(checkpoint["high_water_seq"],1)
+  self.m.close()
+  self.m=ZPCMMemory(self.path)
+  checkpoint=self.m.db.execute(
+      "SELECT high_water_seq FROM e12a6_authorization_projection_checkpoint WHERE singleton=1"
+  ).fetchone()
+  self.assertEqual(checkpoint["high_water_seq"],3)
+ def test_lifecycle_batch_advances_checkpoint_atomically(self):
+  receipts=self.m.append_lifecycle_events(scope="s",expected_sequence=0,events=[
+      {"event_id":"lifecycle:batch:1","payload":{"kind":"state_transition","value":1}},
+      {"event_id":"lifecycle:batch:2","payload":{"kind":"state_transition","value":2}},
+  ])
+  checkpoint=self.m.db.execute(
+      "SELECT high_water_seq FROM e12a6_authorization_projection_checkpoint WHERE singleton=1"
+  ).fetchone()
+  self.assertEqual(checkpoint["high_water_seq"],max(x["sequence"] for x in receipts))
+ def test_corrupt_authorization_checkpoint_triggers_streaming_rebuild(self):
+  body={"receipt_id":"receipt-rebuild","nonce":"nonce-rebuild","scope":"s"}
+  payload={"kind":"authorization_consumed","body":body}
+  event_id="e12a6:authorization-consumed:receipt-rebuild"
+  self.m._append(event_id,"e12a6_lifecycle","s",payload)
+  self.m.close()
+  self.m=ZPCMMemory(self.path)
+  row=self.m.db.execute(
+      "SELECT receipt_id,nonce,event_id,scope FROM e12a6_authorization_consumptions"
+  ).fetchone()
+  self.assertEqual(tuple(row),(body["receipt_id"],body["nonce"],event_id,"s"))
+  self.m.db.execute(
+      "UPDATE e12a6_authorization_projection_checkpoint SET checkpoint_digest='corrupt' WHERE singleton=1"
+  )
+  self.m.close()
+  self.m=ZPCMMemory(self.path)
+  count=self.m.db.execute("SELECT COUNT(*) FROM e12a6_authorization_consumptions").fetchone()[0]
+  self.assertEqual(count,1)
+ def test_projection_row_mutation_invalidates_checkpoint_and_rebuilds(self):
+  body={"receipt_id":"receipt-projection","nonce":"nonce-projection","scope":"s"}
+  payload={"kind":"authorization_consumed","body":body}
+  event_id="e12a6:authorization-consumed:receipt-projection"
+  self.m._append(event_id,"e12a6_lifecycle","s",payload)
+  self.m.close()
+  self.m=ZPCMMemory(self.path)
+  self.assertEqual(self.m.db.execute(
+      "SELECT COUNT(*) FROM e12a6_authorization_consumptions"
+  ).fetchone()[0],1)
+  self.m.db.execute(
+      "DELETE FROM e12a6_authorization_consumptions WHERE receipt_id=?",
+      (body["receipt_id"],),
+  )
+  self.m.close()
+  self.m=ZPCMMemory(self.path)
+  row=self.m.db.execute(
+      "SELECT receipt_id,nonce,event_id,scope FROM e12a6_authorization_consumptions"
+  ).fetchone()
+  self.assertEqual(tuple(row),(body["receipt_id"],body["nonce"],event_id,"s"))
+
+ def test_explicit_authorization_projection_rebuild_revalidates_full_history(self):
+  self.m.append_lifecycle_event(event_id="lifecycle:tamper",scope="s",
+      payload={"kind":"state_transition","value":1},expected_sequence=0)
+  self.m.db.execute(
+      "UPDATE memory_events SET payload_json=? WHERE event_id=?",
+      ('{"kind":"tampered"}',"lifecycle:tamper")
+  )
+  with self.assertRaises(ZPCMError):
+   self.m.rebuild_authorization_consumption_index()
+ def test_lifecycle_append_and_checkpoint_update_are_atomic(self):
+  before=self.m.db.execute(
+      "SELECT high_water_seq,checkpoint_digest FROM e12a6_authorization_projection_checkpoint WHERE singleton=1"
+  ).fetchone()
+  def fail_checkpoint(_sequence, *, expected_previous_high_water=None):
+   raise RuntimeError("injected checkpoint failure")
+  self.m._advance_authorization_projection_checkpoint=fail_checkpoint
+  with self.assertRaises(RuntimeError):
+   self.m.append_lifecycle_event(event_id="lifecycle:atomic",scope="s",
+       payload={"kind":"state_transition"},expected_sequence=0)
+  self.assertIsNone(self.m.db.execute(
+      "SELECT 1 FROM memory_events WHERE event_id='lifecycle:atomic'"
+  ).fetchone())
+  after=self.m.db.execute(
+      "SELECT high_water_seq,checkpoint_digest FROM e12a6_authorization_projection_checkpoint WHERE singleton=1"
+  ).fetchone()
+  self.assertEqual(tuple(after),tuple(before))
+
 if __name__=="__main__":unittest.main()
