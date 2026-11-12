@@ -36,6 +36,13 @@ class TrainingExample:
 
 
 @dataclass(frozen=True)
+class RelationClassificationExample:
+    """One labeled complete role assignment for relation classification."""
+    assignment: tuple[Node, ...]
+    label: int
+
+
+@dataclass(frozen=True)
 class RankedStructure:
     role_bindings: tuple[tuple[str, str], ...]
     score: float
@@ -135,8 +142,97 @@ class LearnableSROK:
             raise LearnableSROKError("score must be finite")
         return value
 
-    def score(self, assignment: Sequence[Node]) -> float:
-        return self._dot(self.weights, self._assignment_features(assignment))
+    def _interaction_limit(self, features: Sequence[float], interaction_order: int) -> int:
+        if isinstance(interaction_order, bool) or not isinstance(interaction_order, int) or interaction_order not in (1, 2, 3):
+            raise LearnableSROKError("interaction_order must be 1, 2, or 3")
+        unary_width = self.feature_dim * len(self.roles)
+        pair_width = self.feature_dim * len(self.pairs)
+        if interaction_order == 1:
+            return unary_width
+        if interaction_order == 2:
+            return unary_width + pair_width
+        return len(features)
+
+    def score(self, assignment: Sequence[Node], *, interaction_order: int = 3) -> float:
+        """Score one complete assignment, optionally ablating higher interactions."""
+        features = self._assignment_features(assignment)
+        limit = self._interaction_limit(features, interaction_order)
+        return self._dot(self.weights[:limit], features[:limit])
+
+    def fit_relation_classifier(self, examples: Iterable[RelationClassificationExample], *,
+                                epochs: int = 300, learning_rate: float = 0.1,
+                                l2: float = 1e-4, interaction_order: int = 3) -> list[float]:
+        """Train binary labels on complete assignments using the SROK score features.
+
+        Unlike structured fit(), this supports multiple positive assignments and
+        is suitable for balanced parity truth tables.
+        """
+        rows = tuple(examples)
+        if not rows:
+            raise LearnableSROKError("relation examples must not be empty")
+        if isinstance(epochs, bool) or not isinstance(epochs, int) or epochs < 1:
+            raise LearnableSROKError("epochs must be a positive integer")
+        if not isinstance(learning_rate, (int, float)) or isinstance(learning_rate, bool) or not math.isfinite(learning_rate) or learning_rate <= 0:
+            raise LearnableSROKError("learning_rate must be finite and positive")
+        if not isinstance(l2, (int, float)) or isinstance(l2, bool) or not math.isfinite(l2) or l2 < 0:
+            raise LearnableSROKError("l2 must be finite and non-negative")
+        prepared = []
+        for row in rows:
+            if not isinstance(row, RelationClassificationExample):
+                raise LearnableSROKError("each row must be a RelationClassificationExample")
+            if type(row.label) is not int or row.label not in (-1, 1):
+                raise LearnableSROKError("relation labels must be integer -1 or +1")
+            if len(row.assignment) != len(self.roles):
+                raise LearnableSROKError("assignment role count mismatch")
+            for node, role in zip(row.assignment, self.roles):
+                self._validate_node(node)
+                if not self._compatible(node, role):
+                    raise LearnableSROKError("assignment violates role constraints")
+            if len({node.node_id for node in row.assignment}) != len(row.assignment):
+                raise LearnableSROKError("assignment members must be distinct")
+            features = self._assignment_features(row.assignment)
+            limit = self._interaction_limit(features, interaction_order)
+            prepared.append((features[:limit], 1.0 if row.label == 1 else 0.0))
+        width = len(prepared[0][0])
+        if any(len(features) != width for features, _ in prepared):
+            raise LearnableSROKError("inconsistent relation feature widths")
+        history = []
+        for _ in range(epochs):
+            gradient = [0.0] * width
+            total_loss = 0.0
+            for features, target in prepared:
+                logit = self._dot(self.weights[:width], features)
+                if logit >= 0:
+                    exp_value = math.exp(-min(logit, 60.0))
+                    probability = 1.0 / (1.0 + exp_value)
+                else:
+                    exp_value = math.exp(max(logit, -60.0))
+                    probability = exp_value / (1.0 + exp_value)
+                clipped = min(max(probability, 1e-15), 1.0 - 1e-15)
+                total_loss += -(target * math.log(clipped) + (1.0 - target) * math.log(1.0 - clipped))
+                error = probability - target
+                for index, value in enumerate(features):
+                    gradient[index] += error * value
+            for index in range(width):
+                gradient[index] = gradient[index] / len(prepared) + l2 * self.weights[index]
+                if not math.isfinite(gradient[index]):
+                    raise LearnableSROKError("relation gradient became non-finite")
+                self.weights[index] -= learning_rate * gradient[index]
+                if not math.isfinite(self.weights[index]):
+                    raise LearnableSROKError("relation weights became non-finite")
+            history.append(total_loss / len(prepared))
+            self.training_steps += 1
+        return history
+
+    def predict_relation_probability(self, assignment: Sequence[Node], *, interaction_order: int = 3) -> float:
+        """Return P(label=+1) from the model's actual assignment score."""
+        logit = self.score(assignment, interaction_order=interaction_order)
+        if logit >= 0:
+            exp_value = math.exp(-min(logit, 60.0))
+            return 1.0 / (1.0 + exp_value)
+        exp_value = math.exp(max(logit, -60.0))
+        return exp_value / (1.0 + exp_value)
+
 
     def _enumerate(self, pools, max_expansions):
         if isinstance(max_expansions, bool) or not isinstance(max_expansions, int) or max_expansions < 1:
