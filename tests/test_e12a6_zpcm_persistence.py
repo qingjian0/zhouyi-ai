@@ -370,6 +370,38 @@ class PersistentLifecycleTests(unittest.TestCase):
         with self.assertRaises(LifecyclePersistenceError): PersistentLifecycleLedger(self.memory,scope="project-a")
 
 
+    def test_receipt_and_consumption_metadata_are_not_cached_in_process(self):
+        item = evidence()
+        receipt = verified_receipt(item)
+        now = datetime(2026, 11, 12, 0, 30, tzinfo=timezone.utc)
+        self.store.register_candidate_bundle(
+            authorized_candidate(), (item,), authorization_receipt=receipt,
+            consumed_at=now, writer_identity=writer_identity(),
+        )
+        self.assertFalse(hasattr(self.store, "_receipts"))
+        self.assertFalse(hasattr(self.store, "_consumed_receipts"))
+        self.assertEqual(
+            self.store._get_consumed_authorization(receipt.receipt_id)["nonce"],
+            receipt.nonce,
+        )
+        self.assertTrue(self.store._has_consumed_nonce(receipt.nonce))
+        self.assertEqual(
+            len(self.store._find_consumed_authorization_for_candidate("rel:greater-than", 1)),
+            1,
+        )
+
+    def test_authorization_candidate_lookup_uses_expression_index(self):
+        plan = self.memory.db.execute(
+            "EXPLAIN QUERY PLAN SELECT event_id FROM memory_events "
+            "WHERE event_type='e12a6_lifecycle' AND scope=? "
+            "AND json_extract(payload_json,'$.kind')='authorization_consumed' "
+            "AND json_extract(payload_json,'$.body.candidate_id')=? "
+            "AND json_extract(payload_json,'$.body.candidate_version')=? ORDER BY seq",
+            ("project-a", "rel:greater-than", 1),
+        ).fetchall()
+        details = " ".join(row["detail"] for row in plan)
+        self.assertIn("e12a6_auth_candidate_lookup", details)
+
     def test_event_payload_bodies_are_not_cached_in_process(self):
         self.store.register_candidate(candidate())
         self.store.register_evidence(evidence())
