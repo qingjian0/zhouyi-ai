@@ -461,6 +461,9 @@ class Tests(unittest.TestCase):
       scope="scope-a",action_id="act-a")["action"],action)
   self.assertEqual(self.m.lifecycle_state_projection_counts(scope="scope-a"),
       {"candidates":1,"evidence":1,"actions":1})
+  audit=self.m.verify_e12a6_current_state_projection(scope="scope-a")
+  self.assertTrue(audit["ok"])
+  self.assertEqual(audit["verified_event_count"],3)
   self.assertIsNone(self.m.get_lifecycle_candidate_projection(
       scope="other",candidate_id="rule-a",candidate_version=1))
 
@@ -499,5 +502,21 @@ class Tests(unittest.TestCase):
   self.assertEqual(self.m.db.execute(
       "SELECT COUNT(*) FROM memory_events WHERE event_id='candidate:rollback@1'").fetchone()[0],0)
 
+
+
+ def test_e12a6_projection_audit_detects_corruption_and_explicit_rebuild_repairs_it(self):
+  candidate={"candidate_id":"audit-rule","version":1,"state":"OBSERVED"}
+  self.m.append_lifecycle_event(event_id="candidate:audit@1",scope="scope-a",
+      payload={"kind":"candidate_registered","body":{"candidate":candidate}},
+      expected_sequence=0)
+  self.m.db.execute(
+      "UPDATE e12a6_candidate_state_projection SET candidate_json='{}' "
+      "WHERE scope='scope-a' AND candidate_id='audit-rule'"
+  )
+  audit=self.m.verify_e12a6_current_state_projection(scope="scope-a")
+  self.assertFalse(audit["ok"])
+  self.assertGreater(audit["candidate_missing"]+audit["candidate_unexpected"],0)
+  self.m.rebuild_e12a6_current_state_projection()
+  self.assertTrue(self.m.verify_e12a6_current_state_projection(scope="scope-a")["ok"])
 
 if __name__=="__main__":unittest.main()
