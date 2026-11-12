@@ -378,6 +378,7 @@ class PersistentLifecycleLedger:
         try:
             events=self._memory.iter_lifecycle_events(scope=self.scope)
             staged, staged_state = _new_sqlite_lifecycle_ledger(); previous=0
+            staged_state.begin()
             for event in events:
                 seq=event["sequence"]
                 if isinstance(seq,bool) or not isinstance(seq,int) or seq<=previous:
@@ -452,16 +453,19 @@ class PersistentLifecycleLedger:
                     if event["event_id"] != f"e12a6:authorization-consumed:{receipt_id}":
                         raise LifecyclePersistenceError("authorization consumption event ID mismatch")
                 else: raise LifecyclePersistenceError(f"unknown lifecycle event kind: {kind!r}")
+            staged_state.commit()
             previous_state = self._runtime_state
             self._ledger=staged; self._runtime_state=staged_state; self._last_sequence=previous
             if previous_state is not None and previous_state is not staged_state:
                 previous_state.close()
         except LifecyclePersistenceError:
             if staged_state is not None:
+                staged_state.rollback()
                 staged_state.close()
             raise
         except Exception as exc:
             if staged_state is not None:
+                staged_state.rollback()
                 staged_state.close()
             raise LifecyclePersistenceError(f"lifecycle replay failed: {exc}") from exc
 
