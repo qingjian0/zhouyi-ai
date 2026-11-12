@@ -14,6 +14,7 @@ from pathlib import Path
 import resource
 import subprocess
 import sys
+import time
 import tempfile
 import time
 from typing import Iterable
@@ -116,6 +117,8 @@ def _restore_report(path: Path, scope: str) -> dict[str, int | None]:
             "rss_before_zpcm_bytes": before,
             "rss_after_zpcm_bytes": after_zpcm,
             "rss_after_e12a6_restore_bytes": after_restore,
+            "zpcm_init_seconds": zpcm_init_seconds,
+            "e12a6_restore_seconds": restore_seconds,
             "peak_rss_bytes": _peak_rss_bytes(),
             "cgroup_memory_current_bytes": _cgroup_memory_bytes("memory.current"),
             "cgroup_memory_peak_bytes": _cgroup_memory_bytes("memory.peak"),
