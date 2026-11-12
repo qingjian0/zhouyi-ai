@@ -633,13 +633,23 @@ class ZPCMMemory:
         }
         if (table, json_column, output_key) not in allowed:
             raise ZPCMError("unsupported lifecycle projection")
+        # Bound the scan so concurrent appends cannot make it grow indefinitely.
+        # This is a high-water-bounded scan, not a transactionally consistent
+        # historical snapshot: an existing row updated beyond this boundary
+        # during iteration is intentionally not returned in its new version.
+        with self.lock:
+            high_water = int(self.db.execute(
+                f"SELECT COALESCE(MAX(source_seq),0) FROM {table} WHERE scope=?",
+                (scope,),
+            ).fetchone()[0])
         last_seq = 0
-        while True:
+        while last_seq < high_water:
             with self.lock:
                 rows = self.db.execute(
                     f"SELECT {json_column} AS payload,source_seq FROM {table} "
-                    "WHERE scope=? AND source_seq>? ORDER BY source_seq LIMIT ?",
-                    (scope, last_seq, page_size),
+                    "WHERE scope=? AND source_seq>? AND source_seq<=? "
+                    "ORDER BY source_seq LIMIT ?",
+                    (scope, last_seq, high_water, page_size),
                 ).fetchall()
             if not rows:
                 return
