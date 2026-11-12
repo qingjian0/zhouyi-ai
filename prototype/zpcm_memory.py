@@ -58,6 +58,64 @@ class ZPCMMemory:
             json_extract(payload_json,'$.body.candidate_version')
         ) WHERE event_type='e12a6_lifecycle'
           AND json_extract(payload_json,'$.kind')='authorization_consumed';
+        CREATE TABLE IF NOT EXISTS e12a6_lifecycle_event_projection(
+            seq INTEGER PRIMARY KEY,
+            scope TEXT NOT NULL,
+            kind TEXT NOT NULL,
+            entity_id TEXT NOT NULL,
+            entity_version INTEGER NOT NULL DEFAULT 0,
+            event_id TEXT NOT NULL UNIQUE,
+            payload_digest TEXT NOT NULL,
+            FOREIGN KEY(event_id) REFERENCES memory_events(event_id)
+        );
+        CREATE INDEX IF NOT EXISTS e12a6_lifecycle_entity_lookup
+            ON e12a6_lifecycle_event_projection(scope,kind,entity_id,entity_version,seq);
+        CREATE INDEX IF NOT EXISTS e12a6_lifecycle_candidate_history
+            ON e12a6_lifecycle_event_projection(scope,entity_id,entity_version,seq)
+            WHERE kind IN ('candidate_registered','revision_created','action_applied');
+        CREATE TRIGGER IF NOT EXISTS e12a6_lifecycle_projection_insert
+        AFTER INSERT ON memory_events
+        WHEN NEW.event_type='e12a6_lifecycle'
+        BEGIN
+            INSERT INTO e12a6_lifecycle_event_projection(
+                seq,scope,kind,entity_id,entity_version,event_id,payload_digest
+            ) VALUES (
+                NEW.seq,NEW.scope,
+                COALESCE(json_extract(NEW.payload_json,'$.kind'),'unknown'),
+                COALESCE(
+                    json_extract(NEW.payload_json,'$.body.candidate.candidate_id'),
+                    json_extract(NEW.payload_json,'$.body.evidence.evidence_id'),
+                    json_extract(NEW.payload_json,'$.body.action.action_id'),
+                    json_extract(NEW.payload_json,'$.body.receipt_id'),
+                    NEW.event_id
+                ),
+                COALESCE(
+                    json_extract(NEW.payload_json,'$.body.candidate.version'),
+                    json_extract(NEW.payload_json,'$.body.action.candidate_version'),
+                    0
+                ),
+                NEW.event_id,NEW.payload_digest
+            );
+        END;
+        INSERT OR IGNORE INTO e12a6_lifecycle_event_projection(
+            seq,scope,kind,entity_id,entity_version,event_id,payload_digest
+        )
+        SELECT seq,scope,
+            COALESCE(json_extract(payload_json,'$.kind'),'unknown'),
+            COALESCE(
+                json_extract(payload_json,'$.body.candidate.candidate_id'),
+                json_extract(payload_json,'$.body.evidence.evidence_id'),
+                json_extract(payload_json,'$.body.action.action_id'),
+                json_extract(payload_json,'$.body.receipt_id'),
+                event_id
+            ),
+            COALESCE(
+                json_extract(payload_json,'$.body.candidate.version'),
+                json_extract(payload_json,'$.body.action.candidate_version'),
+                0
+            ),
+            event_id,payload_digest
+        FROM memory_events WHERE event_type='e12a6_lifecycle';
         """)
         checkpoint_columns = {
             row["name"] for row in self.db.execute(
