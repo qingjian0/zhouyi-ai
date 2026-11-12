@@ -70,6 +70,8 @@ def ingest_typed_candidate(
             raise CSGGCRIngestionError(
                 "cross-branch candidate ingestion requires a signature-verified E09 authorization"
             )
+        if branch_merge_authorization.domain_provenance_verified is not True:
+            raise CSGGCRIngestionError("cross-branch authorization lacks trusted domain provenance")
         if (
             branch_merge_authorization.authorization_ref != coordinated.branch_merge_authorization_ref
             or branch_merge_authorization.evidence_refs != coordinated.branch_merge_authorization_evidence_refs
