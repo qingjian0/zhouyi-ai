@@ -107,6 +107,8 @@ class SQLiteVerifierReceiptLedger:
         operation_id: str,
         request: Mapping[str, Any],
         issuer: Callable[[Mapping[str, str]], dict[str, Any]],
+        *,
+        issued_at_provider: Callable[[], str] | None = None,
     ) -> dict[str, Any]:
         if not isinstance(operation_id, str) or not operation_id.strip() or len(operation_id) > 128:
             raise ValueError("operation_id must be a non-empty string of at most 128 characters")
@@ -114,6 +116,8 @@ class SQLiteVerifierReceiptLedger:
             raise TypeError("receipt request must be a mapping")
         if not callable(issuer):
             raise TypeError("issuer must be callable")
+        if issued_at_provider is not None and not callable(issued_at_provider):
+            raise TypeError("issued_at_provider must be callable")
         request_value = dict(request)
         request_digest = digest_payload(request_value)
         with self._lock:
@@ -137,10 +141,23 @@ class SQLiteVerifierReceiptLedger:
                     }
                 else:
                     import secrets
+                    issued_at = (
+                        issued_at_provider()
+                        if issued_at_provider is not None
+                        else datetime.now(timezone.utc).isoformat()
+                    )
+                    if not isinstance(issued_at, str) or not issued_at.strip():
+                        raise ValueError("receipt timestamp provider must return a non-empty ISO timestamp")
+                    try:
+                        parsed_issued_at = datetime.fromisoformat(issued_at.replace("Z", "+00:00"))
+                    except ValueError as exc:
+                        raise ValueError("receipt timestamp provider returned an invalid ISO timestamp") from exc
+                    if parsed_issued_at.tzinfo is None:
+                        raise ValueError("receipt timestamp provider must return a timezone-aware timestamp")
                     identity = {
                         "receipt_id": secrets.token_hex(16),
                         "nonce": secrets.token_urlsafe(32),
-                        "issued_at": datetime.now(timezone.utc).isoformat(),
+                        "issued_at": parsed_issued_at.astimezone(timezone.utc).isoformat(),
                     }
                     self._db.execute(
                         "INSERT INTO issued_receipts"
@@ -313,6 +330,7 @@ class E09VerifierUnixRPC:
                     _nonce=identity["nonce"],
                     _issued_at=identity["issued_at"],
                 ),
+                issued_at_provider=self.verifier.receipt_issued_at,
             )
         except VerifierReceiptIdempotencyConflict as exc:
             raise IPCRequestError("idempotency_conflict", "Operation ID was reused for a different receipt request") from exc
