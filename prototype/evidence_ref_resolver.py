@@ -52,11 +52,9 @@ def _manifest_digest(document_id: str, rows) -> tuple[str, int, int]:
 
 
 class SQLiteEvidenceRefResolver:
-    """Resolve a single M1 chunk while keeping memory bounded by chunk size.
+    """Resolve one bounded M1 chunk against a persisted document manifest."""
 
-    Resolution is restricted to completed documents so the manifest version
-    cannot change underneath a reference while ingestion is still in progress.
-    """
+    MAX_CHUNK_BYTES = 64 * 1024
 
     def __init__(self, database: str | Path) -> None:
         self.database = str(database)
@@ -127,6 +125,8 @@ class SQLiteEvidenceRefResolver:
             raise EvidenceResolutionError("EvidenceRef chunk was not found")
         ordinal, start, end, raw_blob, stored_digest = row
         raw = bytes(raw_blob)
+        if len(raw) > self.MAX_CHUNK_BYTES:
+            raise EvidenceResolutionError("stored evidence chunk exceeds hard chunk byte limit")
         actual_digest = hashlib.sha256(raw).hexdigest()
         if (int(start), int(end)) != (reference.byte_start, reference.byte_end):
             raise EvidenceResolutionError("EvidenceRef byte span does not match the stored chunk")
