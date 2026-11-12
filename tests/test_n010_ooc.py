@@ -1,4 +1,5 @@
 import json
+import sqlite3
 import tempfile
 import unittest
 from pathlib import Path
@@ -185,6 +186,23 @@ class N010OutOfCoreTests(unittest.TestCase):
         rows[0]["group_id"] = "tr-source-0"
         self._write(self.locked_test, rows)
         with self.assertRaisesRegex(LearnableSROKError, "overlaps training/dev"):
+            evaluate_locked_test_ooc(
+                self.locked_test, self.roles, 1, checkpoint, max_expansions=64
+            )
+
+    def test_locked_test_evaluator_rejects_tampered_training_group_index(self):
+        checkpoint = self.root / "tamper-index.json"
+        run_experiment_ooc(
+            self.train_dev, self.roles, 1, checkpoint,
+            epochs=1, max_expansions=64, git_sha="index-integrity-test",
+        )
+        group_index = checkpoint.with_suffix(checkpoint.suffix + ".groups.sqlite3")
+        with sqlite3.connect(group_index) as db:
+            db.execute("DELETE FROM groups")
+            db.commit()
+        with self.assertRaisesRegex(
+            LearnableSROKError, "training group index integrity mismatch"
+        ):
             evaluate_locked_test_ooc(
                 self.locked_test, self.roles, 1, checkpoint, max_expansions=64
             )
