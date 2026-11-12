@@ -82,6 +82,10 @@ class ZPCMMemory:
         # Rebuild the derived candidate-history index from the authoritative event log.
         self.db.execute("DROP INDEX IF EXISTS e12a6_lifecycle_candidate_history")
         self.db.execute("""
+            CREATE INDEX IF NOT EXISTS e12a6_lifecycle_entity_lookup
+            ON e12a6_lifecycle_event_projection(scope,kind,entity_id,entity_version,seq)
+        """)
+        self.db.execute("""
             UPDATE e12a6_lifecycle_event_projection
             SET candidate_id=(
                 SELECT COALESCE(
@@ -146,6 +150,33 @@ class ZPCMMemory:
                 WHERE e.event_id=e12a6_lifecycle_event_projection.event_id
             )
             WHERE candidate_id IS NULL
+        """)
+        self.db.execute("""
+            INSERT OR IGNORE INTO e12a6_lifecycle_event_projection(
+                seq,scope,kind,entity_id,entity_version,event_id,payload_digest,candidate_id
+            )
+            SELECT seq,scope,
+                COALESCE(json_extract(payload_json,'$.kind'),'unknown'),
+                COALESCE(
+                    json_extract(payload_json,'$.body.candidate.candidate_id'),
+                    json_extract(payload_json,'$.body.evidence.evidence_id'),
+                    json_extract(payload_json,'$.body.action.action_id'),
+                    json_extract(payload_json,'$.body.receipt_id'),
+                    event_id
+                ),
+                COALESCE(
+                    json_extract(payload_json,'$.body.candidate.version'),
+                    json_extract(payload_json,'$.body.action.candidate_version'),
+                    0
+                ),
+                event_id,payload_digest,
+                COALESCE(
+                    json_extract(payload_json,'$.body.candidate.candidate_id'),
+                    json_extract(payload_json,'$.body.action.candidate_id'),
+                    json_extract(payload_json,'$.body.arguments.candidate_id'),
+                    json_extract(payload_json,'$.body.candidate_id')
+                )
+            FROM memory_events WHERE event_type='e12a6_lifecycle'
         """)
         checkpoint_columns = {
             row["name"] for row in self.db.execute(
