@@ -232,3 +232,10 @@ A failed earlier run on an older SHA is not evidence that the current exact head
 - The opt-in `prototype/n010_streaming_runner.py` performs JSONL preflight with disk-backed SQLite uniqueness/group indexes, compact split fingerprints, reiterable full-batch training, streaming aggregate-only dev/locked-test evaluation, and atomic checkpoint replacement.
 - Tests establish numerical equivalence with the materialized runner on the fixture, resume equivalence, group-leakage rejection, and compact manifest behavior.
 - Scope boundary: this is Python-level row-streaming evidence, not an OS RSS guarantee. Large-corpus peak RSS, throughput, and disk-index scaling must be benchmarked before claiming bounded-memory production readiness. The original `run_experiment` path still materializes split rows; #364 adds a separate opt-in path.
+
+
+### CPG-EI joint-vs-greedy matched-compute result (2026-11-12)
+
+- PR #363 exact head `5f7b0933404cd7344e2aa41c86d308272d40ed9b`, workflow run #43211461122: success; 9 tests (203.58 s).
+- On seed 11, joint motifs used 696 training passes vs greedy 700 (0.571% budget gap). Both recovered all 12 planted support edges; joint precision was 1.000 (12 active edges) vs greedy 0.923 (13 active edges).
+- Important counter-signal: held-out validation bit accuracy was 0.5365 for joint vs 0.8229 for greedy. Thus support recovery on this synthetic seed did not translate to held-out predictive quality. Joint selection is promising as a structural proposal mechanism, but the current train-BCE selection is likely overfitting or otherwise misaligned with held-out generalization. Do not promote it as the default; next study should add multiple-seed matched-compute evaluation and separate structure metrics from predictive metrics.
