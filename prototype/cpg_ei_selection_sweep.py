@@ -152,6 +152,7 @@ def run_sweep(*, seeds: Sequence[int] = DEFAULT_SEEDS, epochs: int | Sequence[in
             ) / (2 * len(rows)),
             "mean_selected_motifs": mean("selected_motif_count"),
             "mean_training_passes": mean("training_passes"),
+            "mean_oracle_training_passes": mean("oracle_training_passes"),
             "exact_support_recovery_count": sum(
                 row["support_precision"] == 1.0 and row["support_recall"] == 1.0
                 for row in rows
