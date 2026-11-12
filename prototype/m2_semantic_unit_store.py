@@ -84,6 +84,8 @@ class PersistentM2SemanticUnitStore:
         self._versions: dict[str, SemanticUnitCandidate] = {}
         self._receipts: dict[str, SemanticUnitReceipt] = {}
         self._digests: dict[str, str] = {}
+        self._event_kinds: dict[str, str] = {}
+        self._predecessors: dict[str, str | None] = {}
         self._latest: dict[str, str] = {}
         self._retracted: dict[str, str] = {}
         self._last_sequence = 0
@@ -134,6 +136,7 @@ class PersistentM2SemanticUnitStore:
         try:
             events = self._memory.replay_domain_events(event_type=EVENT_TYPE, scope=self.scope)
             versions, receipts, digests = {}, {}, {}
+            event_kinds, predecessors = {}, {}
             latest, retracted = {}, {}
             previous_sequence = 0
             for event in events:
@@ -174,6 +177,8 @@ class PersistentM2SemanticUnitStore:
                         latest[root] = rid
                     versions[rid] = candidate
                     digests[rid] = digest_value
+                    event_kinds[rid] = kind
+                    predecessors[rid] = payload.get("previous_record_id") if kind == "candidate_revised" else None
                     receipts[rid] = SemanticUnitReceipt(
                         event_id, seq, event["payload_digest"], digest_value, True)
                 elif kind == "candidate_retracted":
@@ -189,6 +194,7 @@ class PersistentM2SemanticUnitStore:
                 else:
                     raise SemanticUnitStoreError("unknown semantic-unit event kind")
             self._versions, self._receipts, self._digests = versions, receipts, digests
+            self._event_kinds, self._predecessors = event_kinds, predecessors
             self._latest, self._retracted = latest, retracted
             self._last_sequence = previous_sequence
         except (ZPCMError, ContractError, SemanticUnitStoreError):
@@ -220,6 +226,8 @@ class PersistentM2SemanticUnitStore:
                                       digest_value, False)
         self._versions[rid] = candidate
         self._digests[rid] = digest_value
+        self._event_kinds[rid] = kind
+        self._predecessors[rid] = previous_id
         self._receipts[rid] = receipt
         self._last_sequence = receipt.sequence
         if previous_id is None:
@@ -233,6 +241,9 @@ class PersistentM2SemanticUnitStore:
         if not isinstance(candidate, SemanticUnitCandidate):
             raise TypeError("candidate must be SemanticUnitCandidate")
         with self._lock:
+            record_id = candidate.envelope.record_id
+            if record_id in self._versions and self._event_kinds[record_id] != "candidate_recorded":
+                raise SemanticUnitStoreError("record_candidate cannot replay a revision event")
             return self._append_candidate(candidate, previous_id=None)
 
     def revise_candidate(self, previous_record_id: str,
@@ -246,9 +257,11 @@ class PersistentM2SemanticUnitStore:
             # its predecessor is no longer the current version.
             candidate_id = candidate.envelope.record_id
             if candidate_id in self._versions:
-                if (self._digests[candidate_id] != record_digest(candidate)
+                if (self._event_kinds[candidate_id] != "candidate_revised"
+                        or self._predecessors[candidate_id] != previous_record_id
+                        or self._digests[candidate_id] != record_digest(candidate)
                         or candidate.envelope.derivation_refs.count(previous_record_id) != 1):
-                    raise SemanticUnitStoreError("candidate record_id is immutable")
+                    raise SemanticUnitStoreError("candidate revision identity/predecessor is immutable")
                 receipt = self._receipts[candidate_id]
                 return SemanticUnitReceipt(receipt.event_id, receipt.sequence,
                     receipt.payload_digest, receipt.record_digest, True)
