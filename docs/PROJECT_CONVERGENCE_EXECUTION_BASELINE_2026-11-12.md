@@ -173,3 +173,22 @@ Observation
 - 每轮只更新可证明的事实：commit SHA、测试命令、CI run、数据规模、性能数据。
 - 当测试失败时，先定位最小失败集，修复后重跑 exact head；不得把失败测试改成更宽松的预期来掩盖实现问题。
 - 不以 PR 数量、代码行数或 CI 数量作为架构成熟度指标。
+
+
+## 9. Exact-head CI snapshot (2026-11-12)
+
+The following results were checked against GitHub Actions run records. They are branch-local evidence only; successful jobs do not imply the PRs have been merged or that their parent branches are integrated.
+
+| Workstream | Exact head | Observed result | Scope boundary |
+|---|---|---|---|
+| E09 trusted learner binding (#327) | `591507b6d5cdd502d0e21d180099bb81945a8157` | push + PR unit-test workflows succeeded | Does not prove cross-process OS isolation or full E01/E02 acceptance |
+| N0.10 checkpoint integration (#347) | `c8194d4ea133fcde1415356db537930db980347a` | checkpoint-integration + tests succeeded on PR event | Component/integration branch only |
+| N0.10 streaming manifest guards (#352) | `3977ee14456c5c0b55832c0d806b58ff1fdd80ae` | checkpoint-integration succeeded | Must retain group-disjoint and data fingerprint guarantees |
+| CPG-EI learnable gates (#344) | `03b3b14d28842763b0f3fef76f683d1cc5643ca6` | push + PR unit-test workflows succeeded | Finite predefined candidate universe; not open-world discovery |
+| CPG-EI multi-seed diagnostics (#353) | `4e40ad6c95e9aa1ff8ced83b5cef56f4221082b9` | diagnostic workflow succeeded | Diagnostic has no post-hoc pass threshold; synthetic finite universe |
+| Training readiness gates (#351) | `e8edf9bfa1eb77ca398a10f904164528fb1b13cb` | PR unit-test workflow succeeded | Specification/tests; not an end-to-end training certification |
+| E12-A6 indexed lifecycle projection (#350) | `a4c7bb35888f02e693dda728dfc8ba4926bb6d28` | tests + RSS benchmark workflows succeeded | Benchmark evidence is environment-specific; restore architecture still needs integration |
+| M2 paged TRLW/Yixiang/CSG integration (#294 validation / #292 stack) | `52baa8f0d2f4703544b15c941ac1c56b3e6ecba5` | research-branch validation + tests succeeded | #294 is validation-only; no code merge implied |
+| This convergence baseline (#358) | `f8f337e2a348afe48706d498fc6d1fed90373e73` | PR unit-test job was still in progress at the time of inspection | Documentation-only change; await exact-head completion |
+
+A failed earlier run on an older SHA is not evidence that the current exact head fails; conversely, an older successful SHA cannot certify a newer head. The table deliberately reports only observed exact-head outcomes and their scope limits.
