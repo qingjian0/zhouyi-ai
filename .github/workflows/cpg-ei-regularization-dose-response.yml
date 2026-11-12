@@ -1,0 +1,37 @@
+name: cpg-ei-regularization-dose-response
+
+on:
+  push:
+    branches:
+      - research/cpg-ei-regularization-dose-response-2026-11-13
+  pull_request:
+    branches:
+      - research/cpg-ei-greedy-discovery-diagnostics-2026-11-13
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  dose-response:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run focused dose-response tests
+        run: python -m unittest tests.test_cpg_ei_regularization_dose_response -v
+      - name: Run five-seed group-L1 dose-response sweep
+        run: |
+          set -o pipefail
+          mkdir -p benchmark-results
+          python -m prototype.cpg_ei_regularization_dose_response | tee benchmark-results/cpg-ei-regularization-dose-response.json
+      - name: Upload dose-response report
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpg-ei-regularization-dose-response-${{ github.sha }}
+          path: benchmark-results/cpg-ei-regularization-dose-response.json
+          if-no-files-found: error
+          retention-days: 30
