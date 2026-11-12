@@ -4,10 +4,12 @@ on:
   push:
     branches:
       - research/e12a6-rss-restore-benchmark-2026-11-12
+      - research/e12a6-sqlite-backed-replay-state-2026-11-13
   pull_request:
     branches:
       - research/e12a6-rss-restore-benchmark-2026-11-12
       - refactor/e12a6-sqlite-backed-receipt-metadata-2026-11-12
+      - research/e12a6-sqlite-backed-replay-state-2026-11-13
   workflow_dispatch:
 
 permissions:
