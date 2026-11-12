@@ -357,9 +357,16 @@ class PersistentM2SemanticUnitStore:
                 ).fetchall()
             if not rows:
                 return
+            used = 0
             for row in rows:
+                size = len(row["current_body_json"].encode("utf-8"))
+                if size > self._memory.max_page_bytes or used + size > self._memory.max_page_bytes:
+                    if used == 0:
+                        raise SemanticUnitStoreError("current candidate exceeds projection validation byte budget")
+                    break
                 candidate = _candidate_from_dict(json.loads(row["current_body_json"]))
                 self._verify_candidate(candidate)
+                used += size
                 cursor = row["root_id"]
 
     def _ensure_current(self) -> None:
@@ -390,8 +397,6 @@ class PersistentM2SemanticUnitStore:
                 return result
             result.update(page)
             cursor = page[-1][0]
-            if len(page) < 64:
-                return result
 
     def iter_candidates(self, *, limit: int = 64, after_root_id: str | None = None,
                         max_bytes: int = 1048576
@@ -445,7 +450,13 @@ class PersistentM2SemanticUnitStore:
             payload = event["payload"]
             if payload.get("kind") in ("candidate_recorded","candidate_revised"):
                 candidate = _candidate_from_dict(payload["body"])
-                result[candidate.envelope.record_id] = candidate
+                self._verify_candidate(candidate)
+                if record_digest(candidate) != payload.get("body_digest"):
+                    raise SemanticUnitStoreError("candidate body digest mismatch during history materialization")
+                rid = candidate.envelope.record_id
+                if rid in result:
+                    raise SemanticUnitStoreError("duplicate candidate record ID in history")
+                result[rid] = candidate
         return result
 
     @property
@@ -495,14 +506,6 @@ class PersistentM2SemanticUnitStore:
                 if replayed:
                     row = self._version_row(candidate.envelope.record_id) if candidate else None
                     if action == "retract":
-                        row = self._db.execute(
-                            "SELECT v.* FROM m2_semantic_unit_versions v "
-                            "WHERE v.scope=? AND v.record_id=? AND v.event_kind='candidate_recorded' "
-                            "ORDER BY v.sequence LIMIT 1",(self.scope,record_id)
-                        ).fetchone()
-                    if row is None:
-                        raise SemanticUnitStoreError("event exists without its matching M2 projection")
-                    if action == "retract":
                         event = self._memory.get_domain_event(
                             event_type=EVENT_TYPE, scope=self.scope, event_id=event_id
                         )
@@ -520,6 +523,8 @@ class PersistentM2SemanticUnitStore:
                             event_id, event["sequence"], event["payload_digest"],
                             root["current_record_digest"], True,
                         )
+                    if row is None:
+                        raise SemanticUnitStoreError("event exists without its matching M2 projection")
                     self._db.execute("COMMIT")
                     return self._receipt(row,replayed=True)
                 if action == "record":
