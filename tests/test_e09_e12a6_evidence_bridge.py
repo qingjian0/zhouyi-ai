@@ -67,17 +67,18 @@ class E09EvidenceBridgeTests(unittest.TestCase):
     def test_support_reveal_maps_to_train_and_redacts_target(self):
         ref = self.add_reveal(label="TOP_SECRET_TARGET")
         evidence = resolve_e09_reveal(self.e09, episode_id=self.episode,evidence_ref=ref,
-          scope=self.scope,learner_track=self.track,world_family=self.world)
+          scope=self.scope,learner_track=self.track,world_family=self.world,allow_legacy_migration=True)
         self.assertEqual(evidence.split_role,SplitRole.TRAIN)
         self.assertEqual(evidence.model_version,"model-7")
         self.assertEqual(evidence.prediction_commit_step,2)
         self.assertEqual(evidence.label_visibility_step,3)
         self.assertNotIn("TOP_SECRET_TARGET",str(evidence))
         ledger=PersistentLifecycleLedger(self.zpcm,scope="project-1")
-        _,receipt=register_e09_reveal(ledger,self.e09,episode_id=self.episode,evidence_ref=ref,
-          scope=self.scope,learner_track=self.track,world_family=self.world)
-        self.assertFalse(receipt.replayed)
-        self.assertNotIn("TOP_SECRET_TARGET",str(self.zpcm.replay_lifecycle_events(scope="project-1")))
+        with self.assertRaises(E09EvidenceBindingError):
+            register_e09_reveal(ledger,self.e09,episode_id=self.episode,evidence_ref=ref,
+              scope=self.scope,learner_track=self.track,world_family=self.world,
+              allow_legacy_migration=True)
+        self.assertEqual(self.zpcm.replay_lifecycle_events(scope="project-1"), [])
 
     def test_locked_test_role_is_never_mapped_to_train(self):
         ref=self.add_reveal(split="LOCKED_TEST",label="LOCKED_LABEL")
@@ -173,6 +174,7 @@ class E09EvidenceBridgeTests(unittest.TestCase):
             parent_state_ref="parent-1", branch_ids=("left", "right"),
             scope=self.scope, learner_track=self.track,
             world_family_by_evidence={evidence_ref: self.world},
+            allow_legacy_migration=True,
             signature_verifier=verifier, verifier_id="pinned-ed25519-keyring-v1",
             now=datetime(2026, 11, 11, 12, tzinfo=timezone.utc),
         )
@@ -192,6 +194,7 @@ class E09EvidenceBridgeTests(unittest.TestCase):
             parent_state_ref="parent-1", branch_ids=("left", "right"),
             scope=self.scope, learner_track=self.track,
             world_family_by_evidence={evidence_ref: self.world},
+            allow_legacy_migration=True,
             verifier_id="pinned-keyring-v1",
             now=datetime(2026, 11, 11, 12, tzinfo=timezone.utc),
         )
