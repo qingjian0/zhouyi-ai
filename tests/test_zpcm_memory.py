@@ -6,6 +6,39 @@ class Tests(unittest.TestCase):
  def setUp(self):
   self.tmp=tempfile.TemporaryDirectory();self.path=Path(self.tmp.name)/"m.db";self.m=ZPCMMemory(self.path)
  def tearDown(self):self.m.close();self.tmp.cleanup()
+ def test_generic_domain_events_share_the_authoritative_event_log(self):
+  first=self.m.append_domain_event(event_type="m2_cognition",event_id="m2:obs:1",
+      scope="project",payload={"kind":"observation","record_id":"obs-1"},expected_sequence=0)
+  second=self.m.append_domain_event(event_type="m2_cognition",event_id="m2:obs:2",
+      scope="project",payload={"kind":"observation","record_id":"obs-2"},expected_sequence=first["sequence"])
+  self.assertFalse(first["replayed"]);self.assertFalse(second["replayed"])
+  events=self.m.replay_domain_events(event_type="m2_cognition",scope="project")
+  self.assertEqual([x["event_id"] for x in events],["m2:obs:1","m2:obs:2"])
+  self.assertEqual(self.m.db.execute("SELECT COUNT(*) FROM memory_events").fetchone()[0],2)
+ def test_domain_event_retry_is_idempotent_and_content_conflicts_fail(self):
+  first=self.m.append_domain_event(event_type="m2_cognition",event_id="m2:obs:1",
+      scope="project",payload={"kind":"observation","record_id":"obs-1"},expected_sequence=0)
+  replay=self.m.append_domain_event(event_type="m2_cognition",event_id="m2:obs:1",
+      scope="project",payload={"kind":"observation","record_id":"obs-1"},expected_sequence=0)
+  self.assertTrue(replay["replayed"]);self.assertEqual(first["sequence"],replay["sequence"])
+  with self.assertRaises(ZPCMError):
+   self.m.append_domain_event(event_type="m2_cognition",event_id="m2:obs:1",
+       scope="project",payload={"kind":"observation","record_id":"changed"},expected_sequence=0)
+ def test_domain_sequences_are_isolated_by_type_and_scope(self):
+  self.m.append_domain_event(event_type="m2_cognition",event_id="m2:1",scope="a",payload={"n":1},expected_sequence=0)
+  self.m.append_domain_event(event_type="m2_cognition",event_id="m2:2",scope="b",payload={"n":2},expected_sequence=0)
+  self.m.append_domain_event(event_type="other_domain",event_id="other:1",scope="a",payload={"n":3},expected_sequence=0)
+  self.assertEqual(len(self.m.replay_domain_events(event_type="m2_cognition",scope="a")),1)
+  self.assertEqual(len(self.m.replay_domain_events(event_type="m2_cognition",scope="b")),1)
+  self.assertEqual(len(self.m.replay_domain_events(event_type="other_domain",scope="a")),1)
+ def test_domain_replay_verifies_payload_digest(self):
+  self.m.append_domain_event(event_type="m2_cognition",event_id="m2:obs:1",
+      scope="project",payload={"kind":"observation"},expected_sequence=0)
+  self.m.db.execute("UPDATE memory_events SET payload_json=? WHERE event_id=?",
+      ('{"kind":"tampered"}',"m2:obs:1"))
+  with self.assertRaises(ZPCMError):
+   self.m.replay_domain_events(event_type="m2_cognition",scope="project")
+
  def test_protocol_projection_idempotent_redacts_non_support(self):
   es=[{"event_id":"e1","event_type":"observation","payload_digest":"d1","payload":{"scope":"s","split":"SUPPORT"}},
       {"event_id":"e2","event_type":"evidence_reveal","payload_digest":"d2","payload":{"scope":"s","split":"LOCKED_TEST","target_or_feedback":"SECRET","learner_track":"srok"}},
@@ -44,5 +77,47 @@ class Tests(unittest.TestCase):
    self.assertEqual(packet["item_count"],1)
    self.assertEqual(packet["items"][0]["source_event_id"],"obs-1")
   finally:source.close()
+
+ def test_keyset_reader_pages_typed_scope_without_offset(self):
+  first=self.m.append_domain_event(event_type="m2_cognition",event_id="m2:1",
+      scope="project",payload={"n":1},expected_sequence=0)
+  self.m.append_domain_event(event_type="other",event_id="other:1",
+      scope="project",payload={"n":99},expected_sequence=0)
+  second=self.m.append_domain_event(event_type="m2_cognition",event_id="m2:2",
+      scope="project",payload={"n":2},expected_sequence=first["sequence"])
+  third=self.m.append_domain_event(event_type="m2_cognition",event_id="m2:3",
+      scope="project",payload={"n":3},expected_sequence=second["sequence"])
+  events=list(self.m.iter_domain_events(event_type="m2_cognition",scope="project",page_size=2))
+  self.assertEqual([event["event_id"] for event in events],["m2:1","m2:2","m2:3"])
+  tail=list(self.m.iter_domain_events(event_type="m2_cognition",scope="project",
+                                      after_sequence=first["sequence"],page_size=1))
+  self.assertEqual([event["event_id"] for event in tail],["m2:2","m2:3"])
+  self.assertEqual([event["sequence"] for event in events],sorted(event["sequence"] for event in events))
+
+ def test_keyset_reader_uses_fixed_high_water_mark(self):
+  first=self.m.append_domain_event(event_type="m2_cognition",event_id="m2:1",
+      scope="project",payload={"n":1},expected_sequence=0)
+  iterator=self.m.iter_domain_events(event_type="m2_cognition",scope="project",page_size=1)
+  self.assertEqual(next(iterator)["event_id"],"m2:1")
+  self.m.append_domain_event(event_type="m2_cognition",event_id="m2:2",
+      scope="project",payload={"n":2},expected_sequence=first["sequence"])
+  self.assertEqual(list(iterator),[])
+
+ def test_keyset_reader_verifies_each_page_digest(self):
+  self.m.append_domain_event(event_type="m2_cognition",event_id="m2:1",
+      scope="project",payload={"n":1},expected_sequence=0)
+  self.m.append_domain_event(event_type="m2_cognition",event_id="m2:2",
+      scope="project",payload={"n":2},expected_sequence=1)
+  self.m.db.execute("UPDATE memory_events SET payload_json=? WHERE event_id=?",
+      ('{"n":999}',"m2:2"))
+  iterator=self.m.iter_domain_events(event_type="m2_cognition",scope="project",page_size=1)
+  self.assertEqual(next(iterator)["event_id"],"m2:1")
+  with self.assertRaises(ZPCMError):
+   next(iterator)
+
+ def test_keyset_reader_rejects_invalid_page_size(self):
+  for size in (0,-1,True,1.5,4097):
+   with self.subTest(size=size),self.assertRaises(ZPCMError):
+    list(self.m.iter_domain_events(event_type="m2_cognition",scope="project",page_size=size))
 
 if __name__=="__main__":unittest.main()
