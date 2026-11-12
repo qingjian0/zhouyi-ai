@@ -1,6 +1,6 @@
 # M0 内存测量引擎：实现说明
 
-状态：首个可执行测量切片；尚未通过 CI 或设备验收。  
+状态：首个可执行测量切片；PR #258 精确代码提交 `6f3e1acca9ce2a09dfc6be14942f44c1c22f3eba` 已通过 GitHub Actions Run #1609 的完整工作流；尚未通过设备内存预算验收。  
 模块：`prototype/memory_budget.py`
 
 ## 快速使用
