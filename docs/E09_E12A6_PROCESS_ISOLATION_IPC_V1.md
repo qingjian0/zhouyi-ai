@@ -192,6 +192,7 @@ The current stacked implementation has reached the following code increments:
 | Learner feedback | `read_support_feedback` (PR #302) | Learner-only release of lineage-verified SUPPORT feedback; gate/test labels remain blocked |
 | Learner memory projection | `read_learner_episode` (PR #304) | Authenticated event projection with raw reveal labels and checkpoint blobs redacted |
 | Learner assignment | `E09LearnerBindingResolver` (PR #327) | Server-side episode/scope/track binding; Observer RPC cannot choose a learner workload ID |
+| Learner checkpoint | `structure.read_checkpoint` (PR #331) | Latest checkpoint bound to trusted learner assignment; validates snapshot digest, same-owner parent lineage and SUPPORT evidence references |
 
 These are service-boundary implementations and CI-tested local UDS integrations. They do **not** yet establish production process isolation.
 
@@ -201,7 +202,7 @@ These are service-boundary implementations and CI-tested local UDS integrations.
 2. Publish a transactionally consistent E09 snapshot to the Verifier identity; prove SQLite journal/WAL and sidecar access semantics.
 3. Move E09 Authority, Verifier and E12-A6 Writer signing material into separate KMS/HSM-backed identities.
 4. Split the current combined E09 adapter into observer ingress, learner and evaluator roles. Remove its direct SQLite handle, direct payload-vault access and unrestricted replay/memory projection.
-5. Keep learner assignment resolution server-side and provision it from the authenticated experiment/tenant assignment system; never accept learner_workload_id from an Observer request. Add a dedicated learner checkpoint-read API that validates ledger snapshot records against authorized SUPPORT evidence; the redacted ZPCM projection intentionally omits restart snapshots.
+5. Keep learner assignment resolution server-side and provision it from the authenticated experiment/tenant assignment system; never accept learner_workload_id from an Observer request. Finish checkpoint hardening by independently validating each in-episode ledger record against SUPPORT evidence and bootstrap provenance; PR #331 validates snapshot digest, ledger record shape, same-owner parent lineage and declared SUPPORT evidence references, while the redacted ZPCM projection intentionally omits restart snapshots.
 6. Add E12 Writer OS deployment, DB-exclusive ownership, external monotonic checkpoint, backup/restore and receipt-consumption recovery tests.
 7. Run the full Observation → Commit → Reveal → Receipt → Writer → ZPCM → restart/replay vertical slice across separate OS processes, then execute Gates A–D from this contract.
 
