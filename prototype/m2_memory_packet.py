@@ -149,18 +149,28 @@ def build_memory_packet(candidates: Iterable[SemanticUnitCandidate],
         selected.append(proposed[-1])
     if not selected and completeness == PacketCompleteness.COMPLETE:
         completeness = PacketCompleteness.NOT_FOUND
-    payload = {
-        "schema_version": "m2-memory-packet-v1",
-        "query_goal": query.query_goal,
-        "scope": query.scope,
-        "ranking_policy": query.ranking_policy,
-        "items": tuple(selected),
-        "completeness": completeness,
-        "byte_budget": query.byte_budget,
-    }
+    def encoded_payload():
+        return {
+            "schema_version": "m2-memory-packet-v1",
+            "query_goal": query.query_goal,
+            "scope": query.scope,
+            "ranking_policy": query.ranking_policy,
+            "items": tuple(selected),
+            "completeness": completeness,
+            "byte_budget": query.byte_budget,
+        }
+
+    payload = encoded_payload()
     serialized_bytes = len(canonical_json(payload).encode("utf-8"))
+    # The final completeness marker can be longer than COMPLETE. If that
+    # pushes the packet over budget, drop tail items until the envelope fits.
+    while serialized_bytes > query.byte_budget and selected:
+        selected.pop()
+        completeness = PacketCompleteness.BUDGET_EXHAUSTED
+        payload = encoded_payload()
+        serialized_bytes = len(canonical_json(payload).encode("utf-8"))
     if serialized_bytes > query.byte_budget:
-        raise MemoryPacketError("packet envelope exceeds byte_budget")
+        raise MemoryPacketError("byte_budget is too small for the packet envelope")
     return MemoryPacket(
         schema_version="m2-memory-packet-v1",
         query_goal=query.query_goal,
