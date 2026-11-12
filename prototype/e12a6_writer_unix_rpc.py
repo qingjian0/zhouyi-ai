@@ -329,15 +329,11 @@ class E12A6WriterUnixRPC:
         *,
         peer_resolver: UnixPeerResolver,
         socket_path: str,
-        authenticator: UnixPeerE12A6Authenticator,
         socket_mode: int = 0o660,
     ) -> None:
         if not isinstance(writer, E12A6WriterService):
             raise TypeError("writer must be E12A6WriterService")
-        if not callable(getattr(authenticator, "authenticate", None)):
-            raise TypeError("authenticator must implement authenticate")
         self.writer = writer
-        self.authenticator = authenticator
         self.server = UnixJSONRPCServer(
             socket_path,
             peer_resolver=peer_resolver,
@@ -362,12 +358,6 @@ class E12A6WriterUnixRPC:
         scope = _text(body["scope"], "scope")
         if scope not in context.peer.scopes or "candidate_submitter" not in context.peer.roles:
             raise IPCRequestError("permission_denied", "Peer is not authorized for candidate submission")
-        try:
-            principal = self.authenticator.authenticate(context.peer)
-        except E12A6AuthenticationError as exc:
-            raise IPCRequestError("authentication_failed", "Writer workload authentication failed") from exc
-        if principal.workload_id != context.peer.workload_id or principal.roles != context.peer.roles or principal.scopes != context.peer.scopes:
-            raise IPCRequestError("authentication_failed", "Writer peer identity does not match configured workload policy")
         if not isinstance(body["proposals"], list) or not body["proposals"]:
             raise IPCRequestError("invalid_body", "proposals must be a non-empty array")
         if not isinstance(body["branch_snapshots"], list) or not body["branch_snapshots"]:
