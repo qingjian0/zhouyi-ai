@@ -44,9 +44,25 @@ class IdentifiabilityReport:
 
 def parity_label(bits: Sequence[int]) -> int:
     """Return +1 iff the product of exactly three {-1,+1} values is +1."""
-    if len(bits) != 3 or any(value not in (-1, 1) for value in bits):
-        raise ValueError("parity requires exactly three values from {-1,+1}")
+    if len(bits) != 3 or any(type(value) is not int or value not in (-1, 1) for value in bits):
+        raise ValueError("parity requires exactly three integer values from {-1,+1}")
     return bits[0] * bits[1] * bits[2]
+
+
+def _validated_examples(examples: Iterable[ParityExample]) -> tuple[ParityExample, ...]:
+    rows = tuple(examples)
+    if not rows:
+        raise ValueError("examples must not be empty")
+    for row in rows:
+        if not isinstance(row, ParityExample):
+            raise ValueError("each example must be a ParityExample")
+        if type(row.label) is not int or row.label not in (-1, 1):
+            raise ValueError("labels must be integer -1 or +1")
+        if parity_label(row.bits) != row.label:
+            raise ValueError("example label does not match its parity bits")
+    if {row.label for row in rows} != {-1, 1}:
+        raise ValueError("both parity classes must be represented")
+    return rows
 
 
 def truth_table() -> tuple[ParityExample, ...]:
@@ -99,14 +115,12 @@ def fit_linear_probe(
     l2: float = 0.01,
 ) -> tuple[float, ...]:
     """Fit a deterministic full-batch logistic probe with zero initialization."""
-    rows = tuple(examples)
-    if not rows:
-        raise ValueError("examples must not be empty")
+    rows = _validated_examples(examples)
     if isinstance(epochs, bool) or not isinstance(epochs, int) or epochs < 1:
         raise ValueError("epochs must be a positive integer")
-    if not math.isfinite(learning_rate) or learning_rate <= 0:
+    if not isinstance(learning_rate, (int, float)) or isinstance(learning_rate, bool) or not math.isfinite(learning_rate) or learning_rate <= 0:
         raise ValueError("learning_rate must be finite and positive")
-    if not math.isfinite(l2) or l2 < 0:
+    if not isinstance(l2, (int, float)) or isinstance(l2, bool) or not math.isfinite(l2) or l2 < 0:
         raise ValueError("l2 must be finite and non-negative")
     matrix = [interaction_features(row.bits, interaction_order) for row in rows]
     labels = [1.0 if row.label == 1 else 0.0 for row in rows]
@@ -135,9 +149,8 @@ def evaluate_linear_probe(
     epochs: int = 500,
 ) -> ProbeResult:
     """Train on one shuffled draw and evaluate on a separately shuffled draw."""
-    train_rows, test_rows = tuple(train), tuple(test)
-    if not test_rows:
-        raise ValueError("test examples must not be empty")
+    train_rows = _validated_examples(train)
+    test_rows = _validated_examples(test)
     weights = fit_linear_probe(
         train_rows, interaction_order=interaction_order, epochs=epochs
     )
@@ -174,11 +187,7 @@ def _conditional_pair_distribution(
 
 def identifiability_report(examples: Iterable[ParityExample]) -> IdentifiabilityReport:
     """Measure label correlations and conditional pairwise distribution gaps."""
-    rows = tuple(examples)
-    if not rows:
-        raise ValueError("examples must not be empty")
-    if any(row.label not in (-1, 1) or parity_label(row.bits) != row.label for row in rows):
-        raise ValueError("dataset contains an invalid parity label")
+    rows = _validated_examples(examples)
     positives = sum(row.label == 1 for row in rows)
     negatives = len(rows) - positives
     if positives == 0 or negatives == 0:
