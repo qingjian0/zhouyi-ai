@@ -58,6 +58,64 @@ class ZPCMMemory:
             json_extract(payload_json,'$.body.candidate_version')
         ) WHERE event_type='e12a6_lifecycle'
           AND json_extract(payload_json,'$.kind')='authorization_consumed';
+        CREATE TABLE IF NOT EXISTS e12a6_lifecycle_event_projection(
+            seq INTEGER PRIMARY KEY,
+            scope TEXT NOT NULL,
+            kind TEXT NOT NULL,
+            entity_id TEXT NOT NULL,
+            entity_version INTEGER NOT NULL DEFAULT 0,
+            event_id TEXT NOT NULL UNIQUE,
+            payload_digest TEXT NOT NULL,
+            FOREIGN KEY(event_id) REFERENCES memory_events(event_id)
+        );
+        CREATE INDEX IF NOT EXISTS e12a6_lifecycle_entity_lookup
+            ON e12a6_lifecycle_event_projection(scope,kind,entity_id,entity_version,seq);
+        CREATE INDEX IF NOT EXISTS e12a6_lifecycle_candidate_history
+            ON e12a6_lifecycle_event_projection(scope,entity_id,entity_version,seq)
+            WHERE kind IN ('candidate_registered','revision_created','action_applied');
+        CREATE TRIGGER IF NOT EXISTS e12a6_lifecycle_projection_insert
+        AFTER INSERT ON memory_events
+        WHEN NEW.event_type='e12a6_lifecycle'
+        BEGIN
+            INSERT INTO e12a6_lifecycle_event_projection(
+                seq,scope,kind,entity_id,entity_version,event_id,payload_digest
+            ) VALUES (
+                NEW.seq,NEW.scope,
+                COALESCE(json_extract(NEW.payload_json,'$.kind'),'unknown'),
+                COALESCE(
+                    json_extract(NEW.payload_json,'$.body.candidate.candidate_id'),
+                    json_extract(NEW.payload_json,'$.body.evidence.evidence_id'),
+                    json_extract(NEW.payload_json,'$.body.action.action_id'),
+                    json_extract(NEW.payload_json,'$.body.receipt_id'),
+                    NEW.event_id
+                ),
+                COALESCE(
+                    json_extract(NEW.payload_json,'$.body.candidate.version'),
+                    json_extract(NEW.payload_json,'$.body.action.candidate_version'),
+                    0
+                ),
+                NEW.event_id,NEW.payload_digest
+            );
+        END;
+        INSERT OR IGNORE INTO e12a6_lifecycle_event_projection(
+            seq,scope,kind,entity_id,entity_version,event_id,payload_digest
+        )
+        SELECT seq,scope,
+            COALESCE(json_extract(payload_json,'$.kind'),'unknown'),
+            COALESCE(
+                json_extract(payload_json,'$.body.candidate.candidate_id'),
+                json_extract(payload_json,'$.body.evidence.evidence_id'),
+                json_extract(payload_json,'$.body.action.action_id'),
+                json_extract(payload_json,'$.body.receipt_id'),
+                event_id
+            ),
+            COALESCE(
+                json_extract(payload_json,'$.body.candidate.version'),
+                json_extract(payload_json,'$.body.action.candidate_version'),
+                0
+            ),
+            event_id,payload_digest
+        FROM memory_events WHERE event_type='e12a6_lifecycle';
         """)
         checkpoint_columns = {
             row["name"] for row in self.db.execute(
@@ -416,6 +474,66 @@ class ZPCMMemory:
             "payload":payload,"payload_digest":row["payload_digest"],
             "recorded_at":row["recorded_at"],
         }
+
+    def get_lifecycle_projection_event(
+        self, *, scope: str, kind: str, entity_id: str, entity_version: int | None = None,
+    ) -> dict[str, Any] | None:
+        """Resolve a lifecycle event through the derived entity index, then verify its source event."""
+        if not all(isinstance(value, str) and value.strip() for value in (scope, kind, entity_id)):
+            raise ZPCMError("scope, kind and entity_id must be non-empty strings")
+        if entity_version is not None and (
+            isinstance(entity_version, bool) or not isinstance(entity_version, int) or entity_version < 0
+        ):
+            raise ZPCMError("entity_version must be a non-negative integer")
+        query = (
+            "SELECT event_id FROM e12a6_lifecycle_event_projection "
+            "WHERE scope=? AND kind=? AND entity_id=?"
+        )
+        params: list[Any] = [scope, kind, entity_id]
+        if entity_version is not None:
+            query += " AND entity_version=?"
+            params.append(entity_version)
+        query += " ORDER BY seq DESC LIMIT 1"
+        with self.lock:
+            row = self.db.execute(query, params).fetchone()
+        if row is None:
+            return None
+        return self.get_domain_event(
+            event_type="e12a6_lifecycle", scope=scope, event_id=row["event_id"],
+        )
+
+    def iter_lifecycle_projection(
+        self, *, scope: str, kind: str | None = None, after_sequence: int = 0,
+        page_size: int = 128,
+    ) -> Iterator[dict[str, Any]]:
+        """Yield indexed lifecycle projection metadata without materializing event bodies."""
+        if not isinstance(scope, str) or not scope.strip():
+            raise ZPCMError("scope must be non-empty")
+        if kind is not None and (not isinstance(kind, str) or not kind.strip()):
+            raise ZPCMError("kind must be non-empty when provided")
+        if isinstance(after_sequence, bool) or not isinstance(after_sequence, int) or after_sequence < 0:
+            raise ZPCMError("after_sequence must be a non-negative integer")
+        if isinstance(page_size, bool) or not isinstance(page_size, int) or page_size < 1:
+            raise ZPCMError("page_size must be a positive integer")
+        cursor = after_sequence
+        while True:
+            query = (
+                "SELECT seq,scope,kind,entity_id,entity_version,event_id,payload_digest "
+                "FROM e12a6_lifecycle_event_projection WHERE scope=? AND seq>?"
+            )
+            params: list[Any] = [scope, cursor]
+            if kind is not None:
+                query += " AND kind=?"
+                params.append(kind)
+            query += " ORDER BY seq LIMIT ?"
+            params.append(page_size)
+            with self.lock:
+                rows = self.db.execute(query, params).fetchall()
+            if not rows:
+                return
+            for row in rows:
+                cursor = int(row["seq"])
+                yield dict(row)
 
     def iter_domain_events_reverse(
         self, *, event_type: str, scope: str, before_sequence: int | None = None,
