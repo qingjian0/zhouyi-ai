@@ -6,7 +6,7 @@ on:
       - research/cpg-ei-oracle-optimizer-sweep-2026-11-13
   pull_request:
     branches:
-      - research/cpg-ei-oracle-optimizer-sweep-2026-11-13
+      - research/cpg-ei-selection-multiseed-2026-11-13
   workflow_dispatch:
 
 permissions:
