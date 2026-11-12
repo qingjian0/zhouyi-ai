@@ -120,4 +120,14 @@ class Tests(unittest.TestCase):
    with self.subTest(size=size),self.assertRaises(ZPCMError):
     list(self.m.iter_domain_events(event_type="m2_cognition",scope="project",page_size=size))
 
+ def test_generic_domain_api_cannot_bypass_e12a6_authorization_consumption(self):
+  payload={"kind":"authorization_consumed","body":{"receipt_id":"receipt-1","nonce":"nonce-1","scope":"s"}}
+  with self.assertRaises(ZPCMError):
+   self.m.append_domain_event(event_type="e12a6_lifecycle",event_id="e12a6:authorization-consumed:receipt-1",
+       scope="s",payload=payload,expected_sequence=0)
+  with self.assertRaises(ZPCMError):
+   self.m.append_domain_event(event_type="untrusted_domain",event_id="bypass:1",
+       scope="s",payload=payload,expected_sequence=0)
+  self.assertEqual(self.m.db.execute("SELECT COUNT(*) FROM memory_events").fetchone()[0],0)
+
 if __name__=="__main__":unittest.main()
