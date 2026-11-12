@@ -475,6 +475,66 @@ class ZPCMMemory:
             "recorded_at":row["recorded_at"],
         }
 
+    def get_lifecycle_projection_event(
+        self, *, scope: str, kind: str, entity_id: str, entity_version: int | None = None,
+    ) -> dict[str, Any] | None:
+        """Resolve a lifecycle event through the derived entity index, then verify its source event."""
+        if not all(isinstance(value, str) and value.strip() for value in (scope, kind, entity_id)):
+            raise ZPCMError("scope, kind and entity_id must be non-empty strings")
+        if entity_version is not None and (
+            isinstance(entity_version, bool) or not isinstance(entity_version, int) or entity_version < 0
+        ):
+            raise ZPCMError("entity_version must be a non-negative integer")
+        query = (
+            "SELECT event_id FROM e12a6_lifecycle_event_projection "
+            "WHERE scope=? AND kind=? AND entity_id=?"
+        )
+        params: list[Any] = [scope, kind, entity_id]
+        if entity_version is not None:
+            query += " AND entity_version=?"
+            params.append(entity_version)
+        query += " ORDER BY seq DESC LIMIT 1"
+        with self.lock:
+            row = self.db.execute(query, params).fetchone()
+        if row is None:
+            return None
+        return self.get_domain_event(
+            event_type="e12a6_lifecycle", scope=scope, event_id=row["event_id"],
+        )
+
+    def iter_lifecycle_projection(
+        self, *, scope: str, kind: str | None = None, after_sequence: int = 0,
+        page_size: int = 128,
+    ) -> Iterator[dict[str, Any]]:
+        """Yield indexed lifecycle projection metadata without materializing event bodies."""
+        if not isinstance(scope, str) or not scope.strip():
+            raise ZPCMError("scope must be non-empty")
+        if kind is not None and (not isinstance(kind, str) or not kind.strip()):
+            raise ZPCMError("kind must be non-empty when provided")
+        if isinstance(after_sequence, bool) or not isinstance(after_sequence, int) or after_sequence < 0:
+            raise ZPCMError("after_sequence must be a non-negative integer")
+        if isinstance(page_size, bool) or not isinstance(page_size, int) or page_size < 1:
+            raise ZPCMError("page_size must be a positive integer")
+        cursor = after_sequence
+        while True:
+            query = (
+                "SELECT seq,scope,kind,entity_id,entity_version,event_id,payload_digest "
+                "FROM e12a6_lifecycle_event_projection WHERE scope=? AND seq>?"
+            )
+            params: list[Any] = [scope, cursor]
+            if kind is not None:
+                query += " AND kind=?"
+                params.append(kind)
+            query += " ORDER BY seq LIMIT ?"
+            params.append(page_size)
+            with self.lock:
+                rows = self.db.execute(query, params).fetchall()
+            if not rows:
+                return
+            for row in rows:
+                cursor = int(row["seq"])
+                yield dict(row)
+
     def iter_domain_events_reverse(
         self, *, event_type: str, scope: str, before_sequence: int | None = None,
         page_size: int = 128,
