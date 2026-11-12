@@ -14,8 +14,9 @@ The security boundary is the combination of distinct OS service identities, excl
 
 | Process | OS identity | Database access | Signing material | Exposed operations |
 |---|---|---|---|---|
-| Learner / SROK | `zhouyi-learner` | none | none | submit observation inputs; append learner commits/structures/revisions; read learner-safe projection |
-| Evaluator | `zhouyi-evaluator` | none | none | append reveal for an authorized committed prediction |
+| Observer / ingress | `zhouyi-observer` | none | none | submit raw observation input and request trusted Observation append; no learner/evaluator DB access |
+| Learner / SROK | `zhouyi-learner` | none | none | append learner commits/structures/revisions; read learner-safe projection; never read unrevealed target/feedback |
+| Evaluator | `zhouyi-evaluator` | none | none | append reveal for an authorized committed prediction; no learner DB access |
 | E09 Authority | `zhouyi-e09-authority` | read/write E09 DB + input payload vault | authorization issuer key through KMS/HSM | authenticated append; payload APIs; role-filtered reads |
 | E09 Verifier | `zhouyi-e09-verifier` | read-only E09 snapshot/DB | receipt signer through KMS/HSM | verify ancestry/provenance; issue signed receipts |
 | E12-A6 Writer | `zhouyi-e12-writer` | read/write ZPCM/E12-A6 DB | no E09 private key | verify receipt; recompute coordination; atomically consume receipt |
@@ -73,7 +74,7 @@ These are protocol ceilings, not per-operation allowances. Operation-specific li
 The secure adapter must no longer receive `SQLiteEvidenceStore`, a database path or a raw store client. Define a transport-neutral `E09AuthorityClient` protocol, implemented by an in-process test client and a Unix-socket RPC client.
 
 Allowlisted operations:
-- `observation.put_input`: authority validates peer role/scope, writes content-addressed input payload and returns digest reference;
+- `observation.put_input`: observer-only; Authority validates peer role/scope, writes content-addressed input payload and returns digest reference;
 - `observation.append`: observer-only; domain tuple derived from configured registry;
 - `observation.read_input`: observer/learner only; returns input payload, never reveal labels;
 - `prediction.commit`: learner-only; requires exact prior Observation causal reference;
@@ -159,8 +160,8 @@ Run tests as distinct OS users:
 Kill processes before/after each E09 append and receipt issue, and before/after E12 atomic bundle commit. Test retries, duplicate receipt/nonce, stale sequence, expiry, backup restore/checkpoint verification, multi-process contention and concurrent duplicate requests.
 
 ### Gate D — end-to-end vertical slice
-A learner process with no DB handles:
-`Observation Input → Authority RPC → Commit RPC → Evaluator Reveal RPC → Verifier Receipt RPC → E12 Writer RPC → ZPCM durable commit → restart/replay`.
+Separate observer and learner processes, both without DB handles:
+`Observer Input → Authority RPC (payload + Observation) → Learner reads authorized input → Commit RPC → Evaluator Reveal RPC → Verifier Receipt RPC → E12 Writer RPC → ZPCM durable commit → restart/replay`.
 
 The test must inspect OS file permissions and process identities, not merely mock credentials or instantiate two Python objects.
 
