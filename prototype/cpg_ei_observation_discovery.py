@@ -19,7 +19,7 @@ from prototype.cpg_ei_relation_operators import (
 
 
 def _infer_support(train_rows: list[dict], input_dim: int) -> tuple[int, ...]:
-    observed = {tuple(row["state"]): row["target"] for row in train_rows}
+    observed = {tuple(row["state"]): row["target_value"] for row in train_rows}
     relevant = []
     for index in range(input_dim):
         bit = 1 << index
