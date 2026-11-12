@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
 import statistics
 from pathlib import Path
 from typing import Any, Sequence
@@ -139,7 +138,7 @@ def main() -> None:
     encoded = json.dumps(report, ensure_ascii=False, indent=2)
     if args.json:
         args.json.parent.mkdir(parents=True, exist_ok=True)
-        args.json.write_text(encoded + "\\n", encoding="utf-8")
+        args.json.write_text(encoded + "\n", encoding="utf-8")
     print(json.dumps({
         key: value for key, value in report.items() if key != "seed_results"
     }, ensure_ascii=False, indent=2))
