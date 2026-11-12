@@ -268,8 +268,8 @@ class SQLiteEvidenceStore:
                 raise MissingReference("prediction commit requires a prior observation event")
             if strict:
                 observed = json.loads(observation["payload_json"])
-                if observation["protocol_version"] != STRICT_PROTOCOL_VERSION:
-                    raise ProtocolError("v0.3 prediction cannot bind to a legacy observation")
+                if observation["protocol_version"] != protocol_version:
+                    raise ProtocolError("prediction commit cannot bind to an observation from another protocol version")
                 for field in ("query_id", "scope", "split"):
                     if payload.get(field) != observed.get(field):
                         raise ProtocolError(f"prediction_commit {field} does not match observation")
@@ -295,8 +295,8 @@ class SQLiteEvidenceStore:
                 raise MissingReference("reveal requires a previously committed prediction from the same learner_track")
             if strict:
                 committed = json.loads(commit["payload_json"])
-                if commit["protocol_version"] != STRICT_PROTOCOL_VERSION:
-                    raise ProtocolError("v0.3 reveal cannot bind to a legacy prediction")
+                if commit["protocol_version"] != protocol_version:
+                    raise ProtocolError("evidence reveal cannot bind to a prediction from another protocol version")
                 for field in ("query_id", "scope", "split"):
                     if payload.get(field) != committed.get(field):
                         raise ProtocolError(f"evidence_reveal {field} does not match prediction commit")
