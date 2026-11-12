@@ -70,13 +70,20 @@ def evaluate(
     model: LearnableSROK,
     data: list[LabeledStructure],
     max_order: int,
+    logit_sign: int = 1,
 ) -> dict[str, float]:
     if not data:
         raise ValueError("evaluation data must not be empty")
+    if logit_sign not in (-1, 1):
+        raise ValueError("logit_sign must be -1 or 1")
     tp = tn = fp = fn = 0
     total_bce = 0.0
     for row in data:
-        prediction, logit = model.predict_binary(row.assignment, max_order=max_order)
+        _prediction, raw_logit = model.predict_binary(
+            row.assignment, max_order=max_order
+        )
+        logit = raw_logit * logit_sign
+        prediction = 1 if logit >= 0.0 else 0
         if prediction == 1 and row.label == 1:
             tp += 1
         elif prediction == 0 and row.label == 0:
@@ -99,6 +106,19 @@ def evaluate(
     }
 
 
+def _validation_sign(
+    model: LearnableSROK,
+    validation: list[LabeledStructure],
+    max_order: int,
+) -> tuple[int, dict[str, float]]:
+    """Choose logit orientation on in-distribution validation only."""
+    positive = evaluate(model, validation, max_order, logit_sign=1)
+    negative = evaluate(model, validation, max_order, logit_sign=-1)
+    if negative["accuracy"] > positive["accuracy"]:
+        return -1, negative
+    return 1, positive
+
+
 def run_seed(
     seed: int,
     train_count: int = 3000,
@@ -109,8 +129,11 @@ def run_seed(
         raise ValueError("epochs must be a positive integer")
     roles = tuple(RoleSpec(name, frozenset({name})) for name in ROLE_NAMES)
     train = make_dataset(train_count, seed * 1009 + 17, "train")
+    validation = make_dataset(max(300, test_count // 2), seed * 1009 + 23, "train")
     test = make_dataset(test_count, seed * 1009 + 29, "test")
     models = {}
+    validation_signs = {}
+    validation_metrics = {}
     for order in (1, 2, 3):
         model = LearnableSROK(roles, feature_dim=5)
         model.fit_binary(
@@ -120,11 +143,29 @@ def run_seed(
             learning_rate=0.15,
             l2=1e-3,
         )
+        sign, validation_result = _validation_sign(model, validation, order)
         models[order] = model
+        validation_signs[order] = sign
+        validation_metrics[order] = validation_result
+    test_results = {
+        order: evaluate(models[order], test, order, validation_signs[order])
+        for order in (1, 2, 3)
+    }
+    pairwise_oracle_flip = evaluate(
+        models[2], test, 2, -validation_signs[2]
+    )
+    triple_masked = evaluate(
+        models[3], test, 2, validation_signs[3]
+    )
     return {
         "seed": seed,
-        "data_seeds": {"train": seed * 1009 + 17, "test": seed * 1009 + 29},
+        "data_seeds": {
+            "train": seed * 1009 + 17,
+            "validation": seed * 1009 + 23,
+            "test": seed * 1009 + 29,
+        },
         "train_examples": train_count,
+        "validation_examples": len(validation),
         "test_examples": test_count,
         "epochs": epochs,
         "parameter_counts": {
@@ -133,10 +174,26 @@ def run_seed(
             "unary_pairwise_triple_active": 35,
             "full_model_total": 35,
         },
-        "unary_only": evaluate(models[1], test, 1),
-        "unary_pairwise": evaluate(models[2], test, 2),
-        "unary_pairwise_triple": evaluate(models[3], test, 3),
-        "triple_model_after_triple_mask": evaluate(models[3], test, 2),
+        "validation_logit_sign": {
+            "unary": validation_signs[1],
+            "pairwise": validation_signs[2],
+            "third_order": validation_signs[3],
+        },
+        "validation_metrics": {
+            "unary": validation_metrics[1],
+            "pairwise": validation_metrics[2],
+            "third_order": validation_metrics[3],
+        },
+        "unary_only": test_results[1],
+        "unary_pairwise": test_results[2],
+        "unary_pairwise_triple": test_results[3],
+        "triple_model_after_triple_mask": triple_masked,
+        "pairwise_test_oracle_flipped_sign_diagnostic_only": pairwise_oracle_flip,
+        "test_majority_class_baseline": max(
+            test_results[3]["positive_rate"],
+            1.0 - test_results[3]["positive_rate"],
+        ),
+        "test_random_baseline_expected_accuracy": 0.5,
     }
 
 
@@ -173,9 +230,9 @@ def run(
         "distribution_shift": {
             "train_role_a_phase": "[pi/2, 2*pi)",
             "test_role_a_phase": "[0, pi/2)",
-            "role_b_phase": "[0, 2*pi) in both splits",
-            "role_c_phase": "[0, 2*pi) in both splits",
-            "train_test_role_a_regions_are_disjoint": True,
+            "role_b_phase": "[0, 2*pi) in train, validation, and test",
+            "role_c_phase": "[0, 2*pi) in train, validation, and test",
+            "train_test_role_a_regions_are_disjoint": True,\n            "validation_uses_training_region_only": True,
         },
         "encoding": (
             "Five-dimensional role-specific Fourier factors. The four "
@@ -196,7 +253,7 @@ def run(
             "Synthetic continuous-phase task with a known analytic target.",
             "The Fourier factorization is supplied as an inductive bias; this does not discover the representation from raw data.",
             "The OOD shift holds out a phase region for one role, not an unseen semantic rule family.",
-            "The ablations share one model family but are not parameter-matched to MLP, GNN, or Transformer baselines.",
+            "Logit orientation is selected on a validation set drawn only from the training phase region; test labels do not select model orientation.\n            "A test-oracle flipped-sign metric is diagnostic only and is never used for model selection.\n            "The ablations share one model family but are not parameter-matched to MLP, GNN, or Transformer baselines.",
             "No natural-language, causal, or general-intelligence claim is supported.",
         ],
     }
