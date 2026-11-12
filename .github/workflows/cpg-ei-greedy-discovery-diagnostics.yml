@@ -1,0 +1,37 @@
+name: cpg-ei-greedy-discovery-diagnostics
+
+on:
+  push:
+    branches:
+      - research/cpg-ei-greedy-discovery-diagnostics-2026-11-13
+  pull_request:
+    branches:
+      - research/cpg-ei-selection-optimizer-sweep-2026-11-13
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  diagnostics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run focused diagnostic tests
+        run: python -m unittest tests.test_cpg_ei_greedy_discovery_diagnostics -v
+      - name: Run paired convergence and structure sweep
+        run: |
+          set -o pipefail
+          mkdir -p benchmark-results
+          python -m prototype.cpg_ei_greedy_discovery_diagnostics | tee benchmark-results/cpg-ei-greedy-discovery-diagnostics.json
+      - name: Upload diagnostic report
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpg-ei-greedy-discovery-diagnostics-${{ github.sha }}
+          path: benchmark-results/cpg-ei-greedy-discovery-diagnostics.json
+          if-no-files-found: error
+          retention-days: 30
