@@ -91,7 +91,7 @@ class PersistentLifecycleLedger:
 
     def _restore(self) -> None:
         try:
-            events=self._memory.replay_lifecycle_events(scope=self.scope)
+            events=self._memory.iter_lifecycle_events(scope=self.scope)
             staged=LifecycleLedger(); previous=0; receipts={}; payloads={}; consumed_receipts={}; consumed_nonces=set()
             for event in events:
                 seq=event["sequence"]
