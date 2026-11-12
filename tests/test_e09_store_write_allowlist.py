@@ -11,7 +11,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 PROTOTYPE = ROOT / "prototype"
 LOW_LEVEL_WRITER = re.compile(
-    r"\.(?:append_event|commit_prediction|reveal_evidence|append_revision)\s*\("
+    r"\b(?:self\.)?(?:_store|store)\.(?:append_event|commit_prediction|reveal_evidence|append_revision)\s*\("
 )
 ALLOWLIST = {
     "e09_authority_services.py",

@@ -17,6 +17,7 @@ from prototype.shared_evidence_protocol import (
     STRICT_PROTOCOL_VERSION,
     EventReceipt,
     SQLiteEvidenceStore,
+    digest_payload,
 )
 
 
@@ -192,6 +193,66 @@ class E09AuthorityService:
         self._principal(observer_credential, role="observer", scope=scope)
         self._principal(learner_credential, role="learner", scope=scope)
         self._principal(evaluator_credential, role="evaluator", scope=scope)
+
+    def _principal_any(
+        self, credential: object, *, roles: frozenset[str], scope: str
+    ) -> E09AuthenticatedWorkload:
+        if not isinstance(scope, str) or not scope.strip():
+            raise E09AuthorizationError("scope must be a non-empty string")
+        try:
+            principal = self._authenticator.authenticate(credential)
+        except Exception as exc:
+            raise E09AuthenticationError("workload authentication failed") from exc
+        if not isinstance(principal, E09AuthenticatedWorkload):
+            raise E09AuthenticationError("authenticator returned an invalid workload identity")
+        if not roles.intersection(principal.roles):
+            raise E09AuthorizationError("workload lacks a permitted role")
+        if scope not in principal.scopes:
+            raise E09AuthorizationError("workload is not authorized for the requested scope")
+        return principal
+
+    def put_observation_input(
+        self, credential: object, *, scope: str, payload: Any
+    ) -> str:
+        """Persist an observer input through Authority and return its content digest."""
+        self._principal(credential, role="observer", scope=scope)
+        payload_ref = digest_payload(payload)
+        self._store.put_payload(payload_ref, payload)
+        return payload_ref
+
+    def read_observation_input(
+        self,
+        credential: object,
+        *,
+        episode_id: str,
+        observation_id: str,
+        scope: str,
+    ) -> Any:
+        """Return input only to an authorized observer/learner after Observation exists."""
+        self._principal_any(
+            credential, roles=frozenset({"observer", "learner"}), scope=scope
+        )
+        events = self._store.replay_episode(episode_id)
+        matches = [
+            event for event in events
+            if event.get("event_type") == "observation"
+            and event.get("payload", {}).get("observation_id") == observation_id
+        ]
+        if len(matches) != 1:
+            raise E09AuthorizationError("input read requires exactly one prior Observation")
+        event = matches[0]
+        if (
+            event.get("actor_role") != "observer"
+            or event.get("payload", {}).get("scope") != scope
+            or not isinstance(
+                event.get("integrity_metadata", {}).get("authenticated_workload"), dict
+            )
+        ):
+            raise E09AuthorizationError("Observation is outside the authenticated input boundary")
+        payload_ref = event.get("payload", {}).get("payload_ref")
+        if not isinstance(payload_ref, str) or not payload_ref:
+            raise E09AuthorizationError("Observation has no durable input payload reference")
+        return self._store.get_payload(payload_ref)
 
     def append_observation(
         self,
