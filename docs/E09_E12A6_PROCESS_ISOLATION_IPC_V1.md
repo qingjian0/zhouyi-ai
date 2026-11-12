@@ -88,9 +88,9 @@ Do not expose generic `append_event`, arbitrary SQL, arbitrary file paths, unsco
 
 ### Data-flow correction required
 
-The current secure adapter still writes payload-vault records directly through `store.put_payload`, reads through `store.get_payload`, and uses the store for replay/memory projection. It also stores reveal content in E09 event payloads. These database dependencies must be removed from learner/evaluator processes before claiming isolation.
+PR #327 moves secure-mode input payload writes behind `E09AuthorityService.put_observation_input`; the legacy adapter mode still writes directly to the store. The combined adapter nevertheless retains a concrete `SQLiteEvidenceStore` handle for startup checks, replay and memory projection, and its legacy fallback still performs direct writes. These remaining database dependencies must be removed from learner/evaluator processes before claiming isolation.
 
-Authority owns payload persistence. Learner input reads are explicitly role-filtered. Evaluator reveal writes are isolated. Raw target/feedback is readable only to the Verifier and authorized evaluator process; learner-facing replay must not return it.
+Authority owns secure-mode payload persistence. Learner input reads and learner replay are explicitly role-filtered. Evaluator reveal writes are isolated. Raw target/feedback remains in E09 evidence events and is released only through the verifier/evaluator policy; learner-facing replay must not return it. The next adapter increment must replace the concrete store dependency with a transport-neutral client and add a separately authorized learner checkpoint-read contract before restart recovery is moved off the store.
 
 ## 6. E09 Verifier API
 
@@ -191,6 +191,7 @@ The current stacked implementation has reached the following code increments:
 | E12-A6 Writer | `prototype/e12a6_writer_unix_rpc.py` (PR #301) | Typed DTO decoding, signed receipt binding, in-process recomputation and atomic lifecycle bundle write |
 | Learner feedback | `read_support_feedback` (PR #302) | Learner-only release of lineage-verified SUPPORT feedback; gate/test labels remain blocked |
 | Learner memory projection | `read_learner_episode` (PR #304) | Authenticated event projection with raw reveal labels and checkpoint blobs redacted |
+| Learner assignment | `E09LearnerBindingResolver` (PR #327) | Server-side episode/scope/track binding; Observer RPC cannot choose a learner workload ID |
 
 These are service-boundary implementations and CI-tested local UDS integrations. They do **not** yet establish production process isolation.
 
@@ -200,7 +201,7 @@ These are service-boundary implementations and CI-tested local UDS integrations.
 2. Publish a transactionally consistent E09 snapshot to the Verifier identity; prove SQLite journal/WAL and sidecar access semantics.
 3. Move E09 Authority, Verifier and E12-A6 Writer signing material into separate KMS/HSM-backed identities.
 4. Split the current combined E09 adapter into observer ingress, learner and evaluator roles. Remove its direct SQLite handle, direct payload-vault access and unrestricted replay/memory projection.
-5. Add a dedicated learner checkpoint-read API that validates ledger snapshot records against authorized SUPPORT evidence; the redacted ZPCM projection intentionally omits restart snapshots.
+5. Keep learner assignment resolution server-side and provision it from the authenticated experiment/tenant assignment system; never accept learner_workload_id from an Observer request. Add a dedicated learner checkpoint-read API that validates ledger snapshot records against authorized SUPPORT evidence; the redacted ZPCM projection intentionally omits restart snapshots.
 6. Add E12 Writer OS deployment, DB-exclusive ownership, external monotonic checkpoint, backup/restore and receipt-consumption recovery tests.
 7. Run the full Observation → Commit → Reveal → Receipt → Writer → ZPCM → restart/replay vertical slice across separate OS processes, then execute Gates A–D from this contract.
 

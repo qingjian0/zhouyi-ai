@@ -192,11 +192,11 @@ class E09AuthorityUnixRPC:
     def _append_observation(self, context: IPCRequestContext, body: dict[str, Any]) -> dict[str, Any]:
         _fields(
             body,
-            required={"episode_id", "event_id", "observation_id", "query_id", "scope", "split"},
-            optional={"payload_ref", "feature_schema_version", "learner_workload_id", "causation_refs", "expected_sequence"},
+            required={"episode_id", "event_id", "observation_id", "query_id", "scope", "split", "learner_track"},
+            optional={"payload_ref", "feature_schema_version", "causation_refs", "expected_sequence"},
         )
         _require_text(body, "episode_id", "event_id", "observation_id", "query_id", "scope", "split")
-        for field in ("payload_ref", "feature_schema_version", "learner_workload_id"):
+        for field in ("payload_ref", "feature_schema_version", "learner_track"):
             if field in body and body[field] is not None and (
                 not isinstance(body[field], str) or not body[field].strip()
             ):
@@ -211,7 +211,7 @@ class E09AuthorityUnixRPC:
             scope=body["scope"], split=body["split"],
             payload_ref=body.get("payload_ref"),
             feature_schema_version=body.get("feature_schema_version"),
-            learner_workload_id=body.get("learner_workload_id"),
+            learner_track=body["learner_track"],
             causation_refs=body.get("causation_refs", ()),
             expected_sequence=body.get("expected_sequence"),
         )

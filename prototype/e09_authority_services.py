@@ -96,6 +96,15 @@ class E09DomainRegistry(Protocol):
         ...
 
 
+class E09LearnerBindingResolver(Protocol):
+    """Trusted mapping from an experiment track to its assigned learner workload."""
+
+    def resolve(
+        self, *, episode_id: str, scope: str, learner_track: str
+    ) -> str:
+        ...
+
+
 class E09GrantSigner(Protocol):
     """HSM/KMS-backed issuer signer; private key material stays outside E09."""
 
@@ -147,6 +156,7 @@ class E09AuthorityService:
         clock: E09Clock | None = None,
         max_grant_ttl: timedelta = timedelta(minutes=5),
         domain_registry: E09DomainRegistry | None = None,
+        learner_binding_resolver: E09LearnerBindingResolver | None = None,
     ) -> None:
         if not isinstance(store, SQLiteEvidenceStore):
             raise TypeError("store must be SQLiteEvidenceStore")
@@ -164,6 +174,11 @@ class E09AuthorityService:
         if domain_registry is not None and not callable(getattr(domain_registry, "resolve", None)):
             raise TypeError("domain_registry must implement resolve")
         self._domain_registry = domain_registry
+        if learner_binding_resolver is not None and not callable(
+            getattr(learner_binding_resolver, "resolve", None)
+        ):
+            raise TypeError("learner_binding_resolver must implement resolve")
+        self._learner_binding_resolver = learner_binding_resolver
 
     def _principal(self, credential: object, *, role: str, scope: str) -> E09AuthenticatedWorkload:
         if not isinstance(scope, str) or not scope.strip():
@@ -212,6 +227,39 @@ class E09AuthorityService:
             raise E09AuthorizationError("workload is not authorized for the requested scope")
         return principal
 
+    def _resolve_learner_binding(
+        self, *, episode_id: str, scope: str, learner_track: str
+    ) -> str:
+        if not isinstance(learner_track, str) or not learner_track.strip():
+            raise E09AuthorizationError("learner_track must be a non-empty string")
+        if self._learner_binding_resolver is None:
+            raise E09AuthorizationError("trusted learner binding resolver is not configured")
+        try:
+            workload_id = self._learner_binding_resolver.resolve(
+                episode_id=episode_id, scope=scope, learner_track=learner_track
+            )
+        except Exception as exc:
+            raise E09AuthorizationError(
+                "no trusted learner workload is assigned to this episode/scope/track"
+            ) from exc
+        if not isinstance(workload_id, str) or not workload_id.strip():
+            raise E09AuthenticationError("learner binding resolver returned an invalid workload ID")
+        return workload_id
+
+    def _require_learner_assignment(
+        self,
+        principal: E09AuthenticatedWorkload,
+        *,
+        episode_id: str,
+        scope: str,
+        learner_track: str,
+    ) -> None:
+        expected = self._resolve_learner_binding(
+            episode_id=episode_id, scope=scope, learner_track=learner_track
+        )
+        if principal.workload_id != expected:
+            raise E09AuthorizationError("workload is not assigned to the requested learner track")
+
     def put_observation_input(
         self, credential: object, *, scope: str, payload: Any
     ) -> str:
@@ -242,6 +290,13 @@ class E09AuthorityService:
         if len(matches) != 1:
             raise E09AuthorizationError("input read requires exactly one prior Observation")
         event = matches[0]
+        if "learner" in principal.roles:
+            self._require_learner_assignment(
+                principal,
+                episode_id=episode_id,
+                scope=scope,
+                learner_track=event.get("payload", {}).get("learner_track"),
+            )
         if (
             event.get("actor_role") != "observer"
             or event.get("payload", {}).get("scope") != scope
@@ -269,35 +324,85 @@ class E09AuthorityService:
     ) -> list[dict[str, Any]]:
         """Return a learner-safe, provenance-checked event projection for ZPCM sync."""
         principal = self._principal(credential, role="learner", scope=scope)
-        if not isinstance(learner_track, str) or not learner_track.strip():
-            raise E09AuthorizationError("learner_track must be a non-empty string")
+        self._require_learner_assignment(
+            principal, episode_id=episode_id, scope=scope, learner_track=learner_track
+        )
         events = self._store.replay_episode(episode_id)
-        own_commit_ids = set()
-        own_observation_ids = set()
+        by_id = {event.get("event_id"): event for event in events}
+        own_commit_ids: set[str] = set()
+        own_observation_ids: set[str] = set()
         for event in events:
             if event.get("event_type") != "prediction_commit":
                 continue
             payload = event.get("payload", {})
             workload = event.get("integrity_metadata", {}).get("authenticated_workload", {})
+            causes = event.get("causation_refs", [])
             if (
-                event.get("actor_role") == "learner"
-                and payload.get("scope") == scope
-                and payload.get("learner_track") == learner_track
-                and isinstance(workload, dict)
-                and workload.get("workload_id") == principal.workload_id
+                event.get("actor_role") != "learner"
+                or payload.get("scope") != scope
+                or payload.get("learner_track") != learner_track
+                or not isinstance(workload, dict)
+                or workload.get("workload_id") != principal.workload_id
+                or not isinstance(causes, list)
+                or len(causes) != 1
             ):
-                own_commit_ids.add(event.get("event_id"))
-                own_observation_ids.update(event.get("causation_refs", []))
-        own_reveal_ids = {
-            event.get("event_id")
-            for event in events
-            if event.get("event_type") == "evidence_reveal"
-            and event.get("payload", {}).get("scope") == scope
-            and event.get("payload", {}).get("learner_track") == learner_track
-            and event.get("actor_role") == "evaluator"
-            and isinstance(event.get("integrity_metadata", {}).get("authenticated_workload"), dict)
-            and set(event.get("causation_refs", [])) & own_commit_ids
-        }
+                continue
+            observation = by_id.get(causes[0])
+            if not isinstance(observation, dict) or observation.get("event_type") != "observation":
+                continue
+            observation_payload = observation.get("payload", {})
+            observation_workload = observation.get("integrity_metadata", {}).get(
+                "authenticated_workload", {}
+            )
+            if (
+                observation.get("actor_role") != "observer"
+                or observation_payload.get("scope") != scope
+                or observation_payload.get("learner_track") != learner_track
+                or observation_payload.get("learner_workload_id") != principal.workload_id
+                or observation_payload.get("split") != payload.get("split")
+                or observation_payload.get("observation_id") != payload.get("observation_id")
+                or observation_payload.get("query_id") != payload.get("query_id")
+                or not isinstance(observation_workload, dict)
+                or not isinstance(observation_workload.get("workload_id"), str)
+            ):
+                continue
+            own_commit_ids.add(event.get("event_id"))
+            own_observation_ids.add(observation.get("event_id"))
+
+        own_reveal_ids: set[str] = set()
+        for reveal in events:
+            if reveal.get("event_type") != "evidence_reveal":
+                continue
+            reveal_payload = reveal.get("payload", {})
+            reveal_workload = reveal.get("integrity_metadata", {}).get(
+                "authenticated_workload", {}
+            )
+            reveal_causes = reveal.get("causation_refs", [])
+            if (
+                reveal.get("actor_role") != "evaluator"
+                or not isinstance(reveal_workload, dict)
+                or not isinstance(reveal_workload.get("workload_id"), str)
+                or reveal_payload.get("scope") != scope
+                or reveal_payload.get("split") != "SUPPORT"
+                or reveal_payload.get("learner_track") != learner_track
+                or not isinstance(reveal_causes, list)
+                or len(reveal_causes) != 1
+                or reveal_causes[0] not in own_commit_ids
+            ):
+                continue
+            commit = by_id.get(reveal_causes[0])
+            commit_payload = commit.get("payload", {}) if isinstance(commit, dict) else {}
+            if (
+                not isinstance(commit, dict)
+                or commit_payload.get("split") != "SUPPORT"
+                or reveal_payload.get("prediction_id") != commit_payload.get("prediction_id")
+                or reveal_payload.get("query_id") != commit_payload.get("query_id")
+                or reveal_payload.get("learner_track") != commit_payload.get("learner_track")
+                or reveal_payload.get("commit_digest") != commit_payload.get("interop_commit_digest")
+                or reveal_payload.get("event_digest") != commit.get("payload_digest")
+            ):
+                continue
+            own_reveal_ids.add(reveal.get("event_id"))
         expected_roles = {
             "observation": "observer",
             "prediction_commit": "learner",
@@ -329,7 +434,7 @@ class E09AuthorityService:
             ):
                 continue
             event_track = payload.get("learner_track")
-            if event_track not in (None, learner_track):
+            if event_track != learner_track:
                 continue
             authenticated_workload = event.get("integrity_metadata", {}).get(
                 "authenticated_workload"
@@ -398,6 +503,10 @@ class E09AuthorityService:
         if not isinstance(commit, dict) or commit.get("event_type") != "prediction_commit":
             raise E09AuthorizationError("Evidence Reveal has no durable Prediction Commit")
         commit_payload = commit.get("payload", {})
+        self._require_learner_assignment(
+            principal, episode_id=episode_id, scope=scope,
+            learner_track=commit_payload.get("learner_track"),
+        )
         if (
             commit.get("actor_role") != "learner"
             or commit_payload.get("scope") != scope
@@ -427,6 +536,8 @@ class E09AuthorityService:
             or observation_payload.get("split") != "SUPPORT"
             or observation_payload.get("observation_id") != commit_payload.get("observation_id")
             or observation_payload.get("query_id") != commit_payload.get("query_id")
+            or observation_payload.get("learner_track") != commit_payload.get("learner_track")
+            or observation_payload.get("learner_workload_id") != principal.workload_id
             or not isinstance(
                 observation.get("integrity_metadata", {}).get("authenticated_workload"), dict
             )
@@ -456,7 +567,7 @@ class E09AuthorityService:
         split: str,
         payload_ref: str | None = None,
         feature_schema_version: str | None = None,
-        learner_workload_id: str | None = None,
+        learner_track: str,
         causation_refs: tuple[str, ...] | list[str] = (),
         expected_sequence: int | None = None,
     ) -> EventReceipt:
@@ -487,10 +598,11 @@ class E09AuthorityService:
                 if not isinstance(value, str) or not value.strip():
                     raise E09AuthorizationError(f"{field} must be a non-empty string")
                 payload[field] = value
-        if learner_workload_id is not None:
-            if not isinstance(learner_workload_id, str) or not learner_workload_id.strip():
-                raise E09AuthorizationError("learner_workload_id must be a non-empty string")
-            payload["learner_workload_id"] = learner_workload_id
+        learner_workload_id = self._resolve_learner_binding(
+            episode_id=episode_id, scope=scope, learner_track=learner_track
+        )
+        payload["learner_track"] = learner_track
+        payload["learner_workload_id"] = learner_workload_id
         if payload_ref is not None:
             try:
                 self._store.get_payload(payload_ref)
@@ -546,6 +658,10 @@ class E09AuthorityService:
             raise TypeError("payload must be a dictionary")
         scope = payload.get("scope")
         principal = self._principal(credential, role="learner", scope=scope)
+        self._require_learner_assignment(
+            principal, episode_id=episode_id, scope=scope,
+            learner_track=payload.get("learner_track"),
+        )
         events = self._store.replay_episode(episode_id)
         observation_id = payload.get("observation_id")
         observations = [
@@ -556,10 +672,23 @@ class E09AuthorityService:
         if len(observations) != 1:
             raise E09AuthorizationError("prediction requires exactly one prior observation")
         observation = observations[0]
-        if (observation.get("payload", {}).get("scope") != scope
-                or observation.get("payload", {}).get("split") != payload.get("split")
-                or observation.get("event_id") not in set(causation_refs)):
-            raise E09AuthorizationError("prediction must causally reference an observation in the same scope and split")
+        observation_payload = observation.get("payload", {})
+        observation_workload = observation.get("integrity_metadata", {}).get(
+            "authenticated_workload", {}
+        )
+        if (
+            observation_payload.get("scope") != scope
+            or observation_payload.get("split") != payload.get("split")
+            or observation_payload.get("learner_track") != payload.get("learner_track")
+            or observation_payload.get("learner_workload_id") != principal.workload_id
+            or observation.get("actor_role") != "observer"
+            or not isinstance(observation_workload, dict)
+            or not isinstance(observation_workload.get("workload_id"), str)
+            or observation.get("event_id") not in set(causation_refs)
+        ):
+            raise E09AuthorizationError(
+                "prediction must causally reference an Observation assigned to this learner in the same scope, track and split"
+            )
         domain = self._observation_domain(episode_id, observation_id)
         normalized = dict(payload)
         for field, value in domain.items():
@@ -641,8 +770,9 @@ class E09AuthorityService:
     ) -> EventReceipt:
         """Append a learner structure checkpoint after validating its causal support."""
         principal = self._principal(credential, role="learner", scope=scope)
-        if not isinstance(learner_track, str) or not learner_track.strip():
-            raise E09AuthorizationError("learner_track must be a non-empty string")
+        self._require_learner_assignment(
+            principal, episode_id=episode_id, scope=scope, learner_track=learner_track
+        )
         if not isinstance(payload, dict):
             raise TypeError("payload must be a dictionary")
         normalized = dict(payload)
@@ -694,6 +824,8 @@ class E09AuthorityService:
             if (parent is None
                     or parent.get("actor_role") != "learner"
                     or not isinstance(parent.get("integrity_metadata", {}).get("authenticated_workload"), dict)
+                    or parent.get("integrity_metadata", {}).get("authenticated_workload", {}).get("workload_id")
+                        != principal.workload_id
                     or parent["payload"].get("structure_id") != normalized["structure_id"]
                     or parent["payload"].get("learner_track") != learner_track
                     or parent["payload"].get("scope") != scope):
@@ -706,6 +838,9 @@ class E09AuthorityService:
                     or reveal["payload"].get("scope") != scope
                     or reveal["payload"].get("learner_track") != learner_track):
                 raise E09AuthorizationError("support evidence is missing or outside the authorized scope/track")
+            self.read_support_feedback(
+                credential, episode_id=episode_id, reveal_event_id=evidence_id, scope=scope
+            )
         return self._store.append_event(
             episode_id=episode_id, event_id=event_id, event_type="structure_version",
             idempotency_key=idempotency_key, payload=normalized,
@@ -729,8 +864,9 @@ class E09AuthorityService:
     ) -> EventReceipt:
         """Append a learner revision bound to prior reveals and structure versions."""
         principal = self._principal(credential, role="learner", scope=scope)
-        if not isinstance(learner_track, str) or not learner_track.strip():
-            raise E09AuthorizationError("learner_track must be a non-empty string")
+        self._require_learner_assignment(
+            principal, episode_id=episode_id, scope=scope, learner_track=learner_track
+        )
         if not isinstance(payload, dict):
             raise TypeError("payload must be a dictionary")
         normalized = dict(payload)
@@ -778,6 +914,9 @@ class E09AuthorityService:
                     or reveal["payload"].get("scope") != scope
                     or reveal["payload"].get("learner_track") != learner_track):
                 raise E09AuthorizationError("revision trigger evidence is missing or outside the authorized scope/track")
+            self.read_support_feedback(
+                credential, episode_id=episode_id, reveal_event_id=evidence_id, scope=scope
+            )
         before_events = [structures.get(version_id) for version_id in before]
         after_events = [structures.get(version_id) for version_id in after]
         if any(event is None for event in before_events + after_events):
@@ -788,6 +927,8 @@ class E09AuthorityService:
         if len(structure_ids) != 1 or any(
             event.get("actor_role") != "learner"
             or not isinstance(event.get("integrity_metadata", {}).get("authenticated_workload"), dict)
+            or event.get("integrity_metadata", {}).get("authenticated_workload", {}).get("workload_id")
+                != principal.workload_id
             or event["payload"].get("learner_track") != learner_track
             or event["payload"].get("scope") != scope
             for event in before_events + after_events

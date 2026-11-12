@@ -38,6 +38,17 @@ class _DomainRegistry:
         )
 
 
+class _LearnerBindingRegistry:
+    def resolve(self, *, episode_id, scope, learner_track):
+        assignments = {
+            "track-a": "spiffe://zhouyi/learner",
+            "track-b": "spiffe://zhouyi/learner-other",
+        }
+        if learner_track not in assignments:
+            raise ValueError("unassigned learner track")
+        return assignments[learner_track]
+
+
 def _principal(workload_id, role, scope):
     return E09AuthenticatedWorkload(
         workload_id=workload_id,
@@ -72,6 +83,7 @@ class E09AuthorityUnixRPCTests(unittest.TestCase):
             authenticator=self.authenticator,
             signer=_UnusedSigner(),
             domain_registry=_DomainRegistry(),
+            learner_binding_resolver=_LearnerBindingRegistry(),
         )
         self._counter = 0
 
@@ -120,7 +132,7 @@ class E09AuthorityUnixRPCTests(unittest.TestCase):
                 "query_id": "query-1",
                 "scope": self.scope,
                 "split": "SUPPORT",
-                "learner_workload_id": self.learner.workload_id,
+                "learner_track": "track-a",
                 "payload_ref": stored["payload_ref"],
                 "feature_schema_version": "features-v1",
             },
@@ -264,6 +276,7 @@ class E09AuthorityUnixRPCTests(unittest.TestCase):
                 "query_id": "gate-query",
                 "scope": self.scope,
                 "split": "GATE_DEV",
+                "learner_track": "track-a",
             },
             "append-gate-observation",
         )
@@ -331,7 +344,7 @@ class E09AuthorityUnixRPCTests(unittest.TestCase):
                 "episode_id": self.episode, "event_id": observation_event,
                 "observation_id": "identity-obs", "query_id": "identity-query",
                 "scope": self.scope, "split": "SUPPORT",
-                "learner_workload_id": self.learner.workload_id,
+                "learner_track": "track-a",
             },
             "identity-observation",
         )
@@ -376,12 +389,47 @@ class E09AuthorityUnixRPCTests(unittest.TestCase):
                 "other-learner-feedback",
             )
         self.assertEqual(feedback_error.exception.code, "permission_denied")
-        other_projection = self._call(
-            self.other_learner, "episode.read_for_learner",
-            {"episode_id": self.episode, "scope": self.scope, "learner_track": "track-a"},
-            "other-learner-projection",
-        )
-        self.assertEqual(other_projection["events"], [])
+        with self.assertRaises(IPCRemoteError) as projection_error:
+            self._call(
+                self.other_learner, "episode.read_for_learner",
+                {"episode_id": self.episode, "scope": self.scope, "learner_track": "track-a"},
+                "other-learner-projection",
+            )
+        self.assertEqual(projection_error.exception.code, "permission_denied")
+
+    def test_observer_cannot_choose_learner_workload_or_unassigned_track(self):
+        with self.assertRaises(IPCRemoteError) as forged:
+            self._call(
+                self.observer, "observation.append",
+                {
+                    "episode_id": self.episode,
+                    "event_id": "forged-observation",
+                    "observation_id": "forged-observation",
+                    "query_id": "forged-query",
+                    "scope": self.scope,
+                    "split": "SUPPORT",
+                    "learner_track": "track-a",
+                    "learner_workload_id": self.other_learner.workload_id,
+                },
+                "forged-learner-binding",
+            )
+        self.assertEqual(forged.exception.code, "invalid_body")
+
+        with self.assertRaises(IPCRemoteError) as unassigned:
+            self._call(
+                self.observer, "observation.append",
+                {
+                    "episode_id": self.episode,
+                    "event_id": "unassigned-observation",
+                    "observation_id": "unassigned-observation",
+                    "query_id": "unassigned-query",
+                    "scope": self.scope,
+                    "split": "SUPPORT",
+                    "learner_track": "track-unknown",
+                },
+                "unassigned-learner-track",
+            )
+        self.assertEqual(unassigned.exception.code, "permission_denied")
 
     def test_learner_cannot_append_observation_or_reveal(self):
         with self.assertRaises(IPCRemoteError) as observation_error:
@@ -391,6 +439,7 @@ class E09AuthorityUnixRPCTests(unittest.TestCase):
                     "episode_id": self.episode, "event_id": "obs-denied",
                     "observation_id": "obs-denied", "query_id": "q",
                     "scope": self.scope, "split": "SUPPORT",
+                    "learner_track": "track-a",
                 },
                 "obs-denied",
             )

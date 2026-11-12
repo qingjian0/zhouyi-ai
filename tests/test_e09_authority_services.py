@@ -69,6 +69,17 @@ class _DomainRegistry:
         )
 
 
+class _LearnerBindingRegistry:
+    def resolve(self, *, episode_id, scope, learner_track):
+        assignments = {
+            "learner-a": "spiffe://zhouyi/learner",
+            "learner-b": "spiffe://zhouyi/learner-b",
+        }
+        if learner_track not in assignments:
+            raise ValueError("unassigned learner track")
+        return assignments[learner_track]
+
+
 def _identity(workload_id, issuer_id, roles, scopes):
     return E09AuthenticatedWorkload(
         workload_id=workload_id,
@@ -103,6 +114,8 @@ class E09AuthorityServiceTests(unittest.TestCase):
                                           {"authorizer"}, {self.scope}),
             "learner-cert": _identity("spiffe://zhouyi/learner", "issuer-learner",
                                        {"learner"}, {self.scope}),
+            "learner-b-cert": _identity("spiffe://zhouyi/learner-b", "issuer-learner-b",
+                                         {"learner"}, {self.scope}),
             "wrong-scope-cert": _identity("spiffe://zhouyi/other", "issuer-other",
                                            {"authorizer"}, {"world/other"}),
         })
@@ -111,6 +124,7 @@ class E09AuthorityServiceTests(unittest.TestCase):
             clock=_FixedClock(datetime(2026, 11, 12, 0, 0, tzinfo=timezone.utc)),
             max_grant_ttl=timedelta(hours=1),
             domain_registry=_DomainRegistry(),
+            learner_binding_resolver=_LearnerBindingRegistry(),
         )
 
     def tearDown(self):
@@ -124,6 +138,7 @@ class E09AuthorityServiceTests(unittest.TestCase):
             "observer-cert", episode_id=self.episode, event_id=observation_event,
             idempotency_key=observation_event, observation_id=observation_id,
             query_id=observation_id, scope=self.scope, split="SUPPORT",
+            learner_track=self.track,
         )
         prediction_id = "prediction-1"
         commit_event = f"{self.episode}:prediction:{prediction_id}"
@@ -342,6 +357,84 @@ class E09AuthorityServiceTests(unittest.TestCase):
         self.assertEqual(revision["integrity_metadata"]["authenticated_workload"]["workload_id"],
                          "spiffe://zhouyi/learner")
 
+    def test_unassigned_learner_cannot_write_structure_checkpoint(self):
+        with self.assertRaises(E09AuthorizationError):
+            self.authority.append_structure_version(
+                "learner-b-cert",
+                episode_id=self.episode,
+                event_id=f"{self.episode}:structure:unassigned",
+                idempotency_key=f"{self.episode}:structure:unassigned",
+                scope=self.scope,
+                learner_track="learner-a",
+                payload={
+                    "structure_id": "unassigned",
+                    "version_id": "unassigned-v1",
+                    "kind": "rule_set",
+                    "definition": {},
+                    "parent_version_ids": [],
+                    "support_evidence_ids": [],
+                },
+            )
+
+    def test_gate_reveal_cannot_be_used_as_structure_support(self):
+        bootstrap_ref = f"{self.episode}:structure:gate-bootstrap"
+        self.authority.append_structure_version(
+            "learner-cert", episode_id=self.episode, event_id=bootstrap_ref,
+            idempotency_key=bootstrap_ref, scope=self.scope, learner_track=self.track,
+            payload={
+                "structure_id": "gate-rules", "version_id": "gate-v1",
+                "kind": "rule_set", "definition": {},
+                "parent_version_ids": [], "support_evidence_ids": [],
+            },
+        )
+        observation_id = "gate-only-observation"
+        observation_event = f"{self.episode}:observation:{observation_id}"
+        self.authority.append_observation(
+            "observer-cert", episode_id=self.episode, event_id=observation_event,
+            idempotency_key=observation_event, observation_id=observation_id,
+            query_id=observation_id, scope=self.scope, split="GATE_DEV",
+            learner_track=self.track,
+        )
+        prediction_id = "gate-only-prediction"
+        commit_event = f"{self.episode}:prediction:{prediction_id}"
+        commit_digest = hashlib.sha256(prediction_id.encode()).hexdigest()
+        commit = self.authority.append_prediction_commit(
+            "learner-cert", episode_id=self.episode, event_id=commit_event,
+            idempotency_key=commit_event, causation_refs=[observation_event],
+            payload={
+                "prediction_id": prediction_id, "observation_id": observation_id,
+                "query_id": observation_id, "scope": self.scope, "split": "GATE_DEV",
+                "model_version": "model-1", "learner_track": self.track,
+                "decision_status": "PREDICT", "interop_commit_digest": commit_digest,
+            },
+        )
+        reveal_ref = f"{self.episode}:reveal:{prediction_id}"
+        self.authority.append_evidence_reveal(
+            "evaluator-cert", episode_id=self.episode, event_id=reveal_ref,
+            idempotency_key=reveal_ref,
+            payload={
+                "prediction_id": prediction_id, "query_id": observation_id,
+                "scope": self.scope, "split": "GATE_DEV",
+                "commit_digest": commit_digest, "event_digest": commit.payload_digest,
+                "learner_track": self.track, "target_or_feedback": "gate-secret",
+            },
+            causation_refs=[commit_event],
+        )
+        with self.assertRaises(E09AuthorizationError):
+            self.authority.append_structure_version(
+                "learner-cert", episode_id=self.episode,
+                event_id=f"{self.episode}:structure:gate-v2",
+                idempotency_key=f"{self.episode}:structure:gate-v2",
+                scope=self.scope, learner_track=self.track,
+                causation_refs=[reveal_ref],
+                payload={
+                    "structure_id": "gate-rules", "version_id": "gate-v2",
+                    "kind": "rule_set", "definition": {},
+                    "parent_version_ids": ["gate-v1"],
+                    "support_evidence_ids": [reveal_ref],
+                },
+            )
+
     def test_structure_write_rejects_wrong_role_scope_and_unbound_support(self):
         bootstrap_ref = f"{self.episode}:structure:v1"
         with self.assertRaises(E09AuthorizationError):
@@ -397,6 +490,35 @@ class E09AuthorityServiceTests(unittest.TestCase):
             )
 
 
+    def test_learner_cannot_commit_against_another_workloads_observation(self):
+        observation_id = "obs-owned-by-b"
+        observation_event = f"{self.episode}:observation:{observation_id}"
+        self.authority.append_observation(
+            "observer-cert", episode_id=self.episode, event_id=observation_event,
+            idempotency_key=observation_event, observation_id=observation_id,
+            query_id=observation_id, scope=self.scope, split="SUPPORT",
+            learner_track="learner-b",
+        )
+        with self.assertRaises(E09AuthorizationError):
+            self.authority.append_prediction_commit(
+                "learner-cert",
+                episode_id=self.episode,
+                event_id="commit-cross-learner",
+                idempotency_key="commit-cross-learner",
+                causation_refs=[observation_event],
+                payload={
+                    "prediction_id": "prediction-cross-learner",
+                    "observation_id": observation_id,
+                    "query_id": observation_id,
+                    "scope": self.scope,
+                    "split": "SUPPORT",
+                    "model_version": "model-1",
+                    "learner_track": "learner-b",
+                    "decision_status": "PREDICT",
+                    "interop_commit_digest": hashlib.sha256(b"cross").hexdigest(),
+                },
+            )
+
     def test_prediction_commit_requires_same_episode_observation_causation(self):
         observation_id = "obs-causal"
         observation_event = f"{self.episode}:observation:{observation_id}"
@@ -404,6 +526,7 @@ class E09AuthorityServiceTests(unittest.TestCase):
             "observer-cert", episode_id=self.episode, event_id=observation_event,
             idempotency_key=observation_event, observation_id=observation_id,
             query_id=observation_id, scope=self.scope, split="SUPPORT",
+            learner_track=self.track,
         )
         payload = {
             "prediction_id": "prediction-causal", "observation_id": observation_id,
@@ -444,6 +567,7 @@ class E09AuthorityServiceTests(unittest.TestCase):
                 idempotency_key=f"{self.episode}:observation:missing-payload",
                 observation_id="missing-payload", query_id="missing-payload",
                 scope=self.scope, split="SUPPORT", payload_ref="sha256:does-not-exist",
+                learner_track=self.track,
             )
 
     def test_adapter_workload_validation_requires_trusted_domain_registry(self):

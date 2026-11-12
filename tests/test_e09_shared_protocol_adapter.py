@@ -77,9 +77,16 @@ class E09SharedProtocolAdapterTests(unittest.TestCase):
             def resolve(self, *, episode_id, scope, observation_id):
                 return E09DomainBinding("family-e09", "test-registry", "v1")
 
+        class LearnerBindingRegistry:
+            def resolve(self, *, episode_id, scope, learner_track):
+                if learner_track != "e09":
+                    raise ValueError("unassigned learner track")
+                return "spiffe://test/learner"
+
         authority = E09AuthorityService(
             self.store, authenticator=Authenticator(), signer=Signer(),
             domain_registry=DomainRegistry(),
+            learner_binding_resolver=LearnerBindingRegistry(),
         )
         learner = IncrementalConjunctionLearner(DOMAINS, min_support=2)
         runner = PrequentialRunner(learner, revision_mode="INCREMENTAL_INDEX")
@@ -103,6 +110,8 @@ class E09SharedProtocolAdapterTests(unittest.TestCase):
         prediction = next(event for event in events if event["event_type"] == "prediction_commit")
         reveal = next(event for event in events if event["event_type"] == "evidence_reveal")
         self.assertEqual(observation["actor_role"], "observer")
+        self.assertEqual(observation["payload"]["learner_workload_id"], "spiffe://test/learner")
+        self.assertEqual(observation["payload"]["learner_track"], "e09")
         self.assertEqual(observation["payload"]["world_family"], "family-e09")
         self.assertEqual(observation["payload"]["domain_registry_id"], "test-registry")
         self.assertEqual(prediction["actor_role"], "learner")
@@ -118,6 +127,7 @@ class E09SharedProtocolAdapterTests(unittest.TestCase):
         resumed_authority = E09AuthorityService(
             self.store, authenticator=Authenticator(), signer=Signer(),
             domain_registry=DomainRegistry(),
+            learner_binding_resolver=LearnerBindingRegistry(),
         )
 
         def restore_incremental(snapshot):
