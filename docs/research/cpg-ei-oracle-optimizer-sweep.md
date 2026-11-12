@@ -16,9 +16,16 @@ PR #388's five-seed, three-family sweep showed that the exact-support oracle rem
 - Report train, locked and complete 64-state domain accuracy separately, plus final BCE.
 - The complete-domain score is a diagnostic over the finite truth table, not an OOD claim.
 
+## Selection and leakage control
+
+- The only configuration-ranking metric is mean final training BCE over the fixed seed/family set.
+- Locked accuracy and complete-domain accuracy are report-only diagnostics. They are not used to select, rank, or tune configurations.
+- The 12-state locked denominator is small; interpret per-seed/per-family outcomes rather than treating a pooled mean as a stable generalization estimate.
+- This sweep is diagnostic, not a replacement for a separately preregistered validation split or independent confirmation seeds.
+
 ## Decision rule
 
-Use locked accuracy only as a diagnostic with its small 12-state denominator; require consistency across both seeds and all three families. A configuration that only improves training or full-domain score is not accepted as a generalization improvement. If all settings plateau, investigate model parameterization, gate saturation and feature conditioning before increasing search complexity.
+If all settings plateau, investigate model parameterization, gate saturation, feature conditioning, and optimizer dynamics before increasing search complexity. Any follow-up configuration selected from validation data must be evaluated once on a fresh, untouched test split.
 
 ## Claim boundary
 
