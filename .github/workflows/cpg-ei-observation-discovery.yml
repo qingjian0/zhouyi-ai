@@ -3,7 +3,7 @@ name: CPG-EI observation-only discovery baseline
 on:
   push:
     branches:
-      - research/cpg-ei-observation-identifiability-audit-v1-2026-11-13
+      - research/cpg-ei-counterfactual-context-coverage-v1-2026-11-13
     paths:
       - "prototype/cpg_ei_relation_operators.py"
       - "prototype/cpg_ei_mixed_operator_data.py"
@@ -11,6 +11,8 @@ on:
       - "tests/test_cpg_ei_observation_discovery.py"
       - "tests/test_cpg_ei_observation_support_audit.py"
       - "docs/CPG_EI_OBSERVATION_SUPPORT_IDENTIFIABILITY_AUDIT_V1.md"
+      - "tests/test_cpg_ei_counterfactual_context_coverage.py"
+      - "docs/CPG_EI_COUNTERFACTUAL_CONTEXT_COVERAGE_AUDIT_V1.md"
       - ".github/workflows/cpg-ei-observation-discovery.yml"
   pull_request:
     paths:
@@ -35,6 +37,7 @@ jobs:
         run: |
           python -m unittest tests.test_cpg_ei_observation_discovery -v
           python -m unittest tests.test_cpg_ei_observation_support_audit -v
+          python -m unittest tests.test_cpg_ei_counterfactual_context_coverage -v
       - name: Run full 102,400-row observation discovery benchmark
         run: |
           python -m prototype.cpg_ei_observation_discovery --output /tmp/zhouyi-cpg-ei-discovery-v1.json
