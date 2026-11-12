@@ -16,6 +16,8 @@ from typing import Any, Iterable
 
 PROTOCOL_VERSION = "0.2"
 STRICT_PROTOCOL_VERSION = "0.3"
+DOMAIN_BOUND_PROTOCOL_VERSION = "0.4"
+DOMAIN_FIELDS = ("domain_id", "world_family", "domain_registry_id", "domain_registry_version")
 EVIDENCE_SPLITS = {"SUPPORT", "GATE_DEV", "GATE_FINAL", "LOCKED_TEST"}
 LEGACY_LEARNER_TRACK = "legacy"
 EVENT_TYPES = {"observation", "prediction_commit", "evidence_reveal", "structure_version", "revision", "branch_merge_authorization"}
@@ -181,8 +183,59 @@ class SQLiteEvidenceStore:
         return payload
 
 
+    @staticmethod
+    def _validate_v04_envelope(
+        event_type: str, payload: dict[str, Any], payload_schema: str,
+        actor_role: str, integrity_metadata: dict[str, Any],
+    ) -> None:
+        schemas = {
+            "observation": (
+                "observation@4", "observer",
+                {"observation_id", "query_id", "scope", "split", *DOMAIN_FIELDS},
+            ),
+            "prediction_commit": (
+                "prediction_commit@4", "learner",
+                {"prediction_id", "observation_id", "model_version", "learner_track",
+                 "decision_status", "query_id", "scope", "split", "interop_commit_digest",
+                 *DOMAIN_FIELDS},
+            ),
+            "evidence_reveal": (
+                "evidence_reveal@4", "evaluator",
+                {"prediction_id", "learner_track", "target_or_feedback", "query_id",
+                 "scope", "split", "commit_digest", "event_digest", *DOMAIN_FIELDS},
+            ),
+        }
+        contract = schemas.get(event_type)
+        if contract is None:
+            raise ProtocolError("E09 v0.4 supports only observation, prediction_commit and evidence_reveal")
+        expected_schema, expected_role, expected_fields = contract
+        if payload_schema != expected_schema:
+            raise ProtocolError(f"E09 v0.4 {event_type} requires payload_schema={expected_schema}")
+        if set(payload) != expected_fields:
+            missing, unknown = expected_fields - set(payload), set(payload) - expected_fields
+            raise ProtocolError(
+                f"E09 v0.4 {event_type} closed schema mismatch; "
+                f"missing={sorted(missing)}, unknown={sorted(unknown)}"
+            )
+        if actor_role != expected_role:
+            raise ProtocolError(f"E09 v0.4 {event_type} requires actor_role={expected_role}")
+        if not isinstance(integrity_metadata, dict) or set(integrity_metadata) != {"authenticated_workload"}:
+            raise ProtocolError("E09 v0.4 requires authenticated workload integrity metadata")
+        identity = integrity_metadata.get("authenticated_workload")
+        identity_fields = {
+            "workload_id", "issuer_id", "identity_provider",
+            "authentication_method", "credential_fingerprint",
+        }
+        if not isinstance(identity, dict) or set(identity) != identity_fields:
+            raise ProtocolError("E09 v0.4 authenticated workload metadata is malformed")
+        if any(not isinstance(value, str) or not value.strip() for value in identity.values()):
+            raise ProtocolError("E09 v0.4 authenticated workload metadata must be non-empty strings")
+        for field in DOMAIN_FIELDS:
+            if not isinstance(payload[field], str) or not payload[field].strip():
+                raise ProtocolError(f"E09 v0.4 {event_type} requires non-empty {field}")
+
     def _validate_semantics(self, episode_id: str, event_type: str, payload: dict[str, Any], protocol_version: str) -> None:
-        strict = protocol_version == STRICT_PROTOCOL_VERSION
+        strict = protocol_version in (STRICT_PROTOCOL_VERSION, DOMAIN_BOUND_PROTOCOL_VERSION)
         if event_type == "observation":
             if not payload.get("observation_id"):
                 raise ProtocolError("observation requires observation_id")
@@ -215,11 +268,15 @@ class SQLiteEvidenceStore:
                 raise MissingReference("prediction commit requires a prior observation event")
             if strict:
                 observed = json.loads(observation["payload_json"])
-                if observation["protocol_version"] != STRICT_PROTOCOL_VERSION:
-                    raise ProtocolError("v0.3 prediction cannot bind to a legacy observation")
+                if observation["protocol_version"] != protocol_version:
+                    raise ProtocolError("prediction commit cannot bind to an observation from another protocol version")
                 for field in ("query_id", "scope", "split"):
                     if payload.get(field) != observed.get(field):
                         raise ProtocolError(f"prediction_commit {field} does not match observation")
+                if protocol_version == DOMAIN_BOUND_PROTOCOL_VERSION:
+                    for field in DOMAIN_FIELDS:
+                        if payload.get(field) != observed.get(field):
+                            raise ProtocolError(f"prediction_commit {field} does not match trusted observation")
         elif event_type == "evidence_reveal":
             required = {"prediction_id", "learner_track", "target_or_feedback"}
             if strict:
@@ -238,8 +295,8 @@ class SQLiteEvidenceStore:
                 raise MissingReference("reveal requires a previously committed prediction from the same learner_track")
             if strict:
                 committed = json.loads(commit["payload_json"])
-                if commit["protocol_version"] != STRICT_PROTOCOL_VERSION:
-                    raise ProtocolError("v0.3 reveal cannot bind to a legacy prediction")
+                if commit["protocol_version"] != protocol_version:
+                    raise ProtocolError("evidence reveal cannot bind to a prediction from another protocol version")
                 for field in ("query_id", "scope", "split"):
                     if payload.get(field) != committed.get(field):
                         raise ProtocolError(f"evidence_reveal {field} does not match prediction commit")
@@ -247,6 +304,10 @@ class SQLiteEvidenceStore:
                     raise ProtocolError("evidence_reveal commit_digest does not match CPG-EI semantic commit digest")
                 if payload["event_digest"] != commit["payload_digest"]:
                     raise ProtocolError("evidence_reveal event_digest does not match durable event envelope digest")
+                if protocol_version == DOMAIN_BOUND_PROTOCOL_VERSION:
+                    for field in DOMAIN_FIELDS:
+                        if payload.get(field) != committed.get(field):
+                            raise ProtocolError(f"evidence_reveal {field} does not match trusted prediction commit")
         elif event_type == "branch_merge_authorization":
             required = {
                 "authorization_id", "issuer_id", "scope", "parent_state_ref",
@@ -345,7 +406,7 @@ class SQLiteEvidenceStore:
             raise ProtocolError("episode_id, event_id, event_type and idempotency_key must be non-empty strings")
         if event_type not in EVENT_TYPES:
             raise ProtocolError(f"unsupported event_type: {event_type}")
-        if protocol_version not in {PROTOCOL_VERSION, STRICT_PROTOCOL_VERSION}:
+        if protocol_version not in {PROTOCOL_VERSION, STRICT_PROTOCOL_VERSION, DOMAIN_BOUND_PROTOCOL_VERSION}:
             raise ProtocolError(f"unsupported protocol_version: {protocol_version}")
         if not isinstance(payload, dict):
             raise ProtocolError("payload must be an object")
@@ -383,7 +444,31 @@ class SQLiteEvidenceStore:
                 ).fetchone()[0]
                 if expected_sequence is not None and expected_sequence != current:
                     raise SequenceConflict(f"expected sequence {expected_sequence}, current sequence is {current}")
+                if protocol_version == DOMAIN_BOUND_PROTOCOL_VERSION:
+                    self._validate_v04_envelope(
+                        event_type, payload, payload_schema, actor_role,
+                        json.loads(integrity_metadata_json),
+                    )
                 self._validate_semantics(episode_id, event_type, payload, protocol_version)
+                if protocol_version == DOMAIN_BOUND_PROTOCOL_VERSION:
+                    causations = json.loads(causation_refs_json)
+                    if event_type == "prediction_commit":
+                        prior = self._db.execute(
+                            "SELECT event_id FROM events WHERE episode_id=? AND event_type='observation' "
+                            "AND json_extract(payload_json, '$.observation_id')=?",
+                            (episode_id, payload["observation_id"]),
+                        ).fetchone()
+                        if prior is None or prior["event_id"] not in causations:
+                            raise ProtocolError("v0.4 prediction_commit must cite its observation event")
+                    elif event_type == "evidence_reveal":
+                        prior = self._db.execute(
+                            "SELECT event_id FROM events WHERE episode_id=? AND event_type='prediction_commit' "
+                            "AND json_extract(payload_json, '$.prediction_id')=? "
+                            "AND json_extract(payload_json, '$.learner_track')=?",
+                            (episode_id, payload["prediction_id"], payload["learner_track"]),
+                        ).fetchone()
+                        if prior is None or prior["event_id"] not in causations:
+                            raise ProtocolError("v0.4 evidence_reveal must cite its prediction commit event")
                 seq = current + 1
                 created_at = datetime.now(timezone.utc).isoformat()
                 self._db.execute(

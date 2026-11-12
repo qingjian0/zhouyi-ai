@@ -26,7 +26,7 @@ class E09VerificationReceiptTests(unittest.TestCase):
         self.now = datetime(2026, 11, 12, 0, 30, tzinfo=timezone.utc)
         evidence_id = "episode-1:reveal:prediction-1"
         self.receipt = {
-            "schema_version": "e09_verification_receipt@1",
+            "schema_version": "e09_verification_receipt@2",
             "receipt_id": "receipt-001",
             "nonce": "nonce-001",
             "audience": "e12a6-lifecycle-writer",
@@ -54,6 +54,9 @@ class E09VerificationReceiptTests(unittest.TestCase):
                 "prediction_commit_step": 2,
                 "label_visibility_step": 3,
                 "provenance": "opaque-e09-event-digest:" + "b" * 64,
+                "domain_id": "domain:receipt-test",
+                "domain_registry_id": "registry:receipt-test",
+                "domain_registry_version": "v1",
             }],
             "signature_algorithm": "Ed25519",
             "signature": "",

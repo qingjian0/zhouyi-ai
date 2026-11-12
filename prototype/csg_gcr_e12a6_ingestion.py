@@ -10,6 +10,7 @@ from prototype.e09_e12a6_evidence_bridge import resolve_e09_reveal
 from prototype.e12a6_lifecycle_contract import Evidence
 from prototype.e12a6_zpcm_persistence import LifecycleBundleReceipt, PersistentLifecycleLedger
 from prototype.shared_evidence_protocol import SQLiteEvidenceStore
+from prototype.e09_domain_registry import E09DomainRegistry
 from prototype.typed_csg_gcr import TypedCoordinatedCandidate
 
 
@@ -33,7 +34,8 @@ def ingest_typed_candidate(
     scope: str,
     learner_track: str,
     grammar_version: str,
-    world_family_by_evidence: Mapping[str, str],
+    domain_registry: E09DomainRegistry | None = None,
+    world_family_by_evidence: Mapping[str, str] | None = None,
     measurement_cost_by_evidence: Mapping[str, float] | None = None,
     branch_merge_authorization: VerifiedBranchMergeAuthorization | None = None,
 ) -> PersistentCSGGCRIngestion:
@@ -49,8 +51,12 @@ def ingest_typed_candidate(
         raise TypeError("e09_store must be SQLiteEvidenceStore")
     if not isinstance(coordinated, TypedCoordinatedCandidate):
         raise TypeError("coordinated must be TypedCoordinatedCandidate")
-    if not isinstance(world_family_by_evidence, Mapping):
-        raise TypeError("world_family_by_evidence must be a mapping")
+    if domain_registry is None or not callable(getattr(domain_registry, "resolve", None)):
+        raise CSGGCRIngestionError(
+            "trusted domain registry is required; legacy v0.3 evidence is quarantined from lifecycle ingestion"
+        )
+    if world_family_by_evidence is not None:
+        raise CSGGCRIngestionError("caller-supplied world-family overrides are forbidden")
     costs = {} if measurement_cost_by_evidence is None else measurement_cost_by_evidence
     if not isinstance(costs, Mapping):
         raise TypeError("measurement_cost_by_evidence must be a mapping")
@@ -64,6 +70,8 @@ def ingest_typed_candidate(
             raise CSGGCRIngestionError(
                 "cross-branch candidate ingestion requires a signature-verified E09 authorization"
             )
+        if branch_merge_authorization.domain_provenance_verified is not True:
+            raise CSGGCRIngestionError("cross-branch authorization lacks trusted domain provenance")
         if (
             branch_merge_authorization.authorization_ref != coordinated.branch_merge_authorization_ref
             or branch_merge_authorization.evidence_refs != coordinated.branch_merge_authorization_evidence_refs
@@ -79,10 +87,6 @@ def ingest_typed_candidate(
     refs = tuple(coordinated.coordinated.evidence_refs)
     if len(refs) != len(set(refs)):
         raise CSGGCRIngestionError("candidate evidence references must be unique")
-    if set(world_family_by_evidence) != set(refs):
-        raise CSGGCRIngestionError(
-            "world_family_by_evidence must provide exactly one explicit world family per E09 evidence ref"
-        )
     if set(costs) - set(refs):
         raise CSGGCRIngestionError("measurement costs may only be supplied for candidate evidence refs")
 
@@ -97,7 +101,7 @@ def ingest_typed_candidate(
             evidence_ref=ref,
             scope=scope,
             learner_track=learner_track,
-            world_family=world_family_by_evidence[ref],
+            domain_registry=domain_registry,
             measurement_cost=costs.get(ref, 0.0),
         ))
 

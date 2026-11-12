@@ -17,6 +17,7 @@ from prototype.e09_authority_services import (
 )
 from prototype.e09_ed25519_keyring import E09Ed25519IssuerKeyring
 from prototype.e09_verification_receipt import verify_e09_verification_receipt
+from prototype.e09_domain_registry import E09DomainBinding, StaticE09DomainRegistry
 from prototype.shared_evidence_protocol import STRICT_PROTOCOL_VERSION, SQLiteEvidenceStore
 
 
@@ -85,6 +86,8 @@ class E09AuthorityServiceTests(unittest.TestCase):
         )
         self.keyring = E09Ed25519IssuerKeyring({"issuer-authority": public})
         self.authenticator = _Authenticator({
+            "observer-cert": _identity("spiffe://zhouyi/observer", "issuer-observer",
+                                        {"observer"}, {self.scope}),
             "evaluator-cert": _identity("spiffe://zhouyi/evaluator", "issuer-evaluator",
                                          {"evaluator"}, {self.scope}),
             "authorizer-cert": _identity("spiffe://zhouyi/authorizer", "issuer-authority",
@@ -94,10 +97,16 @@ class E09AuthorityServiceTests(unittest.TestCase):
             "wrong-scope-cert": _identity("spiffe://zhouyi/other", "issuer-other",
                                            {"authorizer"}, {"world/other"}),
         })
+        self.domain_registry = StaticE09DomainRegistry({
+            self.scope: E09DomainBinding(
+                domain_id="domain:authority", world_family="family-a",
+                registry_id="registry:authority", registry_version="v1",
+            ),
+        })
         self.authority = E09AuthorityService(
             self.store, authenticator=self.authenticator, signer=_Signer(self.private),
             clock=_FixedClock(datetime(2026, 11, 12, 0, 0, tzinfo=timezone.utc)),
-            max_grant_ttl=timedelta(hours=1),
+            max_grant_ttl=timedelta(hours=1), domain_registry=self.domain_registry,
         )
 
     def tearDown(self):
@@ -107,26 +116,22 @@ class E09AuthorityServiceTests(unittest.TestCase):
     def _prior_prediction(self):
         observation_id = "obs-1"
         observation_event = f"{self.episode}:observation:{observation_id}"
-        self.store.append_event(
-            episode_id=self.episode, event_id=observation_event,
-            event_type="observation", idempotency_key=observation_event,
-            actor_role="runner",
+        self.authority.append_observation(
+            "observer-cert", episode_id=self.episode, event_id=observation_event,
+            idempotency_key=observation_event,
             payload={"observation_id": observation_id, "query_id": observation_id,
                      "scope": self.scope, "split": "SUPPORT"},
-            protocol_version=STRICT_PROTOCOL_VERSION,
         )
         prediction_id = "prediction-1"
         commit_event = f"{self.episode}:prediction:{prediction_id}"
         semantic_digest = hashlib.sha256(prediction_id.encode()).hexdigest()
-        commit = self.store.append_event(
-            episode_id=self.episode, event_id=commit_event,
-            event_type="prediction_commit", idempotency_key=commit_event,
-            actor_role="learner", causation_refs=[observation_event],
+        commit = self.authority.append_prediction_commit(
+            "learner-cert", episode_id=self.episode, event_id=commit_event,
+            idempotency_key=commit_event, causation_refs=[observation_event],
             payload={"prediction_id": prediction_id, "observation_id": observation_id,
                      "query_id": observation_id, "scope": self.scope, "split": "SUPPORT",
                      "model_version": "model-1", "learner_track": self.track,
                      "decision_status": "PREDICT", "interop_commit_digest": semantic_digest},
-            protocol_version=STRICT_PROTOCOL_VERSION,
         )
         reveal_ref = f"{self.episode}:reveal:{prediction_id}"
         self.authority.append_evidence_reveal(
@@ -191,15 +196,16 @@ class E09AuthorityServiceTests(unittest.TestCase):
             self.store, signature_verifier=self.keyring.verify,
             verifier_id=self.keyring.verifier_id,
             clock=_FixedClock(datetime(2026, 11, 12, 0, 30, tzinfo=timezone.utc)),
+            domain_registry=self.domain_registry,
         )
         permit = verifier.verify_branch_merge_authorization(
             episode_id=self.episode, authorization_ref="grant-1",
             parent_state_ref="parent-1", branch_ids=("left", "right"),
             scope=self.scope, learner_track=self.track,
-            world_family_by_evidence={reveal_ref: "family-a"},
         )
         self.assertEqual(permit.issuer_id, "issuer-authority")
         self.assertEqual(permit.verifier_id, self.keyring.verifier_id)
+        self.assertTrue(permit.domain_provenance_verified)
 
     def test_verifier_issues_signed_redacted_cross_process_receipt(self):
         reveal_ref = self._prior_prediction()
@@ -218,14 +224,13 @@ class E09AuthorityServiceTests(unittest.TestCase):
             verifier_id=self.keyring.verifier_id,
             clock=_FixedClock(datetime(2026, 11, 12, 0, 30, tzinfo=timezone.utc)),
             receipt_signer=_NamedSigner(verifier_private, self.keyring.verifier_id),
+            domain_registry=self.domain_registry,
         )
         receipt = verifier.issue_verification_receipt(
             episode_id=self.episode, authorization_ref="grant-receipt",
             parent_state_ref="parent-1", branch_ids=("left", "right"),
             scope=self.scope, learner_track=self.track,
-            world_family_by_evidence={reveal_ref: "family-a"},
             candidate_evidence_refs=[reveal_ref],
-            candidate_evidence_world_family_by_ref={reveal_ref: "family-a"},
         )
         receipt_keyring = E09Ed25519IssuerKeyring({self.keyring.verifier_id: verifier_public})
         verified = verify_e09_verification_receipt(
@@ -238,7 +243,32 @@ class E09AuthorityServiceTests(unittest.TestCase):
         )
         self.assertEqual(verified.authorization_ref, "grant-receipt")
         self.assertEqual(verified.evidence[0].outcome, f"opaque-e09-evidence-ref:{reveal_ref}")
+        self.assertEqual(verified.evidence[0].domain_id, "domain:authority")
+        self.assertEqual(verified.evidence[0].domain_registry_id, "registry:authority")
+        self.assertEqual(verified.evidence[0].domain_registry_version, "v1")
+        self.assertEqual(receipt["schema_version"], "e09_verification_receipt@2")
         self.assertNotIn("target_or_feedback", receipt["evidence"][0])
+
+    def test_verifier_rejects_caller_supplied_world_family_override(self):
+        reveal_ref = self._prior_prediction()
+        self.authority.issue_branch_merge_authorization(
+            "authorizer-cert", episode_id=self.episode, authorization_id="grant-override",
+            scope=self.scope, parent_state_ref="parent-1", branch_ids=["left", "right"],
+            evidence_refs=[reveal_ref], ttl=timedelta(minutes=45),
+        )
+        verifier = E09VerifierService(
+            self.store, signature_verifier=self.keyring.verify,
+            verifier_id=self.keyring.verifier_id,
+            clock=_FixedClock(datetime(2026, 11, 12, 0, 30, tzinfo=timezone.utc)),
+            domain_registry=self.domain_registry,
+        )
+        with self.assertRaisesRegex(E09AuthorizationError, "overrides are forbidden"):
+            verifier.verify_branch_merge_authorization(
+                episode_id=self.episode, authorization_ref="grant-override",
+                parent_state_ref="parent-1", branch_ids=("left", "right"),
+                scope=self.scope, learner_track=self.track,
+                world_family_by_evidence={reveal_ref: "attacker-selected-family"},
+            )
 
     def test_caller_cannot_supply_verification_time(self):
         verifier = E09VerifierService(

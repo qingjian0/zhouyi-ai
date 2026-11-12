@@ -47,7 +47,8 @@ def _evidence_to_dict(v: Evidence) -> dict[str, Any]:
       "split_role":v.split_role.value,"observation_id":v.observation_id,"outcome":v.outcome,
       "model_version":v.model_version,"measurement_cost":v.measurement_cost,
       "prediction_commit_step":v.prediction_commit_step,"label_visibility_step":v.label_visibility_step,
-      "provenance":v.provenance}
+      "provenance":v.provenance,"domain_id":v.domain_id,
+      "domain_registry_id":v.domain_registry_id,"domain_registry_version":v.domain_registry_version}
 
 def _evidence_from_dict(v: dict[str, Any]) -> Evidence:
     d=dict(v); d["split_role"]=SplitRole(d["split_role"]); return Evidence(**d)

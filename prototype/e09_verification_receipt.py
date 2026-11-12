@@ -10,9 +10,9 @@ from prototype.e12a6_lifecycle_contract import Evidence, SplitRole
 from prototype.shared_evidence_protocol import canonical_json
 
 
-RECEIPT_SCHEMA = "e09_verification_receipt@1"
+RECEIPT_SCHEMA = "e09_verification_receipt@2"
 RECEIPT_AUDIENCE = "e12a6-lifecycle-writer"
-RECEIPT_DOMAIN = "zhouyi:e09:verification-receipt:v1"
+RECEIPT_DOMAIN = "zhouyi:e09:verification-receipt:v2"
 RECEIPT_FIELDS = {
     "schema_version", "receipt_id", "nonce", "audience", "verifier_id",
     "episode_id", "authorization_ref", "scope", "parent_state_ref",
@@ -22,7 +22,8 @@ RECEIPT_FIELDS = {
 EVIDENCE_FIELDS = {
     "evidence_id", "episode_id", "world_family", "split_role", "observation_id",
     "outcome", "model_version", "measurement_cost", "prediction_commit_step",
-    "label_visibility_step", "provenance",
+    "label_visibility_step", "provenance", "domain_id",
+    "domain_registry_id", "domain_registry_version",
 }
 
 
@@ -179,6 +180,10 @@ def verify_e09_verification_receipt(
                 or not math.isfinite(float(parsed.measurement_cost))
                 or parsed.measurement_cost < 0):
             raise E09VerificationReceiptError("receipt evidence measurement cost is invalid")
+        if any(not getattr(parsed, field) for field in (
+            "domain_id", "domain_registry_id", "domain_registry_version",
+        )):
+            raise E09VerificationReceiptError("receipt evidence lacks trusted domain registry provenance")
         evidence.append(parsed)
     if seen != set(refs):
         raise E09VerificationReceiptError("receipt evidence DTO set is incomplete")
