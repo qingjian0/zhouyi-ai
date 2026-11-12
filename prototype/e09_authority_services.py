@@ -96,6 +96,15 @@ class E09DomainRegistry(Protocol):
         ...
 
 
+class E09LearnerBindingResolver(Protocol):
+    """Trusted mapping from an experiment track to its assigned learner workload."""
+
+    def resolve(
+        self, *, episode_id: str, scope: str, learner_track: str
+    ) -> str:
+        ...
+
+
 class E09GrantSigner(Protocol):
     """HSM/KMS-backed issuer signer; private key material stays outside E09."""
 
@@ -147,6 +156,7 @@ class E09AuthorityService:
         clock: E09Clock | None = None,
         max_grant_ttl: timedelta = timedelta(minutes=5),
         domain_registry: E09DomainRegistry | None = None,
+        learner_binding_resolver: E09LearnerBindingResolver | None = None,
     ) -> None:
         if not isinstance(store, SQLiteEvidenceStore):
             raise TypeError("store must be SQLiteEvidenceStore")
@@ -164,6 +174,11 @@ class E09AuthorityService:
         if domain_registry is not None and not callable(getattr(domain_registry, "resolve", None)):
             raise TypeError("domain_registry must implement resolve")
         self._domain_registry = domain_registry
+        if learner_binding_resolver is not None and not callable(
+            getattr(learner_binding_resolver, "resolve", None)
+        ):
+            raise TypeError("learner_binding_resolver must implement resolve")
+        self._learner_binding_resolver = learner_binding_resolver
 
     def _principal(self, credential: object, *, role: str, scope: str) -> E09AuthenticatedWorkload:
         if not isinstance(scope, str) or not scope.strip():
@@ -456,7 +471,7 @@ class E09AuthorityService:
         split: str,
         payload_ref: str | None = None,
         feature_schema_version: str | None = None,
-        learner_workload_id: str | None = None,
+        learner_track: str,
         causation_refs: tuple[str, ...] | list[str] = (),
         expected_sequence: int | None = None,
     ) -> EventReceipt:
@@ -487,10 +502,20 @@ class E09AuthorityService:
                 if not isinstance(value, str) or not value.strip():
                     raise E09AuthorizationError(f"{field} must be a non-empty string")
                 payload[field] = value
-        if learner_workload_id is not None:
-            if not isinstance(learner_workload_id, str) or not learner_workload_id.strip():
-                raise E09AuthorizationError("learner_workload_id must be a non-empty string")
-            payload["learner_workload_id"] = learner_workload_id
+        if not isinstance(learner_track, str) or not learner_track.strip():
+            raise E09AuthorizationError("learner_track must be a non-empty string")
+        if self._learner_binding_resolver is None:
+            raise E09AuthorizationError("trusted learner binding resolver is not configured")
+        try:
+            learner_workload_id = self._learner_binding_resolver.resolve(
+                episode_id=episode_id, scope=scope, learner_track=learner_track
+            )
+        except Exception as exc:
+            raise E09AuthorizationError("no trusted learner workload is assigned to this track") from exc
+        if not isinstance(learner_workload_id, str) or not learner_workload_id.strip():
+            raise E09AuthenticationError("learner binding resolver returned an invalid workload ID")
+        payload["learner_track"] = learner_track
+        payload["learner_workload_id"] = learner_workload_id
         if payload_ref is not None:
             try:
                 self._store.get_payload(payload_ref)
