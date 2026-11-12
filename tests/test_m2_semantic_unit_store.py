@@ -248,6 +248,29 @@ class PersistentM2SemanticUnitStoreTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             list(self.store.iter_candidates(limit=1, max_bytes=self.memory.max_page_bytes + 1))
 
+    def test_checkpointed_startup_python_heap_does_not_materialize_history(self):
+        large_surface = "象" * 8192
+        for index in range(512):
+            self.store.record_candidate(
+                self.candidate(f"bounded-{index:04d}", surface=large_surface)
+            )
+        stored_bytes = self.memory.db.execute(
+            "SELECT SUM(length(CAST(payload_json AS BLOB))) FROM memory_events "
+            "WHERE event_type='m2_semantic_unit' AND scope='project-a'"
+        ).fetchone()[0]
+        self.assertGreater(stored_bytes, 4 * 1024 * 1024)
+
+        import tracemalloc
+        tracemalloc.start()
+        restored = PersistentM2SemanticUnitStore(
+            self.memory, self.resolver, scope="project-a"
+        )
+        _, peak = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
+
+        self.assertLess(peak, 3 * 1024 * 1024)
+        self.assertEqual(len(list(restored.iter_candidates(limit=1))), 1)
+
     def test_store_keeps_historical_candidate_bodies_out_of_python_state(self):
         self.store.record_candidate(self.candidate("disk-backed-1"))
         self.store.record_candidate(self.candidate("disk-backed-2"))
