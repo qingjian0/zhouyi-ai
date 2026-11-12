@@ -182,7 +182,8 @@ class E09VerifierUnixRPCTests(unittest.TestCase):
         )
         self.assertEqual(first, second)
         self.assertEqual(len(self.verifier.calls), 1)
-        self.assertEqual(first["receipt_id"], "receipt-1")
+        self.assertRegex(first["receipt_id"], r"^[0-9a-f]{32}$")
+        self.assertGreaterEqual(len(first["nonce"]), 32)
 
     def test_operation_id_cannot_be_reused_for_different_receipt_request(self):
         self.client.request(
