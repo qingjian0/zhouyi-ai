@@ -174,7 +174,7 @@ class ObservationCandidatePipelineTests(unittest.TestCase):
 
     def test_rejects_duplicate_ids_before_any_append(self):
         candidate = make_candidate(self.observation)
-        pipeline = ObservationCandidatePipeline(_Extractor([candidate, candidate]), self.store)
+        pipeline = ObservationCandidatePipeline(_Extractor([candidate, candidate]), self.store, self.observation_store)
         with self.assertRaisesRegex(SemanticExtractionError, "duplicate"):
             self.run_pipeline(pipeline)
         self.store.record_candidate.assert_not_called()
