@@ -1,4 +1,4 @@
-# Mixed-operator learner: independent-seed replication and controls v2
+# Mixed-operator learner: five-seed replication and controls v3
 
 ## Purpose
 
@@ -6,7 +6,7 @@ The initial trainable polynomial baseline reports one eight-family corpus seed. 
 
 ## Fixed protocol
 
-- Two independent corpus seeds: 20261114 and 20261115.
+- Five independent corpus seeds: 20261114–20261118.
 - Eight teacher families per seed; eight Boolean inputs and eight outputs.
 - 256 states per family, with disjoint 128/64/64 train/development/locked partitions.
 - 120 epochs, learning rate 0.1, L2 0.0001.
@@ -15,7 +15,7 @@ The initial trainable polynomial baseline reports one eight-family corpus seed. 
 - Majority control: per-output majority label estimated from that family's training partition; ties predict 0.
 - Each teacher family is fitted independently. Locked states are evaluation-only and never select hyperparameters.
 
-The combined benchmark contains 16 independent teacher families and 4,096 rows across two corpora, twice the row count of the original eight-family, single-seed run.
+The combined benchmark contains 40 independent teacher families and 10,240 rows across five corpora, five times the row count of the original eight-family, single-seed run.
 
 ## Reporting
 
@@ -23,7 +23,7 @@ The report contains per-seed development and locked metrics, corpus digests, mea
 
 ## Interpretation limits
 
-This remains per-family supervised fitting on synthetic Boolean operators. It is not cross-family meta-learning, zero-shot transfer, open-world relation discovery, causal discovery, Yi-Xue reasoning, or natural-language reasoning. The full model uses a fixed exhaustive feature basis; it does not learn that basis. Two seeds provide only preliminary dispersion estimates.
+This remains per-family supervised fitting on synthetic Boolean operators. It is not cross-family meta-learning, zero-shot transfer, open-world relation discovery, causal discovery, Yi-Xue reasoning, or natural-language reasoning. The full model uses a fixed exhaustive feature basis; it does not learn that basis. Five seeds provide a more useful, though still limited, estimate of between-seed dispersion.
 
 ## Validation
 
