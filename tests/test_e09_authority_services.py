@@ -69,6 +69,13 @@ class _DomainRegistry:
         )
 
 
+class _LearnerBindingRegistry:
+    def resolve(self, *, episode_id, scope, learner_track):
+        if learner_track != "learner-a":
+            raise ValueError("unassigned learner track")
+        return "spiffe://zhouyi/learner"
+
+
 def _identity(workload_id, issuer_id, roles, scopes):
     return E09AuthenticatedWorkload(
         workload_id=workload_id,
@@ -111,6 +118,7 @@ class E09AuthorityServiceTests(unittest.TestCase):
             clock=_FixedClock(datetime(2026, 11, 12, 0, 0, tzinfo=timezone.utc)),
             max_grant_ttl=timedelta(hours=1),
             domain_registry=_DomainRegistry(),
+            learner_binding_resolver=_LearnerBindingRegistry(),
         )
 
     def tearDown(self):
@@ -124,6 +132,7 @@ class E09AuthorityServiceTests(unittest.TestCase):
             "observer-cert", episode_id=self.episode, event_id=observation_event,
             idempotency_key=observation_event, observation_id=observation_id,
             query_id=observation_id, scope=self.scope, split="SUPPORT",
+            learner_track=self.track,
         )
         prediction_id = "prediction-1"
         commit_event = f"{self.episode}:prediction:{prediction_id}"
@@ -444,6 +453,7 @@ class E09AuthorityServiceTests(unittest.TestCase):
                 idempotency_key=f"{self.episode}:observation:missing-payload",
                 observation_id="missing-payload", query_id="missing-payload",
                 scope=self.scope, split="SUPPORT", payload_ref="sha256:does-not-exist",
+                learner_track=self.track,
             )
 
     def test_adapter_workload_validation_requires_trusted_domain_registry(self):
