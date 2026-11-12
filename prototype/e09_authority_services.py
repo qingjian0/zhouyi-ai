@@ -451,7 +451,6 @@ class E09VerifierService:
         current = self._clock.now()
         if not isinstance(current, datetime) or current.tzinfo is None:
             raise E09AuthenticationError("verifier clock must return a timezone-aware datetime")
-        request.pop("world_family_by_evidence", None)
         return resolve_branch_merge_authorization(
             self._store,
             signature_verifier=self._signature_verifier,
