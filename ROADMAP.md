@@ -32,11 +32,11 @@
 ## CPG-EI 当前验证顺序
 
 1. PR #422 已完成 compute-accounted 三路对照：同 corpus、同 split、候选评估数、feature count、wall time、allocation peak 与 RSS scope 均已记录。Hybrid 相对 full polynomial 提升 locked bit / exact-state accuracy 至 90.04% / 41.21%，耗时 711.25 s；有限符号搜索仍以 11.54 s 达到 99.90% locked bit accuracy。
-2. 当前优先验证 PR #427：NumPy float64 向量化优化器必须通过 scalar-reference 数值一致性和完整速度基准；在 exact-head artifact 完成前不宣称加速结果。
-3. 若向量化路径通过，再对 hybrid 做独立种子复现，并扩展到组合规则/未见规则族；locked 结果不得用于调参。
-4. 将结构恢复、operator recovery、truth-function recovery、bit accuracy 和 exact-state accuracy 分开报告。
-5. 只有完成同数据、多种子、负对照和 compute-accounting 后，才讨论与其他架构的 matched-compute 对照。
-
+2. PR #427 正在验证 full-basis NumPy 向量化优化器；必须通过 scalar-reference 数值一致性和完整速度基准，exact-head artifact 完成前不宣称加速结果。
+3. PR #428 正在测试 XOR-of-two-conjunctions 组合目标（超出单算子候选语法），使用三种子和 state-disjoint split。这属于 operator-grammar OOD，不是 held-out-family zero-shot transfer。
+4. 若向量化路径通过，再对 hybrid 做独立种子复现，并扩展到更深组合和严格未见 teacher-family 测试；locked 结果不得用于调参。
+5. 将结构恢复、operator recovery、truth-function recovery、bit accuracy 和 exact-state accuracy 分开报告。
+6. 只有完成同数据、多种子、负对照和 compute-accounting 后，才讨论与其他架构的 matched-compute 对照。
 详细数据、corpus digest、exact-head CI 和依赖链见 [2026-11-13 研究状态增补](docs/RESEARCH_STATUS_2026-11-13.md)。
 
 ## 近期优先顺序
@@ -44,12 +44,11 @@
 1. 完成 #427 exact-head scalar/vectorized parity 与 full benchmark，复核 artifact、数值偏差和 wall-time speedup。
 2. 复核 #428 组合规则 out-of-grammar 结果；若有效，再设计更深组合与严格未见 teacher-family 测试。
 3. 在多个独立种子上复现 #422 hybrid。
-3. 收敛 CPG-EI 依赖栈：#409/#410 → #411 → #413 → #417；#418 是 #417 的独立子分支；#419 → #420 → #421 → #422 → #427 是另一条连续链。
-3. E12-A6：分别验收普通启动、bounded restore、checkpoint anchor、semantic replay 和 crash fallback。
-4. E09：分别验收 trusted identity、receipt/nonce、lineage 和真实 OS 进程边界。
-5. N0.10：收敛数据 provenance、group-disjoint split、checkpoint fingerprints、streaming runner 和 locked evaluator。
-6. 只有父依赖、exact-head CI、接口审计、E2E/crash/OOD/RSS 门禁全部通过后，才建立从 main 派生的单一集成祖先。
-
+4. 收敛 CPG-EI 依赖栈：#409/#410 → #411 → #413 → #417；#418 是 #417 的独立子分支；#419 → #420 → #421 → #422；#423、#426、#427、#428 是 #422 的独立后续分支，#429 依赖 #426。
+5. E12-A6：分别验收普通启动、bounded restore、checkpoint anchor、semantic replay 和 crash fallback。
+6. E09：分别验收 trusted identity、receipt/nonce、lineage 和真实 OS 进程边界。
+7. N0.10：收敛数据 provenance、group-disjoint split、checkpoint fingerprints、streaming runner 和 locked evaluator。
+8. 只有父依赖、exact-head CI、接口审计、E2E/crash/OOD/RSS 门禁全部通过后，才建立从 main 派生的单一集成祖先。
 ## 发布门禁
 
 - 所有研究 PR 默认 Draft；不因 mergeable 或某个旧 SHA 的 CI 成功自动转为 Ready。
