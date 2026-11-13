@@ -7,3 +7,8 @@
 - 不允许根据书名或后世注释自动生成古义；不允许将晚出解释回填为早期文本原义。
 
 主规范见 [传统古籍类象研究总纲与语料建设规范](../docs/CLASSICAL_YIXIANG_CORPUS_AND_RESEARCH_PROTOCOL.md)。
+
+
+## 结构化语料与来源目录的区别
+
+`classical_yixiang_source_catalog.json` 是候选作品/篇章目录；它不表示文本已入库或已校勘。具体短引与主张级证据记录保存在 `classical_xiang_corpus.v0.1.json`，其格式见 `../schemas/classical-xiang-corpus.schema.json`。只有完成底本定位、文本核验和审核的条目才能升级状态。
