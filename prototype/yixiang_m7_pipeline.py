@@ -51,11 +51,39 @@ def run_m7(inputs: M7Input) -> M7Result:
     if not isinstance(inputs, M7Input):
         raise ValueError("inputs must be an M7Input")
 
+    tuple_fields = (
+        ("candidates", inputs.candidates), ("priors", inputs.priors),
+        ("observation_candidates", inputs.observation_candidates),
+        ("mappings", inputs.mappings), ("mapping_to_candidate", inputs.mapping_to_candidate),
+        ("baseline_conditions", inputs.baseline_conditions), ("interventions", inputs.interventions),
+        ("residual_cases", inputs.residual_cases), ("known_signatures", inputs.known_signatures),
+    )
+    for name, value in tuple_fields:
+        if not isinstance(value, tuple):
+            raise ValueError(f"{name} must be a tuple")
+    if not inputs.candidates:
+        raise ValueError("at least one M3 candidate is required")
+    if not inputs.priors:
+        raise ValueError("at least one M5 prior is required")
+
     arbitration = arbitrate(inputs.candidates)
     candidate_ids = {candidate.candidate_id for candidate in inputs.candidates}
-    prior_ids = {prior.hypothesis_id for prior in inputs.priors}
+    prior_id_list = [prior.hypothesis_id for prior in inputs.priors]
+    prior_ids = set(prior_id_list)
+    if len(prior_id_list) != len(prior_ids):
+        raise ValueError("M5 prior hypothesis ids must be unique")
     if candidate_ids != prior_ids:
         raise ValueError("M5 prior hypothesis ids must exactly match M3 candidate ids")
+
+    for pair in inputs.mapping_to_candidate:
+        if (not isinstance(pair, tuple) or len(pair) != 2
+                or any(not isinstance(value, str) or not value.strip() for value in pair)):
+            raise ValueError("mapping_to_candidate entries must be non-empty string pairs")
+    for pair in inputs.interventions:
+        if (not isinstance(pair, tuple) or len(pair) != 2
+                or not isinstance(pair[0], str) or not pair[0].strip()
+                or not isinstance(pair[1], tuple)):
+            raise ValueError("interventions entries must be (mapping_id, tuple) pairs")
 
     mapping_ids = [mapping.mapping_id for mapping in inputs.mappings]
     if len(mapping_ids) != len(set(mapping_ids)):
