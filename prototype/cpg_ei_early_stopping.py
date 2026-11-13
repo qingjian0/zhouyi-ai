@@ -235,6 +235,7 @@ def fit_with_early_stopping(
 def run_early_stopping_baseline(
     corpus: dict, *, max_epochs: int = 120, patience: int = 12,
     min_delta: float = 1e-5, learning_rate: float = 0.1, l2: float = 1e-4,
+    fit_function=None,
 ) -> dict[str, Any]:
     manifest = corpus["manifest"]
     input_dim, output_dim = manifest["input_dim"], manifest["output_dim"]
@@ -243,6 +244,7 @@ def run_early_stopping_baseline(
         rows_by_family[row["family_id"]].append(row)
 
     family_results = []
+    selected_fit_function = fit_function or fit_with_early_stopping
     for family_id in sorted(rows_by_family):
         rows = rows_by_family[family_id]
         examples = {
@@ -256,7 +258,7 @@ def run_early_stopping_baseline(
             input_dim=input_dim, output_dim=output_dim,
             min_arity=1, max_arity=input_dim,
         )
-        fit = fit_with_early_stopping(
+        fit = selected_fit_function(
             model, examples["train"], examples["development"],
             max_epochs=max_epochs, patience=patience, min_delta=min_delta,
             learning_rate=learning_rate, l2=l2,
@@ -300,7 +302,9 @@ def run_early_stopping_baseline(
             "learning_rate": learning_rate,
             "l2": l2,
             "checkpoint_selection": "minimum development binary cross-entropy",
-            "optimizer_backend": "NumPy vectorized float64 when installed; stdlib scalar fallback otherwise",
+            "optimizer_backend": (
+                family_results[0]["optimizer_backend"] if family_results else "not-run"
+            ),
         },
         "evaluation_protocol": (
             "Independent per-family fitting. Training states update weights; "
