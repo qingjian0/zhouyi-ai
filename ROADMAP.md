@@ -17,6 +17,7 @@
 | P1-C | 新象发现与结构重组 | 残差聚类、候选新象、版本化、回滚 | M6 精确 typed-signature 残差分组、跨域/多来源门槛、人工审查版本与回滚原型已提交；独立留出验证和模糊聚类待开展 |
 | P1 | 易象驱动的组合认知 | 动态超图、并行推演、证据协调、自组织 | M7 M3–M6 透明规则编排原型已提交；持久化事件账本、真实观测执行与在线学习待开展 |
 | P1-EVAL | 理论贡献验证 | 消融、跨域迁移、错误类比拒绝、OOD 与成本评估 | M5/M6/M7 测试已接入；修正 M6 测试断言后，最新 CI 待验证；此前 head 曾因断言不匹配失败 |
+| P1-EVAL-M8 | 类象有效性与迁移基准 | 独立 case schema、四态裁决 gold、来源谱系泄漏检测、分层指标 | M8 v0.1 设计与首版 validator/metrics/synthetic fixtures 已提交；尚待 CI 和人工 gold 标注 |
 | P2 | 通用模型与工程 | 语言生成、训练优化、加速、部署 | 按核心研究需要推进 |
 
 ## 近期研究主线
@@ -48,3 +49,8 @@ M1 文档与实现见 `docs/YIXIANG_MULTISCALE_TIME_M1_V0_1.md`、`prototype/yix
 ## 原有实验的处理
 
 E01/E02、GF(2)、ANF、高阶关系和优化器研究不删除；保留为底层数学工具或对照实验。只有能明确支持 P0 理论机制、模型能力或评估的部分，才列入近期主线。
+
+
+### M8 当前实现边界
+
+`prototype/yixiang_benchmark.py` 提供 benchmark case/dataset/prediction 校验、四态混淆矩阵与 macro-F1、缺失预测按 abstain 计分，以及来源谱系跨 split 泄漏报告。`data/yixiang_benchmark_synthetic.v0.1.json` 仅用于接口测试，不是古籍 gold 数据，不得用于声称类象理论有效。人工审查、双人标注、一致性统计、关系族分层评估和 M7 适配仍待实现。
