@@ -111,7 +111,8 @@ def evaluate_predictions(cases:Sequence[Mapping],predictions:Sequence[Mapping],*
             "selective_coverage":answered/n,
             "selective_risk":selective_errors/answered if answered else None,
             "by_relation_family":stratify("relation_families",set(v for c in cases for v in c["relation_families"])),
-            "by_source_status":stratify("source_status",set(c["source_status"] for c in cases))}
+            "by_source_status":stratify("source_status",set(c["source_status"] for c in cases)),
+            "by_claim_kind":stratify("claim_kind",set(c["claim_kind"] for c in cases))}
 def group_leakage(cases:Sequence[Mapping],*,group_field="source_lineage")->dict:
     """Report source groups spanning splits; never silently repair leakage."""
     if group_field not in {"source_lineage","independence_group"}: raise ValueError("unsupported grouping field")
