@@ -182,7 +182,7 @@ def rollback_proposal(proposal: NoveltyProposal, *, reason: str) -> NoveltyPropo
         raise ValueError("rollback reason is required")
     return NoveltyProposal(
         proposal.proposal_id, proposal.signature, proposal.support_residual_ids,
-        proposal.support_observation_ids, proposal.domains, proposal.context_values,
+        proposal.support_observation_ids, proposal.domains, proposal.context_records,
         proposal.evidence_refs, ProposalStatus.PROPOSED, proposal.version + 1,
         f"{proposal.proposal_id}:v{proposal.version}", f"rollback: {reason}",
     )
