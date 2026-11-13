@@ -16,6 +16,7 @@ class XunziObservationGroundingTests(unittest.TestCase):
             context="controlled observation context",
             timepoint="t1",
             referent_anchor=anchor,
+            spatial_location="location-a",
         )
         values.update(overrides)
         return ObservationRecord(**values)
@@ -41,6 +42,28 @@ class XunziObservationGroundingTests(unittest.TestCase):
         result = assess_referent_pair(pair)
         self.assertEqual(result.decision, ReferentDecision.SAME_REFERENT)
         self.assertTrue(result.transformation_detected)
+
+    def test_same_location_does_not_override_distinct_referents(self):
+        pair = ReferentPairEvidence(
+            first=self.observation("o1", ("shape-a",), "object-a",
+                                   spatial_location="same-room"),
+            second=self.observation("o2", ("shape-b",), "object-b",
+                                    spatial_location="same-room"),
+            separation_refs=("track:distinct-objects",),
+        )
+        self.assertEqual(assess_referent_pair(pair).decision,
+                         ReferentDecision.DISTINCT_REFERENTS)
+
+    def test_location_change_does_not_break_identity_with_continuity(self):
+        pair = ReferentPairEvidence(
+            first=self.observation("o1", ("shape-a",), "object-a",
+                                   spatial_location="room-1"),
+            second=self.observation("o2", ("shape-b",), "object-a",
+                                    spatial_location="room-2"),
+            continuity_refs=("track:continuous-movement",),
+        )
+        self.assertEqual(assess_referent_pair(pair).decision,
+                         ReferentDecision.SAME_REFERENT)
 
     def test_appearance_alone_is_insufficient(self):
         pair = ReferentPairEvidence(
