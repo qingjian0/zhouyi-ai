@@ -41,7 +41,7 @@ class BenchmarkContractTests(unittest.TestCase):
   self.assertEqual(by_id["dyn-046"]["gold_decision"],"reject")
   self.assertEqual(by_id["dyn-047"]["gold_decision"],"reject")
   self.assertIn("a selected circular-form resemblance",by_id["dyn-046"]["shared_basis"])
-  self.assertIn("not sufficient",by_id["dyn-047"]["gold_rationale"])
+  self.assertIn("necessary-to-sufficient inference",by_id["dyn-047"]["gold_rationale"])
   self.assertEqual(by_id["dyn-046"]["split_group"],"holdout")
   self.assertEqual(by_id["dyn-047"]["split_group"],"holdout")
  def test_dynamic_context_fixture_expected_decisions(self):
