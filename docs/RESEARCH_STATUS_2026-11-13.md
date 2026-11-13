@@ -118,3 +118,17 @@ E09、E12-A6/ZPCM 与 N0.10 仍由独立研究分支承载。现有架构收敛�
 - PR #381 的 execution snapshot HEAD `1126a644e26458610ae8d867056551cfe5e819c0` 有 workflow #43253222365 success；它是 2026-11-12 的分支证据快照，不是第二套架构所有权规范。
 - #265 的主架构 v2 与 #358 的项目收敛基线都包含模块责任、运行闭环和 KV-independent 分层，存在文档权威重叠。应选定一个唯一架构决策入口；另一个保留为逐文件证据/历史审计并链接过去，避免两个“master”同时有效。
 
+
+
+### Sample-efficiency curve（same corpus digest）
+
+在相同 8-family corpus 上，将每个 family 的 train support 分别限制为 16 / 32 / 64 / 128 states；development 与 locked partition 保持不变：
+
+| Train states / family | Polynomial locked bit accuracy | Polynomial locked exact-state accuracy | Symbolic full-truth-table exact rate |
+|---:|---:|---:|---:|
+| 16 | 82.86% | 19.34% | 89.06% |
+| 32 | 84.06% | 19.14% | 92.19% |
+| 64 | 85.79% | 22.46% | 95.31% |
+| 128 | 85.52% | 20.90% | 98.44% |
+
+Symbolic 列是选中有限规则对完整 Boolean truth table 的精确恢复比例；不是与 polynomial locked accuracy 同一种指标。Polynomial 列是留出 locked states 的预测表现。该曲线只测每个 family 的 within-family adaptation，不是跨 family zero-shot transfer。
