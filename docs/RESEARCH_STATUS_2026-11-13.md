@@ -106,19 +106,24 @@ PR #427 在 #422 之上保留原 scalar optimizer 作为 reference/fallback，�
 - [Early-stopping regression #43365872882](https://github.com/qingjian0/zhouyi-ai/actions/runs/43365872882)
 
 因此，121.03× 是前一 head 的已验证实现结果；当前 head 的 accounting/fallback 修订尚未通过 exact-head CI。PR #427 仍是探索分支，不是独立 merge 候选；应将 full-basis 证据用于决定是否把 #426 的 canonical NumPy optimizer API 扩展到 full-basis learner。
-### 组合规则 out-of-grammar 基准（PR #428，待验证）
+### 组合规则 out-of-grammar 基准（PR #428，exact-head CI 成功）
 
 PR #428 使用 `(x_a AND x_b) XOR (x_c AND x_d)` 作为组合教师规则。当前符号发现器的候选空间只包含单一声明算子，因此测试目标刻意位于单算子 grammar 之外。
 
-- 3 个独立种子：20261114、20261115、20261116。
-- 每个种子 8 个 teacher families；6 个 Boolean 输入、4 个输出；每个 family 64 个状态。
-- 每个 family 按 32 train / 16 development / 16 locked 分割，状态互斥。
+- 3 个独立种子：20261114、20261115、20261116；24 teacher families / 1,536 rows。
+- 每个 family 6 个 Boolean 输入、4 个输出、64 个状态，32 train / 16 development / 16 locked，状态互斥。
 - 同 corpus、同 split 对照有限符号搜索、完整多项式学习器和 symbolic-support hybrid。
-- 单元测试验证目标函数确实不属于有限单算子 grammar，并验证 development/locked 标签不会改变符号选择或 hybrid support 特征。
-- 当前 exact head：`dde911b56414c8075a9e664125d391f8e35cf0c9`；专用 workflow [#43365433589](https://github.com/qingjian0/zhouyi-ai/actions/runs/43365433589) 尚在队列中，尚无结果声明。
+- Exact-head workflow [#43365433589](https://github.com/qingjian0/zhouyi-ai/actions/runs/43365433589) 成功；leakage tests、三种子 benchmark 和 artifact upload 全部通过。
 
-解释边界：这是 operator-grammar OOD，不是 held-out-family zero-shot transfer；每个 family 仍提供自己的监督训练样本。它不证明自然语言、易学、因果或真实世界推理。
+| Method | Locked bit accuracy | Locked exact-state accuracy |
+|---|---:|---:|
+| Finite single-operator symbolic | 68.95% (SD 0.59 pp) | 32.29% (SD 5.92 pp) |
+| Full polynomial | 46.68% (SD 3.99 pp) | 14.06% (SD 2.34 pp) |
+| Symbolic-support hybrid | 56.84% (SD 1.79 pp) | 11.98% (SD 0.90 pp) |
 
+重要负结果：hybrid 在 bit accuracy 上优于 full polynomial，但低于 symbolic；在 exact-state accuracy 上低于两者。由最小训练误差单算子 scope 构成的特征并集，不能可靠地作为 grammar 外组合规则的支持先验。
+
+解释边界：这是 operator-grammar OOD，不是 held-out-family transfer；每个 family 仍提供自己的监督训练样本。它不证明自然语言、易学、因果或真实世界推理。
 ### 大规模 family 扩展（PR #431，待验证）
 
 - 目标从 400 扩大到 1,600 个独立教师结构；每个 8-bit family 仍包含 256 个状态。
