@@ -12,6 +12,11 @@ class CorpusTests(unittest.TestCase):
   self.assertEqual(len({r["record_id"] for r in self.records}),len(self.records))
   ids=[c["claim_id"] for r in self.records for c in r["claims"]]
   self.assertEqual(len(ids),len(set(ids)))
+ def test_duplicate_xunzi_digital_witness_is_consolidated_without_losing_claims(self):
+  matches=[r for r in self.records if r["work"]["title"]=="荀子·正名篇" and r["text"]=="正名而期，质请而喻，辨异而不过，推类而不悖。"]
+  self.assertEqual(len(matches),1)
+  self.assertEqual(len(matches[0]["claims"]),3)
+  self.assertTrue(any("不作为第二个独立版本" in note for note in matches[0].get("variant_notes",[])))
  def test_concept_tags_are_required_and_controlled(self):
   r=dict(self.records[0]); r["concept_tags"]=["invented_universal_category"]
   with self.assertRaisesRegex(ValueError,"concept_tags"): validate_record(r)
