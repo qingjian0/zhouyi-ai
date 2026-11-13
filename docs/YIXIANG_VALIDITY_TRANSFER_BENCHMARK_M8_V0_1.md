@@ -191,7 +191,7 @@
 1. [已实现] 独立 benchmark schema 与 validator，不改变古籍 corpus 原始层。
 2. [待开展] 建立 30–50 个人工审查的最小对照样本，先覆盖 B0–B4；未校勘古籍例只进入 exploratory pool。
 3. [首版已实现] source lineage / independence group 跨 split 泄漏报告；自动报告不等于自动修复数据划分。
-4. [首版已实现] deterministic evaluator：四态混淆矩阵、per-class 指标、macro-F1、关系族/来源状态分层准确率。
+4. [首版已实现] deterministic evaluator：四态混淆矩阵、per-class 指标、macro-F1、关系族/来源状态分层混淆矩阵与 Macro-F1、abstention coverage / selective risk。
 5. [待开展] 接入 M7 输出快照，评估器继续保持管线外置。
 6. [待开展] 形成首轮人工标注基准报告后再扩到 B5–B6。
 
