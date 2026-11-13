@@ -15,6 +15,7 @@ class ClaimKind(str, Enum):
     ARGUMENTATIVE_ANALOGY = "argumentative_analogy"
     ACTION_OUTCOME = "action_outcome"
     PRACTICAL_UTILITY = "practical_utility"
+    SYMBOLIC_CORRESPONDENCE = "symbolic_correspondence"
 
 
 class EvidenceKind(str, Enum):
@@ -118,6 +119,9 @@ def assess_lei_claim(claim: LeiClaim) -> LeiClaimAssessment:
             reasons.append("OUTCOME_NOT_OBSERVED")
         if claim.causal_identification == "not_asserted":
             reasons.append("CAUSALITY_NOT_ESTABLISHED")
+
+    if claim.kind == ClaimKind.SYMBOLIC_CORRESPONDENCE and claim.causal_identification != "not_asserted":
+        reasons.append("SYMBOLIC_CORRESPONDENCE_CANNOT_ESTABLISH_EMPIRICAL_CAUSALITY")
 
     if claim.kind == ClaimKind.PRACTICAL_UTILITY:
         if not claim.utility_criteria:
