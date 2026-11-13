@@ -95,6 +95,16 @@ class RelationAlgebraTests(unittest.TestCase):
                 ontology=self.ontology,
             )
 
+    def test_ontology_has_versioned_identity_and_immutable_types(self):
+        self.assertEqual(self.ontology.ontology_id, "relation-ontology")
+        self.assertEqual(self.ontology.version, "0.1")
+        with self.assertRaises(TypeError):
+            self.ontology.types["new"] = RelationType("new")
+
+    def test_rejects_empty_ontology_identity(self):
+        with self.assertRaises(ValueError):
+            RelationOntology({"r": RelationType("r")}, ontology_id=" ")
+
     def test_rejects_non_boolean_relation_flags(self):
         with self.assertRaises(ValueError):
             RelationOntology({"adjacent": RelationType("adjacent", symmetric=1)})
