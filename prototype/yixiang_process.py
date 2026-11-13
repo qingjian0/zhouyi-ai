@@ -86,9 +86,14 @@ def derive_pattern(observations: tuple[Observation, ...], *, pattern_id: str, di
     # A feature key is invariant only when one value clears the configured
     # support threshold. Ambiguous/missing values remain variable.
     invariant = {}
-    for (key, value), count in candidates.items():
-        if key not in invariant or count > candidates.get((key, invariant[key]), -1):
-            invariant[key] = value
+    for key in keys:
+        ranked = sorted(
+            ((count, value) for (candidate_key, value), count in candidates.items() if candidate_key == key),
+            reverse=True,
+        )
+        if ranked and (len(ranked) == 1 or ranked[0][0] > ranked[1][0]):
+            if ranked[0][0] / len(observations) >= min_support_ratio:
+                invariant[key] = ranked[0][1]
     variable = sorted(keys - set(invariant))
     refs = tuple(sorted({ref for o in observations for ref in o.evidence_refs}))
     return Pattern(pattern_id, 1, dimensions, invariant, tuple(variable), (), tuple(ids), (), refs, scope)
