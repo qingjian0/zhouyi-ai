@@ -61,14 +61,18 @@ class TransitionSystem:
             if len(set(snapshot.relations)) != len(snapshot.relations):
                 raise ValueError("duplicate relation atoms are not allowed in a snapshot")
             for relation in snapshot.relations:
-                if (not isinstance(relation.kind, str) or not relation.kind.strip()
+                if (not isinstance(relation.source, str) or not relation.source.strip()
+                        or not isinstance(relation.target, str) or not relation.target.strip()
+                        or not isinstance(relation.kind, str) or not relation.kind.strip()
                         or relation.source not in entity_set
                         or relation.target not in entity_set):
                     raise ValueError("snapshot relation has an unknown entity or empty kind")
         transition_keys = set()
         step_by_id = {s.state_id: s.step for s in self.snapshots}
         for transition in self.transitions:
-            if (transition.source_state not in state_set
+            if (not isinstance(transition.source_state, str)
+                    or not isinstance(transition.target_state, str)
+                    or transition.source_state not in state_set
                     or transition.target_state not in state_set):
                 raise ValueError("transition references an unknown state")
             if (not isinstance(transition.event_kind, str)
@@ -189,7 +193,8 @@ def assess_dynamic_analogy(
             if fact.source in mapping and fact.target in mapping:
                 expected_facts.add((target_id, mapping[fact.source], mapping[fact.target], fact.kind))
         for fact in target_states[target_id].relations:
-            observed_facts.add((target_id, fact.source, fact.target, fact.kind))
+            if fact.source in mapped_targets and fact.target in mapped_targets:
+                observed_facts.add((target_id, fact.source, fact.target, fact.kind))
     preserved_facts = len(expected_facts & observed_facts)
     state_precision = _ratio(preserved_facts, len(observed_facts), empty_value=1.0)
     state_recall = _ratio(preserved_facts, len(expected_facts), empty_value=1.0)
@@ -202,6 +207,7 @@ def assess_dynamic_analogy(
                 alignment[edge.source_state], alignment[edge.target_state], edge.event_kind
             ))
     aligned_targets = set(alignment.values())
+    mapped_targets = set(mapping.values())
     observed_transitions = {
         (edge.source_state, edge.target_state, edge.event_kind)
         for edge in candidate.target.transitions
