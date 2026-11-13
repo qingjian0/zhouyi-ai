@@ -24,7 +24,7 @@ class ClassicalYixiangCasebookTests(unittest.TestCase):
         self.assertTrue({"周易·系辞下传", "墨子", "荀子", "公孙龙子", "淮南子", "论衡"}.issubset(works))
         self.assertTrue(any(source["chapter"] == "要略" for source in self.book["sources"]))
         self.assertGreaterEqual(len(self.book["cases"]), 11)
-        self.assertEqual(len(self.book["cases"]), 21)
+        self.assertEqual(len(self.book["cases"]), 22)
         self.assertTrue({"吕氏春秋", "淮南子"}.issubset(works))
         self.assertTrue(any(source["chapter"] == "恃君览·别类" for source in self.book["sources"]))
         self.assertTrue(any(source["chapter"] == "说山训" for source in self.book["sources"]))
@@ -77,6 +77,16 @@ class ClassicalYixiangCasebookTests(unittest.TestCase):
         yingtong_source = next(source for source in self.book["sources"] if source["source_id"] == "src_lushi_yingtong")
         self.assertIn("不作为现代自然因果事实", yingtong_source["witness_limit"])
         self.assertTrue(any("后期墨家" in item for item in case["alternative_readings"]))
+
+    def test_mojing_jingxia_preserves_taxonomic_transfer_difficulty(self):
+        case = next(item for item in self.book["cases"] if item["case_id"] == "xy_022")
+        self.assertEqual(case["source_id"], "src_mojing_jingxia")
+        self.assertIn("推类之难", case["excerpt"])
+        self.assertIn("classification", case["operation"])
+        self.assertTrue(any("总名" in item or "种别名" in item
+                            for item in case["alternative_readings"]))
+        self.assertEqual(case["evidence_status"], "digital_transcription_candidate")
+        self.assertEqual(case["review_status"], "unreviewed")
 
     def test_mozi_xiaoqu_separates_same_result_from_same_reason(self):
         case = next(item for item in self.book["cases"] if item["case_id"] == "xy_021")
