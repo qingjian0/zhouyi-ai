@@ -1,0 +1,190 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/qingjian0/zhouyi-ai/blob/main/schemas/classical-yixiang-casebook.schema.json",
+  "title": "Classical Yixiang evidence-grounded casebook",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "casebook_id",
+    "policy",
+    "sources",
+    "cases"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.1"
+    },
+    "casebook_id": {
+      "const": "zhouyi-ai.classical-yixiang-casebook"
+    },
+    "policy": {
+      "type": "object",
+      "required": [
+        "primary_period",
+        "text_status",
+        "interpretation_policy"
+      ],
+      "properties": {
+        "primary_period": {
+          "const": "pre-Qing"
+        },
+        "text_status": {
+          "const": "digital_transcription_requires_image_or_edition_review"
+        },
+        "interpretation_policy": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "sources": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "source_id",
+          "work",
+          "chapter",
+          "url",
+          "digital_witness",
+          "witness_limit"
+        ],
+        "properties": {
+          "source_id": {
+            "type": "string"
+          },
+          "work": {
+            "type": "string"
+          },
+          "chapter": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string",
+            "format": "uri"
+          },
+          "digital_witness": {
+            "type": "string"
+          },
+          "witness_limit": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "case_id",
+          "source_id",
+          "period",
+          "text_layer",
+          "locator",
+          "excerpt",
+          "problem",
+          "operation",
+          "premises",
+          "conclusion_scope",
+          "counterexample_or_boundary",
+          "alternative_readings",
+          "evidence_status",
+          "review_status"
+        ],
+        "properties": {
+          "case_id": {
+            "type": "string"
+          },
+          "source_id": {
+            "type": "string"
+          },
+          "period": {
+            "enum": [
+              "pre_qin",
+              "qin_han",
+              "wei_jin_northern_southern",
+              "sui_tang",
+              "song_yuan",
+              "ming",
+              "uncertain"
+            ]
+          },
+          "text_layer": {
+            "enum": [
+              "base_text",
+              "commentary",
+              "quotation"
+            ]
+          },
+          "locator": {
+            "type": "string"
+          },
+          "excerpt": {
+            "type": "string"
+          },
+          "problem": {
+            "type": "string"
+          },
+          "operation": {
+            "type": "array",
+            "items": {
+              "enum": [
+                "observation",
+                "xiang_extraction",
+                "classification",
+                "analogy",
+                "analogy_rule",
+                "naming",
+                "reference",
+                "metaphor",
+                "correspondence",
+                "causal_critique",
+                "contextual_constraint",
+                "multi_path_means_end",
+                "normative_argument",
+                "rhetoric"
+              ]
+            },
+            "minItems": 1
+          },
+          "premises": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1
+          },
+          "conclusion_scope": {
+            "type": "string"
+          },
+          "counterexample_or_boundary": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 1
+          },
+          "alternative_readings": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "evidence_status": {
+            "const": "digital_transcription_candidate"
+          },
+          "review_status": {
+            "const": "unreviewed"
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  }
+}
