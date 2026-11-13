@@ -32,7 +32,7 @@ class RelationState(str, Enum):
 class ComparisonKind(str, Enum):
     INVARIANT = "invariant"
     CHANGED = "changed"
-    REVERSED = "reversed"
+    CHANGED = "changed"
     UNDETERMINED = "undetermined"
 
 
@@ -153,10 +153,6 @@ def assess_counterfactual(
         comparison = ComparisonKind.UNDETERMINED
     elif before == after:
         comparison = ComparisonKind.INVARIANT
-    elif before == RelationState.ACTIVE and after == RelationState.INACTIVE:
-        comparison = ComparisonKind.REVERSED
-    elif before == RelationState.INACTIVE and after == RelationState.ACTIVE:
-        comparison = ComparisonKind.REVERSED
     else:
         comparison = ComparisonKind.CHANGED
 
