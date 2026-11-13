@@ -170,5 +170,63 @@
     "review_notes": [
       "当前数字见证来自后世文献引录；须继续寻找独立经传底本核对。"
     ]
+  },
+  {
+    "record_id": "zhouyi-yaoyi-nixingxiang-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "周易要义（引《系辞》）",
+      "traditional_authority": "具体编者、成书年代及文本层次待据目录与版本考订",
+      "composition_period": "待考",
+      "genre": "易学注疏/义疏材料"
+    },
+    "period": "uncertain",
+    "source_type": "historical_commentary",
+    "tradition": [
+      "易传注疏",
+      "拟象解释"
+    ],
+    "witness": {
+      "witness_id": "ctext-zhouyi-yaoyi-xici",
+      "edition_or_database": "中国哲学书电子化计划《周易要义》数字转录",
+      "url": "https://ctext.org/wiki.pl?chapter=519834&if=gb&remap=gb",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台条款另行核验"
+    },
+    "locator": {
+      "chapter": "卷十七",
+      "section_or_line": "拟形容谓之象"
+    },
+    "text": "圣人有以见天下之赜，而拟诸其形容，象其物宜，是故谓之象。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "zhouyi-yaoyi-nixingxiang-001",
+        "claim_kind": "commentarial_interpretation",
+        "subject": "象",
+        "predicate": "拟诸形容/象其物宜",
+        "object": "对天下事物形态与适宜之象的拟取",
+        "interpretive_note": "此处作为注疏所引《系辞》语句的见证；不能将注疏编者的解释与《系辞》原文混同。‘拟’与‘象’的关系须继续对勘不同注家。",
+        "scope": "仅作为注疏传承中的引文记录，不据此定论象的唯一哲学定义。",
+        "relation_type": "observation_and_analogical_representation",
+        "conditions": [
+          "原文与注文分层",
+          "待考编者与版本"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      }
+    ],
+    "rights": {
+      "text_license": "古典引文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "需要核实《周易要义》的作者、时代、版本及原文上下文。"
+    ]
   }
 ]
