@@ -18,6 +18,18 @@ class CorpusTests(unittest.TestCase):
  def test_exact_locator_required(self):
   r=dict(self.records[0]); r["locator"]={"chapter":"系辞上传"}
   with self.assertRaisesRegex(ValueError,"exact chapter"): validate_record(r)
+ def test_invalid_witness_url_rejected(self):
+  r=dict(self.records[0]); r["witness"]=dict(r["witness"]); r["witness"]["url"]="not-a-url"
+  with self.assertRaisesRegex(ValueError,"HTTP"):
+   validate_record(r)
+ def test_invalid_access_date_rejected(self):
+  r=dict(self.records[0]); r["witness"]=dict(r["witness"]); r["witness"]["access_date"]="2026-13-40"
+  with self.assertRaisesRegex(ValueError,"ISO date"):
+   validate_record(r)
+ def test_unknown_witness_kind_rejected(self):
+  r=dict(self.records[0]); r["witness"]=dict(r["witness"]); r["witness"]["witness_kind"]="invented"
+  with self.assertRaisesRegex(ValueError,"witness_kind"):
+   validate_record(r)
  def test_model_cannot_self_review(self):
   r=dict(self.records[0]); r["source_type"]="model_generated"; r["review_status"]="reviewed"
   with self.assertRaisesRegex(ValueError,"self-certify"): validate_record(r)
