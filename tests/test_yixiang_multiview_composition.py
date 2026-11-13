@@ -76,6 +76,15 @@ class MultiViewCompositionTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "evidence_refs"):
             compose_views(candidates, bad)
 
+    def test_bridge_evidence_cannot_reuse_member_view_evidence(self):
+        candidates = (view("a", XiangAxis.STRUCTURAL), view("b", XiangAxis.FUNCTIONAL))
+        bad = CompositionBridge(
+            "b", ("a", "b"), "join", ("same task",),
+            ("src:a", "bridge:independent"), "rationale",
+        )
+        with self.assertRaisesRegex(ValueError, "distinct from member-view"):
+            compose_views(candidates, bad)
+
     def test_rejects_evidence_axis_mismatch(self):
         candidate = ViewCandidate(
             "bad", "obs-a", "obs-b", XiangAxis.STRUCTURAL,
