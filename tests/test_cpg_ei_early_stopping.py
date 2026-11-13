@@ -53,7 +53,7 @@ class TestEarlyStoppingBaseline(unittest.TestCase):
             self.assertEqual(len(row["selected_weights_sha256"]), 64)
             self.assertEqual(
                 row["training_feature_encodings"],
-                32 * (2 ** 4),
+                8 * (2 ** 4),
             )
             self.assertTrue(0.0 <= row["locked"]["bit_accuracy"] <= 1.0)
 
