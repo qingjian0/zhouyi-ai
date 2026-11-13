@@ -34,6 +34,10 @@ class NoveltyDiscoveryTests(unittest.TestCase):
         )
 
     def test_malformed_known_signatures_are_rejected(self):
+        with self.assertRaisesRegex(ValueError, "known signature entries"):
+            propose_novel_structures(
+                self.residuals, known_signatures=((["relation", "x", "y"],),)
+            )
         with self.assertRaisesRegex(ValueError, "known signatures"):
             propose_novel_structures(
                 self.residuals, known_signatures=((("relation", "x", "y"), ("bad",)),)
