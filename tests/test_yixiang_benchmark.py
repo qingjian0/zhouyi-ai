@@ -58,7 +58,7 @@ class BenchmarkContractTests(unittest.TestCase):
    with self.subTest(field=field):
     with self.assertRaises(ValueError): validate_case(c)
   with self.assertRaises(ValueError):
-   evaluate_predictions([make_case("a")],[{"case_id":"a","decision":[]}])
+   evaluate_predictions([make_case("a")],[{"case_id":"a","decision":[]}],allow_fixture_expected=True)
  def test_synthetic_fixture_cannot_claim_reviewers(self):
   c=make_case("a"); c["reviewers"]=["reviewer-a","reviewer-b"]
   with self.assertRaisesRegex(ValueError,"cannot claim human adjudication"): validate_case(c)
