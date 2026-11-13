@@ -126,8 +126,9 @@ def compare_relations(
     matched = expected & observed
     missing = expected - observed
     unexpected = observed - expected
-    precision = len(matched) / len(observed) if observed else (1.0 if not expected else 0.0)
-    recall = len(matched) / len(expected) if expected else (1.0 if not observed else 0.0)
+    # Empty-vs-empty is absence of evidence, not a perfect analogy.
+    precision = len(matched) / len(observed) if observed else 0.0
+    recall = len(matched) / len(expected) if expected else 0.0
     f1 = 0.0 if precision + recall == 0 else 2.0 * precision * recall / (precision + recall)
     return RelationScore(
         precision=precision, recall=recall, f1=f1,
