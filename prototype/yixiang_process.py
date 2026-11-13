@@ -75,10 +75,21 @@ def derive_pattern(observations: tuple[Observation, ...], *, pattern_id: str, di
     ids = [o.observation_id for o in observations]
     if len(ids) != len(set(ids)):
         raise ValueError("observation ids must be unique")
-    keys = set.intersection(*(set(o.features) for o in observations))
-    support = {key: sum(o.features.get(key) == observations[0].features.get(key) for o in observations) for key in keys}
-    invariant = {key: observations[0].features[key] for key, count in support.items() if count / len(observations) >= min_support_ratio and all(o.features.get(key) == observations[0].features[key] for o in observations)}
-    variable = sorted(set.union(*(set(o.features) for o in observations)) - set(invariant))
+    keys = set.union(*(set(o.features) for o in observations))
+    candidates = {}
+    for key in keys:
+        values = [o.features[key] for o in observations if key in o.features]
+        for value in set(values):
+            count = values.count(value)
+            if count / len(observations) >= min_support_ratio:
+                candidates[(key, value)] = count
+    # A feature key is invariant only when one value clears the configured
+    # support threshold. Ambiguous/missing values remain variable.
+    invariant = {}
+    for (key, value), count in candidates.items():
+        if key not in invariant or count > candidates.get((key, invariant[key]), -1):
+            invariant[key] = value
+    variable = sorted(keys - set(invariant))
     refs = tuple(sorted({ref for o in observations for ref in o.evidence_refs}))
     return Pattern(pattern_id, 1, dimensions, invariant, tuple(variable), (), tuple(ids), (), refs, scope)
 
