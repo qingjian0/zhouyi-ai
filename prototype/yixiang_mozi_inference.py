@@ -11,11 +11,18 @@ from enum import Enum
 from typing import Tuple
 
 
-class InferenceMove(str, Enum):
+class XiaoquTerm(str, Enum):
+    HUO = "huo"     # 或: qualification / non-exhaustiveness
+    JIA = "jia"     # 假: hypothetical supposition
+    XIAO = "xiao"   # 效: model or standard
     PI = "pi"       # 辟: illustrate by citing another thing
     MOU = "mou"     # 侔: parallel phrasing/propositions
     YUAN = "yuan"   # 援: appeal by symmetry
     TUI = "tui"     # 推: extend by a claimed sameness
+
+
+# Backward-compatible name: the seven terms are not all the same kind of move.
+InferenceMove = XiaoquTerm
 
 
 class ConclusionKind(str, Enum):
@@ -41,7 +48,7 @@ class TransferDecision(str, Enum):
 @dataclass(frozen=True)
 class MoziTransferClaim:
     claim_id: str
-    move: InferenceMove
+    term: XiaoquTerm
     conclusion_kind: ConclusionKind
     source_case: str
     target_case: str
@@ -68,9 +75,9 @@ class MoziTransferAssessment:
 def _validate(claim: MoziTransferClaim) -> None:
     if not isinstance(claim.claim_id, str) or not claim.claim_id.strip():
         raise ValueError("claim_id is required")
-    for field in ("move", "conclusion_kind", "predicate_relation", "causal_basis_relation"):
+    for field in ("term", "conclusion_kind", "predicate_relation", "causal_basis_relation"):
         expected = {
-            "move": InferenceMove,
+            "term": XiaoquTerm,
             "conclusion_kind": ConclusionKind,
             "predicate_relation": RelationStatus,
             "causal_basis_relation": RelationStatus,
