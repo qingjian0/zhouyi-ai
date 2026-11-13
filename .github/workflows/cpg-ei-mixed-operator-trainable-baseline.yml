@@ -6,6 +6,14 @@ on:
       - research/cpg-ei-trainable-polynomial-baseline-v1-2026-11-13
   pull_request:
     types: [opened, synchronize, reopened]
+    paths:
+      - 'prototype/cpg_ei_mixed_operator_trainable_baseline.py'
+      - 'tests/test_cpg_ei_mixed_operator_trainable_baseline.py'
+      - 'prototype/cpg_ei_mixed_operator_data.py'
+      - 'prototype/cpg_ei_relation_operators.py'
+      - 'prototype/cpg_ei_generic_learner.py'
+      - '.github/workflows/cpg-ei-mixed-operator-trainable-baseline.yml'
+      - 'docs/CPG_EI_TRAINABLE_POLYNOMIAL_BASELINE_V1.md'
 
 permissions:
   contents: read
