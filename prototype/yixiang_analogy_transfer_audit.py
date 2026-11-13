@@ -11,6 +11,7 @@ class TransferStatus(str, Enum):
     WARRANT_MISMATCH = "warrant_mismatch"
     RELATION_MISMATCH = "relation_mismatch"
     SCOPE_MISMATCH = "scope_mismatch"
+    CONDITION_MISMATCH = "condition_mismatch"
     INDETERMINATE = "indeterminate"
     PROVISIONAL_TRANSFER = "provisional_transfer"
 
@@ -34,6 +35,7 @@ class AnalogyProposal:
     warrant_comparable: bool | None
     relation_preserved: bool | None
     scope_compatible: bool | None
+    conditions_compatible: bool | None
 
 @dataclass(frozen=True)
 class TransferAssessment:
@@ -73,7 +75,7 @@ def assess_analogy_transfer(proposal: AnalogyProposal) -> TransferAssessment:
         _refs(getattr(proposal, name), name, allow_empty=name in {"evidence_refs", "condition_refs", "counterexample_refs"})
     if not isinstance(proposal.reviewed, bool):
         raise ValueError("reviewed must be bool")
-    for name in ("warrant_comparable", "relation_preserved", "scope_compatible"):
+    for name in ("warrant_comparable", "relation_preserved", "scope_compatible", "conditions_compatible"):
         value = getattr(proposal, name)
         if value is not None and not isinstance(value, bool):
             raise ValueError(f"{name} must be bool or None")
@@ -88,6 +90,7 @@ def assess_analogy_transfer(proposal: AnalogyProposal) -> TransferAssessment:
     elif "warrant_comparable" in failed: status = TransferStatus.WARRANT_MISMATCH
     elif "relation_preserved" in failed: status = TransferStatus.RELATION_MISMATCH
     elif "scope_compatible" in failed: status = TransferStatus.SCOPE_MISMATCH
+    elif "conditions_compatible" in failed: status = TransferStatus.CONDITION_MISMATCH
     elif unresolved: status = TransferStatus.INDETERMINATE
     else: status = TransferStatus.PROVISIONAL_TRANSFER
     return TransferAssessment(proposal.proposal_id, status, tuple(failed), tuple(unresolved), len(proposal.evidence_refs), len(proposal.counterexample_refs))
