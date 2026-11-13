@@ -16,7 +16,7 @@ Development and locked labels are excluded from every equation. A regression tes
 
 ## Reproducibility
 
-Seed 20261114, 8 families, 256 states per family, 8 inputs and 8 outputs. The workflow records the generator's corpus SHA-256 and uploads a JSON report bound to the exact commit.
+Seed 20261114, 64 families, 256 states per family, 8 inputs and 8 outputs (16,384 rows total; 8× the original 8-family matched corpus). The workflow records the generator's corpus SHA-256 and uploads a JSON report bound to the exact commit.
 
 ## Interpretation
 
