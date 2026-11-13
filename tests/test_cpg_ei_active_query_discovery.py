@@ -135,6 +135,45 @@ class TestActiveQueryDiscovery(unittest.TestCase):
                             right_budget[method]["selected_rule"],
                         )
 
+    def test_teacher_manifest_is_posthoc_only(self):
+        original = run_active_query_benchmark(
+            self.corpus, query_budgets=self.budgets, seed=41
+        )
+        changed = copy.deepcopy(self.corpus)
+        changed_rule = changed["teachers"][0]["rules"][0]
+        changed_rule.update({
+            "operator": "xor",
+            "support": [0, 1],
+            "role_order": None,
+            "threshold": None,
+            "context_index": None,
+            "context_value": None,
+        })
+        mutated = run_active_query_benchmark(
+            changed, query_budgets=self.budgets, seed=41
+        )
+        left_family = original["family_results"][0]
+        right_family = mutated["family_results"][0]
+        for left_output, right_output in zip(
+            left_family["output_results"], right_family["output_results"]
+        ):
+            self.assertEqual(
+                left_output["active_query_order"],
+                right_output["active_query_order"],
+            )
+            self.assertEqual(
+                left_output["random_query_order"],
+                right_output["random_query_order"],
+            )
+            for left_budget, right_budget in zip(
+                left_output["budget_results"], right_output["budget_results"]
+            ):
+                for method in ("active", "random"):
+                    self.assertEqual(
+                        left_budget[method]["selected_rule"],
+                        right_budget[method]["selected_rule"],
+                    )
+
     def test_budget_validation(self):
         with self.assertRaises(ValueError):
             run_active_query_benchmark(
