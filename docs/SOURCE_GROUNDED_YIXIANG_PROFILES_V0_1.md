@@ -44,4 +44,4 @@
 
 ## 验收
 
-运行 `python -m unittest tests.test_yixiang_profile`。新增测试覆盖八卦编码唯一性、名称/编码一致性、类型严格性、来源引用、ID 唯一性、冲突报告及范围隔离。
+运行 `python -m unittest discover -s tests -p test_yixiang_profile.py`。新增测试覆盖八卦编码唯一性、名称/编码一致性、类型严格性、来源引用、ID 唯一性、冲突报告及范围隔离。
