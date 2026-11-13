@@ -73,13 +73,30 @@ def evaluate_predictions(cases:Sequence[Mapping],predictions:Sequence[Mapping])-
         result={}
         for value in sorted(values):
             subset=[c for c in cases if value in (c[field] if field=="relation_families" else [c[field]])]
-            if subset:
-                hit=sum(pred.get(c["case_id"],"abstain")==c["gold_decision"] for c in subset)
-                result[value]={"n":len(subset),"accuracy":hit/len(subset)}
+            if not subset: continue
+            submatrix={g:{p:0 for p in labels} for g in labels}
+            for c in subset: submatrix[c["gold_decision"]][pred.get(c["case_id"],"abstain")]+=1
+            sub_f1={}
+            for label in labels:
+                tp=submatrix[label][label]
+                fp=sum(submatrix[g][label] for g in labels if g!=label)
+                fn=sum(submatrix[label][p] for p in labels if p!=label)
+                precision=tp/(tp+fp) if tp+fp else 0.0
+                recall=tp/(tp+fn) if tp+fn else 0.0
+                sub_f1[label]=2*precision*recall/(precision+recall) if precision+recall else 0.0
+            hit=sum(pred.get(c["case_id"],"abstain")==c["gold_decision"] for c in subset)
+            result[value]={"n":len(subset),"accuracy":hit/len(subset),
+                           "macro_f1":sum(sub_f1.values())/len(labels),
+                           "per_class_f1":sub_f1,"confusion_matrix":submatrix}
         return result
+    answered=sum(pred.get(c["case_id"],"abstain")!="abstain" for c in cases)
+    selective_errors=sum(pred.get(c["case_id"],"abstain")!=c["gold_decision"] and pred.get(c["case_id"],"abstain")!="abstain" for c in cases)
     return {"n":n,"accuracy":correct/n,"macro_f1":sum(x["f1"] for x in metrics.values())/len(labels),
             "per_class":metrics,"confusion_matrix":matrix,
             "missing_predictions":sum(c["case_id"] not in pred for c in cases),
+            "abstention_coverage":1-answered/n,
+            "selective_coverage":answered/n,
+            "selective_risk":selective_errors/answered if answered else None,
             "by_relation_family":stratify("relation_families",set(v for c in cases for v in c["relation_families"])),
             "by_source_status":stratify("source_status",set(c["source_status"] for c in cases))}
 def group_leakage(cases:Sequence[Mapping],*,group_field="source_lineage")->dict:
