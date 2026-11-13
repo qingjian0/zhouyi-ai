@@ -1,4 +1,6 @@
 import unittest
+import json
+from pathlib import Path
 from prototype.yixiang_interpretation_competition import *
 
 def pos(pid, author, year, layer, framework, text_refs=("mozi-xiaoqu",), scholarship_refs=("scholarship",)):
@@ -70,6 +72,13 @@ class M16Tests(unittest.TestCase):
         a=pos("a","A",2000,InterpretationSourceLayer.POST_QING_SCHOLARSHIP,InterpretiveFramework.OTHER)
         bad=InterpretationPosition(a.position_id,a.author,a.work,True,a.source_layer,a.framework,a.target_terms,a.interpretation,a.scope,a.textual_basis_refs,a.scholarship_refs,a.caveats)
         with self.assertRaises(ValueError): assess_interpretation_competition(InterpretationCase("M16","case",("mozi-xiaoqu",),(bad,)))
+    def test_seed_registry_has_competing_positions_and_no_adjudication(self):
+        path=Path(__file__).resolve().parents[1]/"data"/"yixiang_interpretation_competition_m16.v0.1.json"
+        data=json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual(data["adjudication"],"not_performed")
+        self.assertGreaterEqual(len(data["positions"]),5)
+        self.assertIsNone(next(x for x in data["positions"] if x["position_id"]=="jin-rongdong-preprint")["publication_year"])
+
     def test_never_selects_winner_or_truth(self):
         a=pos("a","A",2000,InterpretationSourceLayer.POST_QING_SCHOLARSHIP,InterpretiveFramework.OTHER)
         result=assess_interpretation_competition(InterpretationCase("M16","case",("mozi-xiaoqu",),(a,)))
