@@ -61,7 +61,7 @@
 - [先秦至两汉类比适切性与推类边界研究](docs/CLASSICAL_YIXIANG_ANALOGY_VALIDITY_HAN_PREQIN_HAN_V0_1.md)
 - [《论衡·感类篇》与感应因果辨析专题](docs/CLASSICAL_YIXIANG_CORRESPONDENCE_CRITIQUE_LUNHENG_GANLEI_V0_1.md)
 - [《墨子·小取》类推结构与异文专题](docs/CLASSICAL_YIXIANG_MOZI_XIAOQU_ANALYSIS_V0_1.md)
-- [《墨子·小取》类象论辩操作矩阵 v0.2（辟/侔/援/推及七术分层）](docs/CLASSICAL_YIXIANG_MOZI_XIAOQU_OPERATION_MATRIX_V0_2.md)\n- [《墨子·小取》四种论辩操作与推类边界 v0.1](docs/CLASSICAL_YIXIANG_MOZI_INFERENCE_MOVES_V0_1.md)\n- [《小取》论辩操作门禁原型](prototype/yixiang_mozi_inference.py)\n- [《小取》论辩操作门禁测试](tests/test_yixiang_mozi_inference.py)
+- [《墨子·小取》类象论辩操作矩阵 v0.2（辟/侔/援/推及七术分层）](docs/CLASSICAL_YIXIANG_MOZI_XIAOQU_OPERATION_MATRIX_V0_2.md)\n- [《墨子·小取》辩学七事与推类边界 v0.2](docs/CLASSICAL_YIXIANG_MOZI_INFERENCE_MOVES_V0_1.md)\n- [《小取》论辩操作门禁原型](prototype/yixiang_mozi_inference.py)\n- [《小取》论辩操作门禁测试](tests/test_yixiang_mozi_inference.py)
 - [《墨子·非攻上》递进类推与规范一致性专题 v0.1](docs/CLASSICAL_YIXIANG_MOZI_FEIGONG_ANALYSIS_V0_1.md)
 - [《非攻上》双论证链结构化图谱](data/mozi_feigong_argument_graph.v0.1.json)
 - [《非攻上》论证图 Schema](schemas/mozi-feigong-argument-graph.schema.json)
