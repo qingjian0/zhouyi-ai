@@ -24,7 +24,7 @@ def validate_case(c:Mapping)->None:
     for f in ("shared_basis","non_shared_basis","scope_conditions","required_invariants","known_counterexamples"): _strings(c[f],f,False)
     _strings(c["evidence_refs"],"evidence_refs")
     _strings(c["reviewers"],"reviewers",False)
-    if c["label_status"] not in {"fixture_expected","pending_review","adjudicated"}:
+    if not isinstance(c["label_status"],str) or c["label_status"] not in {"fixture_expected","pending_review","adjudicated"}:
         raise ValueError("unknown label_status")
     if c["source_status"] == "synthetic_fixture":
         if c["label_status"] != "fixture_expected" or c["reviewers"]:
