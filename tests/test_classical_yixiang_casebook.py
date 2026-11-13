@@ -21,7 +21,8 @@ class ClassicalYixiangCasebookTests(unittest.TestCase):
 
     def test_initial_coverage_contains_core_pre_qin_han_texts(self):
         works = {source["work"] for source in self.book["sources"]}
-        self.assertTrue({"周易·系辞下传", "墨子", "荀子", "公孙龙子", "淮南子", "论衡"}.issubset(works))\n        self.assertTrue(any(source["chapter"] == "要略" for source in self.book["sources"]))
+        self.assertTrue({"周易·系辞下传", "墨子", "荀子", "公孙龙子", "淮南子", "论衡"}.issubset(works))
+        self.assertTrue(any(source["chapter"] == "要略" for source in self.book["sources"]))
         self.assertGreaterEqual(len(self.book["cases"]), 10)
 
     def test_no_candidate_excerpt_is_misrepresented_as_verified(self):
