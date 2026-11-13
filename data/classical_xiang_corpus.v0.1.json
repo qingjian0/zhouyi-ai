@@ -3261,5 +3261,139 @@
       "《感类篇》数字见证作“自责以五过”；《感虚篇》相关段落据部分校释材料作“六过”，需回查各版本、篇章互见与校勘记。",
       "“汤自责，天应以雨”被王充作为所批评的旧说引述；该引文在今本《尚书》中的出处问题，须独立核验，不把它当作已确认的《尚书》原文。"
     ]
+  },
+  {
+    "record_id": "lushi-chunqiu-bielei-nonmonotonic-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "吕氏春秋·似顺论·别类",
+      "traditional_authority": "传统归于吕不韦及其门客编纂；具体篇章层次与编纂过程仍须审慎处理",
+      "composition_period": "战国末至秦汉之际的编纂层次问题待考",
+      "genre": "杂家/论说"
+    },
+    "period": "pre_qin",
+    "source_type": "classical_text",
+    "tradition": [
+      "先秦诸子",
+      "类推边界",
+      "组合性质",
+      "尺度迁移"
+    ],
+    "witness": {
+      "witness_id": "ctext-lushi-bielei-sibu-congkan",
+      "edition_or_database": "中国哲学书电子化计划《吕氏春秋·别类》；页面标注《四部丛刊初编》本",
+      "url": "https://ctext.org/lv-shi-chun-qiu/bie-lei/zhs",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "平台及数字转录许可另行核验；只保留必要短引"
+    },
+    "locator": {
+      "chapter": "似顺论·别类",
+      "section_or_line": "物多类然而不然；类固不必可推知；小方/小马/小智段"
+    },
+    "text": "物多类然而不然。……金柔锡柔，合两柔则为刚，燔之则为淖。……小方，大方之类也；小马，大马之类也；小智，非大智之类也。",
+    "text_status": "quotation_fragment",
+    "variant_notes": [
+      "不同数字转录对“漆淖水淖”“湿/泾”“淖/蹇”等字有差异；本条不据网页转录定校。",
+      "《四库全书》本及其他整理本须逐字对勘；此处短引只作检索候选，不视为定本。"
+    ],
+    "claims": [
+      {
+        "claim_id": "lushi-bielei-composition-nonmonotonic-001",
+        "claim_kind": "textual_observation",
+        "subject": "单项材料属性",
+        "predicate": "组合后性质发生变化",
+        "object": "金柔、锡柔合而为刚，燔而状态变化的文本例证",
+        "interpretive_note": "篇章用组成项属性与组合态性质的差异，反对把单项性质线性外推为整体性质。这里记录文本论证结构，不把古代材料描述当成现代冶金事实。",
+        "scope": "仅限《别类》文本论证与其所举历史物性主张；现代材料机制须独立验证。",
+        "relation_type": "composition_interaction",
+        "conditions": [
+          "记录组成项、组合操作和结果状态",
+          "不得由单项性质直接推出组合态性质"
+        ],
+        "supports": [],
+        "counterevidence": [
+          "组合结果也可能在特定条件下保留组成项性质；必须逐关系检验。"
+        ],
+        "review_status": "unreviewed",
+        "xiang_domain": "material transformation",
+        "relation_family": "generative",
+        "shared_basis": [
+          "两个组成项各自具有柔的描述"
+        ],
+        "non_shared_basis": [
+          "组合态与加热后的性质描述不同于单项属性"
+        ],
+        "scope_conditions": [
+          "仅作古典论证样本",
+          "不作为现代材料科学证据"
+        ],
+        "causal_status": "unassessed",
+        "reasoning_operations": [
+          "compare",
+          "abstract_shared_basis",
+          "identify_difference",
+          "test_counterexample",
+          "refuse_transfer"
+        ]
+      },
+      {
+        "claim_id": "lushi-bielei-scale-class-vs-capacity-001",
+        "claim_kind": "textual_observation",
+        "subject": "尺度变化与类别/能力判断",
+        "predicate": "区分类别保持和能力外推",
+        "object": "小方/大方、小马/大马与小智/大智的对照",
+        "interpretive_note": "篇章并列尺度变化下可维持的类别关系与不可简单放大的能力关系。工程上应将类属成员关系、连续尺度和能力谓词分离。",
+        "scope": "只支持对文本中三组例子的结构分析，不据此断言普遍分类规律。",
+        "relation_type": "scale_sensitive_taxonomy",
+        "conditions": [
+          "区分类别谓词与程度/能力谓词",
+          "记录尺度变化是否改变关系结构"
+        ],
+        "supports": [],
+        "counterevidence": [
+          "小/大词项在不同语境中可能指形制、程度或价值判断，必须先做词义和指称分析。"
+        ],
+        "review_status": "unreviewed",
+        "xiang_domain": "taxonomy and scale",
+        "relation_family": "taxonomic",
+        "shared_basis": [
+          "对象在某一维度上存在大小/尺度差异"
+        ],
+        "non_shared_basis": [
+          "类别谓词与能力谓词的迁移规则不同"
+        ],
+        "scope_conditions": [
+          "限于《别类》语境",
+          "不得将所有属性统一按尺度比例外推"
+        ],
+        "causal_status": "not_claimed",
+        "reasoning_operations": [
+          "classify",
+          "compare",
+          "identify_difference",
+          "test_counterexample",
+          "refuse_transfer"
+        ]
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "必要短引与来源元数据；不复制现代校注。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "须核对《四部丛刊》影印本、《四库全书》本及可靠校点本；异文未决前不得升级为 verified。"
+    ],
+    "concept_tags": [
+      "analogy_limit",
+      "classification",
+      "natural_knowledge"
+    ],
+    "method_families": [
+      "classification",
+      "analogical_argument"
+    ]
   }
 ]
