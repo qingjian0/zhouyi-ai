@@ -78,3 +78,31 @@ def all_hexagram_states() -> list[HexagramState]:
         encode_hexagram(tuple((value >> bit) & 1 for bit in range(6)))
         for value in range(64)
     ]
+
+
+@dataclass(frozen=True)
+class HexagramTransition:
+    """A purely structural line-change transition; no divinatory meaning inferred."""
+    before: HexagramState
+    after: HexagramState
+    changing_indices_bottom_to_top: tuple[int, ...]
+
+
+def transition_hexagram(
+    lines_bottom_to_top: Sequence[int],
+    changing_indices: Sequence[int],
+) -> HexagramTransition:
+    """Apply distinct moving-line indices and retain both six-line states.
+
+    Indices are zero-based from the bottom. The returned binary identifiers
+    are computational indices only; no King Wen or other sequence is implied.
+    """
+    before = encode_hexagram(lines_bottom_to_top)
+    indices = tuple(changing_indices)
+    after_lines = change_lines(before.lines_bottom_to_top, indices)
+    after = encode_hexagram(after_lines)
+    return HexagramTransition(
+        before=before,
+        after=after,
+        changing_indices_bottom_to_top=indices,
+    )
