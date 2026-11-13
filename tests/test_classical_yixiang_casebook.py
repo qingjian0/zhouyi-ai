@@ -24,7 +24,7 @@ class ClassicalYixiangCasebookTests(unittest.TestCase):
         self.assertTrue({"周易·系辞下传", "墨子", "荀子", "公孙龙子", "淮南子", "论衡"}.issubset(works))
         self.assertTrue(any(source["chapter"] == "要略" for source in self.book["sources"]))
         self.assertGreaterEqual(len(self.book["cases"]), 11)
-        self.assertEqual(len(self.book["cases"]), 19)
+        self.assertEqual(len(self.book["cases"]), 20)
         self.assertTrue({"吕氏春秋", "淮南子"}.issubset(works))
         self.assertTrue(any(source["chapter"] == "恃君览·别类" for source in self.book["sources"]))
         self.assertTrue(any(source["chapter"] == "说山训" for source in self.book["sources"]))
@@ -75,6 +75,13 @@ class ClassicalYixiangCasebookTests(unittest.TestCase):
         self.assertIn("correspondence", case["operation"])
         self.assertIn("现代经验意义", case["conclusion_scope"])
         self.assertIn("不作为现代自然因果事实", self.book["sources"][-1]["witness_limit"])
+
+    def test_chunqiu_fanlu_case_does_not_transfer_physical_resonance_as_proof_of_political_sense(self):
+        case = next(item for item in self.book["cases"] if item["case_id"] == "xy_020")
+        self.assertEqual(case["source_id"], "src_chunqiu_fanlu")
+        self.assertIn("causal_critique", case["operation"])
+        self.assertTrue(any("琴瑟共鸣" in item and "祥瑞" in item for item in case["counterexample_or_boundary"]))
+        self.assertIn("篇章形成", self.book["sources"][-1]["witness_limit"])
 
     def test_all_case_operations_are_allowed_by_schema(self):
         schema = json.loads(
