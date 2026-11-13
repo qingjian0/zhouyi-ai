@@ -746,5 +746,277 @@
     "label_status": "fixture_expected",
     "reviewers": [],
     "split_group": "test"
+  },
+  {
+    "case_id": "dyn-023",
+    "source_lineage": [
+      "fixture:dyn-023"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "The same object can have different uses for different agents.",
+    "relation_families": [
+      "functional"
+    ],
+    "shared_basis": [
+      "same object"
+    ],
+    "non_shared_basis": [
+      "different agent capabilities and goals"
+    ],
+    "scope_conditions": [
+      "agent and task must be specified"
+    ],
+    "required_invariants": [
+      "object identity is not functional equivalence"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:dyn-023"
+    ],
+    "independence_group": "fixture-group-dyn-023",
+    "gold_decision": "conditional",
+    "gold_rationale": "Synthetic expected label for dynamic context and standpoint boundary testing; not an adjudicated classical-text claim.",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "test"
+  },
+  {
+    "case_id": "dyn-024",
+    "source_lineage": [
+      "fixture:dyn-024"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Different processes can reach the same target outcome.",
+    "relation_families": [
+      "functional"
+    ],
+    "shared_basis": [
+      "same target outcome"
+    ],
+    "non_shared_basis": [
+      "different process paths"
+    ],
+    "scope_conditions": [
+      "claim is limited to outcome equivalence"
+    ],
+    "required_invariants": [
+      "outcome equivalence does not imply mechanism identity"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:dyn-024"
+    ],
+    "independence_group": "fixture-group-dyn-024",
+    "gold_decision": "accept",
+    "gold_rationale": "Synthetic expected label for dynamic context and standpoint boundary testing; not an adjudicated classical-text claim.",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "test"
+  },
+  {
+    "case_id": "dyn-025",
+    "source_lineage": [
+      "fixture:dyn-025"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "A shared environment does not imply equal capability across agents.",
+    "relation_families": [
+      "situated"
+    ],
+    "shared_basis": [
+      "shared external environment"
+    ],
+    "non_shared_basis": [
+      "different agent capabilities"
+    ],
+    "scope_conditions": [
+      "capability evidence required"
+    ],
+    "required_invariants": [
+      "environment-agent interaction preserved"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:dyn-025"
+    ],
+    "independence_group": "fixture-group-dyn-025",
+    "gold_decision": "reject",
+    "gold_rationale": "Synthetic expected label for dynamic context and standpoint boundary testing; not an adjudicated classical-text claim.",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "test"
+  },
+  {
+    "case_id": "dyn-026",
+    "source_lineage": [
+      "fixture:dyn-026"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Changing the reference object can reverse a relational label without changing either entity.",
+    "relation_families": [
+      "structural"
+    ],
+    "shared_basis": [
+      "same pair of entities"
+    ],
+    "non_shared_basis": [
+      "reference frame changes"
+    ],
+    "scope_conditions": [
+      "relation is indexed to the reference frame"
+    ],
+    "required_invariants": [
+      "role reversal is not entity-state reversal"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:dyn-026"
+    ],
+    "independence_group": "fixture-group-dyn-026",
+    "gold_decision": "conditional",
+    "gold_rationale": "Synthetic expected label for dynamic context and standpoint boundary testing; not an adjudicated classical-text claim.",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "test"
+  },
+  {
+    "case_id": "dyn-027",
+    "source_lineage": [
+      "fixture:dyn-027"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "A predicate may change across time phases without a contradiction.",
+    "relation_families": [
+      "temporal"
+    ],
+    "shared_basis": [
+      "same entity and predicate family"
+    ],
+    "non_shared_basis": [
+      "different time phases and state evidence"
+    ],
+    "scope_conditions": [
+      "time-indexed claims and transition evidence"
+    ],
+    "required_invariants": [
+      "temporal indexing preserved"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:dyn-027"
+    ],
+    "independence_group": "fixture-group-dyn-027",
+    "gold_decision": "conditional",
+    "gold_rationale": "Synthetic expected label for dynamic context and standpoint boundary testing; not an adjudicated classical-text claim.",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "test"
+  },
+  {
+    "case_id": "dyn-028",
+    "source_lineage": [
+      "fixture:dyn-028"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Similar actions may have different normative evaluations when reasons and contexts differ.",
+    "relation_families": [
+      "symbolic_normative"
+    ],
+    "shared_basis": [
+      "similar observable action"
+    ],
+    "non_shared_basis": [
+      "different reasons, roles, and contexts"
+    ],
+    "scope_conditions": [
+      "normative evidence for reasons and context is missing"
+    ],
+    "required_invariants": [
+      "surface action does not determine normative status"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:dyn-028"
+    ],
+    "independence_group": "fixture-group-dyn-028",
+    "gold_decision": "abstain",
+    "gold_rationale": "Synthetic expected label for dynamic context and standpoint boundary testing; not an adjudicated classical-text claim.",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "test"
+  },
+  {
+    "case_id": "dyn-029",
+    "source_lineage": [
+      "fixture:dyn-029"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "A seasonal label alone does not establish identical environmental conditions.",
+    "relation_families": [
+      "temporal"
+    ],
+    "shared_basis": [
+      "same season label"
+    ],
+    "non_shared_basis": [
+      "local environment and measured conditions unknown"
+    ],
+    "scope_conditions": [
+      "environmental measurements and location required"
+    ],
+    "required_invariants": [
+      "calendar label is not a physical measurement"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:dyn-029"
+    ],
+    "independence_group": "fixture-group-dyn-029",
+    "gold_decision": "abstain",
+    "gold_rationale": "Synthetic expected label for dynamic context and standpoint boundary testing; not an adjudicated classical-text claim.",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "test"
+  },
+  {
+    "case_id": "dyn-030",
+    "source_lineage": [
+      "fixture:dyn-030"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Same observed outcome with unobserved process paths does not establish mechanism equivalence.",
+    "relation_families": [
+      "process_mechanism"
+    ],
+    "shared_basis": [
+      "same observed outcome"
+    ],
+    "non_shared_basis": [
+      "process paths not observed"
+    ],
+    "scope_conditions": [
+      "mechanism evidence or intervention required"
+    ],
+    "required_invariants": [
+      "outcome and mechanism remain distinct"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:dyn-030"
+    ],
+    "independence_group": "fixture-group-dyn-030",
+    "gold_decision": "abstain",
+    "gold_rationale": "Synthetic expected label for dynamic context and standpoint boundary testing; not an adjudicated classical-text claim.",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "test"
   }
 ]
