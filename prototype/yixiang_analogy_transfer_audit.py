@@ -70,7 +70,7 @@ def assess_analogy_transfer(proposal: AnalogyProposal) -> TransferAssessment:
     if proposal.source_case_id == proposal.target_case_id:
         raise ValueError("source and target cases must differ")
     for name in ("shared_features", "source_relation_signature", "target_relation_signature", "evidence_refs", "condition_refs", "counterexample_refs"):
-        _refs(getattr(proposal, name), name, allow_empty=name in {"condition_refs", "counterexample_refs"})
+        _refs(getattr(proposal, name), name, allow_empty=name in {"evidence_refs", "condition_refs", "counterexample_refs"})
     if not isinstance(proposal.reviewed, bool):
         raise ValueError("reviewed must be bool")
     for name in ("warrant_comparable", "relation_preserved", "scope_compatible"):
