@@ -1,0 +1,35 @@
+name: CPG-EI degree-bounded ANF identifiability
+
+on:
+  push:
+    branches:
+      - research/cpg-ei-degree-bounded-anf-identifiability-v1-2026-11-13
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  degree-bounded-identifiability:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run algebraic and leakage regression tests
+        run: |
+          python -m unittest discover -s tests -p 'test_cpg_ei_degree_bounded_anf.py' -v
+          python -m unittest discover -s tests -p 'test_cpg_ei_anf_identifiability.py' -v
+      - name: Run degree-bounded identifiability benchmark
+        run: |
+          python -m prototype.cpg_ei_degree_bounded_anf             --families 64 --input-dim 8 --output-dim 8             --seed 20261114 --json artifacts/degree-bounded-anf.json
+      - name: Upload machine-readable evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: zhouyi-cpg-ei-degree-bounded-anf-v1
+          path: artifacts/degree-bounded-anf.json
+          if-no-files-found: error
+          retention-days: 30
