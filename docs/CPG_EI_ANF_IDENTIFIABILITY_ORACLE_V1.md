@@ -16,6 +16,26 @@ vector. Variable bit i denotes x_i; coefficient masks use little-endian indexing
 The full truth table is used only to compute the explicitly labelled oracle
 reference. It is not supplied to the partial-observation solver.
 
+## Degree-constrained identifiability sweep
+
+The audit now repeats the train-only GF(2) system over ANF bases with maximum
+monomial degree 0 through d. Each basis includes the constant term and contains
+all monomials whose degree is at most the selected bound.
+
+For each degree it records:
+- basis coefficient count;
+- full-truth-table oracle representability rate;
+- training-system consistency;
+- mean training rank and nullity;
+- unique-solution rate;
+- oracle-support containment among representable, consistent systems.
+
+This makes the structural-prior tradeoff explicit: restricting degree reduces
+the number of unknown coefficients but can exclude valid higher-degree rules.
+A low-degree fit on the training rows is not treated as proof that the teacher
+function belongs to that degree class; oracle representability is reported
+separately and is computed only after fitting diagnostics.
+
 ## Partial-observation identifiability
 
 Each observed state contributes one linear equation over GF(2), with one
