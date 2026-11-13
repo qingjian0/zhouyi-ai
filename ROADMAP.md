@@ -6,7 +6,7 @@
 |---|---|---|---|
 | P0-A | 类象理论本体 | 多维类象、关系保持、边界条件、反例与证据规范 | v0.1 本体草案与类象记录规范已建立，待文献校勘/专家审阅 |
 | P0-B | 易学概念校勘 | 阴阳、四象、八卦、六十四卦、爻位、卦序、卦变规范 | 编码约定与结构转移原型已实现；经典来源校勘待开展 |
-| P0-C | 类象数据体系 | 经典语料、结构数据、跨域案例、合成基准与数据卡 | 候选书目 90 项；结构化语料 30 条候选记录；全文入库与逐条校勘待开展 |
+| P0-C | 类象数据体系 | 经典语料、结构数据、跨域案例、合成基准与数据卡 | 候选书目 111 项；结构化语料 30 条候选记录；全文入库与逐条校勘待开展 |
 | P0-D | 类象计算引擎 | 类象发现、解释、验证、迁移、组合和拒绝机制 | 规则评估、有界图映射、M2.1 候选评分和 M3 证据剖面基线已实现；学习型抽取/迁移待开展 |
 | P0-E | 易象状态引擎 | 层次状态、爻位、卦变、状态转移与路径 | 64态结构编码与显式动爻转移原型已实现；经典语义/路径模型待开展 |
 | P0-F | 五行与时位势变 | 条件关系、制化、乘侮、消长及动态演化 | 设计草案，模型实验未开始 |
@@ -30,7 +30,7 @@
 7. M6：新象发现、版本化和回滚。
 8. M7：统一闭环与公平消融。
 
-M1 文档与实现见 `docs/YIXIANG_MULTISCALE_TIME_M1_V0_1.md`、`prototype/yixiang_multiscale_time.py`；M2 见 `docs/YIXIANG_HIERARCHICAL_STRUCTURE_M2_V0_1.md`、`prototype/yixiang_hierarchical_structure.py`；M2.1 见 `docs/YIXIANG_BIDIRECTIONAL_CONSTRAINTS_M2_1_V0_1.md`、`prototype/yixiang_bidirectional_constraints.py`；古籍类象校勘札记见 `docs/CLASSICAL_YIXIANG_THEORY_NOTES_PREQIN_HAN_V0_1.md`；跨时代综合框架见 `docs/CLASSICAL_YIXIANG_THEORY_SYNTHESIS_V0_2.md`；M3 见 `docs/YIXIANG_COMPETING_HYPOTHESES_M3_V0_1.md`、`prototype/yixiang_competing_hypotheses.py`；M4 见 `docs/YIXIANG_COUNTERFACTUAL_M4_V0_1.md`、`prototype/yixiang_counterfactual.py`。
+M1 文档与实现见 `docs/YIXIANG_MULTISCALE_TIME_M1_V0_1.md`、`prototype/yixiang_multiscale_time.py`；M2 见 `docs/YIXIANG_HIERARCHICAL_STRUCTURE_M2_V0_1.md`、`prototype/yixiang_hierarchical_structure.py`；M2.1 见 `docs/YIXIANG_BIDIRECTIONAL_CONSTRAINTS_M2_1_V0_1.md`、`prototype/yixiang_bidirectional_constraints.py`；古籍类象校勘札记见 `docs/CLASSICAL_YIXIANG_THEORY_NOTES_PREQIN_HAN_V0_1.md`；跨时代综合框架见 `docs/CLASSICAL_YIXIANG_THEORY_SYNTHESIS_V0_2.md`；古籍数字来源与版本规程见 `docs/CLASSICAL_TEXT_DIGITAL_SOURCE_POLICY_V0_1.md`；M3 见 `docs/YIXIANG_COMPETING_HYPOTHESES_M3_V0_1.md`、`prototype/yixiang_competing_hypotheses.py`；M4 见 `docs/YIXIANG_COUNTERFACTUAL_M4_V0_1.md`、`prototype/yixiang_counterfactual.py`。
 
 ## 执行原则
 
