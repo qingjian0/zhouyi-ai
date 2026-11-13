@@ -13,7 +13,7 @@ M7 将已有 M3、M4、M5、M6 透明基线连接成一个有边界的执行流�
 
 ## 3. 输入契约
 
-- M3 候选 ID 必须唯一；M5 prior 的 hypothesis_id 集合必须与 M3 candidate_id 完全一致。
+- M3 候选 ID 必须唯一；M5 prior 的 hypothesis_id 集合必须与 M3 中非 REJECTED 候选 ID 完全一致，避免已明确排除的解释继续占用先验概率质量；所有先验概率必须有效且归一化。
 - M4 每条 ConditionalMapping 必须通过 mapping_to_candidate 显式关联一个 M3 候选；干预只能引用已声明 mapping。
 - M5 观察候选、先验及似然分布继续由 M5 模块独立验证。
 - M6 残差必须是已标注 ResidualCase，保留 observation_id、domain、typed signature、context 和 evidence_refs。
