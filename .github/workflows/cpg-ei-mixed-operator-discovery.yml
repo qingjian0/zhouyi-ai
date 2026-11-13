@@ -28,6 +28,41 @@ jobs:
           python -m prototype.cpg_ei_mixed_operator_discovery \
             --families 400 --input-dim 8 --output-dim 8 \
             --seed 20261114 --json artifacts/mixed-operator-discovery.json
+      - name: Run expanded-corpus contract tests for the v2 child PR
+        if: github.event_name == 'pull_request' && github.head_ref == 'research/cpg-ei-expanded-mixed-corpus-v2-2026-11-13'
+        run: |
+          python -m unittest discover -s tests -p 'test_cpg_ei_expanded_mixed_corpus.py' -v
+      - name: Generate fourfold expanded corpus for the v2 child PR
+        if: github.event_name == 'pull_request' && github.head_ref == 'research/cpg-ei-expanded-mixed-corpus-v2-2026-11-13'
+        run: |
+          python -m prototype.cpg_ei_expanded_mixed_corpus \
+            --families 1600 --input-dim 8 --output-dim 8 \
+            --seed 20261114 \
+            --jsonl artifacts/expanded-mixed-operators-v2.jsonl \
+            --manifest artifacts/expanded-mixed-operators-v2-manifest.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          manifest = json.loads(Path("artifacts/expanded-mixed-operators-v2-manifest.json").read_text())
+          assert manifest["family_count"] == 1600
+          assert manifest["row_count"] == 409600
+          assert manifest["expansion_factor_vs_reference"] == 4.0
+          assert sum(manifest["family_split_counts"].values()) == 1600
+          assert sum(manifest["operator_rule_counts"].values()) == 12800
+          print(json.dumps({k: manifest[k] for k in (
+              "dataset_id", "family_count", "row_count", "teacher_rule_count",
+              "family_split_counts", "operator_rule_counts", "corpus_sha256"
+          )}, indent=2))
+          PY
+      - name: Upload expanded corpus artifact for the v2 child PR
+        if: github.event_name == 'pull_request' && github.head_ref == 'research/cpg-ei-expanded-mixed-corpus-v2-2026-11-13'
+        uses: actions/upload-artifact@v4
+        with:
+          name: zhouyi-cpg-ei-expanded-mixed-corpus-v2
+          path: |
+            artifacts/expanded-mixed-operators-v2.jsonl
+            artifacts/expanded-mixed-operators-v2-manifest.json
+          if-no-files-found: error
       - name: Upload reproducible report
         uses: actions/upload-artifact@v4
         with:
