@@ -4,14 +4,39 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from prototype.cpg_ei_generic_learner import RelationalTransitionModel, TransitionExample
+from prototype.cpg_ei_generic_learner import (
+    RelationalTransitionModel, TransitionExample, encode_relations,
+)
 from prototype.cpg_ei_mixed_operator_data import generate_mixed_corpus
 from prototype.cpg_ei_early_stopping import (
-    fit_with_early_stopping, run_early_stopping_baseline, write_json_report,
+    _train_preencoded_one_epoch, fit_with_early_stopping,
+    run_early_stopping_baseline, write_json_report,
 )
 
 
 class TestEarlyStoppingBaseline(unittest.TestCase):
+    def test_preencoded_epoch_matches_reference_training_exactly(self):
+        training = [
+            TransitionExample((0, 0, 0), (0, 1)),
+            TransitionExample((0, 1, 1), (1, 0)),
+            TransitionExample((1, 0, 1), (1, 1)),
+            TransitionExample((1, 1, 0), (0, 0)),
+        ]
+        reference = RelationalTransitionModel.create(3, 2, 1, 3)
+        cached = copy.deepcopy(reference)
+        reference_loss = reference.train(
+            training, epochs=1, learning_rate=0.07, l2=0.002
+        )[0]
+        encoded = [
+            (encode_relations(row.state, cached.supports), row.target)
+            for row in training
+        ]
+        cached_loss = _train_preencoded_one_epoch(
+            cached, encoded, learning_rate=0.07, l2=0.002
+        )
+        self.assertEqual(reference.weights, cached.weights)
+        self.assertEqual(reference_loss, cached_loss)
+
     def test_checkpoint_is_selected_and_reported(self):
         corpus = generate_mixed_corpus(
             family_count=5, input_dim=4, output_dim=7, seed=511
@@ -26,6 +51,10 @@ class TestEarlyStoppingBaseline(unittest.TestCase):
             self.assertLessEqual(row["best_epoch"], row["epochs_run"])
             self.assertLessEqual(row["epochs_run"], 12)
             self.assertEqual(len(row["selected_weights_sha256"]), 64)
+            self.assertEqual(
+                row["training_feature_encodings"],
+                32 * (2 ** 4),
+            )
             self.assertTrue(0.0 <= row["locked"]["bit_accuracy"] <= 1.0)
 
     def test_locked_labels_cannot_change_checkpoint_selection(self):
@@ -49,7 +78,10 @@ class TestEarlyStoppingBaseline(unittest.TestCase):
 
     def test_empty_development_is_rejected(self):
         model = RelationalTransitionModel.create(2, 1, 1, 2)
-        training = [TransitionExample((0, 0), (0,)), TransitionExample((1, 1), (1,))]
+        training = [
+            TransitionExample((0, 0), (0,)),
+            TransitionExample((1, 1), (1,)),
+        ]
         with self.assertRaises(ValueError):
             fit_with_early_stopping(model, training, [], max_epochs=2)
 
