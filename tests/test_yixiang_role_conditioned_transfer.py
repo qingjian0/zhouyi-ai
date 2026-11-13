@@ -91,5 +91,25 @@ class M13Tests(unittest.TestCase):
         self.assertTrue(r.scope_only)
         self.assertFalse(r.causal_transfer_established)
 
+
+    def test_cross_domain_role_renaming_maps_cleanly(self):
+        source = frame("s", "source")
+        target = TransferFrame("t", "target", ("actor", "payload", "effect"),
+            (("supports", "actor", "payload", "positive", 0),
+             ("produces", "payload", "effect", "positive", 1)),
+            (MechanismStep("transform", "actor", "payload", "effect", 0),
+             MechanismStep("complete", "actor", "effect", "effect", 1)),
+            (("season", "spring"), ("task", "preserve")), ("t-text",))
+        mapping = (("agent", "actor"), ("object", "payload"), ("result", "effect"))
+        item = TransferContract("renamed", source, target, mapping, ("season", "task"))
+        self.assertEqual(assess_role_conditioned_transfer(item).decision, TransferDecision.ACCEPT_SCOPED)
+
+    def test_empty_required_context_is_invalid(self):
+        item = contract()
+        bad = TransferContract(item.transfer_id, item.source, item.target,
+            item.role_mapping, ())
+        with self.assertRaises(ValueError):
+            assess_role_conditioned_transfer(bad)
+
 if __name__ == "__main__":
     unittest.main()
