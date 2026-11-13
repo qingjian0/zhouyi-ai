@@ -7,9 +7,9 @@
 
 ## 项目状态
 
-- 当前阶段：M1 多尺度时间数据结构原型与类象认知研究；统一时空关系表示持续推进
+- 当前阶段：M1 多尺度时间、M2 整体—局部关系与类象认知研究；统一时空关系表示持续推进
 - 理论版本：CPG-EI v0.3（研究草案，持续修订）
-- 代码状态：已有静态抽象、动态转移、多元关系、情境联合比较、时序轨迹对齐及多尺度时间基础原型；尚无规模化模型或性能结论
+- 代码状态：已有静态抽象、动态转移、多元关系、情境联合比较、时序轨迹对齐、多尺度时间及整体—局部候选约束评估基础原型；尚无规模化模型或性能结论
 - 验证原则：所有架构主张均须通过可复现实验、消融和公平对照验证
 
 ## 核心研究问题
@@ -40,8 +40,11 @@
 - [类象认知下一阶段研究计划 v0.1](docs/YIXIANG_NEXT_RESEARCH_PROGRAM_V0_1.md)
 - [传统类象研究文献地图与校勘计划 v0.1](docs/CLASSICAL_YIXIANG_SOURCE_MAP_V0_1.md)
 - [M2 整体—局部关系结构原型说明](docs/YIXIANG_HIERARCHICAL_STRUCTURE_M2_V0_1.md)
+- [M2.1 双向整体—局部约束评估说明](docs/YIXIANG_BIDIRECTIONAL_CONSTRAINTS_M2_1_V0_1.md)
 - [整体—局部关系结构原型](prototype/yixiang_hierarchical_structure.py)
 - [整体—局部关系结构测试](tests/test_yixiang_hierarchical_structure.py)
+- [双向约束评估原型](prototype/yixiang_bidirectional_constraints.py)
+- [双向约束评估测试](tests/test_yixiang_bidirectional_constraints.py)
 - [多尺度时间模型 M1 设计与验收](docs/YIXIANG_MULTISCALE_TIME_M1_V0_1.md)
 - [多尺度时间原型](prototype/yixiang_multiscale_time.py)
 - [多尺度时间测试](tests/test_yixiang_multiscale_time.py)
@@ -50,7 +53,7 @@
 - [合成时间基准测试](tests/test_yixiang_temporal_benchmark.py)
 - [传统古籍类象研究总纲与语料建设规范](docs/CLASSICAL_YIXIANG_CORPUS_AND_RESEARCH_PROTOCOL.md)
 - [古典类象理论札记 01：取类、推类与止推边界](docs/CLASSICAL_YIXIANG_THEORY_MEMO_01.md)
-- [传统古籍候选来源目录（56 项）](data/classical_yixiang_source_catalog.json)
+- [传统古籍候选来源目录（90 项）](data/classical_yixiang_source_catalog.json)
 - [古籍来源目录使用说明](data/README.md)
 - [结构化类象古籍语料 v0.1](docs/CLASSICAL_XIANG_CORPUS_V0_1.md)
 - [类象语料 JSON Schema](schemas/classical-xiang-corpus.schema.json)
