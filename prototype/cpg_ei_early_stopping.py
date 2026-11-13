@@ -94,6 +94,12 @@ def fit_with_early_stopping_scalar(
         "stopped_early": epochs_run < max_epochs,
         "selected_weights_sha256": weights_digest,
         "optimizer_backend": "stdlib-scalar-reference",
+        "training_feature_encodings": (
+            epochs_run * len(training) * (len(model.supports) + 1)
+        ),
+        "development_feature_encodings": (
+            (epochs_run + 1) * len(development) * (len(model.supports) + 1)
+        ),
     }
 
 
@@ -203,6 +209,8 @@ def fit_with_early_stopping_vectorized(
         "stopped_early": epochs_run < max_epochs,
         "selected_weights_sha256": weights_digest,
         "optimizer_backend": "numpy-vectorized-float64",
+        "training_feature_encodings": int(x_train.size),
+        "development_feature_encodings": int(x_dev.size),
     }
 
 
