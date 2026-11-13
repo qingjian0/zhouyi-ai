@@ -290,7 +290,7 @@ def run_active_query_benchmark(
                 )
                 random_result = _select_candidate(
                     random_survivors, pattern_to_candidates, dev_mask,
-                    target_mask, locked_mask, teacher_mask, teacher_rule, input_dim,
+                    target_mask, locked_mask, teacher_rule, input_dim,
                 )
                 active_record = {
                     "family_id": family_id,
