@@ -33,7 +33,7 @@ class TransitionPattern:
     transitions: Mapping[str, tuple[str, str]]
     feature_dimensions: Mapping[str, str]
     variable_features: tuple[str, ...]
-    support_trajectory_ids: tuple[str, ...]
+    transition_support_ids: Mapping[str, tuple[str, ...]]
     evidence_refs: tuple[str, ...]
     scope: str
 
@@ -133,6 +133,7 @@ def derive_transition_pattern(
                 votes.setdefault(key, {}).setdefault(pair, set()).add(trajectory_id)
 
     invariants = {}
+    transition_support_ids = {}
     for key, pair_votes in votes.items():
         ranked = sorted(
             ((len(ids), pair) for pair, ids in pair_votes.items()),
@@ -141,6 +142,7 @@ def derive_transition_pattern(
         if ranked and ranked[0][0] / len(trajectories) >= min_support_ratio:
             if len(ranked) == 1 or ranked[0][0] > ranked[1][0]:
                 invariants[key] = ranked[0][1]
+                transition_support_ids[key] = tuple(sorted(pair_votes[ranked[0][1]]))
 
     selected_keys = set(feature_dimensions)
     return TransitionPattern(
@@ -150,7 +152,7 @@ def derive_transition_pattern(
         transitions=invariants,
         feature_dimensions=feature_dimensions,
         variable_features=tuple(sorted(selected_keys - set(invariants))),
-        support_trajectory_ids=tuple(trajectory_ids),
+        transition_support_ids=transition_support_ids,
         evidence_refs=tuple(sorted(evidence)),
         scope=scope,
     )
