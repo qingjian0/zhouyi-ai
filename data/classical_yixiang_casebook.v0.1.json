@@ -94,6 +94,14 @@
       "url": "https://ctext.org/lv-shi-chun-qiu/an-si",
       "digital_witness": "中国哲学书电子化计划《安死》数字文本入口；另有《四部丛刊》系统及其他转录可供后续比对",
       "witness_limit": "当前仅完成数字文本定位；需核对卷篇、影印页、引《诗》文字及高诱注，不视为完成版本校勘。"
+    },
+    {
+      "source_id": "src_lushi_yingtong",
+      "work": "吕氏春秋",
+      "chapter": "有始览·应同",
+      "url": "https://ctext.org/lv-shi-chun-qiu/ying-tong/zhs",
+      "digital_witness": "中国哲学书电子化计划《应同》数字文本入口，检索结果标注《四部丛刊初编》本。",
+      "witness_limit": "当前仅完成数字检索定位，未逐字核对影印页、卷次、篇章层累及相关五行文献；数字录文中的祥瑞—德运—政事联系应先视为文本内部主张，不作为现代自然因果事实。"
     }
   ],
   "cases": [
@@ -646,6 +654,38 @@
         "人物名见高阳应、高阳魋等不同录文；须分别记录传本，不可无说明地统一。",
         "不同平行文本在“木尚生”“生材任重涂”等表述上有差异。",
         "“好小察”可作局部细察而不通整体事理的批评；其具体思想史含义仍需与全篇论证合看。"
+      ],
+      "evidence_status": "digital_transcription_candidate",
+      "review_status": "unreviewed"
+    },
+    {
+      "case_id": "xy_019",
+      "source_id": "src_lushi_yingtong",
+      "period": "qin_han",
+      "text_layer": "base_text",
+      "locator": "有始览·应同；黄帝、禹、汤、文王祥瑞与五行德运对应段",
+      "excerpt": "凡帝王者之将兴也，天必先见祥乎下民。黄帝之时，天先见大蚓大蝼，黄帝曰“土气胜”，土气胜，故其色尚黄，其事则土。及禹之时，天先见草木秋冬不杀，禹曰“木气胜”，木气胜，故其色尚青，其事则木。及汤之时，天先见金刃生于水，汤曰“金气胜”，金气胜，故其色尚白，其事则金。",
+      "problem": "文本如何将天象征兆、五行德运、颜色和政事组织成王朝兴替的解释链？这种象征/政治对应能否直接当作自然因果关系？",
+      "operation": [
+        "correspondence",
+        "normative_argument",
+        "rhetoric",
+        "contextual_constraint"
+      ],
+      "premises": [
+        "篇章将王朝兴起前的祥瑞征兆与土、木、金等五行之气相联系。",
+        "五行之气进一步与颜色尚取和政事属性建立对应。",
+        "文本以此构成解释王朝兴替及政治秩序的叙事框架。"
+      ],
+      "conclusion_scope": "可支持重建《应同》篇内部的祥瑞—德运—颜色—政事对应结构，以及其政治宇宙论功能；不能据此断言天象在现代经验意义上导致王朝兴替，也不能把五行配属直接当作自然科学分类。",
+      "counterexample_or_boundary": [
+        "文本中的对应关系是历史思想与政治解释材料，不等于已验证的物理因果机制。",
+        "祥瑞叙事可能承担合法性建构、历史追溯和政治修辞功能，须与实际天象记录分开。",
+        "五行德运框架内部的解释一致性不能替代对具体历史事件的独立史料核验。"
+      ],
+      "alternative_readings": [
+        "篇章中的五行相胜、德运更替与祥瑞征兆可能涉及不同思想层次，需结合《吕氏春秋》全书及先秦两汉五行文献考察。",
+        "具体祥瑞名物及其与历史人物、年代的对应仍需版本与史料复核。"
       ],
       "evidence_status": "digital_transcription_candidate",
       "review_status": "unreviewed"
