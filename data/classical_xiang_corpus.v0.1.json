@@ -2466,5 +2466,140 @@
     "method_families": [
       "phenomenological_observation"
     ]
+  },
+  {
+    "record_id": "mozi-daqu-sameness-types-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "墨子·大取",
+      "traditional_authority": "传统题署与文本层次须按校勘本进一步核验",
+      "composition_period": "战国时期或战国层累材料；具体篇章年代仍待考",
+      "genre": "墨家名辩篇章"
+    },
+    "period": "pre_qin",
+    "source_type": "classical_text",
+    "tradition": [
+      "先秦诸子",
+      "类比/推类",
+      "类象理论"
+    ],
+    "witness": {
+      "witness_id": "ctext-mozi-daqu",
+      "edition_or_database": "中国哲学书电子化计划数字转录检索见证；需与可靠整理本或影印本复核",
+      "url": "https://ctext.org/mozi/major-illustrations/zhs",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台及转录许可另行核验"
+    },
+    "locator": {
+      "chapter": "大取",
+      "section_or_line": "重同，具同，连同，同类之同，同名之同；丘同，附同，是之同，然之同，同根之同"
+    },
+    "text": "重同，具同，连同，同类之同，同名之同；丘同，附同，是之同，然之同，同根之同。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "mozi-daqu-sameness-types-001",
+        "claim_kind": "textual_observation",
+        "subject": "同异关系",
+        "predicate": "区分多种同",
+        "object": "同并非单一关系",
+        "interpretive_note": "《大取》列出多种‘同’的名称，提示类同依据具有多样性；个别术语的断句和含义仍待版本校勘与注家比较，不将现代关系类型直接等同古代术语。",
+        "scope": "限于《大取》当前数字见证所见列举；具体术语释义保持未决。",
+        "review_status": "unreviewed",
+        "relation_family": "lexical",
+        "causal_status": "not_claimed",
+        "reasoning_operations": [
+          "classify",
+          "identify_difference"
+        ]
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引与来源元数据。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "数字转录尚未与影印底本逐字校勘；‘丘同、附同’等术语释义待考。"
+    ],
+    "concept_tags": [
+      "classification",
+      "analogy_method",
+      "analogy_limit"
+    ],
+    "method_families": [
+      "classification",
+      "lexical_taxonomy",
+      "analogical_argument"
+    ]
+  },
+  {
+    "record_id": "mojing-jingshuoshang-difference-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "墨经·经说上",
+      "traditional_authority": "墨家经说材料；篇章层次与传本问题须依校勘本核验",
+      "composition_period": "战国时期或战国层累材料；具体条目年代仍待考",
+      "genre": "墨家名辩与概念辨析"
+    },
+    "period": "pre_qin",
+    "source_type": "classical_text",
+    "tradition": [
+      "先秦诸子",
+      "类比/推类",
+      "类象理论"
+    ],
+    "witness": {
+      "witness_id": "ctext-mojing-jingshuoshang",
+      "edition_or_database": "中国哲学书电子化计划数字转录检索见证；需与可靠整理本或影印本复核",
+      "url": "https://ctext.org/mozi/book-10/zhs",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台及转录许可另行核验"
+    },
+    "locator": {
+      "chapter": "经说上",
+      "section_or_line": "异：二必异，二也。不连属，不体也。不同所，不合也。不有同，不类也"
+    },
+    "text": "异：二必异，二也。不连属，不体也。不同所，不合也。不有同，不类也。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "mojing-jingshuoshang-difference-001",
+        "claim_kind": "textual_observation",
+        "subject": "异与类",
+        "predicate": "从数目、连属、同处与共同点辨析",
+        "object": "异并非单一的相似性反面",
+        "interpretive_note": "当前数字见证把‘二必异’、不连属、不同所、不有同等判断并列呈现。具体句读和‘体/所’术语须结合经说上下文与校注研究；项目先保留其区分结构，不强行统一释义。",
+        "scope": "限于《经说上》当前数字见证所见条目；不据此推定全书所有‘同/异’用法一致。",
+        "review_status": "unreviewed",
+        "relation_family": "taxonomic",
+        "causal_status": "not_claimed",
+        "reasoning_operations": [
+          "classify",
+          "identify_difference"
+        ]
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引与来源元数据。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "数字转录尚未与影印底本逐字校勘；经文、经说和后世校释须分层。"
+    ],
+    "concept_tags": [
+      "classification",
+      "name_reality",
+      "analogy_limit"
+    ],
+    "method_families": [
+      "classification",
+      "lexical_taxonomy"
+    ]
   }
 ]
