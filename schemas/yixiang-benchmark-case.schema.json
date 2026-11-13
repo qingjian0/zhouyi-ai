@@ -21,7 +21,8 @@
     "gold_rationale",
     "label_status",
     "reviewers",
-    "split_group"
+    "split_group",
+    "claim_kind"
   ],
   "properties": {
     "case_id": {
@@ -158,6 +159,15 @@
         "test",
         "exploratory",
         "holdout"
+      ]
+    },
+    "claim_kind": {
+      "enum": [
+        "taxonomic_similarity",
+        "argumentative_analogy",
+        "action_outcome",
+        "practical_utility",
+        "symbolic_correspondence"
       ]
     }
   },
