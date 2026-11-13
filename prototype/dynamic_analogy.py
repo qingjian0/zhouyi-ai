@@ -186,6 +186,7 @@ def assess_dynamic_analogy(
     if any(ordered[i][1] >= ordered[i + 1][1] for i in range(len(ordered) - 1)):
         raise ValueError("state alignment must preserve strict temporal order")
 
+    mapped_targets = set(mapping.values())
     expected_facts: set[tuple[str, str, str, str]] = set()
     observed_facts: set[tuple[str, str, str, str]] = set()
     for source_id, target_id in alignment.items():
@@ -207,7 +208,6 @@ def assess_dynamic_analogy(
                 alignment[edge.source_state], alignment[edge.target_state], edge.event_kind
             ))
     aligned_targets = set(alignment.values())
-    mapped_targets = set(mapping.values())
     observed_transitions = {
         (edge.source_state, edge.target_state, edge.event_kind)
         for edge in candidate.target.transitions
