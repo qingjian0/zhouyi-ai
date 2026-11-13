@@ -39,7 +39,7 @@ class ClassicalYixiangCasebookTests(unittest.TestCase):
         self.assertIn("perception_grounding", case["operation"])
         self.assertIn("identity_tracking", case["operation"])
         self.assertTrue(any("天官" in premise for premise in case["premises"]))
-        self.assertTrue(any("同状而异所" in boundary for boundary in case["counterexample_or_boundary"]))
+        self.assertTrue(any("颜色和轮廓上相同" in boundary and "不同个体" in boundary for boundary in case["counterexample_or_boundary"]))
         self.assertIn("外观或名称", case["conclusion_scope"])
 
     def test_no_candidate_excerpt_is_misrepresented_as_verified(self):
