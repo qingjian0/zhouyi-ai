@@ -93,6 +93,7 @@ def fit_with_early_stopping_scalar(
         "last_train_loss_before_restore": train_losses[-1] if train_losses else None,
         "stopped_early": epochs_run < max_epochs,
         "selected_weights_sha256": weights_digest,
+        "optimizer_backend": "stdlib-scalar-reference",
     }
 
 
