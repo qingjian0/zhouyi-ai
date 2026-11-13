@@ -41,6 +41,7 @@
 - [先秦两汉类象理论校勘札记 v0.1](docs/CLASSICAL_YIXIANG_THEORY_NOTES_PREQIN_HAN_V0_1.md)
 - [传统类象理论综合框架 v0.2](docs/CLASSICAL_YIXIANG_THEORY_SYNTHESIS_V0_2.md)
 - [《周易》变—通—时—位动态类象专题](docs/CLASSICAL_YIXIANG_CHANGE_TIME_POSITION_V0_1.md)
+- [先秦至两汉类比适切性与推类边界研究](docs/CLASSICAL_YIXIANG_ANALOGY_VALIDITY_HAN_PREQIN_HAN_V0_1.md)
 - [《墨子·小取》类推结构与异文专题](docs/CLASSICAL_YIXIANG_MOZI_XIAOQU_ANALYSIS_V0_1.md)
 - [《墨子·大取》与《墨经》同异—类—故专题](docs/CLASSICAL_YIXIANG_MOZI_DAQU_MOJING_ANALYSIS_V0_1.md)
 - [M5 主动观测与信息增益基线](docs/YIXIANG_ACTIVE_OBSERVATION_M5_V0_1.md)
