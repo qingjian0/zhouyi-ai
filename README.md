@@ -62,7 +62,6 @@
 - [M4 测试](tests/test_yixiang_counterfactual.py)
 - [M5 测试](tests/test_yixiang_active_observation.py)
 - [M6 测试](tests/test_yixiang_novelty.py)
-- [M6 测试](tests/test_yixiang_novelty.py)
 - [M1 多尺度时间模型](prototype/yixiang_multiscale_time.py)
 - [M1 合成时间基准](docs/YIXIANG_TEMPORAL_BENCHMARK_M1_V0_1.md)
 - [传统古籍类象研究总纲](docs/CLASSICAL_YIXIANG_CORPUS_AND_RESEARCH_PROTOCOL.md)
