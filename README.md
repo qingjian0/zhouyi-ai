@@ -7,7 +7,7 @@
 
 ## 项目状态
 
-- 当前阶段：M1–M11 研究原型、基准与透明规则门禁持续扩展；M10 预注册组合实验审计现有 16 项专项测试，新增强制替代解释控制臂；M11 动态网络审计现有 14 项专项测试，覆盖穷—变—通—久证据与跨窗口持续性；最新 M11/M10 代码 head 的完整 CI 正在执行，暂不宣称全项通过；真实任务效益、M8 人工 gold 与分轴基准接入仍待开展；传统类象语料 43 条候选记录、52 条文本主张
+- 当前阶段：M1–M12 研究原型、基准与透明规则门禁持续扩展；M10 现有 16 项专项测试并强制替代解释控制臂；M11 现有 14 项专项测试审计穷—变—通—久证据；M12 现有 16 项专项测试审计条件约束下的多路径竞争、循环路径与证据复用；最新代码 head 的完整 CI 尚待收尾，不宣称全项通过；真实任务效益、M8 人工 gold 与分轴基准接入仍待开展；传统类象语料 43 条候选记录、52 条文本主张
 - 理论版本：CPG-EI v0.3（研究草案，持续修订）
 - 代码状态：已有多尺度时间、typed relations、整体—局部候选约束、竞争类象证据剖面、未决裁决及 M4 条件干预原型；尚无规模化模型或性能结论
 - 验证原则：所有架构主张均须通过可复现实验、消融和公平对照验证
@@ -62,6 +62,9 @@
 - [M11 动态类象网络审计专题](docs/YIXIANG_M11_DYNAMIC_NETWORK_V0_1.md)
 - [M11 动态类象网络审计原型](prototype/yixiang_dynamic_network.py)
 - [M11 动态类象网络审计测试](tests/test_yixiang_dynamic_network.py)
+- [M12 条件约束多路径竞争专题](docs/YIXIANG_M12_PATH_COMPETITION_V0_1.md)
+- [M12 多路径竞争审计原型](prototype/yixiang_path_competition.py)
+- [M12 多路径竞争专项测试](tests/test_yixiang_path_competition.py)
 - [类象候选生成对照证据机制](docs/CLASSICAL_YIXIANG_CANDIDATE_GENERATION_V0_1.md#3-候选生成流程)
 - [关系不变量迁移原型](prototype/yixiang_relation_invariants.py)
 - [关系不变量迁移测试](tests/test_yixiang_relation_invariants.py)
