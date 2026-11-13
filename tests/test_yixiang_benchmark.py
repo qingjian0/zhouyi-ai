@@ -27,7 +27,7 @@ class BenchmarkContractTests(unittest.TestCase):
   root=Path(__file__).resolve().parents[1]
   cases=json.loads((root/"data/yixiang_benchmark_synthetic.v0.1.json").read_text(encoding="utf-8"))
   validate_dataset(cases)
-  self.assertEqual(len(cases),42)
+  self.assertEqual(len(cases),44)
   self.assertTrue({"same-013", "same-014", "same-015", "same-016", "same-017", "same-018", "same-019", "same-020", "same-021", "same-022"}.issubset({c["case_id"] for c in cases}))
   self.assertTrue({"dyn-023", "dyn-024", "dyn-025", "dyn-026", "dyn-027", "dyn-028", "dyn-029", "dyn-030"}.issubset({c["case_id"] for c in cases}))
   self.assertTrue({"dyn-031", "dyn-032", "dyn-033", "dyn-034", "dyn-035", "dyn-036"}.issubset({c["case_id"] for c in cases}))
@@ -64,6 +64,8 @@ class BenchmarkContractTests(unittest.TestCase):
    "dyn-040":("taxonomic_similarity","reject"),
    "dyn-041":("action_outcome","abstain"),
    "dyn-042":("correlative_causation","abstain"),
+   "dyn-043":("taxonomic_similarity","reject"),
+   "dyn-044":("taxonomic_similarity","reject"),
   }
   self.assertEqual({key:(by_id[key]["claim_kind"],by_id[key]["gold_decision"]) for key in expected},expected)
   report=evaluate_predictions(cases,[],allow_fixture_expected=True)
