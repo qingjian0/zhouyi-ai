@@ -105,6 +105,25 @@ class LeiClaimTests(unittest.TestCase):
         )
         self.assertEqual(result.causal_conclusion, "not_established")
 
+    def test_classical_correlative_causality_is_recorded_but_not_confirmed(self):
+        result = assess_lei_claim(self.claim(
+            kind=ClaimKind.CORRELATIVE_CAUSATION,
+            evidence_kind=EvidenceKind.CLASSICAL_TEXT,
+            causal_identification="not_asserted",
+        ))
+        self.assertEqual(result.decision, ClaimDecision.ABSTAIN)
+        self.assertIn("CORRELATIVE_CAUSALITY_NOT_EMPIRICALLY_IDENTIFIED", result.reason_codes)
+        self.assertEqual(result.causal_conclusion, "not_established")
+
+    def test_correlative_causality_requires_intervention_evidence_type_for_identification(self):
+        result = assess_lei_claim(self.claim(
+            kind=ClaimKind.CORRELATIVE_CAUSATION,
+            evidence_kind=EvidenceKind.INTERVENTION,
+            causal_identification="intervention_or_identification_evidence",
+        ))
+        self.assertEqual(result.decision, ClaimDecision.SCOPE_RECORDED)
+        self.assertEqual(result.causal_conclusion, "candidate_intervention_evidence_requires_review")
+
     def test_invalid_sequence_field_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "scope_conditions"):
             assess_lei_claim(self.claim(scope_conditions=["not-a-tuple"]))
