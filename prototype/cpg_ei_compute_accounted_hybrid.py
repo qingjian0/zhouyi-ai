@@ -534,6 +534,7 @@ def run_compute_accounted_comparison(
                 "min_delta": min_delta,
                 "learning_rate": learning_rate,
                 "l2": l2,
+                "optimizer_backend": "numpy-vectorized-float64 when NumPy is installed; scalar fallback otherwise",
                 "initialization": "all-zero weights",
             },
             "methods": {
