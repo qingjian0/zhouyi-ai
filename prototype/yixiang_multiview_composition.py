@@ -169,6 +169,14 @@ def compose_views(
         raise ValueError("bridge evidence_refs must be non-empty")
     if any(not isinstance(x, str) or not x.strip() for x in bridge.evidence_refs):
         raise ValueError("bridge evidence refs must be non-empty strings")
+    if len(set(bridge.evidence_refs)) != len(bridge.evidence_refs):
+        raise ValueError("bridge evidence refs must be unique")
+    member_refs = {
+        ref for candidate in candidates
+        for ref in (candidate.evidence.source_ref, candidate.evidence.target_ref)
+    }
+    if member_refs.intersection(bridge.evidence_refs):
+        raise ValueError("bridge evidence must be distinct from member-view evidence")
 
     pairs = {(c.source_observation_id, c.target_observation_id) for c in candidates}
     if len(pairs) != 1:
