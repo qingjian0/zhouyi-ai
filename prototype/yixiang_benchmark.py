@@ -14,6 +14,7 @@ def _strings(v,f,nonempty=True):
     return v
 def validate_case(c:Mapping)->None:
     if not isinstance(c,Mapping): raise ValueError("benchmark case must be an object")
+    if any(not isinstance(k,str) for k in c): raise ValueError("benchmark case keys must be strings")
     missing,extra=REQUIRED-set(c),set(c)-REQUIRED
     if missing: raise ValueError(f"missing fields: {', '.join(sorted(missing))}")
     if extra: raise ValueError(f"unknown fields: {', '.join(sorted(extra))}")
