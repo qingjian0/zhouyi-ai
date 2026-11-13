@@ -41,6 +41,39 @@
     },
     "target": {
       "$ref": "#/$defs/system"
+    },
+    "context_value_mapping": {
+      "type": "array",
+      "description": "Explicit per-dimension source-to-target value mappings; unmapped values require exact identity.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "dimension",
+          "source_value",
+          "target_value"
+        ],
+        "properties": {
+          "dimension": {
+            "enum": [
+              "time",
+              "position",
+              "potential",
+              "environment",
+              "phase"
+            ]
+          },
+          "source_value": {
+            "type": "string",
+            "minLength": 1
+          },
+          "target_value": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "uniqueItems": true
     }
   },
   "$defs": {
@@ -108,6 +141,14 @@
             "$ref": "#/$defs/relation"
           },
           "uniqueItems": true
+        },
+        "context": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/contextAtom"
+          },
+          "uniqueItems": true,
+          "description": "Optional state context facts. If supplied on either aligned side, context preservation is evaluated."
         }
       }
     },
@@ -170,6 +211,34 @@
           }
         }
       }
+    },
+    "contextAtom": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "subject",
+        "dimension",
+        "value"
+      ],
+      "properties": {
+        "subject": {
+          "type": "string",
+          "description": "Mapped entity id, or empty string for system-level context."
+        },
+        "dimension": {
+          "enum": [
+            "time",
+            "position",
+            "potential",
+            "environment",
+            "phase"
+          ]
+        },
+        "value": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
     }
   }
-}\n
+}
