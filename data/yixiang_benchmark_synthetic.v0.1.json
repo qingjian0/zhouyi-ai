@@ -1222,5 +1222,116 @@
     "label_status": "fixture_expected",
     "reviewers": [],
     "split_group": "test"
+  },
+  {
+    "case_id": "dyn-037",
+    "source_lineage": [
+      "fixture:dyn-037"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Do not transfer a physical resonance mechanism directly to a political omen claim.",
+    "relation_families": [
+      "process_mechanism",
+      "symbolic_normative"
+    ],
+    "shared_basis": [
+      "both are described using same-kind correspondence language"
+    ],
+    "non_shared_basis": [
+      "physical resonance has measurable coupling; political omen claims use symbolic and historical interpretation"
+    ],
+    "scope_conditions": [
+      "independent evidence for the target domain is required"
+    ],
+    "required_invariants": [
+      "evidence standard remains domain-appropriate"
+    ],
+    "known_counterexamples": [
+      "physical resonance example"
+    ],
+    "causal_status": "symbolic",
+    "evidence_refs": [
+      "fixture:dyn-037"
+    ],
+    "independence_group": "fixture-group-dyn-037",
+    "gold_decision": "abstain",
+    "gold_rationale": "Cross-domain mechanism is not established by shared vocabulary or a physical example.",
+    "reviewers": [],
+    "split_group": "test",
+    "label_status": "fixture_expected"
+  },
+  {
+    "case_id": "dyn-038",
+    "source_lineage": [
+      "fixture:dyn-038"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Do not infer identical mechanisms from different processes that reach the same outcome.",
+    "relation_families": [
+      "functional",
+      "process_mechanism"
+    ],
+    "shared_basis": [
+      "same observed goal outcome"
+    ],
+    "non_shared_basis": [
+      "different process paths and unknown causal mechanisms"
+    ],
+    "scope_conditions": [
+      "only outcome-level equivalence is claimed"
+    ],
+    "required_invariants": [
+      "process identity must be independently supported"
+    ],
+    "known_counterexamples": [
+      "same outcome produced by multiple mechanisms"
+    ],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:dyn-038"
+    ],
+    "independence_group": "fixture-group-dyn-038",
+    "gold_decision": "reject",
+    "gold_rationale": "The target claim asserts mechanism identity although only outcome equivalence is supported.",
+    "reviewers": [],
+    "split_group": "holdout",
+    "label_status": "fixture_expected"
+  },
+  {
+    "case_id": "dyn-039",
+    "source_lineage": [
+      "fixture:dyn-039"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Evaluate practical utility using delayed outcomes rather than initial success alone.",
+    "relation_families": [
+      "functional",
+      "temporal"
+    ],
+    "shared_basis": [
+      "same stated goal and initially successful result"
+    ],
+    "non_shared_basis": [
+      "delayed harm appears after the initial observation window"
+    ],
+    "scope_conditions": [
+      "long-term utility requires a declared horizon and delayed outcome"
+    ],
+    "required_invariants": [
+      "immediate success does not erase delayed failure"
+    ],
+    "known_counterexamples": [
+      "delayed adverse outcome"
+    ],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:dyn-039"
+    ],
+    "independence_group": "fixture-group-dyn-039",
+    "gold_decision": "conditional",
+    "gold_rationale": "Utility may be supported only within the stated short horizon; long-term effectiveness remains unresolved.",
+    "reviewers": [],
+    "split_group": "test",
+    "label_status": "fixture_expected"
   }
 ]
