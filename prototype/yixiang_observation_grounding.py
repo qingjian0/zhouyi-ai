@@ -43,6 +43,7 @@ class ObservationRecord:
     context: str
     timepoint: str
     referent_anchor: str = ""
+    spatial_location: str = ""
 
 
 @dataclass(frozen=True)
@@ -75,7 +76,7 @@ def _validate_observation(obs: ObservationRecord) -> None:
         raise ValueError("modality must use PerceptualModality")
     if not isinstance(obs.source, ObservationSource):
         raise ValueError("source must use ObservationSource")
-    for field in ("context", "timepoint", "referent_anchor"):
+    for field in ("context", "timepoint", "referent_anchor", "spatial_location"):
         if not isinstance(getattr(obs, field), str):
             raise ValueError(f"{field} must be a string")
 
