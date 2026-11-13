@@ -38,7 +38,7 @@ class YixiangProfileTests(unittest.TestCase):
                     ProfileSet("set", (self.source(),), (item,)).validate()
 
     def test_rejects_claim_without_registered_source(self):
-        claim = SourcedClaim("乾", "象", "甲", "missing", "scope-a", "c1")
+        claim = SourcedClaim("乾", "象", "甲", "missing", "scope-a", "c1", "系辞上·某章")
         with self.assertRaisesRegex(ValueError, "unknown source"):
             ProfileSet("set", (self.source(),), (self.profile(claims=(claim,)),)).validate()
 
@@ -53,8 +53,8 @@ class YixiangProfileTests(unittest.TestCase):
 
     def test_reports_conflicts_without_collapsing_sources(self):
         claims = (
-            SourcedClaim("乾", "attribute", "A", "zhouyi", "scope-1", "c1"),
-            SourcedClaim("乾", "attribute", "B", "zhouyi", "scope-1", "c2"),
+            SourcedClaim("乾", "attribute", "A", "zhouyi", "scope-1", "c1", "说卦传·第七章"),
+            SourcedClaim("乾", "attribute", "B", "zhouyi", "scope-1", "c2", "说卦传·第七章"),
         )
         profiles = (
             self.profile(claims=claims),
@@ -63,11 +63,39 @@ class YixiangProfileTests(unittest.TestCase):
         self.assertEqual(len(conflicts), 1)
         self.assertEqual(conflicts[0].object_values, ("A", "B"))
         self.assertEqual(conflicts[0].source_ids, ("zhouyi",))
+        self.assertEqual(conflicts[0].claim_ids, ("c1", "c2"))
+
+
+    def test_requires_claim_level_locator_and_unique_claim_ids(self):
+        missing_locator = SourcedClaim("乾", "attribute", "A", "zhouyi", "scope", "c1")
+        with self.assertRaisesRegex(ValueError, "exact locator"):
+            ProfileSet("set", (self.source(),), (self.profile(claims=(missing_locator,)),)).validate()
+
+        duplicate_ids = (
+            SourcedClaim("乾", "attribute", "A", "zhouyi", "scope", "same", "说卦传·七"),
+            SourcedClaim("乾", "attribute", "B", "zhouyi", "scope", "same", "说卦传·八"),
+        )
+        with self.assertRaisesRegex(ValueError, "claim_id"):
+            ProfileSet("set", (self.source(),), (self.profile(claims=duplicate_ids),)).validate()
+
+    def test_rejects_unknown_claim_kind_and_review_status(self):
+        bad_kind = SourcedClaim(
+            "乾", "attribute", "A", "zhouyi", "scope", "c1", "说卦传·七",
+            claim_kind="canonical_truth",
+        )
+        with self.assertRaisesRegex(ValueError, "claim_kind"):
+            ProfileSet("set", (self.source(),), (self.profile(claims=(bad_kind,)),)).validate()
+        bad_status = SourcedClaim(
+            "乾", "attribute", "A", "zhouyi", "scope", "c1", "说卦传·七",
+            review_status="approved_by_model",
+        )
+        with self.assertRaisesRegex(ValueError, "review_status"):
+            ProfileSet("set", (self.source(),), (self.profile(claims=(bad_status,)),)).validate()
 
     def test_same_claim_in_different_scopes_is_not_a_conflict(self):
         claims = (
             SourcedClaim("乾", "attribute", "A", "zhouyi", "scope-1", "c1"),
-            SourcedClaim("乾", "attribute", "B", "zhouyi", "scope-2", "c2"),
+            SourcedClaim("乾", "attribute", "B", "zhouyi", "scope-2", "c2", "说卦传·第八章"),
         )
         profile_set = ProfileSet("set", (self.source(),), (self.profile(claims=claims),))
         self.assertEqual(validate_profile_set(profile_set), ())
