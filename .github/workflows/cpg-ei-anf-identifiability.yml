@@ -6,6 +6,13 @@ on:
       - research/cpg-ei-anf-identifiability-oracle-v1-2026-11-13
   pull_request:
     types: [opened, synchronize, reopened]
+    paths:
+      - 'prototype/cpg_ei_anf_identifiability.py'
+      - 'tests/test_cpg_ei_anf_identifiability.py'
+      - 'prototype/cpg_ei_mixed_operator_data.py'
+      - 'prototype/cpg_ei_relation_operators.py'
+      - '.github/workflows/cpg-ei-anf-identifiability.yml'
+      - 'docs/CPG_EI_ANF_IDENTIFIABILITY_ORACLE_V1.md'
 
 permissions:
   contents: read
