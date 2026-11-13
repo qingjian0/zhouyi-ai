@@ -27,12 +27,20 @@ class SourceRef:
     work: str
     edition: str
     locator: str
+    source_type: str = "classical_text"
 
     def validate(self) -> None:
-        if not all(value.strip() for value in (
-            self.source_id, self.work, self.edition, self.locator
+        allowed = {
+            "classical_text", "historical_commentary", "modern_scholarship",
+            "field_observation", "research_hypothesis", "synthetic_fixture",
+            "model_generated",
+        }
+        if not all(isinstance(value, str) and value.strip() for value in (
+            self.source_id, self.work, self.edition, self.locator, self.source_type
         )):
-            raise ValueError("source id, work, edition, and locator are required")
+            raise ValueError("source id, work, edition, locator, and source_type are required")
+        if self.source_type not in allowed:
+            raise ValueError(f"unknown source_type: {self.source_type}")
 
 
 @dataclass(frozen=True)
@@ -43,13 +51,27 @@ class SourcedClaim:
     source_id: str
     scope: str
     claim_id: str
+    locator: str = ""
+    claim_kind: str = "traditional_textual_claim"
+    review_status: str = "unreviewed"
 
     def validate(self) -> None:
-        if not all(value.strip() for value in (
+        if not all(isinstance(value, str) and value.strip() for value in (
             self.subject, self.predicate, self.object, self.source_id,
-            self.scope, self.claim_id
+            self.scope, self.claim_id, self.locator, self.claim_kind,
+            self.review_status
         )):
-            raise ValueError("claim fields must be non-empty")
+            raise ValueError("claim fields, exact locator, claim_kind, and review_status must be non-empty")
+        allowed_kinds = {
+            "traditional_textual_claim", "commentarial_claim",
+            "modern_interpretation", "project_operational_definition",
+            "research_hypothesis", "observational_claim", "synthetic_fixture",
+        }
+        allowed_statuses = {"unreviewed", "reviewed", "disputed", "rejected"}
+        if self.claim_kind not in allowed_kinds:
+            raise ValueError(f"unknown claim_kind: {self.claim_kind}")
+        if self.review_status not in allowed_statuses:
+            raise ValueError(f"unknown review_status: {self.review_status}")
 
 
 @dataclass(frozen=True)
@@ -69,6 +91,7 @@ class ProfileConflict:
     scope: str
     object_values: tuple[str, ...]
     source_ids: tuple[str, ...]
+    claim_ids: tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -90,6 +113,7 @@ class ProfileSet:
         if len(profile_ids) != len(set(profile_ids)):
             raise ValueError("profile_id values must be unique")
         known_sources = set(source_ids)
+        claim_ids: list[str] = []
         for profile in self.profiles:
             if not all(value.strip() for value in (
                 profile.profile_id, profile.tradition, profile.version
@@ -107,11 +131,14 @@ class ProfileSet:
                 raise ValueError("trigram name and binary line encoding disagree")
             for claim in profile.claims:
                 claim.validate()
+                claim_ids.append(claim.claim_id)
                 if claim.source_id not in known_sources:
                     raise ValueError(
                         f"claim {claim.claim_id} references unknown source "
                         f"{claim.source_id}"
                     )
+        if len(claim_ids) != len(set(claim_ids)):
+            raise ValueError("claim_id values must be unique across the profile set")
 
     def conflicts(self) -> tuple[ProfileConflict, ...]:
         """Return disagreements; never silently choose or merge traditions."""
@@ -128,6 +155,7 @@ class ProfileSet:
                 conflicts.append(ProfileConflict(
                     subject, predicate, scope, values,
                     tuple(sorted({claim.source_id for claim in claims})),
+                    tuple(sorted({claim.claim_id for claim in claims})),
                 ))
         return tuple(conflicts)
 
