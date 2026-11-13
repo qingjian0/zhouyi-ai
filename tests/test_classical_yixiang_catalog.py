@@ -35,6 +35,14 @@ class ClassicalYixiangCatalogTests(unittest.TestCase):
         self.assertTrue(catalog["policy"]["do_not_back_project_later_interpretations"])
         self.assertTrue(catalog["policy"]["textual_claims_require_exact_edition_and_locator"])
 
+    def test_catalog_covers_classical_and_excavated_source_families(self):
+        catalog = json.loads(
+            (ROOT / "data" / "classical_yixiang_source_catalog.json").read_text(encoding="utf-8")
+        )
+        self.assertGreaterEqual(len(catalog["works"]), 140)
+        ids = {work["work_id"] for work in catalog["works"]}
+        self.assertTrue({"jiagu_jinwen", "jiandu_boshu", "dunhuang_tushu", "chuci", "wenxin_diaolong"}.issubset(ids))
+
     def test_candidate_sources_are_not_misrepresented_as_ingested(self):
         catalog = json.loads(
             (ROOT / "data" / "classical_yixiang_source_catalog.json").read_text(encoding="utf-8")
