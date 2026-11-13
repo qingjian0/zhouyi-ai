@@ -915,6 +915,38 @@
       ],
       "evidence_status": "digital_transcription_candidate",
       "review_status": "unreviewed"
+    },
+    {
+      "case_id": "xy_026",
+      "source_id": "src_huainan_shuoshan",
+      "period": "qin_han",
+      "text_layer": "base_text",
+      "locator": "说林训；“环可以喻员，不必以轮；绦可以为繶，不必以紃”段",
+      "excerpt": "环可以喻员，不必以轮；绦可以为繶，不必以紃。",
+      "problem": "类比是否可以只保持一个选定结构维度，而不迁移对象身份、全部用途或完整机制？",
+      "operation": [
+        "analogy",
+        "contextual_constraint",
+        "classification"
+      ],
+      "premises": [
+        "文本以环、绦为喻体，强调可取其某一形制关系作譬喻。",
+        "“可以喻”说明特定维度的表征/说明关系，不自动表示对象同一或功能全同。",
+        "“不必”限制了将某一具体器物作为唯一或必需对应物的做法；具体训释仍需结合版本和高诱注等解释层。"
+      ],
+      "conclusion_scope": "可作为维度选择性类比的候选文本案例：源域与目标域可以只在被声明的结构属性上对应；系统必须明确保留的维度、未迁移的维度及解释边界。不能据此断言环就是轮、绦就是繶/紃，也不能将局部形制相似升级为用途或因果等价。",
+      "counterexample_or_boundary": [
+        "圆形相似不意味着环与轮具有相同结构、运动方式或用途。",
+        "一个喻体可在形状维度有效、在材料、功能、制造方式或因果机制维度失效。",
+        "若比较维度未声明，系统不得自行挑选最有利的相似点。",
+        "“繶”“紃”及相关字形、训释和断句仍需版本校勘，不将当前数字录文当作定本。"
+      ],
+      "alternative_readings": [
+        "“员/圆”“繶/紃”等字词及其名物训释存在需要进一步核对的空间；当前只把该句作为维度受限譬喻的研究入口。",
+        "该句可偏重形制譬喻，也可能涉及名物与制度用语；不可在未完成训诂前锁定唯一技术解释。"
+      ],
+      "evidence_status": "digital_transcription_candidate",
+      "review_status": "unreviewed"
     }
   ]
 }
