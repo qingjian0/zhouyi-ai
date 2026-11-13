@@ -90,3 +90,12 @@
 4. 对《论衡·感类篇》建立“对应—相关—因果—反证”论证图。
 5. 从《孟子》《庄子》《韩非子》《吕氏春秋》增加跨域类推的强弱例。
 6. 所有数字摘录继续标记待核；逐条补齐影印底本、卷篇、页叶、异文与注疏层后才可升级证据等级。
+
+
+## 参考研究与文本入口
+
+- Jana S. Rošker, “Specific Features of Chinese Logic: Analogies and the Problem of Structural Relations in Confucian and Mohist Discourses,” *Synthesis Philosophica* 57(1), 2014, pp. 23–40. [全文](https://hrcak.srce.hr/file/203784)。本文用于参考关系结构、源域—目标域映射与先秦名辩语境；其关于“中国逻辑”的概括仍属于学术解释，不作为所有先秦思想家的统一定论。
+- Kurtis Hagen, “Xunzi's Use of Zhengming: Naming as a constructive project,” *Asian Philosophy* 12(1), 2002, pp. 35–51. [DOI](https://doi.org/10.1080/09552360220142243)。用于提醒《正名》中的名称问题涉及社会目的，不宜缩减为词典标签。
+- Liam D. Ryan, “Let the ruler be the ruler: aiming at truth in Xunzi’s doctrine of the rectification of names,” *Asian Journal of Philosophy* 2, article 2, 2023. [开放全文](https://link.springer.com/article/10.1007/s44204-022-00055-x)。该文提出一种解释路径，并明确承认正名研究存在竞争解释；本项目保留其为现代研究层。
+- 《荀子·正名》数字文本入口：[中国哲学书电子化计划](https://ctext.org/xunzi/zheng-ming/ens)。检索与版本追踪入口，不代替影印底本核验。
+- 《淮南子·要略》数字文本入口：[中国哲学书电子化计划](https://ctext.org/huainanzi/yao-lve)。其中《说山》《说林》的编纂宗旨自述可作为理解譬喻取象的元文本材料；仍须核查具体传本。
