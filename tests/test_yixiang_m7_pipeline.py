@@ -44,8 +44,8 @@ class M7PipelineTests(unittest.TestCase):
         )
         signature = (("relation", "participates_in", "feedback"),)
         self.residuals = (
-            ResidualCase("r1", "o1", "ecology", signature, (("phase", "spring"),), ("paper:a",)),
-            ResidualCase("r2", "o2", "mechanics", signature, (("scale", "micro"),), ("paper:b",)),
+            ResidualCase("r1", "o1", "ecology", signature, (("phase", "spring"),), ("paper:a",), (("paper:a", "edition-family-a"),)),
+            ResidualCase("r2", "o2", "mechanics", signature, (("scale", "micro"),), ("paper:b",), (("paper:b", "edition-family-b"),)),
         )
 
     def test_pipeline_connects_m3_m4_m5_m6_with_boundaries(self):
