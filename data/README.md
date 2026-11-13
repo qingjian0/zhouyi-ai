@@ -6,6 +6,8 @@
 - 入库时必须补齐可靠底本、版本信息、篇章定位、原文转录状态、异文和许可信息。关键主张需定位到具体段落。
 - 不允许根据书名或后世注释自动生成古义；不允许将晚出解释回填为早期文本原义。
 
+来源目录由 `schemas/classical-yixiang-source-catalog.schema.json` 描述，`tests/test_classical_yixiang_catalog.py` 检查 JSON 可解析性、来源 ID 唯一性与史料状态边界。来源 ID 使用稳定的小写 ASCII 标识符，不以中文书名或空格作为机器键。
+
 主规范见 [传统古籍类象研究总纲与语料建设规范](../docs/CLASSICAL_YIXIANG_CORPUS_AND_RESEARCH_PROTOCOL.md)。
 
 
