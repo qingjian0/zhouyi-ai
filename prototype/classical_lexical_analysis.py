@@ -51,7 +51,8 @@ class LexicalComparison:
     left: LexicalOccurrence
     right: LexicalOccurrence
     proposed_relation: LexicalRelation
-    shared_evidence_refs: Tuple[str, ...] = ()
+    left_witness_refs: Tuple[str, ...] = ()
+    right_witness_refs: Tuple[str, ...] = ()
     distinction_notes: Tuple[str, ...] = ()
     scope_conditions: Tuple[str, ...] = ()
 
@@ -66,8 +67,11 @@ class LexicalAssessment:
 def assess_lexical_comparison(item: LexicalComparison) -> LexicalAssessment:
     if not item.comparison_id.strip():
         raise ValueError("comparison_id is required")
+    if not isinstance(item.proposed_relation, LexicalRelation):
+        raise ValueError("proposed_relation must use LexicalRelation")
     for name, values in (
-        ("shared_evidence_refs", item.shared_evidence_refs),
+        ("left_witness_refs", item.left_witness_refs),
+        ("right_witness_refs", item.right_witness_refs),
         ("distinction_notes", item.distinction_notes),
         ("scope_conditions", item.scope_conditions),
     ):
@@ -84,10 +88,10 @@ def assess_lexical_comparison(item: LexicalComparison) -> LexicalAssessment:
 
     left, right = item.left, item.right
     reasons = []
-    if left.evidence_status in (EvidenceStatus.MODEL_PROPOSAL, EvidenceStatus.UNKNOWN) or right.evidence_status in (EvidenceStatus.MODEL_PROPOSAL, EvidenceStatus.UNKNOWN):
-        reasons.append("UNVERIFIED_WITNESS")
-    if not item.shared_evidence_refs:
-        reasons.append("NO_SHARED_EVIDENCE_REFERENCE")
+    if left.evidence_status != EvidenceStatus.VERIFIED_PRIMARY_WITNESS or right.evidence_status != EvidenceStatus.VERIFIED_PRIMARY_WITNESS:
+        reasons.append("PRIMARY_WITNESS_VERIFICATION_REQUIRED")
+    if not item.left_witness_refs or not item.right_witness_refs:
+        reasons.append("MISSING_SIDE_SPECIFIC_WITNESS_REFERENCES")
     if not item.scope_conditions:
         reasons.append("MISSING_SCOPE_CONDITIONS")
 
