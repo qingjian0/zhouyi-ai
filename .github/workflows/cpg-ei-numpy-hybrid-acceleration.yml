@@ -1,0 +1,46 @@
+name: CPG-EI NumPy hybrid acceleration
+
+on:
+  push:
+    branches:
+      - research/cpg-ei-numpy-hybrid-acceleration-v1-2026-11-13
+    paths:
+      - "prototype/cpg_ei_numpy_learner.py"
+      - "prototype/cpg_ei_compute_accounted_hybrid.py"
+      - "prototype/cpg_ei_numpy_hybrid_benchmark.py"
+      - "tests/test_cpg_ei_numpy_learner.py"
+      - "tests/test_cpg_ei_numpy_hybrid_integration.py"
+      - ".github/workflows/cpg-ei-numpy-hybrid-acceleration.yml"
+  pull_request:
+    paths:
+      - "prototype/cpg_ei_numpy_learner.py"
+      - "prototype/cpg_ei_compute_accounted_hybrid.py"
+      - "prototype/cpg_ei_numpy_hybrid_benchmark.py"
+      - "tests/test_cpg_ei_numpy_learner.py"
+      - "tests/test_cpg_ei_numpy_hybrid_integration.py"
+      - ".github/workflows/cpg-ei-numpy-hybrid-acceleration.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  numpy-hybrid:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install optional acceleration dependency
+        run: python -m pip install "numpy>=1.26"
+      - name: Run numerical parity and contract tests
+        run: python -m unittest tests.test_cpg_ei_numpy_learner tests.test_cpg_ei_numpy_hybrid_integration -v
+      - name: Run fixed 8-family hybrid benchmark
+        run: python -m prototype.cpg_ei_numpy_hybrid_benchmark --output /tmp/cpg-ei-numpy-hybrid.json
+      - name: Upload machine-readable benchmark
+        uses: actions/upload-artifact@v4
+        with:
+          name: zhouyi-cpg-ei-numpy-hybrid-v1
+          path: /tmp/cpg-ei-numpy-hybrid.json
+          if-no-files-found: error
