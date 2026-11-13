@@ -100,6 +100,22 @@ class M7PipelineTests(unittest.TestCase):
                 mappings=(self.mapping,),
             ))
 
+    def test_empty_candidate_set_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "at least one M3 candidate"):
+            run_m7(M7Input(
+                candidates=(),
+                priors=(),
+                observation_candidates=(),
+            ))
+
+    def test_non_tuple_input_is_rejected_before_pipeline_execution(self):
+        with self.assertRaisesRegex(ValueError, "candidates must be a tuple"):
+            run_m7(M7Input(
+                candidates=list(self.candidates),
+                priors=self.priors,
+                observation_candidates=(),
+            ))
+
     def test_m6_does_not_create_proposals_without_explicit_residuals(self):
         result = run_m7(M7Input(
             candidates=self.candidates,
