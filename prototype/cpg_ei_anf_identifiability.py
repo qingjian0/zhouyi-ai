@@ -309,7 +309,7 @@ def run_anf_identifiability_audit(corpus: dict) -> dict:
 def write_json_report(report: dict, path: str | Path) -> None:
     destination = Path(path)
     destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\\n",
+    destination.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n",
                            encoding="utf-8")
 
 
