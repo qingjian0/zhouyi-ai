@@ -6,6 +6,14 @@ on:
       - research/cpg-ei-mixed-operator-discovery-v1-2026-11-13
   pull_request:
     types: [opened, synchronize, reopened]
+    paths:
+      - 'prototype/cpg_ei_mixed_operator_discovery.py'
+      - 'tests/test_cpg_ei_mixed_operator_discovery.py'
+      - 'prototype/cpg_ei_mixed_operator_data.py'
+      - 'prototype/cpg_ei_relation_operators.py'
+      - 'tests/test_cpg_ei_mixed_operator_data.py'
+      - '.github/workflows/cpg-ei-mixed-operator-discovery.yml'
+      - 'docs/CPG_EI_MIXED_OPERATOR_DISCOVERY_V1.md'
 
 permissions:
   contents: read
