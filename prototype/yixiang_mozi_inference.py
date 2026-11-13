@@ -108,6 +108,10 @@ def assess_mozi_transfer(claim: MoziTransferClaim) -> MoziTransferAssessment:
         reasons.append("NO_EXPLICIT_SHARED_BASIS")
     if not claim.scope_conditions:
         reasons.append("SCOPE_CONDITIONS_MISSING")
+    if not claim.material_differences:
+        reasons.append("MATERIAL_DIFFERENCES_NOT_RECORDED")
+    if claim.predicate_relation == RelationStatus.UNKNOWN:
+        reasons.append("PREDICATE_RELATION_UNIDENTIFIED")
     if not claim.supporting_refs:
         reasons.append("SUPPORTING_EVIDENCE_MISSING")
     if claim.predicate_relation == RelationStatus.DIFFERENT:
