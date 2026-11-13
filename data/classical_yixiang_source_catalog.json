@@ -137,7 +137,7 @@
       "locator_policy": "必须在具体主张入库前填写可复核底本与篇章定位"
     },
     {
-      "work_id": "lüshi_chunqiu",
+      "work_id": "lvshi_chunqiu",
       "title": "吕氏春秋",
       "period_tier": "pre_qin",
       "priority": "P0",
