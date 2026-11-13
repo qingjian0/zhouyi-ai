@@ -153,7 +153,7 @@ def assess_relation_transfer(contract: RelationTransferContract) -> RelationTran
         reasons.append("ROLE_MAPPING_INCOMPLETE")
     if not contract.source.evidence_refs or not contract.target.evidence_refs:
         reasons.append("SIDE_SPECIFIC_EVIDENCE_MISSING")
-    if set(src) == set(contract.source.roles) and _mapped_edges(contract.source, role_map) != Counter(
+    if set(src) == set(contract.source.roles) and set(tgt) == set(contract.target.roles) and _mapped_edges(contract.source, role_map) != Counter(
         (e.predicate, e.subject_role, e.object_role, e.polarity, e.order) for e in contract.target.edges
     ):
         hard.append("RELATION_TOPOLOGY_OR_DIRECTION_MISMATCH")
