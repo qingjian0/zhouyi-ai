@@ -111,6 +111,43 @@ PR #428 使用 `(x_a AND x_b) XOR (x_c AND x_d)` 作为组合教师规则。当�
 
 解释边界：这是 operator-grammar OOD，不是 held-out-family zero-shot transfer；每个 family 仍提供自己的监督训练样本。它不证明自然语言、易学、因果或真实世界推理。
 
+### 大规模 family 扩展（PR #431，待验证）
+
+- 目标从 400 扩大到 1,600 个独立教师结构；每个 8-bit family 仍包含 256 个状态。
+- 总规模 409,600 行、12,800 条教师规则（相对 400-family v1 为 4×）。
+- 保持七种 typed operator、round-robin coverage、teacher digest、family split 与 family 内 state split。
+- 当前 head `2220d4577f82b15b0e31e0b9b20c8219da422bd2`；精确工作流 [#43365798036](https://github.com/qingjian0/zhouyi-ai/actions/runs/43365798036) 尚在队列中，1,600-family artifact 尚未宣称生成成功。
+- 这是数据规模/结构多样性扩展，不是学习性能或泛化结果。
+
+### ANF 可识别性（PR #425 → #430，待验证）
+
+PR #425 提供完整 truth-table Möbius transform oracle 与 train-only GF(2) 部分观察求解器；PR #430 将其扩展为最大 ANF degree 0..8 的约束基底扫描，64 families / 16,384 rows。对 8 个输入，degree 0..8 的 basis sizes 为 1、9、37、93、163、219、247、255、256。每个 degree 分开报告 basis size、rank、nullity、consistency、uniqueness 和 oracle representability；full-table oracle degree 只用于事后参照，不进入训练方程。
+
+- PR #425 当前 head `10a8c46c38f860b9f50be15aeb8d3c48822b7388`，exact-head 工作流尚未观察到完成结果。
+- PR #430 当前 head `3fd244a67300652cd07f90769ffd1707f86741cc`，工作流 [#43365743326](https://github.com/qingjian0/zhouyi-ai/actions/runs/43365743326) queued。
+- 这是有限 Boolean ANF 可识别性分析，不是 learned relation discovery 或 cross-family generalization。
+
+### Held-out-family few-shot（PR #432 → #436，待验证）
+
+这条线把原来仅作报告分层的 `family_split` 升级为真实协议边界：meta-train / validation / final-test 教师家族互不重叠；未见家族提供 16/32/64 个标注 support states，query 输入与标签分离。PR #436 在该协议上加入有限符号 grammar few-shot baseline，并与相同 support 的 per-output majority baseline 对照。
+
+- 每个 seed 1,600 families：960 meta-train、320 validation、320 final-test；3 个独立 seeds。
+- Validation query 使用 family 内 development states；final-test query 使用 locked states。
+- 报告 per-family bit/exact-state、median、worst-family、candidate tie ambiguity、selection digest、corpus digest 和 evaluation wall time。
+- PR #432 当前 protocol head `1f0d679aaee55906ee47ca815d3b4ee29e5ed489`；protocol workflow [#43366174958](https://github.com/qingjian0/zhouyi-ai/actions/runs/43366174958) queued。
+- PR #436 当前 head `5b10832f117ff2c390ea556eab72cab31e25ce70`；protocol/symbolic workflows [#43366342910](https://github.com/qingjian0/zhouyi-ai/actions/runs/43366342910) / [#43366343052](https://github.com/qingjian0/zhouyi-ai/actions/runs/43366343052) queued。
+- 这是带 labeled support 的 few-shot family transfer，不是 zero-shot，也不是 learned meta-learning。Learner/evaluator view 是 API-level guard，不是 process isolation。
+- 旧 PR #435 因重复和依赖分支陈旧已关闭；#436 是当前干净 follow-up。
+
+### 主动查询（PR #434，待验证）
+
+主动查询基于同一有限假设 grammar，以 train-only 的候选预测分歧选择下一条 oracle query，并与同 query pool、同 budget 的 seeded random sampling 配对。Development 只用于 tie-break，locked 只用于报告，teacher manifest 仅事后评分。当前 head `ac69dce0490bb9abdcd3497e00dc6e57c27b7ada`，工作流 [#43366194964](https://github.com/qingjian0/zhouyi-ai/actions/runs/43366194964) queued。该研究是有限假设主动搜索，不是开放世界发现或跨家族 zero-shot。
+
+### 其他实验与策略提案
+
+- PR #424 adaptive learning-rate scheduler 是负/中性结果：在相同数据上与 early-stopping 选择相同 checkpoint 和相同质量，但平均训练 epoch 更多；不应推广为默认优化策略。
+- PR #433 是文档型易象优先研究纲领提案，建议将类象、阴阳四象八卦六十四卦、五行动态关系、时位势变和象数理联合建模设为 P0。它尚未合并或被正式采用；由于会改变项目战略优先级，保留为独立提案审查，不自动改写项目目标。
+
 ## E09 / E12-A6 / N0.10 状态边界
 
 E09、E12-A6/ZPCM 与 N0.10 仍由独立研究分支承载。现有架构收敛文档已经定义唯一模块所有权、事件账本边界、跨进程安全和恢复验收门槛；但分段实现、分支 CI 与端到端集成是不同层级的证据。
