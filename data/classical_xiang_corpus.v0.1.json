@@ -1864,5 +1864,305 @@
     "method_families": [
       "commentarial_exegesis"
     ]
+  },
+  {
+    "record_id": "chunqiu-fanlu-tonglei-dong-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "春秋繁露·同类相动",
+      "traditional_authority": "传统归属；成篇年代、编纂层次与传本问题保留学术争议",
+      "composition_period": "秦汉",
+      "genre": "经学/天人感应论"
+    },
+    "period": "qin_han",
+    "source_type": "classical_text",
+    "tradition": [
+      "传统文献",
+      "类象理论研究"
+    ],
+    "witness": {
+      "witness_id": "wikichunqiu-fanlu",
+      "edition_or_database": "维基文库《春秋繁露》（四库全书本）数字文本；须注意篇章真伪与后世传本问题",
+      "url": "https://zh.wikisource.org/zh-hans/春秋繁露_(四库全书本)/全览",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台条款另行核验；仅保留必要短引"
+    },
+    "locator": {
+      "chapter": "卷十三·同类相动",
+      "section_or_line": "第五十七"
+    },
+    "text": "今平地注水去燥就湿，均薪施火去湿就燥，百物其去所与异而从其所与同，故气同则会，声比则应。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "fanlu-tonglei-correspondence-001",
+        "claim_kind": "textual_observation",
+        "subject": "同类、气、声",
+        "predicate": "同类相从与响应",
+        "object": "作者以水趋湿、火就燥、琴瑟同宫响应等现象论证类应",
+        "interpretive_note": "本篇将可观察的趋湿、趋燥、音律响应与政治祥瑞、阴阳感应并列。必须分别标记经验描述、类比推论、宇宙论主张和政治征兆，不得整体视为实证因果。",
+        "scope": "限于《春秋繁露》卷十三传本文本；董仲舒作者归属、篇章层次及四库本与他本异文均需专门校勘。",
+        "relation_type": "correlative",
+        "xiang_domain": "汉代宇宙论与类应",
+        "relation_family": "correlative",
+        "shared_basis": [
+          "趋湿趋燥及同音响应等可观察现象"
+        ],
+        "non_shared_basis": [
+          "可观察的局部物理现象不自动推出天人感应或祥瑞灾异因果"
+        ],
+        "scope_conditions": [
+          "分拆物理观察、音律类比、宇宙论和政治解释；校勘篇章异文"
+        ],
+        "causal_status": "not_claimed",
+        "conditions": [
+          "分拆物理观察、音律类比、宇宙论和政治解释；校勘篇章异文"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引，不复制现代整理本注释。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "数字文本为检索见证；须与可靠校点本、影印本及异文对读。"
+    ],
+    "concept_tags": [
+      "correspondence"
+    ],
+    "method_families": [
+      "cosmological_correspondence"
+    ]
+  },
+  {
+    "record_id": "guanzi-sishi-seasonal-order-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "管子·四时",
+      "traditional_authority": "传统归属；成篇年代、编纂层次与传本问题保留学术争议",
+      "composition_period": "先秦",
+      "genre": "政论/时令论"
+    },
+    "period": "pre_qin",
+    "source_type": "classical_text",
+    "tradition": [
+      "传统文献",
+      "类象理论研究"
+    ],
+    "witness": {
+      "witness_id": "ctext-guanzi-sishi",
+      "edition_or_database": "中国哲学书电子化计划《管子·四时》；页面列四部丛刊、四库等底本",
+      "url": "https://ctext.org/guanzi/si-shi/zh",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台条款另行核验；仅保留必要短引"
+    },
+    "locator": {
+      "chapter": "四时",
+      "section_or_line": "阴阳与四时关系段"
+    },
+    "text": "是故阴阳者，天地之大理也；四时者，阴阳之大经也。刑德者，四时之合也。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "guanzi-sishi-seasonal-order-001",
+        "claim_kind": "textual_observation",
+        "subject": "阴阳、四时、刑德",
+        "predicate": "层级组织与时令对应",
+        "object": "天地阴阳、四时运行与刑德政令之间的层级对应",
+        "interpretive_note": "文本将宇宙秩序、时间周期和政治刑德配置为对应结构，适合研究时位与制度类象；属于规范性政治宇宙论，不能直接视为现代自然因果。",
+        "scope": "限于《管子·四时》篇章；《管子》多层编纂，作者和年代不能简单统一。",
+        "relation_type": "normative_analogy",
+        "xiang_domain": "时序与政治制度",
+        "relation_family": "normative_analogy",
+        "shared_basis": [
+          "周期秩序与政令配置之间的结构映射"
+        ],
+        "non_shared_basis": [
+          "自然四时与政治刑德属于不同领域，规范映射不等于因果"
+        ],
+        "scope_conditions": [
+          "记录四时阶段、政令类别、篇章层次和规范目的"
+        ],
+        "causal_status": "not_claimed",
+        "conditions": [
+          "记录四时阶段、政令类别、篇章层次和规范目的"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引，不复制现代整理本注释。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "数字文本为检索见证；须与可靠校点本、影印本及异文对读。"
+    ],
+    "concept_tags": [
+      "ritual_institution"
+    ],
+    "method_families": [
+      "comparative_exegesis"
+    ]
+  },
+  {
+    "record_id": "huainanzi-dixing-spatiotemporal-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "淮南子·地形训",
+      "traditional_authority": "传统归属；成篇年代、编纂层次与传本问题保留学术争议",
+      "composition_period": "秦汉",
+      "genre": "宇宙地理/地理志"
+    },
+    "period": "qin_han",
+    "source_type": "classical_text",
+    "tradition": [
+      "传统文献",
+      "类象理论研究"
+    ],
+    "witness": {
+      "witness_id": "shidianguji-huainanzi-dixing",
+      "edition_or_database": "识典古籍《淮南子·地形训》；页面标注东汉高诱注、清庄逵吉校刊，需分层使用",
+      "url": "https://www.shidianguji.com/book/HY1403/chapter/1klrgn1dmnwv8",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台条款另行核验；仅保留必要短引"
+    },
+    "locator": {
+      "chapter": "地形训",
+      "section_or_line": "天地空间与四时纲纪段"
+    },
+    "text": "地形之所载，六合之间，四极之内，照之以日月，经之以星辰，纪之以四时，要之以太岁。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "huainanzi-dixing-spatiotemporal-001",
+        "claim_kind": "textual_observation",
+        "subject": "地形、日月星辰、四时、太岁",
+        "predicate": "空间结构与时间秩序联合定位",
+        "object": "地理空间由天文周期与岁时系统共同组织",
+        "interpretive_note": "文本以六合、四极、日月、星辰、四时和太岁构成空间—时间框架，可用于类象模型的多尺度坐标与时位条件研究。",
+        "scope": "限于汉代宇宙地理知识体系；不应把古代方位地理和岁时模型直接当作现代地理测量。",
+        "relation_type": "temporal",
+        "xiang_domain": "时空结构与宇宙地理",
+        "relation_family": "temporal",
+        "shared_basis": [
+          "地理描述与天文/历法周期之间的定位关系"
+        ],
+        "non_shared_basis": [
+          "古代宇宙地理模型不等同现代经纬度与天文学"
+        ],
+        "scope_conditions": [
+          "保留古代方位术语、岁时基准、文本层次与知识史语境"
+        ],
+        "causal_status": "not_claimed",
+        "conditions": [
+          "保留古代方位术语、岁时基准、文本层次与知识史语境"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引，不复制现代整理本注释。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "数字文本为检索见证；须与可靠校点本、影印本及异文对读。"
+    ],
+    "concept_tags": [
+      "cosmology"
+    ],
+    "method_families": [
+      "cosmological_correspondence"
+    ]
+  },
+  {
+    "record_id": "zhouyi-yihai-zhaiyao-commentary-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "周易义海撮要·卷七",
+      "traditional_authority": "传统归属；成篇年代、编纂层次与传本问题保留学术争议",
+      "composition_period": "宋代",
+      "genre": "易学汇解/注疏汇编"
+    },
+    "period": "song_yuan",
+    "source_type": "classical_text",
+    "tradition": [
+      "传统文献",
+      "类象理论研究"
+    ],
+    "witness": {
+      "witness_id": "wikizhouyi-yihai-zhaiyao",
+      "edition_or_database": "维基文库《周易义海撮要》（四库全书本），宋李衡撰；汇录多家注说",
+      "url": "https://zh.wikisource.org/zh-hans/周易義海撮要_(四庫全書本)/卷07",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台条款另行核验；仅保留必要短引"
+    },
+    "locator": {
+      "chapter": "卷七·系辞上",
+      "section_or_line": "方以类聚物以群分章汇解"
+    },
+    "text": "方有类物有群则有同有异有聚有分顺其所同则吉乖其所趣则凶。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "yihai-zhaiyao-fang-lei-001",
+        "claim_kind": "textual_observation",
+        "subject": "方以类聚、物以群分",
+        "predicate": "汇集多家训释",
+        "object": "宋代汇解将类聚群分解释为同异、聚分及趋向关系",
+        "interpretive_note": "该汇编并列孔颖达、胡瑗、朱熹等不同解释，显示同一句经文可形成多种解释路径；适合建立注疏观点图谱，不应把某一条汇解冒充经文本义。",
+        "scope": "限于宋代汇编所录注说；具体引文需回查各注家原书和版本，四库本为后世传本。",
+        "relation_type": "taxonomic",
+        "xiang_domain": "经学诠释史与类聚解释",
+        "relation_family": "taxonomic",
+        "shared_basis": [
+          "围绕同异、聚分解释经文"
+        ],
+        "non_shared_basis": [
+          "不同注家解释的概念框架与历史语境不同"
+        ],
+        "scope_conditions": [
+          "每一注家观点独立成条并保留引用层级"
+        ],
+        "causal_status": "not_claimed",
+        "conditions": [
+          "每一注家观点独立成条并保留引用层级"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引，不复制现代整理本注释。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "数字文本为检索见证；须与可靠校点本、影印本及异文对读。"
+    ],
+    "concept_tags": [
+      "commentarial_exegesis"
+    ],
+    "method_families": [
+      "commentarial_exegesis"
+    ]
   }
 ]
