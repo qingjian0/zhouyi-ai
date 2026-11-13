@@ -25,12 +25,12 @@
 2. M2：整体—局部 typed relation 与结构扰动实验。
 3. M2.1：局部证据评分整体假设，整体预期反馈局部核验。
 4. M3：竞争类象、证据分层、适用条件与未决裁决。
-5. M4：反事实与干预边界（显式条件干预、未知保留、稳定性/反转判定）。
+5. M4：反事实与干预边界（显式条件干预、未知保留、稳定性/状态变化判定）。
 6. M5：主动观测的信息增益基线。
 7. M6：新象发现、版本化和回滚。
 8. M7：统一闭环与公平消融。
 
-M1 文档与实现见 `docs/YIXIANG_MULTISCALE_TIME_M1_V0_1.md`、`prototype/yixiang_multiscale_time.py`；M2 见 `docs/YIXIANG_HIERARCHICAL_STRUCTURE_M2_V0_1.md`、`prototype/yixiang_hierarchical_structure.py`；M2.1 见 `docs/YIXIANG_BIDIRECTIONAL_CONSTRAINTS_M2_1_V0_1.md`、`prototype/yixiang_bidirectional_constraints.py`；M3 见 `docs/YIXIANG_COMPETING_HYPOTHESES_M3_V0_1.md`、`prototype/yixiang_competing_hypotheses.py`。
+M1 文档与实现见 `docs/YIXIANG_MULTISCALE_TIME_M1_V0_1.md`、`prototype/yixiang_multiscale_time.py`；M2 见 `docs/YIXIANG_HIERARCHICAL_STRUCTURE_M2_V0_1.md`、`prototype/yixiang_hierarchical_structure.py`；M2.1 见 `docs/YIXIANG_BIDIRECTIONAL_CONSTRAINTS_M2_1_V0_1.md`、`prototype/yixiang_bidirectional_constraints.py`；M3 见 `docs/YIXIANG_COMPETING_HYPOTHESES_M3_V0_1.md`、`prototype/yixiang_competing_hypotheses.py`；M4 见 `docs/YIXIANG_COUNTERFACTUAL_M4_V0_1.md`、`prototype/yixiang_counterfactual.py`。
 
 ## 执行原则
 
