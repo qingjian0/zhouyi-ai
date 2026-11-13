@@ -84,6 +84,31 @@ class AnalogyAssessmentTests(unittest.TestCase):
                 source_relations=(), target_relations=(Relation("x", "x", "r"),),
             )
 
+    def test_discovery_rejects_invalid_budget_types(self):
+        kwargs = dict(
+            source_domain="source", target_domain="target",
+            source_entities=("a",), target_entities=("x",),
+            source_relations=(Relation("a", "a", "r"),),
+            target_relations=(Relation("x", "x", "r"),),
+        )
+        with self.assertRaises(ValueError):
+            discover_analogy_mappings(**kwargs, max_evaluations=True)
+        with self.assertRaises(ValueError):
+            discover_analogy_mappings(**kwargs, max_results=1.5)
+
+    def test_discovery_rejects_invalid_domain_and_dimensions_before_search(self):
+        kwargs = dict(
+            source_domain="", target_domain="target",
+            source_entities=("a",), target_entities=("x",),
+            source_relations=(Relation("a", "a", "r"),),
+            target_relations=(Relation("x", "x", "r"),),
+        )
+        with self.assertRaises(ValueError):
+            discover_analogy_mappings(**kwargs)
+        kwargs["source_domain"] = "source"
+        with self.assertRaises(ValueError):
+            discover_analogy_mappings(**kwargs, dimensions=("unknown",))
+
     def test_rejects_unknown_dimension(self):
         with self.assertRaises(ValueError):
             assess_analogy(self.candidate(dimensions=("morphology", "vibes")))
