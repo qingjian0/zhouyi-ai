@@ -6,16 +6,17 @@ from prototype.yixiang_novelty import (
 )
 
 
-def case(rid, oid, domain, evidence, context=()):
+def case(rid, oid, domain, evidence, context=(), source_group=None):
     signature = (("relation", "participates_in", "feedback_loop"),)
-    return ResidualCase(rid, oid, domain, signature, context, (evidence,))
+    lineage = ((evidence, source_group),) if source_group else ()
+    return ResidualCase(rid, oid, domain, signature, context, (evidence,), lineage)
 
 
 class NoveltyDiscoveryTests(unittest.TestCase):
     def setUp(self):
         self.residuals = (
-            case("r1", "o1", "ecology", "paper:a", (("season", "spring"),)),
-            case("r2", "o2", "mechanics", "paper:b", (("scale", "micro"),)),
+            case("r1", "o1", "ecology", "paper:a", (("season", "spring"),), "edition-family-a"),
+            case("r2", "o2", "mechanics", "paper:b", (("scale", "micro"),), "edition-family-b"),
         )
 
     def test_recurring_cross_domain_residual_becomes_review_only_proposal(self):
@@ -25,6 +26,7 @@ class NoveltyDiscoveryTests(unittest.TestCase):
         self.assertEqual(proposal.status, ProposalStatus.PROPOSED)
         self.assertEqual(len(proposal.domains), 2)
         self.assertEqual(len(proposal.evidence_refs), 2)
+        self.assertEqual(proposal.evidence_independence_groups, ("edition-family-a", "edition-family-b"))
         self.assertEqual(len(proposal.context_records), 2)
 
     def test_known_signature_is_not_proposed_again(self):
@@ -48,9 +50,31 @@ class NoveltyDiscoveryTests(unittest.TestCase):
         self.assertEqual(propose_novel_structures(one), ())
         same_domain = (
             self.residuals[0],
-            case("r3", "o3", "ecology", "paper:c"),
+            case("r3", "o3", "ecology", "paper:c", source_group="edition-family-c"),
         )
         self.assertEqual(propose_novel_structures(same_domain), ())
+
+    def test_multiple_urls_from_one_source_family_do_not_count_as_independent(self):
+        same_family = (
+            case("r1", "o1", "ecology", "mirror:a", source_group="same-base-text"),
+            case("r2", "o2", "mechanics", "mirror:b", source_group="same-base-text"),
+        )
+        self.assertEqual(propose_novel_structures(same_family), ())
+
+    def test_missing_lineage_cannot_satisfy_independence_threshold(self):
+        unknown = (
+            case("r1", "o1", "ecology", "paper:a"),
+            case("r2", "o2", "mechanics", "paper:b"),
+        )
+        self.assertEqual(propose_novel_structures(unknown), ())
+
+    def test_partial_or_unsorted_lineage_mapping_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "map every evidence ref"):
+            ResidualCase("r", "o", "domain", (("relation", "x", "y"),), (),
+                         ("a", "b"), (("a", "source-a"),)).validate()
+        with self.assertRaisesRegex(ValueError, "sorted"):
+            ResidualCase("r", "o", "domain", (("relation", "x", "y"),), (),
+                         ("a", "b"), (("b", "source-b"), ("a", "source-a"))).validate()
 
     def test_review_creates_immutable_new_version(self):
         proposal = propose_novel_structures(self.residuals)[0]
