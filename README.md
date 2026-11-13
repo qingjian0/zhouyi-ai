@@ -48,6 +48,7 @@
 - [M5 主动观测与信息增益基线](docs/YIXIANG_ACTIVE_OBSERVATION_M5_V0_1.md)
 - [M6 新象发现与版本治理](docs/YIXIANG_NOVELTY_DISCOVERY_M6_V0_1.md)
 - [M7 统一类象认知闭环](docs/YIXIANG_UNIFIED_COGNITIVE_LOOP_M7_V0_1.md)
+- [M8 类象有效性与迁移评估基准](docs/YIXIANG_VALIDITY_TRANSFER_BENCHMARK_M8_V0_1.md)
 - [古籍数字来源、版本见证与校勘工作规程 v0.1](docs/CLASSICAL_TEXT_DIGITAL_SOURCE_POLICY_V0_1.md)
 - [M2 整体—局部关系结构说明](docs/YIXIANG_HIERARCHICAL_STRUCTURE_M2_V0_1.md)
 - [M2.1 双向整体—局部约束说明](docs/YIXIANG_BIDIRECTIONAL_CONSTRAINTS_M2_1_V0_1.md)
