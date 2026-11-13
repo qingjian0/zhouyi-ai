@@ -24,5 +24,8 @@ class BenchmarkContractTests(unittest.TestCase):
  def test_lineage_leakage_detected(self):
   cs=[make_case("a",lineage=("shared-work-edition",),split="train"),make_case("b",lineage=("shared-work-edition",),split="test")]
   self.assertEqual(group_leakage(cs)["leakage_groups"],["shared-work-edition"])
+ def test_gold_requires_two_reviewers(self):
+  c=make_case("a"); c["reviewers"]=["only-one"]
+  with self.assertRaisesRegex(ValueError,"two independent reviewers"): validate_case(c)
  def test_abstention_is_valid_gold(self): validate_case(make_case("a","abstain"))
 if __name__=="__main__": unittest.main()
