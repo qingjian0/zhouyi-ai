@@ -14,7 +14,7 @@ class RelationInvariantTests(unittest.TestCase):
             RelationEdge("uses","actor","means"), RelationEdge("achieves","actor","end",order=1)),evidence=("witness:2",))
         values=dict(transfer_id="ri-001",source=source,target=target,
             role_mapping=(("agent","actor"),("tool","means"),("goal","end")),
-            required_context_axes=("phase",),
+            required_context_axes=("phase",), required_invariants=("goal_relation",),
             invariant_checks=(InvariantCheck("goal_relation","same-goal","same-goal","src:1","tgt:1"),))
         values.update(changes)
         return RelationTransferContract(**values)
@@ -59,6 +59,10 @@ class RelationInvariantTests(unittest.TestCase):
         self.assertFalse(r.empirical_causality_established)
         r=assess_relation_transfer(self.contract(causal_transfer=True,causal_evidence_refs=("study:1",)))
         self.assertFalse(r.empirical_causality_established)
+    def test_required_invariant_cannot_be_omitted(self):
+        r=assess_relation_transfer(self.contract(invariant_checks=()))
+        self.assertEqual(r.decision,InvariantDecision.ABSTAIN)
+        self.assertIn("REQUIRED_INVARIANT_NOT_ASSESSED",r.reason_codes)
     def test_duplicate_role_mapping_rejected(self):
         with self.assertRaisesRegex(ValueError,"one-to-one"):
             assess_relation_transfer(self.contract(role_mapping=(("agent","actor"),("tool","actor"),("goal","end"))))
