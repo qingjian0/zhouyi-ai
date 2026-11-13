@@ -196,3 +196,13 @@
 6. [待开展] 形成首轮人工标注基准报告后再扩到 B5–B6。
 
 当前 12 条 synthetic fixture 仅验证接口与计分逻辑，不是古籍 gold 数据，也不代表真实人工审阅。没有人工 gold 标注、独立来源谱系审核和实际观察结果之前，不得宣称基准验证了类象理论的普遍有效性。
+
+
+## 12. 本轮工程核验记录
+
+- 从当前分支文件内容构建隔离测试夹具，执行 M8 专项 `unittest`：15 项通过。
+- 使用 JSON Schema Draft 2020-12 校验器检查 schema 元结构：通过。
+- 12 条 synthetic fixtures 均通过 schema 校验。
+- 三项负向 schema 检查均按预期拒绝：CONDITIONAL 缺少范围条件、synthetic fixture 冒充人工审阅、fixture 标签状态与来源状态冲突。
+- 上述是本地隔离核验，不等于 GitHub Actions 全仓 CI；当前 PR head 尚未观察到关联 workflow run 或 commit status。
+- 当前未执行全仓测试、M7 集成测试、真实古籍 gold 评估或性能基准。
