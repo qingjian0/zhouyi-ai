@@ -25,6 +25,9 @@ class ResidualCase:
     signature: tuple[tuple[str, str, str], ...]
     context: tuple[tuple[str, str], ...]
     evidence_refs: tuple[str, ...]
+    # Explicit (evidence_ref, independence_group) pairs. Empty means
+    # independence is unknown and cannot satisfy a multi-source threshold.
+    evidence_lineage: tuple[tuple[str, str], ...] = ()
 
     def validate(self) -> None:
         for name, value in (("residual_id", self.residual_id),
@@ -63,6 +66,20 @@ class ResidualCase:
             raise ValueError("evidence references must be non-empty strings")
         if len(set(self.evidence_refs)) != len(self.evidence_refs):
             raise ValueError("evidence references must be unique within a residual")
+        if not isinstance(self.evidence_lineage, tuple):
+            raise ValueError("evidence_lineage must be a tuple")
+        lineage_refs = []
+        for item in self.evidence_lineage:
+            if (not isinstance(item, tuple) or len(item) != 2
+                    or any(not isinstance(value, str) or not value.strip() for value in item)):
+                raise ValueError("evidence_lineage entries must be non-empty (evidence_ref, independence_group) pairs")
+            lineage_refs.append(item[0])
+        if len(lineage_refs) != len(set(lineage_refs)):
+            raise ValueError("evidence_lineage evidence refs must be unique")
+        if self.evidence_lineage != tuple(sorted(self.evidence_lineage)):
+            raise ValueError("evidence_lineage must be sorted for deterministic records")
+        if self.evidence_lineage and set(lineage_refs) != set(self.evidence_refs):
+            raise ValueError("evidence_lineage must map every evidence ref exactly once")
 
 
 @dataclass(frozen=True)
@@ -74,6 +91,7 @@ class NoveltyProposal:
     domains: tuple[str, ...]
     context_records: tuple[tuple[str, tuple[tuple[str, str], ...]], ...]
     evidence_refs: tuple[str, ...]
+    evidence_independence_groups: tuple[str, ...]
     status: ProposalStatus = ProposalStatus.PROPOSED
     version: int = 1
     parent_version_id: str | None = None
@@ -127,8 +145,13 @@ def propose_novel_structures(
             continue
         domains = tuple(sorted({case.domain for case in cases}))
         evidence_refs = tuple(sorted({ref for case in cases for ref in case.evidence_refs}))
+        # Reference count is not source independence. Only explicitly declared
+        # lineage groups count; missing lineage contributes zero independent sources.
+        evidence_independence_groups = tuple(sorted({
+            group for case in cases for _, group in case.evidence_lineage
+        }))
         if (len(cases) < min_support or len(domains) < min_domains
-                or len(evidence_refs) < min_independent_evidence):
+                or len(evidence_independence_groups) < min_independent_evidence):
             continue
         context_records = tuple(sorted(
             ((case.residual_id, case.context) for case in cases),
@@ -140,7 +163,7 @@ def propose_novel_structures(
         proposals.append(NoveltyProposal(
             proposal_id, signature, support_ids,
             tuple(sorted(case.observation_id for case in cases)),
-            domains, context_records, evidence_refs,
+            domains, context_records, evidence_refs, evidence_independence_groups,
         ))
     return tuple(sorted(
         proposals,
@@ -169,7 +192,8 @@ def review_proposal(
     return NoveltyProposal(
         proposal.proposal_id, proposal.signature, proposal.support_residual_ids,
         proposal.support_observation_ids, proposal.domains, proposal.context_records,
-        proposal.evidence_refs, decision, proposal.version + 1,
+        proposal.evidence_refs, proposal.evidence_independence_groups,
+        decision, proposal.version + 1,
         f"{proposal.proposal_id}:v{proposal.version}", f"{reviewer}: {note}",
     )
 
@@ -183,6 +207,7 @@ def rollback_proposal(proposal: NoveltyProposal, *, reason: str) -> NoveltyPropo
     return NoveltyProposal(
         proposal.proposal_id, proposal.signature, proposal.support_residual_ids,
         proposal.support_observation_ids, proposal.domains, proposal.context_records,
-        proposal.evidence_refs, ProposalStatus.PROPOSED, proposal.version + 1,
+        proposal.evidence_refs, proposal.evidence_independence_groups,
+        ProposalStatus.PROPOSED, proposal.version + 1,
         f"{proposal.proposal_id}:v{proposal.version}", f"rollback: {reason}",
     )
