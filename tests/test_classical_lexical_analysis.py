@@ -19,7 +19,8 @@ class LexicalAnalysisTests(unittest.TestCase):
         return LexicalComparison(
             comparison_id="cmp-1", left=left or self.occurrence("a", "象", "sense-a", "referent-a"),
             right=right or self.occurrence("b", "象", "sense-b", "referent-b"),
-            proposed_relation=relation, shared_evidence_refs=("edition-a:p1",),
+            proposed_relation=relation, left_witness_refs=("edition-a:p1",),
+            right_witness_refs=("edition-b:p2",),
             scope_conditions=("限定于所引篇章",), **kw,
         )
 
@@ -61,6 +62,22 @@ class LexicalAnalysisTests(unittest.TestCase):
         result = assess_lexical_comparison(item)
         self.assertEqual(result.decision, LexicalDecision.ABSTAIN)
         self.assertIn("MISSING_SCOPE_CONDITIONS", result.reason_codes)
+
+    def test_secondary_quotation_cannot_be_primary_witness(self):
+        left = self.occurrence("a", "名", "s1", "r1")
+        right = self.occurrence("b", "名", "s2", "r2")
+        right = LexicalOccurrence(**{**right.__dict__, "evidence_status": EvidenceStatus.SECONDARY_QUOTATION})
+        item = self.comparison(LexicalRelation.SAME_FORM_DIFFERENT_SENSE, left, right,
+                               distinction_notes=("语境差异",))
+        result = assess_lexical_comparison(item)
+        self.assertEqual(result.decision, LexicalDecision.ABSTAIN)
+
+    def test_each_side_needs_its_own_witness_reference(self):
+        item = self.comparison(LexicalRelation.SAME_FORM_DIFFERENT_SENSE,
+                               distinction_notes=("语境差异",), right_witness_refs=())
+        result = assess_lexical_comparison(item)
+        self.assertEqual(result.decision, LexicalDecision.ABSTAIN)
+        self.assertIn("MISSING_SIDE_SPECIFIC_WITNESS_REFERENCES", result.reason_codes)
 
     def test_inconsistent_relation_is_rejected(self):
         left = self.occurrence("a", "类", "s1", "r1")
