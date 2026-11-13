@@ -2,7 +2,7 @@ import unittest
 from prototype.yixiang_analogy_transfer_audit import *
 
 def proposal(**changes):
-    values=dict(proposal_id="p1",source_case_id="source",target_case_id="target",shared_features=("same category label",),transferred_claim="transfer predicate P",source_warrant="source warrant",target_warrant="target warrant",source_relation_signature=("agent","acts_on","object"),target_relation_signature=("agent","acts_on","object"),source_scope="same stated domain",target_scope="same stated domain",evidence_refs=("text:1",),condition_refs=("condition:1",),counterexample_refs=(),reviewed=True,warrant_comparable=True,relation_preserved=True,scope_compatible=True)
+    values=dict(proposal_id="p1",source_case_id="source",target_case_id="target",shared_features=("same category label",),transferred_claim="transfer predicate P",source_warrant="source warrant",target_warrant="target warrant",source_relation_signature=("agent","acts_on","object"),target_relation_signature=("agent","acts_on","object"),source_scope="same stated domain",target_scope="same stated domain",evidence_refs=("text:1",),condition_refs=("condition:1",),counterexample_refs=(),reviewed=True,warrant_comparable=True,relation_preserved=True,scope_compatible=True,conditions_compatible=True)
     values.update(changes)
     return AnalogyProposal(**values)
 
@@ -48,6 +48,12 @@ class M17Tests(unittest.TestCase):
         ids={item["case_id"] for item in data["cases"]}
         self.assertIn("classify-without-overextension",ids)
         self.assertIn("appearance-not-virtue",ids)
+
+    def test_condition_mismatch_blocks_transfer(self): self.assertEqual(assess_analogy_transfer(proposal(conditions_compatible=False)).status,TransferStatus.CONDITION_MISMATCH)
+    def test_unknown_condition_gate_remains_unresolved(self):
+        result=assess_analogy_transfer(proposal(conditions_compatible=None))
+        self.assertEqual(result.status,TransferStatus.INDETERMINATE)
+        self.assertIn("conditions_compatible",result.unresolved_gates)
 
     def test_truth_fields_are_never_certified(self):
         result=assess_analogy_transfer(proposal())
