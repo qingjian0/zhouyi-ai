@@ -45,5 +45,13 @@ class BenchmarkContractTests(unittest.TestCase):
   c=make_case("a"); c["source_status"]="critical_edition"; c["label_status"]="adjudicated"; c["reviewers"]=["reviewer-a"]
   with self.assertRaisesRegex(ValueError,"two distinct reviewer IDs"): validate_case(c)
   c["reviewers"]=["reviewer-a","reviewer-b"]; validate_case(c)
+ def test_invalid_label_status_and_group_key_rejected(self):
+  c=make_case("a"); c["label_status"]=[]
+  with self.assertRaises(ValueError): validate_case(c)
+  with self.assertRaisesRegex(ValueError,"unsupported grouping field"): group_leakage([make_case("a")],group_field="split_group")
+ def test_independence_group_leakage_detected(self):
+  a=make_case("a",split="train"); b=make_case("b",split="test")
+  a["independence_group"]=b["independence_group"]="same-source-family"
+  self.assertEqual(group_leakage([a,b],group_field="independence_group")["leakage_count"],1)
  def test_abstention_is_valid_gold(self): validate_case(make_case("a","abstain"))
 if __name__=="__main__": unittest.main()
