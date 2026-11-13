@@ -32,7 +32,6 @@ class RelationState(str, Enum):
 class ComparisonKind(str, Enum):
     INVARIANT = "invariant"
     CHANGED = "changed"
-    CHANGED = "changed"
     UNDETERMINED = "undetermined"
 
 
@@ -48,7 +47,7 @@ class ConditionValue:
             raise ValueError("condition value must be a TruthValue")
         if not isinstance(self.origin, ConditionOrigin):
             raise ValueError("condition origin must be a ConditionOrigin")
-        if not self.name.strip():
+        if not isinstance(self.name, str) or not self.name.strip():
             raise ValueError("condition name is required")
         if self.origin == ConditionOrigin.OBSERVED and not self.source_ref.strip():
             raise ValueError("observed conditions require a source_ref")
@@ -60,7 +59,7 @@ class ConditionIntervention:
     value: TruthValue
 
     def validate(self) -> None:
-        if not self.name.strip():
+        if not isinstance(self.name, str) or not self.name.strip():
             raise ValueError("intervention name is required")
         if not isinstance(self.value, TruthValue) or self.value == TruthValue.UNKNOWN:
             raise ValueError("an intervention must set a known true/false value")
@@ -74,8 +73,10 @@ class ConditionalMapping:
     requires_false: tuple[str, ...] = ()
 
     def validate(self) -> None:
-        if not self.mapping_id.strip() or not self.relation_name.strip():
+        if not isinstance(self.mapping_id, str) or not self.mapping_id.strip() or not isinstance(self.relation_name, str) or not self.relation_name.strip():
             raise ValueError("mapping id and relation name are required")
+        if not isinstance(self.requires_true, tuple) or not isinstance(self.requires_false, tuple):
+            raise ValueError("required condition collections must be tuples")
         names = self.requires_true + self.requires_false
         if any(not isinstance(name, str) or not name.strip() for name in names):
             raise ValueError("required condition names must be non-empty strings")
