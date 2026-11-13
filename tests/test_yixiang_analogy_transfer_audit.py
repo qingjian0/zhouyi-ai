@@ -40,6 +40,15 @@ class M17Tests(unittest.TestCase):
         self.assertIn("same-object-different-use",ids)
         self.assertIn("same-action-different-posture",ids)
 
+    def test_xunzi_casebook_covers_non_overextension_and_surface_proxy(self):
+        import json
+        from pathlib import Path
+        path=Path(__file__).resolve().parents[1]/"data"/"yixiang_analogy_transfer_xunzi_m17.v0.1.json"
+        data=json.loads(path.read_text(encoding="utf-8"))
+        ids={item["case_id"] for item in data["cases"]}
+        self.assertIn("classify-without-overextension",ids)
+        self.assertIn("appearance-not-virtue",ids)
+
     def test_truth_fields_are_never_certified(self):
         result=assess_analogy_transfer(proposal())
         self.assertFalse(result.transfer_truth_established)
