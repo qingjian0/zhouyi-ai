@@ -9,7 +9,7 @@
 
 - 当前阶段：M2 类象与组合认知最小原型研究；推进统一时空关系表示
 - 理论版本：CPG-EI v0.3（研究草案，持续修订）
-- 代码状态：已有静态抽象、动态转移、多元关系、情境联合比较与时序轨迹对齐原型；尚无规模化模型或性能结论
+- 代码状态：已有静态抽象、动态转移、多元关系、情境联合比较与时序轨迹对齐原型；下一阶段研究议程已纳入多尺度时间、整体—局部递归、竞争类象、反事实、主动观测和新象发现
 - 验证原则：所有架构主张均须通过可复现实验、消融和公平对照验证
 
 ## 核心研究问题
@@ -37,6 +37,7 @@
 - [架构设计](docs/ARCHITECTURE.md)
 - [易象模块：可检验化设计](docs/YIXIANG_MODULE.md)
 - [类象发生、抽象、迁移与修正机制 v0.1](docs/YIXIANG_GENERATIVE_MECHANISM_V0_1.md)
+- [类象认知下一阶段研究计划 v0.1](docs/YIXIANG_NEXT_RESEARCH_PROGRAM_V0_1.md)
 - [传统古籍类象研究总纲与语料建设规范](docs/CLASSICAL_YIXIANG_CORPUS_AND_RESEARCH_PROTOCOL.md)
 - [传统古籍候选来源目录（56 项）](data/classical_yixiang_source_catalog.json)
 - [古籍来源目录使用说明](data/README.md)
