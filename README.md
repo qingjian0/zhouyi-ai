@@ -56,6 +56,7 @@
 - [《论衡·感类篇》与感应因果辨析专题](docs/CLASSICAL_YIXIANG_CORRESPONDENCE_CRITIQUE_LUNHENG_GANLEI_V0_1.md)
 - [《墨子·小取》类推结构与异文专题](docs/CLASSICAL_YIXIANG_MOZI_XIAOQU_ANALYSIS_V0_1.md)
 - [《墨子·小取》类象论辩操作矩阵 v0.2（辟/侔/援/推及七术分层）](docs/CLASSICAL_YIXIANG_MOZI_XIAOQU_OPERATION_MATRIX_V0_2.md)
+- [《墨子·非攻上》递进类推与规范一致性专题 v0.1](docs/CLASSICAL_YIXIANG_MOZI_FEIGONG_ANALYSIS_V0_1.md)
 - [《墨子·大取》与《墨经》同异—类—故专题](docs/CLASSICAL_YIXIANG_MOZI_DAQU_MOJING_ANALYSIS_V0_1.md)
 - [M5 主动观测与信息增益基线](docs/YIXIANG_ACTIVE_OBSERVATION_M5_V0_1.md)
 - [M6 新象发现与版本治理](docs/YIXIANG_NOVELTY_DISCOVERY_M6_V0_1.md)
