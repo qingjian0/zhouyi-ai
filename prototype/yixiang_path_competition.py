@@ -105,7 +105,7 @@ def audit_path_competition(
     if set(required_context_axes) - set(target_axes):
         raise ValueError("target_context_axes must define every required axis")
 
-    ids, endpoints, evidence_seen = [], set(), set()
+    ids, endpoints, evidence_seen, path_signatures = [], set(), set(), set()
     viable, failed, unresolved, mismatched = [], [], [], []
     reasons = []
     for candidate in candidates:
@@ -123,6 +123,10 @@ def audit_path_competition(
         axes = _axes(candidate.context_axes, "context_axes")
         ids.append(candidate.path_id)
         endpoints.add((candidate.source_node, candidate.target_node))
+        signature = (candidate.ordered_states, candidate.relation_signatures)
+        if signature in path_signatures:
+            reasons.append("DUPLICATE_PATH_SIGNATURE")
+        path_signatures.add(signature)
         overlap = evidence_seen.intersection(candidate.evidence_refs)
         if overlap:
             reasons.append("EVIDENCE_REUSED_ACROSS_COMPETING_PATHS")
