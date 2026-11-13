@@ -86,3 +86,8 @@ M9 v0.1 将形态、结构、功能、过程机制、时间、情境和象征规
 ### M17 当前实现边界
 
 M17 v0.1（19 项专项测试）将类推迁移拆为共同特征、迁移主张、推论根据、关系结构、适用范围、条件与反例七类审计字段。原型允许未知门禁并保持未决；反例优先阻断；全部声明门禁通过也只输出 PROVISIONAL_TRANSFER，不认证语义有效性或真理。原典案例集登记《墨子·小取》的白马/骊马、车/木、盗人/人、同然异所以然、同取异所以取五组，并新增《淮南子·说林训》的物种差异、材料来源、主体用途与姿态情境五组反例，以及《荀子·正名》《荀子·非相》的推类规范与外貌代理拒推两组案例。当前仍是结构审计框架，不是语义自动判真器；需后续接入 M14 来源谱系、M15 片段—主张审计、M16 解释框架选择，并以人工审定古籍案例验证。
+
+
+### M18 当前实现边界
+
+M18 v0.1 提供 M17 casebook 到 M8 benchmark 的安全适配器，当前 10 项专项测试。所有案例均保持 unverified_transcription + pending_review，gold_decision=abstain 仅为占位；reviewers 为空、split_group=exploratory，M8 evaluate_predictions 会拒绝评分。shared/non-shared basis、scope、invariants 与 counterexamples 不从 audit_focus 自动生成，未知映射直接报错。此批数据不是人工 gold，不得用于正式性能结论。
