@@ -15,12 +15,13 @@
  "evidence_refs":{"type":"array","minItems":1,"uniqueItems":true,"items":{"type":"string","minLength":1}},
  "independence_group":{"type":"string","minLength":1},"gold_decision":{"enum":["accept","reject","conditional","abstain"]},
  "gold_rationale":{"type":"string","minLength":1},"label_status":{"enum":["fixture_expected","pending_review","adjudicated"]},"reviewers":{"type":"array","minItems":0,"uniqueItems":true,"items":{"type":"string","minLength":1}},
- "split_group":{"type":"string","minLength":1}}
+ "split_group":{"enum":["train","dev","test","exploratory","holdout"]}}
  ,
  "allOf":[
   {"if":{"properties":{"source_status":{"const":"synthetic_fixture"}},"required":["source_status"]},"then":{"properties":{"label_status":{"const":"fixture_expected"},"reviewers":{"maxItems":0}}}},
   {"if":{"properties":{"label_status":{"const":"adjudicated"}},"required":["label_status"]},"then":{"properties":{"reviewers":{"minItems":2}}}},
   {"if":{"properties":{"label_status":{"const":"fixture_expected"}},"required":["label_status"]},"then":{"properties":{"source_status":{"const":"synthetic_fixture"}}}},
-  {"if":{"properties":{"gold_decision":{"const":"conditional"}},"required":["gold_decision"]},"then":{"properties":{"scope_conditions":{"minItems":1}}}}
+  {"if":{"properties":{"gold_decision":{"const":"conditional"}},"required":["gold_decision"]},"then":{"properties":{"scope_conditions":{"minItems":1}}}},
+  {"if":{"properties":{"gold_decision":{"const":"accept"}},"required":["gold_decision"]},"then":{"properties":{"shared_basis":{"minItems":1}}}}
  ]
 }
