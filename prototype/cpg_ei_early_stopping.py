@@ -2,7 +2,8 @@
 
 The model is fitted independently per family. Development data selects the
 checkpoint; locked states are report-only and never influence training or
-checkpoint selection.
+checkpoint selection. Training features are encoded once per fit and reused
+across epochs to avoid repeated Python feature-construction work.
 """
 from __future__ import annotations
 
@@ -16,7 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from prototype.cpg_ei_generic_learner import (
-    RelationalTransitionModel, TransitionExample, evaluate,
+    RelationalTransitionModel, TransitionExample, encode_relations, evaluate,
 )
 from prototype.cpg_ei_mixed_operator_data import generate_mixed_corpus
 
@@ -34,6 +35,40 @@ def _binary_cross_entropy(
             p = min(max(probability, 1e-12), 1.0 - 1e-12)
             total -= label * math.log(p) + (1 - label) * math.log1p(-p)
     return total / (len(examples) * model.output_dim)
+
+
+def _train_preencoded_one_epoch(
+    model: RelationalTransitionModel,
+    encoded: list[tuple[tuple[float, ...], tuple[int, ...]]],
+    *,
+    learning_rate: float,
+    l2: float,
+) -> float:
+    """Perform exactly one reference-order SGD epoch over cached features."""
+    if not encoded:
+        raise ValueError("training examples must not be empty")
+    output_dim = model.output_dim
+    feature_count = len(model.supports) + 1
+    gradients = [[0.0] * feature_count for _ in range(output_dim)]
+    total_loss = 0.0
+    for features, target in encoded:
+        for out, head in enumerate(model.weights):
+            logit = sum(weight * feature for weight, feature in zip(head, features))
+            probability = model._sigmoid(logit)
+            label = target[out]
+            total_loss += (
+                max(logit, 0.0) - logit * label
+                + math.log1p(math.exp(-abs(logit)))
+            )
+            error = probability - label
+            for index, feature in enumerate(features):
+                gradients[out][index] += error * feature
+    count = float(len(encoded))
+    for out, head in enumerate(model.weights):
+        for index in range(len(head)):
+            penalty = 0.0 if index == 0 else l2 * head[index]
+            head[index] -= learning_rate * (gradients[out][index] / count + penalty)
+    return total_loss / (count * output_dim)
 
 
 def fit_with_early_stopping(
@@ -57,6 +92,12 @@ def fit_with_early_stopping(
             or min_delta < 0 or learning_rate <= 0 or l2 < 0):
         raise ValueError("invalid early-stopping or optimizer configuration")
 
+    # Validate and encode once. The reference RelationalTransitionModel.train()
+    # repeats encode_relations() on every epoch, although states/supports are fixed.
+    encoded_training = [
+        (encode_relations(row.state, model.supports), row.target)
+        for row in training
+    ]
     best_loss = _binary_cross_entropy(model, development)
     best_epoch = 0
     best_weights = copy.deepcopy(model.weights)
@@ -65,10 +106,10 @@ def fit_with_early_stopping(
     epochs_run = 0
 
     for epoch in range(1, max_epochs + 1):
-        losses = model.train(
-            training, epochs=1, learning_rate=learning_rate, l2=l2
+        train_loss = _train_preencoded_one_epoch(
+            model, encoded_training, learning_rate=learning_rate, l2=l2
         )
-        train_losses.append(losses[-1])
+        train_losses.append(train_loss)
         epochs_run = epoch
         development_loss = _binary_cross_entropy(model, development)
         if development_loss < best_loss - min_delta:
@@ -93,6 +134,9 @@ def fit_with_early_stopping(
         "last_train_loss_before_restore": train_losses[-1] if train_losses else None,
         "stopped_early": epochs_run < max_epochs,
         "selected_weights_sha256": weights_digest,
+        "training_feature_encodings": len(encoded_training) * (
+            len(model.supports) + 1
+        ),
     }
 
 
@@ -164,6 +208,7 @@ def run_early_stopping_baseline(
             "learning_rate": learning_rate,
             "l2": l2,
             "checkpoint_selection": "minimum development binary cross-entropy",
+            "feature_encoding": "training rows encoded once per fit and reused across epochs",
         },
         "evaluation_protocol": (
             "Independent per-family fitting. Training states update weights; "
