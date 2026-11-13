@@ -1,0 +1,45 @@
+name: CPG-EI vectorized optimizer parity and speed
+
+on:
+  push:
+    branches:
+      - research/cpg-ei-vectorized-optimizer-v1-2026-11-13
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  scalar-vectorized-parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      OPENBLAS_NUM_THREADS: "1"
+      OMP_NUM_THREADS: "1"
+      MKL_NUM_THREADS: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install pinned vectorized backend
+        run: python -m pip install numpy==2.3.5
+      - name: Run early-stopping and numerical parity tests
+        run: |
+          python -m unittest discover -s tests -p 'test_cpg_ei_early_stopping.py' -v
+          python -m unittest discover -s tests -p 'test_cpg_ei_vectorized_optimizer_benchmark.py' -v
+      - name: Run full 8-family scalar-versus-vectorized speed benchmark
+        run: |
+          python -m prototype.cpg_ei_vectorized_optimizer_benchmark \
+            --families 8 --input-dim 8 --output-dim 8 \
+            --seed 20261114 --max-epochs 600 --patience 30 \
+            --min-delta 0.00001 --learning-rate 0.1 --l2 0.0001 \
+            --json artifacts/vectorized-optimizer-speed.json
+      - name: Upload optimizer parity and speed report
+        uses: actions/upload-artifact@v4
+        with:
+          name: zhouyi-cpg-ei-vectorized-optimizer-speed-v1
+          path: artifacts/vectorized-optimizer-speed.json
+          if-no-files-found: error
+          retention-days: 30
