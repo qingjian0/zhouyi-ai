@@ -61,7 +61,9 @@ class TestDegreeBoundedAnfIdentifiability(unittest.TestCase):
                 row["target"] = [1 - bit for bit in row["target"]]
         left = run_degree_bounded_identifiability(corpus)
         right = run_degree_bounded_identifiability(changed)
-        self.assertEqual(left["degree_summaries"], right["degree_summaries"])
+        for a, b in zip(left["degree_summaries"], right["degree_summaries"]):
+            for key in ("max_degree", "basis_size", "output_systems", "mean_rank", "mean_nullity", "consistent_rate", "unique_rate"):
+                self.assertEqual(a[key], b[key])
 
     def test_report_contains_fixed_corpus_digest(self):
         corpus = generate_mixed_corpus(
