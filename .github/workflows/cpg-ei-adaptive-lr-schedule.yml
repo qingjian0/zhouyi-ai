@@ -1,0 +1,39 @@
+name: CPG-EI adaptive learning-rate schedule
+
+on:
+  push:
+    branches:
+      - research/cpg-ei-adaptive-lr-schedule-v1-2026-11-13
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  adaptive-schedule:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run adaptive-schedule contract tests
+        run: |
+          python -m unittest discover -s tests -p 'test_cpg_ei_adaptive_lr_schedule.py' -v
+      - name: Run 8-family adaptive-schedule experiment
+        run: |
+          python -m prototype.cpg_ei_adaptive_lr_schedule \
+            --families 8 --input-dim 8 --output-dim 8 \
+            --seed 20261114 --max-epochs 600 --lr-patience 15 \
+            --stop-patience 30 --min-delta 0.00001 \
+            --learning-rate 0.1 --lr-factor 0.5 \
+            --min-learning-rate 0.00625 --l2 0.0001 \
+            --json artifacts/adaptive-lr-schedule.json
+      - name: Upload adaptive-schedule report
+        uses: actions/upload-artifact@v4
+        with:
+          name: zhouyi-cpg-ei-adaptive-lr-schedule-v1
+          path: artifacts/adaptive-lr-schedule.json
+          if-no-files-found: error
