@@ -2222,5 +2222,249 @@
     "method_families": [
       "commentarial_exegesis"
     ]
+  },
+  {
+    "record_id": "sunzi-xushi-water-analogy-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "孙子兵法·虚实篇",
+      "traditional_authority": "传统归属；成篇年代、编纂层次与传本问题保留学术争议",
+      "composition_period": "先秦",
+      "genre": "兵家兵势论"
+    },
+    "period": "pre_qin",
+    "source_type": "classical_text",
+    "tradition": [
+      "传统文献",
+      "跨领域类象研究"
+    ],
+    "witness": {
+      "witness_id": "wikisunzu",
+      "edition_or_database": "维基文库《孙子兵法》数字文本；应与银雀山汉简及古本异文对读",
+      "url": "https://zh.wikisource.org/zh-hans/孫子",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台条款另行核验；仅保留必要短引"
+    },
+    "locator": {
+      "chapter": "虚实第六",
+      "section_or_line": "兵形象水与因敌变化段"
+    },
+    "text": "夫兵形象水，水之形，避高而趋下；兵之形，避实而击虚。水因地而制流，兵因敌而制胜。故兵无常势，水无常形；能因敌变化而取胜者，谓之神。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "sunzi-xushi-water-analogy-001",
+        "claim_kind": "textual_observation",
+        "subject": "水之流形与兵之态势",
+        "predicate": "因地制流、因敌制胜",
+        "object": "水的流动受地形制约，用兵策略随敌情变化",
+        "interpretive_note": "这是跨域结构类比：水形依地形、兵势依敌情；不变的是约束关系，变化的是具体形态。应把稳定原则与动态适应分开建模。人民网引述银雀山汉简异文“兵无成势，无恒形”，提示传世文本与出土材料需对勘。",
+        "scope": "限于《孙子·虚实篇》策略类比；不能把军事策略直接推广为所有自然或社会领域的普遍因果。",
+        "relation_type": "functional",
+        "xiang_domain": "兵法策略与动态适应",
+        "relation_family": "functional",
+        "shared_basis": [
+          "系统形态受外部环境条件约束"
+        ],
+        "non_shared_basis": [
+          "水流物理规律与军事决策目标、主体和反馈机制不同"
+        ],
+        "scope_conditions": [
+          "记录环境状态、对手状态、目标函数和应变动作；比较传世本与银雀山汉简异文"
+        ],
+        "causal_status": "not_claimed",
+        "reasoning_operations": [
+          "compare",
+          "abstract_shared_basis",
+          "map_function",
+          "identify_difference",
+          "infer_by_analogy"
+        ],
+        "conditions": [
+          "记录环境状态、对手状态、目标函数和应变动作；比较传世本与银雀山汉简异文"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引，不复制现代整理本注释。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "数字文本为检索见证；须与可靠校点本、影印本及异文对读。"
+    ],
+    "concept_tags": [
+      "state_change"
+    ],
+    "method_families": [
+      "analogical_argument"
+    ]
+  },
+  {
+    "record_id": "huangdi-neijing-suwen-fourqi-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "黄帝内经·素问·四气调神大论",
+      "traditional_authority": "传统归属；成篇年代、编纂层次与传本问题保留学术争议",
+      "composition_period": "秦汉文本层次，成篇与传承仍须考辨",
+      "genre": "医经/养生理论"
+    },
+    "period": "qin_han",
+    "source_type": "classical_text",
+    "tradition": [
+      "传统文献",
+      "跨领域类象研究"
+    ],
+    "witness": {
+      "witness_id": "ctext-neijing-si-qi",
+      "edition_or_database": "中国哲学书电子化计划《四气调神大论》；页面标注《四部丛刊初编》本《重广补注黄帝内经素问》",
+      "url": "https://ctext.org/huangdi-neijing/si-qi-diao-shen-da-lun/zhs",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台条款另行核验；仅保留必要短引"
+    },
+    "locator": {
+      "chapter": "素问·四气调神大论篇第二",
+      "section_or_line": "春夏秋冬四时养生段"
+    },
+    "text": "四时阴阳者，万物之终始也，死生之本也。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "neijing-fourqi-seasonal-cycle-001",
+        "claim_kind": "textual_observation",
+        "subject": "四时阴阳与生命过程",
+        "predicate": "生长收藏与养生顺时",
+        "object": "四时周期被用于组织生命过程和养生原则",
+        "interpretive_note": "文本把春生、夏长、秋收、冬藏与养生行为、脏腑和病候联系起来，适合抽取周期阶段与条件约束；医学理论陈述应与现代临床证据分层。",
+        "scope": "限于《素问》四气调神篇的传统医学理论语境；不得作为个人诊疗建议或现代临床因果结论。",
+        "relation_type": "temporal",
+        "xiang_domain": "医学、时令与生命周期",
+        "relation_family": "temporal",
+        "shared_basis": [
+          "季节阶段与生命活动节律之间的文本对应"
+        ],
+        "non_shared_basis": [
+          "古代脏腑五行理论不等同现代生理机制"
+        ],
+        "scope_conditions": [
+          "标注篇章层次、传本、新校正注及现代临床证据状态"
+        ],
+        "causal_status": "not_claimed",
+        "reasoning_operations": [
+          "map_time",
+          "classify",
+          "infer_by_analogy",
+          "test_counterexample"
+        ],
+        "conditions": [
+          "标注篇章层次、传本、新校正注及现代临床证据状态"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引，不复制现代整理本注释。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "数字文本为检索见证；须与可靠校点本、影印本及异文对读。"
+    ],
+    "concept_tags": [
+      "natural_knowledge"
+    ],
+    "method_families": [
+      "cosmological_correspondence"
+    ]
+  },
+  {
+    "record_id": "kaogongji-four-factor-craft-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "周礼·考工记",
+      "traditional_authority": "传统归属；成篇年代、编纂层次与传本问题保留学术争议",
+      "composition_period": "先秦至秦汉层累形成说并存",
+      "genre": "礼制/工艺技术"
+    },
+    "period": "uncertain",
+    "source_type": "classical_text",
+    "tradition": [
+      "传统文献",
+      "跨领域类象研究"
+    ],
+    "witness": {
+      "witness_id": "shidianguji-kaogongji",
+      "edition_or_database": "识典古籍《考工记》数字文本，页面标注明郭正域批点；应继续核对《周礼》经注本",
+      "url": "https://www.shidianguji.com/book/CADAL02043244/chapter/1liz4baok43sm",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台条款另行核验；仅保留必要短引"
+    },
+    "locator": {
+      "chapter": "考工记上篇",
+      "section_or_line": "天时地气材美工巧段"
+    },
+    "text": "天有时，地有气，材有美，工有巧，合此四者，然后可以为良。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "kaogongji-four-factor-quality-001",
+        "claim_kind": "textual_observation",
+        "subject": "工艺成品质量",
+        "predicate": "时、地、材、工多条件合成",
+        "object": "器物质量由时间、地域环境、材料和工艺共同制约",
+        "interpretive_note": "此段给出多因素合成模型：单独材料好、工艺巧仍不足，必须同时满足时、地、材、工条件。可用于研究类象的多条件适用域和交互项。",
+        "scope": "限于《考工记》工艺制度语境；其中橘枳、地域材料等古代地理解释须与现代科学知识分层。",
+        "relation_type": "generative",
+        "xiang_domain": "工艺、材料与环境适配",
+        "relation_family": "generative",
+        "shared_basis": [
+          "成品质量由多个互补条件共同决定"
+        ],
+        "non_shared_basis": [
+          "文本中的地气概念和物种迁移解释不等同现代生态学"
+        ],
+        "scope_conditions": [
+          "分离时间、地域、材料、工艺变量；缺失任一条件时不轻率判定"
+        ],
+        "causal_status": "not_claimed",
+        "reasoning_operations": [
+          "classify",
+          "identify_difference",
+          "abstract_shared_basis",
+          "infer_by_analogy"
+        ],
+        "conditions": [
+          "分离时间、地域、材料、工艺变量；缺失任一条件时不轻率判定"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引，不复制现代整理本注释。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "数字文本为检索见证；须与可靠校点本、影印本及异文对读。"
+    ],
+    "concept_tags": [
+      "natural_knowledge"
+    ],
+    "method_families": [
+      "phenomenological_observation"
+    ]
   }
 ]
