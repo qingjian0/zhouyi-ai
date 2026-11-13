@@ -43,6 +43,7 @@
 - [传统类象理论综合框架 v0.2](docs/CLASSICAL_YIXIANG_THEORY_SYNTHESIS_V0_2.md)
 - [类象关系类型学与迁移门禁 v0.1](docs/CLASSICAL_YIXIANG_RELATION_TAXONOMY_V0_1.md)
 - [古典类象词义、名物与推类分层研究 v0.1](docs/CLASSICAL_YIXIANG_LEXICAL_NOMENCLATURE_INFERENCE_V0_1.md)
+- [古籍候选来源目录（148 项，均为待核验候选）](data/classical_yixiang_source_catalog.json)
 - [《周易》变—通—时—位动态类象专题](docs/CLASSICAL_YIXIANG_CHANGE_TIME_POSITION_V0_1.md)
 - [先秦至两汉类比适切性与推类边界研究](docs/CLASSICAL_YIXIANG_ANALOGY_VALIDITY_HAN_PREQIN_HAN_V0_1.md)
 - [《论衡·感类篇》与感应因果辨析专题](docs/CLASSICAL_YIXIANG_CORRESPONDENCE_CRITIQUE_LUNHENG_GANLEI_V0_1.md)
