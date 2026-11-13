@@ -3289,9 +3289,9 @@
     },
     "locator": {
       "chapter": "似顺论·别类",
-      "section_or_line": "物多类然而不然；类固不必可推知；小方/小马/小智段"
+      "section_or_line": "似顺论·别类：组合性质、小方/大方与小智/大智、射招/射兽、高阳应造室诸段"
     },
-    "text": "物多类然而不然。……金柔锡柔，合两柔则为刚，燔之则为淖。……小方，大方之类也；小马，大马之类也；小智，非大智之类也。",
+    "text": "物多类然而不然。……金柔锡柔，合两柔则为刚，燔之则为淖。……小方，大方之类也；小马，大马之类也；小智，非大智之类也。……射招者欲其中小也，射兽者欲其中大也。……高阳应将为室家……室之始成也善，其后果败。",
     "text_status": "quotation_fragment",
     "variant_notes": [
       "不同数字转录对“漆淖水淖”“湿/泾”“淖/蹇”等字有差异；本条不据网页转录定校。",
@@ -3370,6 +3370,122 @@
         "causal_status": "not_claimed",
         "reasoning_operations": [
           "classify",
+          "compare",
+          "identify_difference",
+          "test_counterexample",
+          "refuse_transfer"
+        ]
+      },
+      {
+        "claim_id": "lushi-bielei-dose-extrapolation-limit-001",
+        "claim_kind": "textual_observation",
+        "subject": "治疗剂量与结果尺度",
+        "predicate": "局部治疗能力不能按倍量线性外推",
+        "object": "治偏枯之药加倍并不能据此推出可起死人",
+        "interpretive_note": "篇章用荒谬的倍量外推揭示剂量/适用对象变化可能破坏原有关系。这里只记录反类推论证，不采纳其古代医疗主张。",
+        "scope": "仅分析论证中的尺度迁移错误；不构成医疗知识或现代药理结论。",
+        "relation_type": "dose_and_outcome_scope",
+        "conditions": [
+          "区分治疗对象、病情程度、剂量和结果",
+          "不得把局部效果线性放大为极端结果"
+        ],
+        "supports": [],
+        "counterevidence": [
+          "某些干预存在剂量反应关系，但关系形式必须由独立证据识别。"
+        ],
+        "review_status": "unreviewed",
+        "xiang_domain": "medical analogy critique",
+        "relation_family": "functional",
+        "shared_basis": [
+          "同一药物或治疗手段被用于比较"
+        ],
+        "non_shared_basis": [
+          "目标病情与结果严重程度不同，剂量关系未被证明线性"
+        ],
+        "scope_conditions": [
+          "仅作古典论证样本",
+          "不得用于医疗决策"
+        ],
+        "causal_status": "unassessed",
+        "reasoning_operations": [
+          "compare",
+          "identify_difference",
+          "test_counterexample",
+          "refuse_transfer"
+        ]
+      },
+      {
+        "claim_id": "lushi-bielei-task-dependent-success-001",
+        "claim_kind": "textual_observation",
+        "subject": "射击任务与命中标准",
+        "predicate": "同一动作的成功标准依目标任务而异",
+        "object": "射招求中小、射兽求中大的对照",
+        "interpretive_note": "篇章显示“命中”并非脱离目标的单一成功指标。评价函数由任务目标定义，不能将一个任务的优劣标准直接迁移到另一任务。",
+        "scope": "限于篇章所举射招与射兽的论证；不概括为所有射击任务的经验规律。",
+        "relation_type": "goal_conditioned_evaluation",
+        "conditions": [
+          "记录行动主体、目标对象和任务目的",
+          "成功标准必须绑定任务"
+        ],
+        "supports": [],
+        "counterevidence": [
+          "若两个任务明确采用同一评价目标，部分指标仍可能可比。"
+        ],
+        "review_status": "unreviewed",
+        "xiang_domain": "task and evaluation",
+        "relation_family": "functional",
+        "shared_basis": [
+          "动作形式均为射击与命中"
+        ],
+        "non_shared_basis": [
+          "目标大小与任务目的不同，最优命中尺度相反"
+        ],
+        "scope_conditions": [
+          "必须声明评价目标",
+          "不得只用动作表面相同判定绩效相同"
+        ],
+        "causal_status": "not_claimed",
+        "reasoning_operations": [
+          "compare",
+          "identify_difference",
+          "map_function",
+          "refuse_transfer"
+        ]
+      },
+      {
+        "claim_id": "lushi-bielei-temporal-outcome-001",
+        "claim_kind": "textual_observation",
+        "subject": "造室过程与长期结果",
+        "predicate": "初始状态良好不保证长期稳定",
+        "object": "高阳应造室初成善而后果败",
+        "interpretive_note": "篇章用木材状态、涂饰和后续变形/干燥过程反驳只看局部即时状态的推断。它提示必须区分初始截面、过程演化和延迟结果。",
+        "scope": "仅分析文本中的时间性反例；不将古代工艺描述当作现代建筑工程规范。",
+        "relation_type": "temporal_process_outcome",
+        "conditions": [
+          "记录材料初始状态与后续变化",
+          "结果评价包含明确时间跨度"
+        ],
+        "supports": [],
+        "counterevidence": [
+          "某些结构可在初始状态与长期状态间保持稳定，须由材料与环境证据判断。"
+        ],
+        "review_status": "unreviewed",
+        "xiang_domain": "craft process and time",
+        "relation_family": "temporal",
+        "shared_basis": [
+          "同一建筑项目与材料在时间中持续"
+        ],
+        "non_shared_basis": [
+          "初始观感与长期耐久性是不同结果变量"
+        ],
+        "scope_conditions": [
+          "区分即时表现与延迟结果",
+          "不得从单次快照推断长期稳定"
+        ],
+        "causal_status": "unassessed",
+        "reasoning_operations": [
+          "observe",
+          "map_time",
           "compare",
           "identify_difference",
           "test_counterexample",
