@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:zhouyi-ai:schema:yixiang-state:v0.1",
+  "title": "Zhouyi-AI Yixiang State and Transition",
+  "description": "Convention-explicit structural representation. Binary indices are computational identifiers, not classical sequence numbers or semantic labels.",
+  "oneOf": [
+    { "$ref": "#/$defs/state" },
+    { "$ref": "#/$defs/transition" }
+  ],
+  "$defs": {
+    "line": { "type": "integer", "enum": [0, 1], "description": "0 = yin, 1 = yang" },
+    "state": {
+      "type": "object",
+      "required": ["kind", "encoding_version", "line_order", "bit_convention", "lines_bottom_to_top", "binary_id", "lower_trigram", "upper_trigram"],
+      "properties": {
+        "kind": { "const": "hexagram_state" },
+        "encoding_version": { "type": "string", "minLength": 1 },
+        "line_order": { "const": "bottom_to_top" },
+        "bit_convention": { "const": "0=yin,1=yang" },
+        "lines_bottom_to_top": {
+          "type": "array",
+          "prefixItems": [
+            { "$ref": "#/$defs/line" }, { "$ref": "#/$defs/line" },
+            { "$ref": "#/$defs/line" }, { "$ref": "#/$defs/line" },
+            { "$ref": "#/$defs/line" }, { "$ref": "#/$defs/line" }
+          ],
+          "minItems": 6,
+          "maxItems": 6
+        },
+        "binary_id": { "type": "integer", "minimum": 0, "maximum": 63, "description": "Bit i stores line i; not King Wen or another traditional sequence." },
+        "lower_trigram": { "type": "string", "enum": ["乾", "兑", "离", "震", "巽", "坎", "艮", "坤"] },
+        "upper_trigram": { "type": "string", "enum": ["乾", "兑", "离", "震", "巽", "坎", "艮", "坤"] },
+        "sequence_memberships": {
+          "type": "array",
+          "description": "Optional separately sourced sequence labels; never inferred from binary_id.",
+          "items": {
+            "type": "object",
+            "required": ["system", "position", "source"],
+            "properties": {
+              "system": { "type": "string", "minLength": 1 },
+              "position": { "type": "integer", "minimum": 1 },
+              "source": { "type": "string", "minLength": 1 },
+              "edition": { "type": "string" }
+            },
+            "additionalProperties": false
+          }
+        },
+        "provenance": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "transition": {
+      "type": "object",
+      "required": ["kind", "transition_version", "line_index_origin", "before", "after", "changing_indices_bottom_to_top"],
+      "properties": {
+        "kind": { "const": "hexagram_transition" },
+        "transition_version": { "type": "string", "minLength": 1 },
+        "line_index_origin": { "const": "bottom_zero_based" },
+        "before": { "$ref": "#/$defs/state" },
+        "after": { "$ref": "#/$defs/state" },
+        "changing_indices_bottom_to_top": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": { "type": "integer", "minimum": 0, "maximum": 5 }
+        },
+        "rule_source": { "type": "string" },
+        "notes": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  }
+}

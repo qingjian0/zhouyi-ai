@@ -33,10 +33,9 @@ class HexagramState:
 def validate_lines(lines: Sequence[int]) -> tuple[int, ...]:
     if len(lines) not in (3, 6):
         raise ValueError("expected exactly 3 trigram lines or 6 hexagram lines")
-    normalized = tuple(int(bit) for bit in lines)
-    if any(bit not in (0, 1) for bit in normalized):
-        raise ValueError("each line must be encoded as 0 (yin) or 1 (yang)")
-    return normalized
+    if any(type(bit) is not int or bit not in (0, 1) for bit in lines):
+        raise ValueError("each line must be the integer 0 (yin) or 1 (yang)")
+    return tuple(lines)
 
 
 def trigram_name(lines_bottom_to_top: Sequence[int]) -> str:
@@ -63,6 +62,10 @@ def change_lines(
     lines = list(validate_lines(lines_bottom_to_top))
     if len(lines) != 6:
         raise ValueError("line changes require a six-line hexagram")
+    if any(type(index) is not int for index in changing_indices):
+        raise ValueError("changing line indices must be integers")
+    if len(set(changing_indices)) != len(changing_indices):
+        raise ValueError("changing line indices must be unique")
     for index in changing_indices:
         if not 0 <= index < 6:
             raise ValueError("line index must be in [0, 5], bottom line is index 0")
@@ -75,3 +78,31 @@ def all_hexagram_states() -> list[HexagramState]:
         encode_hexagram(tuple((value >> bit) & 1 for bit in range(6)))
         for value in range(64)
     ]
+
+
+@dataclass(frozen=True)
+class HexagramTransition:
+    """A purely structural line-change transition; no divinatory meaning inferred."""
+    before: HexagramState
+    after: HexagramState
+    changing_indices_bottom_to_top: tuple[int, ...]
+
+
+def transition_hexagram(
+    lines_bottom_to_top: Sequence[int],
+    changing_indices: Sequence[int],
+) -> HexagramTransition:
+    """Apply distinct moving-line indices and retain both six-line states.
+
+    Indices are zero-based from the bottom. The returned binary identifiers
+    are computational indices only; no King Wen or other sequence is implied.
+    """
+    before = encode_hexagram(lines_bottom_to_top)
+    indices = tuple(changing_indices)
+    after_lines = change_lines(before.lines_bottom_to_top, indices)
+    after = encode_hexagram(after_lines)
+    return HexagramTransition(
+        before=before,
+        after=after,
+        changing_indices_bottom_to_top=indices,
+    )

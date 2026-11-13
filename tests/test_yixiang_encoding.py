@@ -33,6 +33,33 @@ class YixiangEncodingTests(unittest.TestCase):
     def test_line_change_uses_bottom_zero_index(self):
         self.assertEqual(change_lines((0, 0, 0, 0, 0, 0), [0, 5]), (1, 0, 0, 0, 0, 1))
 
+    def test_rejects_lossy_non_integer_line_values(self):
+        with self.assertRaises(ValueError):
+            trigram_name((0, 1.5, 1))
+        with self.assertRaises(ValueError):
+            trigram_name((0, True, 1))
+
+    def test_rejects_duplicate_changing_line_indices(self):
+        with self.assertRaises(ValueError):
+            change_lines((0, 0, 0, 0, 0, 0), [2, 2])
+
+    def test_rejects_non_integer_changing_line_index(self):
+        with self.assertRaises(ValueError):
+            change_lines((0, 0, 0, 0, 0, 0), [1.0])
+
+    def test_transition_retains_before_after_and_moving_line_positions(self):
+        from prototype.yixiang_encoding import transition_hexagram
+        transition = transition_hexagram((0, 0, 0, 0, 0, 0), [0, 5])
+        self.assertEqual(transition.before.lines_bottom_to_top, (0, 0, 0, 0, 0, 0))
+        self.assertEqual(transition.after.lines_bottom_to_top, (1, 0, 0, 0, 0, 1))
+        self.assertEqual(transition.changing_indices_bottom_to_top, (0, 5))
+        self.assertEqual(transition.before.binary_id ^ transition.after.binary_id, 33)
+
+    def test_empty_moving_lines_is_identity_transition(self):
+        from prototype.yixiang_encoding import transition_hexagram
+        transition = transition_hexagram((1, 0, 1, 0, 1, 0), [])
+        self.assertEqual(transition.before, transition.after)
+
     def test_invalid_line_value_rejected(self):
         with self.assertRaises(ValueError):
             trigram_name((0, 1, 2))

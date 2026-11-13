@@ -1,0 +1,231 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/qingjian0/zhouyi-ai/blob/main/schemas/analogy-record.schema.json",
+  "title": "Zhouyi-AI Analogy Record",
+  "description": "Evidence-traceable cross-domain analogy candidate; not a claim of causal equivalence.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "candidate_id",
+    "source_domain",
+    "target_domain",
+    "source_entities",
+    "target_entities",
+    "mapping",
+    "dimensions",
+    "source_relations",
+    "target_relations",
+    "conditions",
+    "evidence",
+    "counterexamples",
+    "validity_scope",
+    "record_version",
+    "review_status"
+  ],
+  "properties": {
+    "candidate_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_domain": {
+      "type": "string",
+      "minLength": 1
+    },
+    "target_domain": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_entities": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "target_entities": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "uniqueItems": true
+    },
+    "mapping": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "source_entity",
+          "target_entity"
+        ],
+        "properties": {
+          "source_entity": {
+            "type": "string"
+          },
+          "target_entity": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "dimensions": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "morphology",
+          "attribute",
+          "function",
+          "relation",
+          "process",
+          "spatiotemporal",
+          "potential",
+          "integrated"
+        ]
+      }
+    },
+    "source_relations": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/relation"
+      }
+    },
+    "target_relations": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/relation"
+      }
+    },
+    "preserved_relations": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/relation"
+      }
+    },
+    "conditions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "evidence": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/evidence"
+      }
+    },
+    "counterexamples": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/evidence"
+      }
+    },
+    "declared_confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "validity_scope": {
+      "type": "string",
+      "minLength": 1
+    },
+    "provenance": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "reference"
+        ],
+        "properties": {
+          "reference": {
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          },
+          "license_status": {
+            "type": "string"
+          },
+          "locator": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "record_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "review_status": {
+      "enum": [
+        "unreviewed",
+        "candidate",
+        "reviewed",
+        "rejected",
+        "superseded"
+      ]
+    }
+  },
+  "$defs": {
+    "relation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "target",
+        "kind",
+        "directed"
+      ],
+      "properties": {
+        "source": {
+          "type": "string"
+        },
+        "target": {
+          "type": "string"
+        },
+        "kind": {
+          "type": "string",
+          "minLength": 1
+        },
+        "directed": {
+          "type": "boolean"
+        },
+        "conditions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "reference",
+        "supports"
+      ],
+      "properties": {
+        "reference": {
+          "type": "string",
+          "minLength": 1
+        },
+        "supports": {
+          "type": "boolean"
+        },
+        "note": {
+          "type": "string"
+        },
+        "source_version": {
+          "type": "string"
+        },
+        "locator": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}
