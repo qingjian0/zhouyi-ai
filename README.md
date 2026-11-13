@@ -50,7 +50,7 @@
 - [四层解释防混淆门禁原型](prototype/yixiang_interpretation_firewall.py)
 - [四层解释防混淆门禁测试](tests/test_yixiang_interpretation_firewall.py)
 - [古籍候选来源目录（148 项，均为待核验候选）](data/classical_yixiang_source_catalog.json)
-- [古典类象案例集 v0.1（24 条原典案例，数字转录候选）](data/classical_yixiang_casebook.v0.1.json)
+- [古典类象案例集 v0.1（25 条原典案例，数字转录候选）](data/classical_yixiang_casebook.v0.1.json)
 - [古典类象案例集研究说明与校勘门槛](docs/CLASSICAL_YIXIANG_CASEBOOK_V0_1.md)
 - [古典类象案例集 Schema](schemas/classical-yixiang-casebook.schema.json)
 - [古典类象案例集测试](tests/test_classical_yixiang_casebook.py)
