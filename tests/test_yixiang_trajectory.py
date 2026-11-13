@@ -28,7 +28,10 @@ class TrajectoryAlignmentTests(unittest.TestCase):
         self.assertEqual(r.skipped_target,(1,))
 
     def test_rejects_reversal(self):
-        target=(self.target[0],self.target[3],self.target[2])
+        # Reverse the semantic sequence while keeping timestamps increasing.
+        target=(snap("r1",10,("x","y"),value="active",stage="mature"),
+            snap("r2",20,("x","y"),value="resting"),
+            snap("r3",30,("x","y"),value="active"))
         r=align_trajectories(self.source,target,entity_mapping=self.mapping,
             required_context=("season",),min_source_coverage=1.0,min_target_coverage=1.0)
         self.assertFalse(r.accepted)
