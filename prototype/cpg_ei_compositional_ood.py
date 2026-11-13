@@ -8,7 +8,6 @@ or zero-shot transfer.
 from __future__ import annotations
 
 import argparse
-import copy
 import hashlib
 import itertools
 import json
@@ -20,10 +19,7 @@ from pathlib import Path
 from typing import Any, Sequence
 
 from prototype.cpg_ei_early_stopping import run_early_stopping_baseline
-from prototype.cpg_ei_compute_accounted_hybrid import (
-    derive_train_only_support_features,
-    run_support_constrained_hybrid,
-)
+from prototype.cpg_ei_compute_accounted_hybrid import run_support_constrained_hybrid
 from prototype.cpg_ei_mixed_operator_discovery import enumerate_rule_hypotheses
 from prototype.cpg_ei_relation_operators import RelationRule, evaluate_rule
 
