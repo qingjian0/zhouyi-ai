@@ -31,26 +31,29 @@
 
 ## CPG-EI 当前验证顺序
 
-1. PR #422 已完成 compute-accounted 三路对照：同 corpus、同 split、候选评估数、feature count、wall time、allocation peak 与 RSS scope 均已记录。Hybrid 相对 full polynomial 提升 locked bit / exact-state accuracy 至 90.04% / 41.21%，耗时 711.25 s；有限符号搜索仍以 11.54 s 达到 99.90% locked bit accuracy。
+1. PR #422 的 compute-accounted hybrid 已通过 exact-head CI；同 corpus 三路对照结果为：symbolic 99.90% locked bit / 11.54 s，full polynomial 86.13% / 1,467.69 s，hybrid 90.04% / 41.21% exact-state / 711.25 s。
 2. PR #427 正在验证 full-basis NumPy 向量化优化器；必须通过 scalar-reference 数值一致性和完整速度基准，exact-head artifact 完成前不宣称加速结果。
-3. PR #428 正在测试 XOR-of-two-conjunctions 组合目标（超出单算子候选语法），使用三种子和 state-disjoint split。这属于 operator-grammar OOD，不是 held-out-family zero-shot transfer。
-4. 若向量化路径通过，再对 hybrid 做独立种子复现，并扩展到更深组合和严格未见 teacher-family 测试；locked 结果不得用于调参。
-5. 将结构恢复、operator recovery、truth-function recovery、bit accuracy 和 exact-state accuracy 分开报告。
-6. 只有完成同数据、多种子、负对照和 compute-accounting 后，才讨论与其他架构的 matched-compute 对照。
+3. PR #428 测试 XOR-of-two-conjunctions 组合目标，目标超出单算子候选语法；这是 operator-grammar OOD，不是 held-out-family transfer。
+4. PR #431 扩大至 1,600 个 teacher families / 409,600 rows；这是数据规模扩张，不是学习性能结果。
+5. PR #425/#430 分析 degree-bounded ANF 的 rank、nullity、consistency、uniqueness 和 oracle representability；不得把低阶拟合直接当作真实规则恢复。
+6. PR #432/#436 建立真正的 held-out-family few-shot protocol 与 symbolic baseline；有标注 support，不是 zero-shot，也不是 learned meta-learning。
+7. PR #434 比较 train-only disagreement-driven active query 与同池、同预算的随机采样；development 仅用于 tie-break，locked 仅报告。
+8. 对所有结果分开报告结构恢复、operator recovery、truth-function recovery、bit accuracy 和 exact-state accuracy；locked 结果不得用于调参。
+9. 只有完成同数据、多种子、负对照和 compute-accounting 后，才讨论与其他架构的 matched-compute 对照。
 详细数据、corpus digest、exact-head CI 和依赖链见 [2026-11-13 研究状态增补](docs/RESEARCH_STATUS_2026-11-13.md)。
 
 ## 近期优先顺序
 
-1. 完成 #427 exact-head scalar/vectorized parity 与 full benchmark，复核 artifact、数值偏差和 wall-time speedup。
-2. 复核 #428 组合规则 OOG 与 #432/#436 held-out-family few-shot 结果，严格区分两种泛化。
-3. 完成 #431 1,600-family 数据生成和 #425/#430 ANF identifiability 审计。
-4. 复核 #434 active-query 对照；#424 adaptive scheduler 目前为负/中性结果，不改变默认优化器。
-5. 在多个独立种子上复现 #422 hybrid。
-4. 收敛 CPG-EI 依赖栈：#409/#410 → #411 → #413 → #417；#418 是 #417 的独立子分支；#419 → #420 → #421 → #422；#423、#426、#427、#428、#425 是 #422 周边的独立后续研究线；#429 依赖 #426；#430 依赖 #425；#431 扩展 #413 数据生成器；#432/#436 建立 held-out-family protocol/baseline；#434 是 active-query 研究线。
-5. E12-A6：分别验收普通启动、bounded restore、checkpoint anchor、semantic replay 和 crash fallback。
-6. E09：分别验收 trusted identity、receipt/nonce、lineage 和真实 OS 进程边界。
-7. N0.10：收敛数据 provenance、group-disjoint split、checkpoint fingerprints、streaming runner 和 locked evaluator。
-8. 只有父依赖、exact-head CI、接口审计、E2E/crash/OOD/RSS 门禁全部通过后，才建立从 main 派生的单一集成祖先。
+1. 完成 #427 exact-head scalar/vectorized parity 与 full benchmark，复核 artifact、数值偏差和 wall-time speedup；随后决定是否将 canonical backend 扩展到 full-basis learner。
+2. 复核 #428 组合规则 OOG 与 #432/#436 held-out-family few-shot 结果，严格区分 operator-grammar OOD 和 teacher-family transfer。
+3. 完成 #431 1,600-family 数据生成与 #425/#430 ANF identifiability 审计。
+4. 复核 #434 active-query 对照；#424 adaptive scheduler 是负/中性结果，不改变默认优化器。
+5. 对 #422 hybrid 做独立种子复现，并评估更深组合规则。
+6. 收敛 CPG-EI 依赖栈：#409/#410 → #411 → #413 → #417；#418 是 #417 的独立子分支；#419 → #420 → #421 → #422；#423、#425、#426、#427、#428 是 #422 周边的独立后续研究线；#429 依赖 #426；#430 依赖 #425；#431 扩展 #413 数据生成器；#432 → #436 是 held-out-family protocol/baseline；#434 是 active-query 研究线。
+7. E12-A6：分别验收普通启动、bounded restore、checkpoint anchor、semantic replay 和 crash fallback。
+8. E09：分别验收 trusted identity、receipt/nonce、lineage 和真实 OS 进程边界。
+9. N0.10：收敛 data provenance、group-disjoint split、checkpoint fingerprints、streaming runner 和 locked evaluator。
+10. 只有父依赖、exact-head CI、接口审计、E2E/crash/OOD/RSS 门禁全部通过后，才建立从 main 派生的单一集成祖先。
 ## 发布门禁
 
 - 所有研究 PR 默认 Draft；不因 mergeable 或某个旧 SHA 的 CI 成功自动转为 Ready。
