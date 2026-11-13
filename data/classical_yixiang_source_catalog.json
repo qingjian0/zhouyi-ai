@@ -1015,6 +1015,237 @@
       "ingestion_status": "candidate_not_ingested",
       "edition": null,
       "locator_policy": "具体主张入库前必须填写可复核底本、版本与篇章定位；汇编引文须回溯原始出处"
+    },
+    {
+      "work_id": "daodejing",
+      "title": "老子道德经",
+      "period_tier": "pre_qin_textual_layers",
+      "priority": "P0",
+      "focus": "道、德、有无、反者道之动、譬喻与概念关系",
+      "target_sections": "经文、河上公注、王弼注分别索引",
+      "ingestion_status": "candidate_not_ingested",
+      "edition": null,
+      "locator_policy": "具体主张入库前必须填写可复核底本、版本与篇章定位；辑佚和汇编引文须回溯原始出处并记录转引链"
+    },
+    {
+      "work_id": "liezi",
+      "title": "列子",
+      "period_tier": "pre_qin_han_textual_layers",
+      "priority": "P1",
+      "focus": "物化、变化、寓言、自然解释与认识边界",
+      "target_sections": "天瑞、黄帝、周穆王、力命、说符等篇",
+      "ingestion_status": "candidate_not_ingested",
+      "edition": null,
+      "locator_policy": "具体主张入库前必须填写可复核底本、版本与篇章定位；辑佚和汇编引文须回溯原始出处并记录转引链"
+    },
+    {
+      "work_id": "wenzi",
+      "title": "文子",
+      "period_tier": "pre_qin_han_textual_layers",
+      "priority": "P2",
+      "focus": "道家概念、阴阳、时令与政治类比",
+      "target_sections": "通玄真经各篇及版本源流",
+      "ingestion_status": "candidate_not_ingested",
+      "edition": null,
+      "locator_policy": "具体主张入库前必须填写可复核底本、版本与篇章定位；辑佚和汇编引文须回溯原始出处并记录转引链"
+    },
+    {
+      "work_id": "shizi",
+      "title": "尸子",
+      "period_tier": "pre_qin_lost_text_recovery",
+      "priority": "P1",
+      "focus": "先秦杂家、类比论证与辑佚材料",
+      "target_sections": "存世辑本逐条回溯引书和辑佚出处",
+      "ingestion_status": "candidate_not_ingested",
+      "edition": null,
+      "locator_policy": "具体主张入库前必须填写可复核底本、版本与篇章定位；辑佚和汇编引文须回溯原始出处并记录转引链"
+    },
+    {
+      "work_id": "yinwenzi",
+      "title": "尹文子",
+      "period_tier": "pre_qin_textual_layers",
+      "priority": "P2",
+      "focus": "名实、形名、分类与论辩",
+      "target_sections": "大道、名理相关篇章",
+      "ingestion_status": "candidate_not_ingested",
+      "edition": null,
+      "locator_policy": "具体主张入库前必须填写可复核底本、版本与篇章定位；辑佚和汇编引文须回溯原始出处并记录转引链"
+    },
+    {
+      "work_id": "guiguzi",
+      "title": "鬼谷子",
+      "period_tier": "pre_qin_textual_layers",
+      "priority": "P2",
+      "focus": "权变、揣摩、类比修辞与说服机制",
+      "target_sections": "捭阖、反应、内揵、抵巇等篇",
+      "ingestion_status": "candidate_not_ingested",
+      "edition": null,
+      "locator_policy": "具体主张入库前必须填写可复核底本、版本与篇章定位；辑佚和汇编引文须回溯原始出处并记录转引链"
+    },
+    {
+      "work_id": "sunzi",
+      "title": "孙子兵法",
+      "period_tier": "pre_qin_textual_layers",
+      "priority": "P1",
+      "focus": "形势、虚实、因敌制胜、条件性策略",
+      "target_sections": "计、势、虚实、军争、地形、九地",
+      "ingestion_status": "candidate_not_ingested",
+      "edition": null,
+      "locator_policy": "具体主张入库前必须填写可复核底本、版本与篇章定位；辑佚和汇编引文须回溯原始出处并记录转引链"
+    },
+    {
+      "work_id": "wuzijing",
+      "title": "吴子",
+      "period_tier": "pre_qin_textual_layers",
+      "priority": "P2",
+      "focus": "兵势、地形、时机与军政类比",
+      "target_sections": "图国、料敌、治兵、论将、应变、励士",
+      "ingestion_status": "candidate_not_ingested",
+      "edition": null,
+      "locator_policy": "具体主张入库前必须填写可复核底本、版本与篇章定位；辑佚和汇编引文须回溯原始出处并记录转引链"
+    },
+    {
+      "work_id": "liutao",
+      "title": "六韬",
+      "period_tier": "pre_qin_han_textual_layers",
+      "priority": "P2",
+      "focus": "兵家类比、阴阳时令、权谋和制度",
+      "target_sections": "文韬、武韬、龙韬、虎韬、豹韬、犬韬；文本年代单独审查",
+      "ingestion_status": "candidate_not_ingested",
+      "edition": null,
+      "locator_policy": "具体主张入库前必须填写可复核底本、版本与篇章定位；辑佚和汇编引文须回溯原始出处并记录转引链"
+    },
+    {
+      "work_id": "zhouyi_cantongqi",
+      "title": "周易参同契",
+      "period_tier": "han_wei_jin_textual_layers",
+      "priority": "P0",
+      "focus": "易、阴阳、月相、炉火、丹法象征映射",
+      "target_sections": "经文、魏伯阳归属、注本与丹经解释分层",
+      "ingestion_status": "candidate_not_ingested",
+      "edition": null,
+      "locator_policy": "具体主张入库前必须填写可复核底本、版本与篇章定位；辑佚和汇编引文须回溯原始出处并记录转引链"
+    },
+    {
+      "work_id": "huangtingjing",
+      "title": "黄庭经",
+      "period_tier": "wei_jin_textual_layers",
+      "priority": "P2",
+      "focus": "身体内景、脏腑、神名与宇宙身体类象",
+      "target_sections": "内景、外景及注本分别索引",
+      "ingestion_status": "candidate_not_ingested",
+      "edition": null,
+      "locator_policy": "具体主张入库前必须填写可复核底本、版本与篇章定位；辑佚和汇编引文须回溯原始出处并记录转引链"
+    },
+    {
+      "work_id": "wuzhenpian",
+      "title": "悟真篇",
+      "period_tier": "song",
+      "priority": "P1",
+      "focus": "内丹象数、卦爻、火候、阶段与隐喻",
+      "target_sections": "正文、薛道光等注本分层",
+      "ingestion_status": "candidate_not_ingested",
+      "edition": null,
+      "locator_policy": "具体主张入库前必须填写可复核底本、版本与篇章定位；辑佚和汇编引文须回溯原始出处并记录转引链"
+    },
+    {
+      "work_id": "qi_min_yaoshu_add",
+      "title": "齐民要术",
+      "period_tier": "north_south",
+      "priority": "P0",
+      "focus": "农时、物候、土宜、物种分类、生产条件",
+      "target_sections": "农作、园艺、畜牧、酿造及引书出处",
+      "ingestion_status": "candidate_not_ingested",
+      "edition": null,
+      "locator_policy": "具体主张入库前必须填写可复核底本、版本与篇章定位；辑佚和汇编引文须回溯原始出处并记录转引链"
+    },
+    {
+      "work_id": "chajing",
+      "title": "茶经",
+      "period_tier": "tang",
+      "priority": "P2",
+      "focus": "物类、产地、器具、工艺与环境条件",
+      "target_sections": "一之源至十之图，区分经验观察和规范",
+      "ingestion_status": "candidate_not_ingested",
+      "edition": null,
+      "locator_policy": "具体主张入库前必须填写可复核底本、版本与篇章定位；辑佚和汇编引文须回溯原始出处并记录转引链"
+    },
+    {
+      "work_id": "bencaojizhu",
+      "title": "本草经集注",
+      "period_tier": "liu_song",
+      "priority": "P1",
+      "focus": "药物分类、性味、产地、形态与本草知识传承",
+      "target_sections": "陶弘景注释层、神农本草经旧文与新增内容分开",
+      "ingestion_status": "candidate_not_ingested",
+      "edition": null,
+      "locator_policy": "具体主张入库前必须填写可复核底本、版本与篇章定位；辑佚和汇编引文须回溯原始出处并记录转引链"
+    },
+    {
+      "work_id": "xinxiu_bencao",
+      "title": "新修本草",
+      "period_tier": "tang",
+      "priority": "P1",
+      "focus": "药物图经、名物辨识、形态与产地",
+      "target_sections": "本草正文、图经、后世补注分别索引",
+      "ingestion_status": "candidate_not_ingested",
+      "edition": null,
+      "locator_policy": "具体主张入库前必须填写可复核底本、版本与篇章定位；辑佚和汇编引文须回溯原始出处并记录转引链"
+    },
+    {
+      "work_id": "qianjin_yaofang",
+      "title": "备急千金要方",
+      "period_tier": "tang",
+      "priority": "P2",
+      "focus": "医学分类、脏腑、病机、诊疗和养生",
+      "target_sections": "卷次、方剂来源、孙思邈原文与后注分层",
+      "ingestion_status": "candidate_not_ingested",
+      "edition": null,
+      "locator_policy": "具体主张入库前必须填写可复核底本、版本与篇章定位；辑佚和汇编引文须回溯原始出处并记录转引链"
+    },
+    {
+      "work_id": "wujing_zongyao",
+      "title": "武经总要",
+      "period_tier": "song",
+      "priority": "P2",
+      "focus": "军事技术、器械结构、地形、气候与作战条件",
+      "target_sections": "前集、后集、图谱与技术流程",
+      "ingestion_status": "candidate_not_ingested",
+      "edition": null,
+      "locator_policy": "具体主张入库前必须填写可复核底本、版本与篇章定位；辑佚和汇编引文须回溯原始出处并记录转引链"
+    },
+    {
+      "work_id": "yingzao_fashi",
+      "title": "营造法式",
+      "period_tier": "song",
+      "priority": "P1",
+      "focus": "建筑构件、尺度模数、结构关系和工艺规范",
+      "target_sections": "各作制度、材分制度、图样及版本",
+      "ingestion_status": "candidate_not_ingested",
+      "edition": null,
+      "locator_policy": "具体主张入库前必须填写可复核底本、版本与篇章定位；辑佚和汇编引文须回溯原始出处并记录转引链"
+    },
+    {
+      "work_id": "fayuan_zhulin",
+      "title": "法苑珠林",
+      "period_tier": "tang",
+      "priority": "P2",
+      "focus": "佛教譬喻、因缘、感应、譬喻叙事与引经链",
+      "target_sections": "卷次、引经来源、类书编纂层与原经区分",
+      "ingestion_status": "candidate_not_ingested",
+      "edition": null,
+      "locator_policy": "具体主张入库前必须填写可复核底本、版本与篇章定位；辑佚和汇编引文须回溯原始出处并记录转引链"
+    },
+    {
+      "work_id": "gaosengzhuan",
+      "title": "高僧传",
+      "period_tier": "liu_song",
+      "priority": "P2",
+      "focus": "传记叙事、感应故事、譬喻与史料层级",
+      "target_sections": "僧传人物、事迹来源、神异叙述和史料评价分开",
+      "ingestion_status": "candidate_not_ingested",
+      "edition": null,
+      "locator_policy": "具体主张入库前必须填写可复核底本、版本与篇章定位；辑佚和汇编引文须回溯原始出处并记录转引链"
     }
   ]
 }
