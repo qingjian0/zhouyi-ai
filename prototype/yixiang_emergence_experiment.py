@@ -114,7 +114,7 @@ def validate_protocol(protocol: EmergenceProtocol) -> None:
         raise ValueError("minimum_independent_units must be an integer >= 2")
     _unique_strings(protocol.member_ids, "member_ids")
     _unique_strings(protocol.necessary_member_ids, "necessary_member_ids")
-    _unique_strings(protocol.control_ids, "control_ids", allow_empty=True)
+    _unique_strings(protocol.control_ids, "control_ids")
     if set(protocol.necessary_member_ids) - set(protocol.member_ids):
         raise ValueError("necessary_member_ids must be a subset of member_ids")
     if not isinstance(protocol.registered_before_data, bool):
