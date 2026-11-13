@@ -84,7 +84,7 @@ class ClassicalYixiangCasebookTests(unittest.TestCase):
         self.assertIn("推类之难", case["excerpt"])
         self.assertIn("classification", case["operation"])
         self.assertIn("总名", case["problem"])
-        self.assertIn("种别别名", case["problem"])
+        self.assertIn("种别名", case["problem"])
         self.assertEqual(case["evidence_status"], "digital_transcription_candidate")
         self.assertEqual(case["review_status"], "unreviewed")
 
