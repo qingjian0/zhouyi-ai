@@ -72,6 +72,20 @@ class M7PipelineTests(unittest.TestCase):
         self.assertEqual(result.stages_executed, ("M3", "M4", "M5", "M6"))
         self.assertIn("not_promoted_automatically", result.evidence_boundary)
 
+    def test_m7_does_not_promote_residuals_without_independent_lineage(self):
+        unverified = tuple(
+            ResidualCase(r.residual_id, r.observation_id, r.domain, r.signature,
+                         r.context, r.evidence_refs)
+            for r in self.residuals
+        )
+        result = run_m7(M7Input(
+            candidates=self.candidates,
+            priors=self.priors,
+            observation_candidates=(),
+            residual_cases=unverified,
+        ))
+        self.assertEqual(result.novelty_proposals, ())
+
     def test_resolved_m3_does_not_force_an_m5_observation(self):
         only = (self.candidates[0],)
         result = run_m7(M7Input(
