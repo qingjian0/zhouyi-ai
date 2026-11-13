@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
+from math import isfinite
 
 
 class EvidenceStance(str, Enum):
@@ -41,11 +42,15 @@ class EvidenceRecord:
     note: str = ""
 
     def validate(self) -> None:
-        if not self.evidence_id.strip() or not self.dimension.strip():
-            raise ValueError("evidence id and dimension are required")
-        if not 0.0 < self.strength <= 1.0:
-            raise ValueError("evidence strength must be in (0, 1]")
-        if not self.source_ref.strip():
+        if not isinstance(self.evidence_id, str) or not self.evidence_id.strip():
+            raise ValueError("evidence id is required")
+        if not isinstance(self.dimension, str) or not self.dimension.strip():
+            raise ValueError("evidence dimension is required")
+        if not isinstance(self.stance, EvidenceStance) or not isinstance(self.layer, EvidenceLayer):
+            raise ValueError("stance and layer must use their declared enums")
+        if not isinstance(self.strength, (int, float)) or not isfinite(self.strength) or not 0.0 < self.strength <= 1.0:
+            raise ValueError("evidence strength must be finite and in (0, 1]")
+        if not isinstance(self.source_ref, str) or not self.source_ref.strip():
             raise ValueError("evidence source_ref is required")
 
 
@@ -60,8 +65,17 @@ class XiangCandidate:
     evidence: tuple[EvidenceRecord, ...]
 
     def validate(self) -> None:
-        if not self.candidate_id.strip() or not self.mapping_claim.strip():
+        if not isinstance(self.candidate_id, str) or not self.candidate_id.strip() or not isinstance(self.mapping_claim, str) or not self.mapping_claim.strip():
             raise ValueError("candidate id and mapping claim are required")
+        condition_groups = (self.applicable_conditions, self.required_conditions, self.satisfied_conditions, self.violated_conditions)
+        if any(not isinstance(group, tuple) for group in condition_groups):
+            raise ValueError("condition collections must be tuples")
+        if any(not isinstance(name, str) or not name.strip() for group in condition_groups for name in group):
+            raise ValueError("condition names must be non-empty strings")
+        if any(len(set(group)) != len(group) for group in condition_groups):
+            raise ValueError("condition names must be unique within each collection")
+        if not set(self.required_conditions).issubset(self.applicable_conditions):
+            raise ValueError("required conditions must be declared applicable conditions")
         if len(set(self.required_conditions)) != len(self.required_conditions):
             raise ValueError("required conditions must be unique")
         if not set(self.satisfied_conditions).issubset(self.required_conditions):
