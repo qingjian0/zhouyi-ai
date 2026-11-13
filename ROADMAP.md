@@ -53,4 +53,4 @@ E01/E02、GF(2)、ANF、高阶关系和优化器研究不删除；保留为底�
 
 ### M8 当前实现边界
 
-`prototype/yixiang_benchmark.py` 提供 benchmark case/dataset/prediction 校验、四态混淆矩阵与 macro-F1、缺失预测按 abstain 计分、关系族/来源状态分层准确率，以及 `source_lineage` / `independence_group` 跨 split 泄漏报告。Schema 和 validator 以 `label_status` 区分 `fixture_expected`、`pending_review`、`adjudicated`；synthetic fixture 不允许伪造 reviewer 记录，人工 adjudicated 标签要求至少两个不同 reviewer ID（仍需人工核验其真实独立性）。`data/yixiang_benchmark_synthetic.v0.1.json` 的 12 条样本仅用于接口测试，不是古籍 gold 数据，不得用于声称类象理论有效。人工标注、标注一致性统计、关系族分层 F1/置信区间、M7 输出适配仍待实现。
+`prototype/yixiang_benchmark.py` 提供 benchmark case/dataset/prediction 校验、四态混淆矩阵与 macro-F1、缺失预测按 abstain 计分、关系族/来源状态分层混淆矩阵与 Macro-F1、abstention coverage / selective risk，以及 `source_lineage` / `independence_group` 跨 split 泄漏报告。Schema 和 validator 以 `label_status` 区分 `fixture_expected`、`pending_review`、`adjudicated`；synthetic fixture 不允许伪造 reviewer 记录，人工 adjudicated 标签要求至少两个不同 reviewer ID（仍需人工核验其真实独立性）。`data/yixiang_benchmark_synthetic.v0.1.json` 的 12 条样本仅用于接口测试，不是古籍 gold 数据，不得用于声称类象理论有效。人工标注、标注一致性统计、关系族分层 F1/置信区间、M7 输出适配仍待实现。
