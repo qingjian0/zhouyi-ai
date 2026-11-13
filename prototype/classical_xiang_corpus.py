@@ -6,6 +6,8 @@ from urllib.parse import urlsplit
 PERIODS={"pre_qin","qin_han","wei_jin_northern_southern","sui_tang","song_yuan","ming","qing_pre_1912","modern_post_1912","uncertain"}
 SOURCES={"classical_text","historical_commentary","bibliographic_record","modern_scholarship","field_observation","research_hypothesis","synthetic_fixture","model_generated"}
 METHOD_FAMILIES=["classification","analogical_argument","rhetorical_analogy","cosmological_correspondence","lexical_taxonomy","symbolic_correspondence","phenomenological_observation","causal_claim","commentarial_exegesis","comparative_exegesis"]
+RELATION_FAMILIES={"generative","taxonomic","functional","directional","temporal","correlative","symbolic","normative_analogy","causal_assertion","rhetorical_analogy","lexical"}
+CAUSAL_STATUSES={"not_claimed","textual_causal_assertion","observational_support","experimental_support","challenged","unassessed"}
 TAGS=["observation","image_selection","analogy_method","analogy_limit","classification","correspondence","yin_yang","state_change","cosmology","sensory_classification","causal_inference_limit","metaphor","name_reality","ritual_institution","natural_knowledge","commentarial_exegesis"]
 CLAIMS={"textual_observation","traditional_interpretation","commentarial_interpretation","project_operational_definition","research_hypothesis","modern_scholarship_claim"}
 def validate_record(r: Mapping) -> None:
@@ -37,6 +39,11 @@ def validate_record(r: Mapping) -> None:
         for k in ("claim_id","claim_kind","subject","predicate","object","interpretive_note","scope","review_status"):
             if not isinstance(c.get(k),str) or not c[k].strip(): raise ValueError(f"claim field {k} required")
         if c["claim_kind"] not in CLAIMS or c["review_status"] not in {"unreviewed","reviewed","disputed","rejected"}: raise ValueError("unknown claim kind/status")
+        if "xiang_domain" in c and (not isinstance(c["xiang_domain"],str) or not c["xiang_domain"].strip()): raise ValueError("xiang_domain must be non-empty")
+        if "relation_family" in c and c["relation_family"] not in RELATION_FAMILIES: raise ValueError("unknown relation_family")
+        if "causal_status" in c and c["causal_status"] not in CAUSAL_STATUSES: raise ValueError("unknown causal_status")
+        for field in ("shared_basis","non_shared_basis","scope_conditions"):
+            if field in c and (not isinstance(c[field],list) or any(not isinstance(v,str) or not v.strip() for v in c[field])): raise ValueError(f"{field} must be a list of non-empty strings")
         ids.append(c["claim_id"])
     if len(ids)!=len(set(ids)): raise ValueError("duplicate claim_id")
     if r["source_type"]=="model_generated" and r["review_status"]=="reviewed": raise ValueError("model-generated content cannot self-certify as reviewed")
