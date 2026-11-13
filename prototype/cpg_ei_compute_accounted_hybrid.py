@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import gc
+import hashlib
 import itertools
 import json
 import platform
@@ -290,8 +291,19 @@ def run_support_constrained_hybrid(
                 **fit,
             })
 
+        prediction_rows = [
+            [
+                model.predict(tuple(row["state"]))[0]
+                for model in models
+            ]
+            for row in sorted(rows, key=lambda item: tuple(item["state"]))
+        ]
+        prediction_digest = hashlib.sha256(
+            json.dumps(prediction_rows, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
         family_results.append({
             "family_id": family["family_id"],
+            "prediction_sha256": prediction_digest,
             "family_split": family["family_split"],
             "training": _split_metrics(models, split_rows["train"]),
             "development": _split_metrics(models, split_rows["development"]),
