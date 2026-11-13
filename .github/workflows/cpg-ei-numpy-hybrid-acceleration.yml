@@ -9,6 +9,7 @@ on:
       - "prototype/cpg_ei_compute_accounted_hybrid.py"
       - "prototype/cpg_ei_numpy_hybrid_benchmark.py"
       - "tests/test_cpg_ei_numpy_learner.py"
+      - "tests/test_cpg_ei_numpy_hybrid_integration.py"
       - ".github/workflows/cpg-ei-numpy-hybrid-acceleration.yml"
   pull_request:
     paths:
@@ -16,6 +17,7 @@ on:
       - "prototype/cpg_ei_compute_accounted_hybrid.py"
       - "prototype/cpg_ei_numpy_hybrid_benchmark.py"
       - "tests/test_cpg_ei_numpy_learner.py"
+      - "tests/test_cpg_ei_numpy_hybrid_integration.py"
       - ".github/workflows/cpg-ei-numpy-hybrid-acceleration.yml"
 
 permissions:
