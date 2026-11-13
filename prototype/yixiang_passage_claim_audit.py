@@ -89,7 +89,7 @@ def _assess_atom(atom_id,links,spans,allowed_layers):
     qual=tuple(sorted(x.evidence_id for x in compatible if x.relation==EvidenceRelation.QUALIFIES and x.coverage in (Coverage.WHOLE_ATOM,Coverage.PARTIAL_ATOM)))
     amb=tuple(sorted(x.evidence_id for x in ambiguous))
     if whole and contra: decision=AtomDecision.CONFLICTED
-    elif not reviewed and links: decision=AtomDecision.UNREVIEWED
+    elif not reviewed and eligible: decision=AtomDecision.UNREVIEWED
     elif unresolved: decision=AtomDecision.UNRESOLVED_EVIDENCE
     elif whole and qual: decision=AtomDecision.SUPPORTED_WITH_QUALIFICATION
     elif whole and amb: decision=AtomDecision.AMBIGUOUS
