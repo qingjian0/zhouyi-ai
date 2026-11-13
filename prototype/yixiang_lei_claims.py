@@ -124,9 +124,9 @@ def assess_lei_claim(claim: LeiClaim) -> LeiClaimAssessment:
     if claim.kind == ClaimKind.CORRELATIVE_CAUSATION:
         if claim.causal_identification == "not_asserted":
             reasons.append("CORRELATIVE_CAUSALITY_NOT_EMPIRICALLY_IDENTIFIED")
-        elif (claim.causal_identification == "intervention_or_identification_evidence"
-                and claim.evidence_kind != EvidenceKind.INTERVENTION):
-            reasons.append("CAUSAL_EVIDENCE_KIND_MISMATCH")
+        elif claim.causal_identification == "intervention_or_identification_evidence":
+            if claim.evidence_kind != EvidenceKind.INTERVENTION:
+                reasons.append("CAUSAL_EVIDENCE_KIND_MISMATCH")
         else:
             reasons.append("CAUSAL_IDENTIFICATION_UNRECOGNIZED")
 
