@@ -22,7 +22,9 @@ class M14Tests(unittest.TestCase):
         x=w("B",("A",)); bad=Witness(x.witness_id,x.work_id,x.edition_id,x.witness_kind,x.location,x.content_status,x.lineage_complete,x.evidence_refs,x.parent_ids,("bad",))
         with self.assertRaises(ValueError): audit_provenance((w("A"),bad))
     def test_shared_ancestor(self): self.assertIn(("B","C"),audit_provenance((w("A"),w("B",("A",)),w("C",("A",)))).lineage_groups)
-    def test_ancestor_descendant_dependency_detected(self):\n        self.assertIn(("A","B"),audit_provenance((w("A"),w("B",("A",)))).lineage_groups)\n    def test_distinct_roots_not_authenticity(self):
+    def test_ancestor_descendant_dependency_detected(self):
+        self.assertIn(("A","B"),audit_provenance((w("A"),w("B",("A",)))).lineage_groups)
+    def test_distinct_roots_not_authenticity(self):
         x=audit_provenance((w("A"),w("B"))); self.assertEqual(x.lineage_groups,()); self.assertFalse(x.authenticity_established)
     def test_incomplete_lineage(self): self.assertEqual(audit_provenance((w("A",complete=False),)).incomplete_lineage_witnesses,("A",))
     def test_independent_support_pair(self):
