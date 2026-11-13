@@ -2687,5 +2687,185 @@
       "《周易正义》点校本校勘记称石经、岳本、闽本、监本、毛本作“易穷则变，变则通，通则久”；《释文》另记一本作“易穷则变通则久”。需继续核对《经典释文》具体版本、石经拓本及宋本系统。",
       "此处的句读与“变通”是否连读会影响过程结构解释；当前记录保留多见本读法，并将异文单独记录，不自动消解。"
     ]
+  },
+  {
+    "record_id": "lunheng-wushi-analogy-fit-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "论衡·物势篇",
+      "traditional_authority": "东汉王充撰；篇章传本与文字异同仍需版本校勘",
+      "composition_period": "东汉时期",
+      "genre": "论辩与自然哲学"
+    },
+    "period": "qin_han",
+    "source_type": "classical_text",
+    "tradition": [
+      "两汉诸子",
+      "类推批判",
+      "类象理论"
+    ],
+    "witness": {
+      "witness_id": "shidianguji-lunheng-wushi",
+      "edition_or_database": "识典古籍《论衡·物势篇》数字转录；需与可靠点校本及影印本复核",
+      "url": "https://www.shidianguji.com/book/SBCK093/chapter/SBCK093_19",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台及转录许可另行核验"
+    },
+    "locator": {
+      "chapter": "物势篇",
+      "section_or_line": "夫比不应事，未可谓喻；文不称实，未可谓是也"
+    },
+    "text": "夫比不应事，未可谓喻；文不称实，未可谓是也。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "lunheng-wushi-analogy-fit-001",
+        "claim_kind": "textual_observation",
+        "subject": "天地生人与陶冶造器之比喻",
+        "predicate": "要求比喻切合所论之事且文辞符合事实",
+        "object": "类比成立不能仅凭表面措辞，必须检查喻体与本体之间的实际对应",
+        "interpretive_note": "王充在《物势篇》中讨论“天地为炉、万物为铜、阴阳为火、造化为工”之喻，指出若比喻不切合所论之事，便不足以称喻；文辞若不符合事实，也不足以称是。此处体现的是对类比适切性的批评，不等同现代统计验证或因果识别方法。",
+        "scope": "限于《物势篇》该段论辩；不将王充的具体自然哲学立场推广为所有类比的统一标准。",
+        "relation_type": "analogy_validity",
+        "xiang_domain": "类比论证与事实适切性",
+        "relation_family": "rhetorical_analogy",
+        "shared_basis": [
+          "喻体与本体之间必须存在可说明的对应关系"
+        ],
+        "non_shared_basis": [
+          "陶冶者有意造器与天地生人是否属于同类意向行为，正是该段争论的关键差异"
+        ],
+        "scope_conditions": [
+          "必须核验比喻是否回应目标论题",
+          "必须列出喻体与本体的共同点和关键差异",
+          "不能以修辞流畅替代事实适切性"
+        ],
+        "causal_status": "challenged",
+        "conditions": [
+          "比喻的共同点与差异均须显式列出"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed",
+        "reasoning_operations": [
+          "compare",
+          "identify_difference",
+          "test_counterexample",
+          "refuse_transfer"
+        ]
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引与来源元数据。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "当前为识典古籍数字转录见证，尚未与可靠点校本、版本影像逐字校勘。",
+      "本记录只抽取类比适切性论辩，不将王充整套宇宙论作为现代事实。"
+    ],
+    "concept_tags": [
+      "analogy_method",
+      "analogy_limit",
+      "causal_inference_limit",
+      "classification"
+    ],
+    "method_families": [
+      "analogical_argument",
+      "rhetorical_analogy"
+    ]
+  },
+  {
+    "record_id": "hanfeizi-nanshi-analogy-scope-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "韩非子·难势",
+      "traditional_authority": "传统题署韩非；《难势》篇章归属、慎到材料与论辩层次须结合校勘研究",
+      "composition_period": "战国末至秦汉传本层次；具体篇章形成与材料来源仍待考",
+      "genre": "法家论辩篇章"
+    },
+    "period": "pre_qin",
+    "source_type": "classical_text",
+    "tradition": [
+      "先秦法家",
+      "类推论证",
+      "势与条件"
+    ],
+    "witness": {
+      "witness_id": "ctext-hanfeizi-nanshi",
+      "edition_or_database": "中国哲学书电子化计划《韩非子·难势》数字文本；需与可靠整理本或影印本复核",
+      "url": "https://ctext.org/hanfeizi/nan-shi/zhs",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台及转录许可另行核验"
+    },
+    "locator": {
+      "chapter": "难势",
+      "section_or_line": "夫有云雾之势而能乘游之者，龙蛇之材美也；此则不知类之患也"
+    },
+    "text": "夫有云雾之势而能乘游之者，龙蛇之材美也；今云盛而螾弗能乘也，雾浓而蚁不能游也。夫有盛云浓雾之势而不能乘游者，螾蚁之材薄也。……欲追速致远，不知任王良；欲进利除害，不知任贤能，此则不知类之患也。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "hanfeizi-nanshi-analogy-scope-001",
+        "claim_kind": "textual_observation",
+        "subject": "龙蛇乘云雾与蚯蚓蚂蚁处云雾",
+        "predicate": "以主体材能限制外部势的类比迁移",
+        "object": "共享外部条件不意味着不同主体具有相同能力或结果",
+        "interpretive_note": "《难势》以龙蛇乘云游雾、蚯蚓蚂蚁不能乘游为例，强调外部势与主体材能共同决定结果，并以“不知类之患”批评不辨适用对象的推类。这里的“类”属于篇章论辩语境，不应直接等同现代分类学或统计类别。",
+        "scope": "限于《难势》该段关于势、材与推类的论辩；不将其简化为现代因果定律。",
+        "relation_type": "conditional_analogy_transfer",
+        "xiang_domain": "主体能力、外部条件与类推边界",
+        "relation_family": "rhetorical_analogy",
+        "shared_basis": [
+          "龙蛇与蚯蚓蚂蚁都处于云雾这一外部环境条件"
+        ],
+        "non_shared_basis": [
+          "主体材能不同，能否乘游的结果不同"
+        ],
+        "scope_conditions": [
+          "类推必须同时检查外部条件与主体能力",
+          "环境相同不足以推出功能或结果相同",
+          "“势”在本篇中的政治论辩含义需与自然环境譬喻分层解释"
+        ],
+        "causal_status": "not_claimed",
+        "conditions": [
+          "主体能力与外部条件均纳入适用范围"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed",
+        "reasoning_operations": [
+          "compare",
+          "abstract_shared_basis",
+          "identify_difference",
+          "infer_by_analogy",
+          "test_counterexample",
+          "refuse_transfer"
+        ]
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引与来源元数据。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "数字转录尚未与可靠校勘本逐字复核。",
+      "《难势》篇中慎子与应慎子等论辩层次须独立处理，不将各段观点混为一说。"
+    ],
+    "concept_tags": [
+      "analogy_method",
+      "analogy_limit",
+      "classification",
+      "natural_knowledge"
+    ],
+    "method_families": [
+      "analogical_argument",
+      "rhetorical_analogy"
+    ]
   }
 ]
