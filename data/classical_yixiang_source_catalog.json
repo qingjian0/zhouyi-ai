@@ -1149,12 +1149,12 @@
       "locator_policy": "具体主张入库前必须填写可复核底本、版本与篇章定位；辑佚和汇编引文须回溯原始出处并记录转引链"
     },
     {
-      "work_id": "qi_min_yaoshu_add",
-      "title": "齐民要术",
-      "period_tier": "north_south",
+      "work_id": "nongsang_jiyao",
+      "title": "农桑辑要",
+      "period_tier": "yuan",
       "priority": "P0",
-      "focus": "农时、物候、土宜、物种分类、生产条件",
-      "target_sections": "农作、园艺、畜牧、酿造及引书出处",
+      "focus": "农时、物候、土宜、农具和农业技术条件的汇编",
+      "target_sections": "各门农事、蚕桑、畜牧、农具与救荒材料",
       "ingestion_status": "candidate_not_ingested",
       "edition": null,
       "locator_policy": "具体主张入库前必须填写可复核底本、版本与篇章定位；辑佚和汇编引文须回溯原始出处并记录转引链"
