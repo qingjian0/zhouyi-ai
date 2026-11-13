@@ -50,7 +50,7 @@ class NoveltyDiscoveryTests(unittest.TestCase):
         self.assertEqual(proposal.status, ProposalStatus.PROPOSED)
         self.assertEqual(accepted.status, ProposalStatus.ACCEPTED)
         self.assertEqual(accepted.version, 2)
-        self.assertEqual(accepted.parent_version_id, "novel-" + str(abs(hash(proposal.signature))) + ":v1")
+        self.assertEqual(accepted.parent_version_id, proposal.proposal_id + ":v1")
 
     def test_rollback_creates_new_proposed_version(self):
         proposal = propose_novel_structures(self.residuals)[0]
