@@ -49,4 +49,11 @@ class CorpusTests(unittest.TestCase):
   r=dict(self.records[0]); r["claims"]=[dict(r["claims"][0])]
   r["claims"][0]["causal_status"]="proven_cause"
   with self.assertRaisesRegex(ValueError,"causal_status"): validate_record(r)
+ def test_reasoning_operations_are_controlled(self):
+  r=dict(self.records[0]); r["claims"]=[dict(self.records[0]["claims"][0])]
+  r["claims"][0]["reasoning_operations"]=["observe","compare"]
+  validate_record(r)
+  r["claims"][0]["reasoning_operations"]=["magic"]
+  with self.assertRaisesRegex(ValueError,"reasoning_operations"): validate_record(r)
+
 if __name__=="__main__": unittest.main()
