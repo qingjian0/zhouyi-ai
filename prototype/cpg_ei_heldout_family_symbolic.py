@@ -9,7 +9,6 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
-from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
@@ -98,12 +97,15 @@ def _predict_episode(episode: dict, target_record: dict,
 def _summarize(rows: list[dict]) -> dict[str, float]:
     if not rows:
         return {"families": 0}
-    result: dict[str, float] = {"families": float(len(rows))}
+    result: dict[str, float] = {"families": len(rows)}
     for method in ("symbolic", "majority"):
         for metric in ("bit_accuracy", "exact_state_accuracy"):
             values = sorted(row[method][metric] for row in rows)
+            middle = len(values) // 2
+            median = (values[middle] if len(values) % 2
+                      else (values[middle - 1] + values[middle]) / 2)
             result[f"{method}_{metric}_mean"] = sum(values) / len(values)
-            result[f"{method}_{metric}_median"] = values[len(values) // 2]
+            result[f"{method}_{metric}_median"] = median
             result[f"{method}_{metric}_worst_family"] = values[0]
     result["mean_candidate_tie_count"] = sum(
         row["mean_candidate_tie_count"] for row in rows
