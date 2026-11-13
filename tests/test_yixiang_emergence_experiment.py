@@ -58,6 +58,10 @@ class EmergenceExperimentTests(unittest.TestCase):
         self.assertEqual(result.interpretation_ceiling, "descriptive_preregistered_contrast_only")
         self.assertIn("not_causal_identification", result.non_claims)
 
+    def test_at_least_one_alternative_explanation_control_is_required(self):
+        with self.assertRaisesRegex(ValueError, "control_ids must be a non-empty tuple"):
+            audit_emergence_experiment(protocol(control_ids=()), measurements())
+
     def test_every_member_requires_its_own_standalone_baseline(self):
         rows = tuple(row for row in measurements() if row.arm != "member_only:function")
         result = audit_emergence_experiment(protocol(), rows)
