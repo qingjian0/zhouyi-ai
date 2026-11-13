@@ -29,7 +29,7 @@ class CounterfactualTests(unittest.TestCase):
         )
         self.assertEqual(result.baseline_state, RelationState.ACTIVE)
         self.assertEqual(result.counterfactual_state, RelationState.INACTIVE)
-        self.assertEqual(result.comparison, ComparisonKind.REVERSED)
+        self.assertEqual(result.comparison, ComparisonKind.CHANGED)
         self.assertTrue(result.intervention_only)
 
     def test_unknown_is_not_false(self):
