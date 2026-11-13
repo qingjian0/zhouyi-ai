@@ -109,7 +109,8 @@ def audit_provenance(witnesses):
     memo={}; groups=[]
     for i,a in enumerate(ids):
         for b in ids[i+1:]:
-            aa, bb = _ancestors(a,by,memo), _ancestors(b,by,memo)\n            if a in bb or b in aa or (aa & bb): groups.append(tuple(sorted((a,b))))
+            aa, bb = _ancestors(a,by,memo), _ancestors(b,by,memo)
+            if a in bb or b in aa or (aa & bb): groups.append(tuple(sorted((a,b))))
     return ProvenanceAudit(len(ids),tuple(sorted(w.witness_id for w in witnesses if not w.parent_ids)),
         tuple(sorted(w.witness_id for w in witnesses if w.parent_ids)),
         tuple(sorted(w.witness_id for w in witnesses if not w.lineage_complete)),tuple(sorted(groups)))
