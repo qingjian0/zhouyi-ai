@@ -1,8 +1,10 @@
+import builtins
 import copy
 import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from prototype.cpg_ei_compute_accounted_hybrid import (
     derive_train_only_support_features,
@@ -115,6 +117,41 @@ class TestComputeAccountedSupportHybrid(unittest.TestCase):
                 hybrid_compute["development_feature_encodings_for_checkpoint_selection"],
                 hybrid_compute["gradient_feature_contributions"],
             )
+
+
+    def test_scalar_fallback_accounting_counts_repeated_encodings(self):
+        original_import = builtins.__import__
+
+        def without_numpy(name, *args, **kwargs):
+            if name == "numpy":
+                raise ImportError("simulated minimal installation")
+            return original_import(name, *args, **kwargs)
+
+        with patch("builtins.__import__", side_effect=without_numpy):
+            report = run_compute_accounted_comparison(
+                self.corpus, max_epochs=3, patience=2
+            )
+
+        self.assertEqual(
+            report["optimizer_config"]["optimizer_backend"],
+            "stdlib-scalar-reference",
+        )
+        methods = report["methods"]
+        full = methods["full_polynomial_early_stopping"]["feature_accounting"]
+        full_epochs = full["optimizer_epochs_total"]
+        self.assertEqual(
+            full["training_feature_encodings"],
+            full_epochs * 5 * 8 * 16,
+        )
+        self.assertEqual(
+            full["development_feature_encodings_for_checkpoint_selection"],
+            (full_epochs + 5) * 5 * 4 * 16,
+        )
+        hybrid = methods["symbolic_support_constrained_hybrid"]["compute_accounting"]
+        self.assertEqual(
+            hybrid["training_feature_encodings"],
+            hybrid["gradient_feature_contributions"],
+        )
 
     def test_empty_training_split_is_rejected(self):
         changed = copy.deepcopy(self.corpus)
