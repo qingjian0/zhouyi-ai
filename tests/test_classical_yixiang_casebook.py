@@ -57,6 +57,14 @@ class ClassicalYixiangCasebookTests(unittest.TestCase):
         self.assertEqual(by_id["xy_016"]["source_id"], "src_huainan_shuoshan")
         self.assertIn("现代医学", by_id["xy_016"]["conclusion_scope"])
 
+    def test_all_case_operations_are_allowed_by_schema(self):
+        schema = json.loads(
+            (ROOT / "schemas" / "classical-yixiang-casebook.schema.json").read_text(encoding="utf-8")
+        )
+        allowed = set(schema["properties"]["cases"]["items"]["properties"]["operation"]["items"]["enum"])
+        for case in self.book["cases"]:
+            self.assertTrue(set(case["operation"]).issubset(allowed), case["case_id"])
+
     def test_no_candidate_excerpt_is_misrepresented_as_verified(self):
         for case in self.book["cases"]:
             self.assertEqual(case["evidence_status"], "digital_transcription_candidate")
