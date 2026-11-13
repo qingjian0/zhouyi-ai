@@ -5,6 +5,7 @@ change, causality, or classical-text interpretation.
 """
 from __future__ import annotations
 from dataclasses import dataclass
+from collections import Counter
 from typing import Mapping
 
 
@@ -54,14 +55,16 @@ def _validate(s: YixiangSituation) -> None:
                not isinstance(v, str) or not v.strip() for k, v in mapping.items()):
             raise ValueError(f"{field} keys and values must be non-empty strings")
     for relation in s.relations:
-        if not isinstance(relation, SituatedRelation) or not relation.kind.strip():
+        if not isinstance(relation, SituatedRelation) or not isinstance(relation.kind, str) or not relation.kind.strip():
             raise ValueError("relations require a non-empty kind")
-        if len(relation.roles) < 2:
+        if not isinstance(relation.roles, tuple) or len(relation.roles) < 2:
             raise ValueError("relations require at least two named roles")
+        if any(not isinstance(pair, tuple) or len(pair) != 2 for pair in relation.roles):
+            raise ValueError("each relation role must be a (role, entity) pair")
         role_names = [role for role, _ in relation.roles]
-        if len(role_names) != len(set(role_names)) or any(not role.strip() for role in role_names):
+        if len(role_names) != len(set(role_names)) or any(not isinstance(role, str) or not role.strip() for role in role_names):
             raise ValueError("relation roles must be unique and non-empty")
-        if any(entity not in s.state for _, entity in relation.roles):
+        if any(not isinstance(entity, str) or entity not in s.state for _, entity in relation.roles):
             raise ValueError("relation participants must be declared in state")
     if not isinstance(s.evidence_refs, tuple) or any(not isinstance(x, str) or not x.strip() for x in s.evidence_refs):
         raise ValueError("evidence_refs must be a tuple of non-empty strings")
@@ -83,9 +86,9 @@ def compare_situations(
     """
     _validate(source)
     _validate(target)
-    if not isinstance(entity_mapping, Mapping):
-        raise ValueError("entity_mapping must be a mapping")
-    if not required_context or len(set(required_context)) != len(required_context):
+    if not isinstance(entity_mapping, Mapping) or any(not isinstance(k, str) or not isinstance(v, str) for k, v in entity_mapping.items()):
+        raise ValueError("entity_mapping must map string ids to string ids")
+    if not isinstance(required_context, tuple) or not required_context or len(set(required_context)) != len(required_context):
         raise ValueError("required_context must be non-empty and unique")
     if any(not isinstance(k, str) or not k.strip() for k in required_context):
         raise ValueError("context keys must be non-empty strings")
@@ -101,18 +104,20 @@ def compare_situations(
     state_precision = sum(state_pairs) / len(state_pairs) if state_pairs else 0.0
 
     def signatures(relations, mapping=None):
-        result = set()
+        result = Counter()
         for rel in relations:
             roles = tuple(sorted(
                 (role, mapping.get(entity, "UNMAPPED::" + entity) if mapping is not None else entity)
                 for role, entity in rel.roles
             ))
-            result.add((rel.kind, roles))
+            result[(rel.kind, roles)] += 1
         return result
 
     expected = signatures(source.relations, entity_mapping)
     observed = signatures(target.relations)
-    relation_precision = len(expected & observed) / len(observed) if observed else (1.0 if not expected else 0.0)
+    preserved_count = sum((expected & observed).values())
+    observed_count = sum(observed.values())
+    relation_precision = preserved_count / observed_count if observed_count else (1.0 if not expected else 0.0)
     context_match = []
     context_mismatch = []
     for key in required_context:
