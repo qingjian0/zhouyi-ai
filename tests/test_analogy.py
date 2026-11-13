@@ -1,5 +1,5 @@
 import unittest
-from prototype.analogy import AnalogyCandidate, Evidence, Relation, assess_analogy
+from prototype.analogy import (AnalogyCandidate, Evidence, Relation, assess_analogy, discover_analogy_mappings)
 
 class AnalogyAssessmentTests(unittest.TestCase):
     def candidate(self, **overrides):
@@ -51,6 +51,38 @@ class AnalogyAssessmentTests(unittest.TestCase):
         result = assess_analogy(candidate)
         self.assertFalse(result.accepted)
         self.assertIn("INSUFFICIENT_RELATION_DATA", result.reason_codes)
+
+    def test_discovers_relation_preserving_mapping(self):
+        result = discover_analogy_mappings(
+            source_domain="source", target_domain="target",
+            source_entities=("a", "b", "c"), target_entities=("x", "y", "z"),
+            source_relations=(Relation("a", "b", "causes"), Relation("b", "c", "enables")),
+            target_relations=(Relation("x", "y", "causes"), Relation("y", "z", "enables")),
+            evidence=(Evidence("fixture:graph-1", True),),
+        )
+        self.assertEqual(result.evaluated_mappings, 6)
+        self.assertFalse(result.truncated)
+        self.assertEqual(dict(result.candidates[0].mapping), {"a": "x", "b": "y", "c": "z"})
+        self.assertTrue(result.candidates[0].assessment.accepted)
+
+    def test_discovery_reports_budget_truncation(self):
+        result = discover_analogy_mappings(
+            source_domain="source", target_domain="target",
+            source_entities=("a", "b", "c"), target_entities=("x", "y", "z"),
+            source_relations=(Relation("a", "b", "r"),),
+            target_relations=(Relation("x", "y", "r"),),
+            max_evaluations=2,
+        )
+        self.assertEqual(result.evaluated_mappings, 2)
+        self.assertTrue(result.truncated)
+
+    def test_discovery_rejects_empty_relation_graph(self):
+        with self.assertRaises(ValueError):
+            discover_analogy_mappings(
+                source_domain="source", target_domain="target",
+                source_entities=("a",), target_entities=("x",),
+                source_relations=(), target_relations=(Relation("x", "x", "r"),),
+            )
 
     def test_rejects_unknown_dimension(self):
         with self.assertRaises(ValueError):
