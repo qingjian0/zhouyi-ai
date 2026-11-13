@@ -53,6 +53,11 @@
     "review_status": "candidate",
     "review_notes": [
       "需与《周易正义》及其他独立经传校本逐字校勘；当前仅为数字检索见证。"
+    ],
+    "concept_tags": [
+      "classification",
+      "analogy_method",
+      "observation"
     ]
   },
   {
@@ -112,6 +117,11 @@
     "review_status": "candidate",
     "review_notes": [
       "需与《四部丛刊初编》影印本或可靠校点本核对。"
+    ],
+    "concept_tags": [
+      "analogy_method",
+      "correspondence",
+      "observation"
     ]
   },
   {
@@ -169,6 +179,11 @@
     "review_status": "candidate",
     "review_notes": [
       "当前数字见证来自后世文献引录；须继续寻找独立经传底本核对。"
+    ],
+    "concept_tags": [
+      "yin_yang",
+      "state_change",
+      "image_selection"
     ]
   },
   {
@@ -227,6 +242,10 @@
     "review_status": "candidate",
     "review_notes": [
       "需要核实《周易要义》的作者、时代、版本及原文上下文。"
+    ],
+    "concept_tags": [
+      "image_selection",
+      "commentarial_exegesis"
     ]
   },
   {
@@ -285,6 +304,11 @@
     "review_status": "candidate",
     "review_notes": [
       "尚未完成影印底本逐字校勘。"
+    ],
+    "concept_tags": [
+      "analogy_method",
+      "classification",
+      "name_reality"
     ]
   },
   {
@@ -343,6 +367,10 @@
     "review_status": "candidate",
     "review_notes": [
       "尚未完成影印底本逐字校勘。"
+    ],
+    "concept_tags": [
+      "analogy_limit",
+      "causal_inference_limit"
     ]
   },
   {
@@ -401,6 +429,10 @@
     "review_status": "candidate",
     "review_notes": [
       "尚未完成影印底本逐字校勘。"
+    ],
+    "concept_tags": [
+      "analogy_limit",
+      "analogy_method"
     ]
   },
   {
@@ -459,6 +491,11 @@
     "review_status": "candidate",
     "review_notes": [
       "尚未完成影印底本逐字校勘。"
+    ],
+    "concept_tags": [
+      "sensory_classification",
+      "classification",
+      "name_reality"
     ]
   },
   {
@@ -517,6 +554,10 @@
     "review_status": "candidate",
     "review_notes": [
       "尚未完成影印底本逐字校勘。"
+    ],
+    "concept_tags": [
+      "correspondence",
+      "cosmology"
     ]
   }
 ]
