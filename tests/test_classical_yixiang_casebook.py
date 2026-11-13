@@ -24,7 +24,7 @@ class ClassicalYixiangCasebookTests(unittest.TestCase):
         self.assertTrue({"周易·系辞下传", "墨子", "荀子", "公孙龙子", "淮南子", "论衡"}.issubset(works))
         self.assertTrue(any(source["chapter"] == "要略" for source in self.book["sources"]))
         self.assertGreaterEqual(len(self.book["cases"]), 11)
-        self.assertEqual(len(self.book["cases"]), 25)
+        self.assertEqual(len(self.book["cases"]), 26)
         self.assertTrue({"吕氏春秋", "淮南子"}.issubset(works))
         self.assertTrue(any(source["chapter"] == "恃君览·别类" for source in self.book["sources"]))
         self.assertTrue(any(source["chapter"] == "说山训" for source in self.book["sources"]))
@@ -86,6 +86,16 @@ class ClassicalYixiangCasebookTests(unittest.TestCase):
         self.assertIn("类不可必推", case["excerpt"])
         self.assertIn("contextual_constraint", case["operation"])
         self.assertTrue(any("不等于任何类推都无效" in item for item in case["counterexample_or_boundary"]))
+        self.assertEqual(case["evidence_status"], "digital_transcription_candidate")
+        self.assertEqual(case["review_status"], "unreviewed")
+
+    def test_huainan_selective_analogy_preserves_only_declared_dimension(self):
+        case = next(item for item in self.book["cases"] if item["case_id"] == "xy_026")
+        self.assertEqual(case["source_id"], "src_huainan_shuoshan")
+        self.assertIn("环可以喻员", case["excerpt"])
+        self.assertIn("不必以轮", case["excerpt"])
+        self.assertIn("维度", case["conclusion_scope"])
+        self.assertTrue(any("不意味着环与轮具有相同结构" in item for item in case["counterexample_or_boundary"]))
         self.assertEqual(case["evidence_status"], "digital_transcription_candidate")
         self.assertEqual(case["review_status"], "unreviewed")
 
