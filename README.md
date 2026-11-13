@@ -52,6 +52,7 @@
 - [M8 类象有效性与迁移评估基准](docs/YIXIANG_VALIDITY_TRANSFER_BENCHMARK_M8_V0_1.md)
 - [M8 benchmark schema](schemas/yixiang-benchmark-case.schema.json)
 - [M8 benchmark validator and metrics](prototype/yixiang_benchmark.py)
+- [M8 benchmark report CLI](prototype/yixiang_benchmark_report.py)
 - [M8 synthetic fixtures](data/yixiang_benchmark_synthetic.v0.1.json)
 - [M8 benchmark tests](tests/test_yixiang_benchmark.py)
 - [古籍数字来源、版本见证与校勘工作规程 v0.1](docs/CLASSICAL_TEXT_DIGITAL_SOURCE_POLICY_V0_1.md)
