@@ -40,3 +40,13 @@ The feature matrix encoding accounting changed from repeated per-epoch work to o
 - Gradient feature contributions remain 106,772,480 because the same number of optimizer updates are performed.
 
 The exact-head NumPy workflow passed numerical parity tests and produced the archived full benchmark artifact. The optional dependency is installed only in this workflow; the reference Python path remains the default.
+
+
+## Parallel-branch reconciliation
+
+The repository also has related Draft experiments that must be compared before any merge:
+- PR #423 (`research/cpg-ei-preencoded-feature-cache-v1-2026-11-13`) caches scalar feature encodings and preserves the reference update order.
+- PR #427 (`research/cpg-ei-vectorized-optimizer-v1-2026-11-13`) adds an integrated scalar/vectorized optimizer path and a full-basis paired benchmark.
+- PR #429 is intentionally stacked on this branch and adds a same-process paired Python/NumPy benchmark specifically for the symbolic-support hybrid.
+
+These branches overlap in optimizer implementation. Do not merge #423, #426, and #427 as independent implementations without reconciling the canonical backend API and numerical contract. #429's paired hybrid measurement is distinct in scope from #427's full-polynomial learner comparison. Preserve one scalar reference, one vectorized implementation, and one authoritative paired hybrid benchmark after review.
