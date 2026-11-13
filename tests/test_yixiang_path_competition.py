@@ -101,12 +101,21 @@ class PathCompetitionTests(unittest.TestCase):
                 required_context_axes=("time",),
                 target_context_axes=(("time", "t1"),))
 
-    def test_state_signatures_must_be_unique_within_route(self):
-        with self.assertRaisesRegex(ValueError, "entries must be unique"):
-            audit_path_competition(
-                (path("p1", ("a", "b", "b"), ("r1",)), path("p2", ("a", "c"), ("r2",))),
-                required_context_axes=("time",),
-                target_context_axes=(("time", "t1"),))
+    def test_recurrent_state_and_relation_are_allowed_within_route(self):
+        result = audit_path_competition(
+            (path("p1", ("start", "middle", "start", "goal"), ("r1", "r2", "r1")),
+             path("p2", ("start", "alternate", "goal"), ("r3", "r4"))),
+            required_context_axes=("time",),
+            target_context_axes=(("time", "t1"),))
+        self.assertEqual(result.viable_path_ids, ("p1", "p2"))
+
+    def test_endpoint_sequence_must_match_declared_endpoints(self):
+        result = audit_path_competition(
+            (path("p1", ("wrong", "goal"), ("r1",)),
+             path("p2", ("start", "goal"), ("r2",))),
+            required_context_axes=("time",),
+            target_context_axes=(("time", "t1"),))
+        self.assertIn("PATH_ENDPOINT_SEQUENCE_MISMATCH:p1", result.reason_codes)
 
     def test_required_axes_must_be_unique(self):
         with self.assertRaisesRegex(ValueError, "entries must be unique"):
