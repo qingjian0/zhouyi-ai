@@ -2,7 +2,8 @@ import unittest
 
 from prototype.yixiang_multiview_composition import (
     AxisEvidence, CompositionBridge, EvidenceKind, ProposalStatus,
-    ViewCandidate, XiangAxis, compose_views, group_competing_views,\n    revalidate_composite, revalidate_view,
+    ViewCandidate, XiangAxis, compose_views, group_competing_views,
+    revalidate_composite, revalidate_view,
 )
 
 
