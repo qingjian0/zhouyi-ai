@@ -102,6 +102,14 @@
       "url": "https://ctext.org/lv-shi-chun-qiu/ying-tong/zhs",
       "digital_witness": "中国哲学书电子化计划《应同》数字文本入口，检索结果标注《四部丛刊初编》本。",
       "witness_limit": "当前仅完成数字检索定位，未逐字核对影印页、卷次、篇章层累及相关五行文献；数字录文中的祥瑞—德运—政事联系应先视为文本内部主张，不作为现代自然因果事实。"
+    },
+    {
+      "source_id": "src_chunqiu_fanlu",
+      "work": "春秋繁露",
+      "chapter": "卷十三·同类相动第五十七",
+      "url": "https://www.shidianguji.com/zh/book/SBCK018/chapter/SBCK018_72",
+      "digital_witness": "识典古籍《春秋繁露·同类相动》数字转录；另有四库全书本维基文库与不同数字整理本可供平行比对。",
+      "witness_limit": "《春秋繁露》篇章形成、作者归属及卷次文本层次须独立研究；不同数字整理本有“注水/注冰”等异文。当前未逐字核对影印底本，不能把传世文本直接等同董仲舒亲撰定本。"
     }
   ],
   "cases": [
@@ -686,6 +694,39 @@
       "alternative_readings": [
         "篇章中的五行相胜、德运更替与祥瑞征兆可能涉及不同思想层次，需结合《吕氏春秋》全书及先秦两汉五行文献考察。",
         "具体祥瑞名物及其与历史人物、年代的对应仍需版本与史料复核。"
+      ],
+      "evidence_status": "digital_transcription_candidate",
+      "review_status": "unreviewed"
+    },
+    {
+      "case_id": "xy_020",
+      "source_id": "src_chunqiu_fanlu",
+      "period": "qin_han",
+      "text_layer": "base_text",
+      "locator": "卷十三·同类相动第五十七；“今平地注水”至“物故以类相召”段",
+      "excerpt": "今平地注水，去燥就湿；均薪施火，去湿就燥。百物其去所与异，而从其所与同，故气同则会，声比则应。试调琴瑟而错之，鼓其宫则他宫应之，鼓其商而他商应之。……美事召美类，恶事召恶类，类之相应而起也。",
+      "problem": "文本如何从物性趋同、声音共振等例子，扩展到人事、祥瑞和政治兴亡的“同类相动”？不同领域之间的机制是否相同？",
+      "operation": [
+        "correspondence",
+        "analogy",
+        "analogy_rule",
+        "contextual_constraint",
+        "causal_critique"
+      ],
+      "premises": [
+        "篇章先以水趋湿、火趋燥和琴瑟同音相应作为“同类相动”的例证。",
+        "随后将同类相应扩展到美恶之事、帝王兴亡与祥瑞妖孽等人事政治领域。",
+        "文本以“物故以类相召”概括其宇宙论解释，但不同例证的可观察机制并不相同。"
+      ],
+      "conclusion_scope": "可支持重建《同类相动》篇内部由物性趋同、声学共鸣到人事政治感应的论证扩展；不能因前段物理例证可观察，就直接证明后段天人感应或王朝祥瑞具有相同机制，也不能将传世篇章的全部主张无差别归于董仲舒本人。",
+      "counterexample_or_boundary": [
+        "琴瑟共鸣可提出可测量的声学条件，但不能自动验证祥瑞与王朝兴亡之间的因果关系。",
+        "不同领域共享“同类”这一解释词，不代表它们具有同一种作用机制或相同证据标准。",
+        "历史上的祥瑞记录、政治叙事与自然现象观察需要独立来源，不能互相循环证明。"
+      ],
+      "alternative_readings": [
+        "“同类相动”可被解释为宇宙论中的感应律则，也可从篇章论证结构角度理解为由可感应例证向天人关系的类推；二者需并列审查。",
+        "《春秋繁露》篇章层累与董仲舒著作归属问题，要求将传世文本、汉代思想背景和后世编定层分开。"
       ],
       "evidence_status": "digital_transcription_candidate",
       "review_status": "unreviewed"
