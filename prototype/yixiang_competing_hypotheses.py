@@ -48,7 +48,7 @@ class EvidenceRecord:
             raise ValueError("evidence dimension is required")
         if not isinstance(self.stance, EvidenceStance) or not isinstance(self.layer, EvidenceLayer):
             raise ValueError("stance and layer must use their declared enums")
-        if not isinstance(self.strength, (int, float)) or not isfinite(self.strength) or not 0.0 < self.strength <= 1.0:
+        if isinstance(self.strength, bool) or not isinstance(self.strength, (int, float)) or not isfinite(self.strength) or not 0.0 < self.strength <= 1.0:
             raise ValueError("evidence strength must be finite and in (0, 1]")
         if not isinstance(self.source_ref, str) or not self.source_ref.strip():
             raise ValueError("evidence source_ref is required")
