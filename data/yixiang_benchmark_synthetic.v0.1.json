@@ -1447,5 +1447,45 @@
     "reviewers": [],
     "split_group": "holdout",
     "label_status": "fixture_expected"
+  },
+  {
+    "case_id": "dyn-042",
+    "claim_kind": "correlative_causation",
+    "source_lineage": [
+      "fixture:dyn-042"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "A classical text's celestial-omen and political-transition correspondence is a historical causal claim, not independently verified empirical causation.",
+    "relation_families": [
+      "symbolic_normative",
+      "causal_analogy"
+    ],
+    "shared_basis": [
+      "the text links a celestial sign and a political event through a shared qi or category framework"
+    ],
+    "non_shared_basis": [
+      "textual cosmological explanation is not an independent observation or intervention identifying a causal mechanism"
+    ],
+    "scope_conditions": [
+      "record the historical theory as a claim while withholding modern empirical confirmation"
+    ],
+    "required_invariants": [
+      "historical proposition and empirical causal status remain separate"
+    ],
+    "known_counterexamples": [
+      "retrospective omen selection",
+      "political legitimation narratives",
+      "alternative historical causes"
+    ],
+    "causal_status": "symbolic",
+    "evidence_refs": [
+      "fixture:dyn-042"
+    ],
+    "independence_group": "fixture-group-dyn-042",
+    "gold_decision": "abstain",
+    "gold_rationale": "The fixture records a classical correlative-causal proposition, but textual assertion alone cannot establish its empirical causal mechanism.",
+    "reviewers": [],
+    "split_group": "holdout",
+    "label_status": "fixture_expected"
   }
 ]
