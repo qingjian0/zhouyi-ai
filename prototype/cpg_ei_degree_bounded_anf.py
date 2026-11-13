@@ -12,7 +12,7 @@ from pathlib import Path
 from typing import Iterable
 
 from prototype.cpg_ei_anf_identifiability import (
-    _state_mask, solve_gf2_affine_system, truth_table_to_anf,
+    _state_mask, truth_table_to_anf,
 )
 from prototype.cpg_ei_mixed_operator_data import generate_mixed_corpus
 
@@ -124,6 +124,7 @@ def run_degree_bounded_identifiability(corpus: dict) -> dict:
         grouped[row["family_id"]].append(row)
     family_results = []
     summaries = []
+    family_degree_results = {family_id: [] for family_id in sorted(grouped)}
     for degree in range(input_dim + 1):
         basis = degree_bounded_basis(input_dim, degree)
         results = []
@@ -142,7 +143,7 @@ def run_degree_bounded_identifiability(corpus: dict) -> dict:
                 observations = [(row["state"], row["target"][output])
                                 for row in training]
                 system = solve_gf2_restricted_basis(input_dim, observations, basis)
-                results.append({
+                result = {
                     "family_id": family_id, "output_index": output,
                     "family_split": rows[0]["family_split"],
                     "training_observations": len(training),
@@ -152,15 +153,21 @@ def run_degree_bounded_identifiability(corpus: dict) -> dict:
                     "unique": system["unique"],
                     "oracle_degree": oracle_degree,
                     "oracle_in_basis": oracle_degree <= degree,
+                }
+                results.append(result)
+                family_degree_results[family_id].append({
+                    key: value for key, value in result.items()
+                    if key not in ("family_id", "family_split")
                 })
         consistent = [r for r in results if r["consistent"]]
         summaries.append({
             "max_degree": degree, "basis_size": len(basis),
             "output_systems": len(results),
             "mean_rank": sum(r["rank"] for r in results) / len(results),
-            "mean_nullity": (
-                sum(r["nullity"] for r in consistent) / len(results)
-                if len(consistent) == len(results) else None
+            "consistent_system_count": len(consistent),
+            "mean_nullity_among_consistent": (
+                sum(r["nullity"] for r in consistent) / len(consistent)
+                if consistent else None
             ),
             "consistent_rate": len(consistent) / len(results),
             "unique_rate": sum(r["unique"] for r in results) / len(results),
@@ -174,9 +181,7 @@ def run_degree_bounded_identifiability(corpus: dict) -> dict:
         family_results.append({
             "family_id": family_id,
             "family_split": rows[0]["family_split"],
-            "by_degree": [
-                summary for summary in summaries
-            ],
+            "by_degree": family_degree_results[family_id],
         })
     return {
         "benchmark_id": "zhouyi-cpg-ei-degree-bounded-anf-identifiability-v1",
