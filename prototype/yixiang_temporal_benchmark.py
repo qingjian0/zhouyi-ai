@@ -6,7 +6,7 @@ from sampled observations. It is a benchmark fixture, not a learned model.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from math import sin, pi
+from math import sin, pi, isfinite
 from typing import Iterable
 
 
@@ -58,8 +58,9 @@ def generate_temporal_benchmark(
     it never changes the latent process or ground truth.
     """
     numeric = (sample_interval, duration, delay, *phase_lengths)
-    if any(isinstance(x, bool) or not isinstance(x, (int, float)) for x in numeric):
-        raise ValueError("time parameters must be numeric")
+    if any(isinstance(x, bool) or not isinstance(x, (int, float)) or not isfinite(x)
+           for x in numeric):
+        raise ValueError("time parameters must be finite numeric values")
     if sample_interval <= 0 or duration <= 0 or delay < 0:
         raise ValueError("sample interval and duration must be positive; delay non-negative")
     if not phase_lengths or any(length <= 0 for length in phase_lengths):
@@ -82,6 +83,8 @@ def generate_temporal_benchmark(
 
     observations = []
     count = int(duration / sample_interval)
+    if any(index >= count for index in missing):
+        raise ValueError("missing index is outside the sampled observation range")
     for index in range(count + 1):
         time = min(index * sample_interval, duration)
         if time >= duration or index in missing:
