@@ -29,6 +29,12 @@ class M15Tests(unittest.TestCase):
     def test_contradiction_retained(self):
         w,c,p,a,e=fixture(); x=EvidenceLink("E2","A1","P1",EvidenceRelation.CONTRADICTS,Coverage.WHOLE_ATOM,ContextFit.COMPATIBLE,ReviewStatus.REVIEWED,("r2",),"The surrounding passage contradicts this reading.")
         self.assertEqual(assess_claim_coverage("CL1",a,c,p,w,(e,x)).decision,ClaimCoverageDecision.CONFLICTED)
+    def test_support_with_qualification_is_not_full_coverage(self):
+        w,c,p,a,e=fixture(); q=EvidenceLink("E2","A1","P1",EvidenceRelation.QUALIFIES,Coverage.PARTIAL_ATOM,ContextFit.COMPATIBLE,ReviewStatus.REVIEWED,("r2",),"This evidence narrows the valid scope of the claim.")
+        r=assess_claim_coverage("CL1",a,c,p,w,(e,q)); self.assertEqual(r.decision,ClaimCoverageDecision.QUALIFIED_COVERAGE)
+    def test_unclear_contradiction_is_not_counted_as_contradiction(self):
+        w,c,p,a,e=fixture(); x=EvidenceLink("E2","A1","P1",EvidenceRelation.CONTRADICTS,Coverage.UNCLEAR,ContextFit.COMPATIBLE,ReviewStatus.REVIEWED,("r2",),"The possible contradiction has unclear scope.")
+        self.assertEqual(assess_claim_coverage("CL1",a,c,p,w,(e,x)).decision,ClaimCoverageDecision.FULL_ATOM_COVERAGE)
     def test_qualification_not_support(self):
         w,c,p,a,e=fixture(); x=EvidenceLink("E2","A1","P1",EvidenceRelation.QUALIFIES,Coverage.WHOLE_ATOM,ContextFit.COMPATIBLE,ReviewStatus.REVIEWED,("r2",),"This wording restricts the proposition scope.")
         self.assertEqual(assess_claim_coverage("CL1",a,c,p,w,(x,)).decision,ClaimCoverageDecision.QUALIFICATION_ONLY)
