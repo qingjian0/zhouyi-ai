@@ -33,7 +33,7 @@ class Pattern:
     dimensions: tuple[str, ...]
     invariant_features: Mapping[str, str]
     variable_features: tuple[str, ...]
-    excluded_features: tuple[tuple[str, str], ...]
+    excluded_patterns: tuple[tuple[tuple[str, str], ...], ...]
     support_ids: tuple[str, ...]
     counterexample_ids: tuple[str, ...]
     evidence_refs: tuple[str, ...]
@@ -105,7 +105,7 @@ def classify_observation(pattern: Pattern, observation: Observation, *, min_scor
         raise ValueError("min_score must be in [0, 1]")
     matched = tuple(sorted(k for k, v in pattern.invariant_features.items() if observation.features.get(k) == v))
     missing = tuple(sorted(k for k, v in pattern.invariant_features.items() if observation.features.get(k) != v))
-    excluded = tuple(sorted(k for k, v in pattern.excluded_features if observation.features.get(k) == v))
+    excluded = tuple(sorted(' & '.join(f'{k}={v}' for k, v in signature) for signature in pattern.excluded_patterns if signature and all(observation.features.get(k) == v for k, v in signature)))
     total = len(pattern.invariant_features)
     score = len(matched) / total if total else 0.0
     reasons = []
@@ -132,7 +132,7 @@ def revise_pattern(pattern: Pattern, *, positive_examples: tuple[Observation, ..
             count = values.count(value)
             if count / len(positive_examples) >= min_positive_support:
                 candidates[(key, value)] = count
-    excluded = set()
+    excluded = tuple(sorted({tuple(sorted(o.features.items())) for o in counterexamples}))
     retained = {}
     for key in keys:
         ranked = sorted(
@@ -141,11 +141,7 @@ def revise_pattern(pattern: Pattern, *, positive_examples: tuple[Observation, ..
         )
         if not ranked or (len(ranked) > 1 and ranked[0][0] == ranked[1][0]):
             continue
-        pair = (key, ranked[0][1])
-        if any(o.features.get(key) == pair[1] for o in counterexamples):
-            excluded.add(pair)
-        else:
-            retained[key] = pair[1]
+        retained[key] = ranked[0][1]
     variable = sorted(keys - set(retained))
     refs = tuple(sorted(set(pattern.evidence_refs) | {ref for o in (*positive_examples, *counterexamples) for ref in o.evidence_refs}))
-    return Pattern(pattern.pattern_id, pattern.version + 1, pattern.dimensions, retained, tuple(variable), tuple(sorted(excluded)), tuple(sorted({o.observation_id for o in positive_examples})), tuple(sorted({o.observation_id for o in counterexamples})), refs, pattern.scope)
+    return Pattern(pattern.pattern_id, pattern.version + 1, pattern.dimensions, retained, tuple(variable), excluded, tuple(sorted({o.observation_id for o in positive_examples})), tuple(sorted({o.observation_id for o in counterexamples})), refs, pattern.scope)
