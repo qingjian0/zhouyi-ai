@@ -1,27 +1,306 @@
 {
- "$schema":"https://json-schema.org/draft/2020-12/schema",
- "title":"Zhouyi-AI M8 Yixiang Benchmark Case","type":"object","additionalProperties":false,
- "required":["case_id","source_lineage","source_status","target_claim","relation_families","shared_basis","non_shared_basis","scope_conditions","required_invariants","known_counterexamples","causal_status","evidence_refs","independence_group","gold_decision","gold_rationale","label_status","reviewers","split_group"],
- "properties":{
- "case_id":{"type":"string","minLength":1},
- "source_lineage":{"type":"array","minItems":1,"uniqueItems":true,"items":{"type":"string","minLength":1}},
- "source_status":{"enum":["verified_primary","critical_edition","unverified_transcription","secondary_quotation","research_hypothesis","synthetic_fixture"]},
- "target_claim":{"type":"string","minLength":1},
- "relation_families":{"type":"array","minItems":1,"uniqueItems":true,"items":{"enum":["morphological","structural","functional","process_mechanism","temporal","situated","symbolic_normative","empirical_correlation","causal_analogy"]}},
- "shared_basis":{"type":"array","items":{"type":"string"}},"non_shared_basis":{"type":"array","items":{"type":"string"}},
- "scope_conditions":{"type":"array","items":{"type":"string"}},"required_invariants":{"type":"array","items":{"type":"string"}},
- "known_counterexamples":{"type":"array","items":{"type":"string"}},
- "causal_status":{"enum":["symbolic","normative","co_occurrence","correlational","mechanistic_hypothesis","intervention_supported","unknown"]},
- "evidence_refs":{"type":"array","minItems":1,"uniqueItems":true,"items":{"type":"string","minLength":1}},
- "independence_group":{"type":"string","minLength":1},"gold_decision":{"enum":["accept","reject","conditional","abstain"]},
- "gold_rationale":{"type":"string","minLength":1},"label_status":{"enum":["fixture_expected","pending_review","adjudicated"]},"reviewers":{"type":"array","minItems":0,"uniqueItems":true,"items":{"type":"string","minLength":1}},
- "split_group":{"enum":["train","dev","test","exploratory","holdout"]}}
- ,
- "allOf":[
-  {"if":{"properties":{"source_status":{"const":"synthetic_fixture"}},"required":["source_status"]},"then":{"properties":{"label_status":{"const":"fixture_expected"},"reviewers":{"maxItems":0}}}},
-  {"if":{"properties":{"label_status":{"const":"adjudicated"}},"required":["label_status"]},"then":{"properties":{"reviewers":{"minItems":2}}}},
-  {"if":{"properties":{"label_status":{"const":"fixture_expected"}},"required":["label_status"]},"then":{"properties":{"source_status":{"const":"synthetic_fixture"}}}},
-  {"if":{"properties":{"gold_decision":{"const":"conditional"}},"required":["gold_decision"]},"then":{"properties":{"scope_conditions":{"minItems":1}}}},
-  {"if":{"properties":{"gold_decision":{"const":"accept"}},"required":["gold_decision"]},"then":{"properties":{"shared_basis":{"minItems":1}}}}
- ]
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Zhouyi-AI M8 Yixiang Benchmark Case",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "case_id",
+    "source_lineage",
+    "source_status",
+    "target_claim",
+    "relation_families",
+    "shared_basis",
+    "non_shared_basis",
+    "scope_conditions",
+    "required_invariants",
+    "known_counterexamples",
+    "causal_status",
+    "evidence_refs",
+    "independence_group",
+    "gold_decision",
+    "gold_rationale",
+    "label_status",
+    "reviewers",
+    "split_group"
+  ],
+  "properties": {
+    "case_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "source_lineage": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "source_status": {
+      "enum": [
+        "verified_primary",
+        "critical_edition",
+        "unverified_transcription",
+        "secondary_quotation",
+        "research_hypothesis",
+        "synthetic_fixture"
+      ]
+    },
+    "target_claim": {
+      "type": "string",
+      "minLength": 1
+    },
+    "relation_families": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "morphological",
+          "structural",
+          "functional",
+          "process_mechanism",
+          "temporal",
+          "situated",
+          "symbolic_normative",
+          "empirical_correlation",
+          "causal_analogy"
+        ]
+      }
+    },
+    "shared_basis": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "non_shared_basis": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "scope_conditions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "required_invariants": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "known_counterexamples": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "causal_status": {
+      "enum": [
+        "symbolic",
+        "normative",
+        "co_occurrence",
+        "correlational",
+        "mechanistic_hypothesis",
+        "intervention_supported",
+        "unknown"
+      ]
+    },
+    "evidence_refs": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "independence_group": {
+      "type": "string",
+      "minLength": 1
+    },
+    "gold_decision": {
+      "enum": [
+        "accept",
+        "reject",
+        "conditional",
+        "abstain"
+      ]
+    },
+    "gold_rationale": {
+      "type": "string",
+      "minLength": 1
+    },
+    "label_status": {
+      "enum": [
+        "fixture_expected",
+        "pending_review",
+        "adjudicated"
+      ]
+    },
+    "reviewers": {
+      "type": "array",
+      "minItems": 0,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "split_group": {
+      "enum": [
+        "train",
+        "dev",
+        "test",
+        "exploratory",
+        "holdout"
+      ]
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "source_status": {
+            "const": "synthetic_fixture"
+          }
+        },
+        "required": [
+          "source_status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "label_status": {
+            "const": "fixture_expected"
+          },
+          "reviewers": {
+            "maxItems": 0
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "label_status": {
+            "const": "adjudicated"
+          }
+        },
+        "required": [
+          "label_status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "reviewers": {
+            "minItems": 2
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "label_status": {
+            "const": "fixture_expected"
+          }
+        },
+        "required": [
+          "label_status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "source_status": {
+            "const": "synthetic_fixture"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "gold_decision": {
+            "const": "conditional"
+          }
+        },
+        "required": [
+          "gold_decision"
+        ]
+      },
+      "then": {
+        "properties": {
+          "scope_conditions": {
+            "minItems": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "gold_decision": {
+            "const": "accept"
+          }
+        },
+        "required": [
+          "gold_decision"
+        ]
+      },
+      "then": {
+        "properties": {
+          "shared_basis": {
+            "minItems": 1
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "gold_decision": {
+            "const": "abstain"
+          }
+        },
+        "required": [
+          "gold_decision"
+        ]
+      },
+      "then": {
+        "properties": {
+          "gold_rationale": {
+            "minLength": 20
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "source_status": {
+            "const": "synthetic_fixture"
+          }
+        },
+        "required": [
+          "source_status"
+        ]
+      },
+      "then": {
+        "properties": {
+          "evidence_refs": {
+            "contains": {
+              "type": "string",
+              "pattern": "^fixture:"
+            },
+            "minContains": 1
+          }
+        }
+      }
+    }
+  ]
 }
