@@ -75,7 +75,7 @@
 - [古典“类”六种论证用途与行动结果账本 v0.1](docs/CLASSICAL_YIXIANG_FOUR_LEI_CLAIM_TYPES_AND_OUTCOME_LEDGER_V0_1.md)
 - [古典“类”论证用途账本原型](prototype/yixiang_lei_claims.py)
 - [古典“类”论证用途账本测试](tests/test_yixiang_lei_claims.py)
-- [《荀子·正名》天官—征知—同异—名实—化认知链研究](docs/CLASSICAL_YIXIANG_XUNZI_ZHENGMING_COGNITIVE_CHAIN_V0_1.md)
+- [《荀子·正名》天官—征知—同异—名实—化认知链研究](docs/CLASSICAL_YIXIANG_XUNZI_ZHENGMING_COGNITIVE_CHAIN_V0_1.md)\n- [《荀子·正名》感官根据与对象连续性门禁](docs/CLASSICAL_YIXIANG_XUNZI_OBSERVATION_GROUNDING_V0_1.md)\n- [观察证据与对象连续性原型](prototype/yixiang_observation_grounding.py)\n- [观察证据与对象连续性测试](tests/test_yixiang_observation_grounding.py)
 - [《正名》认知链结构化图谱](data/xunzi_zhengming_cognitive_chain.v0.1.json)
 - [《正名》认知链 JSON Schema](schemas/xunzi-zhengming-cognitive-chain.schema.json)
 - [《正名》认知链测试](tests/test_xunzi_zhengming_cognitive_chain.py)
