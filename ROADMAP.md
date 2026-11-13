@@ -33,7 +33,7 @@
 
 1. PR #422 的 compute-accounted hybrid 已通过 exact-head CI；同 corpus 三路对照结果为：symbolic 99.90% locked bit / 11.54 s，full polynomial 86.13% / 1,467.69 s，hybrid 90.04% / 41.21% exact-state / 711.25 s。
 2. PR #427 前一 head 已通过 paired scalar/NumPy parity：相同 8-family corpus 上 296.59 s → 2.45 s（121.03×），指标与 best epochs 完全一致；当前 accounting/fallback 修订 head 仍待 exact-head CI，不可独立合并。
-3. PR #428 测试 XOR-of-two-conjunctions 组合目标，目标超出单算子候选语法；这是 operator-grammar OOD，不是 held-out-family transfer。
+3. PR #428 的三种子组合 OOG 已通过：单算子 symbolic 68.95% locked bit / 32.29% exact-state；full polynomial 46.68% / 14.06%；hybrid 56.84% / 11.98%。Hybrid 未解决组合 OOD，exact-state 还低于两种基线；这是 operator-grammar OOD，不是 held-out-family transfer。
 4. PR #431 扩大至 1,600 个 teacher families / 409,600 rows；这是数据规模扩张，不是学习性能结果。
 5. PR #425/#430 分析 degree-bounded ANF 的 rank、nullity、consistency、uniqueness 和 oracle representability；不得把低阶拟合直接当作真实规则恢复。
 6. PR #432/#436 建立真正的 held-out-family few-shot protocol 与 symbolic baseline；有标注 support，不是 zero-shot，也不是 learned meta-learning。
