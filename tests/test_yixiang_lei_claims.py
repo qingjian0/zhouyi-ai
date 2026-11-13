@@ -103,6 +103,7 @@ class LeiClaimTests(unittest.TestCase):
             "SYMBOLIC_CORRESPONDENCE_CANNOT_ESTABLISH_EMPIRICAL_CAUSALITY",
             result.reason_codes,
         )
+        self.assertEqual(result.causal_conclusion, "not_established")
 
     def test_invalid_sequence_field_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "scope_conditions"):
