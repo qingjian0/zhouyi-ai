@@ -60,6 +60,14 @@ class ActiveObservationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "every hypothesis"):
             score_observation(self.priors, bad)
 
+    def test_every_hypothesis_must_explicitly_cover_every_outcome(self):
+        incomplete = ObservationCandidate(
+            "incomplete-outcomes", "missing outcome row",
+            (("H1", "early", 1.0), ("H2", "late", 1.0)),
+        )
+        with self.assertRaisesRegex(ValueError, "every outcome explicitly"):
+            score_observation(self.priors, incomplete)
+
     def test_likelihood_distribution_must_sum_to_one(self):
         bad = ObservationCandidate(
             "bad", "invalid distribution",
