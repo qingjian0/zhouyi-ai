@@ -50,7 +50,7 @@ class BenchmarkContractTests(unittest.TestCase):
   self.assertEqual({key:by_id[key]["gold_decision"] for key in expected},expected)
   self.assertEqual(by_id["dyn-037"]["causal_status"],"symbolic")
   self.assertEqual(by_id["dyn-038"]["causal_status"],"unknown")
-  self.assertIn("Delayed", by_id["dyn-039"]["gold_rationale"])
+  self.assertIn("long-term effectiveness", by_id["dyn-039"]["gold_rationale"])
 
  def test_non_string_case_keys_rejected(self):
   c=make_case("a"); c[7]="bad-key"
