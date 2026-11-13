@@ -1321,7 +1321,12 @@
         ],
         "supports": [],
         "counterevidence": [],
-        "review_status": "unreviewed"
+        "review_status": "unreviewed",
+        "reasoning_operations": [
+          "observe",
+          "select_image",
+          "compare"
+        ]
       }
     ],
     "rights": {
@@ -1396,7 +1401,12 @@
         ],
         "supports": [],
         "counterevidence": [],
-        "review_status": "unreviewed"
+        "review_status": "unreviewed",
+        "reasoning_operations": [
+          "map_time",
+          "map_position",
+          "infer_by_analogy"
+        ]
       }
     ],
     "rights": {
@@ -1471,7 +1481,11 @@
         ],
         "supports": [],
         "counterevidence": [],
-        "review_status": "unreviewed"
+        "review_status": "unreviewed",
+        "reasoning_operations": [
+          "shift_perspective",
+          "compare"
+        ]
       }
     ],
     "rights": {
@@ -1546,7 +1560,11 @@
         ],
         "supports": [],
         "counterevidence": [],
-        "review_status": "unreviewed"
+        "review_status": "unreviewed",
+        "reasoning_operations": [
+          "classify",
+          "shift_perspective"
+        ]
       }
     ],
     "rights": {
@@ -1621,7 +1639,13 @@
         ],
         "supports": [],
         "counterevidence": [],
-        "review_status": "unreviewed"
+        "review_status": "unreviewed",
+        "reasoning_operations": [
+          "identify_difference",
+          "abstract_shared_basis",
+          "infer_by_analogy",
+          "refuse_transfer"
+        ]
       }
     ],
     "rights": {
@@ -1696,7 +1720,13 @@
         ],
         "supports": [],
         "counterevidence": [],
-        "review_status": "unreviewed"
+        "review_status": "unreviewed",
+        "reasoning_operations": [
+          "classify",
+          "map_function",
+          "infer_by_analogy",
+          "test_counterexample"
+        ]
       }
     ],
     "rights": {
@@ -1771,7 +1801,11 @@
         ],
         "supports": [],
         "counterevidence": [],
-        "review_status": "unreviewed"
+        "review_status": "unreviewed",
+        "reasoning_operations": [
+          "compare",
+          "rhetorical_indirection"
+        ]
       }
     ],
     "rights": {
@@ -1846,7 +1880,11 @@
         ],
         "supports": [],
         "counterevidence": [],
-        "review_status": "unreviewed"
+        "review_status": "unreviewed",
+        "reasoning_operations": [
+          "select_image",
+          "compare"
+        ]
       }
     ],
     "rights": {
@@ -1921,7 +1959,13 @@
         ],
         "supports": [],
         "counterevidence": [],
-        "review_status": "unreviewed"
+        "review_status": "unreviewed",
+        "reasoning_operations": [
+          "observe",
+          "classify",
+          "infer_by_analogy",
+          "test_counterexample"
+        ]
       }
     ],
     "rights": {
@@ -1996,7 +2040,12 @@
         ],
         "supports": [],
         "counterevidence": [],
-        "review_status": "unreviewed"
+        "review_status": "unreviewed",
+        "reasoning_operations": [
+          "map_time",
+          "map_position",
+          "transfer_norm"
+        ]
       }
     ],
     "rights": {
@@ -2071,7 +2120,12 @@
         ],
         "supports": [],
         "counterevidence": [],
-        "review_status": "unreviewed"
+        "review_status": "unreviewed",
+        "reasoning_operations": [
+          "observe",
+          "map_time",
+          "map_position"
+        ]
       }
     ],
     "rights": {
@@ -2146,7 +2200,11 @@
         ],
         "supports": [],
         "counterevidence": [],
-        "review_status": "unreviewed"
+        "review_status": "unreviewed",
+        "reasoning_operations": [
+          "compare",
+          "shift_perspective"
+        ]
       }
     ],
     "rights": {
