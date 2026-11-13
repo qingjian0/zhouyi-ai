@@ -37,6 +37,14 @@ class RelationInvariantTests(unittest.TestCase):
         r=assess_relation_transfer(self.contract(role_mapping=(("agent","actor"),("tool","means"))))
         self.assertEqual(r.decision,InvariantDecision.ABSTAIN)
         self.assertIn("ROLE_MAPPING_INCOMPLETE",r.reason_codes)
+    def test_unmapped_target_role_abstains_before_topology_comparison(self):
+        t=self.frame("target","target-domain",("actor","means","end","observer"),(
+            RelationEdge("uses","actor","means"),
+            RelationEdge("achieves","actor","end",order=1),
+            RelationEdge("observes","observer","end",order=2)),evidence=("witness:2",))
+        r=assess_relation_transfer(self.contract(target=t))
+        self.assertEqual(r.decision,InvariantDecision.ABSTAIN)
+        self.assertIn("ROLE_MAPPING_INCOMPLETE",r.reason_codes)
     def test_critical_invariant_mismatch_is_rejected(self):
         c=InvariantCheck("goal_relation","same-goal","different-goal","src:1","tgt:1")
         self.assertEqual(assess_relation_transfer(self.contract(invariant_checks=(c,))).decision,InvariantDecision.REJECT)
