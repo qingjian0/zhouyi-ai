@@ -1,8 +1,10 @@
+import builtins
 import copy
 import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from prototype.cpg_ei_generic_learner import RelationalTransitionModel, TransitionExample
 from prototype.cpg_ei_mixed_operator_data import generate_mixed_corpus
@@ -90,6 +92,32 @@ class TestEarlyStoppingBaseline(unittest.TestCase):
                 vector_model.predict(example.state),
             )
         self.assertEqual(vector["optimizer_backend"], "numpy-vectorized-float64")
+
+
+    def test_optional_numpy_dependency_falls_back_to_scalar(self):
+        model = RelationalTransitionModel.create(2, 1, 1, 2)
+        training = [
+            TransitionExample((0, 0), (0,)),
+            TransitionExample((0, 1), (0,)),
+            TransitionExample((1, 0), (0,)),
+            TransitionExample((1, 1), (1,)),
+        ]
+        development = [
+            TransitionExample((0, 0), (0,)),
+            TransitionExample((1, 1), (1,)),
+        ]
+        original_import = builtins.__import__
+
+        def without_numpy(name, *args, **kwargs):
+            if name == "numpy":
+                raise ImportError("simulated minimal installation")
+            return original_import(name, *args, **kwargs)
+
+        with patch("builtins.__import__", side_effect=without_numpy):
+            result = fit_with_early_stopping(
+                model, training, development, max_epochs=4, patience=2
+            )
+        self.assertEqual(result["optimizer_backend"], "stdlib-scalar-reference")
 
     def test_empty_development_is_rejected(self):
         model = RelationalTransitionModel.create(2, 1, 1, 2)
