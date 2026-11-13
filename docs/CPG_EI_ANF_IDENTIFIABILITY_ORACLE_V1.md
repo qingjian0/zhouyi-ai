@@ -26,7 +26,8 @@ For each degree it records:
 - basis coefficient count;
 - full-truth-table oracle representability rate;
 - training-system consistency;
-- mean training rank and nullity;
+- mean training rank;
+- mean nullity over consistent systems only, with inconsistent systems counted separately;
 - unique-solution rate;
 - oracle-support containment among representable, consistent systems.
 
