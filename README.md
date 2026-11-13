@@ -61,6 +61,7 @@
 - [《非攻上》论证图 Schema](schemas/mozi-feigong-argument-graph.schema.json)
 - [《非攻上》论证图测试](tests/test_mozi_feigong_argument_graph.py)
 - [《墨子·大取》与《墨经》同异—类—故专题](docs/CLASSICAL_YIXIANG_MOZI_DAQU_MOJING_ANALYSIS_V0_1.md)
+- [《庄子·齐物论》视域转换、彼是互因与类象稳定性研究](docs/CLASSICAL_YIXIANG_ZHUANGZI_QIWULUN_VIEWPOINT_TRANSFER_V0_1.md)
 - [《荀子·正名》天官—征知—同异—名实—化认知链研究](docs/CLASSICAL_YIXIANG_XUNZI_ZHENGMING_COGNITIVE_CHAIN_V0_1.md)
 - [《正名》认知链结构化图谱](data/xunzi_zhengming_cognitive_chain.v0.1.json)
 - [《正名》认知链 JSON Schema](schemas/xunzi-zhengming-cognitive-chain.schema.json)
