@@ -126,7 +126,7 @@
       "locator_policy": "必须在具体主张入库前填写可复核底本与篇章定位"
     },
     {
-      "work_id": "guan zi",
+      "work_id": "guan_zi",
       "title": "管子",
       "period_tier": "pre_qin_han_layered",
       "priority": "P0",
@@ -203,7 +203,7 @@
       "locator_policy": "必须在具体主张入库前填写可复核底本与篇章定位"
     },
     {
-      "work_id": "er ya",
+      "work_id": "er_ya",
       "title": "尔雅",
       "period_tier": "pre_qin_han_textual_layers",
       "priority": "P0",
