@@ -33,6 +33,15 @@ class ClassicalYixiangCasebookTests(unittest.TestCase):
         self.assertTrue(any("防御" in boundary for boundary in case["counterexample_or_boundary"]))
         self.assertIn("normative_argument", case["operation"])
 
+    def test_xunzi_zhengming_case_separates_observation_naming_and_identity(self):
+        case = next(item for item in self.book["cases"] if item["case_id"] == "xy_012")
+        self.assertEqual(case["source_id"], "src_xunzi")
+        self.assertIn("perception_grounding", case["operation"])
+        self.assertIn("identity_tracking", case["operation"])
+        self.assertTrue(any("天官" in premise for premise in case["premises"]))
+        self.assertTrue(any("同状而异所" in boundary for boundary in case["counterexample_or_boundary"]))
+        self.assertIn("外观或名称", case["conclusion_scope"])
+
     def test_no_candidate_excerpt_is_misrepresented_as_verified(self):
         for case in self.book["cases"]:
             self.assertEqual(case["evidence_status"], "digital_transcription_candidate")
