@@ -85,15 +85,20 @@
 
 ## 9. 语料入库说明
 
-新增两条候选记录：
-- `hanfeizi-nanshi-analogy-scope-001`：记录外部势与主体材能的共同约束。
-- `lunheng-wushi-analogy-fit-001`：记录比喻是否应事、是否称实的批判标准。
+新增五条候选记录：
+- `xunzi-feixiang-appearance-inference-limit-001`：外观与内在属性推断边界。
+- `xunzi-feixiang-yileidulei-temporal-analogy-001`：跨时代类推与不变量条件。
+- `huainanzi-shuolin-analogy-nontransfer-001`：同物异用、主体—工具适配、维度特定映射，拆分为三条文本主张。
+- `hanfeizi-nanshi-analogy-scope-001`：外部势与主体材能的共同约束。
+- `lunheng-wushi-analogy-fit-001`：比喻是否应事、是否称实的文本论辩。
 
-两条均标记为 candidate/unreviewed。数字转录只作检索见证；仍需与可靠整理本、影印本及注释系统复核。不得将项目的 shared_basis/non_shared_basis 术语反向说成古人已有的标准化数据结构。
+五条均标记为 candidate/unreviewed。数字转录只作检索见证；仍需与可靠整理本、影印本及注释系统复核。不得将项目的 shared_basis/non_shared_basis 术语反向说成古人已有的标准化数据结构。
 
 ## 10. 来源
 
-- 《荀子·非相篇》数字转录：维基文库，https://zh.wikisource.org/zh-hans/荀子/非相篇；国家图书馆藏本影印检索线索：https://upload.wikimedia.org/wikipedia/commons/2/2b/NLC892-411999014836-34313_%E8%8D%80%E5%AD%90_%E7%AC%AC1%E5%86%8A.pdf\n- 《淮南子·说林训》数字文本：中国哲学书电子化计划，https://ctext.org/huainanzi/shuo-lin-xun/zhs\n- 《韩非子·难势》数字文本：中国哲学书电子化计划，https://ctext.org/hanfeizi/nan-shi/zhs
+- 《荀子·非相篇》数字转录：维基文库，https://zh.wikisource.org/zh-hans/荀子/非相篇；国家图书馆藏本影印检索线索：https://upload.wikimedia.org/wikipedia/commons/2/2b/NLC892-411999014836-34313_%E8%8D%80%E5%AD%90_%E7%AC%AC1%E5%86%8A.pdf
+- 《淮南子·说林训》数字文本：中国哲学书电子化计划，https://ctext.org/huainanzi/shuo-lin-xun/zhs
+- 《韩非子·难势》数字文本：中国哲学书电子化计划，https://ctext.org/hanfeizi/nan-shi/zhs
 - 《论衡·物势篇》数字转录：识典古籍，https://www.shidianguji.com/book/SBCK093/chapter/SBCK093_19
 - 《论衡》明刊本目录与版本线索：中国哲学书电子化计划《四部丛刊初编》本目录，https://ctext.org/library.pl?if=gb&remap=gb&res=77436
 
