@@ -80,6 +80,14 @@ class M15Tests(unittest.TestCase):
     def test_atom_claim_mismatch(self):
         w,c,p,a,e=fixture()
         with self.assertRaises(ValueError): assess_claim_coverage("CL1",(ClaimAtom("A2","OTHER","other"),),c,p,w,())
+    def test_mozi_xiaoqu_narrow_phrase_does_not_support_universal_extension(self):
+        w,c,p,a,e=fixture()
+        p2=PassageSpan("P2","W1","同其所以然不必同其取之也……不可常用也","《墨子·小取》后文",TextLayer.BASE_TEXT,"C1")
+        broad=(ClaimAtom("A2","CL2","The text claims all members of a class are identical in every respect."),)
+        support=EvidenceLink("E2","A2","P1",EvidenceRelation.SUPPORTS,Coverage.PARTIAL_ATOM,ContextFit.COMPATIBLE,ReviewStatus.REVIEWED,("r1",),"The phrase mentions reasoning by kinds but not universal identity.")
+        qualifies=EvidenceLink("E3","A2","P2",EvidenceRelation.QUALIFIES,Coverage.PARTIAL_ATOM,ContextFit.COMPATIBLE,ReviewStatus.REVIEWED,("r2",),"The surrounding passage limits unrestricted extension across respects.")
+        result=assess_claim_coverage("CL2",broad,c,p+(p2,),w,(support,qualifies))
+        self.assertEqual(result.decision,ClaimCoverageDecision.QUALIFICATION_ONLY)
     def test_semantic_truth_never_established(self):
         w,c,p,a,e=fixture(); self.assertFalse(assess_claim_coverage("CL1",a,c,p,w,(e,)).semantic_truth_established)
 
