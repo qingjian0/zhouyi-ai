@@ -9,6 +9,8 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import statistics
+import time
 from collections import defaultdict
 from pathlib import Path
 from typing import Any
@@ -159,28 +161,64 @@ def run_fewshot_benchmark(*, family_count: int = 1600, input_dim: int = 8,
             output_dim=output_dim, seed=seed,
         )
         for support_size in support_sizes:
+            started = time.perf_counter()
             protocol = build_heldout_family_protocol(
                 corpus, support_size=support_size, seed=seed + 1,
             )
             evaluated = evaluate_protocol_views(
                 protocol, candidates, candidate_masks, input_dim,
             )
+            evaluation_seconds = time.perf_counter() - started
             all_results.append({
                 "seed": seed,
+                "corpus_sha256": corpus["manifest"]["corpus_sha256"],
                 "support_size": support_size,
                 "family_count": family_count,
                 "candidate_count": len(candidates),
+                "evaluation_wall_seconds": evaluation_seconds,
                 "validation": evaluated["validation"],
                 "test": evaluated["test"],
             })
+    aggregate_results = []
+    for support_size in support_sizes:
+        for split in ("validation", "test"):
+            selected = [
+                row for row in all_results if row["support_size"] == support_size
+            ]
+            method_metrics = {}
+            for method in ("symbolic", "majority"):
+                method_metrics[method] = {}
+                for metric in ("bit_accuracy", "exact_state_accuracy"):
+                    values = [
+                        family[method][metric]
+                        for row in selected
+                        for family in row[split]["family_results"]
+                    ]
+                    method_metrics[method][metric] = {
+                        "families_across_seeds": len(values),
+                        "mean": statistics.mean(values),
+                        "sample_std": statistics.stdev(values) if len(values) > 1 else 0.0,
+                        "median": statistics.median(values),
+                        "worst_family": min(values),
+                    }
+            aggregate_results.append({
+                "support_size": support_size,
+                "split": split,
+                "methods": method_metrics,
+            })
+
     return {
         "benchmark_id": "zhouyi-cpg-ei-heldout-family-fewshot-symbolic-v1",
         "dataset": {
-            "family_count": family_count,
+            "family_count_per_seed": family_count,
+            "total_teacher_families_across_seeds": family_count * len(seeds),
             "input_dim": input_dim,
             "output_dim": output_dim,
             "states_per_family": 2 ** input_dim,
             "operators": 7,
+            "seeds": list(seeds),
+            "support_sizes": list(support_sizes),
+            "timing_scope": "protocol construction and query evaluation; corpus generation and candidate precomputation excluded",
         },
         "candidate_selection": (
             "Minimum support-state error over the declared finite operator grammar; "
@@ -200,6 +238,7 @@ def run_fewshot_benchmark(*, family_count: int = 1600, input_dim: int = 8,
             "natural-language reasoning, or a Transformer comparison."
         ),
         "results": all_results,
+        "aggregate_results": aggregate_results,
     }
 
 
