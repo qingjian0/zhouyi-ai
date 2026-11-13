@@ -1,0 +1,434 @@
+[
+  {
+    "case_id": "syn-001",
+    "source_lineage": [
+      "fixture:syn-001"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Synthetic test of a proposed relation transfer.",
+    "relation_families": [
+      "structural"
+    ],
+    "shared_basis": [
+      "same relation topology"
+    ],
+    "non_shared_basis": [
+      "different physical substrate"
+    ],
+    "scope_conditions": [
+      "context fixed"
+    ],
+    "required_invariants": [
+      "edge direction preserved"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:syn-001"
+    ],
+    "independence_group": "fixture-group-syn-001",
+    "gold_decision": "accept",
+    "gold_rationale": "Synthetic gold label; uncertainty is documented for abstention.",
+    "reviewers": [
+      "reviewer-a",
+      "reviewer-b"
+    ],
+    "split_group": "train"
+  },
+  {
+    "case_id": "syn-002",
+    "source_lineage": [
+      "fixture:syn-002"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Synthetic test of a proposed relation transfer.",
+    "relation_families": [
+      "structural"
+    ],
+    "shared_basis": [
+      "same relation topology"
+    ],
+    "non_shared_basis": [
+      "different physical substrate"
+    ],
+    "scope_conditions": [
+      "context fixed"
+    ],
+    "required_invariants": [
+      "edge direction preserved"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:syn-002"
+    ],
+    "independence_group": "fixture-group-syn-002",
+    "gold_decision": "reject",
+    "gold_rationale": "Synthetic gold label; uncertainty is documented for abstention.",
+    "reviewers": [
+      "reviewer-a",
+      "reviewer-b"
+    ],
+    "split_group": "train"
+  },
+  {
+    "case_id": "syn-003",
+    "source_lineage": [
+      "fixture:syn-003"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Synthetic test of a proposed relation transfer.",
+    "relation_families": [
+      "structural"
+    ],
+    "shared_basis": [
+      "same relation topology"
+    ],
+    "non_shared_basis": [
+      "different physical substrate"
+    ],
+    "scope_conditions": [
+      "declared condition remains fixed"
+    ],
+    "required_invariants": [
+      "edge direction preserved"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:syn-003"
+    ],
+    "independence_group": "fixture-group-syn-003",
+    "gold_decision": "conditional",
+    "gold_rationale": "Synthetic gold label; uncertainty is documented for abstention.",
+    "reviewers": [
+      "reviewer-a",
+      "reviewer-b"
+    ],
+    "split_group": "train"
+  },
+  {
+    "case_id": "syn-004",
+    "source_lineage": [
+      "fixture:syn-004"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Synthetic test of a proposed relation transfer.",
+    "relation_families": [
+      "structural"
+    ],
+    "shared_basis": [
+      "same relation topology"
+    ],
+    "non_shared_basis": [
+      "different physical substrate"
+    ],
+    "scope_conditions": [
+      "context fixed"
+    ],
+    "required_invariants": [
+      "edge direction preserved"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:syn-004"
+    ],
+    "independence_group": "fixture-group-syn-004",
+    "gold_decision": "abstain",
+    "gold_rationale": "Synthetic gold label; uncertainty is documented for abstention.",
+    "reviewers": [
+      "reviewer-a",
+      "reviewer-b"
+    ],
+    "split_group": "train"
+  },
+  {
+    "case_id": "syn-005",
+    "source_lineage": [
+      "fixture:syn-005"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Synthetic test of a proposed relation transfer.",
+    "relation_families": [
+      "structural"
+    ],
+    "shared_basis": [
+      "same relation topology"
+    ],
+    "non_shared_basis": [
+      "different physical substrate"
+    ],
+    "scope_conditions": [
+      "context fixed"
+    ],
+    "required_invariants": [
+      "edge direction preserved"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:syn-005"
+    ],
+    "independence_group": "fixture-group-syn-005",
+    "gold_decision": "accept",
+    "gold_rationale": "Synthetic gold label; uncertainty is documented for abstention.",
+    "reviewers": [
+      "reviewer-a",
+      "reviewer-b"
+    ],
+    "split_group": "dev"
+  },
+  {
+    "case_id": "syn-006",
+    "source_lineage": [
+      "fixture:syn-006"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Synthetic test of a proposed relation transfer.",
+    "relation_families": [
+      "structural"
+    ],
+    "shared_basis": [
+      "same relation topology"
+    ],
+    "non_shared_basis": [
+      "different physical substrate"
+    ],
+    "scope_conditions": [
+      "context fixed"
+    ],
+    "required_invariants": [
+      "edge direction preserved"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:syn-006"
+    ],
+    "independence_group": "fixture-group-syn-006",
+    "gold_decision": "reject",
+    "gold_rationale": "Synthetic gold label; uncertainty is documented for abstention.",
+    "reviewers": [
+      "reviewer-a",
+      "reviewer-b"
+    ],
+    "split_group": "dev"
+  },
+  {
+    "case_id": "syn-007",
+    "source_lineage": [
+      "fixture:syn-007"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Synthetic test of a proposed relation transfer.",
+    "relation_families": [
+      "structural"
+    ],
+    "shared_basis": [
+      "same relation topology"
+    ],
+    "non_shared_basis": [
+      "different physical substrate"
+    ],
+    "scope_conditions": [
+      "declared condition remains fixed"
+    ],
+    "required_invariants": [
+      "edge direction preserved"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:syn-007"
+    ],
+    "independence_group": "fixture-group-syn-007",
+    "gold_decision": "conditional",
+    "gold_rationale": "Synthetic gold label; uncertainty is documented for abstention.",
+    "reviewers": [
+      "reviewer-a",
+      "reviewer-b"
+    ],
+    "split_group": "dev"
+  },
+  {
+    "case_id": "syn-008",
+    "source_lineage": [
+      "fixture:syn-008"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Synthetic test of a proposed relation transfer.",
+    "relation_families": [
+      "structural"
+    ],
+    "shared_basis": [
+      "same relation topology"
+    ],
+    "non_shared_basis": [
+      "different physical substrate"
+    ],
+    "scope_conditions": [
+      "context fixed"
+    ],
+    "required_invariants": [
+      "edge direction preserved"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:syn-008"
+    ],
+    "independence_group": "fixture-group-syn-008",
+    "gold_decision": "abstain",
+    "gold_rationale": "Synthetic gold label; uncertainty is documented for abstention.",
+    "reviewers": [
+      "reviewer-a",
+      "reviewer-b"
+    ],
+    "split_group": "dev"
+  },
+  {
+    "case_id": "syn-009",
+    "source_lineage": [
+      "fixture:syn-009"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Synthetic test of a proposed relation transfer.",
+    "relation_families": [
+      "structural"
+    ],
+    "shared_basis": [
+      "same relation topology"
+    ],
+    "non_shared_basis": [
+      "different physical substrate"
+    ],
+    "scope_conditions": [
+      "context fixed"
+    ],
+    "required_invariants": [
+      "edge direction preserved"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:syn-009"
+    ],
+    "independence_group": "fixture-group-syn-009",
+    "gold_decision": "accept",
+    "gold_rationale": "Synthetic gold label; uncertainty is documented for abstention.",
+    "reviewers": [
+      "reviewer-a",
+      "reviewer-b"
+    ],
+    "split_group": "test"
+  },
+  {
+    "case_id": "syn-010",
+    "source_lineage": [
+      "fixture:syn-010"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Synthetic test of a proposed relation transfer.",
+    "relation_families": [
+      "structural"
+    ],
+    "shared_basis": [
+      "same relation topology"
+    ],
+    "non_shared_basis": [
+      "different physical substrate"
+    ],
+    "scope_conditions": [
+      "context fixed"
+    ],
+    "required_invariants": [
+      "edge direction preserved"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:syn-010"
+    ],
+    "independence_group": "fixture-group-syn-010",
+    "gold_decision": "reject",
+    "gold_rationale": "Synthetic gold label; uncertainty is documented for abstention.",
+    "reviewers": [
+      "reviewer-a",
+      "reviewer-b"
+    ],
+    "split_group": "test"
+  },
+  {
+    "case_id": "syn-011",
+    "source_lineage": [
+      "fixture:syn-011"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Synthetic test of a proposed relation transfer.",
+    "relation_families": [
+      "structural"
+    ],
+    "shared_basis": [
+      "same relation topology"
+    ],
+    "non_shared_basis": [
+      "different physical substrate"
+    ],
+    "scope_conditions": [
+      "declared condition remains fixed"
+    ],
+    "required_invariants": [
+      "edge direction preserved"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:syn-011"
+    ],
+    "independence_group": "fixture-group-syn-011",
+    "gold_decision": "conditional",
+    "gold_rationale": "Synthetic gold label; uncertainty is documented for abstention.",
+    "reviewers": [
+      "reviewer-a",
+      "reviewer-b"
+    ],
+    "split_group": "test"
+  },
+  {
+    "case_id": "syn-012",
+    "source_lineage": [
+      "fixture:syn-012"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Synthetic test of a proposed relation transfer.",
+    "relation_families": [
+      "structural"
+    ],
+    "shared_basis": [
+      "same relation topology"
+    ],
+    "non_shared_basis": [
+      "different physical substrate"
+    ],
+    "scope_conditions": [
+      "context fixed"
+    ],
+    "required_invariants": [
+      "edge direction preserved"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:syn-012"
+    ],
+    "independence_group": "fixture-group-syn-012",
+    "gold_decision": "abstain",
+    "gold_rationale": "Synthetic gold label; uncertainty is documented for abstention.",
+    "reviewers": [
+      "reviewer-a",
+      "reviewer-b"
+    ],
+    "split_group": "test"
+  }
+]
