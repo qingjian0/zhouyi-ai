@@ -88,6 +88,18 @@ class XunziObservationGroundingTests(unittest.TestCase):
         self.assertIn("NON_PERCEPTUAL_SOURCE_CANNOT_GROUND_IDENTITY",
                       result.reason_codes)
 
+    def test_reasoned_inference_is_not_direct_observation(self):
+        pair = ReferentPairEvidence(
+            first=self.observation("o1", ("feature-a",), "x",
+                                   source=ObservationSource.REASONED_INFERENCE),
+            second=self.observation("o2", ("feature-b",), "x"),
+            continuity_refs=("inference:assumed-continuity",),
+        )
+        result = assess_referent_pair(pair)
+        self.assertEqual(result.decision, ReferentDecision.ABSTAIN)
+        self.assertIn("NON_PERCEPTUAL_SOURCE_CANNOT_GROUND_IDENTITY",
+                      result.reason_codes)
+
     def test_testimony_is_recorded_but_not_direct_perceptual_grounding(self):
         pair = ReferentPairEvidence(
             first=self.observation("o1", ("feature-a",), "x",
