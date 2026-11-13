@@ -53,7 +53,7 @@ class BenchmarkContractTests(unittest.TestCase):
   self.assertEqual(by_id["dyn-038"]["causal_status"],"unknown")
   self.assertIn("long-term effectiveness", by_id["dyn-039"]["gold_rationale"])
 
- def test_five_claim_kinds_have_explicit_fixture_coverage(self):
+ def test_six_claim_kinds_have_explicit_fixture_coverage(self):
   root=Path(__file__).resolve().parents[1]
   cases=json.loads((root/"data/yixiang_benchmark_synthetic.v0.1.json").read_text(encoding="utf-8"))
   by_id={case["case_id"]:case for case in cases}
@@ -67,7 +67,7 @@ class BenchmarkContractTests(unittest.TestCase):
   }
   self.assertEqual({key:(by_id[key]["claim_kind"],by_id[key]["gold_decision"]) for key in expected},expected)
   report=evaluate_predictions(cases,[],allow_fixture_expected=True)
-  self.assertEqual(set(report["by_claim_kind"]),{"taxonomic_similarity","argumentative_analogy","action_outcome","practical_utility","symbolic_correspondence"})
+  self.assertEqual(set(report["by_claim_kind"]),{"taxonomic_similarity","argumentative_analogy","action_outcome","practical_utility","symbolic_correspondence","correlative_causation"})
   self.assertTrue(all("confusion_matrix" in value and "macro_f1" in value for value in report["by_claim_kind"].values()))
 
  def test_unknown_claim_kind_rejected(self):
