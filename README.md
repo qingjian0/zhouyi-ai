@@ -7,7 +7,7 @@
 
 ## 项目状态
 
-- 当前阶段：M1–M4 基础机制已建立研究原型；M5 主动观测的信息增益原型正在接入验证
+- 当前阶段：M1–M4 基础机制已建立研究原型；M5 主动观测原型已通过 CI；M6 新象发现原型已提交，等待 CI 验证
 - 理论版本：CPG-EI v0.3（研究草案，持续修订）
 - 代码状态：已有多尺度时间、typed relations、整体—局部候选约束、竞争类象证据剖面、未决裁决及 M4 条件干预原型；尚无规模化模型或性能结论
 - 验证原则：所有架构主张均须通过可复现实验、消融和公平对照验证
@@ -48,11 +48,11 @@
 - [M2 结构原型](prototype/yixiang_hierarchical_structure.py)
 - [M2.1 双向约束原型](prototype/yixiang_bidirectional_constraints.py)
 - [M3 竞争类象原型](prototype/yixiang_competing_hypotheses.py)
-- [M4 反事实条件干预原型](prototype/yixiang_counterfactual.py)
+- [M4 反事实条件干预原型](prototype/yixiang_counterfactual.py)\n- [M5 主动观测原型](prototype/yixiang_active_observation.py)\n- [M6 新象发现原型](prototype/yixiang_novelty.py)
 - [M2 测试](tests/test_yixiang_hierarchical_structure.py)
 - [M2.1 测试](tests/test_yixiang_bidirectional_constraints.py)
 - [M3 测试](tests/test_yixiang_competing_hypotheses.py)
-- [M4 测试](tests/test_yixiang_counterfactual.py)
+- [M4 测试](tests/test_yixiang_counterfactual.py)\n- [M5 测试](tests/test_yixiang_active_observation.py)\n- [M6 测试](tests/test_yixiang_novelty.py)
 - [M1 多尺度时间模型](prototype/yixiang_multiscale_time.py)
 - [M1 合成时间基准](docs/YIXIANG_TEMPORAL_BENCHMARK_M1_V0_1.md)
 - [传统古籍类象研究总纲](docs/CLASSICAL_YIXIANG_CORPUS_AND_RESEARCH_PROTOCOL.md)
