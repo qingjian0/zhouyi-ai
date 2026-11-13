@@ -1337,7 +1337,7 @@
       "observation"
     ],
     "method_families": [
-      "symbolic_correspondence"
+      "phenomenological_observation"
     ]
   },
   {
@@ -1484,10 +1484,10 @@
       "需与可靠校点本、影印本及异文对读；数字转录不等同于底本校勘。"
     ],
     "concept_tags": [
-      "perspective_shift"
+      "analogy_method"
     ],
     "method_families": [
-      "analogy_method"
+      "comparative_exegesis"
     ]
   },
   {
@@ -1634,10 +1634,10 @@
       "需与可靠校点本、影印本及异文对读；数字转录不等同于底本校勘。"
     ],
     "concept_tags": [
-      "analogy"
+      "analogy_limit"
     ],
     "method_families": [
-      "analogy_limit"
+      "analogical_argument"
     ]
   },
   {
@@ -1709,10 +1709,10 @@
       "需与可靠校点本、影印本及异文对读；数字转录不等同于底本校勘。"
     ],
     "concept_tags": [
-      "analogy"
+      "correspondence"
     ],
     "method_families": [
-      "correspondence"
+      "cosmological_correspondence"
     ]
   },
   {
@@ -1784,10 +1784,10 @@
       "需与可靠校点本、影印本及异文对读；数字转录不等同于底本校勘。"
     ],
     "concept_tags": [
-      "rhetorical_indirection"
+      "metaphor"
     ],
     "method_families": [
-      "metaphor"
+      "rhetorical_analogy"
     ]
   },
   {
