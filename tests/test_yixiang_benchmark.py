@@ -21,13 +21,31 @@ class BenchmarkContractTests(unittest.TestCase):
   with self.assertRaisesRegex(ValueError,"fixture:"): validate_case(c)
  def test_duplicate_ids_rejected(self):
   with self.assertRaisesRegex(ValueError,"globally unique"): validate_dataset([make_case("a"),make_case("a")])
+ def test_fixture_scoring_requires_explicit_opt_in(self):
+  with self.assertRaisesRegex(ValueError,"allow_fixture_expected"):
+   evaluate_predictions([make_case("a")],[])
+  result=evaluate_predictions([make_case("a")],[],allow_fixture_expected=True)
+  self.assertEqual(result["evaluation_basis"],"fixture_expected")
+ def test_pending_review_never_scored_as_gold(self):
+  c=make_case("a"); c["source_status"]="critical_edition"; c["label_status"]="pending_review"; c["reviewers"]=[]
+  with self.assertRaisesRegex(ValueError,"pending_review"): evaluate_predictions([c],[])
+ def test_adjudicated_gold_is_scoreable(self):
+  c=make_case("a"); c["source_status"]="critical_edition"; c["label_status"]="adjudicated"; c["reviewers"]=["r1","r2"]
+  result=evaluate_predictions([c],[{"case_id":"a","decision":"accept"}])
+  self.assertEqual(result["evaluation_basis"],"adjudicated")
+ def test_mixed_label_status_populations_rejected(self):
+  a=make_case("a"); b=make_case("b"); b["source_status"]="critical_edition"; b["label_status"]="pending_review"; b["reviewers"]=[]
+  with self.assertRaisesRegex(ValueError,"pending_review"): evaluate_predictions([a,b],[])
+ def test_accept_requires_shared_basis(self):
+  c=make_case("a"); c["shared_basis"]=[]
+  with self.assertRaisesRegex(ValueError,"shared_basis"): validate_case(c)
  def test_missing_prediction_counts_as_abstain(self):
   cases=[make_case("a","accept"),make_case("b","reject"),make_case("c","abstain")]
-  r=evaluate_predictions(cases,[{"case_id":"a","decision":"accept"},{"case_id":"b","decision":"accept"}])
+  r=evaluate_predictions(cases,[{"case_id":"a","decision":"accept"},{"case_id":"b","decision":"accept"}],allow_fixture_expected=True)
   self.assertEqual(r["n"],3); self.assertAlmostEqual(r["accuracy"],2/3); self.assertEqual(r["missing_predictions"],1); self.assertEqual(r["confusion_matrix"]["abstain"]["abstain"],1); self.assertAlmostEqual(r["abstention_coverage"],1/3); self.assertAlmostEqual(r["selective_coverage"],2/3); self.assertAlmostEqual(r["selective_risk"],0.5); self.assertIn("macro_f1",r["by_relation_family"]["structural"]); self.assertIn("confusion_matrix",r["by_relation_family"]["structural"])
  def test_unknown_and_duplicate_predictions_rejected(self):
-  with self.assertRaisesRegex(ValueError,"unknown case_id"): evaluate_predictions([make_case("a")],[{"case_id":"x","decision":"accept"}])
-  with self.assertRaisesRegex(ValueError,"duplicate prediction"): evaluate_predictions([make_case("a")],[{"case_id":"a","decision":"accept"},{"case_id":"a","decision":"reject"}])
+  with self.assertRaisesRegex(ValueError,"unknown case_id"): evaluate_predictions([make_case("a")],[{"case_id":"x","decision":"accept"}],allow_fixture_expected=True)
+  with self.assertRaisesRegex(ValueError,"duplicate prediction"): evaluate_predictions([make_case("a")],[{"case_id":"a","decision":"accept"},{"case_id":"a","decision":"reject"}],allow_fixture_expected=True)
  def test_lineage_leakage_detected(self):
   cs=[make_case("a",lineage=("shared-work-edition",),split="train"),make_case("b",lineage=("shared-work-edition",),split="test")]
   self.assertEqual(group_leakage(cs)["leakage_groups"],["shared-work-edition"])
