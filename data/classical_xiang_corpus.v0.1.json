@@ -1834,7 +1834,7 @@
       "genre": "经学注疏"
     },
     "period": "sui_tang",
-    "source_type": "classical_text",
+    "source_type": "historical_commentary",
     "tradition": [
       "传统文献",
       "类象理论研究"
@@ -1856,7 +1856,7 @@
     "claims": [
       {
         "claim_id": "zhouyi-zhengyi-near-far-001",
-        "claim_kind": "textual_observation",
+        "claim_kind": "commentarial_interpretation",
         "subject": "近取与远取",
         "predicate": "以身体器官和自然物解释取象范围",
         "object": "唐代疏家将经文的近取/远取具体解释为身体器官与自然物",
@@ -2154,7 +2154,7 @@
       "genre": "易学汇解/注疏汇编"
     },
     "period": "song_yuan",
-    "source_type": "classical_text",
+    "source_type": "historical_commentary",
     "tradition": [
       "传统文献",
       "类象理论研究"
@@ -2176,7 +2176,7 @@
     "claims": [
       {
         "claim_id": "yihai-zhaiyao-fang-lei-001",
-        "claim_kind": "textual_observation",
+        "claim_kind": "commentarial_interpretation",
         "subject": "方以类聚、物以群分",
         "predicate": "汇集多家训释",
         "object": "宋代汇解将类聚群分解释为同异、聚分及趋向关系",
