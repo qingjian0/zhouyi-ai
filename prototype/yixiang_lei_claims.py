@@ -143,7 +143,8 @@ def assess_lei_claim(claim: LeiClaim) -> LeiClaimAssessment:
     # requires a separate, reviewed identification protocol and is not inferred.
     causal = (
         "candidate_intervention_evidence_requires_review"
-        if claim.causal_identification == "intervention_or_identification_evidence"
+        if (claim.causal_identification == "intervention_or_identification_evidence"
+            and claim.kind != ClaimKind.SYMBOLIC_CORRESPONDENCE)
         else "not_established"
     )
     return LeiClaimAssessment(
