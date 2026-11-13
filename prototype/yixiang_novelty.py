@@ -91,6 +91,7 @@ class NoveltyProposal:
     domains: tuple[str, ...]
     context_records: tuple[tuple[str, tuple[tuple[str, str], ...]], ...]
     evidence_refs: tuple[str, ...]
+    evidence_lineage: tuple[tuple[str, str], ...]
     evidence_independence_groups: tuple[str, ...]
     status: ProposalStatus = ProposalStatus.PROPOSED
     version: int = 1
@@ -147,9 +148,14 @@ def propose_novel_structures(
         evidence_refs = tuple(sorted({ref for case in cases for ref in case.evidence_refs}))
         # Reference count is not source independence. Only explicitly declared
         # lineage groups count; missing lineage contributes zero independent sources.
-        evidence_independence_groups = tuple(sorted({
-            group for case in cases for _, group in case.evidence_lineage
-        }))
+        lineage_by_ref: dict[str, str] = {}
+        for case in cases:
+            for evidence_ref, independence_group in case.evidence_lineage:
+                previous_group = lineage_by_ref.setdefault(evidence_ref, independence_group)
+                if previous_group != independence_group:
+                    raise ValueError("the same evidence ref cannot belong to conflicting independence groups")
+        evidence_lineage = tuple(sorted(lineage_by_ref.items()))
+        evidence_independence_groups = tuple(sorted(set(lineage_by_ref.values())))
         if (len(cases) < min_support or len(domains) < min_domains
                 or len(evidence_independence_groups) < min_independent_evidence):
             continue
@@ -163,7 +169,8 @@ def propose_novel_structures(
         proposals.append(NoveltyProposal(
             proposal_id, signature, support_ids,
             tuple(sorted(case.observation_id for case in cases)),
-            domains, context_records, evidence_refs, evidence_independence_groups,
+            domains, context_records, evidence_refs, evidence_lineage,
+            evidence_independence_groups,
         ))
     return tuple(sorted(
         proposals,
@@ -192,8 +199,8 @@ def review_proposal(
     return NoveltyProposal(
         proposal.proposal_id, proposal.signature, proposal.support_residual_ids,
         proposal.support_observation_ids, proposal.domains, proposal.context_records,
-        proposal.evidence_refs, proposal.evidence_independence_groups,
-        decision, proposal.version + 1,
+        proposal.evidence_refs, proposal.evidence_lineage,
+        proposal.evidence_independence_groups, decision, proposal.version + 1,
         f"{proposal.proposal_id}:v{proposal.version}", f"{reviewer}: {note}",
     )
 
@@ -207,7 +214,7 @@ def rollback_proposal(proposal: NoveltyProposal, *, reason: str) -> NoveltyPropo
     return NoveltyProposal(
         proposal.proposal_id, proposal.signature, proposal.support_residual_ids,
         proposal.support_observation_ids, proposal.domains, proposal.context_records,
-        proposal.evidence_refs, proposal.evidence_independence_groups,
-        ProposalStatus.PROPOSED, proposal.version + 1,
+        proposal.evidence_refs, proposal.evidence_lineage,
+        proposal.evidence_independence_groups, ProposalStatus.PROPOSED, proposal.version + 1,
         f"{proposal.proposal_id}:v{proposal.version}", f"rollback: {reason}",
     )
