@@ -386,6 +386,9 @@ def run_anf_degree_sweep(corpus: dict) -> dict:
                         if representable and system["consistent"] else None
                     ),
                 })
+        consistent_systems = [
+            item for item in systems if item["training_system_consistent"]
+        ]
         degree_results.append({
             "max_degree": max_degree,
             "basis_coefficient_count": sum(
@@ -393,6 +396,8 @@ def run_anf_degree_sweep(corpus: dict) -> dict:
                 if mask.bit_count() <= max_degree
             ),
             "output_system_count": len(systems),
+            "consistent_system_count": len(consistent_systems),
+            "inconsistent_system_count": len(systems) - len(consistent_systems),
             "oracle_representability_rate": sum(
                 item["oracle_representable"] for item in systems
             ) / len(systems),
@@ -403,9 +408,10 @@ def run_anf_degree_sweep(corpus: dict) -> dict:
                 item["unique"] for item in systems
             ) / len(systems),
             "mean_training_rank": sum(item["rank"] for item in systems) / len(systems),
-            "mean_training_nullity": sum(
-                item["nullity"] or 0 for item in systems
-            ) / len(systems),
+            "mean_training_nullity": (
+                sum(item["nullity"] for item in consistent_systems)
+                / len(consistent_systems) if consistent_systems else None
+            ),
             "oracle_support_containment_rate_when_representable": (
                 sum(item["oracle_support_contained"] is True for item in systems)
                 / max(1, sum(item["oracle_support_contained"] is not None for item in systems))
