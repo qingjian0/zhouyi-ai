@@ -1456,7 +1456,7 @@
     "text_status": "quotation_fragment",
     "claims": [
       {
-        "claim_id": "zhuangzi-qiwulun-perspective-001",
+        "claim_id": "zhuangzi-qiwulun-perspective-claim-001",
         "claim_kind": "textual_observation",
         "subject": "彼与是",
         "predicate": "依视角互相成立",
