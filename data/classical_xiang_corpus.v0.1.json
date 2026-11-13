@@ -58,6 +58,9 @@
       "classification",
       "analogy_method",
       "observation"
+    ],
+    "method_families": [
+      "classification"
     ]
   },
   {
@@ -122,6 +125,10 @@
       "analogy_method",
       "correspondence",
       "observation"
+    ],
+    "method_families": [
+      "analogical_argument",
+      "cosmological_correspondence"
     ]
   },
   {
@@ -184,6 +191,10 @@
       "yin_yang",
       "state_change",
       "image_selection"
+    ],
+    "method_families": [
+      "symbolic_correspondence",
+      "phenomenological_observation"
     ]
   },
   {
@@ -245,6 +256,9 @@
     ],
     "concept_tags": [
       "image_selection",
+      "commentarial_exegesis"
+    ],
+    "method_families": [
       "commentarial_exegesis"
     ]
   },
@@ -309,6 +323,9 @@
       "analogy_method",
       "classification",
       "name_reality"
+    ],
+    "method_families": [
+      "analogical_argument"
     ]
   },
   {
@@ -371,6 +388,10 @@
     "concept_tags": [
       "analogy_limit",
       "causal_inference_limit"
+    ],
+    "method_families": [
+      "analogical_argument",
+      "causal_claim"
     ]
   },
   {
@@ -433,6 +454,9 @@
     "concept_tags": [
       "analogy_limit",
       "analogy_method"
+    ],
+    "method_families": [
+      "analogical_argument"
     ]
   },
   {
@@ -496,6 +520,11 @@
       "sensory_classification",
       "classification",
       "name_reality"
+    ],
+    "method_families": [
+      "classification",
+      "lexical_taxonomy",
+      "phenomenological_observation"
     ]
   },
   {
@@ -558,6 +587,10 @@
     "concept_tags": [
       "correspondence",
       "cosmology"
+    ],
+    "method_families": [
+      "cosmological_correspondence",
+      "causal_claim"
     ]
   },
   {
@@ -638,6 +671,10 @@
     "review_notes": [
       "已通过可访问数字文本发现原文片段；尚未逐字对照影印底本和多版本异文。",
       "搜索见证列有多种底本，但不能据此声称本项目已完成版本校勘。"
+    ],
+    "method_families": [
+      "analogical_argument",
+      "analogy_limit"
     ]
   },
   {
@@ -716,6 +753,10 @@
     "review_status": "candidate",
     "review_notes": [
       "数字文本可定位至《正名篇》末段相关论述；尚未与可靠校点本完成异文校勘。"
+    ],
+    "method_families": [
+      "classification",
+      "analogical_argument"
     ]
   },
   {
@@ -780,6 +821,10 @@
       "analogy_limit",
       "name_reality",
       "observation"
+    ],
+    "method_families": [
+      "rhetorical_analogy",
+      "comparative_exegesis"
     ]
   },
   {
@@ -843,6 +888,10 @@
       "classification",
       "analogy_limit",
       "observation"
+    ],
+    "method_families": [
+      "classification",
+      "analogy_limit"
     ]
   },
   {
@@ -906,6 +955,10 @@
       "observation",
       "analogy_limit",
       "natural_knowledge"
+    ],
+    "method_families": [
+      "phenomenological_observation",
+      "sensory_classification"
     ]
   }
 ]
