@@ -5,10 +5,11 @@ from datetime import date
 from urllib.parse import urlsplit
 PERIODS={"pre_qin","qin_han","wei_jin_northern_southern","sui_tang","song_yuan","ming","qing_pre_1912","modern_post_1912","uncertain"}
 SOURCES={"classical_text","historical_commentary","bibliographic_record","modern_scholarship","field_observation","research_hypothesis","synthetic_fixture","model_generated"}
+METHOD_FAMILIES=["classification","analogical_argument","rhetorical_analogy","cosmological_correspondence","lexical_taxonomy","symbolic_correspondence","phenomenological_observation","causal_claim","commentarial_exegesis","comparative_exegesis"]
 TAGS=["observation","image_selection","analogy_method","analogy_limit","classification","correspondence","yin_yang","state_change","cosmology","sensory_classification","causal_inference_limit","metaphor","name_reality","ritual_institution","natural_knowledge","commentarial_exegesis"]
 CLAIMS={"textual_observation","traditional_interpretation","commentarial_interpretation","project_operational_definition","research_hypothesis","modern_scholarship_claim"}
 def validate_record(r: Mapping) -> None:
-    required=("record_id","record_version","work","period","source_type","witness","locator","text","text_status","claims","review_status","concept_tags")
+    required=("record_id","record_version","work","period","source_type","witness","locator","text","text_status","claims","review_status","concept_tags","method_families")
     if not isinstance(r,Mapping) or any(k not in r for k in required): raise ValueError("missing required top-level fields")
     for k in ("record_id","record_version","text"):
         if not isinstance(r[k],str) or not r[k].strip(): raise ValueError(f"{k} must be non-empty")
@@ -16,6 +17,8 @@ def validate_record(r: Mapping) -> None:
     tags=r["concept_tags"]
     if not isinstance(tags,list) or not tags or len(tags)!=len(set(tags)) or any(t not in TAGS for t in tags): raise ValueError("concept_tags must be a non-empty unique list of known project facets")
     if r["review_status"] not in {"unreviewed","candidate","reviewed","disputed","rejected","superseded"}: raise ValueError("unknown review_status")
+    methods=r["method_families"]
+    if not isinstance(methods,list) or not methods or len(methods)!=len(set(methods)) or any(m not in METHOD_FAMILIES for m in methods): raise ValueError("method_families must be a non-empty unique list of known inference families")
     w,src,loc=r["work"],r["witness"],r["locator"]
     if not isinstance(w,Mapping) or any(not isinstance(w.get(k),str) or not w[k].strip() for k in ("title","traditional_authority","composition_period","genre")): raise ValueError("incomplete work metadata")
     if not isinstance(src,Mapping) or any(not isinstance(src.get(k),str) or not src[k].strip() for k in ("witness_id","edition_or_database","url","access_date","witness_kind")): raise ValueError("incomplete witness metadata")
