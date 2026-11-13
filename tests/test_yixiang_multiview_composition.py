@@ -2,7 +2,7 @@ import unittest
 
 from prototype.yixiang_multiview_composition import (
     AxisEvidence, CompositionBridge, EvidenceKind, ProposalStatus,
-    ViewCandidate, XiangAxis, compose_views, group_competing_views,
+    ViewCandidate, XiangAxis, compose_views, group_competing_views,\n    revalidate_composite, revalidate_view,
 )
 
 
@@ -94,6 +94,27 @@ class MultiViewCompositionTests(unittest.TestCase):
         )
         with self.assertRaisesRegex(ValueError, "axis must match"):
             group_competing_views((candidate,))
+
+
+    def test_view_is_blocked_when_scope_condition_disappears(self):
+        candidate = view("a", XiangAxis.STRUCTURAL, scope=("same task", "same season"))
+        result = revalidate_view(candidate, ("same task",))
+        self.assertEqual(result.status, ProposalStatus.BLOCKED)
+        self.assertEqual(result.missing_conditions, ("same season",))
+
+    def test_composite_is_invalidated_when_bridge_context_changes(self):
+        candidates = (view("a", XiangAxis.STRUCTURAL), view("b", XiangAxis.FUNCTIONAL))
+        proposal = compose_views(candidates, bridge(("a", "b")))
+        result = revalidate_composite(proposal, candidates, ())
+        self.assertEqual(result.status, ProposalStatus.BLOCKED)
+        self.assertIn("same task", result.missing_conditions)
+
+    def test_composite_remains_review_only_when_all_conditions_hold(self):
+        candidates = (view("a", XiangAxis.STRUCTURAL), view("b", XiangAxis.FUNCTIONAL))
+        proposal = compose_views(candidates, bridge(("a", "b")))
+        result = revalidate_composite(proposal, candidates, ("same task",))
+        self.assertEqual(result.status, ProposalStatus.HUMAN_REVIEW)
+        self.assertEqual(result.missing_conditions, ())
 
 
 if __name__ == "__main__":
