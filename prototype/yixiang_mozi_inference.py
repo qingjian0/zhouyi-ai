@@ -1,6 +1,6 @@
 """Guarded operationalization of the inference moves named in Mozi, Xiaoqu.
 
-The four moves describe argumentative operations, not truth guarantees.
+The seven terms describe differentiated components of argumentation, not seven truth guarantees.
 This module records scope and blocks common illicit transfers; it does not
 claim to settle disputed philological interpretations of the chapter.
 """
