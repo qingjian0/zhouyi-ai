@@ -5,7 +5,7 @@ from prototype.yixiang_passage_claim_audit import *
 def fixture():
     w=(Witness("W1","work","edition","transmitted","juan1","checked",True,("ref",)),)
     c=(InterpretationContext("C1","pre-qin textual layer","argumentative prose","speaker A","analogy",("debate setting",)),)
-    p=(PassageSpan("P1","W1","以類取，以類予","《墨子·小取》",TextLayer.BASE_TEXT,"C1","以名舉實，以辭抒意","以說出故","V1",10,16),)
+    p=(PassageSpan("P1","W1","以類取，以類予","《墨子·小取》",TextLayer.BASE_TEXT,"C1","以名舉實，以辭抒意，以說出故","有諸己不非諸人","V1"),)
     a=(ClaimAtom("A1","CL1","The passage states a rule of reasoning by kinds."),)
     e=EvidenceLink("E1","A1","P1",EvidenceRelation.SUPPORTS,Coverage.WHOLE_ATOM,ContextFit.COMPATIBLE,ReviewStatus.REVIEWED,("reviewer-1",),"The wording directly expresses the stated rule.")
     return w,c,p,a,e
