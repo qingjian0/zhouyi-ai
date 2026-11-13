@@ -132,8 +132,20 @@ def revise_pattern(pattern: Pattern, *, positive_examples: tuple[Observation, ..
             count = values.count(value)
             if count / len(positive_examples) >= min_positive_support:
                 candidates[(key, value)] = count
-    excluded = {pair for pair in candidates if any(o.features.get(pair[0]) == pair[1] for o in counterexamples)}
-    retained = {key: value for (key, value) in candidates if (key, value) not in excluded}
+    excluded = set()
+    retained = {}
+    for key in keys:
+        ranked = sorted(
+            ((count, value) for (candidate_key, value), count in candidates.items() if candidate_key == key),
+            reverse=True,
+        )
+        if not ranked or (len(ranked) > 1 and ranked[0][0] == ranked[1][0]):
+            continue
+        pair = (key, ranked[0][1])
+        if any(o.features.get(key) == pair[1] for o in counterexamples):
+            excluded.add(pair)
+        else:
+            retained[key] = pair[1]
     variable = sorted(keys - set(retained))
     refs = tuple(sorted(set(pattern.evidence_refs) | {ref for o in (*positive_examples, *counterexamples) for ref in o.evidence_refs}))
     return Pattern(pattern.pattern_id, pattern.version + 1, pattern.dimensions, retained, tuple(variable), tuple(sorted(excluded)), tuple(sorted({o.observation_id for o in positive_examples})), tuple(sorted({o.observation_id for o in counterexamples})), refs, pattern.scope)
