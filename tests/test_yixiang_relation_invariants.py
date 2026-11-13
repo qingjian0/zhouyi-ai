@@ -1,6 +1,6 @@
 import unittest
 from prototype.yixiang_relation_invariants import (
-    InvariantCheck, InvariantDecision, RelationEdge, RelationFrame,
+    ContextTransform, InvariantCheck, InvariantDecision, RelationEdge, RelationFrame,
     RelationTransferContract, assess_relation_transfer,
 )
 
@@ -74,6 +74,59 @@ class RelationInvariantTests(unittest.TestCase):
     def test_duplicate_role_mapping_rejected(self):
         with self.assertRaisesRegex(ValueError,"one-to-one"):
             assess_relation_transfer(self.contract(role_mapping=(("agent","actor"),("tool","actor"),("goal","end"))))
+    def test_context_difference_without_transform_still_abstains(self):
+        target = self.frame("target","target-domain",("actor","means","end"),(
+            RelationEdge("uses","actor","means"), RelationEdge("achieves","actor","end",order=1)),
+            conditions=(("phase","night"),), evidence=("witness:2",))
+        result = assess_relation_transfer(self.contract(target=target))
+        self.assertEqual(result.decision, InvariantDecision.ABSTAIN)
+        self.assertIn("REQUIRED_CONTEXT_AXIS_MISMATCH", result.reason_codes)
+
+    def test_evidence_backed_bounded_context_transform_is_scoped(self):
+        target = self.frame("target","target-domain",("actor","means","end"),(
+            RelationEdge("uses","actor","means"), RelationEdge("achieves","actor","end",order=1)),
+            conditions=(("phase","night"),), evidence=("witness:2",))
+        transform = ContextTransform(
+            "phase", "stable", "night",
+            "map day-phase observation to night-phase only under an explicitly tested illumination normalization",
+            "valid only for the normalized visibility task; no claim about other phase-dependent effects",
+            "witness:1", "witness:2",
+        )
+        result = assess_relation_transfer(self.contract(
+            target=target, context_transforms=(transform,)
+        ))
+        self.assertEqual(result.decision, InvariantDecision.ACCEPT_SCOPED)
+        self.assertEqual(result.transformed_context_axes, ("phase",))
+        self.assertTrue(result.scope_only)
+
+    def test_context_transform_with_unlinked_evidence_abstains(self):
+        target = self.frame("target","target-domain",("actor","means","end"),(
+            RelationEdge("uses","actor","means"), RelationEdge("achieves","actor","end",order=1)),
+            conditions=(("phase","night"),), evidence=("witness:2",))
+        transform = ContextTransform(
+            "phase", "stable", "night", "declared mapping", "narrow boundary",
+            "not-in-source", "witness:2",
+        )
+        result = assess_relation_transfer(self.contract(
+            target=target, context_transforms=(transform,)
+        ))
+        self.assertEqual(result.decision, InvariantDecision.ABSTAIN)
+        self.assertIn("CONTEXT_TRANSFORM_EVIDENCE_NOT_GROUNDED", result.reason_codes)
+
+    def test_context_transform_values_must_match_actual_frames(self):
+        target = self.frame("target","target-domain",("actor","means","end"),(
+            RelationEdge("uses","actor","means"), RelationEdge("achieves","actor","end",order=1)),
+            conditions=(("phase","night"),), evidence=("witness:2",))
+        transform = ContextTransform(
+            "phase", "dawn", "night", "declared mapping", "narrow boundary",
+            "witness:1", "witness:2",
+        )
+        result = assess_relation_transfer(self.contract(
+            target=target, context_transforms=(transform,)
+        ))
+        self.assertEqual(result.decision, InvariantDecision.ABSTAIN)
+        self.assertIn("CONTEXT_TRANSFORM_VALUE_MISMATCH", result.reason_codes)
+
     def test_duplicate_invariant_names_rejected(self):
         x=InvariantCheck("same","x","x","s","t")
         with self.assertRaisesRegex(ValueError,"unique"):
