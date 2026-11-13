@@ -167,7 +167,8 @@
         "argumentative_analogy",
         "action_outcome",
         "practical_utility",
-        "symbolic_correspondence"
+        "symbolic_correspondence",
+        "correlative_causation"
       ]
     }
   },
