@@ -58,9 +58,15 @@ class M15Tests(unittest.TestCase):
     def test_reviewed_requires_reviewer_reason(self):
         w,c,p,a,e=fixture(); x=EvidenceLink("E2","A1","P1",e.relation,e.coverage,e.context_fit,ReviewStatus.REVIEWED,(),"short")
         with self.assertRaises(ValueError): assess_claim_coverage("CL1",a,c,p,w,(x,))
-    def test_commentary_layer_explicit(self):
+    def test_commentary_cannot_support_base_text_claim_by_default(self):
         w,c,p,a,e=fixture(); note=PassageSpan("P2","W1","注曰……","commentary",TextLayer.COMMENTARY,"C1")
-        r=assess_claim_coverage("CL1",a,c,p+(note,),w,(e,)); self.assertEqual(r.decision,ClaimCoverageDecision.FULL_ATOM_COVERAGE)
+        x=EvidenceLink("E2","A1","P2",EvidenceRelation.SUPPORTS,Coverage.WHOLE_ATOM,ContextFit.COMPATIBLE,ReviewStatus.REVIEWED,("r2",),"This is a commentary interpretation, not base text.")
+        r=assess_claim_coverage("CL1",a,c,p+(note,),w,(x,)); self.assertEqual(r.atom_assessments[0].decision,AtomDecision.LAYER_MISMATCH)
+    def test_commentary_can_support_commentary_claim_when_declared(self):
+        w,c,p,a,e=fixture(); note=PassageSpan("P2","W1","注曰……","commentary",TextLayer.COMMENTARY,"C1")
+        atom=(ClaimAtom("A1","CL1","The commentary interprets the passage.",(TextLayer.COMMENTARY,)),)
+        x=EvidenceLink("E2","A1","P2",EvidenceRelation.SUPPORTS,Coverage.WHOLE_ATOM,ContextFit.COMPATIBLE,ReviewStatus.REVIEWED,("r2",),"This commentary directly states the interpretation.")
+        r=assess_claim_coverage("CL1",atom,c,p+(note,),w,(x,)); self.assertEqual(r.decision,ClaimCoverageDecision.FULL_ATOM_COVERAGE)
     def test_variant_group_preserved(self):
         w,c,p,a,e=fixture(); alt=PassageSpan("P2","W1","異文","loc2",TextLayer.BASE_TEXT,"C1",variant_group_id="V1")
         r=assess_claim_coverage("CL1",a,c,p+(alt,),w,(e,)); self.assertEqual(r.decision,ClaimCoverageDecision.FULL_ATOM_COVERAGE)
