@@ -44,6 +44,7 @@ class ObservationRecord:
     timepoint: str
     referent_anchor: str = ""
     spatial_location: str = ""
+    feature_modalities: Tuple[PerceptualModality, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -76,6 +77,14 @@ def _validate_observation(obs: ObservationRecord) -> None:
         raise ValueError("modality must use PerceptualModality")
     if not isinstance(obs.source, ObservationSource):
         raise ValueError("source must use ObservationSource")
+    if not isinstance(obs.feature_modalities, tuple) or len(obs.feature_modalities) != len(obs.observed_features):
+        raise ValueError("feature_modalities must align one-to-one with observed_features")
+    if any(not isinstance(x, PerceptualModality) for x in obs.feature_modalities):
+        raise ValueError("feature_modalities must use PerceptualModality")
+    if obs.modality != PerceptualModality.MIXED and any(
+        x != obs.modality for x in obs.feature_modalities
+    ):
+        raise ValueError("feature modality must match observation modality")
     for field in ("context", "timepoint", "referent_anchor", "spatial_location"):
         if not isinstance(getattr(obs, field), str):
             raise ValueError(f"{field} must be a string")
