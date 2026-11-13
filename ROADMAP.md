@@ -10,7 +10,7 @@
 | P0-D | 类象计算引擎 | 类象发现、解释、验证、迁移、组合和拒绝机制 | 规则评估器与有界图映射发现基线已实现；学习型抽取/迁移待开展 |
 | P0-E | 易象状态引擎 | 层次状态、爻位、卦变、状态转移与路径 | 64态结构编码与显式动爻转移原型已实现；经典语义/路径模型待开展 |
 | P0-F | 五行与时位势变 | 条件关系、制化、乘侮、消长及动态演化 | 设计草案，模型实验未开始 |
-| P0-G | 多尺度时间与层级过程 | 事件时间/观测时间、多尺度阶段、局部—整体递归 | M1 时间层级与区间关系数据原型、6 项测试已新增；尚未获得 CI 复验 |
+| P0-G | 多尺度时间与层级过程 | 事件时间/观测时间、多尺度阶段、局部—整体递归 | M1 时间层级/区间关系原型（6 项测试）及确定性合成基准（7 项测试）已新增；上一轮 CI 43378162638 成功，新基准测试待 CI 复验 |
 | P0-H | 竞争类象与证据裁决 | 多假设保留、适用边界、未决机制、反例驱动更新 | 研究议程已定义；原型待开展 |
 | P1-A | 反事实与干预边界 | 条件变化、反事实一致性、混杂识别与拒绝 | 研究议程已定义；实验待开展 |
 | P1-B | 主动观测 | 信息增益、预测分歧、观测成本与选择偏差 | 研究议程已定义；原型待开展 |
@@ -23,7 +23,7 @@
 
 详细研究问题、候选机制、基线、指标、失败标准与里程碑见 [类象认知下一阶段研究计划 v0.1](docs/YIXIANG_NEXT_RESEARCH_PROGRAM_V0_1.md)。
 
-M1 多尺度时间数据原型：[设计与验收](docs/YIXIANG_MULTISCALE_TIME_M1_V0_1.md)、[实现](prototype/yixiang_multiscale_time.py)、[测试](tests/test_yixiang_multiscale_time.py)。
+M1 多尺度时间原型：[数据结构设计](docs/YIXIANG_MULTISCALE_TIME_M1_V0_1.md)、[实现](prototype/yixiang_multiscale_time.py)、[测试](tests/test_yixiang_multiscale_time.py)；[合成基准协议](docs/YIXIANG_TEMPORAL_BENCHMARK_M1_V0_1.md)、[生成器](prototype/yixiang_temporal_benchmark.py)、[测试](tests/test_yixiang_temporal_benchmark.py)。
 
 建议实施顺序：
 1. M1：多尺度时间表示和合成基准。
