@@ -27,13 +27,23 @@ class BenchmarkContractTests(unittest.TestCase):
   root=Path(__file__).resolve().parents[1]
   cases=json.loads((root/"data/yixiang_benchmark_synthetic.v0.1.json").read_text(encoding="utf-8"))
   validate_dataset(cases)
-  self.assertEqual(len(cases),45)
+  self.assertEqual(len(cases),47)
   self.assertTrue({"same-013", "same-014", "same-015", "same-016", "same-017", "same-018", "same-019", "same-020", "same-021", "same-022"}.issubset({c["case_id"] for c in cases}))
   self.assertTrue({"dyn-023", "dyn-024", "dyn-025", "dyn-026", "dyn-027", "dyn-028", "dyn-029", "dyn-030"}.issubset({c["case_id"] for c in cases}))
   self.assertTrue({"dyn-031", "dyn-032", "dyn-033", "dyn-034", "dyn-035", "dyn-036"}.issubset({c["case_id"] for c in cases}))
   self.assertTrue({"dyn-037", "dyn-038", "dyn-039"}.issubset({c["case_id"] for c in cases}))
   self.assertEqual({c["split_group"] for c in cases},{"train","dev","test","holdout"})
   self.assertEqual({c["claim_kind"] for c in cases},{"taxonomic_similarity","argumentative_analogy","action_outcome","practical_utility","symbolic_correspondence","correlative_causation"})
+ def test_dimension_limited_and_necessary_component_transfer_fixtures(self):
+  root=Path(__file__).resolve().parents[1]
+  cases=json.loads((root/"data/yixiang_benchmark_synthetic.v0.1.json").read_text(encoding="utf-8"))
+  by_id={case["case_id"]:case for case in cases}
+  self.assertEqual(by_id["dyn-046"]["gold_decision"],"reject")
+  self.assertEqual(by_id["dyn-047"]["gold_decision"],"reject")
+  self.assertIn("selected circular-form resemblance",by_id["dyn-046"]["shared_basis"])
+  self.assertIn("not sufficient",by_id["dyn-047"]["gold_rationale"])
+  self.assertEqual(by_id["dyn-046"]["split_group"],"holdout")
+  self.assertEqual(by_id["dyn-047"]["split_group"],"holdout")
  def test_dynamic_context_fixture_expected_decisions(self):
   root=Path(__file__).resolve().parents[1]
   cases=json.loads((root/"data/yixiang_benchmark_synthetic.v0.1.json").read_text(encoding="utf-8"))
