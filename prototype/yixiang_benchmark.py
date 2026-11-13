@@ -24,9 +24,9 @@ def validate_case(c:Mapping)->None:
     for f in ("shared_basis","non_shared_basis","scope_conditions","required_invariants","known_counterexamples"): _strings(c[f],f,False)
     _strings(c["evidence_refs"],"evidence_refs"); _strings(c["reviewers"],"reviewers")
     if len(c["reviewers"]) < 2: raise ValueError("gold labels require at least two independent reviewers")
-    if c["source_status"] not in SOURCE_STATUS: raise ValueError("unknown source_status")
-    if c["causal_status"] not in CAUSAL: raise ValueError("unknown causal_status")
-    if c["gold_decision"] not in DECISIONS: raise ValueError("unknown gold_decision")
+    if not isinstance(c["source_status"],str) or c["source_status"] not in SOURCE_STATUS: raise ValueError("unknown source_status")
+    if not isinstance(c["causal_status"],str) or c["causal_status"] not in CAUSAL: raise ValueError("unknown causal_status")
+    if not isinstance(c["gold_decision"],str) or c["gold_decision"] not in DECISIONS: raise ValueError("unknown gold_decision")
     if c["gold_decision"]=="conditional" and not c["scope_conditions"]: raise ValueError("conditional decision requires explicit scope_conditions")
     if c["gold_decision"]=="abstain" and len(c["gold_rationale"].strip())<20: raise ValueError("abstain rationale must explain unresolved uncertainty")
     if c["source_status"]=="synthetic_fixture" and not any(x.startswith("fixture:") for x in c["evidence_refs"]): raise ValueError("synthetic fixtures require fixture: evidence refs")
@@ -40,7 +40,7 @@ def validate_dataset(cases:Sequence[Mapping])->None:
 def validate_prediction(p:Mapping)->None:
     if not isinstance(p,Mapping) or set(p)!={"case_id","decision"}: raise ValueError("prediction requires exactly case_id and decision")
     if not isinstance(p["case_id"],str) or not p["case_id"].strip(): raise ValueError("prediction case_id must be non-empty")
-    if p["decision"] not in DECISIONS: raise ValueError("unknown prediction decision")
+    if not isinstance(p["decision"],str) or p["decision"] not in DECISIONS: raise ValueError("unknown prediction decision")
 def evaluate_predictions(cases:Sequence[Mapping],predictions:Sequence[Mapping])->dict:
     """Score submitted labels against gold; absent outputs count as abstain."""
     validate_dataset(cases); pred={}
