@@ -22,7 +22,7 @@
 - 对一类对象适用的类名；
 - 指向特定个体的私名。
 
-这不是可直接照搬的现代本体论，但能提醒我们：谓词在不同名类层级上的适用范围不相同。
+这不是可直接照搬的现代本体论，但能提醒我们：谓词在不同名类层级上的适用范围不相同。数字录文“有实必待之名也”有“文多”等异文和校改，必须把底本、孙诒让校改与现代解释分开。
 
 ### 《荀子·正名》“大共名”与“大别名”
 
@@ -50,7 +50,7 @@
 
 ## 版本与研究入口
 
-- 《墨子·经下》数字文本与版本入口：https://ctext.org/mozi/canon-ii/zhs
+- 《墨子·经上》数字文本与版本入口：https://ctext.org/mozi/canon-i/zhs\n- 《墨子·经下》数字文本与版本入口：https://ctext.org/mozi/canon-ii/zhs
 - 《墨子闲诂·经下》“推类之难”校释：https://ctext.org/mozi-jiangu/jing-xia/zhs
 - 吴毓江校注《墨子校注》卷十（下）扫描入口：https://upload.wikimedia.org/wikipedia/commons/4/4f/SSID-13362512_%E5%A2%A8%E5%AD%90%E6%A0%A1%E6%B3%A8_5.pdf
 - 《荀子·正名》原文：https://zh.wikisource.org/zh-hans/荀子/正名篇
