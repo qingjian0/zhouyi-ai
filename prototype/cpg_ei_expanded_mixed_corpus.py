@@ -34,8 +34,8 @@ def generate_expanded_corpus(*, family_count: int = EXPANDED_FAMILY_COUNT,
                              input_dim: int = 8, output_dim: int = 8,
                              seed: int = 20261114) -> dict[str, Any]:
     if (isinstance(family_count, bool) or not isinstance(family_count, int)
-            or family_count < BASE_FAMILY_COUNT):
-        raise ValueError(f"family_count must be an integer >= {BASE_FAMILY_COUNT}")
+            or family_count < 5):
+        raise ValueError("family_count must be an integer >= 5")
     corpus = generate_mixed_corpus(
         family_count=family_count, input_dim=input_dim,
         output_dim=output_dim, seed=seed,
