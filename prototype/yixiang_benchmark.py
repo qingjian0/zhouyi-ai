@@ -36,6 +36,7 @@ def validate_case(c:Mapping)->None:
     if not isinstance(c["source_status"],str) or c["source_status"] not in SOURCE_STATUS: raise ValueError("unknown source_status")
     if not isinstance(c["causal_status"],str) or c["causal_status"] not in CAUSAL: raise ValueError("unknown causal_status")
     if not isinstance(c["gold_decision"],str) or c["gold_decision"] not in DECISIONS: raise ValueError("unknown gold_decision")
+    if c["gold_decision"]=="accept" and not c["shared_basis"]: raise ValueError("accept decision requires explicit shared_basis")
     if c["gold_decision"]=="conditional" and not c["scope_conditions"]: raise ValueError("conditional decision requires explicit scope_conditions")
     if c["gold_decision"]=="abstain" and len(c["gold_rationale"].strip())<20: raise ValueError("abstain rationale must explain unresolved uncertainty")
     if c["source_status"]=="synthetic_fixture" and not any(x.startswith("fixture:") for x in c["evidence_refs"]): raise ValueError("synthetic fixtures require fixture: evidence refs")
@@ -44,15 +45,24 @@ def validate_dataset(cases:Sequence[Mapping])->None:
     ids=set()
     for c in cases:
         validate_case(c)
+        if c["split_group"] not in {"train","dev","test","exploratory","holdout"}: raise ValueError("split_group must be train/dev/test/exploratory/holdout")
         if c["case_id"] in ids: raise ValueError("case_id values must be globally unique")
         ids.add(c["case_id"])
 def validate_prediction(p:Mapping)->None:
     if not isinstance(p,Mapping) or set(p)!={"case_id","decision"}: raise ValueError("prediction requires exactly case_id and decision")
     if not isinstance(p["case_id"],str) or not p["case_id"].strip(): raise ValueError("prediction case_id must be non-empty")
     if not isinstance(p["decision"],str) or p["decision"] not in DECISIONS: raise ValueError("unknown prediction decision")
-def evaluate_predictions(cases:Sequence[Mapping],predictions:Sequence[Mapping])->dict:
-    """Score submitted labels against gold; absent outputs count as abstain."""
-    validate_dataset(cases); pred={}
+def evaluate_predictions(cases:Sequence[Mapping],predictions:Sequence[Mapping],*,allow_fixture_expected=False)->dict:
+    """Score adjudicated gold; fixture labels require explicit opt-in; pending labels are never scoreable."""
+    validate_dataset(cases)
+    statuses={c["label_status"] for c in cases}
+    if "pending_review" in statuses: raise ValueError("pending_review cases cannot be scored as gold")
+    if "fixture_expected" in statuses and not allow_fixture_expected:
+        raise ValueError("fixture_expected labels require allow_fixture_expected=True and are not human gold")
+    if len(statuses)>1: raise ValueError("do not mix fixture and adjudicated label populations in one score")
+    evaluation_basis=next(iter(statuses))
+    if evaluation_basis not in {"fixture_expected","adjudicated"}: raise ValueError("unsupported evaluation basis")
+    pred={}
     for p in predictions:
         validate_prediction(p)
         if p["case_id"] in pred: raise ValueError("duplicate prediction case_id")
@@ -91,7 +101,7 @@ def evaluate_predictions(cases:Sequence[Mapping],predictions:Sequence[Mapping])-
         return result
     answered=sum(pred.get(c["case_id"],"abstain")!="abstain" for c in cases)
     selective_errors=sum(pred.get(c["case_id"],"abstain")!=c["gold_decision"] and pred.get(c["case_id"],"abstain")!="abstain" for c in cases)
-    return {"n":n,"accuracy":correct/n,"macro_f1":sum(x["f1"] for x in metrics.values())/len(labels),
+    return {"n":n,"evaluation_basis":evaluation_basis,"accuracy":correct/n,"macro_f1":sum(x["f1"] for x in metrics.values())/len(labels),
             "per_class":metrics,"confusion_matrix":matrix,
             "missing_predictions":sum(c["case_id"] not in pred for c in cases),
             "abstention_coverage":1-answered/n,
