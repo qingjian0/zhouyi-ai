@@ -40,7 +40,7 @@ class NoveltyDiscoveryTests(unittest.TestCase):
             )
         with self.assertRaisesRegex(ValueError, "known signatures"):
             propose_novel_structures(
-                self.residuals, known_signatures=((("relation", "x", "y"), ("bad",)),)
+                self.residuals, known_signatures=((("z", "x", "y"), ("a", "x", "y")),)
             )
 
     def test_single_domain_or_single_support_does_not_pass_default_threshold(self):
