@@ -1018,5 +1018,209 @@
     "label_status": "fixture_expected",
     "reviewers": [],
     "split_group": "test"
+  },
+  {
+    "case_id": "dyn-031",
+    "source_lineage": [
+      "fixture:dyn-031"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Properties of components do not determine a combined system when interaction effects are unobserved.",
+    "relation_families": [
+      "process_mechanism"
+    ],
+    "shared_basis": [
+      "known component properties"
+    ],
+    "non_shared_basis": [
+      "unobserved interaction terms"
+    ],
+    "scope_conditions": [
+      "combination-level evidence required"
+    ],
+    "required_invariants": [
+      "component properties are not additive by default"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:dyn-031"
+    ],
+    "independence_group": "fixture-group-dyn-031",
+    "gold_decision": "abstain",
+    "gold_rationale": "Synthetic expected label for non-monotonic composition, scale, locality, and sequence boundary testing; not a verified historical or scientific fact.",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "test"
+  },
+  {
+    "case_id": "dyn-032",
+    "source_lineage": [
+      "fixture:dyn-032"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "A category may persist across scale while a capability claim fails to scale.",
+    "relation_families": [
+      "structural"
+    ],
+    "shared_basis": [
+      "shared category membership"
+    ],
+    "non_shared_basis": [
+      "different scale and capability thresholds"
+    ],
+    "scope_conditions": [
+      "separate taxonomic membership from quantitative capability"
+    ],
+    "required_invariants": [
+      "category invariance does not imply capability invariance"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:dyn-032"
+    ],
+    "independence_group": "fixture-group-dyn-032",
+    "gold_decision": "conditional",
+    "gold_rationale": "Synthetic expected label for non-monotonic composition, scale, locality, and sequence boundary testing; not a verified historical or scientific fact.",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "test"
+  },
+  {
+    "case_id": "dyn-033",
+    "source_lineage": [
+      "fixture:dyn-033"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "A local feature alone does not establish a whole-object classification.",
+    "relation_families": [
+      "morphological"
+    ],
+    "shared_basis": [
+      "one local feature match"
+    ],
+    "non_shared_basis": [
+      "whole-object evidence absent"
+    ],
+    "scope_conditions": [
+      "whole-object classification requires broader evidence"
+    ],
+    "required_invariants": [
+      "local feature is not sufficient proxy"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:dyn-033"
+    ],
+    "independence_group": "fixture-group-dyn-033",
+    "gold_decision": "reject",
+    "gold_rationale": "Synthetic expected label for non-monotonic composition, scale, locality, and sequence boundary testing; not a verified historical or scientific fact.",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "test"
+  },
+  {
+    "case_id": "dyn-034",
+    "source_lineage": [
+      "fixture:dyn-034"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "The same actions in a different order may produce a different outcome.",
+    "relation_families": [
+      "temporal"
+    ],
+    "shared_basis": [
+      "same action set"
+    ],
+    "non_shared_basis": [
+      "different sequence order"
+    ],
+    "scope_conditions": [
+      "ordered process and conditions must be represented"
+    ],
+    "required_invariants": [
+      "unordered action set loses sequence information"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:dyn-034"
+    ],
+    "independence_group": "fixture-group-dyn-034",
+    "gold_decision": "conditional",
+    "gold_rationale": "Synthetic expected label for non-monotonic composition, scale, locality, and sequence boundary testing; not a verified historical or scientific fact.",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "test"
+  },
+  {
+    "case_id": "dyn-035",
+    "source_lineage": [
+      "fixture:dyn-035"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "A conclusion may reverse when dose, site, or environmental conditions change.",
+    "relation_families": [
+      "process_mechanism"
+    ],
+    "shared_basis": [
+      "similar intervention label"
+    ],
+    "non_shared_basis": [
+      "dose, site, and context not aligned"
+    ],
+    "scope_conditions": [
+      "condition alignment or intervention evidence required"
+    ],
+    "required_invariants": [
+      "intervention name alone does not fix treatment"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:dyn-035"
+    ],
+    "independence_group": "fixture-group-dyn-035",
+    "gold_decision": "abstain",
+    "gold_rationale": "Synthetic expected label for non-monotonic composition, scale, locality, and sequence boundary testing; not a verified historical or scientific fact.",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "test"
+  },
+  {
+    "case_id": "dyn-036",
+    "source_lineage": [
+      "fixture:dyn-036"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "A combined outcome cannot be predicted by summing isolated component effects without interaction testing.",
+    "relation_families": [
+      "process_mechanism"
+    ],
+    "shared_basis": [
+      "isolated component effects"
+    ],
+    "non_shared_basis": [
+      "joint interaction effect unknown"
+    ],
+    "scope_conditions": [
+      "joint condition evaluation required"
+    ],
+    "required_invariants": [
+      "no assumed linear superposition"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:dyn-036"
+    ],
+    "independence_group": "fixture-group-dyn-036",
+    "gold_decision": "abstain",
+    "gold_rationale": "Synthetic expected label for non-monotonic composition, scale, locality, and sequence boundary testing; not a verified historical or scientific fact.",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "test"
   }
 ]
