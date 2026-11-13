@@ -2867,5 +2867,95 @@
       "analogical_argument",
       "rhetorical_analogy"
     ]
+  },
+  {
+    "record_id": "huainanzi-shuolin-analogy-nontransfer-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "淮南子·说林训",
+      "traditional_authority": "传统题署刘安及门客编纂；具体篇章层次与编纂过程仍需学术考辨",
+      "composition_period": "西汉时期，包含不同材料层次",
+      "genre": "杂家子书与譬喻论说"
+    },
+    "period": "qin_han",
+    "source_type": "classical_text",
+    "tradition": [
+      "两汉诸子",
+      "类推边界",
+      "物类与功能"
+    ],
+    "witness": {
+      "witness_id": "ctext-huainanzi-shuolin",
+      "edition_or_database": "中国哲学书电子化计划《淮南子·说林训》数字文本；需与可靠点校本及影印本复核",
+      "url": "https://ctext.org/huainanzi/shuo-lin-xun/zhs",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台及转录许可另行核验"
+    },
+    "locator": {
+      "chapter": "说林训",
+      "section_or_line": "见物同，而用之异；人食礜石而死，蚕食之而不饥；鱼食巴菽而死，鼠食之而肥；类不可必推"
+    },
+    "text": "柳下惠见饴，曰可以养老；盗跖见饴，曰可以黏牡；见物同，而用之异。……人食礜石而死，蚕食之而不饥；鱼食巴菽而死，鼠食之而肥；类不可必推。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "huainanzi-shuolin-analogy-nontransfer-001",
+        "claim_kind": "textual_observation",
+        "subject": "同一物在不同主体处的用途与效应",
+        "predicate": "不能仅凭对象相同就推定用途或结果相同",
+        "object": "主体种类、用途与作用条件不同，会限制类推迁移",
+        "interpretive_note": "《说林训》先举柳下惠与盗跖见饴而用途判断不同，再举不同生物对同一食物的不同反应，归结为“类不可必推”。这段材料直接限制由表面同物推断同用、同效的做法；具体古代物性记载不应未经现代验证就当作生物学事实。",
+        "scope": "限于《说林训》该段关于物类、用途和效应差异的论说；不将其归纳为所有类别推理都无效。",
+        "relation_type": "subject_conditioned_function",
+        "xiang_domain": "主体差异与功能迁移边界",
+        "relation_family": "functional",
+        "shared_basis": [
+          "不同主体面对同一物或同一外部对象"
+        ],
+        "non_shared_basis": [
+          "主体种类、用途目标及生理/情境条件不同"
+        ],
+        "scope_conditions": [
+          "迁移功能或结果前须核验主体类型",
+          "同一对象不保证不同主体具有同一用途与效应",
+          "古代自然知识主张须与现代经验验证分开"
+        ],
+        "causal_status": "unassessed",
+        "conditions": [
+          "主体类型和作用情境需显式记录"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed",
+        "reasoning_operations": [
+          "compare",
+          "identify_difference",
+          "map_function",
+          "test_counterexample",
+          "refuse_transfer"
+        ]
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引与来源元数据。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "数字转录尚未与可靠点校本、影印本逐字校勘。",
+      "有关礜石、巴菽等物性的历史记载只作为古代文本主张保存，不视为已验证现代生物学事实。"
+    ],
+    "concept_tags": [
+      "analogy_method",
+      "analogy_limit",
+      "classification",
+      "natural_knowledge"
+    ],
+    "method_families": [
+      "analogical_argument",
+      "phenomenological_observation"
+    ]
   }
 ]
