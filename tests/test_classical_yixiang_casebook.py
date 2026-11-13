@@ -76,12 +76,16 @@ class ClassicalYixiangCasebookTests(unittest.TestCase):
         self.assertIn("现代经验意义", case["conclusion_scope"])
         yingtong_source = next(source for source in self.book["sources"] if source["source_id"] == "src_lushi_yingtong")
         self.assertIn("不作为现代自然因果事实", yingtong_source["witness_limit"])
+        self.assertTrue(any("后期墨家" in item for item in case["alternative_readings"]))
 
     def test_chunqiu_fanlu_case_does_not_transfer_physical_resonance_as_proof_of_political_sense(self):
         case = next(item for item in self.book["cases"] if item["case_id"] == "xy_020")
         self.assertEqual(case["source_id"], "src_chunqiu_fanlu")
         self.assertIn("causal_critique", case["operation"])
         self.assertTrue(any("琴瑟共鸣" in item and "祥瑞" in item for item in case["counterexample_or_boundary"]))
+        fanlu_source = next(source for source in self.book["sources"] if source["source_id"] == "src_chunqiu_fanlu")
+        self.assertIn("未必全出董仲舒", fanlu_source["witness_limit"])
+        self.assertIn("楼钥", fanlu_source["witness_limit"])
         self.assertIn("篇章形成", self.book["sources"][-1]["witness_limit"])
 
     def test_all_case_operations_are_allowed_by_schema(self):
