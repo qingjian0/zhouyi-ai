@@ -15,6 +15,9 @@ class CorpusTests(unittest.TestCase):
  def test_concept_tags_are_required_and_controlled(self):
   r=dict(self.records[0]); r["concept_tags"]=["invented_universal_category"]
   with self.assertRaisesRegex(ValueError,"concept_tags"): validate_record(r)
+ def test_method_families_are_required_and_controlled(self):
+  r=dict(self.records[0]); r["method_families"]=["ancient_universal_logic"]
+  with self.assertRaisesRegex(ValueError,"method_families"): validate_record(r)
  def test_exact_locator_required(self):
   r=dict(self.records[0]); r["locator"]={"chapter":"系辞上传"}
   with self.assertRaisesRegex(ValueError,"exact chapter"): validate_record(r)
