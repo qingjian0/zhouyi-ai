@@ -31,6 +31,13 @@ class BenchmarkContractTests(unittest.TestCase):
  def test_lineage_leakage_detected(self):
   cs=[make_case("a",lineage=("shared-work-edition",),split="train"),make_case("b",lineage=("shared-work-edition",),split="test")]
   self.assertEqual(group_leakage(cs)["leakage_groups"],["shared-work-edition"])
+ def test_malformed_enum_types_raise_value_error(self):
+  for field in ("source_status","causal_status","gold_decision"):
+   c=make_case("a"); c[field]=[]
+   with self.subTest(field=field):
+    with self.assertRaises(ValueError): validate_case(c)
+  with self.assertRaises(ValueError):
+   evaluate_predictions([make_case("a")],[{"case_id":"a","decision":[]}])
  def test_gold_requires_two_reviewers(self):
   c=make_case("a"); c["reviewers"]=["only-one"]
   with self.assertRaisesRegex(ValueError,"two independent reviewers"): validate_case(c)
