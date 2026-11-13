@@ -10,6 +10,8 @@ class InterpretiveFramework(str, Enum):
     UNIFIED_ANALOGY = "unified_analogy"
     RHETORICAL_PRAGMATIC = "rhetorical_pragmatic"
     TEXTUAL_PHILOLOGICAL = "textual_philological"
+    GENERAL_INFERENCE = "general_inference"
+    ETHICAL_PRACTICE = "ethical_practice"
     OTHER = "other"
 
 class InterpretationSourceLayer(str, Enum):
