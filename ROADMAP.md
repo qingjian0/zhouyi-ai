@@ -23,6 +23,7 @@
 | P1-H | 角色—机制—条件联合迁移 | 角色双射、关系拓扑/极性/方向、机制步骤、条件变换、证据与反例门禁 | M13 v0.1 原型、21 项专项测试与专题文档已提交；最新 head #ad837f3 的完整 CI run #43481065110 成功；仅作范围内结构对应审计，不声称因果迁移 |
 | P1-I | 文本见证谱系与主张证据审计 | 见证来源 DAG、转引依赖、共同祖先、证据立场、人工审查状态与冲突保留 | M14 v0.1 原型、26 项专项测试与专题文档已提交；最新 PR head #8d1fc27 的完整 CI run #43485420130 成功；只审计声明谱系，不认证真伪或语义蕴含 |
 | P1-J | 文本片段—类象主张语义范围审计 | 主张原子化、片段覆盖范围、上下文适配、正文/注释/引文分层、异文保留与反例审计 | M15 v0.1 原型、24 项专项测试与专题文档已提交；新增未决证据门禁，阻止未审查证据与完整支持并存时误报完整覆盖；补强 head 的 CI 待验证（此前 head #9a743ea 的完整 CI run #43488706432 成功）；显式记录正文/注释/引文等文本层，不自动判断语义蕴含或真理 |
+| P1-K | 古典论辩术语的竞争解释审计 | 解释史分层、原典锚点、逻辑分类/论辩过程/统一类比框架竞争、共享依据与解释独立性边界 | M16 v0.1 解释竞争登记原型、11 项专项测试与专题文档已提交；不选胜者、不固化古典术语与现代逻辑类别的一对一映射；CI 待验证 |
 | P1-EVAL | 理论贡献验证 | 消融、跨域迁移、错误类比拒绝、OOD 与成本评估 | M5/M6/M7 测试已接入；修正 M6 测试断言后，最新 CI 待验证；此前 head 曾因断言不匹配失败 |
 | P1-EVAL-M8 | 类象有效性与迁移基准 | 独立 case schema、四态裁决 gold、来源谱系泄漏检测、分层指标 | M8 v0.1 schema/validator、四态评估、关系族/来源状态分层指标、来源谱系与独立性分组泄漏报告、gold 资格门禁、命令行报告入口及 47 条 synthetic fixtures 已提交；run #43458221635 的 403 项单元测试及 E01/E02 全部步骤成功；人工 gold 标注未开始 |
 | P2 | 通用模型与工程 | 语言生成、训练优化、加速、部署 | 按核心研究需要推进 |
@@ -44,6 +45,7 @@
 13. M13：角色—机制—条件联合迁移审计（见 `docs/YIXIANG_M13_ROLE_CONDITIONED_TRANSFER_V0_1.md`、`prototype/yixiang_role_conditioned_transfer.py`）。
 14. M14：文本见证谱系与类象主张证据审计（见 `docs/YIXIANG_M14_EVIDENCE_PROVENANCE_V0_1.md`、`prototype/yixiang_evidence_provenance.py`）。
 15. M15：文本片段—类象主张语义范围审计（见 `docs/YIXIANG_M15_PASSAGE_CLAIM_SCOPE_AUDIT_V0_1.md`、`prototype/yixiang_passage_claim_audit.py`）。
+16. M16：《墨子·小取》“七事”解释竞争与术语映射防固化（见 `docs/YIXIANG_M16_INTERPRETATION_COMPETITION_V0_1.md`、`prototype/yixiang_interpretation_competition.py`）。
 
 M5/M6 当前均为透明规则原型；M6 的“新”只表示不在调用方提供的已知签名集合中，不代表发现了客观新规律。
 
