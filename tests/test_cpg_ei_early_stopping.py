@@ -7,7 +7,9 @@ from pathlib import Path
 from prototype.cpg_ei_generic_learner import RelationalTransitionModel, TransitionExample
 from prototype.cpg_ei_mixed_operator_data import generate_mixed_corpus
 from prototype.cpg_ei_early_stopping import (
-    fit_with_early_stopping, run_early_stopping_baseline, write_json_report,
+    fit_with_early_stopping, fit_with_early_stopping_scalar,
+    fit_with_early_stopping_vectorized, run_early_stopping_baseline,
+    write_json_report,
 )
 
 
@@ -46,6 +48,48 @@ class TestEarlyStoppingBaseline(unittest.TestCase):
             self.assertEqual(
                 left["best_development_log_loss"], right["best_development_log_loss"]
             )
+
+
+    def test_vectorized_optimizer_matches_scalar_reference(self):
+        corpus = generate_mixed_corpus(
+            family_count=5, input_dim=4, output_dim=3, seed=533
+        )
+        family_id = sorted({row["family_id"] for row in corpus["rows"]})[0]
+        rows = [row for row in corpus["rows"] if row["family_id"] == family_id]
+        training = [
+            TransitionExample(tuple(row["state"]), tuple(row["target"]))
+            for row in rows if row["state_split"] == "train"
+        ]
+        development = [
+            TransitionExample(tuple(row["state"]), tuple(row["target"]))
+            for row in rows if row["state_split"] == "development"
+        ]
+        scalar_model = RelationalTransitionModel.create(4, 3, 1, 4)
+        vector_model = RelationalTransitionModel.create(4, 3, 1, 4)
+        scalar = fit_with_early_stopping_scalar(
+            scalar_model, training, development,
+            max_epochs=24, patience=8, learning_rate=0.1, l2=1e-4,
+        )
+        vector = fit_with_early_stopping_vectorized(
+            vector_model, training, development,
+            max_epochs=24, patience=8, learning_rate=0.1, l2=1e-4,
+        )
+        self.assertEqual(scalar["best_epoch"], vector["best_epoch"])
+        self.assertEqual(scalar["epochs_run"], vector["epochs_run"])
+        self.assertAlmostEqual(
+            scalar["best_development_log_loss"],
+            vector["best_development_log_loss"],
+            places=9,
+        )
+        for left_head, right_head in zip(scalar_model.weights, vector_model.weights):
+            for left, right in zip(left_head, right_head):
+                self.assertAlmostEqual(left, right, places=8)
+        for example in development:
+            self.assertEqual(
+                scalar_model.predict(example.state),
+                vector_model.predict(example.state),
+            )
+        self.assertEqual(vector["optimizer_backend"], "numpy-vectorized-float64")
 
     def test_empty_development_is_rejected(self):
         model = RelationalTransitionModel.create(2, 1, 1, 2)
