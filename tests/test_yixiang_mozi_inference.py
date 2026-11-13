@@ -18,6 +18,7 @@ class MoziInferenceTests(unittest.TestCase):
             material_differences=("different material context",),
             scope_conditions=("same task and reference frame",),
             supporting_refs=("text:xiaoqu:section-3",),
+            predicate_relation=RelationStatus.SAME,
         )
         values.update(overrides)
         return MoziTransferClaim(**values)
@@ -37,6 +38,18 @@ class MoziInferenceTests(unittest.TestCase):
         result = assess_mozi_transfer(self.claim(shared_basis=()))
         self.assertEqual(result.decision, TransferDecision.REFUSE)
         self.assertIn("NO_EXPLICIT_SHARED_BASIS", result.reason_codes)
+
+    def test_unknown_predicate_relation_abstains(self):
+        result = assess_mozi_transfer(self.claim(
+            predicate_relation=RelationStatus.UNKNOWN,
+        ))
+        self.assertEqual(result.decision, TransferDecision.ABSTAIN)
+        self.assertIn("PREDICATE_RELATION_UNIDENTIFIED", result.reason_codes)
+
+    def test_material_differences_must_be_explicitly_assessed(self):
+        result = assess_mozi_transfer(self.claim(material_differences=()))
+        self.assertEqual(result.decision, TransferDecision.ABSTAIN)
+        self.assertIn("MATERIAL_DIFFERENCES_NOT_RECORDED", result.reason_codes)
 
     def test_same_predicate_label_with_different_scope_abstains(self):
         result = assess_mozi_transfer(self.claim(
