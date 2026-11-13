@@ -24,6 +24,10 @@ class ClassicalYixiangCasebookTests(unittest.TestCase):
         self.assertTrue({"周易·系辞下传", "墨子", "荀子", "公孙龙子", "淮南子", "论衡"}.issubset(works))
         self.assertTrue(any(source["chapter"] == "要略" for source in self.book["sources"]))
         self.assertGreaterEqual(len(self.book["cases"]), 11)
+        self.assertEqual(len(self.book["cases"]), 16)
+        self.assertTrue({"吕氏春秋", "淮南子"}.issubset(works))
+        self.assertTrue(any(source["chapter"] == "恃君览·别类" for source in self.book["sources"]))
+        self.assertTrue(any(source["chapter"] == "说山训" for source in self.book["sources"]))
 
     def test_non_aggression_case_separates_harm_progression_and_quantity_scaling(self):
         case = next(item for item in self.book["cases"] if item["case_id"] == "xy_011")
@@ -41,6 +45,17 @@ class ClassicalYixiangCasebookTests(unittest.TestCase):
         self.assertTrue(any("天官" in premise for premise in case["premises"]))
         self.assertTrue(any("颜色和轮廓上相同" in boundary and "不同个体" in boundary for boundary in case["counterexample_or_boundary"]))
         self.assertIn("外观或名称", case["conclusion_scope"])
+
+    def test_bielei_and_shuoshan_cases_preserve_transfer_boundaries(self):
+        by_id = {case["case_id"]: case for case in self.book["cases"]}
+        self.assertEqual(by_id["xy_013"]["source_id"], "src_lushi_bielei")
+        self.assertTrue(any("组合" in item for item in by_id["xy_013"]["counterexample_or_boundary"]))
+        self.assertEqual(by_id["xy_014"]["source_id"], "src_huainan_shuoshan")
+        self.assertTrue(any("局部" in item for item in by_id["xy_014"]["counterexample_or_boundary"]))
+        self.assertEqual(by_id["xy_015"]["source_id"], "src_huainan_shuoshan")
+        self.assertTrue(any("顺序" in item for item in by_id["xy_015"]["counterexample_or_boundary"]))
+        self.assertEqual(by_id["xy_016"]["source_id"], "src_huainan_shuoshan")
+        self.assertTrue(any("医学" in item for item in by_id["xy_016"]["counterexample_or_boundary"]))
 
     def test_no_candidate_excerpt_is_misrepresented_as_verified(self):
         for case in self.book["cases"]:
