@@ -39,4 +39,14 @@ class CorpusTests(unittest.TestCase):
  def test_duplicate_claim_id_rejected(self):
   r=dict(self.records[0]); r["claims"]=[dict(r["claims"][0]),dict(r["claims"][0])]
   with self.assertRaisesRegex(ValueError,"duplicate"): validate_record(r)
+ def test_optional_analogy_boundary_fields_are_validated(self):
+  r=dict(self.records[0]); r["claims"]=[dict(r["claims"][0])]
+  r["claims"][0].update({"relation_family":"functional","causal_status":"not_claimed","shared_basis":["shared role"],"non_shared_basis":["different mechanism"],"scope_conditions":["textual context"]})
+  validate_record(r)
+  r["claims"][0]["relation_family"]="made_up"
+  with self.assertRaisesRegex(ValueError,"relation_family"): validate_record(r)
+ def test_unknown_causal_status_is_rejected(self):
+  r=dict(self.records[0]); r["claims"]=[dict(r["claims"][0])]
+  r["claims"][0]["causal_status"]="proven_cause"
+  with self.assertRaisesRegex(ValueError,"causal_status"): validate_record(r)
 if __name__=="__main__": unittest.main()
