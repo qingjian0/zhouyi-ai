@@ -33,7 +33,7 @@ jobs:
       - name: Install optional acceleration dependency
         run: python -m pip install "numpy>=1.26"
       - name: Run numerical parity and contract tests
-        run: python -m unittest tests.test_cpg_ei_numpy_learner -v
+        run: python -m unittest tests.test_cpg_ei_numpy_learner tests.test_cpg_ei_numpy_hybrid_integration -v
       - name: Run fixed 8-family hybrid benchmark
         run: python -m prototype.cpg_ei_numpy_hybrid_benchmark --output /tmp/cpg-ei-numpy-hybrid.json
       - name: Upload machine-readable benchmark
