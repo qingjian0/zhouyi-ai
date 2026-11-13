@@ -15,6 +15,19 @@ class M16Tests(unittest.TestCase):
         self.assertEqual(result.status,CompetitionStatus.COMPETING_FRAMEWORKS)
         self.assertIsNone(result.winner_position_id)
         self.assertFalse(result.interpretive_truth_established)
+    def test_general_inference_framework_is_distinct_from_analogy_only(self):
+        case=InterpretationCase("M16","What is tuilei?",("mozi-xiaoqu","mozi-jingxia"),(
+            pos("analogy","Analogy-only scholar",2000,InterpretationSourceLayer.POST_QING_SCHOLARSHIP,InterpretiveFramework.UNIFIED_ANALOGY,("mozi-xiaoqu",)),
+            pos("jin","Jin Rongdong",2022,InterpretationSourceLayer.CONTEMPORARY_RESEARCH,InterpretiveFramework.GENERAL_INFERENCE,("mozi-jingxia",))))
+        result=assess_interpretation_competition(case)
+        self.assertEqual(result.status,CompetitionStatus.COMPETING_FRAMEWORKS)
+        self.assertEqual(result.unique_textual_basis_refs,("mozi-jingxia","mozi-xiaoqu"))
+
+    def test_ethical_practice_is_a_separate_interpretive_axis(self):
+        case=InterpretationCase("M16","Tuilei in practice",("mozi-xiaoqu",),(
+            pos("ethics","Li Wei",2016,InterpretationSourceLayer.CONTEMPORARY_RESEARCH,InterpretiveFramework.ETHICAL_PRACTICE),))
+        self.assertEqual(assess_interpretation_competition(case).frameworks,(InterpretiveFramework.ETHICAL_PRACTICE,))
+
     def test_2024_unified_analogy_framework_is_preserved(self):
         case=InterpretationCase("M16","Seven dialectical terms",("mozi-xiaoqu",),(
             pos("zhou","Zhou Boqun",2024,InterpretationSourceLayer.CONTEMPORARY_RESEARCH,InterpretiveFramework.UNIFIED_ANALOGY),))
