@@ -44,6 +44,12 @@ class TemporalBenchmarkTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             generate_temporal_benchmark(sample_interval=float("nan"))
 
+    def test_delayed_signal_respects_configured_lag(self):
+        result = generate_temporal_benchmark(sample_interval=1.0, delay=2.0)
+        by_time = {item.time: item for item in result.observations}
+        self.assertEqual(by_time[11.0].delayed_signal, 0.0)
+        self.assertEqual(by_time[12.0].delayed_signal, 1.0)
+
     def test_pairwise_event_order_accuracy(self):
         self.assertEqual(event_order_accuracy(("a", "b", "c"), ("a", "b", "c")), 1.0)
         self.assertAlmostEqual(event_order_accuracy(("b", "a", "c"), ("a", "b", "c")), 2 / 3)
