@@ -60,6 +60,7 @@ class RelationTransferContract:
     unresolved_defeaters: Tuple[str, ...] = ()
     causal_transfer: bool = False
     causal_evidence_refs: Tuple[str, ...] = ()
+    context_transforms: Tuple[ContextTransform, ...] = ()
 
 @dataclass(frozen=True)
 class RelationTransferAssessment:
