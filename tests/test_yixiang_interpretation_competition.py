@@ -18,7 +18,7 @@ class M16Tests(unittest.TestCase):
     def test_general_inference_framework_is_distinct_from_analogy_only(self):
         case=InterpretationCase("M16","What is tuilei?",("mozi-xiaoqu","mozi-jingxia"),(
             pos("analogy","Analogy-only scholar",2000,InterpretationSourceLayer.POST_QING_SCHOLARSHIP,InterpretiveFramework.UNIFIED_ANALOGY,("mozi-xiaoqu",)),
-            pos("jin","Jin Rongdong",2022,InterpretationSourceLayer.CONTEMPORARY_RESEARCH,InterpretiveFramework.GENERAL_INFERENCE,("mozi-jingxia",))))
+            pos("jin","Jin Rongdong",None,InterpretationSourceLayer.CONTEMPORARY_RESEARCH,InterpretiveFramework.GENERAL_INFERENCE,("mozi-jingxia",))))
         result=assess_interpretation_competition(case)
         self.assertEqual(result.status,CompetitionStatus.COMPETING_FRAMEWORKS)
         self.assertEqual(result.unique_textual_basis_refs,("mozi-jingxia","mozi-xiaoqu"))
@@ -61,6 +61,11 @@ class M16Tests(unittest.TestCase):
         b=pos("b","B",2010,InterpretationSourceLayer.POST_QING_SCHOLARSHIP,InterpretiveFramework.DIALECTICAL_PROCESS,("mozi-xiaoqu","variant-b"))
         result=assess_interpretation_competition(InterpretationCase("M16","case",("mozi-xiaoqu","variant-a","variant-b"),(a,b)))
         self.assertEqual(result.unique_textual_basis_refs,("variant-a","variant-b"))
+    def test_unverified_preprint_year_can_remain_unknown(self):
+        a=pos("preprint","Jin Rongdong",None,InterpretationSourceLayer.CONTEMPORARY_RESEARCH,InterpretiveFramework.GENERAL_INFERENCE)
+        result=assess_interpretation_competition(InterpretationCase("M16","case",("mozi-xiaoqu",),(a,)))
+        self.assertEqual(result.status,CompetitionStatus.SINGLE_POSITION)
+
     def test_year_and_framework_types_validated(self):
         a=pos("a","A",2000,InterpretationSourceLayer.POST_QING_SCHOLARSHIP,InterpretiveFramework.OTHER)
         bad=InterpretationPosition(a.position_id,a.author,a.work,True,a.source_layer,a.framework,a.target_terms,a.interpretation,a.scope,a.textual_basis_refs,a.scholarship_refs,a.caveats)
