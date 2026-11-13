@@ -63,17 +63,26 @@ def run_m7(inputs: M7Input) -> M7Result:
             raise ValueError(f"{name} must be a tuple")
     if not inputs.candidates:
         raise ValueError("at least one M3 candidate is required")
-    if not inputs.priors:
-        raise ValueError("at least one M5 prior is required")
-
     arbitration = arbitrate(inputs.candidates)
-    candidate_ids = {candidate.candidate_id for candidate in inputs.candidates}
-    prior_id_list = [prior.hypothesis_id for prior in inputs.priors]
+    eligible_candidate_ids = {
+        assessment.candidate_id for assessment in arbitration.assessments
+        if assessment.status.value != "rejected"
+    }
+    prior_id_list = []
+    prior_probability_sum = 0.0
+    for prior in inputs.priors:
+        if not isinstance(prior, HypothesisPrior):
+            raise ValueError("priors must contain HypothesisPrior values")
+        prior.validate()
+        prior_id_list.append(prior.hypothesis_id)
+        prior_probability_sum += float(prior.probability)
     prior_ids = set(prior_id_list)
     if len(prior_id_list) != len(prior_ids):
         raise ValueError("M5 prior hypothesis ids must be unique")
-    if candidate_ids != prior_ids:
-        raise ValueError("M5 prior hypothesis ids must exactly match M3 candidate ids")
+    if eligible_candidate_ids != prior_ids:
+        raise ValueError("M5 prior hypothesis ids must exactly match non-rejected M3 candidate ids")
+    if inputs.priors and abs(prior_probability_sum - 1.0) > 1e-9:
+        raise ValueError("M5 prior probabilities must sum to 1")
 
     for pair in inputs.mapping_to_candidate:
         if (not isinstance(pair, tuple) or len(pair) != 2
@@ -117,7 +126,7 @@ def run_m7(inputs: M7Input) -> M7Result:
     # M5 is used when M3 leaves competing, contested, or underdetermined
     # explanations. It ranks prospective observations only.
     observation_selection = None
-    if arbitration.unresolved and inputs.observation_candidates:
+    if arbitration.unresolved and inputs.observation_candidates and inputs.priors:
         observation_selection = select_observation(
             inputs.priors, inputs.observation_candidates
         )
