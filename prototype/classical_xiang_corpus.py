@@ -1,6 +1,8 @@
 """Source/provenance structure validation for classical xiang corpus records.
 This does not authenticate quotations or settle dating/interpretation."""
 from collections.abc import Mapping, Sequence
+from datetime import date
+from urllib.parse import urlsplit
 PERIODS={"pre_qin","qin_han","wei_jin_northern_southern","sui_tang","song_yuan","ming","qing_pre_1912","modern_post_1912","uncertain"}
 SOURCES={"classical_text","historical_commentary","bibliographic_record","modern_scholarship","field_observation","research_hypothesis","synthetic_fixture","model_generated"}
 TAGS=["observation","image_selection","analogy_method","analogy_limit","classification","correspondence","yin_yang","state_change","cosmology","sensory_classification","causal_inference_limit","metaphor","name_reality","ritual_institution","natural_knowledge","commentarial_exegesis"]
@@ -17,6 +19,11 @@ def validate_record(r: Mapping) -> None:
     w,src,loc=r["work"],r["witness"],r["locator"]
     if not isinstance(w,Mapping) or any(not isinstance(w.get(k),str) or not w[k].strip() for k in ("title","traditional_authority","composition_period","genre")): raise ValueError("incomplete work metadata")
     if not isinstance(src,Mapping) or any(not isinstance(src.get(k),str) or not src[k].strip() for k in ("witness_id","edition_or_database","url","access_date","witness_kind")): raise ValueError("incomplete witness metadata")
+    if src["witness_kind"] not in {"critical_edition","printed_edition","facsimile","digital_transcription","catalogue","secondary_transcription","unknown"}: raise ValueError("unknown witness_kind")
+    parsed_url=urlsplit(src["url"])
+    if parsed_url.scheme not in {"http","https"} or not parsed_url.netloc: raise ValueError("witness url must be an absolute HTTP(S) URL")
+    try: date.fromisoformat(src["access_date"])
+    except ValueError as exc: raise ValueError("access_date must be an ISO date") from exc
     if not isinstance(loc,Mapping) or any(not isinstance(loc.get(k),str) or not loc[k].strip() for k in ("chapter","section_or_line")): raise ValueError("exact chapter and section locator required")
     if r["text_status"] not in {"verified_against_witness","transcribed_unverified","ocr_unverified","paraphrase","quotation_fragment"}: raise ValueError("unknown text_status")
     claims=r["claims"]
