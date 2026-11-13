@@ -148,7 +148,9 @@
                 "contextual_constraint",
                 "multi_path_means_end",
                 "normative_argument",
-                "rhetoric"
+                "rhetoric",
+                "perception_grounding",
+                "identity_tracking"
               ]
             },
             "minItems": 1
