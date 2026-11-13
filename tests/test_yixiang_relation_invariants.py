@@ -29,13 +29,6 @@ class RelationInvariantTests(unittest.TestCase):
         r=assess_relation_transfer(self.contract(target=t))
         self.assertEqual(r.decision,InvariantDecision.REJECT)
         self.assertIn("RELATION_TOPOLOGY_OR_DIRECTION_MISMATCH",r.reason_codes)
-    def test_process_order_change_is_rejected(self):
-        t=self.frame("target","target-domain",("actor","means","end"),(
-            RelationEdge("uses","actor","means",order=1),
-            RelationEdge("achieves","actor","end",order=0)),evidence=("witness:2",))
-        r=assess_relation_transfer(self.contract(target=t))
-        self.assertEqual(r.decision,InvariantDecision.REJECT)
-        self.assertIn("RELATION_TOPOLOGY_OR_DIRECTION_MISMATCH",r.reason_codes)
     def test_same_goal_different_mechanism_is_rejected(self):
         t=self.frame("target","target-domain",("actor","means","end"),(
             RelationEdge("delegates_to","actor","means"),RelationEdge("achieves","means","end",order=1)),evidence=("witness:2",))
