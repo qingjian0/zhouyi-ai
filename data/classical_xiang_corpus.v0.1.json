@@ -3027,5 +3027,184 @@
       "analogical_argument",
       "phenomenological_observation"
     ]
+  },
+  {
+    "record_id": "xunzi-feixiang-appearance-inference-limit-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "荀子·非相篇",
+      "traditional_authority": "传统题署荀况；篇章传承与注释层次依校勘本复核",
+      "composition_period": "战国晚期，传本与后世编定层次仍需考辨",
+      "genre": "论辩篇章"
+    },
+    "period": "pre_qin",
+    "source_type": "classical_text",
+    "tradition": [
+      "先秦儒家",
+      "形相批判",
+      "类推边界"
+    ],
+    "witness": {
+      "witness_id": "wikisource-xunzi-feixiang",
+      "edition_or_database": "维基文库《荀子·非相篇》数字转录；另有国家图书馆藏本影印检索线索，须逐页核验",
+      "url": "https://zh.wikisource.org/zh-hans/荀子/非相篇",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台条款另行核验"
+    },
+    "locator": {
+      "chapter": "非相篇第五",
+      "section_or_line": "故相形不如论心，论心不如择术；形相虽恶而心术善，形相虽善而心术恶"
+    },
+    "text": "故相形不如论心，论心不如择术。……形相虽恶而心术善，无害为君子也；形相虽善而心术恶，无害为小人也。故长短、小大、善恶、形相，非吉凶也。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "xunzi-feixiang-appearance-inference-limit-001",
+        "claim_kind": "textual_observation",
+        "subject": "外在形相与人的吉凶、德行判断",
+        "predicate": "反对仅凭外貌形相推断人的德行或吉凶",
+        "object": "应转向论心与择术，外形与道德评价不能简单对应",
+        "interpretive_note": "《非相篇》批评以形状颜色推断吉凶妖祥的相人之术，提出“相形不如论心，论心不如择术”，并以形相与心术可能不一致作为论据。此处是对外观代理指标的批判，不应直接等同现代心理测量理论。",
+        "scope": "限于《非相篇》对相人之术的论辩；不据此否定所有可观察外在特征在具体任务中的预测价值。",
+        "relation_type": "appearance_to_character_inference",
+        "xiang_domain": "外观表征与内在属性推断边界",
+        "relation_family": "taxonomic",
+        "shared_basis": [
+          "外在形相常被用作判断人的线索"
+        ],
+        "non_shared_basis": [
+          "外观与心术/行为实践并非一一对应"
+        ],
+        "scope_conditions": [
+          "判断对象属性时必须检查代理特征的效度",
+          "应优先使用与目标属性直接相关的行为与实践证据",
+          "不得把外貌特征当作德行或命运的充分依据"
+        ],
+        "causal_status": "challenged",
+        "conditions": [
+          "目标属性须有直接相关证据"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed",
+        "reasoning_operations": [
+          "compare",
+          "identify_difference",
+          "test_counterexample",
+          "refuse_transfer"
+        ]
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引与来源元数据。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "数字转录尚未与国家图书馆影印本、可靠点校本逐字核对。",
+      "该记录只标注荀子对相人推断的批判，不扩展为现代心理学定论。"
+    ],
+    "method_families": [
+      "classification",
+      "analogical_argument"
+    ],
+    "concept_tags": [
+      "analogy_limit",
+      "classification",
+      "causal_inference_limit"
+    ]
+  },
+  {
+    "record_id": "xunzi-feixiang-yileidulei-temporal-analogy-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "荀子·非相篇",
+      "traditional_authority": "传统题署荀况；篇章传承与注释层次依校勘本复核",
+      "composition_period": "战国晚期，传本与后世编定层次仍需考辨",
+      "genre": "论辩篇章"
+    },
+    "period": "pre_qin",
+    "source_type": "classical_text",
+    "tradition": [
+      "先秦儒家",
+      "以类度类",
+      "历史推论"
+    ],
+    "witness": {
+      "witness_id": "wikisource-xunzi-feixiang",
+      "edition_or_database": "维基文库《荀子·非相篇》数字转录；另有国家图书馆藏本影印检索线索，须逐页核验",
+      "url": "https://zh.wikisource.org/zh-hans/荀子/非相篇",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台条款另行核验"
+    },
+    "locator": {
+      "chapter": "非相篇第五",
+      "section_or_line": "以人度人，以情度情，以类度类；古今一度，类不悖虽久同理"
+    },
+    "text": "以人度人，以情度情，以类度类。古今一度也。类不悖，虽久同理。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "xunzi-feixiang-yileidulei-temporal-analogy-001",
+        "claim_kind": "textual_observation",
+        "subject": "以类度类与古今推论",
+        "predicate": "以当前可考的人情与类别结构推度古代时，依赖相关类型和基本条件的连续性",
+        "object": "跨时代类推须说明哪些性质被假定为稳定，不能把所有历史情境都视为相同",
+        "interpretive_note": "《非相篇》在反驳古今人情全然不同的说法时，提出“以人度人，以情度情，以类度类”，并说“类不悖，虽久同理”。此处是特定论辩中的历史推度原则；它依赖人情与相关类别在目标维度上具有连续性，并不意味着时代制度、环境和具体事件完全不变。",
+        "scope": "限于《非相篇》古今人情与历史推度语境；跨时代迁移须另行核验制度、环境、技术和社会条件变化。",
+        "relation_type": "temporal_analogy",
+        "xiang_domain": "跨时代类推与不变量条件",
+        "relation_family": "temporal",
+        "shared_basis": [
+          "不同历史时期的人在特定人情维度上可被比较"
+        ],
+        "non_shared_basis": [
+          "制度、环境、技术、知识与社会结构可能发生显著变化"
+        ],
+        "scope_conditions": [
+          "必须明确跨时代推论所依赖的不变量",
+          "须控制制度和环境差异",
+          "历史类推只能在声明的维度和范围内成立"
+        ],
+        "causal_status": "not_claimed",
+        "conditions": [
+          "相关性质在目标维度上保持连续"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed",
+        "reasoning_operations": [
+          "compare",
+          "abstract_shared_basis",
+          "identify_difference",
+          "map_time",
+          "infer_by_analogy",
+          "refuse_transfer"
+        ]
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引与来源元数据。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "数字转录尚未与可靠点校本及影印本逐字校勘。",
+      "“古今一度”属于篇章论辩立场，项目将其作为待检验的跨时代类推假设，不视为无条件事实。"
+    ],
+    "method_families": [
+      "analogical_argument",
+      "comparative_exegesis"
+    ],
+    "concept_tags": [
+      "analogy_method",
+      "analogy_limit",
+      "classification",
+      "state_change"
+    ]
   }
 ]
