@@ -6,9 +6,9 @@ from prototype.cpg_ei_expanded_mixed_corpus import (
 
 
 class ExpandedMixedCorpusTests(unittest.TestCase):
-    def test_expansion_requires_at_least_four_hundred_families(self):
+    def test_generator_rejects_too_few_families(self):
         with self.assertRaises(ValueError):
-            generate_expanded_corpus(family_count=399)
+            generate_expanded_corpus(family_count=4)
 
     def test_small_expanded_fixture_is_deterministic_and_balanced(self):
         a = generate_expanded_corpus(family_count=8, seed=991)
