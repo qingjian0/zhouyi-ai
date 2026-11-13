@@ -66,6 +66,7 @@
 - [《墨子·大取》与《墨经》同异—类—故专题](docs/CLASSICAL_YIXIANG_MOZI_DAQU_MOJING_ANALYSIS_V0_1.md)
 - [《大取》《墨经》同异—类—故的多层判断结构 v0.1](docs/CLASSICAL_YIXIANG_MOZI_SAMENESS_BASIS_AND_GU_V0_1.md)
 - [《庄子·齐物论》视域转换、彼是互因与类象稳定性研究](docs/CLASSICAL_YIXIANG_ZHUANGZI_QIWULUN_VIEWPOINT_TRANSFER_V0_1.md)
+- [先秦至两汉类象的动态条件、视域与适用域研究 v0.2](docs/CLASSICAL_YIXIANG_DYNAMIC_CONTEXT_STANDPOINT_V0_2.md)
 - [《荀子·正名》天官—征知—同异—名实—化认知链研究](docs/CLASSICAL_YIXIANG_XUNZI_ZHENGMING_COGNITIVE_CHAIN_V0_1.md)
 - [《正名》认知链结构化图谱](data/xunzi_zhengming_cognitive_chain.v0.1.json)
 - [《正名》认知链 JSON Schema](schemas/xunzi-zhengming-cognitive-chain.schema.json)
