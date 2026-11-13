@@ -14,9 +14,9 @@
 | P0-H | 竞争类象与证据裁决 | 多假设保留、适用边界、未决机制、反例驱动更新 | M3 已实现证据分层、多维剖面、条件状态、反例保留及未决规则；概率校准、标注一致性与学习型裁决待开展 |
 | P1-A | 反事实与干预边界 | 条件变化、反事实一致性、混杂识别与拒绝 | M4 显式条件干预规则基线已实现；混杂识别、真实干预验证与概率模型待开展 |
 | P1-B | 主动观测 | 信息增益、预测分歧、观测成本与选择偏差 | M5 离散假设/结果的信息增益与成本—风险—可行性—选择偏差排序原型及合成测试已添加；真实观测校准、连续结果和序贯决策待开展 |
-| P1-C | 新象发现与结构重组 | 残差聚类、候选新象、版本化、回滚 | 研究议程已定义；原型待开展 |
+| P1-C | 新象发现与结构重组 | 残差聚类、候选新象、版本化、回滚 | M6 精确 typed-signature 残差分组、跨域/多来源门槛、人工审查版本与回滚原型已提交；独立留出验证和模糊聚类待开展 |
 | P1 | 易象驱动的组合认知 | 动态超图、并行推演、证据协调、自组织 | 部分研究原型，需围绕 P0 集成 |
-| P1-EVAL | 理论贡献验证 | 消融、跨域迁移、错误类比拒绝、OOD 与成本评估 | M5/M6 原型与测试已接入；最新已验证 PR head 的全部 CI 步骤成功，新增 M6 提交等待下一轮验证 |
+| P1-EVAL | 理论贡献验证 | 消融、跨域迁移、错误类比拒绝、OOD 与成本评估 | M5/M6 原型与测试已接入；PR #442 的已验证 head 全部 CI 步骤成功；本轮新增 M6 提交等待最新 head 验证 |
 | P2 | 通用模型与工程 | 语言生成、训练优化、加速、部署 | 按核心研究需要推进 |
 
 ## 近期研究主线
@@ -28,7 +28,9 @@
 5. M4：反事实与干预边界（显式条件干预、未知保留、稳定性/状态变化判定）。
 6. M5：主动观测的信息增益基线（见 `docs/YIXIANG_ACTIVE_OBSERVATION_M5_V0_1.md`、`prototype/yixiang_active_observation.py`）。
 7. M6：残差驱动的新象提议、人工审查、版本化和回滚（见 `docs/YIXIANG_NOVELTY_DISCOVERY_M6_V0_1.md`、`prototype/yixiang_novelty.py`）。
-8. M7：统一闭环与公平消融。\n\nM5/M6 当前均为透明规则原型；M6 的“新”只表示不在调用方提供的已知签名集合中，不代表发现了客观新规律。
+8. M7：统一闭环与公平消融。
+
+M5/M6 当前均为透明规则原型；M6 的“新”只表示不在调用方提供的已知签名集合中，不代表发现了客观新规律。
 
 M1 文档与实现见 `docs/YIXIANG_MULTISCALE_TIME_M1_V0_1.md`、`prototype/yixiang_multiscale_time.py`；M2 见 `docs/YIXIANG_HIERARCHICAL_STRUCTURE_M2_V0_1.md`、`prototype/yixiang_hierarchical_structure.py`；M2.1 见 `docs/YIXIANG_BIDIRECTIONAL_CONSTRAINTS_M2_1_V0_1.md`、`prototype/yixiang_bidirectional_constraints.py`；古籍类象校勘札记见 `docs/CLASSICAL_YIXIANG_THEORY_NOTES_PREQIN_HAN_V0_1.md`；《墨子·小取》类推与异文专题见 `docs/CLASSICAL_YIXIANG_MOZI_XIAOQU_ANALYSIS_V0_1.md`；跨时代综合框架见 `docs/CLASSICAL_YIXIANG_THEORY_SYNTHESIS_V0_2.md`；古籍数字来源与版本规程见 `docs/CLASSICAL_TEXT_DIGITAL_SOURCE_POLICY_V0_1.md`；M3 见 `docs/YIXIANG_COMPETING_HYPOTHESES_M3_V0_1.md`、`prototype/yixiang_competing_hypotheses.py`；M4 见 `docs/YIXIANG_COUNTERFACTUAL_M4_V0_1.md`、`prototype/yixiang_counterfactual.py`。
 
