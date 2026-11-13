@@ -45,6 +45,7 @@
 - [合成时间基准生成器](prototype/yixiang_temporal_benchmark.py)
 - [合成时间基准测试](tests/test_yixiang_temporal_benchmark.py)
 - [传统古籍类象研究总纲与语料建设规范](docs/CLASSICAL_YIXIANG_CORPUS_AND_RESEARCH_PROTOCOL.md)
+- [古典类象理论札记 01：取类、推类与止推边界](docs/CLASSICAL_YIXIANG_THEORY_MEMO_01.md)
 - [传统古籍候选来源目录（56 项）](data/classical_yixiang_source_catalog.json)
 - [古籍来源目录使用说明](data/README.md)
 - [结构化类象古籍语料 v0.1](docs/CLASSICAL_XIANG_CORPUS_V0_1.md)
