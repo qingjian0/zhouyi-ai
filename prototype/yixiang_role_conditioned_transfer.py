@@ -87,6 +87,8 @@ def _validate_frame(frame: TransferFrame, label: str) -> None:
         raise ValueError(f"{label}.roles cannot be empty")
     if not isinstance(frame.relation_edges, tuple) or not frame.relation_edges:
         raise ValueError(f"{label}.relation_edges must be non-empty")
+    if len(frame.relation_edges) != len(set(frame.relation_edges)):
+        raise ValueError("duplicate relation edges are not allowed")
     for edge in frame.relation_edges:
         if not isinstance(edge, tuple) or len(edge) != 5:
             raise ValueError("relation edges need five fields")
@@ -134,6 +136,8 @@ def assess_role_conditioned_transfer(contract: TransferContract) -> TransferAsse
     _validate_frame(contract.target, "target")
     for name in ("required_context_axes", "required_relation_predicates", "required_mechanism_operations"):
         _unique(getattr(contract, name), name)
+    if not contract.required_context_axes:
+        raise ValueError("required_context_axes cannot be empty")
     if not isinstance(contract.role_mapping, tuple):
         raise ValueError("role_mapping must be tuple")
     src, tgt, role_map = [], [], {}
