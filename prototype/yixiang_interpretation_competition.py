@@ -31,7 +31,7 @@ class InterpretationPosition:
     position_id: str
     author: str
     work: str
-    publication_year: int
+    publication_year: int | None
     source_layer: InterpretationSourceLayer
     framework: InterpretiveFramework
     target_terms: Tuple[str, ...]
@@ -80,10 +80,11 @@ def _validate_position(position):
         raise ValueError("positions must contain InterpretationPosition")
     for field in ("position_id", "author", "work", "interpretation", "scope"):
         _text(getattr(position, field), field)
-    if not isinstance(position.publication_year, int) or isinstance(position.publication_year, bool):
-        raise ValueError("publication_year must be an integer")
-    if position.publication_year <= 0:
-        raise ValueError("publication_year must be positive")
+    if position.publication_year is not None:
+        if not isinstance(position.publication_year, int) or isinstance(position.publication_year, bool):
+            raise ValueError("publication_year must be an integer or None when unverified")
+        if position.publication_year <= 0:
+            raise ValueError("publication_year must be positive")
     if not isinstance(position.source_layer, InterpretationSourceLayer):
         raise ValueError("invalid source_layer")
     if not isinstance(position.framework, InterpretiveFramework):
