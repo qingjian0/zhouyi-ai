@@ -68,6 +68,20 @@ class SituatedYixiangTests(unittest.TestCase):
         self.assertIn("POSITION_MISMATCH", result.reason_codes)
         self.assertIn("STAGE_MISMATCH", result.reason_codes)
 
+    def test_duplicate_relations_are_not_collapsed(self):
+        target = YixiangSituation(
+            "t", "illustrative", 1, "middle", "growth", self.target.state,
+            self.target.relations + self.target.relations,
+            self.target.context, self.target.evidence_refs,
+        )
+        result = compare_situations(
+            self.source, target, entity_mapping={"a": "x", "b": "y", "c": "z"},
+            required_context=("climate",),
+        )
+        self.assertFalse(result.accepted)
+        self.assertEqual(result.relation_precision, 0.5)
+        self.assertIn("ROLE_RELATIONS_NOT_PRESERVED", result.reason_codes)
+
     def test_missing_evidence_rejected(self):
         target = situation("t", ("x", "y", "z"))
         target = YixiangSituation(
