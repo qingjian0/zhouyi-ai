@@ -1,0 +1,36 @@
+name: CPG-EI paired Python and NumPy hybrid benchmark
+
+on:
+  push:
+    branches:
+      - research/cpg-ei-paired-numpy-benchmark-v1-2026-11-13
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  paired-hybrid:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install optional acceleration dependency
+        run: python -m pip install "numpy>=1.26"
+      - name: Run paired backend parity tests
+        run: python -m unittest tests.test_cpg_ei_paired_numpy_benchmark -v
+      - name: Run paired full 8-family benchmark
+        run: |
+          python -m prototype.cpg_ei_paired_numpy_benchmark \
+            --json artifacts/paired-numpy-hybrid.json
+      - name: Upload machine-readable paired benchmark
+        uses: actions/upload-artifact@v4
+        with:
+          name: zhouyi-cpg-ei-paired-numpy-hybrid-v1
+          path: artifacts/paired-numpy-hybrid.json
+          if-no-files-found: error
+          retention-days: 30
