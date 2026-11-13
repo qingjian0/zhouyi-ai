@@ -53,9 +53,10 @@ Early-stopping 结果的平均 best epoch 为 420.875，平均执行 439.625 epo
 3. #413：有限符号 mixed-operator discovery，基于 #411。
 4. #417：trainable polynomial baseline，基于 #413。
 5. #418：五种子 replication，作为 #417 的独立子分支。
-6. #419 → #420 → #421 → #422 → #427：匹配对照 → sample-efficiency → development early stopping → compute-accounted symbolic-support hybrid → vectorized optimizer parity/performance。
+6. #419 → #420 → #421 → #422：匹配对照 → sample-efficiency → development early stopping → compute-accounted symbolic-support hybrid。
+7. #423（scalar pre-encoded cache）、#426（NumPy hybrid backend）、#427（full-basis vectorized experiment）、#428（compositional OOG）是 #422 的独立后续分支；#429 依赖 #426。它们是并行验证线，不应未经统一 optimizer API 审计而分别合并。
 
-#418 与 #419 是 #417 的兄弟分支，不是彼此的父子依赖。#422 的 base 是 #421；#427 的 base 是 #422；不得跳过父链独立合并。#422 当前 exact head 为 251ecbe2f0cee36ce877fbbb4135df9a1cc0f67c，较 #421 base head 49a4147200a3fae52c0d06898f036623536e1fed 前进 4 commits。#427 当前 exact head 为 f142d669fff95fcce86b904c5721d616cd4b6769，较 #422 前进 11 commits。
+#418 与 #419 是 #417 的兄弟分支，不是彼此的父子依赖。#422 的 base 是 #421；#423、#426、#427、#428 的 base 均为 #422；#429 的 base 为 #426；不得跳过父链独立合并。#422 当前 exact head 为 251ecbe2f0cee36ce877fbbb4135df9a1cc0f67c，较 #421 base head 49a4147200a3fae52c0d06898f036623536e1fed 前进 4 commits。#427 当前 exact head 为 f142d669fff95fcce86b904c5721d616cd4b6769，较 #422 前进 11 commits。#428 当前 exact head 为 dde911b56414c8075a9e664125d391f8e35cf0c9。
 
 ### 当前新增研究：符号支持约束 hybrid
 
