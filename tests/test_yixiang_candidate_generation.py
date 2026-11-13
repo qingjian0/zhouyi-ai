@@ -79,6 +79,26 @@ class CandidateGenerationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "must not contain colon"):
             generate_yixiang_candidates((obs("bad:id", "d"), obs("b", "d")))
 
+    def test_candidate_retains_feature_contrasts_without_calling_them_contradictions(self):
+        a = Observation("a", "d", (
+            ObservedFeature("shape", "round", "vision", "a:f1", EvidenceKind.DIRECT_OBSERVATION),
+            ObservedFeature("color", "red", "vision", "a:f2", EvidenceKind.DIRECT_OBSERVATION),
+        ), (ObservedRelation("supports", "base", "load", "a:r", EvidenceKind.DIRECT_OBSERVATION),),
+           ("a:f1", "a:f2", "a:r"))
+        b = Observation("b", "d", (
+            ObservedFeature("shape", "round", "vision", "b:f1", EvidenceKind.DIRECT_OBSERVATION),
+            ObservedFeature("color", "blue", "vision", "b:f2", EvidenceKind.DIRECT_OBSERVATION),
+        ), (ObservedRelation("supports", "arch", "roof", "b:r", EvidenceKind.DIRECT_OBSERVATION),),
+           ("b:f1", "b:f2", "b:r"))
+        candidate = generate_yixiang_candidates((a, b))[0]
+        self.assertEqual(len(candidate.shared_features), 1)
+        self.assertEqual(len(candidate.feature_contrasts), 1)
+        self.assertEqual(candidate.feature_contrasts[0].source_value, "red")
+        self.assertEqual(candidate.feature_contrasts[0].target_value, "blue")
+        self.assertEqual(len(candidate.relation_contrasts), 1)
+        self.assertIn("FEATURE_CONTRASTS_REQUIRE_DIMENSION_SEMANTICS_REVIEW", candidate.reason_codes)
+        self.assertNotIn("CONTRADICTION", " ".join(candidate.reason_codes))
+
     def test_candidate_does_not_authorize_identity_or_causality(self):
         candidate = generate_yixiang_candidates((obs("a", "d"), obs("b", "d")))[0]
         self.assertIn("entity_identity", candidate.prohibited_shortcuts)
