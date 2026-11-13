@@ -65,6 +65,9 @@ class BenchmarkContractTests(unittest.TestCase):
    "dyn-041":("action_outcome","abstain"),
   }
   self.assertEqual({key:(by_id[key]["claim_kind"],by_id[key]["gold_decision"]) for key in expected},expected)
+  report=evaluate_predictions(cases,[],allow_fixture_expected=True)
+  self.assertEqual(set(report["by_claim_kind"]),{"taxonomic_similarity","argumentative_analogy","action_outcome","practical_utility","symbolic_correspondence"})
+  self.assertTrue(all("confusion_matrix" in value and "macro_f1" in value for value in report["by_claim_kind"].values()))
 
  def test_unknown_claim_kind_rejected(self):
   case=make_case("bad-kind"); case["claim_kind"]="blended_similarity"
@@ -107,7 +110,7 @@ class BenchmarkContractTests(unittest.TestCase):
  def test_missing_prediction_counts_as_abstain(self):
   cases=[make_case("a","accept"),make_case("b","reject"),make_case("c","abstain")]
   r=evaluate_predictions(cases,[{"case_id":"a","decision":"accept"},{"case_id":"b","decision":"accept"}],allow_fixture_expected=True)
-  self.assertEqual(r["n"],3); self.assertAlmostEqual(r["accuracy"],2/3); self.assertEqual(r["missing_predictions"],1); self.assertEqual(r["confusion_matrix"]["abstain"]["abstain"],1); self.assertAlmostEqual(r["abstention_coverage"],1/3); self.assertAlmostEqual(r["selective_coverage"],2/3); self.assertAlmostEqual(r["selective_risk"],0.5); self.assertIn("macro_f1",r["by_relation_family"]["structural"]); self.assertIn("confusion_matrix",r["by_relation_family"]["structural"])
+  self.assertEqual(r["n"],3); self.assertAlmostEqual(r["accuracy"],2/3); self.assertEqual(r["missing_predictions"],1); self.assertEqual(r["confusion_matrix"]["abstain"]["abstain"],1); self.assertAlmostEqual(r["abstention_coverage"],1/3); self.assertAlmostEqual(r["selective_coverage"],2/3); self.assertAlmostEqual(r["selective_risk"],0.5); self.assertIn("macro_f1",r["by_relation_family"]["structural"]); self.assertIn("confusion_matrix",r["by_relation_family"]["structural"]); self.assertIn("by_claim_kind",r)
  def test_unknown_and_duplicate_predictions_rejected(self):
   with self.assertRaisesRegex(ValueError,"unknown case_id"): evaluate_predictions([make_case("a")],[{"case_id":"x","decision":"accept"}],allow_fixture_expected=True)
   with self.assertRaisesRegex(ValueError,"duplicate prediction"): evaluate_predictions([make_case("a")],[{"case_id":"a","decision":"accept"},{"case_id":"a","decision":"reject"}],allow_fixture_expected=True)
