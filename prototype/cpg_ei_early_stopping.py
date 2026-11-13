@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Any
 
 from prototype.cpg_ei_generic_learner import (
-    RelationalTransitionModel, TransitionExample, evaluate,
+    RelationalTransitionModel, TransitionExample, encode_relations, evaluate,
 )
 from prototype.cpg_ei_mixed_operator_data import generate_mixed_corpus
 
@@ -36,7 +36,7 @@ def _binary_cross_entropy(
     return total / (len(examples) * model.output_dim)
 
 
-def fit_with_early_stopping(
+def fit_with_early_stopping_scalar(
     model: RelationalTransitionModel,
     training: list[TransitionExample],
     development: list[TransitionExample],
@@ -94,6 +94,142 @@ def fit_with_early_stopping(
         "stopped_early": epochs_run < max_epochs,
         "selected_weights_sha256": weights_digest,
     }
+
+
+
+def fit_with_early_stopping_vectorized(
+    model: RelationalTransitionModel,
+    training: list[TransitionExample],
+    development: list[TransitionExample],
+    *,
+    max_epochs: int = 120,
+    patience: int = 12,
+    min_delta: float = 1e-5,
+    learning_rate: float = 0.1,
+    l2: float = 1e-4,
+) -> dict[str, Any]:
+    """NumPy float64 batch-gradient path, numerically matched to the scalar reference."""
+    import numpy as np
+
+    if not training or not development:
+        raise ValueError("training and development examples must both be non-empty")
+    numeric = (min_delta, learning_rate, l2)
+    if (isinstance(max_epochs, bool) or not isinstance(max_epochs, int) or max_epochs < 1
+            or isinstance(patience, bool) or not isinstance(patience, int) or patience < 1
+            or any(isinstance(value, bool) or not isinstance(value, (int, float))
+                   or not math.isfinite(value) for value in numeric)
+            or min_delta < 0 or learning_rate <= 0 or l2 < 0):
+        raise ValueError("invalid early-stopping or optimizer configuration")
+
+    for row in (*training, *development):
+        model._validate_example(row)
+
+    x_train = np.asarray(
+        [encode_relations(row.state, model.supports) for row in training],
+        dtype=np.float64,
+    )
+    y_train = np.asarray([row.target for row in training], dtype=np.float64)
+    x_dev = np.asarray(
+        [encode_relations(row.state, model.supports) for row in development],
+        dtype=np.float64,
+    )
+    y_dev = np.asarray([row.target for row in development], dtype=np.float64)
+    weights = np.asarray(model.weights, dtype=np.float64).copy()
+    n_train = float(len(training))
+
+    def binary_cross_entropy(logits, labels) -> float:
+        probabilities = 1.0 / (
+            1.0 + np.exp(-np.clip(logits, -700.0, 700.0))
+        )
+        probabilities = np.clip(probabilities, 1e-12, 1.0 - 1e-12)
+        return float(-(
+            labels * np.log(probabilities)
+            + (1.0 - labels) * np.log1p(-probabilities)
+        ).mean())
+
+    best_loss = binary_cross_entropy(x_dev @ weights.T, y_dev)
+    best_epoch = 0
+    best_weights = weights.copy()
+    epochs_without_improvement = 0
+    initial_train_loss = None
+    last_train_loss = None
+    epochs_run = 0
+
+    for epoch in range(1, max_epochs + 1):
+        logits = x_train @ weights.T
+        if not np.isfinite(logits).all():
+            raise FloatingPointError("non-finite training logits")
+        last_train_loss = float((
+            np.maximum(logits, 0.0)
+            - logits * y_train
+            + np.log1p(np.exp(-np.abs(logits)))
+        ).mean())
+        if initial_train_loss is None:
+            initial_train_loss = last_train_loss
+
+        probabilities = 1.0 / (
+            1.0 + np.exp(-np.clip(logits, -700.0, 700.0))
+        )
+        gradients = ((probabilities - y_train).T @ x_train) / n_train
+        if weights.shape[1] > 1:
+            gradients[:, 1:] += l2 * weights[:, 1:]
+        weights -= learning_rate * gradients
+        if not np.isfinite(weights).all():
+            raise FloatingPointError("non-finite optimizer weights")
+
+        epochs_run = epoch
+        development_loss = binary_cross_entropy(x_dev @ weights.T, y_dev)
+        if development_loss < best_loss - min_delta:
+            best_loss = development_loss
+            best_epoch = epoch
+            best_weights = weights.copy()
+            epochs_without_improvement = 0
+        else:
+            epochs_without_improvement += 1
+            if epochs_without_improvement >= patience:
+                break
+
+    model.weights = best_weights.tolist()
+    weights_digest = hashlib.sha256(
+        json.dumps(model.weights, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
+    return {
+        "epochs_run": epochs_run,
+        "best_epoch": best_epoch,
+        "best_development_log_loss": best_loss,
+        "initial_train_loss": initial_train_loss,
+        "last_train_loss_before_restore": last_train_loss,
+        "stopped_early": epochs_run < max_epochs,
+        "selected_weights_sha256": weights_digest,
+        "optimizer_backend": "numpy-vectorized-float64",
+    }
+
+
+def fit_with_early_stopping(
+    model: RelationalTransitionModel,
+    training: list[TransitionExample],
+    development: list[TransitionExample],
+    *,
+    max_epochs: int = 120,
+    patience: int = 12,
+    min_delta: float = 1e-5,
+    learning_rate: float = 0.1,
+    l2: float = 1e-4,
+) -> dict[str, Any]:
+    """Prefer cached, vectorized float64 training; preserve stdlib-only fallback."""
+    try:
+        import numpy  # noqa: F401
+    except ImportError:
+        return fit_with_early_stopping_scalar(
+            model, training, development,
+            max_epochs=max_epochs, patience=patience, min_delta=min_delta,
+            learning_rate=learning_rate, l2=l2,
+        )
+    return fit_with_early_stopping_vectorized(
+        model, training, development,
+        max_epochs=max_epochs, patience=patience, min_delta=min_delta,
+        learning_rate=learning_rate, l2=l2,
+    )
 
 
 def run_early_stopping_baseline(
@@ -164,6 +300,7 @@ def run_early_stopping_baseline(
             "learning_rate": learning_rate,
             "l2": l2,
             "checkpoint_selection": "minimum development binary cross-entropy",
+            "optimizer_backend": "NumPy vectorized float64 when installed; stdlib scalar fallback otherwise",
         },
         "evaluation_protocol": (
             "Independent per-family fitting. Training states update weights; "
