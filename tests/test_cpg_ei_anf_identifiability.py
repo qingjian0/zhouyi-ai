@@ -102,6 +102,43 @@ class TestAnfIdentifiability(unittest.TestCase):
             for output in family["output_results"]
         ))
 
+    def test_degree_limited_basis_recovers_representable_functions(self):
+        input_dim = 3
+        rule = RelationRule("xor", (0, 2))
+        observations = []
+        for mask in range(1 << input_dim):
+            state = tuple((mask >> index) & 1 for index in range(input_dim))
+            observations.append((state, evaluate_rule(state, rule)))
+        linear = solve_gf2_affine_system(input_dim, observations, max_degree=1)
+        constant = solve_gf2_affine_system(input_dim, observations, max_degree=0)
+        self.assertTrue(linear["consistent"])
+        self.assertTrue(linear["unique"])
+        self.assertEqual(linear["coefficient_count"], 4)
+        self.assertFalse(constant["consistent"])
+
+    def test_degree_sweep_reports_basis_rank_and_oracle_coverage(self):
+        corpus = generate_mixed_corpus(
+            family_count=5, input_dim=3, output_dim=7, seed=711
+        )
+        report = run_anf_identifiability_audit(corpus)
+        sweep = report["degree_sweep"]["degree_results"]
+        self.assertEqual(
+            [item["basis_coefficient_count"] for item in sweep],
+            [1, 4, 7, 8],
+        )
+        self.assertEqual(sweep[-1]["oracle_representability_rate"], 1.0)
+        self.assertEqual(sweep[-1]["mean_training_rank"], 4.0)
+        self.assertEqual(sweep[-1]["mean_training_nullity"], 4.0)
+        self.assertEqual(sweep[-1]["output_system_count"], 35)
+        self.assertLessEqual(
+            sweep[0]["oracle_representability_rate"],
+            sweep[-1]["oracle_representability_rate"],
+        )
+
+    def test_invalid_degree_bound_is_rejected(self):
+        with self.assertRaises(ValueError):
+            solve_gf2_affine_system(3, [((0, 0, 0), 0)], max_degree=4)
+
     def test_locked_label_mutation_does_not_change_training_identifiability(self):
         corpus = generate_mixed_corpus(
             family_count=5, input_dim=4, output_dim=7, seed=711
