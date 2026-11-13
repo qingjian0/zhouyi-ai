@@ -43,6 +43,7 @@ class RelationTransferContract:
     target: RelationFrame
     role_mapping: Tuple[Tuple[str, str], ...]
     required_context_axes: Tuple[str, ...]
+    required_invariants: Tuple[str, ...]
     invariant_checks: Tuple[InvariantCheck, ...]
     unresolved_defeaters: Tuple[str, ...] = ()
     causal_transfer: bool = False
@@ -125,6 +126,10 @@ def assess_relation_transfer(contract: RelationTransferContract) -> RelationTran
         raise ValueError("required_context_axes must be a tuple of non-empty strings")
     if len(set(contract.required_context_axes)) != len(contract.required_context_axes):
         raise ValueError("required_context_axes must be unique")
+    if not isinstance(contract.required_invariants, tuple) or any(not isinstance(x, str) or not x.strip() for x in contract.required_invariants):
+        raise ValueError("required_invariants must be a tuple of non-empty strings")
+    if len(set(contract.required_invariants)) != len(contract.required_invariants):
+        raise ValueError("required_invariants must be unique")
     if not isinstance(contract.invariant_checks, tuple) or any(not isinstance(x, InvariantCheck) for x in contract.invariant_checks):
         raise ValueError("invariant_checks must contain InvariantCheck")
     names = []
@@ -158,6 +163,9 @@ def assess_relation_transfer(contract: RelationTransferContract) -> RelationTran
             reasons.append("REQUIRED_CONTEXT_AXIS_MISSING")
         elif sc[axis] != tc[axis]:
             reasons.append("REQUIRED_CONTEXT_AXIS_MISMATCH")
+    assessed_names = {item.name for item in contract.invariant_checks}
+    if set(contract.required_invariants) - assessed_names:
+        reasons.append("REQUIRED_INVARIANT_NOT_ASSESSED")
     for item in contract.invariant_checks:
         if item.source_value == item.target_value:
             preserved.append(item.name)
