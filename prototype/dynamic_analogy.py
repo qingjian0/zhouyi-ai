@@ -119,7 +119,7 @@ class DynamicAnalogyCandidate:
     validity_scope: str
     # Map (dimension, source value) to an explicitly equivalent target value.
     # Unmapped values require exact identity; no fuzzy semantic conversion occurs.
-    context_value_mapping: Mapping[tuple[str, str], str] = field(default_factory=dict)
+    context_value_mapping: tuple[tuple[str, str, str], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -195,15 +195,21 @@ def assess_dynamic_analogy(
         raise ValueError("entity mapping must reference known target entities")
     if len(set(mapping.values())) != len(mapping):
         raise ValueError("entity mapping must be one-to-one")
-    context_mapping = dict(candidate.context_value_mapping)
+    if not isinstance(candidate.context_value_mapping, tuple):
+        raise ValueError("context_value_mapping must be a tuple of (dimension, source, target) triples")
+    context_mapping = {}
     context_targets: dict[str, set[str]] = {}
-    for key, target_value in context_mapping.items():
-        if (not isinstance(key, tuple) or len(key) != 2
-                or key[0] not in CONTEXT_DIMENSIONS
-                or not isinstance(key[1], str) or not key[1].strip()
-                or not isinstance(target_value, str) or not target_value.strip()):
-            raise ValueError("context value mappings require (dimension, source value) to target value")
-        context_targets.setdefault(key[0], set()).add(target_value)
+    for item in candidate.context_value_mapping:
+        if (not isinstance(item, tuple) or len(item) != 3
+                or item[0] not in CONTEXT_DIMENSIONS
+                or not isinstance(item[1], str) or not item[1].strip()
+                or not isinstance(item[2], str) or not item[2].strip()):
+            raise ValueError("context value mappings require (dimension, source value, target value) triples")
+        key = (item[0], item[1])
+        if key in context_mapping:
+            raise ValueError("duplicate context value mapping")
+        context_mapping[key] = item[2]
+        context_targets.setdefault(item[0], set()).add(item[2])
     if any(len(values) != sum(1 for key in context_mapping if key[0] == dimension)
            for dimension, values in context_targets.items()):
         raise ValueError("context value mapping must be injective within each dimension")
