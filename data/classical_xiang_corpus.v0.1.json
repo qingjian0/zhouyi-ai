@@ -559,5 +559,163 @@
       "correspondence",
       "cosmology"
     ]
+  },
+  {
+    "record_id": "mozi-xiaoqu-tuilei-boundary-001",
+    "record_version": "0.2.0",
+    "work": {
+      "title": "墨子·小取",
+      "traditional_authority": "传统归于墨翟及墨家后学；篇章形成与编纂层次仍需专门考订",
+      "composition_period": "战国时期墨家论辩文献，具体层次待考",
+      "genre": "名辩/论辩"
+    },
+    "period": "pre_qin",
+    "source_type": "classical_text",
+    "tradition": [
+      "墨家",
+      "名辩",
+      "推类",
+      "论证边界"
+    ],
+    "witness": {
+      "witness_id": "ctext-mozi-xiaoqu-multi-edition",
+      "edition_or_database": "中国哲学书电子化计划《墨子·小取》页面，列有《正统道藏》《墨子闲诂》《四部丛刊初编》等多个文本见证",
+      "url": "https://ctext.org/mozi/minor-illustrations/zh",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台条款另行核验；仅保留必要短引"
+    },
+    "locator": {
+      "chapter": "小取第四十五",
+      "section_or_line": "夫物有以同而不率遂同；其然也同，其所以然不必同；辟侔援推之辞段"
+    },
+    "text": "夫物有以同而不率遂同。其然也同，其所以然不必同。其取之也同，其所以取之不必同。是故辟、侔、援、推之辞……则不可不审也，不可常用也。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "mozi-xiaoqu-same-not-same-cause-001",
+        "claim_kind": "textual_observation",
+        "subject": "事物/论证",
+        "predicate": "表面相同不必然具有相同所以然",
+        "object": "同一结果或取法不能保证其理由/根据相同",
+        "interpretive_note": "《小取》明确区分‘其然’与‘所以然’，指出相同结果或取法并不保证根据相同。可转化为类象迁移中的机制等价审查要求；这是现代工程启发，不应把古文直接等同现代因果理论。",
+        "scope": "限于《小取》论辩语境及所引段落；具体训诂与句读须以校勘本复核。",
+        "relation_type": "similar_outcome_not_sufficient_for_same_reason",
+        "conditions": [
+          "保留篇章上下文",
+          "区分现象相同与所以然相同",
+          "不得直接推为现代因果学说"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      },
+      {
+        "claim_id": "mozi-xiaoqu-analogy-stop-rule-001",
+        "claim_kind": "textual_observation",
+        "subject": "辟、侔、援、推等论辩方式",
+        "predicate": "不可不审/不可常用",
+        "object": "类推与援引需要审查适用边界",
+        "interpretive_note": "文本提醒相关论辩方式在推行、转折、远推时可能失当或离本。适合作为拒绝无条件迁移的古典证据入口。",
+        "scope": "不把墨家论辩术直接等同现代算法；需结合全篇例证研究各术语。",
+        "relation_type": "conditional_inference_with_stop_boundary",
+        "conditions": [
+          "区分辟、侔、援、推的具体定义",
+          "结合后续正反例",
+          "不以单句概括全篇论证理论"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引与来源元数据。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "已通过可访问数字文本发现原文片段；尚未逐字对照影印底本和多版本异文。",
+      "搜索见证列有多种底本，但不能据此声称本项目已完成版本校勘。"
+    ]
+  },
+  {
+    "record_id": "xunzi-zhengming-tuilei-001",
+    "record_version": "0.2.0",
+    "work": {
+      "title": "荀子·正名",
+      "traditional_authority": "传统归于荀况；篇章内部结构及文本层次仍依现代校勘研究审慎处理",
+      "composition_period": "战国晚期至秦汉传承层次待考",
+      "genre": "诸子/正名与论辩"
+    },
+    "period": "pre_qin",
+    "source_type": "classical_text",
+    "tradition": [
+      "荀子",
+      "正名",
+      "辨异",
+      "推类"
+    ],
+    "witness": {
+      "witness_id": "wikisource-xunzi-zhengming",
+      "edition_or_database": "维基文库《荀子·正名篇》数字转录；需继续核对可靠点校本和影印本",
+      "url": "https://zh.wikisource.org/wiki/荀子/正名篇",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "古典原文通常公有领域；数字转录条款另行核验"
+    },
+    "locator": {
+      "chapter": "正名篇",
+      "section_or_line": "正名而期，质请而喻，辨异而不过，推类而不悖"
+    },
+    "text": "正名而期，质请而喻，辨异而不过，推类而不悖。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "xunzi-zhengming-tuilei-noncontradiction-001",
+        "claim_kind": "textual_observation",
+        "subject": "推类",
+        "predicate": "不悖",
+        "object": "推类应避免悖乱/矛盾",
+        "interpretive_note": "原文将‘推类而不悖’与‘辨异而不过’并列，显示推类与辨异共同受到规范约束。具体‘悖’及其论证语境需结合《正名》全篇训诂。",
+        "scope": "限于《荀子·正名》此句及其上下文，不将其直接解释为现代形式逻辑定理。",
+        "relation_type": "analogy_inference_consistency_constraint",
+        "conditions": [
+          "保留辨异与推类的并列关系",
+          "回看全篇名实论证",
+          "与《小取》推类术语比较但不预设同义"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      },
+      {
+        "claim_id": "xunzi-zhengming-distinction-boundary-001",
+        "claim_kind": "textual_observation",
+        "subject": "辨异",
+        "predicate": "不过",
+        "object": "辨别差异须有适当限度",
+        "interpretive_note": "‘辨异而不过’提示分类不仅要发现相同，也要避免过度区分或失度；可作为类别边界与过拟合审查的研究入口。",
+        "scope": "项目中的边界/过拟合术语是现代类比，不等于荀子原文已有统计学习概念。",
+        "relation_type": "category_boundary_constraint",
+        "conditions": [
+          "不把现代统计术语倒灌为古义",
+          "需结合正名篇上下文解释"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引与来源元数据。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "数字文本可定位至《正名篇》末段相关论述；尚未与可靠校点本完成异文校勘。"
+    ]
   }
 ]
