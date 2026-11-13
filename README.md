@@ -40,6 +40,7 @@
 - [传统类象研究文献地图与校勘计划 v0.1](docs/CLASSICAL_YIXIANG_SOURCE_MAP_V0_1.md)
 - [先秦两汉类象理论校勘札记 v0.1](docs/CLASSICAL_YIXIANG_THEORY_NOTES_PREQIN_HAN_V0_1.md)
 - [传统类象理论综合框架 v0.2](docs/CLASSICAL_YIXIANG_THEORY_SYNTHESIS_V0_2.md)
+- [古籍数字来源、版本见证与校勘工作规程 v0.1](docs/CLASSICAL_TEXT_DIGITAL_SOURCE_POLICY_V0_1.md)
 - [M2 整体—局部关系结构说明](docs/YIXIANG_HIERARCHICAL_STRUCTURE_M2_V0_1.md)
 - [M2.1 双向整体—局部约束说明](docs/YIXIANG_BIDIRECTIONAL_CONSTRAINTS_M2_1_V0_1.md)
 - [M3 竞争类象与证据裁决说明](docs/YIXIANG_COMPETING_HYPOTHESES_M3_V0_1.md)
