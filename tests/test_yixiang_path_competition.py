@@ -5,8 +5,11 @@ from prototype.yixiang_path_competition import (
 
 
 def path(pid, states, relations, outcome=PathOutcome.VIABLE, axes=None, refs=None,
-         source="start", target="goal"):
-    return PathCandidate(pid, source, target, tuple(states), tuple(relations),
+         source=None, target=None):
+    states = tuple(states)
+    source = states[0] if source is None else source
+    target = states[-1] if target is None else target
+    return PathCandidate(pid, source, target, states, tuple(relations),
                          tuple(axes or (("time", "t1"), ("position", "inner"))),
                          outcome, tuple((f"evidence-{pid}",) if refs is None else refs))
 
@@ -119,7 +122,7 @@ class PathCompetitionTests(unittest.TestCase):
 
     def test_endpoint_sequence_must_match_declared_endpoints(self):
         result = audit_path_competition(
-            (path("p1", ("wrong", "goal"), ("r1",)),
+            (path("p1", ("wrong", "goal"), ("r1",), source="start"),
              path("p2", ("start", "goal"), ("r2",))),
             required_context_axes=("time",),
             target_context_axes=(("time", "t1"),))
