@@ -250,6 +250,59 @@
               "disputed",
               "rejected"
             ]
+          },
+          "xiang_domain": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Historical domain of the claim; project retrieval facet, not an ancient unified category."
+          },
+          "relation_family": {
+            "enum": [
+              "generative",
+              "taxonomic",
+              "functional",
+              "directional",
+              "temporal",
+              "correlative",
+              "symbolic",
+              "normative_analogy",
+              "causal_assertion",
+              "rhetorical_analogy",
+              "lexical"
+            ],
+            "description": "Typed relation family used for retrieval and evaluation; not a claim that ancient authors used this taxonomy."
+          },
+          "shared_basis": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Explicitly shared features or relations supporting a proposed analogy."
+          },
+          "non_shared_basis": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Known differences that limit or block transfer."
+          },
+          "scope_conditions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Conditions and context under which the claim is stated or considered applicable."
+          },
+          "causal_status": {
+            "enum": [
+              "not_claimed",
+              "textual_causal_assertion",
+              "observational_support",
+              "experimental_support",
+              "challenged",
+              "unassessed"
+            ],
+            "description": "Separates a text's causal assertion from independently supported causal evidence."
           }
         },
         "additionalProperties": false
