@@ -14,13 +14,13 @@ class ContextFit(str, Enum):
 class TextLayer(str, Enum):
     BASE_TEXT="base_text"; COMMENTARY="commentary"; QUOTATION="quotation"; EDITORIAL="editorial"; RECONSTRUCTION="reconstruction"; UNKNOWN="unknown"
 class AtomDecision(str, Enum):
-    SUPPORT_ONLY="support_only"; CONFLICTED="conflicted"; QUALIFICATION_ONLY="qualification_only"; PARTIAL_ONLY="partial_only"; CONTEXT_MISMATCH="context_mismatch"; AMBIGUOUS="ambiguous"; INSUFFICIENT="insufficient"; UNREVIEWED="unreviewed"
+    SUPPORT_ONLY="support_only"; CONFLICTED="conflicted"; QUALIFICATION_ONLY="qualification_only"; PARTIAL_ONLY="partial_only"; CONTEXT_MISMATCH="context_mismatch"; LAYER_MISMATCH="layer_mismatch"; AMBIGUOUS="ambiguous"; INSUFFICIENT="insufficient"; UNREVIEWED="unreviewed"
 class ClaimCoverageDecision(str, Enum):
     FULL_ATOM_COVERAGE="full_atom_coverage"; PARTIAL_ATOM_COVERAGE="partial_atom_coverage"; CONFLICTED="conflicted"; QUALIFICATION_ONLY="qualification_only"; INSUFFICIENT="insufficient"; UNREVIEWED="unreviewed"
 
 @dataclass(frozen=True)
 class ClaimAtom:
-    atom_id:str; claim_id:str; text:str
+    atom_id:str; claim_id:str; text:str; allowed_text_layers:Tuple[TextLayer,...]=(TextLayer.BASE_TEXT,)
 @dataclass(frozen=True)
 class InterpretationContext:
     context_id:str; period_or_layer:str; genre:str; speaker_or_voice:str; discourse_function:str; conditions:Tuple[str,...]=()
@@ -36,7 +36,7 @@ class EvidenceLink:
 class AtomAssessment:
     atom_id:str; decision:AtomDecision; whole_support_ids:Tuple[str,...]; partial_support_ids:Tuple[str,...]
     contradiction_ids:Tuple[str,...]; qualification_ids:Tuple[str,...]; ambiguous_ids:Tuple[str,...]
-    context_mismatch_ids:Tuple[str,...]; unresolved_ids:Tuple[str,...]
+    context_mismatch_ids:Tuple[str,...]; layer_mismatch_ids:Tuple[str,...]; unresolved_ids:Tuple[str,...]
 @dataclass(frozen=True)
 class ClaimAssessment:
     claim_id:str; decision:ClaimCoverageDecision; atom_assessments:Tuple[AtomAssessment,...]
@@ -74,9 +74,11 @@ def _validate_link(x,atoms,spans):
     if x.review_status==ReviewStatus.REVIEWED:
         if not x.reviewer_ids or len(x.rationale.strip())<12: raise ValueError("reviewed link requires reviewer IDs and substantive rationale")
     elif x.reviewer_ids: raise ValueError("unreviewed/disputed link cannot claim completed reviewers")
-def _assess_atom(atom_id,links):
-    reviewed=[x for x in links if x.review_status==ReviewStatus.REVIEWED]
-    unresolved=tuple(sorted(x.evidence_id for x in links if x.review_status!=ReviewStatus.REVIEWED))
+def _assess_atom(atom_id,links,spans,allowed_layers):
+    layer_mismatch=tuple(sorted(x.evidence_id for x in links if spans[x.span_id].text_layer not in allowed_layers))
+    eligible=[x for x in links if spans[x.span_id].text_layer in allowed_layers]
+    reviewed=[x for x in eligible if x.review_status==ReviewStatus.REVIEWED]
+    unresolved=tuple(sorted(x.evidence_id for x in eligible if x.review_status!=ReviewStatus.REVIEWED))
     compatible=[x for x in reviewed if x.context_fit==ContextFit.COMPATIBLE]
     mismatch=tuple(sorted(x.evidence_id for x in reviewed if x.context_fit==ContextFit.INCOMPATIBLE))
     ambiguous=[x for x in reviewed if x.context_fit==ContextFit.UNCERTAIN or x.relation==EvidenceRelation.AMBIGUOUS or x.coverage==Coverage.UNCLEAR]
@@ -92,10 +94,11 @@ def _assess_atom(atom_id,links):
     elif qual: decision=AtomDecision.QUALIFICATION_ONLY
     elif partial: decision=AtomDecision.PARTIAL_ONLY
     elif mismatch: decision=AtomDecision.CONTEXT_MISMATCH
+    elif layer_mismatch: decision=AtomDecision.LAYER_MISMATCH
     elif amb: decision=AtomDecision.AMBIGUOUS
     elif not reviewed and links: decision=AtomDecision.UNREVIEWED
     else: decision=AtomDecision.INSUFFICIENT
-    return AtomAssessment(atom_id,decision,whole,partial,contra,qual,amb,mismatch,unresolved)
+    return AtomAssessment(atom_id,decision,whole,partial,contra,qual,amb,mismatch,layer_mismatch,unresolved)
 
 def assess_claim_coverage(claim_id,atoms,contexts,passages,witnesses,links):
     _nonempty(claim_id,"claim_id")
@@ -117,6 +120,8 @@ def assess_claim_coverage(claim_id,atoms,contexts,passages,witnesses,links):
     for x in atoms:
         if not isinstance(x,ClaimAtom): raise ValueError("atoms must contain ClaimAtom")
         for f in ("atom_id","claim_id","text"): _nonempty(getattr(x,f),f)
+        if not isinstance(x.allowed_text_layers,tuple) or not x.allowed_text_layers or any(not isinstance(v,TextLayer) for v in x.allowed_text_layers): raise ValueError("allowed_text_layers must be a non-empty tuple of TextLayer")
+        if len(x.allowed_text_layers)!=len(set(x.allowed_text_layers)): raise ValueError("allowed_text_layers must be unique")
         if x.claim_id!=claim_id: raise ValueError("all atoms must belong to requested claim")
         if x.atom_id in atom_by: raise ValueError("duplicate atom_id")
         atom_by[x.atom_id]=x
@@ -126,7 +131,7 @@ def assess_claim_coverage(claim_id,atoms,contexts,passages,witnesses,links):
         _validate_link(x,atom_by,span_by)
         if x.evidence_id in ids: raise ValueError("duplicate evidence_id")
         ids.add(x.evidence_id); grouped[x.atom_id].append(x)
-    assessments=tuple(_assess_atom(k,grouped[k]) for k in atom_by)
+    assessments=tuple(_assess_atom(k,grouped[k],span_by,atom_by[k].allowed_text_layers) for k in atom_by)
     decisions={x.decision for x in assessments}
     uncovered=tuple(sorted(x.atom_id for x in assessments if not x.whole_support_ids))
     if AtomDecision.CONFLICTED in decisions: result=ClaimCoverageDecision.CONFLICTED
