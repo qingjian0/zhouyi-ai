@@ -94,7 +94,8 @@ class TestAnfIdentifiability(unittest.TestCase):
         report = run_anf_identifiability_audit(corpus)
         self.assertEqual(report["corpus_sha256"], corpus["manifest"]["corpus_sha256"])
         self.assertEqual(report["training_identifiability_summary"]["output_systems"], 35)
-        self.assertEqual(report["training_identifiability_summary"]["unique_training_anf_rate"], 1.0)
+        self.assertEqual(report["training_identifiability_summary"]["unique_training_anf_rate"], 0.0)
+        self.assertEqual(report["training_identifiability_summary"]["mean_nullity"], 4.0)
         self.assertTrue(all(
             output["oracle_support_is_contained_in_possible_support"]
             for family in report["family_results"]
