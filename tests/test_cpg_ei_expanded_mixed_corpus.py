@@ -20,7 +20,7 @@ class ExpandedMixedCorpusTests(unittest.TestCase):
         self.assertEqual(manifest["corpus_sha256"], b["manifest"]["corpus_sha256"])
         self.assertEqual(manifest["expansion_factor_vs_reference"], 0.02)
         self.assertEqual(manifest["family_split_counts"],
-                         {"development": 1, "locked": 2, "train": 5})
+                         {"development": 1, "locked": 3, "train": 4})
         self.assertEqual(len({t["teacher_digest"] for t in a["teachers"]}), 8)
 
     def test_operator_coverage_is_round_robin_balanced(self):
