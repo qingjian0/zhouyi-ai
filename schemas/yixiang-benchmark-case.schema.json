@@ -20,6 +20,7 @@
  "allOf":[
   {"if":{"properties":{"source_status":{"const":"synthetic_fixture"}},"required":["source_status"]},"then":{"properties":{"label_status":{"const":"fixture_expected"},"reviewers":{"maxItems":0}}}},
   {"if":{"properties":{"label_status":{"const":"adjudicated"}},"required":["label_status"]},"then":{"properties":{"reviewers":{"minItems":2}}}},
-  {"if":{"properties":{"label_status":{"const":"fixture_expected"}},"required":["label_status"]},"then":{"properties":{"source_status":{"const":"synthetic_fixture"}}}}
+  {"if":{"properties":{"label_status":{"const":"fixture_expected"}},"required":["label_status"]},"then":{"properties":{"source_status":{"const":"synthetic_fixture"}}}},
+  {"if":{"properties":{"gold_decision":{"const":"conditional"}},"required":["gold_decision"]},"then":{"properties":{"scope_conditions":{"minItems":1}}}}
  ]
 }
