@@ -56,11 +56,15 @@ def _nonempty(value: object, field: str) -> None:
         raise ValueError(f"{field} must be a non-empty string")
 
 
-def _unique_strings(values: Tuple[str, ...], field: str) -> None:
+def _string_sequence(values: Tuple[str, ...], field: str) -> None:
     if not isinstance(values, tuple) or not values:
         raise ValueError(f"{field} must be a non-empty tuple")
     for value in values:
         _nonempty(value, field)
+
+
+def _unique_strings(values: Tuple[str, ...], field: str) -> None:
+    _string_sequence(values, field)
     if len(values) != len(set(values)):
         raise ValueError(f"{field} entries must be unique")
 
@@ -109,9 +113,11 @@ def audit_path_competition(
             raise ValueError("candidates must contain PathCandidate values")
         for field in ("path_id", "source_node", "target_node"):
             _nonempty(getattr(candidate, field), field)
-        _unique_strings(candidate.ordered_states, "ordered_states")
-        _unique_strings(candidate.relation_signatures, "relation_signatures")
+        _string_sequence(candidate.ordered_states, "ordered_states")
+        _string_sequence(candidate.relation_signatures, "relation_signatures")
         _unique_strings(candidate.evidence_refs, "evidence_refs")
+        if candidate.ordered_states[0] != candidate.source_node or candidate.ordered_states[-1] != candidate.target_node:
+            reasons.append(f"PATH_ENDPOINT_SEQUENCE_MISMATCH:{candidate.path_id}")
         if not isinstance(candidate.outcome, PathOutcome):
             raise ValueError("outcome must be a PathOutcome")
         axes = _axes(candidate.context_axes, "context_axes")
