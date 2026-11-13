@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zhouyi-ai.local/schemas/relation-ontology.schema.json",
+  "title": "Explicit Relation Ontology",
+  "description": "Versioned relation vocabulary. Reciprocal inverse consistency is enforced by the runtime validator.",
+  "type": "object",
+  "required": ["ontology_id", "version", "relation_types"],
+  "properties": {
+    "ontology_id": { "type": "string", "minLength": 1 },
+    "version": { "type": "string", "minLength": 1 },
+    "relation_types": {
+      "type": "object",
+      "minProperties": 1,
+      "propertyNames": { "minLength": 1 },
+      "additionalProperties": { "$ref": "#/$defs/relationType" }
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "relationType": {
+      "type": "object",
+      "required": ["name"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "symmetric": { "type": "boolean", "default": false },
+        "inverse_of": { "type": ["string", "null"] }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "symmetric": { "const": true } }, "required": ["symmetric"] },
+          "then": { "properties": { "inverse_of": { "type": "null" } } }
+        }
+      ],
+      "additionalProperties": false
+    }
+  }
+}
