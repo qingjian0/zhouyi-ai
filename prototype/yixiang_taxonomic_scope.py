@@ -97,6 +97,8 @@ def assess_taxonomic_transfer(claim: TaxonomicTransferClaim) -> TaxonomicAssessm
             PredicateScope.CONTEXTUAL,
         ):
             reasons.append("NON_UNIVERSAL_PREDICATE_CANNOT_BE_PROMOTED_UPWARD")
+        if claim.predicate_scope == PredicateScope.UNIVERSAL and not claim.inheritance_evidence:
+            reasons.append("UNIVERSAL_SCOPE_EVIDENCE_MISSING")
         if not claim.counterexample_search_performed:
             reasons.append("UPWARD_GENERALIZATION_REQUIRES_COUNTEREXAMPLE_SEARCH")
         if claim.counterexample_refs:
