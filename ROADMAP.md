@@ -1,43 +1,40 @@
 # 开发路线图
 
-> 项目最高研究优先级为易象理论与类象认知。详细治理规范见 [易象理论优先研究纲领](docs/YIXIANG_FIRST_PRIORITY_CHARTER.md)。
+> 项目最高研究优先级为易象理论与类象认知。清以前文献为研究主体，清代及以后用于校勘、辑佚、补漏和学术审查。
 
 | 阶段 | 目标 | 交付物 | 状态 |
 |---|---|---|---|
 | P0-A | 类象理论本体 | 多维类象、关系保持、边界条件、反例与证据规范 | v0.1 本体草案与类象记录规范已建立，待文献校勘/专家审阅 |
 | P0-B | 易学概念校勘 | 阴阳、四象、八卦、六十四卦、爻位、卦序、卦变规范 | 编码约定与结构转移原型已实现；经典来源校勘待开展 |
-| P0-C | 类象数据体系 | 经典语料、结构数据、跨域案例、合成基准与数据卡 | 待开展 |
-| P0-D | 类象计算引擎 | 类象发现、解释、验证、迁移、组合和拒绝机制 | 规则评估器与有界图映射发现基线已实现；学习型抽取/迁移待开展 |
+| P0-C | 类象数据体系 | 经典语料、结构数据、跨域案例、合成基准与数据卡 | 候选书目 90 项；全文入库与逐条校勘待开展 |
+| P0-D | 类象计算引擎 | 类象发现、解释、验证、迁移、组合和拒绝机制 | 规则评估、有界图映射、M2.1 候选评分和 M3 证据剖面基线已实现；学习型抽取/迁移待开展 |
 | P0-E | 易象状态引擎 | 层次状态、爻位、卦变、状态转移与路径 | 64态结构编码与显式动爻转移原型已实现；经典语义/路径模型待开展 |
 | P0-F | 五行与时位势变 | 条件关系、制化、乘侮、消长及动态演化 | 设计草案，模型实验未开始 |
-| P0-G | 多尺度时间与层级过程 | 事件时间/观测时间、多尺度阶段、局部—整体递归 | M1 时间层级/区间关系原型与确定性合成基准已有通过记录；M2 typed relation 结构原型和 M2.1 双向候选约束评分已实现；最新分支 CI 尚待验证；循环式消息传递/递归学习未实现 |
-| P0-H | 竞争类象与证据裁决 | 多假设保留、适用边界、未决机制、反例驱动更新 | M2.1 已提供竞争假设排序、未知特征保留和反例残差基线；概率校准、学习型裁决与反例驱动模型重构待开展 |
+| P0-G | 多尺度时间与层级过程 | 事件时间/观测时间、多尺度阶段、局部—整体递归 | M1 时间层级/区间关系原型与合成基准已有记录；M2 typed relation、M2.1 双向候选约束已实现；结构扰动实验和真正递归消息传递待开展 |
+| P0-H | 竞争类象与证据裁决 | 多假设保留、适用边界、未决机制、反例驱动更新 | M3 已实现证据分层、多维剖面、条件状态、反例保留及未决规则；概率校准、标注一致性与学习型裁决待开展 |
 | P1-A | 反事实与干预边界 | 条件变化、反事实一致性、混杂识别与拒绝 | 研究议程已定义；实验待开展 |
 | P1-B | 主动观测 | 信息增益、预测分歧、观测成本与选择偏差 | 研究议程已定义；原型待开展 |
 | P1-C | 新象发现与结构重组 | 残差聚类、候选新象、版本化、回滚 | 研究议程已定义；原型待开展 |
 | P1 | 易象驱动的组合认知 | 动态超图、并行推演、证据协调、自组织 | 部分研究原型，需围绕 P0 集成 |
-| P1-EVAL | 理论贡献验证 | 消融、跨域迁移、错误类比拒绝、OOD 与成本评估 | 待建立完整协议 |
+| P1-EVAL | 理论贡献验证 | 消融、跨域迁移、错误类比拒绝、OOD 与成本评估 | M3 单元测试已添加；最新提交 CI 状态待核验 |
 | P2 | 通用模型与工程 | 语言生成、训练优化、加速、部署 | 按核心研究需要推进 |
 
-## 下一阶段研究主线
-
-详细研究问题、候选机制、基线、指标、失败标准与里程碑见 [类象认知下一阶段研究计划 v0.1](docs/YIXIANG_NEXT_RESEARCH_PROGRAM_V0_1.md)。
-
-M1 多尺度时间原型：[数据结构设计](docs/YIXIANG_MULTISCALE_TIME_M1_V0_1.md)、[实现](prototype/yixiang_multiscale_time.py)、[测试](tests/test_yixiang_multiscale_time.py)；[合成基准协议](docs/YIXIANG_TEMPORAL_BENCHMARK_M1_V0_1.md)、[生成器](prototype/yixiang_temporal_benchmark.py)、[测试](tests/test_yixiang_temporal_benchmark.py)。M2 整体—局部关系类型：[设计与边界](docs/YIXIANG_HIERARCHICAL_STRUCTURE_M2_V0_1.md)、[原型](prototype/yixiang_hierarchical_structure.py)、[测试](tests/test_yixiang_hierarchical_structure.py)。M2.1 双向候选约束评估：[设计与边界](docs/YIXIANG_BIDIRECTIONAL_CONSTRAINTS_M2_1_V0_1.md)、[原型](prototype/yixiang_bidirectional_constraints.py)、[测试](tests/test_yixiang_bidirectional_constraints.py)。
-
-建议实施顺序：
+## 近期研究主线
 
 1. M1：多尺度时间表示和合成基准。
-2. M2：整体—局部 typed relation 与双向候选约束评估；下一步做结构扰动实验。
-3. M3：竞争类象、证据剖面、置信度校准与未决机制。
-4. M4：反事实与干预边界。
-5. M5：主动观测的信息增益基线。
-6. M6：新象发现、版本化和回滚。
-7. M7：统一闭环与公平消融。
+2. M2：整体—局部 typed relation 与结构扰动实验。
+3. M2.1：局部证据评分整体假设，整体预期反馈局部核验。
+4. M3：竞争类象、证据分层、适用条件与未决裁决。
+5. M4：反事实与干预边界。
+6. M5：主动观测的信息增益基线。
+7. M6：新象发现、版本化和回滚。
+8. M7：统一闭环与公平消融。
+
+M1 文档与实现见 `docs/YIXIANG_MULTISCALE_TIME_M1_V0_1.md`、`prototype/yixiang_multiscale_time.py`；M2 见 `docs/YIXIANG_HIERARCHICAL_STRUCTURE_M2_V0_1.md`、`prototype/yixiang_hierarchical_structure.py`；M2.1 见 `docs/YIXIANG_BIDIRECTIONAL_CONSTRAINTS_M2_1_V0_1.md`、`prototype/yixiang_bidirectional_constraints.py`；M3 见 `docs/YIXIANG_COMPETING_HYPOTHESES_M3_V0_1.md`、`prototype/yixiang_competing_hypotheses.py`。
 
 ## 执行原则
 
-1. 先完成类象本体：区分形态、属性、功能、关系、过程、时空、势象与综合象。
+1. 区分形态、属性、功能、关系、过程、时空、势象与综合象。
 2. 建立经典概念和卦爻编码校勘表，保留不同传承/注本的差异。
 3. 固定数据 schema、来源追溯、标注规范、反例和数据划分。
 4. 实现类象发现—解释—验证—迁移的最小闭环。
