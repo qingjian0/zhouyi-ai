@@ -75,6 +75,7 @@ class LeiClaimTests(unittest.TestCase):
             action_method="method",
             operating_conditions=("condition",),
             observed_outcomes=("result",),
+            evidence_kind=EvidenceKind.INTERVENTION,
             causal_identification="intervention_or_identification_evidence",
         ))
         self.assertEqual(result.decision, ClaimDecision.SCOPE_RECORDED)
