@@ -132,7 +132,6 @@ def _select_candidate(
     dev_mask: int,
     target_mask: int,
     locked_mask: int,
-    teacher_mask: int,
     teacher_rule: dict,
     input_dim: int,
 ) -> dict[str, Any]:
@@ -171,6 +170,7 @@ def _select_candidate(
         ),
     )
     # Teacher manifests are consulted only after selection, for evaluation.
+    teacher_mask = _truth_mask(teacher_object, input_dim)
     selected_spec = rule_manifest(selected_rule, input_dim)
     return {
         "development_errors": best_dev_error,
@@ -263,17 +263,6 @@ def run_active_query_benchmark(
         for output_index in range(output_dim):
             target_mask = _target_mask(rows, output_index)
             teacher_rule = teacher["rules"][output_index]
-            teacher_object = RelationRule(
-                teacher_rule["operator"], tuple(teacher_rule["support"]),
-                threshold=teacher_rule["threshold"],
-                context_index=teacher_rule["context_index"],
-                context_value=(
-                    teacher_rule["context_value"]
-                    if teacher_rule["context_value"] is not None else 1
-                ),
-            )
-            teacher_mask = _truth_mask(teacher_object, input_dim)
-
             pattern_to_candidates: dict[
                 int, list[tuple[RelationRule, int]]
             ] = defaultdict(list)
@@ -297,7 +286,7 @@ def run_active_query_benchmark(
                 )
                 active_result = _select_candidate(
                     active_survivors, pattern_to_candidates, dev_mask,
-                    target_mask, locked_mask, teacher_mask, teacher_rule, input_dim,
+                    target_mask, locked_mask, teacher_rule, input_dim,
                 )
                 random_result = _select_candidate(
                     random_survivors, pattern_to_candidates, dev_mask,
