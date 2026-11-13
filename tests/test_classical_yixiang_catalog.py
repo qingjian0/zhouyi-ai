@@ -17,6 +17,16 @@ class ClassicalYixiangCatalogTests(unittest.TestCase):
         self.assertEqual(len(ids), len(set(ids)))
         self.assertTrue(all(re.fullmatch(r"[a-z0-9_]+", item) for item in ids))
 
+    def test_schema_is_valid_json_and_documents_canonical_ids(self):
+        schema = json.loads(
+            (ROOT / "schemas" / "classical-yixiang-source-catalog.schema.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(schema["$schema"], "https://json-schema.org/draft/2020-12/schema")
+        self.assertEqual(
+            schema["properties"]["works"]["items"]["properties"]["work_id"]["pattern"],
+            "^[a-z0-9_]+$",
+        )
+
     def test_catalog_preserves_pre_qing_primary_policy(self):
         catalog = json.loads(
             (ROOT / "data" / "classical_yixiang_source_catalog.json").read_text(encoding="utf-8")
