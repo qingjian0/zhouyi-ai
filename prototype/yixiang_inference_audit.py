@@ -30,6 +30,7 @@ class EvidenceAnchor:
     role: AnchorRole
     evidence_ref: str
     description: str
+    observation_id: str
 
 
 @dataclass(frozen=True)
@@ -44,6 +45,7 @@ class InferenceMoveClaim:
     scope_conditions: Tuple[str, ...]
     known_differences: Tuple[str, ...]
     anchors: Tuple[EvidenceAnchor, ...]
+    evidence_refs: Tuple[str, ...]
 
 
 @dataclass(frozen=True)
@@ -81,7 +83,7 @@ def audit_inference_move(claim: InferenceMoveClaim) -> InferenceMoveAudit:
         raise ValueError("source and target observations must differ")
     if not isinstance(claim.move, InferenceMove):
         raise ValueError("move must use InferenceMove")
-    for field in ("shared_basis", "scope_conditions", "known_differences", "anchors"):
+    for field in ("shared_basis", "scope_conditions", "known_differences", "anchors", "evidence_refs"):
         if not isinstance(getattr(claim, field), tuple):
             raise ValueError(f"{field} must be a tuple")
     for field in ("shared_basis", "scope_conditions", "known_differences"):
@@ -89,6 +91,10 @@ def audit_inference_move(claim: InferenceMoveClaim) -> InferenceMoveAudit:
             raise ValueError(f"{field} entries must be non-empty strings")
     if any(not isinstance(a, EvidenceAnchor) for a in claim.anchors):
         raise ValueError("anchors must contain EvidenceAnchor")
+    if not claim.evidence_refs or any(not isinstance(ref, str) or not ref.strip() for ref in claim.evidence_refs):
+        raise ValueError("evidence_refs must contain non-empty references")
+    if len(claim.evidence_refs) != len(set(claim.evidence_refs)):
+        raise ValueError("evidence_refs must be unique")
     for anchor in claim.anchors:
         if not isinstance(anchor.role, AnchorRole):
             raise ValueError("anchor role must use AnchorRole")
@@ -96,6 +102,8 @@ def audit_inference_move(claim: InferenceMoveClaim) -> InferenceMoveAudit:
             raise ValueError("anchor evidence_ref must be non-empty")
         if not isinstance(anchor.description, str) or not anchor.description.strip():
             raise ValueError("anchor description must be non-empty")
+        if not isinstance(anchor.observation_id, str) or not anchor.observation_id.strip():
+            raise ValueError("anchor observation_id must be non-empty")
     required = _REQUIRED_ROLES[claim.move]
     present = tuple(sorted({a.role for a in claim.anchors}, key=lambda x: x.value))
     reasons = []
@@ -108,6 +116,12 @@ def audit_inference_move(claim: InferenceMoveClaim) -> InferenceMoveAudit:
     refs = [a.evidence_ref for a in claim.anchors]
     if len(refs) != len(set(refs)):
         reasons.append("DUPLICATE_EVIDENCE_ANCHOR")
+    if any(ref not in claim.evidence_refs for ref in refs):
+        reasons.append("UNLINKED_EVIDENCE_ANCHOR")
+    if any(a.role == AnchorRole.SOURCE and a.observation_id != claim.source_observation_id for a in claim.anchors):
+        reasons.append("SOURCE_ANCHOR_OBSERVATION_MISMATCH")
+    if any(a.role == AnchorRole.TARGET and a.observation_id != claim.target_observation_id for a in claim.anchors):
+        reasons.append("TARGET_ANCHOR_OBSERVATION_MISMATCH")
     if set(required) - set(present):
         reasons.append("MISSING_MOVE_SPECIFIC_EVIDENCE_ROLE")
     decision = AuditDecision.BLOCKED if reasons else AuditDecision.HUMAN_REVIEW
