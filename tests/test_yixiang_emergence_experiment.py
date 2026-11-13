@@ -70,7 +70,7 @@ class EmergenceExperimentTests(unittest.TestCase):
         self.assertIn("REQUIRED_EXPERIMENT_ARMS_MISSING", result.reason_codes)
 
     def test_missing_necessary_member_ablation_blocks(self):
-        rows = tuple(row for row in measurements() if row.arm != "member_only:function")
+        rows = tuple(row for row in measurements() if row.arm != "member_removed:function")
         result = audit_emergence_experiment(protocol(), rows)
         self.assertIn("REQUIRED_EXPERIMENT_ARMS_MISSING", result.reason_codes)
 
@@ -155,7 +155,10 @@ class EmergenceExperimentTests(unittest.TestCase):
 
     def test_low_direction_is_supported(self):
         rows = measurements(
-            member_baseline=(9.0, 9.2, "task-A|range-1"),
+            **{
+                "member_only:structure": (9.0, 9.2, "task-A|range-1"),
+                "member_only:function": (9.1, 9.2, "task-A|range-1"),
+            },
             intact_composite=(2.0, 2.2, "task-A|range-1"),
             bridge_removed=(8.0, 8.2, "task-A|range-1"),
             **{
