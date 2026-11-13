@@ -11,6 +11,9 @@ class BenchmarkContractTests(unittest.TestCase):
   validate_dataset(cases)
   self.assertEqual(len(cases),12)
   self.assertEqual({c["split_group"] for c in cases},{"train","dev","test"})
+ def test_non_string_case_keys_rejected(self):
+  c=make_case("a"); c[7]="bad-key"
+  with self.assertRaisesRegex(ValueError,"keys must be strings"): validate_case(c)
  def test_invalid_split_group_rejected(self):
   c=make_case("a",split="validation")
   with self.assertRaisesRegex(ValueError,"split_group"): validate_dataset([c])
