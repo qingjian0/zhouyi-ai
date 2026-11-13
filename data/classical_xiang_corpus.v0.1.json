@@ -2894,9 +2894,9 @@
     },
     "locator": {
       "chapter": "说林训",
-      "section_or_line": "见物同，而用之异；人食礜石而死，蚕食之而不饥；鱼食巴菽而死，鼠食之而肥；类不可必推"
+      "section_or_line": "非其用也；环可以喻员，不必以轮；见物同，而用之异；类不可必推"
     },
-    "text": "柳下惠见饴，曰可以养老；盗跖见饴，曰可以黏牡；见物同，而用之异。……人食礜石而死，蚕食之而不饥；鱼食巴菽而死，鼠食之而肥；类不可必推。",
+    "text": "毋贻盲者镜，毋予躄者履，毋赏越人章甫，非其用也。……环可以喻员，不必以轮；绦可以为纆，不必以紃。……柳下惠见饴，曰可以养老；盗跖见饴，曰可以黏牡；见物同，而用之异。……人食礜石而死，蚕食之而不饥；鱼食巴菽而死，鼠食之而肥；类不可必推。",
     "text_status": "quotation_fragment",
     "claims": [
       {
@@ -2933,6 +2933,76 @@
           "identify_difference",
           "map_function",
           "test_counterexample",
+          "refuse_transfer"
+        ]
+      },
+      {
+        "claim_id": "huainanzi-shuolin-affordance-fit-001",
+        "claim_kind": "textual_observation",
+        "subject": "镜、履、章甫与不同接受者",
+        "predicate": "物的用途适配依赖接受者的能力与习俗",
+        "object": "同一物并不对所有主体都具有相同效用",
+        "interpretive_note": "《说林训》以盲者、跛者、越人分别对应镜、履、章甫，指出物虽存在其通常用途，但接受者条件不匹配时便“非其用也”。这段材料适合研究主体—工具—任务的适配关系；不应把古代对特定群体的表达直接转译成现代能力标签。",
+        "scope": "限于该段譬喻的工具适配论证；现代系统应使用具体任务能力和情境变量，不以身份类别作未经证实的推断。",
+        "relation_type": "agent_tool_task_fit",
+        "xiang_domain": "主体能力与工具功能适配",
+        "relation_family": "functional",
+        "shared_basis": [
+          "工具具有可供执行的功能"
+        ],
+        "non_shared_basis": [
+          "接受者的能力、需求、任务和习俗可能不同"
+        ],
+        "scope_conditions": [
+          "评估工具效用时必须同时表示主体、任务和环境",
+          "不得从群体标签推断个体能力"
+        ],
+        "causal_status": "not_claimed",
+        "conditions": [
+          "主体能力与任务需求相匹配"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed",
+        "reasoning_operations": [
+          "classify",
+          "map_function",
+          "identify_difference",
+          "refuse_transfer"
+        ]
+      },
+      {
+        "claim_id": "huainanzi-shuolin-analogy-dimension-001",
+        "claim_kind": "textual_observation",
+        "subject": "环喻员与绦为纆",
+        "predicate": "类比可以只映射特定结构维度而不要求对象整体相同",
+        "object": "环可用于譬喻圆形，但不必等同车轮；绦可为纆，但不必等同紃",
+        "interpretive_note": "《说林训》列举不同物件之间的局部譬喻关系，提示类比映射可以针对某一维度或用途，而非要求源对象与目标对象整体同一。具体字词“员、纆、紃”的训释及版本异文仍需校勘。",
+        "scope": "限于当前数字见证的短句；词义、字形和异文需对照古注及校勘本。",
+        "relation_type": "dimension_specific_analogy",
+        "xiang_domain": "局部结构映射与类比抽象",
+        "relation_family": "rhetorical_analogy",
+        "shared_basis": [
+          "被映射的特定形状或用途维度"
+        ],
+        "non_shared_basis": [
+          "源对象与目标对象在整体结构、材料和用途上并不相同"
+        ],
+        "scope_conditions": [
+          "必须标明类比映射的具体维度",
+          "不得把局部相似扩展成整体等同"
+        ],
+        "causal_status": "not_claimed",
+        "conditions": [
+          "映射维度需明确且可核验"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed",
+        "reasoning_operations": [
+          "abstract_shared_basis",
+          "identify_difference",
+          "infer_by_analogy",
           "refuse_transfer"
         ]
       }
