@@ -72,7 +72,7 @@
 - [先秦至两汉类象的动态条件、视域与适用域研究 v0.2](docs/CLASSICAL_YIXIANG_DYNAMIC_CONTEXT_STANDPOINT_V0_2.md)
 - [《吕氏春秋·别类》《淮南子·说山训》：非单调组合与尺度迁移边界](docs/CLASSICAL_YIXIANG_NONMONOTONIC_COMPOSITION_AND_SCALE_V0_1.md)
 - [《吕氏春秋》“类”观念与说理情境解释分歧](docs/CLASSICAL_YIXIANG_LUSHI_CATEGORY_AND_ARGUMENT_CONTEXT_V0_1.md)
-- [古典“类”四种论证用途与行动结果账本 v0.1](docs/CLASSICAL_YIXIANG_FOUR_LEI_CLAIM_TYPES_AND_OUTCOME_LEDGER_V0_1.md)
+- [古典“类”五种论证用途与行动结果账本 v0.1](docs/CLASSICAL_YIXIANG_FOUR_LEI_CLAIM_TYPES_AND_OUTCOME_LEDGER_V0_1.md)
 - [古典“类”论证用途账本原型](prototype/yixiang_lei_claims.py)
 - [古典“类”论证用途账本测试](tests/test_yixiang_lei_claims.py)
 - [《荀子·正名》天官—征知—同异—名实—化认知链研究](docs/CLASSICAL_YIXIANG_XUNZI_ZHENGMING_COGNITIVE_CHAIN_V0_1.md)
