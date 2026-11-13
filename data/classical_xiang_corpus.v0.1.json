@@ -1,0 +1,170 @@
+[
+  {
+    "record_id": "zhouyi-xici-lei-ju-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "周易·系辞上传",
+      "traditional_authority": "传统归属与作者/成篇年代问题保留学术争议",
+      "composition_period": "战国至汉初层累形成说并存",
+      "genre": "易传"
+    },
+    "period": "pre_qin",
+    "source_type": "classical_text",
+    "tradition": [
+      "易传",
+      "类象研究"
+    ],
+    "witness": {
+      "witness_id": "zhouyi-xici-lei-ju-001-witness",
+      "edition_or_database": "中国哲学书电子化计划数字检索见证；非独立古本",
+      "url": "https://ctext.org/wiki.pl?chapter=85946&if=en&remap=gb",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "平台条款另行核验；仅保留必要短引"
+    },
+    "locator": {
+      "chapter": "系辞上传·第一章",
+      "section_or_line": "天尊地卑章"
+    },
+    "text": "方以类聚，物以群分，吉凶生矣。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "xici-fang-lei-001",
+        "claim_kind": "textual_observation",
+        "subject": "方与物",
+        "predicate": "以类聚/以群分",
+        "object": "类聚与群分",
+        "interpretive_note": "原文并置‘方以类聚’与‘物以群分’，并联系吉凶判断；‘方’的训义及指向须并列记录。",
+        "scope": "限于所引语句及其语境；不得直接外推为现代自然科学因果定律。",
+        "conditions": [
+          "保留历代训诂与注家异说"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "短引与元数据，不复制现代注释。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "需与《周易正义》、王弼注本及其他校本逐字校勘。"
+    ]
+  },
+  {
+    "record_id": "zhouyi-xici-yingqiu-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "周易·系辞上传",
+      "traditional_authority": "传统归属与作者/成篇年代问题保留学术争议",
+      "composition_period": "战国至汉初层累形成说并存",
+      "genre": "易传"
+    },
+    "period": "pre_qin",
+    "source_type": "classical_text",
+    "tradition": [
+      "易传",
+      "类象研究"
+    ],
+    "witness": {
+      "witness_id": "zhouyi-xici-yingqiu-001-witness",
+      "edition_or_database": "中国哲学书电子化计划数字检索见证；非独立古本",
+      "url": "https://ctext.org/zhuzi-yulei/74/zhs",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "平台条款另行核验；仅保留必要短引"
+    },
+    "locator": {
+      "chapter": "系辞上传",
+      "section_or_line": "同声相应，同气相求"
+    },
+    "text": "同声相应，同气相求。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "xici-tongsheng-001",
+        "claim_kind": "textual_observation",
+        "subject": "声与气",
+        "predicate": "相应/相求",
+        "object": "同类响应关系",
+        "interpretive_note": "文本表达同声、同气之间的响应或相求；须结合上下文及注家判断其义域。",
+        "scope": "限于所引语句及其语境；不得直接外推为现代自然科学因果定律。",
+        "conditions": [
+          "保留历代训诂与注家异说"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "短引与元数据，不复制现代注释。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "此入口含朱子语类解释，不能将朱子语类误标为先秦文本见证；需另找独立经传底本。"
+    ]
+  },
+  {
+    "record_id": "zhouyi-shuogua-guanbian-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "周易·说卦传",
+      "traditional_authority": "传统归属与作者/成篇年代问题保留学术争议",
+      "composition_period": "战国至汉初层累形成说并存",
+      "genre": "易传"
+    },
+    "period": "pre_qin",
+    "source_type": "classical_text",
+    "tradition": [
+      "易传",
+      "类象研究"
+    ],
+    "witness": {
+      "witness_id": "zhouyi-shuogua-guanbian-001-witness",
+      "edition_or_database": "中国哲学书电子化计划数字检索见证；非独立古本",
+      "url": "https://ctext.org/wiki.pl?chapter=3650253&if=gb&remap=gb",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "平台条款另行核验；仅保留必要短引"
+    },
+    "locator": {
+      "chapter": "说卦传",
+      "section_or_line": "观变于阴阳而立卦"
+    },
+    "text": "观变于阴阳而立卦，发挥于刚柔而生爻。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "shuogua-guanbian-001",
+        "claim_kind": "textual_observation",
+        "subject": "阴阳变化",
+        "predicate": "观变而立卦",
+        "object": "卦的建立",
+        "interpretive_note": "语句将观察阴阳变化与立卦联系，将刚柔发挥与生爻联系；可作为结构生成研究入口。",
+        "scope": "限于所引语句及其语境；不得直接外推为现代自然科学因果定律。",
+        "conditions": [
+          "保留历代训诂与注家异说"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "短引与元数据，不复制现代注释。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "当前检索见证来自后世文献引录，须继续寻找独立经传底本核对。"
+    ]
+  }
+]
