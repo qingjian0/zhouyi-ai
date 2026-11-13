@@ -717,5 +717,195 @@
     "review_notes": [
       "数字文本可定位至《正名篇》末段相关论述；尚未与可靠校点本完成异文校勘。"
     ]
+  },
+  {
+    "record_id": "zhuangzi-qiwulun-bishi-perspective-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "庄子·齐物论",
+      "traditional_authority": "传统归于庄周；内篇文本层次与形成过程仍有学术讨论",
+      "composition_period": "战国时期文本层；具体成篇过程待考",
+      "genre": "道家哲学/论辩"
+    },
+    "period": "pre_qin",
+    "source_type": "classical_text",
+    "tradition": [
+      "先秦诸子",
+      "视角转换",
+      "名辩与分类"
+    ],
+    "witness": {
+      "witness_id": "wikisource-zhuangzi-qiwulun",
+      "edition_or_database": "维基文库《庄子·齐物论》数字转录；须与可靠校点本及古本异文复核",
+      "url": "https://zh.wikisource.org/zh-hans/莊子/齊物論",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "古典文本公有领域；数字平台条款另行核验"
+    },
+    "locator": {
+      "chapter": "齐物论第二",
+      "section_or_line": "物无非彼至彼是莫得其偶段"
+    },
+    "text": "物无非彼，物无非是，自彼则不见，自知则知之。故曰：“彼出于是，是亦因彼。”……彼亦一是非，此亦一是非。果且有彼是乎哉？果且无彼是乎哉？彼是莫得其偶，谓之道枢。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "zhuangzi-qiwulun-perspective-001",
+        "claim_kind": "textual_observation",
+        "subject": "彼/是判断",
+        "predicate": "相因而生并受视域关系制约",
+        "object": "彼是方生及道枢论述",
+        "interpretive_note": "文本将彼与是置于相互依待的论述中，并追问彼是之偶。此处适合作为视角依赖、对立项生成和判断边界的研究材料；不可简化为所有判断等价或一切差异均不存在。",
+        "scope": "限于《齐物论》该段的论辩语境；不外推为现代认识论定理。",
+        "conditions": [
+          "保留上下文与古本异文",
+          "区分文本陈述、郭象等注家解释和现代哲学阐释"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文公有领域；数字转录条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保留必要短引与来源元数据。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "数字转录检索见证，尚未与郭庆藩《庄子集释》及其他可靠校本逐字校勘。"
+    ],
+    "concept_tags": [
+      "classification",
+      "analogy_limit",
+      "name_reality",
+      "observation"
+    ]
+  },
+  {
+    "record_id": "xunzi-jiebi-multidifference-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "荀子·解蔽",
+      "traditional_authority": "传统归于荀况；篇章文本层次须参考校勘本",
+      "composition_period": "战国末期文本层；具体篇章形成仍待专门考订",
+      "genre": "先秦哲学/认识论与心术论"
+    },
+    "period": "pre_qin",
+    "source_type": "classical_text",
+    "tradition": [
+      "先秦诸子",
+      "认识论",
+      "分类与辨异"
+    ],
+    "witness": {
+      "witness_id": "wikisource-xunzi-jiebi",
+      "edition_or_database": "维基文库《荀子·解蔽篇》数字转录；须与可靠校点本复核",
+      "url": "https://zh.wikisource.org/zh-hans/荀子/解蔽篇",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "古典文本公有领域；数字平台条款另行核验"
+    },
+    "locator": {
+      "chapter": "解蔽篇第二十一",
+      "section_or_line": "兼陈万物而中县衡段"
+    },
+    "text": "是故众异不得相蔽以乱其伦也。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "xunzi-jiebi-multidifference-001",
+        "claim_kind": "textual_observation",
+        "subject": "众异",
+        "predicate": "不得相蔽以乱其伦",
+        "object": "辨异而保持分类秩序",
+        "interpretive_note": "《解蔽》把兼陈万物与防止众异相蔽联系起来。可转化为类象引擎的反偏见约束：不得让单一维度或局部类别吞并其他差异；但这是对文本论旨的工程化研究入口，不等同现代分类学公理。",
+        "scope": "限于《解蔽》该段的认识论与心术论语境。",
+        "conditions": [
+          "结合上文‘凡万物异则莫不相为蔽’及下文‘虚壹而静’阅读",
+          "保留不同注家对‘伦’的训释"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文公有领域；数字转录条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保留必要短引与来源元数据。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "需与王先谦《荀子集解》及现代整理本校勘；当前为数字转录见证。"
+    ],
+    "concept_tags": [
+      "classification",
+      "analogy_limit",
+      "observation"
+    ]
+  },
+  {
+    "record_id": "xunzi-jiebi-xin-xuzhiyingjing-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "荀子·解蔽",
+      "traditional_authority": "传统归于荀况；篇章文本层次须参考校勘本",
+      "composition_period": "战国末期文本层；具体篇章形成仍待专门考订",
+      "genre": "先秦哲学/认识论与心术论"
+    },
+    "period": "pre_qin",
+    "source_type": "classical_text",
+    "tradition": [
+      "先秦诸子",
+      "认识论",
+      "观察方法"
+    ],
+    "witness": {
+      "witness_id": "wikisource-xunzi-jiebi",
+      "edition_or_database": "维基文库《荀子·解蔽篇》数字转录；须与可靠校点本复核",
+      "url": "https://zh.wikisource.org/zh-hans/荀子/解蔽篇",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "古典文本公有领域；数字平台条款另行核验"
+    },
+    "locator": {
+      "chapter": "解蔽篇第二十一",
+      "section_or_line": "人何以知道至虚壹而静段"
+    },
+    "text": "人何以知道？曰：心。心何以知？曰：虚壹而静。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "xunzi-jiebi-xuzhijing-001",
+        "claim_kind": "textual_observation",
+        "subject": "心之认知",
+        "predicate": "以虚壹而静为知的条件",
+        "object": "虚、壹、静的认识方法",
+        "interpretive_note": "该句提出‘虚壹而静’作为求知方法，后文分别解释虚、不以已知妨碍将受；壹、不以一知害另一知；静、不以纷扰乱知。可启发模型的开放输入、并列证据和抑制噪声机制，但不能将古代心术术语直接等同现代机器学习机制。",
+        "scope": "限于《解蔽》该段；具体训诂与三义边界须结合全文和注疏。",
+        "conditions": [
+          "结合后文逐项定义，不以现代词义替换古义",
+          "工程映射单独标注为项目假设"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文公有领域；数字转录条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保留必要短引与来源元数据。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "需与王先谦《荀子集解》及现代整理本校勘；当前为数字转录见证。"
+    ],
+    "concept_tags": [
+      "observation",
+      "analogy_limit",
+      "natural_knowledge"
+    ]
   }
 ]
