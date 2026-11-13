@@ -1,9 +1,16 @@
-import unittest
+import unittest, json
+from pathlib import Path
 from prototype.yixiang_benchmark import validate_case,validate_dataset,evaluate_predictions,group_leakage
 def make_case(cid,decision="accept",lineage=("work-a:edition-1",),split="train",scope=("context fixed",)):
  return {"case_id":cid,"source_lineage":list(lineage),"source_status":"synthetic_fixture","target_claim":"Test whether a proposed relation transfers to a target claim.","relation_families":["structural"],"shared_basis":["same relation topology"],"non_shared_basis":["different physical substrate"],"scope_conditions":list(scope),"required_invariants":["edge direction preserved"],"known_counterexamples":[],"causal_status":"unknown","evidence_refs":["fixture:"+cid],"independence_group":"fixture-group-"+cid,"gold_decision":decision,"gold_rationale":"Synthetic gold label; uncertainty is documented for abstention.","reviewers":["reviewer-a","reviewer-b"],"split_group":split}
 class BenchmarkContractTests(unittest.TestCase):
  def test_valid_case_and_dataset(self): validate_case(make_case("a")); validate_dataset([make_case("a"),make_case("b")])
+ def test_committed_synthetic_fixture_dataset(self):
+  root=Path(__file__).resolve().parents[1]
+  cases=json.loads((root/"data/yixiang_benchmark_synthetic.v0.1.json").read_text(encoding="utf-8"))
+  validate_dataset(cases)
+  self.assertEqual(len(cases),12)
+  self.assertEqual({c["split_group"] for c in cases},{"train","dev","test"})
  def test_unknown_field_rejected(self):
   c=make_case("a"); c["similarity_score"]=0.9
   with self.assertRaisesRegex(ValueError,"unknown fields"): validate_case(c)
