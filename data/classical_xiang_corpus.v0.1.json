@@ -3206,5 +3206,102 @@
       "classification",
       "state_change"
     ]
+  },
+  {
+    "record_id": "lunheng-ganlei-correspondence-causal-critique-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "论衡·感类篇",
+      "traditional_authority": "东汉王充撰；《感类》与相关篇章的互见、异文需按校勘本核验",
+      "composition_period": "东汉时期",
+      "genre": "自然哲学与灾异论辩"
+    },
+    "period": "qin_han",
+    "source_type": "classical_text",
+    "tradition": [
+      "两汉思想",
+      "天人感应批判",
+      "相关与因果辨析"
+    ],
+    "witness": {
+      "witness_id": "ctext-lunheng-ganlei",
+      "edition_or_database": "中国哲学书电子化计划《论衡·感类》；页面列有《四部丛刊初编》等多个数字底本入口，须逐一核对",
+      "url": "https://ctext.org/lunheng/gan-lei/zhs",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台及转录许可另行核验"
+    },
+    "locator": {
+      "juan": "卷十八",
+      "chapter": "感类篇第五十五",
+      "section_or_line": "旱不为汤至，雨不应自责；然而前旱后雨者，自然之气也"
+    },
+    "text": "旱不为汤至，雨不应自责。然而前旱后雨者，自然之气也。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "lunheng-ganlei-correspondence-causal-critique-001",
+        "claim_kind": "textual_observation",
+        "subject": "成汤自责与旱后降雨",
+        "predicate": "反对仅凭时间先后认定天人感应因果",
+        "object": "旱后降雨与君主自责先后相继，不足以证明降雨由自责招致",
+        "interpretive_note": "王充针对“汤自责，天应以雨”的说法指出，成汤自责与随后降雨之间不能仅凭先后关系建立因果；并将旱后雨解释为“自然之气”。这既是对灾异谴告和感应因果的批判，也包含王充自身的古代气论解释。项目保存其论证结构，不将“自然之气”直接等同现代气象学机制。",
+        "scope": "限于《感类篇》对汤旱自责与降雨关系的论辩；不据此断言所有类感、相关或象征关系均无效。",
+        "relation_type": "temporal_cooccurrence_vs_causal_attribution",
+        "xiang_domain": "感应、时间先后与因果归因",
+        "relation_family": "correlative",
+        "shared_basis": [
+          "自责事件与降雨在叙事中存在时间先后关系"
+        ],
+        "non_shared_basis": [
+          "时间先后并不单独证明因果机制；自然气候过程可能构成替代解释"
+        ],
+        "scope_conditions": [
+          "必须区分叙事中的时间顺序与可识别的因果关系",
+          "需要比较替代解释和反事实预期",
+          "历史气论与现代气象机制分别表述"
+        ],
+        "causal_status": "challenged",
+        "conditions": [
+          "需要独立证据支持从先后关系到因果关系的跨越"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed",
+        "reasoning_operations": [
+          "observe",
+          "compare",
+          "identify_difference",
+          "test_counterexample",
+          "refuse_transfer"
+        ]
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引与来源元数据。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "《四部丛刊初编》本等多种数字底本入口待逐一核对。",
+      "“五过/六过”及《尚书》引文出处需进一步校勘；本记录暂不裁决。",
+      "王充的气论解释属于历史思想主张，不作为现代气象学事实。"
+    ],
+    "concept_tags": [
+      "correspondence",
+      "causal_inference_limit",
+      "analogy_limit",
+      "observation"
+    ],
+    "method_families": [
+      "causal_claim",
+      "analogical_argument",
+      "phenomenological_observation"
+    ],
+    "variant_notes": [
+      "《感类篇》数字见证作“自责以五过”；《感虚篇》相关段落据部分校释材料作“六过”，需回查各版本、篇章互见与校勘记。",
+      "“汤自责，天应以雨”被王充作为所批评的旧说引述；该引文在今本《尚书》中的出处问题，须独立核验，不把它当作已确认的《尚书》原文。"
+    ]
   }
 ]
