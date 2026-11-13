@@ -194,8 +194,9 @@
 3. [待开展] 建立 30–50 个人工审查的最小对照样本，先覆盖 B0–B4；未校勘古籍例只进入 exploratory pool。
 4. [首版已实现] source lineage / independence group 跨 split 泄漏报告；自动报告不等于自动修复数据划分。
 5. [首版已实现] deterministic evaluator：四态混淆矩阵、per-class 指标、macro-F1、关系族/来源状态分层混淆矩阵与 Macro-F1、abstention coverage / selective risk。
-6. [待开展] 接入 M7 输出快照，评估器继续保持管线外置。
-7. [待开展] 形成首轮人工标注基准报告后再扩到 B5–B6。
+6. [首版已实现] 命令行报告入口：prototype/yixiang_benchmark_report.py，汇总评分与来源谱系/独立性分组泄漏报告。
+7. [待开展] 接入 M7 输出快照，评估器继续保持管线外置。
+8. [待开展] 形成首轮人工标注基准报告后再扩到 B5–B6。
 
 当前 12 条 synthetic fixture 仅验证接口与计分逻辑，不是古籍 gold 数据，也不代表真实人工审阅。没有人工 gold 标注、独立来源谱系审核和实际观察结果之前，不得宣称基准验证了类象理论的普遍有效性。
 
@@ -207,6 +208,7 @@
 ```bash
 python -m unittest tests.test_yixiang_benchmark -v
 python -m unittest discover -s tests -v
+python -m prototype.yixiang_benchmark_report --cases data/yixiang_benchmark_synthetic.v0.1.json --predictions predictions.json --allow-fixture-expected
 ```
 
 JSON Schema 还应使用 Draft 2020-12 兼容校验器单独验证；以上命令不代替该检查。真实古籍 gold、M7 集成和理论性能结论均未完成。
