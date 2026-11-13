@@ -71,6 +71,15 @@ class CompositionBridge:
     rationale: str
 
 
+
+@dataclass(frozen=True)
+class ContextAssessment:
+    subject_id: str
+    status: ProposalStatus
+    missing_conditions: Tuple[str, ...]
+    reason_codes: Tuple[str, ...]
+
+
 @dataclass(frozen=True)
 class CompositeProposal:
     proposal_id: str
@@ -196,4 +205,64 @@ def compose_views(
         member_candidate_ids=tuple(sorted(ids)),
         axes=axes,
         bridge=bridge,
+    )
+
+
+def _validate_active_conditions(active_conditions: Tuple[str, ...]) -> None:
+    if not isinstance(active_conditions, tuple) or any(
+        not isinstance(x, str) or not x.strip() for x in active_conditions
+    ):
+        raise ValueError("active_conditions must be a tuple of non-empty strings")
+    if len(set(active_conditions)) != len(active_conditions):
+        raise ValueError("active_conditions must be unique")
+
+
+def revalidate_view(
+    candidate: ViewCandidate,
+    active_conditions: Tuple[str, ...],
+) -> ContextAssessment:
+    """Re-evaluate scope against a newly observed context; never infer missing facts."""
+    validate_view(candidate)
+    _validate_active_conditions(active_conditions)
+    missing = tuple(sorted(set(candidate.scope_conditions) - set(active_conditions)))
+    return ContextAssessment(
+        candidate.candidate_id,
+        ProposalStatus.BLOCKED if missing else ProposalStatus.HUMAN_REVIEW,
+        missing,
+        ("SCOPE_CONDITION_NOT_ACTIVE",) if missing else (),
+    )
+
+
+def revalidate_composite(
+    proposal: CompositeProposal,
+    candidates: Tuple[ViewCandidate, ...],
+    active_conditions: Tuple[str, ...],
+) -> ContextAssessment:
+    """Invalidate a composite when any member or its bridge leaves the active scope."""
+    if not isinstance(proposal, CompositeProposal):
+        raise ValueError("proposal must be CompositeProposal")
+    if not isinstance(candidates, tuple):
+        raise ValueError("candidates must be a tuple")
+    _validate_active_conditions(active_conditions)
+    by_id = {}
+    for candidate in candidates:
+        validate_view(candidate)
+        if candidate.candidate_id in by_id:
+            raise ValueError("candidate ids must be unique")
+        by_id[candidate.candidate_id] = candidate
+    missing_members = tuple(sorted(set(proposal.member_candidate_ids) - set(by_id)))
+    if missing_members:
+        return ContextAssessment(
+            proposal.proposal_id, ProposalStatus.BLOCKED, missing_members,
+            ("COMPOSITE_MEMBER_MISSING",),
+        )
+    missing = set(proposal.bridge.scope_conditions) - set(active_conditions)
+    for candidate_id in proposal.member_candidate_ids:
+        missing.update(set(by_id[candidate_id].scope_conditions) - set(active_conditions))
+    missing_conditions = tuple(sorted(missing))
+    return ContextAssessment(
+        proposal.proposal_id,
+        ProposalStatus.BLOCKED if missing_conditions else ProposalStatus.HUMAN_REVIEW,
+        missing_conditions,
+        ("COMPOSITE_SCOPE_INVALIDATED",) if missing_conditions else (),
     )
