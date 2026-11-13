@@ -48,6 +48,25 @@ class HeldoutFamilyProtocolTests(unittest.TestCase):
         self.assertTrue(all("query_targets" not in row for row in learner["test_episodes"]))
         self.assertEqual(len(protocol["evaluator_view"]["test_query_targets"]), 4)
 
+    def test_rejects_family_with_missing_state_partition(self):
+        corpus = generate_mixed_corpus(family_count=20, input_dim=4, output_dim=3, seed=888)
+        family_id = corpus["rows"][0]["family_id"]
+        for row in corpus["rows"]:
+            if row["family_id"] == family_id and row["state_split"] == "locked":
+                row["state_split"] = "train"
+        with self.assertRaises(ValueError):
+            build_heldout_family_protocol(corpus, support_size=4, seed=889)
+
+    def test_rejects_teacher_family_cross_split_contamination(self):
+        corpus = generate_mixed_corpus(family_count=20, input_dim=4, output_dim=3, seed=890)
+        family_id = corpus["rows"][0]["family_id"]
+        for row in corpus["rows"]:
+            if row["family_id"] == family_id:
+                row["family_split"] = "locked"
+                break
+        with self.assertRaises(ValueError):
+            build_heldout_family_protocol(corpus, support_size=4, seed=891)
+
 
 if __name__ == "__main__":
     unittest.main()
