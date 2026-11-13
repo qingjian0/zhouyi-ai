@@ -22,7 +22,7 @@ class CounterfactualTests(unittest.TestCase):
         self.assertEqual(result.counterfactual_state, RelationState.ACTIVE)
         self.assertEqual(result.comparison, ComparisonKind.INVARIANT)
 
-    def test_intervention_can_reverse_declared_relation(self):
+    def test_intervention_can_deactivate_declared_relation(self):
         result = assess_counterfactual(
             self.rule, self.base,
             (ConditionIntervention("moisture", TruthValue.FALSE),),
