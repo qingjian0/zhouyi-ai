@@ -55,7 +55,7 @@ class ClassicalYixiangCasebookTests(unittest.TestCase):
         self.assertEqual(by_id["xy_015"]["source_id"], "src_huainan_shuoshan")
         self.assertTrue(any("顺序" in item for item in by_id["xy_015"]["counterexample_or_boundary"]))
         self.assertEqual(by_id["xy_016"]["source_id"], "src_huainan_shuoshan")
-        self.assertTrue(any("医学" in item for item in by_id["xy_016"]["counterexample_or_boundary"]))
+        self.assertIn("现代医学", by_id["xy_016"]["conclusion_scope"])
 
     def test_no_candidate_excerpt_is_misrepresented_as_verified(self):
         for case in self.book["cases"]:
