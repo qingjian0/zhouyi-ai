@@ -99,6 +99,22 @@ class TestComputeAccountedSupportHybrid(unittest.TestCase):
             ],
             0,
         )
+        if report["optimizer_config"]["optimizer_backend"] == "numpy-vectorized-float64":
+            full_accounting = methods["full_polynomial_early_stopping"]["feature_accounting"]
+            self.assertEqual(full_accounting["training_feature_encodings"], 5 * 8 * 16)
+            self.assertEqual(
+                full_accounting["development_feature_encodings_for_checkpoint_selection"],
+                5 * 4 * 16,
+            )
+            hybrid_compute = methods["symbolic_support_constrained_hybrid"]["compute_accounting"]
+            self.assertLess(
+                hybrid_compute["training_feature_encodings"],
+                hybrid_compute["gradient_feature_contributions"],
+            )
+            self.assertLess(
+                hybrid_compute["development_feature_encodings_for_checkpoint_selection"],
+                hybrid_compute["gradient_feature_contributions"],
+            )
 
     def test_empty_training_split_is_rejected(self):
         changed = copy.deepcopy(self.corpus)
