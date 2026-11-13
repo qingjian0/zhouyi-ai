@@ -14,9 +14,9 @@ class ContextFit(str, Enum):
 class TextLayer(str, Enum):
     BASE_TEXT="base_text"; COMMENTARY="commentary"; QUOTATION="quotation"; EDITORIAL="editorial"; RECONSTRUCTION="reconstruction"; UNKNOWN="unknown"
 class AtomDecision(str, Enum):
-    SUPPORT_ONLY="support_only"; CONFLICTED="conflicted"; QUALIFICATION_ONLY="qualification_only"; PARTIAL_ONLY="partial_only"; CONTEXT_MISMATCH="context_mismatch"; LAYER_MISMATCH="layer_mismatch"; AMBIGUOUS="ambiguous"; INSUFFICIENT="insufficient"; UNREVIEWED="unreviewed"
+    SUPPORT_ONLY="support_only"; SUPPORTED_WITH_QUALIFICATION="supported_with_qualification"; CONFLICTED="conflicted"; QUALIFICATION_ONLY="qualification_only"; PARTIAL_ONLY="partial_only"; CONTEXT_MISMATCH="context_mismatch"; LAYER_MISMATCH="layer_mismatch"; AMBIGUOUS="ambiguous"; INSUFFICIENT="insufficient"; UNREVIEWED="unreviewed"
 class ClaimCoverageDecision(str, Enum):
-    FULL_ATOM_COVERAGE="full_atom_coverage"; PARTIAL_ATOM_COVERAGE="partial_atom_coverage"; CONFLICTED="conflicted"; QUALIFICATION_ONLY="qualification_only"; INSUFFICIENT="insufficient"; UNREVIEWED="unreviewed"
+    FULL_ATOM_COVERAGE="full_atom_coverage"; QUALIFIED_COVERAGE="qualified_coverage"; PARTIAL_ATOM_COVERAGE="partial_atom_coverage"; CONFLICTED="conflicted"; QUALIFICATION_ONLY="qualification_only"; INSUFFICIENT="insufficient"; UNREVIEWED="unreviewed"
 
 @dataclass(frozen=True)
 class ClaimAtom:
@@ -85,10 +85,11 @@ def _assess_atom(atom_id,links,spans,allowed_layers):
     support=[x for x in compatible if x.relation==EvidenceRelation.SUPPORTS]
     whole=tuple(sorted(x.evidence_id for x in support if x.coverage==Coverage.WHOLE_ATOM))
     partial=tuple(sorted(x.evidence_id for x in support if x.coverage==Coverage.PARTIAL_ATOM))
-    contra=tuple(sorted(x.evidence_id for x in compatible if x.relation==EvidenceRelation.CONTRADICTS and x.coverage!=Coverage.NO_COVERAGE))
-    qual=tuple(sorted(x.evidence_id for x in compatible if x.relation==EvidenceRelation.QUALIFIES and x.coverage!=Coverage.NO_COVERAGE))
+    contra=tuple(sorted(x.evidence_id for x in compatible if x.relation==EvidenceRelation.CONTRADICTS and x.coverage in (Coverage.WHOLE_ATOM,Coverage.PARTIAL_ATOM)))
+    qual=tuple(sorted(x.evidence_id for x in compatible if x.relation==EvidenceRelation.QUALIFIES and x.coverage in (Coverage.WHOLE_ATOM,Coverage.PARTIAL_ATOM)))
     amb=tuple(sorted(x.evidence_id for x in ambiguous))
     if whole and contra: decision=AtomDecision.CONFLICTED
+    elif whole and qual: decision=AtomDecision.SUPPORTED_WITH_QUALIFICATION
     elif whole: decision=AtomDecision.SUPPORT_ONLY
     elif contra: decision=AtomDecision.CONFLICTED
     elif qual: decision=AtomDecision.QUALIFICATION_ONLY
@@ -136,6 +137,7 @@ def assess_claim_coverage(claim_id,atoms,contexts,passages,witnesses,links):
     uncovered=tuple(sorted(x.atom_id for x in assessments if not x.whole_support_ids))
     if AtomDecision.CONFLICTED in decisions: result=ClaimCoverageDecision.CONFLICTED
     elif all(x.whole_support_ids and x.decision==AtomDecision.SUPPORT_ONLY for x in assessments): result=ClaimCoverageDecision.FULL_ATOM_COVERAGE
+    elif any(x.decision==AtomDecision.SUPPORTED_WITH_QUALIFICATION for x in assessments): result=ClaimCoverageDecision.QUALIFIED_COVERAGE
     elif any(x.whole_support_ids or x.partial_support_ids for x in assessments): result=ClaimCoverageDecision.PARTIAL_ATOM_COVERAGE
     elif decisions=={AtomDecision.UNREVIEWED}: result=ClaimCoverageDecision.UNREVIEWED
     elif decisions=={AtomDecision.QUALIFICATION_ONLY}: result=ClaimCoverageDecision.QUALIFICATION_ONLY
