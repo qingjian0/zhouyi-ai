@@ -6,7 +6,7 @@ simulation check, not causal identification or a learned analogy model.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import math
 from typing import Mapping
 
@@ -18,11 +18,23 @@ class RelationAtom:
     kind: str
 
 
+CONTEXT_DIMENSIONS = {"time", "position", "potential", "environment", "phase"}
+
+
+@dataclass(frozen=True, order=True)
+class ContextAtom:
+    """A source-grounded state descriptor; values are not semantically inferred."""
+    subject: str
+    dimension: str
+    value: str
+
+
 @dataclass(frozen=True)
 class StateSnapshot:
     state_id: str
     step: int
     relations: tuple[RelationAtom, ...]
+    context: tuple[ContextAtom, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -58,6 +70,17 @@ class TransitionSystem:
             raise ValueError("snapshot steps must be unique")
         entity_set, state_set = set(self.entities), set(state_ids)
         for snapshot in self.snapshots:
+            if not isinstance(snapshot.context, tuple):
+                raise ValueError("snapshot context must be a tuple")
+            if len(set(snapshot.context)) != len(snapshot.context):
+                raise ValueError("duplicate context atoms are not allowed in a snapshot")
+            for atom in snapshot.context:
+                if (not isinstance(atom, ContextAtom)
+                        or not isinstance(atom.subject, str)
+                        or (atom.subject and atom.subject not in entity_set)
+                        or atom.dimension not in CONTEXT_DIMENSIONS
+                        or not isinstance(atom.value, str) or not atom.value.strip()):
+                    raise ValueError("context atom has an unknown subject or invalid dimension/value")
             if len(set(snapshot.relations)) != len(snapshot.relations):
                 raise ValueError("duplicate relation atoms are not allowed in a snapshot")
             for relation in snapshot.relations:
@@ -94,6 +117,9 @@ class DynamicAnalogyCandidate:
     entity_mapping: Mapping[str, str]
     state_alignment: tuple[tuple[str, str], ...]
     validity_scope: str
+    # Map (dimension, source value) to an explicitly equivalent target value.
+    # Unmapped values require exact identity; no fuzzy semantic conversion occurs.
+    context_value_mapping: Mapping[tuple[str, str], str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -115,6 +141,11 @@ class DynamicAnalogyAssessment:
     preserved_transitions: int
     expected_transitions: int
     observed_transitions: int
+    context_assessed: bool
+    context_f1: float | None
+    preserved_context_facts: int
+    expected_context_facts: int
+    observed_context_facts: int
 
 
 def _f1(precision: float, recall: float) -> float:
@@ -162,6 +193,18 @@ def assess_dynamic_analogy(
         raise ValueError("entity mapping must reference known target entities")
     if len(set(mapping.values())) != len(mapping):
         raise ValueError("entity mapping must be one-to-one")
+    context_mapping = dict(candidate.context_value_mapping)
+    context_targets: dict[str, set[str]] = {}
+    for key, target_value in context_mapping.items():
+        if (not isinstance(key, tuple) or len(key) != 2
+                or key[0] not in CONTEXT_DIMENSIONS
+                or not isinstance(key[1], str) or not key[1].strip()
+                or not isinstance(target_value, str) or not target_value.strip()):
+            raise ValueError("context value mappings require (dimension, source value) to target value")
+        context_targets.setdefault(key[0], set()).add(target_value)
+    if any(len(values) != sum(1 for key in context_mapping if key[0] == dimension)
+           for dimension, values in context_targets.items()):
+        raise ValueError("context value mapping must be injective within each dimension")
     entity_coverage = len(mapping) / len(candidate.source.entities)
     if entity_coverage < min_entity_coverage:
         raise ValueError("entity mapping is below the required coverage")
@@ -222,6 +265,31 @@ def assess_dynamic_analogy(
     )
     transition_f1 = _f1(transition_precision, transition_recall)
 
+    source_has_context = any(state.context for state in candidate.source.snapshots)
+    target_has_context = any(state.context for state in candidate.target.snapshots)
+    context_assessed = source_has_context or target_has_context
+    context_f1 = None
+    preserved_context_facts = expected_context_facts = observed_context_facts = 0
+    if context_assessed:
+        expected_context = set()
+        observed_context = set()
+        for source_id, target_id in alignment.items():
+            for atom in source_states[source_id].context:
+                if atom.subject and atom.subject not in mapping:
+                    continue
+                mapped_subject = mapping.get(atom.subject, "") if atom.subject else ""
+                mapped_value = context_mapping.get((atom.dimension, atom.value), atom.value)
+                expected_context.add((target_id, mapped_subject, atom.dimension, mapped_value))
+            for atom in target_states[target_id].context:
+                if not atom.subject or atom.subject in mapped_targets:
+                    observed_context.add((target_id, atom.subject, atom.dimension, atom.value))
+        preserved_context_facts = len(expected_context & observed_context)
+        expected_context_facts = len(expected_context)
+        observed_context_facts = len(observed_context)
+        context_precision = _ratio(preserved_context_facts, observed_context_facts)
+        context_recall = _ratio(preserved_context_facts, expected_context_facts)
+        context_f1 = _f1(context_precision, context_recall)
+
     aligned_state_coverage = len(alignment) / len(candidate.source.snapshots)
     reasons = []
     if not expected_facts:
@@ -232,6 +300,11 @@ def assess_dynamic_analogy(
         reasons.append("STATE_STRUCTURE_NOT_PRESERVED")
     if transition_f1 < min_transition_f1:
         reasons.append("DYNAMIC_TRANSITION_NOT_PRESERVED")
+    if context_assessed:
+        if not expected_context_facts:
+            reasons.append("INSUFFICIENT_MAPPED_CONTEXT_FACTS")
+        if context_f1 is not None and context_f1 < min_transition_f1:
+            reasons.append("TIME_POSITION_POTENTIAL_CONTEXT_NOT_PRESERVED")
     return DynamicAnalogyAssessment(
         candidate_id=candidate.candidate_id,
         accepted=not reasons,
@@ -250,4 +323,9 @@ def assess_dynamic_analogy(
         preserved_transitions=preserved_transitions,
         expected_transitions=len(expected_transitions),
         observed_transitions=len(observed_transitions),
+        context_assessed=context_assessed,
+        context_f1=context_f1,
+        preserved_context_facts=preserved_context_facts,
+        expected_context_facts=expected_context_facts,
+        observed_context_facts=observed_context_facts,
     )
