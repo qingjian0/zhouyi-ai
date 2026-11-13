@@ -53,6 +53,17 @@ class YixiangProcessTests(unittest.TestCase):
         self.assertIn(("flow", "directed"), revised.excluded_features)
         self.assertEqual(revised.counterexample_ids, ("x",))
 
+    def test_support_threshold_and_tied_values_are_not_overclaimed(self):
+        c = Observation("c", "machine", {"flow": "directed"}, (), {}, ("source:c",))
+        p = derive_pattern((self.a, self.b, c), pattern_id="majority",
+                           dimensions=("process",), min_support_ratio=2/3, scope="sample scope")
+        self.assertEqual(p.invariant_features, {"flow": "directed"})
+        tie = Observation("d", "machine", {"flow": "cyclic"}, (), {}, ("source:d",))
+        ambiguous = derive_pattern((self.a, tie), pattern_id="ambiguous",
+                                    dimensions=("process",), min_support_ratio=0.5, scope="sample scope")
+        self.assertNotIn("flow", ambiguous.invariant_features)
+        self.assertIn("flow", ambiguous.variable_features)
+
     def test_rejects_duplicate_example_ids(self):
         with self.assertRaisesRegex(ValueError, "unique"):
             revise_pattern(
