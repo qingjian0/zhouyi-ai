@@ -46,6 +46,12 @@ class AnalogyAssessmentTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             assess_analogy(candidate)
 
+    def test_rejects_vacuous_empty_relation_graph(self):
+        candidate = self.candidate(source_relations=(), target_relations=())
+        result = assess_analogy(candidate)
+        self.assertFalse(result.accepted)
+        self.assertIn("INSUFFICIENT_RELATION_DATA", result.reason_codes)
+
     def test_rejects_unknown_dimension(self):
         with self.assertRaises(ValueError):
             assess_analogy(self.candidate(dimensions=("morphology", "vibes")))
