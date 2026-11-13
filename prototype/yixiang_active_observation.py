@@ -47,8 +47,8 @@ class ObservationCandidate:
             if not isinstance(row, tuple) or len(row) != 3:
                 raise ValueError("each likelihood row must be (hypothesis_id, outcome, probability)")
             hypothesis_id, outcome, probability = row
-            if hypothesis_id not in hypothesis_ids:
-                raise ValueError(f"unknown hypothesis in likelihoods: {hypothesis_id}")
+            if not isinstance(hypothesis_id, str) or hypothesis_id not in hypothesis_ids:
+                raise ValueError("unknown or invalid hypothesis in likelihoods")
             if not isinstance(outcome, str) or not outcome.strip():
                 raise ValueError("outcome labels must be non-empty strings")
             if isinstance(probability, bool) or not isinstance(probability, (int, float)):
@@ -97,18 +97,27 @@ def _entropy(probabilities: tuple[float, ...]) -> float:
     return -sum(p * log2(p) for p in probabilities if p > 0.0)
 
 
-def score_observation(
-    priors: tuple[HypothesisPrior, ...], candidate: ObservationCandidate
-) -> ObservationScore:
+def _validate_priors(priors: tuple[HypothesisPrior, ...]) -> tuple[str, ...]:
     if not isinstance(priors, tuple) or not priors:
         raise ValueError("at least one hypothesis prior is required")
     for prior in priors:
+        if not isinstance(prior, HypothesisPrior):
+            raise ValueError("priors must contain HypothesisPrior values")
         prior.validate()
-    ids = [prior.hypothesis_id for prior in priors]
+    ids = tuple(prior.hypothesis_id for prior in priors)
     if len(ids) != len(set(ids)):
         raise ValueError("hypothesis ids must be unique")
     if abs(sum(prior.probability for prior in priors) - 1.0) > 1e-9:
         raise ValueError("prior probabilities must sum to 1")
+    return ids
+
+
+def score_observation(
+    priors: tuple[HypothesisPrior, ...], candidate: ObservationCandidate
+) -> ObservationScore:
+    ids = _validate_priors(priors)
+    if not isinstance(candidate, ObservationCandidate):
+        raise ValueError("candidate must be an ObservationCandidate")
     candidate.validate(set(ids))
 
     prior_map = {prior.hypothesis_id: float(prior.probability) for prior in priors}
@@ -151,12 +160,17 @@ def select_observation(
     candidates: tuple[ObservationCandidate, ...],
 ) -> ObservationSelection | None:
     """Choose the highest utility prospective observation; ties break by ID."""
+    ids = _validate_priors(priors)
     if not isinstance(candidates, tuple):
         raise ValueError("candidates must be a tuple")
     if not candidates:
         return None
-    ids = [candidate.observation_id for candidate in candidates]
-    if len(ids) != len(set(ids)):
+    for candidate in candidates:
+        if not isinstance(candidate, ObservationCandidate):
+            raise ValueError("candidates must contain ObservationCandidate values")
+        candidate.validate(set(ids))
+    candidate_ids = [candidate.observation_id for candidate in candidates]
+    if len(candidate_ids) != len(set(candidate_ids)):
         raise ValueError("observation ids must be unique")
     ranking = tuple(sorted(
         (score_observation(priors, candidate) for candidate in candidates),
