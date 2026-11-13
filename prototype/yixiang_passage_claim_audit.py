@@ -14,9 +14,9 @@ class ContextFit(str, Enum):
 class TextLayer(str, Enum):
     BASE_TEXT="base_text"; COMMENTARY="commentary"; QUOTATION="quotation"; EDITORIAL="editorial"; RECONSTRUCTION="reconstruction"; UNKNOWN="unknown"
 class AtomDecision(str, Enum):
-    SUPPORT_ONLY="support_only"; SUPPORTED_WITH_QUALIFICATION="supported_with_qualification"; CONFLICTED="conflicted"; QUALIFICATION_ONLY="qualification_only"; PARTIAL_ONLY="partial_only"; CONTEXT_MISMATCH="context_mismatch"; LAYER_MISMATCH="layer_mismatch"; AMBIGUOUS="ambiguous"; INSUFFICIENT="insufficient"; UNREVIEWED="unreviewed"
+    SUPPORT_ONLY="support_only"; SUPPORTED_WITH_QUALIFICATION="supported_with_qualification"; CONFLICTED="conflicted"; QUALIFICATION_ONLY="qualification_only"; PARTIAL_ONLY="partial_only"; CONTEXT_MISMATCH="context_mismatch"; LAYER_MISMATCH="layer_mismatch"; AMBIGUOUS="ambiguous"; UNRESOLVED_EVIDENCE="unresolved_evidence"; INSUFFICIENT="insufficient"; UNREVIEWED="unreviewed"
 class ClaimCoverageDecision(str, Enum):
-    FULL_ATOM_COVERAGE="full_atom_coverage"; QUALIFIED_COVERAGE="qualified_coverage"; PARTIAL_ATOM_COVERAGE="partial_atom_coverage"; CONFLICTED="conflicted"; QUALIFICATION_ONLY="qualification_only"; INSUFFICIENT="insufficient"; UNREVIEWED="unreviewed"
+    FULL_ATOM_COVERAGE="full_atom_coverage"; QUALIFIED_COVERAGE="qualified_coverage"; PARTIAL_ATOM_COVERAGE="partial_atom_coverage"; CONFLICTED="conflicted"; QUALIFICATION_ONLY="qualification_only"; UNRESOLVED_EVIDENCE="unresolved_evidence"; INSUFFICIENT="insufficient"; UNREVIEWED="unreviewed"
 
 @dataclass(frozen=True)
 class ClaimAtom:
@@ -89,6 +89,7 @@ def _assess_atom(atom_id,links,spans,allowed_layers):
     qual=tuple(sorted(x.evidence_id for x in compatible if x.relation==EvidenceRelation.QUALIFIES and x.coverage in (Coverage.WHOLE_ATOM,Coverage.PARTIAL_ATOM)))
     amb=tuple(sorted(x.evidence_id for x in ambiguous))
     if whole and contra: decision=AtomDecision.CONFLICTED
+    elif unresolved: decision=AtomDecision.UNRESOLVED_EVIDENCE
     elif whole and qual: decision=AtomDecision.SUPPORTED_WITH_QUALIFICATION
     elif whole and amb: decision=AtomDecision.AMBIGUOUS
     elif whole: decision=AtomDecision.SUPPORT_ONLY
@@ -137,6 +138,7 @@ def assess_claim_coverage(claim_id,atoms,contexts,passages,witnesses,links):
     decisions={x.decision for x in assessments}
     uncovered=tuple(sorted(x.atom_id for x in assessments if not x.whole_support_ids))
     if AtomDecision.CONFLICTED in decisions: result=ClaimCoverageDecision.CONFLICTED
+    elif AtomDecision.UNRESOLVED_EVIDENCE in decisions: result=ClaimCoverageDecision.UNRESOLVED_EVIDENCE
     elif all(x.whole_support_ids and x.decision==AtomDecision.SUPPORT_ONLY for x in assessments): result=ClaimCoverageDecision.FULL_ATOM_COVERAGE
     elif any(x.decision==AtomDecision.SUPPORTED_WITH_QUALIFICATION for x in assessments): result=ClaimCoverageDecision.QUALIFIED_COVERAGE
     elif decisions=={AtomDecision.QUALIFICATION_ONLY}: result=ClaimCoverageDecision.QUALIFICATION_ONLY
