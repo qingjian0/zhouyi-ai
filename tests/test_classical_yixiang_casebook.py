@@ -83,8 +83,8 @@ class ClassicalYixiangCasebookTests(unittest.TestCase):
         self.assertEqual(case["source_id"], "src_mojing_jingxia")
         self.assertIn("推类之难", case["excerpt"])
         self.assertIn("classification", case["operation"])
-        self.assertTrue(any("总名" in item or "种别名" in item
-                            for item in case["alternative_readings"]))
+        self.assertIn("总名", case["problem"])
+        self.assertIn("种别别名", case["problem"])
         self.assertEqual(case["evidence_status"], "digital_transcription_candidate")
         self.assertEqual(case["review_status"], "unreviewed")
 
@@ -103,7 +103,8 @@ class ClassicalYixiangCasebookTests(unittest.TestCase):
         fanlu_source = next(source for source in self.book["sources"] if source["source_id"] == "src_chunqiu_fanlu")
         self.assertIn("未必全出董仲舒", fanlu_source["witness_limit"])
         self.assertIn("楼钥", fanlu_source["witness_limit"])
-        self.assertIn("篇章形成", self.book["sources"][-1]["witness_limit"])
+        fanlu_source = next(source for source in self.book["sources"] if source["source_id"] == "src_chunqiu_fanlu")
+        self.assertIn("篇章形成", fanlu_source["witness_limit"])
 
     def test_all_case_operations_are_allowed_by_schema(self):
         schema = json.loads(
