@@ -7,7 +7,7 @@ from prototype.cpg_ei_mixed_operator_data import generate_mixed_corpus
 class TestNumpyHybridIntegration(unittest.TestCase):
     def test_cached_feature_accounting_matches_model_heads(self):
         corpus = generate_mixed_corpus(
-            family_count=2, input_dim=4, output_dim=3, seed=20261114
+            family_count=5, input_dim=4, output_dim=3, seed=20261114
         )
         report = run_support_constrained_hybrid(
             corpus, max_epochs=12, patience=3, optimizer_backend="numpy"
@@ -44,7 +44,7 @@ class TestNumpyHybridIntegration(unittest.TestCase):
 
     def test_unknown_backend_is_rejected(self):
         corpus = generate_mixed_corpus(
-            family_count=1, input_dim=3, output_dim=2, seed=20261114
+            family_count=5, input_dim=3, output_dim=2, seed=20261114
         )
         with self.assertRaises(ValueError):
             run_support_constrained_hybrid(corpus, optimizer_backend="gpu")
