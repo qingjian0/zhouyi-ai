@@ -38,11 +38,12 @@ def truth_table_to_anf(input_dim: int, outputs: Iterable[int]) -> tuple[int, ...
 
 
 def evaluate_anf(state: Iterable[int], coefficients: Iterable[int]) -> int:
-    state_bits = _state_mask(state)
+    state_tuple = tuple(state)
+    state_bits = _state_mask(state_tuple)
     coeffs = tuple(coefficients)
     if not coeffs or any(value not in (0, 1) for value in coeffs):
         raise ValueError("coefficients must be a non-empty binary vector")
-    if len(coeffs) != 1 << (len(tuple(state))):
+    if len(coeffs) != 1 << len(state_tuple):
         raise ValueError("coefficient count must equal 2**input_dim")
     result = 0
     for monomial_mask, coefficient in enumerate(coeffs):
@@ -52,8 +53,9 @@ def evaluate_anf(state: Iterable[int], coefficients: Iterable[int]) -> int:
 
 
 def _monomial_feature_mask(state: Iterable[int], input_dim: int) -> int:
-    state_bits = _state_mask(state)
-    if len(tuple(state)) != input_dim:
+    state_tuple = tuple(state)
+    state_bits = _state_mask(state_tuple)
+    if len(state_tuple) != input_dim:
         raise ValueError("state dimension mismatch")
     result = 0
     for monomial_mask in range(1 << input_dim):
