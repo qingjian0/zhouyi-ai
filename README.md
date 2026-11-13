@@ -86,7 +86,7 @@
 - [M8 benchmark schema](schemas/yixiang-benchmark-case.schema.json)
 - [M8 benchmark validator and metrics](prototype/yixiang_benchmark.py)
 - [M8 benchmark report CLI](prototype/yixiang_benchmark_report.py)
-- [M8 synthetic fixtures](data/yixiang_benchmark_synthetic.v0.1.json)
+- [M8 synthetic fixtures（39 条合成对抗样例，非古籍 gold）](data/yixiang_benchmark_synthetic.v0.1.json)
 - [M8 benchmark tests](tests/test_yixiang_benchmark.py)
 - [古籍数字来源、版本见证与校勘工作规程 v0.1](docs/CLASSICAL_TEXT_DIGITAL_SOURCE_POLICY_V0_1.md)
 - [M2 整体—局部关系结构说明](docs/YIXIANG_HIERARCHICAL_STRUCTURE_M2_V0_1.md)
