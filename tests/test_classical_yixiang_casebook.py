@@ -24,7 +24,7 @@ class ClassicalYixiangCasebookTests(unittest.TestCase):
         self.assertTrue({"周易·系辞下传", "墨子", "荀子", "公孙龙子", "淮南子", "论衡"}.issubset(works))
         self.assertTrue(any(source["chapter"] == "要略" for source in self.book["sources"]))
         self.assertGreaterEqual(len(self.book["cases"]), 11)
-        self.assertEqual(len(self.book["cases"]), 18)
+        self.assertEqual(len(self.book["cases"]), 19)
         self.assertTrue({"吕氏春秋", "淮南子"}.issubset(works))
         self.assertTrue(any(source["chapter"] == "恃君览·别类" for source in self.book["sources"]))
         self.assertTrue(any(source["chapter"] == "说山训" for source in self.book["sources"]))
@@ -68,6 +68,13 @@ class ClassicalYixiangCasebookTests(unittest.TestCase):
         self.assertEqual(delayed["source_id"], "src_lushi_bielei")
         self.assertTrue(any("长期稳定" in item for item in delayed["counterexample_or_boundary"]))
         self.assertTrue(any("延迟结果" in item for item in delayed["counterexample_or_boundary"]))
+
+    def test_yingtong_case_separates_symbolic_correspondence_from_causality(self):
+        case = next(item for item in self.book["cases"] if item["case_id"] == "xy_019")
+        self.assertEqual(case["source_id"], "src_lushi_yingtong")
+        self.assertIn("correspondence", case["operation"])
+        self.assertTrue(any("现代经验意义" in item for item in case["counterexample_or_boundary"]))
+        self.assertIn("不作为现代自然因果事实", self.book["sources"][-1]["witness_limit"])
 
     def test_all_case_operations_are_allowed_by_schema(self):
         schema = json.loads(
