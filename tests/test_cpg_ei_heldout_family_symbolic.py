@@ -17,8 +17,18 @@ class HeldoutFamilyFewshotSymbolicTests(unittest.TestCase):
         self.assertEqual(len(report["results"]), 2)
         for result in report["results"]:
             self.assertEqual(result["test"]["summary"]["families"], 4)
+            self.assertEqual(len(result["corpus_sha256"]), 64)
+            self.assertGreaterEqual(result["evaluation_wall_seconds"], 0.0)
             self.assertGreaterEqual(result["test"]["summary"]["symbolic_bit_accuracy_mean"], 0.0)
             self.assertGreaterEqual(result["test"]["summary"]["majority_bit_accuracy_mean"], 0.0)
+        test_aggregate = next(
+            row for row in report["aggregate_results"]
+            if row["support_size"] == 4 and row["split"] == "test"
+        )
+        self.assertEqual(
+            test_aggregate["methods"]["symbolic"]["bit_accuracy"]["families_across_seeds"],
+            4,
+        )
 
     def test_locked_query_labels_do_not_change_selected_rules(self):
         corpus = generate_mixed_corpus(family_count=20, input_dim=4, output_dim=3, seed=902)
