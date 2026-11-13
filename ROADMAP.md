@@ -9,7 +9,7 @@
 | M0 | 理论与文献调研 | 研究总纲、相关工作、风险与证伪条件已建立 | 持续维护 |
 | M1 | 数学理论定稿 | CPG-EI v0.3 草案已写入；模块所有权和运行闭环见架构收敛文档 | 草案，待继续证伪 |
 | M2 | 基础组合原型 | E01/E02 有可运行基线与测试；仍不是统一认知模型 | 组件级完成，整体未完成 |
-| CPG-EI | 混合算子关系学习 | 400-family / 102,400-row 语料；有限符号、完整多项式、五种子、sample-efficiency、early-stopping；symbolic-support hybrid 已通过 exact-head CI；NumPy optimizer parity 与组合规则 out-of-grammar 基准正在验证 | 活跃研究，Draft |
+| CPG-EI | 混合算子关系学习 | 400-family / 102,400-row 语料；1,600-family 扩展、ANF 可识别性、held-out-family few-shot、主动查询、组合 OOG；symbolic-support hybrid 已通过 exact-head CI；NumPy optimizer parity 与新基准正在验证 | 活跃研究，Draft |
 | E09 / E12-A6 / ZPCM | 证据、授权、生命周期和持久化 | 存在分段 reader、projection、receipt、crash/replay 研究；普通启动、写入与恢复的端到端边界仍需验证 | 分段实现，未集成 |
 | N0.10 | 流式训练、checkpoint 与隔离评估 | 有 trainer、streaming、checkpoint 组件实验；完整 runner 的 out-of-core、source-group-disjoint OOD 和 resume equivalence 仍需统一验收 | 组件研究，未完成 |
 | M3 | 易象计算实验 | 编码工具和单测存在；模型级、跨域语义效用尚未证明 | 部分完成 |
@@ -42,9 +42,11 @@
 ## 近期优先顺序
 
 1. 完成 #427 exact-head scalar/vectorized parity 与 full benchmark，复核 artifact、数值偏差和 wall-time speedup。
-2. 复核 #428 组合规则 out-of-grammar 结果；若有效，再设计更深组合与严格未见 teacher-family 测试。
-3. 在多个独立种子上复现 #422 hybrid。
-4. 收敛 CPG-EI 依赖栈：#409/#410 → #411 → #413 → #417；#418 是 #417 的独立子分支；#419 → #420 → #421 → #422；#423、#426、#427、#428 是 #422 的独立后续分支，#429 依赖 #426。
+2. 复核 #428 组合规则 OOG 与 #432/#436 held-out-family few-shot 结果，严格区分两种泛化。
+3. 完成 #431 1,600-family 数据生成和 #425/#430 ANF identifiability 审计。
+4. 复核 #434 active-query 对照；#424 adaptive scheduler 目前为负/中性结果，不改变默认优化器。
+5. 在多个独立种子上复现 #422 hybrid。
+4. 收敛 CPG-EI 依赖栈：#409/#410 → #411 → #413 → #417；#418 是 #417 的独立子分支；#419 → #420 → #421 → #422；#423、#426、#427、#428、#425 是 #422 周边的独立后续研究线；#429 依赖 #426；#430 依赖 #425；#431 扩展 #413 数据生成器；#432/#436 建立 held-out-family protocol/baseline；#434 是 active-query 研究线。
 5. E12-A6：分别验收普通启动、bounded restore、checkpoint anchor、semantic replay 和 crash fallback。
 6. E09：分别验收 trusted identity、receipt/nonce、lineage 和真实 OS 进程边界。
 7. N0.10：收敛数据 provenance、group-disjoint split、checkpoint fingerprints、streaming runner 和 locked evaluator。
