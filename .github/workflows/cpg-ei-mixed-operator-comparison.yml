@@ -6,6 +6,16 @@ on:
       - research/cpg-ei-baseline-comparison-v1-2026-11-13
   pull_request:
     types: [opened, synchronize, reopened]
+    paths:
+      - 'prototype/cpg_ei_mixed_operator_comparison.py'
+      - 'tests/test_cpg_ei_mixed_operator_comparison.py'
+      - 'prototype/cpg_ei_mixed_operator_trainable_baseline.py'
+      - 'prototype/cpg_ei_mixed_operator_discovery.py'
+      - 'prototype/cpg_ei_generic_learner.py'
+      - 'prototype/cpg_ei_mixed_operator_data.py'
+      - 'prototype/cpg_ei_relation_operators.py'
+      - '.github/workflows/cpg-ei-mixed-operator-comparison.yml'
+      - 'docs/CPG_EI_MATCHED_BASELINE_COMPARISON_V1.md'
 
 permissions:
   contents: read

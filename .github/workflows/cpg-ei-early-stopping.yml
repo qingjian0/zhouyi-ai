@@ -6,6 +6,14 @@ on:
       - research/cpg-ei-early-stopping-baseline-v1-2026-11-13
   pull_request:
     types: [opened, synchronize, reopened]
+    paths:
+      - 'prototype/cpg_ei_early_stopping.py'
+      - 'tests/test_cpg_ei_early_stopping.py'
+      - 'prototype/cpg_ei_generic_learner.py'
+      - 'prototype/cpg_ei_mixed_operator_data.py'
+      - 'prototype/cpg_ei_relation_operators.py'
+      - '.github/workflows/cpg-ei-early-stopping.yml'
+      - 'docs/CPG_EI_EARLY_STOPPING_V1.md'
 
 permissions:
   contents: read

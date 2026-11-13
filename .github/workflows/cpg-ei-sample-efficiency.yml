@@ -6,6 +6,14 @@ on:
       - research/cpg-ei-sample-efficiency-v1-2026-11-13
   pull_request:
     types: [opened, synchronize, reopened]
+    paths:
+      - 'prototype/cpg_ei_sample_efficiency.py'
+      - 'tests/test_cpg_ei_sample_efficiency.py'
+      - 'prototype/cpg_ei_generic_learner.py'
+      - 'prototype/cpg_ei_mixed_operator_data.py'
+      - 'prototype/cpg_ei_relation_operators.py'
+      - '.github/workflows/cpg-ei-sample-efficiency.yml'
+      - 'docs/CPG_EI_SAMPLE_EFFICIENCY_V1.md'
 
 permissions:
   contents: read
