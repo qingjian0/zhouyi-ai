@@ -11,6 +11,9 @@ class BenchmarkContractTests(unittest.TestCase):
   validate_dataset(cases)
   self.assertEqual(len(cases),12)
   self.assertEqual({c["split_group"] for c in cases},{"train","dev","test"})
+ def test_invalid_split_group_rejected(self):
+  c=make_case("a",split="validation")
+  with self.assertRaisesRegex(ValueError,"split_group"): validate_dataset([c])
  def test_unknown_field_rejected(self):
   c=make_case("a"); c["similarity_score"]=0.9
   with self.assertRaisesRegex(ValueError,"unknown fields"): validate_case(c)
