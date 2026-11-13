@@ -128,7 +128,7 @@ def propose_novel_structures(
         )
         support_ids = tuple(sorted(case.residual_id for case in cases))
         # Stable content-derived ID; no time or random dependency.
-        proposal_id = "novel-" + sha256(repr(signature).encode("utf-8")).hexdigest()[:16]
+        proposal_id = "novel-" + sha256(repr(signature).encode("utf-8")).hexdigest()
         proposals.append(NoveltyProposal(
             proposal_id, signature, support_ids,
             tuple(sorted(case.observation_id for case in cases)),
