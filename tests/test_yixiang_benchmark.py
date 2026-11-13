@@ -27,7 +27,8 @@ class BenchmarkContractTests(unittest.TestCase):
   root=Path(__file__).resolve().parents[1]
   cases=json.loads((root/"data/yixiang_benchmark_synthetic.v0.1.json").read_text(encoding="utf-8"))
   validate_dataset(cases)
-  self.assertEqual(len(cases),12)
+  self.assertEqual(len(cases),22)
+  self.assertTrue({"same-013", "same-014", "same-015", "same-016", "same-017", "same-018", "same-019", "same-020", "same-021", "same-022"}.issubset({c["case_id"] for c in cases}))
   self.assertEqual({c["split_group"] for c in cases},{"train","dev","test"})
  def test_non_string_case_keys_rejected(self):
   c=make_case("a"); c[7]="bad-key"
