@@ -27,9 +27,10 @@ class BenchmarkContractTests(unittest.TestCase):
   root=Path(__file__).resolve().parents[1]
   cases=json.loads((root/"data/yixiang_benchmark_synthetic.v0.1.json").read_text(encoding="utf-8"))
   validate_dataset(cases)
-  self.assertEqual(len(cases),30)
+  self.assertEqual(len(cases),36)
   self.assertTrue({"same-013", "same-014", "same-015", "same-016", "same-017", "same-018", "same-019", "same-020", "same-021", "same-022"}.issubset({c["case_id"] for c in cases}))
   self.assertTrue({"dyn-023", "dyn-024", "dyn-025", "dyn-026", "dyn-027", "dyn-028", "dyn-029", "dyn-030"}.issubset({c["case_id"] for c in cases}))
+  self.assertTrue({"dyn-031", "dyn-032", "dyn-033", "dyn-034", "dyn-035", "dyn-036"}.issubset({c["case_id"] for c in cases}))
   self.assertEqual({c["split_group"] for c in cases},{"train","dev","test"})
  def test_dynamic_context_fixture_expected_decisions(self):
   root=Path(__file__).resolve().parents[1]
@@ -38,6 +39,8 @@ class BenchmarkContractTests(unittest.TestCase):
   expected={"dyn-023":"conditional","dyn-024":"accept","dyn-025":"reject","dyn-026":"conditional","dyn-027":"conditional","dyn-028":"abstain","dyn-029":"abstain","dyn-030":"abstain"}
   self.assertEqual({key:by_id[key]["gold_decision"] for key in expected},expected)
   self.assertTrue(all(by_id[key]["source_status"]=="synthetic_fixture" and by_id[key]["label_status"]=="fixture_expected" for key in expected))
+  expected_scale={"dyn-031":"abstain","dyn-032":"conditional","dyn-033":"reject","dyn-034":"conditional","dyn-035":"abstain","dyn-036":"abstain"}
+  self.assertEqual({key:by_id[key]["gold_decision"] for key in expected_scale},expected_scale)
  def test_non_string_case_keys_rejected(self):
   c=make_case("a"); c[7]="bad-key"
   with self.assertRaisesRegex(ValueError,"keys must be strings"): validate_case(c)
