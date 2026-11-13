@@ -1,6 +1,8 @@
 import unittest
+from dataclasses import replace
 
 from prototype.dynamic_analogy import (
+    ContextAtom,
     DynamicAnalogyCandidate,
     RelationAtom,
     StateSnapshot,
@@ -116,6 +118,72 @@ class DynamicAnalogyTests(unittest.TestCase):
         self.assertTrue(result.accepted)
         self.assertAlmostEqual(result.mapped_entity_coverage, 2 / 3)
         self.assertEqual(result.observed_state_facts, 3)
+
+    def test_preserves_explicit_time_position_and_potential_context(self):
+        candidate = systems()
+        source_states = tuple(
+            replace(state, context=(
+                ContextAtom("a", "position", "upper"),
+                ContextAtom("a", "potential", "rising"),
+                ContextAtom("", "time", "early"),
+            ))
+            for state in candidate.source.snapshots
+        )
+        target_states = tuple(
+            replace(state, context=(
+                ContextAtom("x", "position", "high"),
+                ContextAtom("x", "potential", "increasing"),
+                ContextAtom("", "time", "phase_1"),
+            ))
+            for state in candidate.target.snapshots
+        )
+        mapped = replace(
+            candidate,
+            source=replace(candidate.source, snapshots=source_states),
+            target=replace(candidate.target, snapshots=target_states),
+            context_value_mapping={
+                ("position", "upper"): "high",
+                ("potential", "rising"): "increasing",
+                ("time", "early"): "phase_1",
+            },
+        )
+        result = assess_dynamic_analogy(mapped)
+        self.assertTrue(result.accepted)
+        self.assertTrue(result.context_assessed)
+        self.assertEqual(result.context_f1, 1.0)
+        self.assertEqual(result.preserved_context_facts, 9)
+
+    def test_rejects_context_mismatch_after_explicit_mapping(self):
+        candidate = systems()
+        source_states = tuple(
+            replace(state, context=(ContextAtom("a", "potential", "rising"),))
+            for state in candidate.source.snapshots
+        )
+        target_states = tuple(
+            replace(state, context=(ContextAtom("x", "potential", "falling"),))
+            for state in candidate.target.snapshots
+        )
+        mapped = replace(
+            candidate,
+            source=replace(candidate.source, snapshots=source_states),
+            target=replace(candidate.target, snapshots=target_states),
+        )
+        result = assess_dynamic_analogy(mapped)
+        self.assertFalse(result.accepted)
+        self.assertIn("TIME_POSITION_POTENTIAL_CONTEXT_NOT_PRESERVED", result.reason_codes)
+        self.assertEqual(result.context_f1, 0.0)
+
+    def test_context_value_mapping_must_be_injective_per_dimension(self):
+        candidate = systems()
+        invalid = replace(
+            candidate,
+            context_value_mapping={
+                ("position", "upper"): "high",
+                ("position", "lower"): "high",
+            },
+        )
+        with self.assertRaisesRegex(ValueError, "injective"):
+            assess_dynamic_analogy(invalid)
 
     def test_rejects_non_finite_threshold(self):
         with self.assertRaises(ValueError):
