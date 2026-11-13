@@ -23,6 +23,7 @@ class DynamicYixiangTests(unittest.TestCase):
         )
         self.assertEqual(pattern.transitions, {"mode": ("still", "flow")})
         self.assertEqual(len(pattern.evidence_refs), 4)
+        self.assertEqual(pattern.transition_support_ids["mode"], ("trajectory-1", "trajectory-2"))
 
     def test_transition_direction_matters(self):
         pattern = derive_transition_pattern(
