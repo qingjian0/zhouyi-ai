@@ -1,0 +1,38 @@
+name: CPG-EI compute-accounted symbolic-support hybrid
+
+on:
+  push:
+    branches:
+      - research/cpg-ei-symbolic-support-hybrid-v1-2026-11-13
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  compute-accounted-hybrid:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run focused leakage and accounting tests
+        run: |
+          python -m unittest discover -s tests -p 'test_cpg_ei_compute_accounted_hybrid.py' -v
+      - name: Run matched compute-accounted benchmark
+        run: |
+          python -m prototype.cpg_ei_compute_accounted_hybrid \
+            --families 8 --input-dim 8 --output-dim 8 \
+            --seed 20261114 --max-epochs 600 --patience 30 \
+            --min-delta 0.00001 --learning-rate 0.1 --l2 0.0001 \
+            --json artifacts/compute-accounted-hybrid.json
+      - name: Upload machine-readable benchmark report
+        uses: actions/upload-artifact@v4
+        with:
+          name: zhouyi-cpg-ei-compute-accounted-hybrid-v1
+          path: artifacts/compute-accounted-hybrid.json
+          if-no-files-found: error
+          retention-days: 30
