@@ -54,6 +54,16 @@ class TaxonomicScopeTests(unittest.TestCase):
         self.assertIn("UPWARD_GENERALIZATION_REQUIRES_COUNTEREXAMPLE_SEARCH",
                       result.reason_codes)
 
+    def test_universal_upward_transfer_requires_inheritance_evidence(self):
+        result = assess_taxonomic_transfer(self.claim(
+            relation=TaxonomicRelation.SOURCE_SUBCLASS_OF_TARGET,
+            predicate_scope=PredicateScope.UNIVERSAL,
+            inheritance_evidence=(),
+            counterexample_search_performed=True,
+        ))
+        self.assertEqual(result.decision, TaxonomicDecision.ABSTAIN)
+        self.assertIn("UNIVERSAL_SCOPE_EVIDENCE_MISSING", result.reason_codes)
+
     def test_upward_generalization_with_counterexample_is_not_accepted_blindly(self):
         result = assess_taxonomic_transfer(self.claim(
             relation=TaxonomicRelation.SOURCE_SUBCLASS_OF_TARGET,
