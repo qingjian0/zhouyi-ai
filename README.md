@@ -10,7 +10,7 @@
 - 稳定基线：main（本次核查基线 b8b43926e666d83a9ce09d2e71eb9294b2d86c97）。
 - 当前阶段：多条组件级研究线并行验证；尚未完成统一认知运行时的端到端集成。
 - 理论版本：CPG-EI v0.3（研究草案），不是已证实的模型理论。
-- CPG-EI：已有 400-family / 102,400-row 合成混合算子语料，以及有限符号搜索、trainable polynomial、五种子、sample-efficiency 和 early-stopping 对照。PR #422 的 symbolic-support hybrid 已通过 exact-head CI；PR #427 正在验证 NumPy 向量化优化器的数值一致性与速度。
+- CPG-EI：已有 400-family / 102,400-row 合成混合算子语料，以及有限符号搜索、trainable polynomial、五种子、sample-efficiency 和 early-stopping 对照。PR #422 的 symbolic-support hybrid 已通过 exact-head CI；PR #427 正在验证 full-basis NumPy optimizer；PR #428 正在验证超出单算子语法的组合 Boolean 规则。
 - E09 / E12-A6 / ZPCM 与 N0.10：各自存在分段实现和验证分支；分支级成功不等于已集成或达到生产隔离要求。
 - 训练准备度：只允许可复现的组件级受控训练；统一端到端联合训练尚未获准。
 - 验证原则：所有架构主张均须通过可复现实验、消融、公平对照和明确的 claim boundary 验证。
