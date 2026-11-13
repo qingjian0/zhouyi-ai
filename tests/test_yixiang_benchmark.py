@@ -1,9 +1,27 @@
-import unittest, json
+import unittest, json, tempfile, io
+from contextlib import redirect_stdout, redirect_stderr
+from prototype.yixiang_benchmark_report import build_report, main
 from pathlib import Path
 from prototype.yixiang_benchmark import validate_case,validate_dataset,evaluate_predictions,group_leakage
 def make_case(cid,decision="accept",lineage=("work-a:edition-1",),split="train",scope=("context fixed",)):
  return {"case_id":cid,"source_lineage":list(lineage),"source_status":"synthetic_fixture","target_claim":"Test whether a proposed relation transfers to a target claim.","relation_families":["structural"],"shared_basis":["same relation topology"],"non_shared_basis":["different physical substrate"],"scope_conditions":list(scope),"required_invariants":["edge direction preserved"],"known_counterexamples":[],"causal_status":"unknown","evidence_refs":["fixture:"+cid],"independence_group":"fixture-group-"+cid,"gold_decision":decision,"gold_rationale":"Synthetic gold label; uncertainty is documented for abstention.","label_status":"fixture_expected","reviewers":[],"split_group":split}
 class BenchmarkContractTests(unittest.TestCase):
+ def test_report_builder_marks_fixture_evaluation_and_leakage(self):
+  cases=[make_case("a")]
+  report=build_report(cases,[{"case_id":"a","decision":"accept"}],allow_fixture_expected=True)
+  self.assertEqual(report["scores"]["evaluation_basis"],"fixture_expected")
+  self.assertEqual(report["leakage"]["source_lineage"]["leakage_count"],0)
+ def test_report_cli_reads_json_and_emits_report(self):
+  root=Path(__file__).resolve().parents[1]
+  cases_path=root/"data/yixiang_benchmark_synthetic.v0.1.json"
+  with tempfile.TemporaryDirectory() as directory:
+   predictions_path=Path(directory)/"predictions.json"
+   predictions_path.write_text("[]",encoding="utf-8")
+   output=io.StringIO()
+   with redirect_stdout(output):
+    code=main(["--cases",str(cases_path),"--predictions",str(predictions_path),"--allow-fixture-expected"])
+   self.assertEqual(code,0)
+   self.assertIn('"evaluation_basis": "fixture_expected"',output.getvalue())
  def test_valid_case_and_dataset(self): validate_case(make_case("a")); validate_dataset([make_case("a"),make_case("b")])
  def test_committed_synthetic_fixture_dataset(self):
   root=Path(__file__).resolve().parents[1]
