@@ -31,7 +31,7 @@ class EmergenceAuditTests(unittest.TestCase):
 
     def test_property_already_predicted_by_member_is_blocked(self):
         result = audit_emergence_claim(claim(
-            member_only_predictions=("feedback stabilizes the whole",),
+            member_only_predictions=("feedback_stabilizes the whole",),
         ))
         self.assertEqual(result.decision, EmergenceDecision.BLOCKED)
         self.assertIn("PROPERTY_ALREADY_PRESENT_IN_MEMBER_ONLY_BASELINE", result.reason_codes)
