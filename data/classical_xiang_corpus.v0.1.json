@@ -970,5 +970,139 @@
       "phenomenological_observation",
       "classification"
     ]
+  },
+  {
+    "record_id": "huainanzi-tianwen-feather-scale-class-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "淮南子·天文训",
+      "traditional_authority": "传统归于淮南王刘安及门客编纂；具体篇章层次需据校勘本研究",
+      "composition_period": "西汉前期编纂；传本与篇章层次仍需校核",
+      "genre": "子书/宇宙论与自然知识"
+    },
+    "period": "qin_han",
+    "source_type": "classical_text",
+    "tradition": [
+      "汉代自然知识",
+      "阴阳分类",
+      "物类与感应"
+    ],
+    "witness": {
+      "witness_id": "wikisource-huainanzi-tianwen-huainanzi-tianwen-feather-scale-class-001",
+      "edition_or_database": "维基文库《淮南子·天文训》数字转录检索见证",
+      "url": "https://zh.wikisource.org/zh-hans/淮南子/天文训",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "古典原文公有领域；数字转录许可按平台条款核验"
+    },
+    "locator": {
+      "chapter": "天文训",
+      "section_or_line": "毛羽者，飞行之类也"
+    },
+    "text": "毛羽者，飞行之类也，故属于阳。介鳞者，蛰伏之类也，故属于阴。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "huainanzi-tianwen-class-by-motion-001",
+        "claim_kind": "textual_observation",
+        "subject": "毛羽与介鳞之物",
+        "predicate": "按飞行/蛰伏分类并配阴阳",
+        "object": "动物类别与阴阳属性",
+        "interpretive_note": "文本以活动方式或习性作为分类依据，并将类属纳入阴阳框架；应研究其分类标准与古代自然知识语境，不当作现代生物分类。",
+        "scope": "限于《天文训》的汉代宇宙论语境；不直接视为现代生物学或物理因果结论。",
+        "conditions": [
+          "区分古代分类框架与现代科学分类",
+          "保留历史思想语境"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录条款另行核验",
+      "database_license": "按平台条款核验",
+      "reuse_notes": "仅保存必要短引。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "需与可靠校点本或影印底本核对篇章文字与断句。"
+    ],
+    "concept_tags": [
+      "classification",
+      "yin_yang",
+      "natural_knowledge"
+    ],
+    "method_families": [
+      "classification",
+      "cosmological_correspondence"
+    ]
+  },
+  {
+    "record_id": "huainanzi-tianwen-wuleixiangdong-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "淮南子·天文训",
+      "traditional_authority": "传统归于淮南王刘安及门客编纂；具体篇章层次需据校勘本研究",
+      "composition_period": "西汉前期编纂；传本与篇章层次仍需校核",
+      "genre": "子书/宇宙论与自然知识"
+    },
+    "period": "qin_han",
+    "source_type": "classical_text",
+    "tradition": [
+      "汉代自然知识",
+      "阴阳分类",
+      "物类与感应"
+    ],
+    "witness": {
+      "witness_id": "wikisource-huainanzi-tianwen-huainanzi-tianwen-wuleixiangdong-001",
+      "edition_or_database": "维基文库《淮南子·天文训》数字转录检索见证",
+      "url": "https://zh.wikisource.org/zh-hans/淮南子/天文训",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "古典原文公有领域；数字转录许可按平台条款核验"
+    },
+    "locator": {
+      "chapter": "天文训",
+      "section_or_line": "物类相动，本标相应"
+    },
+    "text": "物类相动，本标相应。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "huainanzi-tianwen-class-motion-001",
+        "claim_kind": "textual_observation",
+        "subject": "物类",
+        "predicate": "相动/相应",
+        "object": "物类之间的关联命题",
+        "interpretive_note": "这是汉代气化宇宙论中的类应命题；可作为历史思想与关系模型研究材料，但不能仅凭文本相应关系推定现代因果机制。",
+        "scope": "限于《天文训》的汉代宇宙论语境；不直接视为现代生物学或物理因果结论。",
+        "conditions": [
+          "区分古代分类框架与现代科学分类",
+          "保留历史思想语境"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录条款另行核验",
+      "database_license": "按平台条款核验",
+      "reuse_notes": "仅保存必要短引。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "需与可靠校点本或影印底本核对篇章文字与断句。"
+    ],
+    "concept_tags": [
+      "correspondence",
+      "cosmology",
+      "causal_inference_limit"
+    ],
+    "method_families": [
+      "cosmological_correspondence",
+      "causal_claim"
+    ]
   }
 ]
