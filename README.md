@@ -44,7 +44,6 @@
 - [类象语料 JSON Schema](schemas/classical-xiang-corpus.schema.json)
 - [类象语料候选样本](data/classical_xiang_corpus.v0.1.json)
 - [类象语料结构校验器](prototype/classical_xiang_corpus.py)
-- [类象发生、抽象、迁移与修正机制 v0.1](docs/YIXIANG_GENERATIVE_MECHANISM_V0_1.md)
 - [类象抽象与反例修正原型](prototype/yixiang_process.py)
 - [相关工作与文献](docs/RELATED_WORK.md)
 - [2026-11-10 研究增量报告](docs/RESEARCH_FINDINGS_2026-11-10.md)
