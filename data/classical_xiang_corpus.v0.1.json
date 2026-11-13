@@ -674,7 +674,7 @@
     ],
     "method_families": [
       "analogical_argument",
-      "analogy_limit"
+      "causal_claim"
     ],
     "concept_tags": [
       "analogy_limit",
@@ -901,7 +901,7 @@
     ],
     "method_families": [
       "classification",
-      "analogy_limit"
+      "analogical_argument"
     ]
   },
   {
@@ -968,7 +968,7 @@
     ],
     "method_families": [
       "phenomenological_observation",
-      "sensory_classification"
+      "classification"
     ]
   }
 ]
