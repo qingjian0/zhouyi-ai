@@ -94,7 +94,7 @@ class YixiangProfileTests(unittest.TestCase):
 
     def test_same_claim_in_different_scopes_is_not_a_conflict(self):
         claims = (
-            SourcedClaim("乾", "attribute", "A", "zhouyi", "scope-1", "c1"),
+            SourcedClaim("乾", "attribute", "A", "zhouyi", "scope-1", "c1", "说卦传·第七章"),
             SourcedClaim("乾", "attribute", "B", "zhouyi", "scope-2", "c2", "说卦传·第八章"),
         )
         profile_set = ProfileSet("set", (self.source(),), (self.profile(claims=claims),))
