@@ -37,6 +37,8 @@
 - [架构设计](docs/ARCHITECTURE.md)
 - [易象模块：可检验化设计](docs/YIXIANG_MODULE.md)
 - [传统古籍类象研究总纲与语料建设规范](docs/CLASSICAL_YIXIANG_CORPUS_AND_RESEARCH_PROTOCOL.md)
+- [传统古籍候选来源目录（56 项）](data/classical_yixiang_source_catalog.json)
+- [古籍来源目录使用说明](data/README.md)
 - [相关工作与文献](docs/RELATED_WORK.md)
 - [2026-11-10 研究增量报告](docs/RESEARCH_FINDINGS_2026-11-10.md)
 - [实验计划与验收标准](docs/EXPERIMENTS.md)
