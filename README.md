@@ -7,7 +7,7 @@
 
 ## 项目状态
 
-- 当前阶段：M1–M8 研究原型、基准与透明规则门禁持续扩展；候选生成原型 exact-head（9b5d4a1）CI 已全部通过；本轮新增对照证据保留机制正在等待 exact-head 验证；传统类象语料 43 条候选记录、52 条文本主张
+- 当前阶段：M1–M9 研究原型、基准与透明规则门禁持续扩展；候选生成原型 exact-head（9b5d4a1）CI 已全部通过；本轮新增对照证据保留机制正在等待 exact-head 验证；传统类象语料 43 条候选记录、52 条文本主张
 - 理论版本：CPG-EI v0.3（研究草案，持续修订）
 - 代码状态：已有多尺度时间、typed relations、整体—局部候选约束、竞争类象证据剖面、未决裁决及 M4 条件干预原型；尚无规模化模型或性能结论
 - 验证原则：所有架构主张均须通过可复现实验、消融和公平对照验证
@@ -50,6 +50,9 @@
 - [类象推论操作审计：辟、侔、援、推、效](docs/CLASSICAL_YIXIANG_INFERENCE_MOVES_V0_1.md)
 - [类象推论操作审计原型](prototype/yixiang_inference_audit.py)
 - [类象推论操作审计测试](tests/test_yixiang_inference_audit.py)
+- [M9 多视角类象生成、竞争与组合专题](docs/YIXIANG_M9_MULTIVIEW_COMPOSITION_V0_1.md)
+- [M9 多视角类象组合原型](prototype/yixiang_multiview_composition.py)
+- [M9 多视角类象组合测试](tests/test_yixiang_multiview_composition.py)
 - [类象候选生成对照证据机制](docs/CLASSICAL_YIXIANG_CANDIDATE_GENERATION_V0_1.md#3-候选生成流程)
 - [关系不变量迁移原型](prototype/yixiang_relation_invariants.py)
 - [关系不变量迁移测试](tests/test_yixiang_relation_invariants.py)
