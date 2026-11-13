@@ -49,6 +49,14 @@ class M15Tests(unittest.TestCase):
         w,c,p,a,e=fixture(); atoms=a+(ClaimAtom("A2","CL1","A second proposition."),)
         x=EvidenceLink("E2","A2","P1",EvidenceRelation.SUPPORTS,Coverage.WHOLE_ATOM,ContextFit.COMPATIBLE,ReviewStatus.REVIEWED,("r2",),"The passage directly supports this second proposition.")
         self.assertEqual(assess_claim_coverage("CL1",atoms,c,p,w,(e,x)).decision,ClaimCoverageDecision.FULL_ATOM_COVERAGE)
+    def test_unreviewed_evidence_blocks_full_coverage_even_with_support(self):
+        w,c,p,a,e=fixture()
+        pending=EvidenceLink("E2","A1","P1",EvidenceRelation.CONTRADICTS,Coverage.WHOLE_ATOM,ContextFit.COMPATIBLE,ReviewStatus.UNREVIEWED,(),"Potential counterevidence awaiting review.")
+        result=assess_claim_coverage("CL1",a,c,p,w,(e,pending))
+        self.assertEqual(result.decision,ClaimCoverageDecision.UNRESOLVED_EVIDENCE)
+        self.assertEqual(result.atom_assessments[0].decision,AtomDecision.UNRESOLVED_EVIDENCE)
+        self.assertEqual(result.atom_assessments[0].unresolved_ids,("E2",))
+
     def test_unreviewed_not_promoted(self):
         w,c,p,a,e=fixture(); x=EvidenceLink("E2","A1","P1",e.relation,e.coverage,e.context_fit,ReviewStatus.UNREVIEWED,(),"Awaiting review.")
         self.assertEqual(assess_claim_coverage("CL1",a,c,p,w,(x,)).decision,ClaimCoverageDecision.UNREVIEWED)
