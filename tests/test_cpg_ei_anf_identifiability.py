@@ -158,6 +158,20 @@ class TestAnfIdentifiability(unittest.TestCase):
             for f in right["family_results"] for o in f["output_results"]
         ]
         self.assertEqual(left_train, right_train)
+        left_sweep = left["degree_sweep"]["degree_results"]
+        right_sweep = right["degree_sweep"]["degree_results"]
+        for left_degree, right_degree in zip(left_sweep, right_sweep):
+            left_training = [
+                (item["training_system_consistent"], item["rank"], item["nullity"],
+                 item["unique"], item["possible_support"])
+                for item in left_degree["per_output"]
+            ]
+            right_training = [
+                (item["training_system_consistent"], item["rank"], item["nullity"],
+                 item["unique"], item["possible_support"])
+                for item in right_degree["per_output"]
+            ]
+            self.assertEqual(left_training, right_training)
 
     def test_report_is_valid_json(self):
         with tempfile.TemporaryDirectory() as directory:
