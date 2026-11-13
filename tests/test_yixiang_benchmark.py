@@ -24,7 +24,7 @@ class BenchmarkContractTests(unittest.TestCase):
  def test_missing_prediction_counts_as_abstain(self):
   cases=[make_case("a","accept"),make_case("b","reject"),make_case("c","abstain")]
   r=evaluate_predictions(cases,[{"case_id":"a","decision":"accept"},{"case_id":"b","decision":"accept"}])
-  self.assertEqual(r["n"],3); self.assertAlmostEqual(r["accuracy"],2/3); self.assertEqual(r["missing_predictions"],1); self.assertEqual(r["confusion_matrix"]["abstain"]["abstain"],1)
+  self.assertEqual(r["n"],3); self.assertAlmostEqual(r["accuracy"],2/3); self.assertEqual(r["missing_predictions"],1); self.assertEqual(r["confusion_matrix"]["abstain"]["abstain"],1); self.assertAlmostEqual(r["abstention_coverage"],1/3); self.assertAlmostEqual(r["selective_coverage"],2/3); self.assertAlmostEqual(r["selective_risk"],0.5); self.assertIn("macro_f1",r["by_relation_family"]["structural"]); self.assertIn("confusion_matrix",r["by_relation_family"]["structural"])
  def test_unknown_and_duplicate_predictions_rejected(self):
   with self.assertRaisesRegex(ValueError,"unknown case_id"): evaluate_predictions([make_case("a")],[{"case_id":"x","decision":"accept"}])
   with self.assertRaisesRegex(ValueError,"duplicate prediction"): evaluate_predictions([make_case("a")],[{"case_id":"a","decision":"accept"},{"case_id":"a","decision":"reject"}])
