@@ -62,6 +62,23 @@ class CandidateGenerationTests(unittest.TestCase):
         self.assertEqual(generate_yixiang_candidates((a, b)), generate_yixiang_candidates((b, a)))
         self.assertEqual(generate_yixiang_candidates((a, b))[0].candidate_id, "yc:a:b")
 
+    def test_mixed_evidence_keeps_unsupported_match_audit_reason(self):
+        a = Observation("a", "d", (
+            ObservedFeature("shape", "round", "vision", "a:f1", EvidenceKind.DIRECT_OBSERVATION),
+            ObservedFeature("color", "blue", "vision", "a:f2", EvidenceKind.MODEL_OUTPUT),
+        ), (), ("a:f1", "a:f2"))
+        b = Observation("b", "d", (
+            ObservedFeature("shape", "round", "vision", "b:f1", EvidenceKind.DIRECT_OBSERVATION),
+            ObservedFeature("color", "blue", "vision", "b:f2", EvidenceKind.MODEL_OUTPUT),
+        ), (), ("b:f1", "b:f2"))
+        result = generate_yixiang_candidates((a, b))[0]
+        self.assertEqual(result.decision, CandidateDecision.PROPOSED)
+        self.assertIn("SOME_FEATURE_MATCHES_LACK_ELIGIBLE_EVIDENCE", result.reason_codes)
+
+    def test_colon_in_observation_id_is_rejected(self):
+        with self.assertRaisesRegex(ValueError, "must not contain colon"):
+            generate_yixiang_candidates((obs("bad:id", "d"), obs("b", "d")))
+
     def test_candidate_does_not_authorize_identity_or_causality(self):
         candidate = generate_yixiang_candidates((obs("a", "d"), obs("b", "d")))[0]
         self.assertIn("entity_identity", candidate.prohibited_shortcuts)
