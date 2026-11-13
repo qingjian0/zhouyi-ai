@@ -406,5 +406,345 @@
     "reviewers": [],
     "split_group": "test",
     "label_status": "fixture_expected"
+  },
+  {
+    "case_id": "same-013",
+    "source_lineage": [
+      "fixture:same-013"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Attribute match does not establish entity identity.",
+    "relation_families": [
+      "structural"
+    ],
+    "shared_basis": [
+      "shared visible attribute"
+    ],
+    "non_shared_basis": [
+      "different entities"
+    ],
+    "scope_conditions": [
+      "identity claim requires identity evidence"
+    ],
+    "required_invariants": [
+      "entity identity preserved"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:same-013"
+    ],
+    "independence_group": "fixture-group-same-013",
+    "gold_decision": "reject",
+    "gold_rationale": "Synthetic expected label for a targeted sameness-scope negative control; requires human adjudication before any real-world claim.",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "test"
+  },
+  {
+    "case_id": "same-014",
+    "source_lineage": [
+      "fixture:same-014"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Identical names do not establish identical referents.",
+    "relation_families": [
+      "symbolic_normative"
+    ],
+    "shared_basis": [
+      "same lexical label"
+    ],
+    "non_shared_basis": [
+      "different referents"
+    ],
+    "scope_conditions": [
+      "referent must be resolved"
+    ],
+    "required_invariants": [
+      "reference identity"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:same-014"
+    ],
+    "independence_group": "fixture-group-same-014",
+    "gold_decision": "reject",
+    "gold_rationale": "Synthetic expected label for a targeted sameness-scope negative control; requires human adjudication before any real-world claim.",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "test"
+  },
+  {
+    "case_id": "same-015",
+    "source_lineage": [
+      "fixture:same-015"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Different names may refer to one continuing object.",
+    "relation_families": [
+      "symbolic_normative"
+    ],
+    "shared_basis": [
+      "verified referent continuity"
+    ],
+    "non_shared_basis": [
+      "different naming conventions"
+    ],
+    "scope_conditions": [
+      "same referent across contexts"
+    ],
+    "required_invariants": [
+      "referent continuity"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:same-015"
+    ],
+    "independence_group": "fixture-group-same-015",
+    "gold_decision": "conditional",
+    "gold_rationale": "Synthetic expected label for a targeted sameness-scope negative control; requires human adjudication before any real-world claim.",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "test"
+  },
+  {
+    "case_id": "same-016",
+    "source_lineage": [
+      "fixture:same-016"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "A part is not identical to its whole.",
+    "relation_families": [
+      "structural"
+    ],
+    "shared_basis": [
+      "part-whole relation"
+    ],
+    "non_shared_basis": [
+      "part and whole have different identity conditions"
+    ],
+    "scope_conditions": [
+      "part_of cannot be rewritten as identical_to"
+    ],
+    "required_invariants": [
+      "mereological relation preserved"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:same-016"
+    ],
+    "independence_group": "fixture-group-same-016",
+    "gold_decision": "reject",
+    "gold_rationale": "Synthetic expected label for a targeted sameness-scope negative control; requires human adjudication before any real-world claim.",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "test"
+  },
+  {
+    "case_id": "same-017",
+    "source_lineage": [
+      "fixture:same-017"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Sharing a superordinate class does not transfer every subordinate property.",
+    "relation_families": [
+      "structural"
+    ],
+    "shared_basis": [
+      "same superordinate category"
+    ],
+    "non_shared_basis": [
+      "different subordinate classes"
+    ],
+    "scope_conditions": [
+      "only properties valid at the shared class level"
+    ],
+    "required_invariants": [
+      "taxonomic level preserved"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:same-017"
+    ],
+    "independence_group": "fixture-group-same-017",
+    "gold_decision": "conditional",
+    "gold_rationale": "Synthetic expected label for a targeted sameness-scope negative control; requires human adjudication before any real-world claim.",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "test"
+  },
+  {
+    "case_id": "same-018",
+    "source_lineage": [
+      "fixture:same-018"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Same observed outcome does not establish same causal mechanism.",
+    "relation_families": [
+      "process_mechanism"
+    ],
+    "shared_basis": [
+      "same observed outcome"
+    ],
+    "non_shared_basis": [
+      "mechanism not observed"
+    ],
+    "scope_conditions": [
+      "mechanism evidence required"
+    ],
+    "required_invariants": [
+      "outcome-mechanism distinction"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:same-018"
+    ],
+    "independence_group": "fixture-group-same-018",
+    "gold_decision": "abstain",
+    "gold_rationale": "Synthetic expected label for a targeted sameness-scope negative control; requires human adjudication before any real-world claim.",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "test"
+  },
+  {
+    "case_id": "same-019",
+    "source_lineage": [
+      "fixture:same-019"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Different distances can share a non-arrival predicate without sharing a process.",
+    "relation_families": [
+      "temporal"
+    ],
+    "shared_basis": [
+      "same predicate non-arrival"
+    ],
+    "non_shared_basis": [
+      "different distance and duration"
+    ],
+    "scope_conditions": [
+      "claim restricted to predicate only"
+    ],
+    "required_invariants": [
+      "predicate scope preserved"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:same-019"
+    ],
+    "independence_group": "fixture-group-same-019",
+    "gold_decision": "conditional",
+    "gold_rationale": "Synthetic expected label for a targeted sameness-scope negative control; requires human adjudication before any real-world claim.",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "test"
+  },
+  {
+    "case_id": "same-020",
+    "source_lineage": [
+      "fixture:same-020"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Different times may explain apparently conflicting predicates.",
+    "relation_families": [
+      "temporal"
+    ],
+    "shared_basis": [
+      "same entity and predicate"
+    ],
+    "non_shared_basis": [
+      "different observation times"
+    ],
+    "scope_conditions": [
+      "time alignment unresolved"
+    ],
+    "required_invariants": [
+      "time index explicit"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:same-020"
+    ],
+    "independence_group": "fixture-group-same-020",
+    "gold_decision": "abstain",
+    "gold_rationale": "Synthetic expected label for a targeted sameness-scope negative control; requires human adjudication before any real-world claim.",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "test"
+  },
+  {
+    "case_id": "same-021",
+    "source_lineage": [
+      "fixture:same-021"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "One necessary condition is not automatically sufficient for an outcome.",
+    "relation_families": [
+      "process_mechanism"
+    ],
+    "shared_basis": [
+      "condition is necessary"
+    ],
+    "non_shared_basis": [
+      "other required conditions unknown"
+    ],
+    "scope_conditions": [
+      "sufficiency requires joint-condition evidence"
+    ],
+    "required_invariants": [
+      "necessary-sufficient distinction"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:same-021"
+    ],
+    "independence_group": "fixture-group-same-021",
+    "gold_decision": "abstain",
+    "gold_rationale": "Synthetic expected label for a targeted sameness-scope negative control; requires human adjudication before any real-world claim.",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "test"
+  },
+  {
+    "case_id": "same-022",
+    "source_lineage": [
+      "fixture:same-022"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "A conjunction of conditions may be required before an outcome is supported.",
+    "relation_families": [
+      "process_mechanism"
+    ],
+    "shared_basis": [
+      "joint condition set"
+    ],
+    "non_shared_basis": [
+      "individual conditions may be insufficient"
+    ],
+    "scope_conditions": [
+      "all required conditions jointly hold"
+    ],
+    "required_invariants": [
+      "condition conjunction preserved"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:same-022"
+    ],
+    "independence_group": "fixture-group-same-022",
+    "gold_decision": "conditional",
+    "gold_rationale": "Synthetic expected label for a targeted sameness-scope negative control; requires human adjudication before any real-world claim.",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "test"
   }
 ]
