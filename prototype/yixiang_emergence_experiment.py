@@ -177,8 +177,16 @@ def audit_emergence_experiment(
     means = {}
     for arm in sorted(grouped):
         rows = grouped[arm]
-        units = {row.independent_unit_id for row in rows}
-        mean = sum(float(row.outcome) for row in rows) / len(rows)
+        unit_outcomes: dict[str, list[float]] = {}
+        for row in rows:
+            unit_outcomes.setdefault(row.independent_unit_id, []).append(float(row.outcome))
+        units = set(unit_outcomes)
+        # Average repeated readings within each independent unit first, then
+        # average units equally so pseudoreplicated units cannot dominate.
+        unit_means = [
+            sum(values) / len(values) for values in unit_outcomes.values()
+        ]
+        mean = sum(unit_means) / len(unit_means)
         means[arm] = mean
         summaries.append(ArmSummary(arm, len(rows), len(units), mean))
         if len(units) < protocol.minimum_independent_units:
@@ -188,10 +196,12 @@ def audit_emergence_experiment(
         )
         if expected_scope is not None and any(row.scope_signature != expected_scope for row in rows):
             reasons.append(f"IN_SCOPE_SIGNATURE_MISMATCH:{arm}")
-        if arm == "context_shift" and all(
-            row.scope_signature == protocol.in_scope_signature for row in rows
-        ):
-            reasons.append("CONTEXT_SHIFT_DID_NOT_CHANGE_SCOPE_SIGNATURE")
+        if arm == "context_shift":
+            shifted_signatures = {row.scope_signature for row in rows}
+            if shifted_signatures == {protocol.in_scope_signature}:
+                reasons.append("CONTEXT_SHIFT_DID_NOT_CHANGE_SCOPE_SIGNATURE")
+            elif len(shifted_signatures) != 1:
+                reasons.append("CONTEXT_SHIFT_SCOPE_SIGNATURE_INCONSISTENT")
 
     contrasts = []
     if not missing:
