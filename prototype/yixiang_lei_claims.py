@@ -103,6 +103,11 @@ def assess_lei_claim(claim: LeiClaim) -> LeiClaimAssessment:
         reasons.append("MODEL_OUTPUT_IS_NOT_INDEPENDENT_EVIDENCE")
 
     if claim.kind == ClaimKind.ACTION_OUTCOME:
+        if claim.causal_identification not in ("not_asserted", "intervention_or_identification_evidence"):
+            reasons.append("CAUSAL_IDENTIFICATION_UNRECOGNIZED")
+        if (claim.causal_identification == "intervention_or_identification_evidence"
+                and claim.evidence_kind != EvidenceKind.INTERVENTION):
+            reasons.append("CAUSAL_EVIDENCE_KIND_MISMATCH")
         if not claim.actor_intention:
             reasons.append("INTENTION_NOT_RECORDED")
         if not claim.action_method:
@@ -113,8 +118,6 @@ def assess_lei_claim(claim: LeiClaim) -> LeiClaimAssessment:
             reasons.append("OUTCOME_NOT_OBSERVED")
         if claim.causal_identification == "not_asserted":
             reasons.append("CAUSALITY_NOT_ESTABLISHED")
-        elif claim.causal_identification != "intervention_or_identification_evidence":
-            reasons.append("CAUSAL_IDENTIFICATION_UNRECOGNIZED")
 
     if claim.kind == ClaimKind.PRACTICAL_UTILITY:
         if not claim.utility_criteria:
