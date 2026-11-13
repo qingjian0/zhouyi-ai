@@ -1104,5 +1104,165 @@
       "cosmological_correspondence",
       "causal_claim"
     ]
+  },
+  {
+    "record_id": "zhouyi-shuogua-functional-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "周易·说卦传",
+      "traditional_authority": "传统列入十翼；成篇年代与层次存在研究讨论",
+      "composition_period": "战国至汉初层累形成说并存",
+      "genre": "易传"
+    },
+    "period": "uncertain",
+    "source_type": "classical_text",
+    "tradition": [
+      "易传",
+      "八卦取象",
+      "功能关系"
+    ],
+    "witness": {
+      "witness_id": "ctext-zhouyi-shuogua-functional",
+      "edition_or_database": "中国哲学书电子化计划《周易·说卦》数字文本；底本信息仍需进一步核验",
+      "url": "https://ctext.org/book-of-changes/shuo-gua/zh",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "平台条款另行核验；仅保留必要短引"
+    },
+    "locator": {
+      "chapter": "说卦传",
+      "section_or_line": "雷以动之、风以散之章"
+    },
+    "text": "雷以动之，风以散之，雨以润之，日以烜之。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "shuogua-functional-001",
+        "claim_kind": "textual_observation",
+        "subject": "雷、风、雨、日",
+        "predicate": "动、散、润、烜",
+        "object": "八卦象与作用功能的对应",
+        "interpretive_note": "传文将自然现象与作用动词配对，呈现功能/过程映射，不应压缩为单纯名物同义词。各句的卦象指代须结合完整上下文校核。",
+        "scope": "限于《说卦传》该章语境；不据此推定现代物理因果机制。",
+        "relation_type": "symbol_to_function_mapping",
+        "xiang_domain": "自然过程与功能",
+        "relation_family": "functional",
+        "shared_basis": [
+          "文本明确并列的作用角色与变化过程"
+        ],
+        "non_shared_basis": [
+          "各自然现象的具体物理机制不可由该短句互相等同"
+        ],
+        "scope_conditions": [
+          "保留八卦及上下文语境",
+          "区分象征功能与经验因果"
+        ],
+        "causal_status": "not_claimed",
+        "conditions": [
+          "与前后句及不同传本对读"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "需与可靠经传校本及《周易正义》等注疏对勘。"
+    ],
+    "concept_tags": [
+      "image_selection",
+      "correspondence",
+      "natural_knowledge"
+    ],
+    "method_families": [
+      "symbolic_correspondence",
+      "phenomenological_observation"
+    ]
+  },
+  {
+    "record_id": "guanzi-banfa-normative-analogy-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "管子·版法解",
+      "traditional_authority": "传统题署为《管子》；篇章年代与编纂层次须依研究文献审查",
+      "composition_period": "战国至汉代层累形成说并存",
+      "genre": "政论/制度论"
+    },
+    "period": "uncertain",
+    "source_type": "classical_text",
+    "tradition": [
+      "管子学派材料",
+      "时令",
+      "政治规范类比"
+    ],
+    "witness": {
+      "witness_id": "ctext-guanzi-banfa-jie",
+      "edition_or_database": "中国哲学书电子化计划《管子·版法解》数字文本；页面列有四部丛刊及四库等资源",
+      "url": "https://ctext.org/guanzi/ban-fa-jie/zhs",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "平台条款另行核验；仅保留必要短引"
+    },
+    "locator": {
+      "chapter": "版法解",
+      "section_or_line": "法天地之位、象四时之行"
+    },
+    "text": "版法者，法天地之位，象四时之行，以治天下。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "guanzi-banfa-normative-001",
+        "claim_kind": "textual_observation",
+        "subject": "天地之位与四时之行",
+        "predicate": "法/象",
+        "object": "以自然秩序作为治理制度的取法依据",
+        "interpretive_note": "该段呈现由自然时空秩序向政治制度的规范性映射；它是政治哲学中的取法/类比，不应直接归为自然因果规律。",
+        "scope": "限于《版法解》政治治理语境；篇章年代及《管子》编纂层次需另行审查。",
+        "relation_type": "natural_order_to_normative_institution",
+        "xiang_domain": "政治制度与自然秩序",
+        "relation_family": "normative_analogy",
+        "shared_basis": [
+          "以方位与时序组织秩序的结构对应"
+        ],
+        "non_shared_basis": [
+          "自然过程与人制定的政治制度并非同一类实体"
+        ],
+        "scope_conditions": [
+          "保留规范性论证语境",
+          "不得将价值判断转写为经验因果"
+        ],
+        "causal_status": "not_claimed",
+        "conditions": [
+          "与《四时》等篇及不同版本对读"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "需与《四部丛刊初编》本、四库本及可靠校点本对读；篇章年代未定。"
+    ],
+    "concept_tags": [
+      "correspondence",
+      "metaphor",
+      "ritual_institution"
+    ],
+    "method_families": [
+      "rhetorical_analogy",
+      "comparative_exegesis"
+    ]
   }
 ]
