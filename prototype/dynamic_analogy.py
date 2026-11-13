@@ -125,7 +125,7 @@ def assess_dynamic_analogy(
     candidate: DynamicAnalogyCandidate,
     *,
     min_state_f1: float = 0.8,
-    min_transition_f1: float = 0.8,
+    min_transition_f1: float = 0.81,
     min_entity_coverage: float = 1.0,
 ) -> DynamicAnalogyAssessment:
     """Check state-fact preservation and a commuting transition mapping.
