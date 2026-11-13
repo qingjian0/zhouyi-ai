@@ -23,6 +23,7 @@ def validate_case(c:Mapping)->None:
     if not set(c["relation_families"])<=RELATIONS: raise ValueError("unknown relation family")
     for f in ("shared_basis","non_shared_basis","scope_conditions","required_invariants","known_counterexamples"): _strings(c[f],f,False)
     _strings(c["evidence_refs"],"evidence_refs"); _strings(c["reviewers"],"reviewers")
+    if len(c["reviewers"]) < 2: raise ValueError("gold labels require at least two independent reviewers")
     if c["source_status"] not in SOURCE_STATUS: raise ValueError("unknown source_status")
     if c["causal_status"] not in CAUSAL: raise ValueError("unknown causal_status")
     if c["gold_decision"] not in DECISIONS: raise ValueError("unknown gold_decision")
@@ -59,7 +60,19 @@ def evaluate_predictions(cases:Sequence[Mapping],predictions:Sequence[Mapping])-
         f1=2*precision*recall/(precision+recall) if precision+recall else 0.0
         metrics[label]={"precision":precision,"recall":recall,"f1":f1,"support":sum(matrix[label].values())}
     n=len(cases)
-    return {"n":n,"accuracy":correct/n,"macro_f1":sum(x["f1"] for x in metrics.values())/len(labels),"per_class":metrics,"confusion_matrix":matrix,"missing_predictions":sum(c["case_id"] not in pred for c in cases)}
+    def stratify(field, values):
+        result={}
+        for value in sorted(values):
+            subset=[c for c in cases if value in (c[field] if field=="relation_families" else [c[field]])]
+            if subset:
+                hit=sum(pred.get(c["case_id"],"abstain")==c["gold_decision"] for c in subset)
+                result[value]={"n":len(subset),"accuracy":hit/len(subset)}
+        return result
+    return {"n":n,"accuracy":correct/n,"macro_f1":sum(x["f1"] for x in metrics.values())/len(labels),
+            "per_class":metrics,"confusion_matrix":matrix,
+            "missing_predictions":sum(c["case_id"] not in pred for c in cases),
+            "by_relation_family":stratify("relation_families",set(v for c in cases for v in c["relation_families"])),
+            "by_source_status":stratify("source_status",set(c["source_status"] for c in cases))}
 def group_leakage(cases:Sequence[Mapping],*,group_field="source_lineage")->dict:
     """Report source groups spanning splits; never silently repair leakage."""
     if group_field not in {"source_lineage","independence_group","split_group"}: raise ValueError("unsupported grouping field")
