@@ -45,6 +45,8 @@
 - [类象语料候选样本](data/classical_xiang_corpus.v0.1.json)
 - [类象语料结构校验器](prototype/classical_xiang_corpus.py)
 - [类象抽象与反例修正原型](prototype/yixiang_process.py)
+- [类象多元角色关系研究 v0.1](docs/YIXIANG_NARY_RELATIONS_V0_1.md)
+- [类象多元关系评估原型](prototype/yixiang_relations.py)
 - [动态类象状态转移原型](prototype/yixiang_dynamics.py)
 - [动态类象状态转移测试](tests/test_yixiang_dynamics.py)
 - [相关工作与文献](docs/RELATED_WORK.md)
