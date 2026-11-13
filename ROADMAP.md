@@ -32,7 +32,7 @@
 ## CPG-EI 当前验证顺序
 
 1. PR #422 的 compute-accounted hybrid 已通过 exact-head CI；同 corpus 三路对照结果为：symbolic 99.90% locked bit / 11.54 s，full polynomial 86.13% / 1,467.69 s，hybrid 90.04% / 41.21% exact-state / 711.25 s。
-2. PR #427 正在验证 full-basis NumPy 向量化优化器；必须通过 scalar-reference 数值一致性和完整速度基准，exact-head artifact 完成前不宣称加速结果。
+2. PR #427 前一 head 已通过 paired scalar/NumPy parity：相同 8-family corpus 上 296.59 s → 2.45 s（121.03×），指标与 best epochs 完全一致；当前 accounting/fallback 修订 head 仍待 exact-head CI，不可独立合并。
 3. PR #428 测试 XOR-of-two-conjunctions 组合目标，目标超出单算子候选语法；这是 operator-grammar OOD，不是 held-out-family transfer。
 4. PR #431 扩大至 1,600 个 teacher families / 409,600 rows；这是数据规模扩张，不是学习性能结果。
 5. PR #425/#430 分析 degree-bounded ANF 的 rank、nullity、consistency、uniqueness 和 oracle representability；不得把低阶拟合直接当作真实规则恢复。
