@@ -95,6 +95,14 @@ class RelationAlgebraTests(unittest.TestCase):
                 ontology=self.ontology,
             )
 
+    def test_rejects_non_boolean_relation_flags(self):
+        with self.assertRaises(ValueError):
+            RelationOntology({"adjacent": RelationType("adjacent", symmetric=1)})
+
+    def test_rejects_non_string_edge_endpoints(self):
+        with self.assertRaises(ValueError):
+            self.ontology.normalize(Edge(1, "b", "supports"))
+
     def test_reports_missing_and_unexpected_edges(self):
         score = compare_relations(
             source_relations=(Edge("a", "b", "supports"),),
