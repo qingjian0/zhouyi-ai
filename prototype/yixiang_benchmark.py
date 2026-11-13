@@ -5,8 +5,9 @@ from collections.abc import Mapping, Sequence
 RELATIONS={"morphological","structural","functional","process_mechanism","temporal","situated","symbolic_normative","empirical_correlation","causal_analogy"}
 DECISIONS={"accept","reject","conditional","abstain"}
 CAUSAL={"symbolic","normative","co_occurrence","correlational","mechanistic_hypothesis","intervention_supported","unknown"}
+CLAIM_KINDS={"taxonomic_similarity","argumentative_analogy","action_outcome","practical_utility","symbolic_correspondence"}
 SOURCE_STATUS={"verified_primary","critical_edition","unverified_transcription","secondary_quotation","research_hypothesis","synthetic_fixture"}
-REQUIRED={"case_id","source_lineage","source_status","target_claim","relation_families","shared_basis","non_shared_basis","scope_conditions","required_invariants","known_counterexamples","causal_status","evidence_refs","independence_group","gold_decision","gold_rationale","label_status","reviewers","split_group"}
+REQUIRED={"claim_kind","case_id","source_lineage","source_status","target_claim","relation_families","shared_basis","non_shared_basis","scope_conditions","required_invariants","known_counterexamples","causal_status","evidence_refs","independence_group","gold_decision","gold_rationale","label_status","reviewers","split_group"}
 def _strings(v,f,nonempty=True):
     if not isinstance(v,list) or (nonempty and not v): raise ValueError(f"{f} must be a {'non-empty ' if nonempty else ''}list")
     if any(not isinstance(x,str) or not x.strip() for x in v): raise ValueError(f"{f} entries must be non-empty strings")
@@ -18,6 +19,7 @@ def validate_case(c:Mapping)->None:
     missing,extra=REQUIRED-set(c),set(c)-REQUIRED
     if missing: raise ValueError(f"missing fields: {', '.join(sorted(missing))}")
     if extra: raise ValueError(f"unknown fields: {', '.join(sorted(extra))}")
+    if not isinstance(c["claim_kind"],str) or c["claim_kind"] not in CLAIM_KINDS: raise ValueError("unknown claim_kind")
     for f in ("case_id","target_claim","independence_group","gold_rationale","split_group"):
         if not isinstance(c[f],str) or not c[f].strip(): raise ValueError(f"{f} must be non-empty")
     _strings(c["source_lineage"],"source_lineage"); _strings(c["relation_families"],"relation_families")
