@@ -83,6 +83,19 @@ class M7PipelineTests(unittest.TestCase):
         self.assertIsNone(result.observation_selection)
         self.assertEqual(result.stages_executed, ("M3",))
 
+    def test_rejected_m3_candidates_are_excluded_from_m5_prior(self):
+        rejected = XiangCandidate(
+            "H2", "rejected mapping", (), ("blocked",), (), ("blocked",),
+            (evidence("e3"),),
+        )
+        result = run_m7(M7Input(
+            candidates=(self.candidates[0], rejected),
+            priors=(HypothesisPrior("H1", 1.0),),
+            observation_candidates=self.observations,
+        ))
+        self.assertEqual(result.arbitration.rejected_candidate_ids, ("H2",))
+        self.assertIsNone(result.observation_selection)
+
     def test_m5_hypothesis_ids_must_match_m3_candidates(self):
         with self.assertRaisesRegex(ValueError, "exactly match"):
             run_m7(M7Input(
