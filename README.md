@@ -49,6 +49,8 @@
 - [类象多元关系评估原型](prototype/yixiang_relations.py)
 - [动态类象状态转移原型](prototype/yixiang_dynamics.py)
 - [动态类象状态转移测试](tests/test_yixiang_dynamics.py)
+- [多元角色关系类象研究](docs/YIXIANG_NARY_RELATIONS_V0_1.md)
+- [多元关系保持原型](prototype/yixiang_relations.py)
 - [相关工作与文献](docs/RELATED_WORK.md)
 - [2026-11-10 研究增量报告](docs/RESEARCH_FINDINGS_2026-11-10.md)
 - [实验计划与验收标准](docs/EXPERIMENTS.md)
