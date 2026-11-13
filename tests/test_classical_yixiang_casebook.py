@@ -74,7 +74,8 @@ class ClassicalYixiangCasebookTests(unittest.TestCase):
         self.assertEqual(case["source_id"], "src_lushi_yingtong")
         self.assertIn("correspondence", case["operation"])
         self.assertIn("现代经验意义", case["conclusion_scope"])
-        self.assertIn("不作为现代自然因果事实", self.book["sources"][-1]["witness_limit"])
+        yingtong_source = next(source for source in self.book["sources"] if source["source_id"] == "src_lushi_yingtong")
+        self.assertIn("不作为现代自然因果事实", yingtong_source["witness_limit"])
 
     def test_chunqiu_fanlu_case_does_not_transfer_physical_resonance_as_proof_of_political_sense(self):
         case = next(item for item in self.book["cases"] if item["case_id"] == "xy_020")
