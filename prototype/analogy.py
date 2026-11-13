@@ -211,7 +211,7 @@ def discover_analogy_mappings(
         )
         assessment = assess_analogy(
             candidate, min_relation_f1=min_relation_f1,
-            min_entity_coverage=1.0, require_evidence=bool(evidence),
+            min_entity_coverage=1.0, require_evidence=True,
         )
         ranked.append(DiscoveredAnalogy(
             mapping=tuple(mapping.items()), assessment=assessment,
