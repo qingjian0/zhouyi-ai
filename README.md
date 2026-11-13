@@ -45,6 +45,8 @@
 - [类象语料候选样本](data/classical_xiang_corpus.v0.1.json)
 - [类象语料结构校验器](prototype/classical_xiang_corpus.py)
 - [类象抽象与反例修正原型](prototype/yixiang_process.py)
+- [动态类象状态转移原型](prototype/yixiang_dynamics.py)
+- [动态类象状态转移测试](tests/test_yixiang_dynamics.py)
 - [相关工作与文献](docs/RELATED_WORK.md)
 - [2026-11-10 研究增量报告](docs/RESEARCH_FINDINGS_2026-11-10.md)
 - [实验计划与验收标准](docs/EXPERIMENTS.md)
