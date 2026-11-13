@@ -68,6 +68,31 @@ class RelationMatch:
 
 
 @dataclass(frozen=True)
+class FeatureContrast:
+    dimension: str
+    modality: str
+    source_value: str
+    target_value: str
+    source_evidence_ref: str
+    target_evidence_ref: str
+    source_evidence_kind: EvidenceKind
+    target_evidence_kind: EvidenceKind
+
+
+@dataclass(frozen=True)
+class RelationContrast:
+    predicate: str
+    source_subject_role: str
+    source_object_role: str
+    target_subject_role: str
+    target_object_role: str
+    source_evidence_ref: str
+    target_evidence_ref: str
+    source_evidence_kind: EvidenceKind
+    target_evidence_kind: EvidenceKind
+
+
+@dataclass(frozen=True)
 class YixiangCandidate:
     candidate_id: str
     source_observation_id: str
@@ -77,6 +102,8 @@ class YixiangCandidate:
     decision: CandidateDecision
     shared_features: Tuple[FeatureMatch, ...]
     shared_relations: Tuple[RelationMatch, ...]
+    feature_contrasts: Tuple[FeatureContrast, ...]
+    relation_contrasts: Tuple[RelationContrast, ...]
     non_shared_feature_dimensions: Tuple[str, ...]
     reason_codes: Tuple[str, ...]
     claim_ceiling: Tuple[str, ...] = (
@@ -190,6 +217,35 @@ def generate_yixiang_candidates(
                         item.evidence_kind, other.evidence_kind,
                     ))
 
+            # Record same-dimension differences as contrasts, not contradictions:
+            # values may coexist, and exclusivity requires a separately declared ontology.
+            right_by_dimension = {}
+            for item in right.features:
+                right_by_dimension.setdefault((item.dimension, item.modality), []).append(item)
+            feature_contrasts = []
+            for item in left.features:
+                for other in right_by_dimension.get((item.dimension, item.modality), ()):
+                    if item.value != other.value:
+                        feature_contrasts.append(FeatureContrast(
+                            item.dimension, item.modality, item.value, other.value,
+                            item.evidence_ref, other.evidence_ref,
+                            item.evidence_kind, other.evidence_kind,
+                        ))
+
+            right_by_predicate = {}
+            for item in right.relations:
+                right_by_predicate.setdefault(item.predicate, []).append(item)
+            relation_contrasts = []
+            for item in left.relations:
+                for other in right_by_predicate.get(item.predicate, ()):
+                    if (item.subject_role, item.object_role) != (other.subject_role, other.object_role):
+                        relation_contrasts.append(RelationContrast(
+                            item.predicate, item.subject_role, item.object_role,
+                            other.subject_role, other.object_role,
+                            item.evidence_ref, other.evidence_ref,
+                            item.evidence_kind, other.evidence_kind,
+                        ))
+
             if not potential_features and not potential_relations:
                 continue
             left_dims = {x.dimension for x in left.features}
@@ -204,11 +260,16 @@ def generate_yixiang_candidates(
                 reasons.append("SOME_FEATURE_MATCHES_LACK_ELIGIBLE_EVIDENCE")
             if len(supported_relations) < len(potential_relations):
                 reasons.append("SOME_RELATION_MATCHES_LACK_ELIGIBLE_EVIDENCE")
+            if feature_contrasts:
+                reasons.append("FEATURE_CONTRASTS_REQUIRE_DIMENSION_SEMANTICS_REVIEW")
+            if relation_contrasts:
+                reasons.append("RELATION_CONTRASTS_REQUIRE_ROLE_AND_CONTEXT_REVIEW")
             decision = CandidateDecision.PROPOSED if supported_features or supported_relations else CandidateDecision.ABSTAIN
             candidates.append(YixiangCandidate(
                 f"yc:{left.observation_id}:{right.observation_id}",
                 left.observation_id, right.observation_id, left.domain, right.domain,
                 decision, tuple(supported_features), tuple(supported_relations),
+                tuple(feature_contrasts), tuple(relation_contrasts),
                 tuple(sorted((left_dims | right_dims) - shared_dims)), tuple(reasons),
             ))
     return tuple(candidates)
