@@ -26,6 +26,7 @@ class NoveltyDiscoveryTests(unittest.TestCase):
         self.assertEqual(proposal.status, ProposalStatus.PROPOSED)
         self.assertEqual(len(proposal.domains), 2)
         self.assertEqual(len(proposal.evidence_refs), 2)
+        self.assertEqual(proposal.evidence_lineage, (("paper:a", "edition-family-a"), ("paper:b", "edition-family-b")))
         self.assertEqual(proposal.evidence_independence_groups, ("edition-family-a", "edition-family-b"))
         self.assertEqual(len(proposal.context_records), 2)
 
@@ -60,6 +61,14 @@ class NoveltyDiscoveryTests(unittest.TestCase):
             case("r2", "o2", "mechanics", "mirror:b", source_group="same-base-text"),
         )
         self.assertEqual(propose_novel_structures(same_family), ())
+
+    def test_conflicting_lineage_for_same_reference_is_rejected(self):
+        conflicting = (
+            case("r1", "o1", "ecology", "paper:shared", source_group="edition-family-a"),
+            case("r2", "o2", "mechanics", "paper:shared", source_group="edition-family-b"),
+        )
+        with self.assertRaisesRegex(ValueError, "conflicting independence groups"):
+            propose_novel_structures(conflicting)
 
     def test_missing_lineage_cannot_satisfy_independence_threshold(self):
         unknown = (
