@@ -228,5 +228,295 @@
     "review_notes": [
       "需要核实《周易要义》的作者、时代、版本及原文上下文。"
     ]
+  },
+  {
+    "record_id": "mozi-xiaoqu-tuilei-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "墨子·小取",
+      "traditional_authority": "传统题署与文本层次须按校勘本进一步核验",
+      "composition_period": "战国时期或战国层累材料；具体篇章年代仍待考",
+      "genre": "墨家名辩篇章"
+    },
+    "period": "pre_qin",
+    "source_type": "classical_text",
+    "tradition": [
+      "先秦诸子",
+      "类比/推类",
+      "类象理论"
+    ],
+    "witness": {
+      "witness_id": "ctext-mozi-xiaoqu",
+      "edition_or_database": "数字古籍转录检索见证；需与可靠整理本或影印本复核",
+      "url": "https://ctext.org/mozi/book-11/zhs",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台及转录许可另行核验"
+    },
+    "locator": {
+      "chapter": "小取",
+      "section_or_line": "以类取，以类予"
+    },
+    "text": "以类取，以类予。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "mozi-xiaoqu-leiqu-001",
+        "claim_kind": "textual_observation",
+        "subject": "辩论与推论",
+        "predicate": "以类取/以类予",
+        "object": "依类选择与给予论据",
+        "interpretive_note": "《小取》把‘以类取，以类予’置于明同异、察名实、论求群言之比的论辩框架中；它是推类方法的直接文本证据，不等于所有类推都有效。",
+        "scope": "限于该篇文本语境；不自动推广为普遍有效的现代推理规则。",
+        "conditions": [
+          "保留原文语境",
+          "异文与注家解释分层"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引与来源元数据。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "尚未完成影印底本逐字校勘。"
+    ]
+  },
+  {
+    "record_id": "mozi-xiaoqu-tuili-limit-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "墨子·小取",
+      "traditional_authority": "传统题署与文本层次须按校勘本进一步核验",
+      "composition_period": "战国时期或战国层累材料；具体篇章年代仍待考",
+      "genre": "墨家名辩篇章"
+    },
+    "period": "pre_qin",
+    "source_type": "classical_text",
+    "tradition": [
+      "先秦诸子",
+      "类比/推类",
+      "类象理论"
+    ],
+    "witness": {
+      "witness_id": "ctext-mozi-xiaoqu-limit",
+      "edition_or_database": "数字古籍转录检索见证；需与可靠整理本或影印本复核",
+      "url": "https://ctext.org/mozi/book-11/zhs",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台及转录许可另行核验"
+    },
+    "locator": {
+      "chapter": "小取",
+      "section_or_line": "其然也同，其所以然不必同"
+    },
+    "text": "其然也同，其所以然不必同。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "mozi-xiaoqu-cause-gap-001",
+        "claim_kind": "textual_observation",
+        "subject": "相同现象",
+        "predicate": "不必推出",
+        "object": "相同原因",
+        "interpretive_note": "这是极关键的类推限制：表面结果相同，不足以推出其所以然相同。项目应把‘现象同而机制未必同’设为核心反例测试。",
+        "scope": "限于该篇文本语境；不自动推广为普遍有效的现代推理规则。",
+        "conditions": [
+          "保留原文语境",
+          "异文与注家解释分层"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引与来源元数据。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "尚未完成影印底本逐字校勘。"
+    ]
+  },
+  {
+    "record_id": "mozi-xiaoqu-analogy-caution-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "墨子·小取",
+      "traditional_authority": "传统题署与文本层次须按校勘本进一步核验",
+      "composition_period": "战国时期或战国层累材料；具体篇章年代仍待考",
+      "genre": "墨家名辩篇章"
+    },
+    "period": "pre_qin",
+    "source_type": "classical_text",
+    "tradition": [
+      "先秦诸子",
+      "类比/推类",
+      "类象理论"
+    ],
+    "witness": {
+      "witness_id": "ctext-mozi-xiaoqu-caution",
+      "edition_or_database": "数字古籍转录检索见证；需与可靠整理本或影印本复核",
+      "url": "https://ctext.org/mozi/book-11/zhs",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台及转录许可另行核验"
+    },
+    "locator": {
+      "chapter": "小取",
+      "section_or_line": "则不可不审也，不可常用也"
+    },
+    "text": "则不可不审也，不可常用也。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "mozi-xiaoqu-caution-001",
+        "claim_kind": "textual_observation",
+        "subject": "譬侔援推",
+        "predicate": "须审察且不可常用",
+        "object": "类推方法的适用边界",
+        "interpretive_note": "《小取》明确警告譬、侔、援、推可能在推移过程中失当或离本；这是建立拒绝类比、边界条件与失效诊断的重要经典依据。",
+        "scope": "限于该篇文本语境；不自动推广为普遍有效的现代推理规则。",
+        "conditions": [
+          "保留原文语境",
+          "异文与注家解释分层"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引与来源元数据。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "尚未完成影印底本逐字校勘。"
+    ]
+  },
+  {
+    "record_id": "xunzi-zhengming-tonglei-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "荀子·正名",
+      "traditional_authority": "传统题署与文本层次须按校勘本进一步核验",
+      "composition_period": "战国时期或战国层累材料；具体篇章年代仍待考",
+      "genre": "名辩/正名论"
+    },
+    "period": "pre_qin",
+    "source_type": "classical_text",
+    "tradition": [
+      "先秦诸子",
+      "类比/推类",
+      "类象理论"
+    ],
+    "witness": {
+      "witness_id": "wikisource-xunzi-zhengming",
+      "edition_or_database": "数字古籍转录检索见证；需与可靠整理本或影印本复核",
+      "url": "https://zh.wikisource.org/zh-hans/荀子/正名篇",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台及转录许可另行核验"
+    },
+    "locator": {
+      "chapter": "正名",
+      "section_or_line": "凡同类同情者，其天官之意物也同"
+    },
+    "text": "凡同类同情者，其天官之意物也同。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "xunzi-zhengming-samekind-001",
+        "claim_kind": "textual_observation",
+        "subject": "同类同情之物",
+        "predicate": "感官知觉有相同条件",
+        "object": "比方疑似而通",
+        "interpretive_note": "《正名》把同异判断联系到感官对形色声味等对象的辨识条件；类的判断不只是词面相似，还涉及感知条件与对象性质。",
+        "scope": "限于该篇文本语境；不自动推广为普遍有效的现代推理规则。",
+        "conditions": [
+          "保留原文语境",
+          "异文与注家解释分层"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引与来源元数据。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "尚未完成影印底本逐字校勘。"
+    ]
+  },
+  {
+    "record_id": "lushi-chunqiu-yingtong-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "吕氏春秋·有始览·应同",
+      "traditional_authority": "传统题署与文本层次须按校勘本进一步核验",
+      "composition_period": "战国时期或战国层累材料；具体篇章年代仍待考",
+      "genre": "杂家/类应与感应论"
+    },
+    "period": "pre_qin",
+    "source_type": "classical_text",
+    "tradition": [
+      "先秦诸子",
+      "类比/推类",
+      "类象理论"
+    ],
+    "witness": {
+      "witness_id": "wikisource-lushi-yingtong",
+      "edition_or_database": "数字古籍转录检索见证；需与可靠整理本或影印本复核",
+      "url": "https://zh.wikisource.org/zh-hans/吕氏春秋/卷十三",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台及转录许可另行核验"
+    },
+    "locator": {
+      "chapter": "有始览·应同",
+      "section_or_line": "类固相召，气同则合，声比则应"
+    },
+    "text": "类固相召，气同则合，声比则应。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "lushi-yingtong-class-call-001",
+        "claim_kind": "textual_observation",
+        "subject": "物类/气/声",
+        "predicate": "相召/相合/相应",
+        "object": "类应关系命题",
+        "interpretive_note": "这是战国末期类应与感应论述的重要文本；应作为历史思想主张保存，不作为现代自然因果事实。",
+        "scope": "限于该篇文本语境；不自动推广为普遍有效的现代推理规则。",
+        "conditions": [
+          "保留原文语境",
+          "异文与注家解释分层"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引与来源元数据。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "尚未完成影印底本逐字校勘。"
+    ]
   }
 ]
