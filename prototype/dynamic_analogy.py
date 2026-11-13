@@ -162,6 +162,7 @@ def assess_dynamic_analogy(
     min_state_f1: float = 0.8,
     min_transition_f1: float = 0.81,
     min_entity_coverage: float = 1.0,
+    min_context_f1: float = 0.8,
 ) -> DynamicAnalogyAssessment:
     """Check state-fact preservation and a commuting transition mapping.
 
@@ -174,6 +175,7 @@ def assess_dynamic_analogy(
         ("min_state_f1", min_state_f1),
         ("min_transition_f1", min_transition_f1),
         ("min_entity_coverage", min_entity_coverage),
+        ("min_context_f1", min_context_f1),
     ):
         if (isinstance(value, bool) or not isinstance(value, (int, float))
                 or not math.isfinite(value) or not 0.0 <= value <= 1.0):
@@ -265,8 +267,8 @@ def assess_dynamic_analogy(
     )
     transition_f1 = _f1(transition_precision, transition_recall)
 
-    source_has_context = any(state.context for state in candidate.source.snapshots)
-    target_has_context = any(state.context for state in candidate.target.snapshots)
+    source_has_context = any(source_states[source_id].context for source_id in alignment)
+    target_has_context = any(target_states[target_id].context for target_id in alignment.values())
     context_assessed = source_has_context or target_has_context
     context_f1 = None
     preserved_context_facts = expected_context_facts = observed_context_facts = 0
@@ -303,7 +305,7 @@ def assess_dynamic_analogy(
     if context_assessed:
         if not expected_context_facts:
             reasons.append("INSUFFICIENT_MAPPED_CONTEXT_FACTS")
-        if context_f1 is not None and context_f1 < min_transition_f1:
+        if context_f1 is not None and context_f1 < min_context_f1:
             reasons.append("TIME_POSITION_POTENTIAL_CONTEXT_NOT_PRESERVED")
     return DynamicAnalogyAssessment(
         candidate_id=candidate.candidate_id,
