@@ -7,7 +7,7 @@
 
 ## 项目状态
 
-- 当前阶段：M1–M4 基础机制已建立研究原型；M5/M6/M7 透明规则原型与测试已提交；M7 完整 CI 曾通过，最新古籍语料扩充的完整工作流正在复核
+- 当前阶段：M1–M4 基础机制已建立研究原型；M5/M6/M7 透明规则原型与测试已提交；M8 benchmark schema/validator/metrics 与 synthetic contract fixtures 已提交，当前 CI 状态待核
 - 理论版本：CPG-EI v0.3（研究草案，持续修订）
 - 代码状态：已有多尺度时间、typed relations、整体—局部候选约束、竞争类象证据剖面、未决裁决及 M4 条件干预原型；尚无规模化模型或性能结论
 - 验证原则：所有架构主张均须通过可复现实验、消融和公平对照验证
@@ -52,6 +52,7 @@
 - [M8 benchmark schema](schemas/yixiang-benchmark-case.schema.json)
 - [M8 benchmark validator and metrics](prototype/yixiang_benchmark.py)
 - [M8 synthetic fixtures](data/yixiang_benchmark_synthetic.v0.1.json)
+- [M8 benchmark tests](tests/test_yixiang_benchmark.py)
 - [古籍数字来源、版本见证与校勘工作规程 v0.1](docs/CLASSICAL_TEXT_DIGITAL_SOURCE_POLICY_V0_1.md)
 - [M2 整体—局部关系结构说明](docs/YIXIANG_HIERARCHICAL_STRUCTURE_M2_V0_1.md)
 - [M2.1 双向整体—局部约束说明](docs/YIXIANG_BIDIRECTIONAL_CONSTRAINTS_M2_1_V0_1.md)
