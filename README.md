@@ -43,6 +43,7 @@
 - [传统类象理论综合框架 v0.2](docs/CLASSICAL_YIXIANG_THEORY_SYNTHESIS_V0_2.md)
 - [类象关系类型学与迁移门禁 v0.1](docs/CLASSICAL_YIXIANG_RELATION_TAXONOMY_V0_1.md)
 - [类象关系不变量与角色结构迁移 v0.1](docs/CLASSICAL_YIXIANG_RELATION_INVARIANTS_V0_1.md)
+- [《淮南子·说林训》功能关系、维度譬喻与多路径结果研究](docs/CLASSICAL_YIXIANG_HUAINAN_SHUOLIN_RELATION_ANALYSIS_V0_1.md)
 - [关系不变量迁移原型](prototype/yixiang_relation_invariants.py)
 - [关系不变量迁移测试](tests/test_yixiang_relation_invariants.py)
 - [有证据约束的条件变换迁移专题](docs/CLASSICAL_YIXIANG_RELATION_INVARIANTS_V0_1.md)
