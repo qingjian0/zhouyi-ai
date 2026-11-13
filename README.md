@@ -7,9 +7,9 @@
 
 ## 项目状态
 
-- 当前阶段：M1 数学理论定稿与 M2 最小原型准备
-- 理论版本：CPG-EI v0.3（研究草案）
-- 代码状态：E01 组合选择基线原型正在建立；尚无规模化模型或性能结论
+- 当前阶段：M2 类象与组合认知最小原型研究；推进统一时空关系表示
+- 理论版本：CPG-EI v0.3（研究草案，持续修订）
+- 代码状态：已有静态抽象、动态转移、多元关系与情境联合比较原型；尚无规模化模型或性能结论
 - 验证原则：所有架构主张均须通过可复现实验、消融和公平对照验证
 
 ## 核心研究问题
@@ -49,8 +49,9 @@
 - [类象多元关系评估原型](prototype/yixiang_relations.py)
 - [动态类象状态转移原型](prototype/yixiang_dynamics.py)
 - [动态类象状态转移测试](tests/test_yixiang_dynamics.py)
-- [多元角色关系类象研究](docs/YIXIANG_NARY_RELATIONS_V0_1.md)
-- [多元关系保持原型](prototype/yixiang_relations.py)
+- [时空情境联合类象研究](docs/YIXIANG_SITUATED_MODEL_V0_1.md)
+- [时空情境联合比较原型](prototype/yixiang_situated.py)
+- [时空情境联合测试](tests/test_yixiang_situated.py)
 - [相关工作与文献](docs/RELATED_WORK.md)
 - [2026-11-10 研究增量报告](docs/RESEARCH_FINDINGS_2026-11-10.md)
 - [实验计划与验收标准](docs/EXPERIMENTS.md)
