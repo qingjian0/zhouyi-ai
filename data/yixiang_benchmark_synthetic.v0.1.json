@@ -31,7 +31,8 @@
     "gold_rationale": "Synthetic gold label; uncertainty is documented for abstention.",
     "reviewers": [],
     "split_group": "train",
-    "label_status": "fixture_expected"
+    "label_status": "fixture_expected",
+    "claim_kind": "argumentative_analogy"
   },
   {
     "case_id": "syn-002",
@@ -65,7 +66,8 @@
     "gold_rationale": "Synthetic gold label; uncertainty is documented for abstention.",
     "reviewers": [],
     "split_group": "train",
-    "label_status": "fixture_expected"
+    "label_status": "fixture_expected",
+    "claim_kind": "argumentative_analogy"
   },
   {
     "case_id": "syn-003",
@@ -99,7 +101,8 @@
     "gold_rationale": "Synthetic gold label; uncertainty is documented for abstention.",
     "reviewers": [],
     "split_group": "train",
-    "label_status": "fixture_expected"
+    "label_status": "fixture_expected",
+    "claim_kind": "argumentative_analogy"
   },
   {
     "case_id": "syn-004",
@@ -133,7 +136,8 @@
     "gold_rationale": "Synthetic gold label; uncertainty is documented for abstention.",
     "reviewers": [],
     "split_group": "train",
-    "label_status": "fixture_expected"
+    "label_status": "fixture_expected",
+    "claim_kind": "argumentative_analogy"
   },
   {
     "case_id": "syn-005",
@@ -167,7 +171,8 @@
     "gold_rationale": "Synthetic gold label; uncertainty is documented for abstention.",
     "reviewers": [],
     "split_group": "dev",
-    "label_status": "fixture_expected"
+    "label_status": "fixture_expected",
+    "claim_kind": "argumentative_analogy"
   },
   {
     "case_id": "syn-006",
@@ -201,7 +206,8 @@
     "gold_rationale": "Synthetic gold label; uncertainty is documented for abstention.",
     "reviewers": [],
     "split_group": "dev",
-    "label_status": "fixture_expected"
+    "label_status": "fixture_expected",
+    "claim_kind": "argumentative_analogy"
   },
   {
     "case_id": "syn-007",
@@ -235,7 +241,8 @@
     "gold_rationale": "Synthetic gold label; uncertainty is documented for abstention.",
     "reviewers": [],
     "split_group": "dev",
-    "label_status": "fixture_expected"
+    "label_status": "fixture_expected",
+    "claim_kind": "argumentative_analogy"
   },
   {
     "case_id": "syn-008",
@@ -269,7 +276,8 @@
     "gold_rationale": "Synthetic gold label; uncertainty is documented for abstention.",
     "reviewers": [],
     "split_group": "dev",
-    "label_status": "fixture_expected"
+    "label_status": "fixture_expected",
+    "claim_kind": "argumentative_analogy"
   },
   {
     "case_id": "syn-009",
@@ -303,7 +311,8 @@
     "gold_rationale": "Synthetic gold label; uncertainty is documented for abstention.",
     "reviewers": [],
     "split_group": "test",
-    "label_status": "fixture_expected"
+    "label_status": "fixture_expected",
+    "claim_kind": "argumentative_analogy"
   },
   {
     "case_id": "syn-010",
@@ -337,7 +346,8 @@
     "gold_rationale": "Synthetic gold label; uncertainty is documented for abstention.",
     "reviewers": [],
     "split_group": "test",
-    "label_status": "fixture_expected"
+    "label_status": "fixture_expected",
+    "claim_kind": "argumentative_analogy"
   },
   {
     "case_id": "syn-011",
@@ -371,7 +381,8 @@
     "gold_rationale": "Synthetic gold label; uncertainty is documented for abstention.",
     "reviewers": [],
     "split_group": "test",
-    "label_status": "fixture_expected"
+    "label_status": "fixture_expected",
+    "claim_kind": "argumentative_analogy"
   },
   {
     "case_id": "syn-012",
@@ -405,7 +416,8 @@
     "gold_rationale": "Synthetic gold label; uncertainty is documented for abstention.",
     "reviewers": [],
     "split_group": "test",
-    "label_status": "fixture_expected"
+    "label_status": "fixture_expected",
+    "claim_kind": "argumentative_analogy"
   },
   {
     "case_id": "same-013",
@@ -439,7 +451,8 @@
     "gold_rationale": "Synthetic expected label for a targeted sameness-scope negative control; requires human adjudication before any real-world claim.",
     "label_status": "fixture_expected",
     "reviewers": [],
-    "split_group": "test"
+    "split_group": "test",
+    "claim_kind": "argumentative_analogy"
   },
   {
     "case_id": "same-014",
@@ -473,7 +486,8 @@
     "gold_rationale": "Synthetic expected label for a targeted sameness-scope negative control; requires human adjudication before any real-world claim.",
     "label_status": "fixture_expected",
     "reviewers": [],
-    "split_group": "test"
+    "split_group": "test",
+    "claim_kind": "argumentative_analogy"
   },
   {
     "case_id": "same-015",
@@ -507,7 +521,8 @@
     "gold_rationale": "Synthetic expected label for a targeted sameness-scope negative control; requires human adjudication before any real-world claim.",
     "label_status": "fixture_expected",
     "reviewers": [],
-    "split_group": "test"
+    "split_group": "test",
+    "claim_kind": "argumentative_analogy"
   },
   {
     "case_id": "same-016",
@@ -541,7 +556,8 @@
     "gold_rationale": "Synthetic expected label for a targeted sameness-scope negative control; requires human adjudication before any real-world claim.",
     "label_status": "fixture_expected",
     "reviewers": [],
-    "split_group": "test"
+    "split_group": "test",
+    "claim_kind": "argumentative_analogy"
   },
   {
     "case_id": "same-017",
@@ -575,7 +591,8 @@
     "gold_rationale": "Synthetic expected label for a targeted sameness-scope negative control; requires human adjudication before any real-world claim.",
     "label_status": "fixture_expected",
     "reviewers": [],
-    "split_group": "test"
+    "split_group": "test",
+    "claim_kind": "argumentative_analogy"
   },
   {
     "case_id": "same-018",
@@ -609,7 +626,8 @@
     "gold_rationale": "Synthetic expected label for a targeted sameness-scope negative control; requires human adjudication before any real-world claim.",
     "label_status": "fixture_expected",
     "reviewers": [],
-    "split_group": "test"
+    "split_group": "test",
+    "claim_kind": "argumentative_analogy"
   },
   {
     "case_id": "same-019",
@@ -643,7 +661,8 @@
     "gold_rationale": "Synthetic expected label for a targeted sameness-scope negative control; requires human adjudication before any real-world claim.",
     "label_status": "fixture_expected",
     "reviewers": [],
-    "split_group": "test"
+    "split_group": "test",
+    "claim_kind": "argumentative_analogy"
   },
   {
     "case_id": "same-020",
@@ -677,7 +696,8 @@
     "gold_rationale": "Synthetic expected label for a targeted sameness-scope negative control; requires human adjudication before any real-world claim.",
     "label_status": "fixture_expected",
     "reviewers": [],
-    "split_group": "test"
+    "split_group": "test",
+    "claim_kind": "argumentative_analogy"
   },
   {
     "case_id": "same-021",
@@ -711,7 +731,8 @@
     "gold_rationale": "Synthetic expected label for a targeted sameness-scope negative control; requires human adjudication before any real-world claim.",
     "label_status": "fixture_expected",
     "reviewers": [],
-    "split_group": "test"
+    "split_group": "test",
+    "claim_kind": "argumentative_analogy"
   },
   {
     "case_id": "same-022",
@@ -745,7 +766,8 @@
     "gold_rationale": "Synthetic expected label for a targeted sameness-scope negative control; requires human adjudication before any real-world claim.",
     "label_status": "fixture_expected",
     "reviewers": [],
-    "split_group": "test"
+    "split_group": "test",
+    "claim_kind": "argumentative_analogy"
   },
   {
     "case_id": "dyn-023",
@@ -779,7 +801,8 @@
     "gold_rationale": "Synthetic expected label for dynamic context and standpoint boundary testing; not an adjudicated classical-text claim.",
     "label_status": "fixture_expected",
     "reviewers": [],
-    "split_group": "test"
+    "split_group": "test",
+    "claim_kind": "argumentative_analogy"
   },
   {
     "case_id": "dyn-024",
@@ -813,7 +836,8 @@
     "gold_rationale": "Synthetic expected label for dynamic context and standpoint boundary testing; not an adjudicated classical-text claim.",
     "label_status": "fixture_expected",
     "reviewers": [],
-    "split_group": "test"
+    "split_group": "test",
+    "claim_kind": "argumentative_analogy"
   },
   {
     "case_id": "dyn-025",
@@ -847,7 +871,8 @@
     "gold_rationale": "Synthetic expected label for dynamic context and standpoint boundary testing; not an adjudicated classical-text claim.",
     "label_status": "fixture_expected",
     "reviewers": [],
-    "split_group": "test"
+    "split_group": "test",
+    "claim_kind": "argumentative_analogy"
   },
   {
     "case_id": "dyn-026",
@@ -881,7 +906,8 @@
     "gold_rationale": "Synthetic expected label for dynamic context and standpoint boundary testing; not an adjudicated classical-text claim.",
     "label_status": "fixture_expected",
     "reviewers": [],
-    "split_group": "test"
+    "split_group": "test",
+    "claim_kind": "argumentative_analogy"
   },
   {
     "case_id": "dyn-027",
@@ -915,7 +941,8 @@
     "gold_rationale": "Synthetic expected label for dynamic context and standpoint boundary testing; not an adjudicated classical-text claim.",
     "label_status": "fixture_expected",
     "reviewers": [],
-    "split_group": "test"
+    "split_group": "test",
+    "claim_kind": "argumentative_analogy"
   },
   {
     "case_id": "dyn-028",
@@ -949,7 +976,8 @@
     "gold_rationale": "Synthetic expected label for dynamic context and standpoint boundary testing; not an adjudicated classical-text claim.",
     "label_status": "fixture_expected",
     "reviewers": [],
-    "split_group": "test"
+    "split_group": "test",
+    "claim_kind": "argumentative_analogy"
   },
   {
     "case_id": "dyn-029",
@@ -983,7 +1011,8 @@
     "gold_rationale": "Synthetic expected label for dynamic context and standpoint boundary testing; not an adjudicated classical-text claim.",
     "label_status": "fixture_expected",
     "reviewers": [],
-    "split_group": "test"
+    "split_group": "test",
+    "claim_kind": "argumentative_analogy"
   },
   {
     "case_id": "dyn-030",
@@ -1017,7 +1046,8 @@
     "gold_rationale": "Synthetic expected label for dynamic context and standpoint boundary testing; not an adjudicated classical-text claim.",
     "label_status": "fixture_expected",
     "reviewers": [],
-    "split_group": "test"
+    "split_group": "test",
+    "claim_kind": "argumentative_analogy"
   },
   {
     "case_id": "dyn-031",
@@ -1051,7 +1081,8 @@
     "gold_rationale": "Synthetic expected label for non-monotonic composition, scale, locality, and sequence boundary testing; not a verified historical or scientific fact.",
     "label_status": "fixture_expected",
     "reviewers": [],
-    "split_group": "test"
+    "split_group": "test",
+    "claim_kind": "argumentative_analogy"
   },
   {
     "case_id": "dyn-032",
@@ -1085,7 +1116,8 @@
     "gold_rationale": "Synthetic expected label for non-monotonic composition, scale, locality, and sequence boundary testing; not a verified historical or scientific fact.",
     "label_status": "fixture_expected",
     "reviewers": [],
-    "split_group": "test"
+    "split_group": "test",
+    "claim_kind": "argumentative_analogy"
   },
   {
     "case_id": "dyn-033",
@@ -1119,7 +1151,8 @@
     "gold_rationale": "Synthetic expected label for non-monotonic composition, scale, locality, and sequence boundary testing; not a verified historical or scientific fact.",
     "label_status": "fixture_expected",
     "reviewers": [],
-    "split_group": "test"
+    "split_group": "test",
+    "claim_kind": "argumentative_analogy"
   },
   {
     "case_id": "dyn-034",
@@ -1153,7 +1186,8 @@
     "gold_rationale": "Synthetic expected label for non-monotonic composition, scale, locality, and sequence boundary testing; not a verified historical or scientific fact.",
     "label_status": "fixture_expected",
     "reviewers": [],
-    "split_group": "test"
+    "split_group": "test",
+    "claim_kind": "argumentative_analogy"
   },
   {
     "case_id": "dyn-035",
@@ -1187,7 +1221,8 @@
     "gold_rationale": "Synthetic expected label for non-monotonic composition, scale, locality, and sequence boundary testing; not a verified historical or scientific fact.",
     "label_status": "fixture_expected",
     "reviewers": [],
-    "split_group": "test"
+    "split_group": "test",
+    "claim_kind": "argumentative_analogy"
   },
   {
     "case_id": "dyn-036",
@@ -1221,7 +1256,8 @@
     "gold_rationale": "Synthetic expected label for non-monotonic composition, scale, locality, and sequence boundary testing; not a verified historical or scientific fact.",
     "label_status": "fixture_expected",
     "reviewers": [],
-    "split_group": "test"
+    "split_group": "test",
+    "claim_kind": "argumentative_analogy"
   },
   {
     "case_id": "dyn-037",
@@ -1258,7 +1294,8 @@
     "gold_rationale": "Cross-domain mechanism is not established by shared vocabulary or a physical example.",
     "reviewers": [],
     "split_group": "test",
-    "label_status": "fixture_expected"
+    "label_status": "fixture_expected",
+    "claim_kind": "symbolic_correspondence"
   },
   {
     "case_id": "dyn-038",
@@ -1295,7 +1332,8 @@
     "gold_rationale": "The target claim asserts mechanism identity although only outcome equivalence is supported.",
     "reviewers": [],
     "split_group": "holdout",
-    "label_status": "fixture_expected"
+    "label_status": "fixture_expected",
+    "claim_kind": "argumentative_analogy"
   },
   {
     "case_id": "dyn-039",
@@ -1332,6 +1370,82 @@
     "gold_rationale": "Utility may be supported only within the stated short horizon; long-term effectiveness remains unresolved.",
     "reviewers": [],
     "split_group": "test",
+    "label_status": "fixture_expected",
+    "claim_kind": "practical_utility"
+  },
+  {
+    "case_id": "dyn-040",
+    "claim_kind": "taxonomic_similarity",
+    "source_lineage": [
+      "fixture:dyn-040"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Reject a category assignment based only on one shared visible feature.",
+    "relation_families": [
+      "morphological"
+    ],
+    "shared_basis": [
+      "same visible feature"
+    ],
+    "non_shared_basis": [
+      "different defining category properties"
+    ],
+    "scope_conditions": [
+      "classification requires defining properties beyond a single proxy"
+    ],
+    "required_invariants": [
+      "category-defining criteria preserved"
+    ],
+    "known_counterexamples": [
+      "lookalike objects from distinct categories"
+    ],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:dyn-040"
+    ],
+    "independence_group": "fixture-group-dyn-040",
+    "gold_decision": "reject",
+    "gold_rationale": "A shared visible proxy is insufficient to establish the same taxonomic class.",
+    "reviewers": [],
+    "split_group": "test",
+    "label_status": "fixture_expected"
+  },
+  {
+    "case_id": "dyn-041",
+    "claim_kind": "action_outcome",
+    "source_lineage": [
+      "fixture:dyn-041"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Do not infer successful action from benevolent intention without outcome evidence.",
+    "relation_families": [
+      "functional",
+      "causal_analogy"
+    ],
+    "shared_basis": [
+      "same stated benevolent goal"
+    ],
+    "non_shared_basis": [
+      "method, operating conditions, and observed outcome are missing"
+    ],
+    "scope_conditions": [
+      "intention is recorded separately from action and result"
+    ],
+    "required_invariants": [
+      "actor intention does not substitute for observed outcome"
+    ],
+    "known_counterexamples": [
+      "well-intended action with adverse result"
+    ],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:dyn-041"
+    ],
+    "independence_group": "fixture-group-dyn-041",
+    "gold_decision": "abstain",
+    "gold_rationale": "The action-outcome claim lacks method, conditions, and observed results; intention alone cannot decide effectiveness.",
+    "reviewers": [],
+    "split_group": "holdout",
     "label_status": "fixture_expected"
   }
 ]
