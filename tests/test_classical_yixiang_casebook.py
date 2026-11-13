@@ -24,7 +24,7 @@ class ClassicalYixiangCasebookTests(unittest.TestCase):
         self.assertTrue({"周易·系辞下传", "墨子", "荀子", "公孙龙子", "淮南子", "论衡"}.issubset(works))
         self.assertTrue(any(source["chapter"] == "要略" for source in self.book["sources"]))
         self.assertGreaterEqual(len(self.book["cases"]), 11)
-        self.assertEqual(len(self.book["cases"]), 23)
+        self.assertEqual(len(self.book["cases"]), 24)
         self.assertTrue({"吕氏春秋", "淮南子"}.issubset(works))
         self.assertTrue(any(source["chapter"] == "恃君览·别类" for source in self.book["sources"]))
         self.assertTrue(any(source["chapter"] == "说山训" for source in self.book["sources"]))
@@ -77,6 +77,14 @@ class ClassicalYixiangCasebookTests(unittest.TestCase):
         yingtong_source = next(source for source in self.book["sources"] if source["source_id"] == "src_lushi_yingtong")
         self.assertIn("不作为现代自然因果事实", yingtong_source["witness_limit"])
         self.assertTrue(any("后期墨家" in item for item in case["alternative_readings"]))
+
+    def test_mojing_jingshang_separates_heard_inferred_and_personal_knowledge(self):
+        case = next(item for item in self.book["cases"] if item["case_id"] == "xy_024")
+        self.assertEqual(case["source_id"], "src_mojing_jingshang")
+        self.assertIn("闻、说、亲", case["excerpt"])
+        self.assertTrue(any("传闻" in item for item in case["counterexample_or_boundary"]))
+        self.assertTrue(any("推论" in item for item in case["counterexample_or_boundary"]))
+        self.assertEqual(case["review_status"], "unreviewed")
 
     def test_mojing_jingshang_separates_broad_class_and_private_names(self):
         case = next(item for item in self.book["cases"] if item["case_id"] == "xy_023")
