@@ -191,7 +191,8 @@ def audit_dynamic_network(
         elif item.phase is Phase.JIU:
             if item.outcome != "maintained" or item.relation_signature not in snap.relation_signatures:
                 reasons.append("JIU_REQUIRES_OBSERVED_MAINTAINED_RELATION")
-            durable_windows.setdefault(item.relation_signature, set()).add(item.window_id)
+            else:
+                durable_windows.setdefault(item.relation_signature, set()).add(item.window_id)
         phase_refs.append(item.evidence_ref)
 
     refs = snapshot_refs + transition_refs + phase_refs
