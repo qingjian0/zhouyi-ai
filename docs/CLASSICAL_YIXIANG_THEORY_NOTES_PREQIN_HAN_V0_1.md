@@ -59,15 +59,15 @@
 
 | 字段 | 含义 |
 |---|---|
-| `source_layer` | 原典、注文、后世注疏、现代研究、模型推论 |
+| `source_type` + `claim_kind` | 由既有顶层来源类型与主张类型共同区分原典、注疏、现代研究、项目定义和模型推论 |
 | `xiang_domain` | 自然、物候、身体、社会、政治、制度等领域 |
 | `relation_family` | 生成、分类、功能、方向、时序、感应、象征、规范类比 |
 | `shared_basis` | 推类双方真正共享的属性或关系 |
 | `non_shared_basis` | 已知不共享的属性、机制或条件 |
 | `scope_conditions` | 适用时位、环境、主体、尺度及限制 |
 | `causal_status` | 未声明、文本声称、观察支持、实验支持、被反例挑战 |
-| `counterexamples` | 反例及其针对的映射层 |
-| `textual_variant` | 异文、底本差异、校勘说明 |
+| `counterevidence` | 反例及其针对的映射层 |
+| `variant_notes` | 异文、底本差异、校勘说明 |
 
 ## 六、当前结论
 
