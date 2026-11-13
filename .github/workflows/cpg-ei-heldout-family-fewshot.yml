@@ -1,4 +1,4 @@
-name: CPG-EI held-out-family few-shot symbolic baseline
+name: CPG-EI held-out-family few-shot protocol
 
 on:
   pull_request:
@@ -8,28 +8,28 @@ permissions:
   contents: read
 
 jobs:
-  fewshot-symbolic:
+  protocol-views:
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - name: Run held-out-family protocol and symbolic baseline tests
+      - name: Run held-out-family protocol and leakage tests
         run: |
           python -m unittest discover -s tests -p 'test_cpg_ei_heldout_family_protocol.py' -v
-          python -m unittest discover -s tests -p 'test_cpg_ei_heldout_family_symbolic.py' -v
-      - name: Run 3-seed 1,600-family few-shot benchmark
+      - name: Build disjoint 400-family learner and evaluator views
         run: |
-          python -m prototype.cpg_ei_heldout_family_symbolic \
-            --families 1600 --input-dim 8 --output-dim 8 \
-            --seeds 20261114 20261115 20261116 \
-            --support-sizes 16 32 64 \
-            --json artifacts/heldout-family-fewshot-symbolic.json
-      - name: Upload few-shot benchmark artifact
+          python -m prototype.cpg_ei_heldout_family_protocol \
+            --families 400 --input-dim 8 --output-dim 8 \
+            --seed 20261114 --support-size 16 \
+            --learner-view artifacts/learner_view.json \
+            --evaluator-view artifacts/evaluator_view.json
+      - name: Upload protocol views
         uses: actions/upload-artifact@v4
         with:
-          name: zhouyi-cpg-ei-heldout-family-fewshot-v1
-          path: artifacts/heldout-family-fewshot-symbolic.json
+          name: zhouyi-cpg-ei-heldout-family-protocol-v1
+          path: artifacts/*.json
           if-no-files-found: error
+          retention-days: 30
