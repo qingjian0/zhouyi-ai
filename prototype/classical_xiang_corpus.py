@@ -8,6 +8,7 @@ SOURCES={"classical_text","historical_commentary","bibliographic_record","modern
 METHOD_FAMILIES=["classification","analogical_argument","rhetorical_analogy","cosmological_correspondence","lexical_taxonomy","symbolic_correspondence","phenomenological_observation","causal_claim","commentarial_exegesis","comparative_exegesis"]
 RELATION_FAMILIES={"generative","taxonomic","functional","directional","temporal","correlative","symbolic","normative_analogy","causal_assertion","rhetorical_analogy","lexical"}
 CAUSAL_STATUSES={"not_claimed","textual_causal_assertion","observational_support","experimental_support","challenged","unassessed"}
+REASONING_OPERATIONS={"observe","select_image","classify","compare","abstract_shared_basis","identify_difference","infer_by_analogy","shift_perspective","map_function","map_time","map_position","symbolize","rhetorical_indirection","transfer_norm","test_counterexample","intervene_condition","refuse_transfer"}
 TAGS=["observation","image_selection","analogy_method","analogy_limit","classification","correspondence","yin_yang","state_change","cosmology","sensory_classification","causal_inference_limit","metaphor","name_reality","ritual_institution","natural_knowledge","commentarial_exegesis"]
 CLAIMS={"textual_observation","traditional_interpretation","commentarial_interpretation","project_operational_definition","research_hypothesis","modern_scholarship_claim"}
 def validate_record(r: Mapping) -> None:
@@ -42,6 +43,7 @@ def validate_record(r: Mapping) -> None:
         if "xiang_domain" in c and (not isinstance(c["xiang_domain"],str) or not c["xiang_domain"].strip()): raise ValueError("xiang_domain must be non-empty")
         if "relation_family" in c and c["relation_family"] not in RELATION_FAMILIES: raise ValueError("unknown relation_family")
         if "causal_status" in c and c["causal_status"] not in CAUSAL_STATUSES: raise ValueError("unknown causal_status")
+        if "reasoning_operations" in c and (not isinstance(c["reasoning_operations"],list) or not c["reasoning_operations"] or len(c["reasoning_operations"])!=len(set(c["reasoning_operations"])) or any(op not in REASONING_OPERATIONS for op in c["reasoning_operations"])): raise ValueError("reasoning_operations must be a non-empty unique list of known operations")
         for field in ("shared_basis","non_shared_basis","scope_conditions"):
             if field in c and (not isinstance(c[field],list) or any(not isinstance(v,str) or not v.strip() for v in c[field])): raise ValueError(f"{field} must be a list of non-empty strings")
         ids.append(c["claim_id"])
