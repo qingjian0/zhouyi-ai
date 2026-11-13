@@ -105,6 +105,8 @@ def _validate_observation(obs: Observation) -> None:
     if not isinstance(obs, Observation):
         raise ValueError("observations must contain Observation values")
     _required(obs.observation_id, "observation_id")
+    if ":" in obs.observation_id:
+        raise ValueError("observation_id must not contain colon")
     _required(obs.domain, "domain")
     if not isinstance(obs.evidence_refs, tuple) or not obs.evidence_refs:
         raise ValueError("evidence_refs must be a non-empty tuple")
@@ -198,10 +200,10 @@ def generate_yixiang_candidates(
                 reasons.append("MATCHES_LACK_ELIGIBLE_PRIMARY_OR_TEXTUAL_EVIDENCE")
             if left.domain != right.domain:
                 reasons.append("CROSS_DOMAIN_CANDIDATE_REQUIRES_SEPARATE_SCOPE_REVIEW")
-            if potential_features and not supported_features:
-                reasons.append("FEATURE_MATCH_SUPPORTED_ONLY_BY_INFERENCE_OR_MODEL_OUTPUT")
-            if potential_relations and not supported_relations:
-                reasons.append("RELATION_MATCH_SUPPORTED_ONLY_BY_INFERENCE_OR_MODEL_OUTPUT")
+            if len(supported_features) < len(potential_features):
+                reasons.append("SOME_FEATURE_MATCHES_LACK_ELIGIBLE_EVIDENCE")
+            if len(supported_relations) < len(potential_relations):
+                reasons.append("SOME_RELATION_MATCHES_LACK_ELIGIBLE_EVIDENCE")
             decision = CandidateDecision.PROPOSED if supported_features or supported_relations else CandidateDecision.ABSTAIN
             candidates.append(YixiangCandidate(
                 f"yc:{left.observation_id}:{right.observation_id}",
