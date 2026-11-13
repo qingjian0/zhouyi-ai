@@ -1487,5 +1487,81 @@
     "reviewers": [],
     "split_group": "holdout",
     "label_status": "fixture_expected"
+  },
+  {
+    "case_id": "dyn-043",
+    "claim_kind": "taxonomic_similarity",
+    "source_lineage": [
+      "fixture:dyn-043"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Two observations with matching visible features necessarily refer to the same individual.",
+    "relation_families": [
+      "morphological",
+      "structural"
+    ],
+    "shared_basis": [
+      "same recorded visible features"
+    ],
+    "non_shared_basis": [
+      "distinct spatial tracks and independent referent anchors"
+    ],
+    "scope_conditions": [
+      "individual identity requires continuity or separation evidence beyond appearance"
+    ],
+    "required_invariants": [
+      "appearance similarity must not override independent individuation evidence"
+    ],
+    "known_counterexamples": [
+      "two visually indistinguishable objects observed at different positions"
+    ],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:dyn-043"
+    ],
+    "independence_group": "fixture-group-dyn-043",
+    "gold_decision": "reject",
+    "gold_rationale": "The same appearance can belong to two distinct individuals; the claim improperly equates feature similarity with referent identity.",
+    "reviewers": [],
+    "split_group": "test",
+    "label_status": "fixture_expected"
+  },
+  {
+    "case_id": "dyn-044",
+    "claim_kind": "taxonomic_similarity",
+    "source_lineage": [
+      "fixture:dyn-044"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "A changed visible form necessarily indicates a different individual despite continuous identity tracking.",
+    "relation_families": [
+      "morphological",
+      "temporal"
+    ],
+    "shared_basis": [
+      "same persistent referent anchor across observations"
+    ],
+    "non_shared_basis": [
+      "visible features changed across time while continuity evidence remains"
+    ],
+    "scope_conditions": [
+      "a tracked referent is continuously observed across the time interval"
+    ],
+    "required_invariants": [
+      "feature change must be separated from referent replacement"
+    ],
+    "known_counterexamples": [
+      "growth, aging, seasonal change, or material transformation of one tracked object"
+    ],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:dyn-044"
+    ],
+    "independence_group": "fixture-group-dyn-044",
+    "gold_decision": "reject",
+    "gold_rationale": "Visible form change alone does not establish a new individual when continuity evidence supports the same referent.",
+    "reviewers": [],
+    "split_group": "holdout",
+    "label_status": "fixture_expected"
   }
 ]
