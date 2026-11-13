@@ -28,7 +28,8 @@ def protocol(**overrides):
 def measurements(**overrides):
     rows = []
     arms = {
-        "member_baseline": (1.0, 1.2, "task-A|range-1"),
+        "member_only:structure": (1.0, 1.2, "task-A|range-1"),
+        "member_only:function": (1.1, 1.2, "task-A|range-1"),
         "intact_composite": (8.0, 8.2, "task-A|range-1"),
         "bridge_removed": (2.0, 2.2, "task-A|range-1"),
         "member_removed:structure": (2.0, 2.1, "task-A|range-1"),
@@ -52,7 +53,7 @@ class EmergenceExperimentTests(unittest.TestCase):
     def test_complete_preregistered_experiment_only_enters_review(self):
         result = audit_emergence_experiment(protocol(), measurements())
         self.assertEqual(result.decision, ExperimentDecision.HUMAN_REVIEW)
-        self.assertEqual(len(result.contrasts), 5)
+        self.assertEqual(len(result.contrasts), 7)
         self.assertEqual(result.scope_shift_mean, 3.1)
         self.assertEqual(result.interpretation_ceiling, "descriptive_preregistered_contrast_only")
         self.assertIn("not_causal_identification", result.non_claims)
@@ -64,7 +65,7 @@ class EmergenceExperimentTests(unittest.TestCase):
         self.assertIn("REQUIRED_EXPERIMENT_ARMS_MISSING", result.reason_codes)
 
     def test_missing_necessary_member_ablation_blocks(self):
-        rows = tuple(row for row in measurements() if row.arm != "member_removed:function")
+        rows = tuple(row for row in measurements() if row.arm != "member_only:function")
         result = audit_emergence_experiment(protocol(), rows)
         self.assertIn("REQUIRED_EXPERIMENT_ARMS_MISSING", result.reason_codes)
 
