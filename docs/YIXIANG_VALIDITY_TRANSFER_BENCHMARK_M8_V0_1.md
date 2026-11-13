@@ -1,6 +1,6 @@
 # 类象有效性与迁移评估基准 M8 v0.1
 
-状态：研究设计 / 待实现 / 待原典校勘  
+状态：v0.1 schema、validator、指标原型与 synthetic contract fixtures 已实现；古籍 gold 样本仍待校勘与人工审查  
 适用分支：`research/classical-yixiang-corpus-2026-11-13`  
 前置模块：M3 竞争裁决、M4 条件干预、M5 主动观测、M6 新象提议、M7 编排  
 原则：本文件提出现代工程操作化方案，不将信息论、贝叶斯或因果推断术语倒灌为古人原有理论。
@@ -53,7 +53,9 @@
 - `causal_status`：symbolic / normative / co_occurrence / correlational / mechanistic_hypothesis / intervention_supported / unknown。
 - `evidence_refs` 与 `independence_group`：引用标识和来源独立性分组；多个 URL 不等于多个独立来源。
 - `gold_decision`：accept / reject / conditional / abstain。
-- `gold_rationale`：可追溯裁决依据及审查者。
+- `gold_rationale`：可追溯裁决依据。
+- `label_status`：`fixture_expected` / `pending_review` / `adjudicated`，明确区分接口测试标签与人工裁决标签。
+- `reviewers`：审阅者标识；只有 `adjudicated` 标签才要求至少两个不同标识。合成夹具必须使用空列表，不得伪造审阅记录。
 - `split_group`：按作品、版本、注疏谱系、领域或主体分组，供严格留出。
 
 古籍语料原始记录继续保存原貌；评估样本通过引用 record_id/claim_id 建立链接，不把现代裁决写回古籍原文层。
@@ -177,20 +179,20 @@
 
 验收前提：
 
-- gold 样本由至少两名独立审查者标注；分歧保留，不以多数票抹掉理由。
+- `adjudicated` gold 样本至少记录两名不同审阅者标识；标识数量本身不能证明审阅者真实独立，仍需人工核验身份、利益冲突与标注流程。分歧保留，不以多数票抹掉理由。
 - 作品、版本、注疏谱系与领域隔离清晰。
 - 所有古籍 gold 样本有原典/校本定位；未经核验的数字转录只能进入 exploratory split。
 - 负控覆盖每种关系族。
 - 报告全部指标、置信区间、失败样例和 abstention 情况。
 - 任何性能提升都必须与消融、负控和 OOD 结果同时呈现。
 
-## 11. 实施顺序
+## 11. 实施顺序与当前状态
 
-1. 新建独立 benchmark schema 与 validator，不改变现有 corpus 原始层。
-2. 建立 30–50 个人工审查的最小对照样本，先覆盖 B0–B4；所有未校勘古籍例只进入 exploratory pool。
-3. 加入 source lineage / independence group 去重。
-4. 实现 deterministic evaluator，输出分层指标和错误案例。
-5. 接入 M7 的输出快照，但保持评估器外置。
-6. 形成第一轮基准报告后再扩到 B5–B6。
+1. [已实现] 独立 benchmark schema 与 validator，不改变古籍 corpus 原始层。
+2. [待开展] 建立 30–50 个人工审查的最小对照样本，先覆盖 B0–B4；未校勘古籍例只进入 exploratory pool。
+3. [首版已实现] source lineage / independence group 跨 split 泄漏报告；自动报告不等于自动修复数据划分。
+4. [首版已实现] deterministic evaluator：四态混淆矩阵、per-class 指标、macro-F1、关系族/来源状态分层准确率。
+5. [待开展] 接入 M7 输出快照，评估器继续保持管线外置。
+6. [待开展] 形成首轮人工标注基准报告后再扩到 B5–B6。
 
-当前阶段只定义协议与数据契约；没有人工 gold 标注、独立来源谱系审核和实际观察结果之前，不得宣称基准验证了类象理论的普遍有效性。
+当前 12 条 synthetic fixture 仅验证接口与计分逻辑，不是古籍 gold 数据，也不代表真实人工审阅。没有人工 gold 标注、独立来源谱系审核和实际观察结果之前，不得宣称基准验证了类象理论的普遍有效性。
