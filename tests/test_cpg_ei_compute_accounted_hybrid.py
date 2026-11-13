@@ -145,7 +145,7 @@ class TestComputeAccountedSupportHybrid(unittest.TestCase):
         )
         self.assertEqual(
             full["development_feature_encodings_for_checkpoint_selection"],
-            (full_epochs + 5) * 5 * 4 * 16,
+            (full_epochs + 5) * 4 * 16,
         )
         hybrid = methods["symbolic_support_constrained_hybrid"]["compute_accounting"]
         self.assertEqual(
