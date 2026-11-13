@@ -16,7 +16,7 @@ M7 将已有 M3、M4、M5、M6 透明基线连接成一个有边界的执行流�
 - M3 候选 ID 必须唯一；M5 prior 的 hypothesis_id 集合必须与 M3 中非 REJECTED 候选 ID 完全一致，避免已明确排除的解释继续占用先验概率质量；所有先验概率必须有效且归一化。
 - M4 每条 ConditionalMapping 必须通过 mapping_to_candidate 显式关联一个 M3 候选；干预只能引用已声明 mapping。
 - M5 观察候选、先验及似然分布继续由 M5 模块独立验证。
-- M6 残差必须是已标注 ResidualCase，保留 observation_id、domain、typed signature、context 和 evidence_refs。
+- M6 残差必须是已标注 ResidualCase，保留 observation_id、domain、typed signature、context、evidence_refs 与 evidence_lineage；未声明来源独立性组的引用不能计入多来源阈值。
 - M7 的集合输入统一使用 tuple，以避免调用方在执行过程中意外修改数据。
 
 ## 4. 不可越过的证据边界
