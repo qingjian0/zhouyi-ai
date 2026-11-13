@@ -6,6 +6,7 @@ symmetric, reversible, transitive, or causal by default.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from types import MappingProxyType
 from typing import Mapping, Sequence
 
 
@@ -39,8 +40,16 @@ class RelationScore:
 class RelationOntology:
     """Versionable relation vocabulary with explicit algebraic properties."""
     types: Mapping[str, RelationType]
+    ontology_id: str = "relation-ontology"
+    version: str = "0.1"
 
     def __post_init__(self) -> None:
+        if not isinstance(self.ontology_id, str) or not self.ontology_id.strip():
+            raise ValueError("ontology_id must be a non-empty string")
+        if not isinstance(self.version, str) or not self.version.strip():
+            raise ValueError("version must be a non-empty string")
+        if not isinstance(self.types, Mapping):
+            raise ValueError("types must be a mapping")
         if not self.types:
             raise ValueError("relation ontology must define at least one type")
         for key, spec in self.types.items():
@@ -60,6 +69,7 @@ class RelationOntology:
                 counterpart = self.types[spec.inverse_of]
                 if counterpart.inverse_of != key or counterpart.symmetric:
                     raise ValueError("inverse relation declarations must be reciprocal")
+        object.__setattr__(self, "types", MappingProxyType(dict(self.types)))
 
     def normalize(self, edge: Edge) -> tuple[str, str, str]:
         if not isinstance(edge, Edge):
