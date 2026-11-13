@@ -10,7 +10,7 @@ from prototype.dynamic_analogy import (
 )
 
 
-def systems(*, target_event="grow", extra_target_transition=False):
+def systems(*, target_event="grow", extra_target_transition=False, unrelated_target_fact=False):
     source = TransitionSystem(
         "source", ("a", "b"),
         (
@@ -26,12 +26,14 @@ def systems(*, target_event="grow", extra_target_transition=False):
     ]
     if extra_target_transition:
         target_edges.append(StateTransition("t0", "t2", "shortcut"))
+    target_entities = ("x", "y", "z") if unrelated_target_fact else ("x", "y")
+    extra = (RelationAtom("x", "z", "unrelated"),) if unrelated_target_fact else ()
     target = TransitionSystem(
-        "target", ("x", "y"),
+        "target", target_entities,
         (
-            StateSnapshot("t0", 0, (RelationAtom("x", "y", "supports"),)),
-            StateSnapshot("t1", 1, (RelationAtom("x", "y", "supports"),)),
-            StateSnapshot("t2", 2, (RelationAtom("x", "y", "supports"),)),
+            StateSnapshot("t0", 0, (RelationAtom("x", "y", "supports"), *extra)),
+            StateSnapshot("t1", 1, (RelationAtom("x", "y", "supports"), *extra)),
+            StateSnapshot("t2", 2, (RelationAtom("x", "y", "supports"), *extra)),
         ), tuple(target_edges),
     )
     return DynamicAnalogyCandidate(
@@ -48,6 +50,13 @@ class DynamicAnalogyTests(unittest.TestCase):
         self.assertEqual(result.state_f1, 1.0)
         self.assertEqual(result.transition_f1, 1.0)
         self.assertEqual(result.preserved_transitions, 2)
+
+
+    def test_ignores_target_relations_outside_the_mapped_subgraph(self):
+        result = assess_dynamic_analogy(systems(unrelated_target_fact=True))
+        self.assertTrue(result.accepted)
+        self.assertEqual(result.state_precision, 1.0)
+        self.assertEqual(result.state_recall, 1.0)
 
     def test_rejects_static_match_when_event_transition_differs(self):
         result = assess_dynamic_analogy(systems(target_event="decay"))
