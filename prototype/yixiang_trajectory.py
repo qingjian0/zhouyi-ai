@@ -1,4 +1,4 @@
-""""Order-preserving trajectory analogy over situated Yixiang snapshots.
+"""Order-preserving trajectory analogy over situated Yixiang snapshots.
 
 The evaluator consumes explicit annotations and an explicit entity mapping.
 It finds a maximum monotone alignment of compatible snapshots; it does not
