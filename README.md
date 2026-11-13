@@ -36,6 +36,7 @@
 - [数学理论 v0.3](docs/THEORY_v0.3.md)
 - [架构设计](docs/ARCHITECTURE.md)
 - [易象模块：可检验化设计](docs/YIXIANG_MODULE.md)
+- [类象发生、抽象、迁移与修正机制 v0.1](docs/YIXIANG_GENERATIVE_MECHANISM_V0_1.md)
 - [传统古籍类象研究总纲与语料建设规范](docs/CLASSICAL_YIXIANG_CORPUS_AND_RESEARCH_PROTOCOL.md)
 - [传统古籍候选来源目录（56 项）](data/classical_yixiang_source_catalog.json)
 - [古籍来源目录使用说明](data/README.md)
