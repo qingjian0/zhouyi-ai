@@ -73,7 +73,7 @@ class ClassicalYixiangCasebookTests(unittest.TestCase):
         case = next(item for item in self.book["cases"] if item["case_id"] == "xy_019")
         self.assertEqual(case["source_id"], "src_lushi_yingtong")
         self.assertIn("correspondence", case["operation"])
-        self.assertTrue(any("现代经验意义" in item for item in case["counterexample_or_boundary"]))
+        self.assertIn("现代经验意义", case["conclusion_scope"])
         self.assertIn("不作为现代自然因果事实", self.book["sources"][-1]["witness_limit"])
 
     def test_all_case_operations_are_allowed_by_schema(self):
