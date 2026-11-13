@@ -62,7 +62,7 @@ class TestDegreeBoundedAnfIdentifiability(unittest.TestCase):
         left = run_degree_bounded_identifiability(corpus)
         right = run_degree_bounded_identifiability(changed)
         for a, b in zip(left["degree_summaries"], right["degree_summaries"]):
-            for key in ("max_degree", "basis_size", "output_systems", "mean_rank", "mean_nullity", "consistent_rate", "unique_rate"):
+            for key in ("max_degree", "basis_size", "output_systems", "mean_rank", "consistent_system_count", "mean_nullity_among_consistent", "consistent_rate", "unique_rate"):
                 self.assertEqual(a[key], b[key])
 
     def test_report_contains_fixed_corpus_digest(self):
@@ -74,6 +74,11 @@ class TestDegreeBoundedAnfIdentifiability(unittest.TestCase):
         self.assertEqual(len(report["degree_summaries"]), 4)
         self.assertEqual(report["degree_summaries"][-1]["basis_size"], 8)
         self.assertEqual(report["degree_summaries"][-1]["consistent_rate"], 1.0)
+        self.assertEqual(len(report["family_results"]), 5)
+        self.assertEqual(len(report["family_results"][0]["by_degree"]), 4)
+        self.assertEqual(
+            report["family_results"][0]["by_degree"][-1]["basis_size"], 8
+        )
 
     def test_report_is_valid_json(self):
         with tempfile.TemporaryDirectory() as directory:
