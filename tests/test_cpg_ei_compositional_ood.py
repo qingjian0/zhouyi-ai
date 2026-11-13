@@ -1,4 +1,5 @@
 import copy
+import itertools
 import unittest
 
 from prototype.cpg_ei_compositional_ood import (
@@ -7,6 +8,8 @@ from prototype.cpg_ei_compositional_ood import (
     run_symbolic_baseline,
 )
 from prototype.cpg_ei_compute_accounted_hybrid import derive_train_only_support_features
+from prototype.cpg_ei_mixed_operator_discovery import enumerate_rule_hypotheses
+from prototype.cpg_ei_relation_operators import evaluate_rule
 
 
 class TestCompositionalOOD(unittest.TestCase):
@@ -67,6 +70,25 @@ class TestCompositionalOOD(unittest.TestCase):
             {"symbolic", "full_polynomial", "symbolic_support_hybrid"},
         )
         self.assertIn("not held-out-family zero-shot transfer", report["protocol"])
+
+    def test_composed_teacher_functions_are_outside_single_operator_grammar(self):
+        corpus = generate_compositional_corpus(
+            family_count=5, input_dim=4, output_dim=2, seed=19
+        )
+        states = tuple(itertools.product((0, 1), repeat=4))
+        grammar_functions = {
+            tuple(evaluate_rule(state, rule) for state in states)
+            for rule in enumerate_rule_hypotheses(4)
+        }
+        for teacher in corpus["teachers"]:
+            for rule in teacher["rules"]:
+                a, b = rule["left_support"]
+                c, d = rule["right_support"]
+                target = tuple(
+                    (state[a] & state[b]) ^ (state[c] & state[d])
+                    for state in states
+                )
+                self.assertNotIn(target, grammar_functions)
 
 
 if __name__ == "__main__":
