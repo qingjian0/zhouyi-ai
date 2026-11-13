@@ -23,9 +23,7 @@ class PerceptualModality(str, Enum):
 class ObservationSource(str, Enum):
     DIRECT_SENSORY = "direct_sensory"
     INSTRUMENTAL = "instrumental"
-    TESTIMONY = "testimony"
-    TEXTUAL_RECORD = "textual_record"
-    MODEL_OUTPUT = "model_output"
+    TESTIMONY = "testimony"              # 墨经“闻”：传受/报告\n    TEXTUAL_RECORD = "textual_record"    # 墨经“闻”：文献传受\n    REASONED_INFERENCE = "reasoned_inference"  # 墨经“说”：推论所得\n    MODEL_OUTPUT = "model_output"
 
 
 class ReferentDecision(str, Enum):
