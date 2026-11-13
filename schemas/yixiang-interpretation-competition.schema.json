@@ -1,0 +1,155 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/qingjian0/zhouyi-ai/schemas/yixiang-interpretation-competition.schema.json",
+  "title": "Zhouyi-AI interpretation competition registry",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "case_id",
+    "title",
+    "primary_policy",
+    "primary_text_refs",
+    "adjudication",
+    "positions"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.1"
+    },
+    "case_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "title": {
+      "type": "string",
+      "minLength": 1
+    },
+    "primary_policy": {
+      "type": "string",
+      "minLength": 1
+    },
+    "primary_text_refs": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "adjudication": {
+      "const": "not_performed"
+    },
+    "positions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/position"
+      }
+    }
+  },
+  "$defs": {
+    "position": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "position_id",
+        "author",
+        "work",
+        "publication_year",
+        "source_layer",
+        "framework",
+        "target_terms",
+        "interpretation",
+        "scope",
+        "textual_basis_refs",
+        "scholarship_refs",
+        "caveats"
+      ],
+      "properties": {
+        "position_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "author": {
+          "type": "string",
+          "minLength": 1
+        },
+        "work": {
+          "type": "string",
+          "minLength": 1
+        },
+        "publication_year": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 1
+        },
+        "source_layer": {
+          "enum": [
+            "pre_qing_commentary",
+            "qing_commentary",
+            "post_qing_scholarship",
+            "contemporary_research"
+          ]
+        },
+        "framework": {
+          "enum": [
+            "logical_taxonomy",
+            "dialectical_process",
+            "unified_analogy",
+            "rhetorical_pragmatic",
+            "textual_philological",
+            "general_inference",
+            "ethical_practice",
+            "other"
+          ]
+        },
+        "target_terms": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "interpretation": {
+          "type": "string",
+          "minLength": 1
+        },
+        "scope": {
+          "type": "string",
+          "minLength": 1
+        },
+        "textual_basis_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "scholarship_refs": {
+          "type": "array",
+          "minItems": 1,
+          "uniqueItems": true,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "caveats": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      }
+    }
+  }
+}
