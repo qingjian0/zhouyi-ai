@@ -303,6 +303,32 @@
               "unassessed"
             ],
             "description": "Separates a text's causal assertion from independently supported causal evidence."
+          },
+          "reasoning_operations": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "observe",
+                "select_image",
+                "classify",
+                "compare",
+                "abstract_shared_basis",
+                "identify_difference",
+                "infer_by_analogy",
+                "shift_perspective",
+                "map_function",
+                "map_time",
+                "map_position",
+                "symbolize",
+                "rhetorical_indirection",
+                "transfer_norm",
+                "test_counterexample",
+                "intervene_condition",
+                "refuse_transfer"
+              ]
+            },
+            "description": "Explicit operation(s) visible in the text or used by the project; project labels do not imply an ancient formal system."
           }
         },
         "additionalProperties": false
