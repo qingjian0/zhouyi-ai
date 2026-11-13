@@ -849,6 +849,39 @@
       ],
       "evidence_status": "digital_transcription_candidate",
       "review_status": "unreviewed"
+    },
+    {
+      "case_id": "xy_024",
+      "source_id": "src_mojing_jingshang",
+      "period": "pre_qin",
+      "text_layer": "base_text",
+      "locator": "卷十·经上“知，闻、说、亲”及经说上对应释知条",
+      "excerpt": "知，闻、说、亲。……知：传受之，闻也；方不㢓，说也；身观焉，亲也。",
+      "problem": "同一判断的证据来自传闻、推论还是亲身观察？不同知识来源能否互相替代？",
+      "operation": [
+        "observation",
+        "perception_grounding",
+        "contextual_constraint",
+        "causal_critique"
+      ],
+      "premises": [
+        "《经上》把知分为闻、说、亲三种来源。",
+        "《经说上》分别以传受、推论和亲身观察解释三者。",
+        "传闻可以报告事实，推论可以由既有材料得出结论，亲历则提供直接观察；三者证据地位不同。"
+      ],
+      "conclusion_scope": "可支持对知识来源进行 provenance 分层：亲历观察、传受报告和推论必须分别记录；模型输出应另行标记，不能冒充亲历或独立证据。不能把闻、说、亲简单等同现代证据等级，也不能仅凭“亲”字断言观察无误。",
+      "counterexample_or_boundary": [
+        "传闻来源可能存在转述失真；须记录报告者、传递链和原始出处。",
+        "推论可能有效也可能无效；推理过程不能替代其前提证据。",
+        "亲身观察可能受感官限制、观察条件和测量误差影响。",
+        "模型输出若仅复述传闻或推论，不能因生成形式而升级为独立观察。"
+      ],
+      "alternative_readings": [
+        "“方不㢓/方不障”等字句存在数字录文与校释差异，当前仅引用较稳定的“知，闻、说、亲”经文。",
+        "闻、说、亲的具体认识论含义应结合《经说上》全文和历代校注，不能只凭现代证据术语作一一对应。"
+      ],
+      "evidence_status": "digital_transcription_candidate",
+      "review_status": "unreviewed"
     }
   ]
 }
