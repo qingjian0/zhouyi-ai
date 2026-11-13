@@ -25,12 +25,19 @@ class NoveltyDiscoveryTests(unittest.TestCase):
         self.assertEqual(proposal.status, ProposalStatus.PROPOSED)
         self.assertEqual(len(proposal.domains), 2)
         self.assertEqual(len(proposal.evidence_refs), 2)
+        self.assertEqual(len(proposal.context_records), 2)
 
     def test_known_signature_is_not_proposed_again(self):
         signature = self.residuals[0].signature
         self.assertEqual(
             propose_novel_structures(self.residuals, known_signatures=(signature,)), ()
         )
+
+    def test_malformed_known_signatures_are_rejected(self):
+        with self.assertRaisesRegex(ValueError, "known signatures"):
+            propose_novel_structures(
+                self.residuals, known_signatures=((("relation", "x", "y"), ("bad",)),)
+            )
 
     def test_single_domain_or_single_support_does_not_pass_default_threshold(self):
         one = (self.residuals[0],)
