@@ -102,7 +102,7 @@ def run_m7(inputs: M7Input) -> M7Result:
         raise ValueError("each mapping may be assigned to only one candidate")
     if set(candidate_mapping) - set(mapping_ids):
         raise ValueError("mapping_to_candidate references an unknown mapping")
-    if set(candidate_mapping.values()) - candidate_ids:
+    if set(candidate_mapping.values()) - eligible_candidate_ids:
         raise ValueError("mapping_to_candidate references an unknown candidate")
 
     intervention_map = dict(inputs.interventions)
