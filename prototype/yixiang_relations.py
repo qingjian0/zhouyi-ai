@@ -77,8 +77,14 @@ def assess_hypergraph_analogy(candidate: HypergraphAnalogy) -> HypergraphAssessm
         raise ValueError("mapping must be injective")
     _validate_relations(candidate.source_relations, set(candidate.source_entities), "source")
     _validate_relations(candidate.target_relations, set(candidate.target_entities), "target")
-    expected = {_signature(r, candidate.mapping) for r in candidate.source_relations
-                if all(entity in candidate.mapping for _, entity in r.roles)}
+    expected = set()
+    for relation in candidate.source_relations:
+        # Keep partially unmapped source relations visible as false negatives.
+        mapped = {source: target for source, target in candidate.mapping.items()}
+        for _, entity in relation.roles:
+            if entity not in mapped:
+                mapped[entity] = "UNMAPPED_SOURCE_ENTITY::" + entity
+        expected.add(_signature(relation, mapped))
     observed = {_signature(r) for r in candidate.target_relations}
     good, missing, extra = expected & observed, expected - observed, observed - expected
     precision = len(good) / len(observed) if observed else (1.0 if not expected else 0.0)
