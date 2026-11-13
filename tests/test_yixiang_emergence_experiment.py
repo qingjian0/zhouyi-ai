@@ -113,6 +113,30 @@ class EmergenceExperimentTests(unittest.TestCase):
             result.reason_codes,
         )
 
+    def test_repeated_readings_do_not_weight_an_independent_unit_more(self):
+        rows = list(measurements())
+        rows.append(ExperimentalMeasurement(
+            "extra-reading", "exp-1", "member_only:structure", 100.0,
+            "unit-1", "evidence:extra", "task-A|range-1",
+        ))
+        result = audit_emergence_experiment(protocol(), tuple(rows))
+        summary = next(x for x in result.arm_summaries if x.arm == "member_only:structure")
+        self.assertAlmostEqual(summary.mean_outcome, (50.5 + 1.2) / 2)
+
+    def test_context_shift_units_must_share_one_shifted_signature(self):
+        rows = list(measurements())
+        rows = [
+            ExperimentalMeasurement(
+                row.measurement_id, row.experiment_id, row.arm, row.outcome,
+                row.independent_unit_id, row.evidence_ref,
+                "task-B|range-2" if row.arm == "context_shift" and row.independent_unit_id == "unit-1"
+                else ("task-C|range-3" if row.arm == "context_shift" else row.scope_signature),
+            )
+            for row in rows
+        ]
+        result = audit_emergence_experiment(protocol(), tuple(rows))
+        self.assertIn("CONTEXT_SHIFT_SCOPE_SIGNATURE_INCONSISTENT", result.reason_codes)
+
     def test_duplicate_evidence_reference_blocks_by_validation(self):
         rows = list(measurements())
         rows[1] = ExperimentalMeasurement(
