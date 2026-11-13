@@ -11,9 +11,9 @@
       "source_id": "src_xici",
       "work": "周易·系辞下传",
       "chapter": "系辞下传第二章（“古者包牺氏之王天下也”段）",
-      "url": "https://ctext.org/book-of-changes/xi-ci-shang",
-      "digital_witness": "中国哲学书电子化计划《周易》数字文本；需进一步核对其具体影印底本与篇章定位",
-      "witness_limit": "当前检索结果只足以定位“近取诸身，远取诸物”平行文本；本案例摘录须回到《系辞下传》具体章段逐字核验。"
+      "url": "https://ctext.org/text.pl?if=gb&node=46944&remap=gb&show=parallel",
+      "digital_witness": "中国哲学书电子化计划《系辞下传》相关平行段落索引；当前定位依据为平行文本检索结果，尚未锁定独立的《系辞下传》影印底本页码。",
+      "witness_limit": "该 URL 是平行段落检索入口，不是单一底本页面；需继续回溯具体见证、卷次和影印页，不能将平行引文列表视为版本互证。"
     },
     {
       "source_id": "src_mozi",
@@ -118,7 +118,7 @@
     {
       "case_id": "xy_003",
       "source_id": "src_xunzi",
-      "period": "qin_han",
+      "period": "pre_qin",
       "text_layer": "base_text",
       "locator": "正名篇；“后王之成名”段",
       "excerpt": "散名之加于万物者，则从诸夏之成俗曲期，远方异俗之乡，则因之而为通。",
