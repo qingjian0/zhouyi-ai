@@ -84,6 +84,26 @@ class LeiClaimTests(unittest.TestCase):
             "candidate_intervention_evidence_requires_review",
         )
 
+    def test_symbolic_correspondence_is_separate_from_empirical_causality(self):
+        result = assess_lei_claim(self.claim(
+            kind=ClaimKind.SYMBOLIC_CORRESPONDENCE,
+            causal_identification="not_asserted",
+        ))
+        self.assertEqual(result.decision, ClaimDecision.SCOPE_RECORDED)
+        self.assertEqual(result.causal_conclusion, "not_established")
+
+    def test_symbolic_correspondence_cannot_be_promoted_to_causal_claim(self):
+        result = assess_lei_claim(self.claim(
+            kind=ClaimKind.SYMBOLIC_CORRESPONDENCE,
+            evidence_kind=EvidenceKind.INTERVENTION,
+            causal_identification="intervention_or_identification_evidence",
+        ))
+        self.assertEqual(result.decision, ClaimDecision.ABSTAIN)
+        self.assertIn(
+            "SYMBOLIC_CORRESPONDENCE_CANNOT_ESTABLISH_EMPIRICAL_CAUSALITY",
+            result.reason_codes,
+        )
+
     def test_invalid_sequence_field_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "scope_conditions"):
             assess_lei_claim(self.claim(scope_conditions=["not-a-tuple"]))
