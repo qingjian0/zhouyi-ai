@@ -56,4 +56,13 @@ class CorpusTests(unittest.TestCase):
   r["claims"][0]["reasoning_operations"]=["magic"]
   with self.assertRaisesRegex(ValueError,"reasoning_operations"): validate_record(r)
 
+ def test_malformed_controlled_fields_raise_value_error(self):
+  for field,value in (("period",[]),("source_type",{}),("review_status",[]),("method_families",[{}]),("concept_tags",[[]])):
+   r=dict(self.records[0]); r[field]=value
+   with self.subTest(field=field):
+    with self.assertRaises(ValueError): validate_record(r)
+  r=dict(self.records[0]); r["claims"]=[dict(self.records[0]["claims"][0])]
+  r["claims"][0]["reasoning_operations"]=[{}]
+  with self.assertRaises(ValueError): validate_record(r)
+
 if __name__=="__main__": unittest.main()
