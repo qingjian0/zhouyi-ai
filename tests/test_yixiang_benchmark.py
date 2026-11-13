@@ -4,7 +4,7 @@ from prototype.yixiang_benchmark_report import build_report, main
 from pathlib import Path
 from prototype.yixiang_benchmark import validate_case,validate_dataset,evaluate_predictions,group_leakage
 def make_case(cid,decision="accept",lineage=("work-a:edition-1",),split="train",scope=("context fixed",)):
- return {"case_id":cid,"source_lineage":list(lineage),"source_status":"synthetic_fixture","target_claim":"Test whether a proposed relation transfers to a target claim.","relation_families":["structural"],"shared_basis":["same relation topology"],"non_shared_basis":["different physical substrate"],"scope_conditions":list(scope),"required_invariants":["edge direction preserved"],"known_counterexamples":[],"causal_status":"unknown","evidence_refs":["fixture:"+cid],"independence_group":"fixture-group-"+cid,"gold_decision":decision,"gold_rationale":"Synthetic gold label; uncertainty is documented for abstention.","label_status":"fixture_expected","reviewers":[],"split_group":split}
+ return {"claim_kind":"argumentative_analogy","case_id":cid,"source_lineage":list(lineage),"source_status":"synthetic_fixture","target_claim":"Test whether a proposed relation transfers to a target claim.","relation_families":["structural"],"shared_basis":["same relation topology"],"non_shared_basis":["different physical substrate"],"scope_conditions":list(scope),"required_invariants":["edge direction preserved"],"known_counterexamples":[],"causal_status":"unknown","evidence_refs":["fixture:"+cid],"independence_group":"fixture-group-"+cid,"gold_decision":decision,"gold_rationale":"Synthetic gold label; uncertainty is documented for abstention.","label_status":"fixture_expected","reviewers":[],"split_group":split}
 class BenchmarkContractTests(unittest.TestCase):
  def test_report_builder_marks_fixture_evaluation_and_leakage(self):
   cases=[make_case("a")]
@@ -27,12 +27,13 @@ class BenchmarkContractTests(unittest.TestCase):
   root=Path(__file__).resolve().parents[1]
   cases=json.loads((root/"data/yixiang_benchmark_synthetic.v0.1.json").read_text(encoding="utf-8"))
   validate_dataset(cases)
-  self.assertEqual(len(cases),39)
+  self.assertEqual(len(cases),41)
   self.assertTrue({"same-013", "same-014", "same-015", "same-016", "same-017", "same-018", "same-019", "same-020", "same-021", "same-022"}.issubset({c["case_id"] for c in cases}))
   self.assertTrue({"dyn-023", "dyn-024", "dyn-025", "dyn-026", "dyn-027", "dyn-028", "dyn-029", "dyn-030"}.issubset({c["case_id"] for c in cases}))
   self.assertTrue({"dyn-031", "dyn-032", "dyn-033", "dyn-034", "dyn-035", "dyn-036"}.issubset({c["case_id"] for c in cases}))
   self.assertTrue({"dyn-037", "dyn-038", "dyn-039"}.issubset({c["case_id"] for c in cases}))
   self.assertEqual({c["split_group"] for c in cases},{"train","dev","test","holdout"})
+  self.assertEqual({c["claim_kind"] for c in cases},{"taxonomic_similarity","argumentative_analogy","action_outcome","practical_utility","symbolic_correspondence"})
  def test_dynamic_context_fixture_expected_decisions(self):
   root=Path(__file__).resolve().parents[1]
   cases=json.loads((root/"data/yixiang_benchmark_synthetic.v0.1.json").read_text(encoding="utf-8"))
@@ -51,6 +52,23 @@ class BenchmarkContractTests(unittest.TestCase):
   self.assertEqual(by_id["dyn-037"]["causal_status"],"symbolic")
   self.assertEqual(by_id["dyn-038"]["causal_status"],"unknown")
   self.assertIn("long-term effectiveness", by_id["dyn-039"]["gold_rationale"])
+
+ def test_five_claim_kinds_have_explicit_fixture_coverage(self):
+  root=Path(__file__).resolve().parents[1]
+  cases=json.loads((root/"data/yixiang_benchmark_synthetic.v0.1.json").read_text(encoding="utf-8"))
+  by_id={case["case_id"]:case for case in cases}
+  expected={
+   "dyn-037":("symbolic_correspondence","abstain"),
+   "dyn-038":("argumentative_analogy","reject"),
+   "dyn-039":("practical_utility","conditional"),
+   "dyn-040":("taxonomic_similarity","reject"),
+   "dyn-041":("action_outcome","abstain"),
+  }
+  self.assertEqual({key:(by_id[key]["claim_kind"],by_id[key]["gold_decision"]) for key in expected},expected)
+
+ def test_unknown_claim_kind_rejected(self):
+  case=make_case("bad-kind"); case["claim_kind"]="blended_similarity"
+  with self.assertRaisesRegex(ValueError,"claim_kind"): validate_case(case)
 
  def test_non_string_case_keys_rejected(self):
   c=make_case("a"); c[7]="bad-key"
