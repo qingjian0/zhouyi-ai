@@ -16,13 +16,17 @@ class LexicalAnalysisTests(unittest.TestCase):
         )
 
     def comparison(self, relation, left=None, right=None, **kw):
-        return LexicalComparison(
-            comparison_id="cmp-1", left=left or self.occurrence("a", "象", "sense-a", "referent-a"),
-            right=right or self.occurrence("b", "象", "sense-b", "referent-b"),
-            proposed_relation=relation, left_witness_refs=("edition-a:p1",),
-            right_witness_refs=("edition-b:p2",),
-            scope_conditions=("限定于所引篇章",), **kw,
-        )
+        values = {
+            "comparison_id": "cmp-1",
+            "left": left or self.occurrence("a", "象", "sense-a", "referent-a"),
+            "right": right or self.occurrence("b", "象", "sense-b", "referent-b"),
+            "proposed_relation": relation,
+            "left_witness_refs": ("edition-a:p1",),
+            "right_witness_refs": ("edition-b:p2",),
+            "scope_conditions": ("限定于所引篇章",),
+        }
+        values.update(kw)
+        return LexicalComparison(**values)
 
     def test_same_form_different_sense_requires_distinction(self):
         item = self.comparison(LexicalRelation.SAME_FORM_DIFFERENT_SENSE,
