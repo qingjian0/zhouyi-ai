@@ -56,7 +56,7 @@
 
 ## 原典数字入口
 
-- 《周易·系辞》：[数字文本入口](https://ctext.org/book-of-changes/xi-ci-shang)
+- 《周易·系辞》：[数字文本入口](https://ctext.org/text.pl?if=gb&node=46944&remap=gb&show=parallel)
 - 《墨子·小取》：[数字文本与版本入口](https://ctext.org/mozi/minor-illustrations/zhs)
 - 《荀子·正名》：[数字文本入口](https://ctext.org/xunzi/zheng-ming/ens)
 - 《公孙龙子·白马论》：[数字文本与版本入口](https://ctext.org/gongsunlongzi/bai-ma-lun/zh)
