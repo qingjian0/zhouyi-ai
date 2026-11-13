@@ -8,7 +8,7 @@ def path(pid, states, relations, outcome=PathOutcome.VIABLE, axes=None, refs=Non
          source="start", target="goal"):
     return PathCandidate(pid, source, target, tuple(states), tuple(relations),
                          tuple(axes or (("time", "t1"), ("position", "inner"))),
-                         outcome, tuple(refs or (f"evidence-{pid}",)))
+                         outcome, tuple((f"evidence-{pid}",) if refs is None else refs))
 
 
 class PathCompetitionTests(unittest.TestCase):
