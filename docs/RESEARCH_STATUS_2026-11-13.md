@@ -180,7 +180,7 @@ E09、E12-A6/ZPCM 与 N0.10 仍由独立研究分支承载。现有架构收敛�
 ## 架构文档与分支优先级审计
 
 - PR #265 的主架构 v2 文档位于分支 `architecture/cpg-ei-master-convergence-v2-2026-11-12`，HEAD `86541fe33ebe93d145bc4f39f6b36821850dfc51`，基于 PR #253 的逐文件运行时映射分支 HEAD `564ac728620002f13db2d8b69975c2779a149e9f`。#265 相对父分支仅前进 2 commits，但相对 main 为 251 commits ahead / 9 commits behind；它是旧的长依赖栈，不能直接作为当前稳定集成祖先。
-- PR #358 的全项目收敛基线以 main `b8b43926e666d83a9ce09d2e71eb9294b2d86c97` 为父基线；当前 Draft 分支在本次状态更新前 HEAD `8cf3061432be3dc58c1fee90af093321bfa46aa9`，相对 main 为 90 ahead / 0 behind，包含 README、ROADMAP 和架构/状态文档。该 head 的文档测试 workflow [#43351080279](https://github.com/qingjian0/zhouyi-ai/actions/runs/43351080279) 已成功；本次刷新后的新 head 仍需重新运行 exact-head CI。
+- PR #358 的全项目收敛基线以 main `b8b43926e666d83a9ce09d2e71eb9294b2d86c97` 为父基线；当前 Draft 分支 HEAD `fc1491d7d2d30a41dca508b99bd1d69c9ab7978e`，相对 main 为 90 ahead / 0 behind，包含 README、ROADMAP 和架构/状态文档。此前 head `8cf3061432be3dc58c1fee90af093321bfa46aa9` 的文档测试 workflow [#43351080279](https://github.com/qingjian0/zhouyi-ai/actions/runs/43351080279) 已成功；当前刷新 head 尚无可见 exact-head workflow/check 记录，不宣称通过。
 - PR #381 的 execution snapshot HEAD `1126a644e26458610ae8d867056551cfe5e819c0` 有 workflow #43253222365 success；它是 2026-11-12 的分支证据快照，不是第二套架构所有权规范。
 - #265 的主架构 v2 与 #358 的项目收敛基线都包含模块责任、运行闭环和 KV-independent 分层，存在文档权威重叠。应选定一个唯一架构决策入口；另一个保留为逐文件证据/历史审计并链接过去，避免两个“master”同时有效。
 
