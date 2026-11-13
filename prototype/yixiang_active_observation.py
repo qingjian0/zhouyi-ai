@@ -61,7 +61,10 @@ class ObservationCandidate:
             outcomes[outcome] = float(probability)
         if set(grouped) != hypothesis_ids:
             raise ValueError("every hypothesis must define an outcome distribution")
+        all_outcomes = set().union(*(set(distribution) for distribution in grouped.values()))
         for distribution in grouped.values():
+            if set(distribution) != all_outcomes:
+                raise ValueError("every hypothesis must define every outcome explicitly; use 0 for impossible outcomes")
             if abs(sum(distribution.values()) - 1.0) > 1e-9:
                 raise ValueError("likelihoods for each hypothesis must sum to 1")
         for name, value in (("cost", self.cost), ("risk", self.risk),
