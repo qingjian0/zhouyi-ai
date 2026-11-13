@@ -1,7 +1,10 @@
 import copy
+import random
 import unittest
 
-from prototype.cpg_ei_active_query_discovery import run_active_query_benchmark
+from prototype.cpg_ei_active_query_discovery import (
+    _max_disagreement_position, run_active_query_benchmark,
+)
 from prototype.cpg_ei_mixed_operator_data import generate_mixed_corpus
 
 
@@ -11,6 +14,27 @@ class TestActiveQueryDiscovery(unittest.TestCase):
             family_count=5, input_dim=4, output_dim=7, seed=711
         )
         self.budgets = (2, 4, 8)
+
+    def test_bit_sliced_disagreement_matches_naive_reference(self):
+        for seed in range(30):
+            rng = random.Random(seed)
+            patterns = [rng.getrandbits(16) for _ in range(25)]
+            unique = set(patterns)
+            positions = list(range(16))
+            counts = [
+                sum((pattern >> position) & 1 for pattern in unique)
+                for position in positions
+            ]
+            scores = [min(count, len(unique) - count) for count in counts]
+            expected_score = max(scores)
+            expected = (
+                next(position for position, score in enumerate(scores)
+                     if score == expected_score)
+                if expected_score else None
+            )
+            self.assertEqual(
+                _max_disagreement_position(patterns, positions), expected
+            )
 
     def test_active_query_trace_is_deterministic_and_train_only(self):
         first = run_active_query_benchmark(
