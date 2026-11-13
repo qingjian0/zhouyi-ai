@@ -73,6 +73,14 @@ class PathCompetitionTests(unittest.TestCase):
             target_context_axes=(("time", "t1"),))
         self.assertIn("EVIDENCE_REUSED_ACROSS_COMPETING_PATHS", result.reason_codes)
 
+    def test_duplicate_path_structure_is_blocked(self):
+        result = audit_path_competition(
+            (path("p1", ("start", "goal"), ("r1",), refs=("e1",)),
+             path("p2", ("start", "goal"), ("r1",), refs=("e2",))),
+            required_context_axes=("time",),
+            target_context_axes=(("time", "t1"),))
+        self.assertIn("DUPLICATE_PATH_SIGNATURE", result.reason_codes)
+
     def test_duplicate_path_ids_are_blocked(self):
         result = audit_path_competition(
             (path("p", ("a", "b"), ("r1",)),
