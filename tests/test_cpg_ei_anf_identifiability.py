@@ -134,6 +134,21 @@ class TestAnfIdentifiability(unittest.TestCase):
             sweep[0]["oracle_representability_rate"],
             sweep[-1]["oracle_representability_rate"],
         )
+        for degree_result in sweep:
+            consistent_nullities = [
+                item["nullity"] for item in degree_result["per_output"]
+                if item["training_system_consistent"]
+            ]
+            expected_mean = (
+                sum(consistent_nullities) / len(consistent_nullities)
+                if consistent_nullities else None
+            )
+            self.assertEqual(degree_result["mean_training_nullity"], expected_mean)
+            self.assertEqual(
+                degree_result["consistent_system_count"]
+                + degree_result["inconsistent_system_count"],
+                degree_result["output_system_count"],
+            )
 
     def test_invalid_degree_bound_is_rejected(self):
         with self.assertRaises(ValueError):
