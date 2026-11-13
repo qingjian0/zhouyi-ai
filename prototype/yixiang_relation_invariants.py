@@ -37,6 +37,18 @@ class InvariantCheck:
     critical: bool = True
 
 @dataclass(frozen=True)
+class ContextTransform:
+    """Evidence-backed, bounded mapping for one non-identical context axis."""
+    axis: str
+    source_value: str
+    target_value: str
+    mapping_rule: str
+    boundary: str
+    source_evidence_ref: str
+    target_evidence_ref: str
+
+
+@dataclass(frozen=True)
 class RelationTransferContract:
     transfer_id: str
     source: RelationFrame
@@ -59,6 +71,7 @@ class RelationTransferAssessment:
     mismatched_critical_invariants: Tuple[str, ...]
     empirical_causality_established: bool = False
     scope_only: bool = True
+    transformed_context_axes: Tuple[str, ...] = ()
 
 def _nonempty(value: object, field: str) -> None:
     if not isinstance(value, str) or not value.strip():
@@ -145,6 +158,22 @@ def assess_relation_transfer(contract: RelationTransferContract) -> RelationTran
         values = getattr(contract, field)
         if not isinstance(values, tuple) or any(not isinstance(v, str) or not v.strip() for v in values):
             raise ValueError(f"{field} must be a tuple of non-empty strings")
+    if not isinstance(contract.context_transforms, tuple) or any(
+        not isinstance(item, ContextTransform) for item in contract.context_transforms
+    ):
+        raise ValueError("context_transforms must contain ContextTransform")
+    transform_axes = []
+    for item in contract.context_transforms:
+        for field in ("axis", "source_value", "target_value", "mapping_rule",
+                      "boundary", "source_evidence_ref", "target_evidence_ref"):
+            _nonempty(getattr(item, field), f"context_transform.{field}")
+        transform_axes.append(item.axis)
+        if item.source_value == item.target_value:
+            raise ValueError("context transform must describe a non-identical axis")
+    if len(transform_axes) != len(set(transform_axes)):
+        raise ValueError("context transform axes must be unique")
+    if set(transform_axes) - set(contract.required_context_axes):
+        raise ValueError("context transforms must target required context axes")
     if not isinstance(contract.causal_transfer, bool):
         raise ValueError("causal_transfer must be bool")
 
@@ -158,11 +187,22 @@ def assess_relation_transfer(contract: RelationTransferContract) -> RelationTran
     ):
         hard.append("RELATION_TOPOLOGY_OR_DIRECTION_MISMATCH")
     sc, tc = dict(contract.source.conditions), dict(contract.target.conditions)
+    transformed = []
+    transforms = {item.axis: item for item in contract.context_transforms}
     for axis in contract.required_context_axes:
         if axis not in sc or axis not in tc:
             reasons.append("REQUIRED_CONTEXT_AXIS_MISSING")
         elif sc[axis] != tc[axis]:
-            reasons.append("REQUIRED_CONTEXT_AXIS_MISMATCH")
+            item = transforms.get(axis)
+            if item is None:
+                reasons.append("REQUIRED_CONTEXT_AXIS_MISMATCH")
+            elif item.source_value != sc[axis] or item.target_value != tc[axis]:
+                reasons.append("CONTEXT_TRANSFORM_VALUE_MISMATCH")
+            elif (item.source_evidence_ref not in contract.source.evidence_refs
+                  or item.target_evidence_ref not in contract.target.evidence_refs):
+                reasons.append("CONTEXT_TRANSFORM_EVIDENCE_NOT_GROUNDED")
+            else:
+                transformed.append(axis)
     assessed_names = {item.name for item in contract.invariant_checks}
     if set(contract.required_invariants) - assessed_names:
         reasons.append("REQUIRED_INVARIANT_NOT_ASSESSED")
@@ -178,4 +218,7 @@ def assess_relation_transfer(contract: RelationTransferContract) -> RelationTran
     if contract.causal_transfer and not contract.causal_evidence_refs:
         reasons.append("CAUSAL_TRANSFER_WITHOUT_CAUSAL_EVIDENCE")
     decision = InvariantDecision.REJECT if hard else InvariantDecision.ABSTAIN if reasons else InvariantDecision.ACCEPT_SCOPED
-    return RelationTransferAssessment(contract.transfer_id, decision, tuple(hard + reasons), contract.role_mapping, tuple(preserved), tuple(mismatched), False, True)
+    return RelationTransferAssessment(
+        contract.transfer_id, decision, tuple(hard + reasons), contract.role_mapping,
+        tuple(preserved), tuple(mismatched), False, True, tuple(transformed)
+    )
