@@ -2,7 +2,7 @@ import unittest, json
 from pathlib import Path
 from prototype.yixiang_benchmark import validate_case,validate_dataset,evaluate_predictions,group_leakage
 def make_case(cid,decision="accept",lineage=("work-a:edition-1",),split="train",scope=("context fixed",)):
- return {"case_id":cid,"source_lineage":list(lineage),"source_status":"synthetic_fixture","target_claim":"Test whether a proposed relation transfers to a target claim.","relation_families":["structural"],"shared_basis":["same relation topology"],"non_shared_basis":["different physical substrate"],"scope_conditions":list(scope),"required_invariants":["edge direction preserved"],"known_counterexamples":[],"causal_status":"unknown","evidence_refs":["fixture:"+cid],"independence_group":"fixture-group-"+cid,"gold_decision":decision,"gold_rationale":"Synthetic gold label; uncertainty is documented for abstention.","reviewers":["reviewer-a","reviewer-b"],"split_group":split}
+ return {"case_id":cid,"source_lineage":list(lineage),"source_status":"synthetic_fixture","target_claim":"Test whether a proposed relation transfers to a target claim.","relation_families":["structural"],"shared_basis":["same relation topology"],"non_shared_basis":["different physical substrate"],"scope_conditions":list(scope),"required_invariants":["edge direction preserved"],"known_counterexamples":[],"causal_status":"unknown","evidence_refs":["fixture:"+cid],"independence_group":"fixture-group-"+cid,"gold_decision":decision,"gold_rationale":"Synthetic gold label; uncertainty is documented for abstention.","label_status":"fixture_expected","reviewers":[],"split_group":split}
 class BenchmarkContractTests(unittest.TestCase):
  def test_valid_case_and_dataset(self): validate_case(make_case("a")); validate_dataset([make_case("a"),make_case("b")])
  def test_committed_synthetic_fixture_dataset(self):
@@ -38,8 +38,12 @@ class BenchmarkContractTests(unittest.TestCase):
     with self.assertRaises(ValueError): validate_case(c)
   with self.assertRaises(ValueError):
    evaluate_predictions([make_case("a")],[{"case_id":"a","decision":[]}])
- def test_gold_requires_two_reviewers(self):
-  c=make_case("a"); c["reviewers"]=["only-one"]
-  with self.assertRaisesRegex(ValueError,"two independent reviewers"): validate_case(c)
+ def test_synthetic_fixture_cannot_claim_reviewers(self):
+  c=make_case("a"); c["reviewers"]=["reviewer-a","reviewer-b"]
+  with self.assertRaisesRegex(ValueError,"cannot claim human adjudication"): validate_case(c)
+ def test_adjudicated_labels_require_two_reviewers(self):
+  c=make_case("a"); c["source_status"]="critical_edition"; c["label_status"]="adjudicated"; c["reviewers"]=["reviewer-a"]
+  with self.assertRaisesRegex(ValueError,"two distinct reviewer IDs"): validate_case(c)
+  c["reviewers"]=["reviewer-a","reviewer-b"]; validate_case(c)
  def test_abstention_is_valid_gold(self): validate_case(make_case("a","abstain"))
 if __name__=="__main__": unittest.main()
