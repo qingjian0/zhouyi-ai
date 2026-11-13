@@ -113,6 +113,15 @@ class RelationAlgebraTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.ontology.normalize(Edge(1, "b", "supports"))
 
+    def test_empty_relation_sets_are_not_a_perfect_match(self):
+        score = compare_relations(
+            source_relations=(), target_relations=(),
+            mapping={"a": "x"}, ontology=self.ontology,
+        )
+        self.assertEqual(score.precision, 0.0)
+        self.assertEqual(score.recall, 0.0)
+        self.assertEqual(score.f1, 0.0)
+
     def test_reports_missing_and_unexpected_edges(self):
         score = compare_relations(
             source_relations=(Edge("a", "b", "supports"),),
