@@ -74,8 +74,6 @@ class XiangCandidate:
             raise ValueError("condition names must be non-empty strings")
         if any(len(set(group)) != len(group) for group in condition_groups):
             raise ValueError("condition names must be unique within each collection")
-        if not set(self.required_conditions).issubset(self.applicable_conditions):
-            raise ValueError("required conditions must be declared applicable conditions")
         if len(set(self.required_conditions)) != len(self.required_conditions):
             raise ValueError("required conditions must be unique")
         if not set(self.satisfied_conditions).issubset(self.required_conditions):
