@@ -141,11 +141,11 @@ class DynamicAnalogyTests(unittest.TestCase):
             candidate,
             source=replace(candidate.source, snapshots=source_states),
             target=replace(candidate.target, snapshots=target_states),
-            context_value_mapping={
-                ("position", "upper"): "high",
-                ("potential", "rising"): "increasing",
-                ("time", "early"): "phase_1",
-            },
+            context_value_mapping=(
+                ("position", "upper", "high"),
+                ("potential", "rising", "increasing"),
+                ("time", "early", "phase_1"),
+            ),
         )
         result = assess_dynamic_analogy(mapped)
         self.assertTrue(result.accepted)
@@ -177,10 +177,10 @@ class DynamicAnalogyTests(unittest.TestCase):
         candidate = systems()
         invalid = replace(
             candidate,
-            context_value_mapping={
-                ("position", "upper"): "high",
-                ("position", "lower"): "high",
-            },
+            context_value_mapping=(
+                ("position", "upper", "high"),
+                ("position", "lower", "high"),
+            ),
         )
         with self.assertRaisesRegex(ValueError, "injective"):
             assess_dynamic_analogy(invalid)
