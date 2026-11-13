@@ -17,7 +17,8 @@
     "text_status",
     "claims",
     "review_status",
-    "concept_tags"
+    "concept_tags",
+    "method_families"
   ],
   "properties": {
     "record_id": {
@@ -310,6 +311,26 @@
         ]
       },
       "description": "Project retrieval facets only; not a claim that ancient authors used this unified taxonomy."
+    },
+    "method_families": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "classification",
+          "analogical_argument",
+          "rhetorical_analogy",
+          "cosmological_correspondence",
+          "lexical_taxonomy",
+          "symbolic_correspondence",
+          "phenomenological_observation",
+          "causal_claim",
+          "commentarial_exegesis",
+          "comparative_exegesis"
+        ]
+      },
+      "description": "Distinguishes historically different inference/textual practices; project taxonomy, not an ancient unified classification."
     }
   }
 }
