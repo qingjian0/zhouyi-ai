@@ -70,6 +70,22 @@
       "url": "https://ctext.org/mozi/condemnation-of-offensive-war-i/zh",
       "digital_witness": "中国哲学书电子化计划《非攻上》数字文本入口；页面列《正统道藏》《墨子闲诂》《四部丛刊初编》等版本入口。",
       "witness_limit": "当前案例仅依据数字录文定位；需回看具体版本影像，核验“扡/拖”等字形、异文、段落衔接及孙诒让《墨子间诂》校语，不将网页平行版本列表视为已完成互校。"
+    },
+    {
+      "source_id": "src_lushi_bielei",
+      "work": "吕氏春秋",
+      "chapter": "恃君览·别类",
+      "url": "https://ctext.org/lv-shi-chun-qiu/bie-lei",
+      "digital_witness": "中国哲学书电子化计划《别类》数字文本入口，页面标注《四部丛刊初编》本资源",
+      "witness_limit": "当前仅完成检索定位，未逐字核对影印页、卷次、注释与版本异文；网页底本标注不等于本项目已完成校勘。"
+    },
+    {
+      "source_id": "src_huainan_shuoshan",
+      "work": "淮南子",
+      "chapter": "说山训",
+      "url": "https://ctext.org/huainanzi/shuo-shan-xun",
+      "digital_witness": "中国哲学书电子化计划《说山训》数字文本及平行段落检索入口",
+      "witness_limit": "平行段落显示部分文字存在不同录文与异文；须分别记录见证、核对影印底本及高诱注，不得将平行文本拼成单一校定本。"
     }
   ],
   "cases": [
@@ -437,6 +453,126 @@
         "“天官”“征知”“当簿其类”的具体训释应结合杨倞注及历代校注分层核查。",
         "“同类同情”中的“情”不应未经论证直接现代化为情绪或统计分布。",
         "“所”“实”“化”的语义及句读存在解释空间；当前工程拆分是分析模型，不是唯一训诂结论。"
+      ],
+      "evidence_status": "digital_transcription_candidate",
+      "review_status": "unreviewed"
+    },
+    {
+      "case_id": "xy_013",
+      "source_id": "src_lushi_bielei",
+      "period": "qin_han",
+      "text_layer": "base_text",
+      "locator": "别类；“物多类然而不然”至“类固不必，可推知也”段",
+      "excerpt": "物多类然而不然……草有莘有藟，独食之则杀人，合而食之则益寿……金柔锡柔，合两柔则为刚……小方，大方之类也；小马，大马之类也；小智，非大智之类也。",
+      "problem": "表面相类是否足以支持推类？组合成分、尺度和性质之间是否存在非单调变化？",
+      "operation": [
+        "classification",
+        "analogy",
+        "analogy_rule",
+        "contextual_constraint"
+      ],
+      "premises": [
+        "篇章以“物多类然而不然”提出相类与可推之间并非必然关系。",
+        "草类材料单独与合用时的文本叙述不同，提示组合效应不能由单项性质简单相加。",
+        "小方/大方、小马/大马与小智/大智的并列，提示尺度变化对类别判断和能力推断的影响并不相同。"
+      ],
+      "conclusion_scope": "可支持把类属保持、尺度外推与组合效应分开分析；不能将古代物性叙述当作现代化学/药理事实，也不能把文本中的小智/大智直接等同于现代智力测量。",
+      "counterexample_or_boundary": [
+        "同一类别在尺度变化后可能仍保持类属，但功能或能力未必按比例扩大。",
+        "组成项的单独属性不能保证组合物保留相同属性；必须单独观察组合结果。",
+        "具体草名、毒性及合用效果须由本草、版本和现代实验分别核验。"
+      ],
+      "alternative_readings": [
+        "“莘”“藟”等名物及“万堇”字形、训释需回到不同传本和高诱注核查。",
+        "“小智，非大智之类”可能涉及能力类别而非纯粹数量尺度，不能简单形式化为数值外推失败。"
+      ],
+      "evidence_status": "digital_transcription_candidate",
+      "review_status": "unreviewed"
+    },
+    {
+      "case_id": "xy_014",
+      "source_id": "src_huainan_shuoshan",
+      "period": "qin_han",
+      "text_layer": "base_text",
+      "locator": "说山训；“物固有似然而似不然者”段",
+      "excerpt": "小马大目，不可谓大马；大马之目眇，可谓之眇马。物固有似然而似不然者。……类不可必推。",
+      "problem": "局部可见特征与整体类别之间是什么关系？某个特征相似是否足以支持整体分类？",
+      "operation": [
+        "observation",
+        "classification",
+        "analogy_rule",
+        "contextual_constraint"
+      ],
+      "premises": [
+        "文本将眼睛大小与马的整体大小/类别判断分开。",
+        "“似然而似不然”明确提示表面特征相似不必推出整体判断相同。",
+        "“类不可必推”要求推类必须检查具体适用条件。"
+      ],
+      "conclusion_scope": "可支持局部特征不能单独决定整体类别的分析；不能把文本例子扩展为现代动物学分类规则。",
+      "counterexample_or_boundary": [
+        "小马可能具有较大的眼睛，但这不使其成为大马。",
+        "大马的眼睛出现局部异常，不因此改变其整体类别。",
+        "若局部特征与目标类别有经验证的诊断关系，仍可作为证据，但不能无条件当作充分条件。"
+      ],
+      "alternative_readings": [
+        "“大目”“目眇”的语义、句读与相关异文需进一步校勘。"
+      ],
+      "evidence_status": "digital_transcription_candidate",
+      "review_status": "unreviewed"
+    },
+    {
+      "case_id": "xy_015",
+      "source_id": "src_huainan_shuoshan",
+      "period": "qin_han",
+      "text_layer": "base_text",
+      "locator": "说山训；“先倮而浴则可”段",
+      "excerpt": "先倮而浴则可，以浴而倮则不可；先祭而后飨则可，先飨而后祭则不可。物之先后，各有所宜也。",
+      "problem": "相同动作或事件集合在顺序改变后，是否仍具有相同适用性与结果？",
+      "operation": [
+        "contextual_constraint",
+        "analogy",
+        "classification"
+      ],
+      "premises": [
+        "文本用先后次序不同的行为组合，指出其可否与适宜性不同。",
+        "“物之先后，各有所宜”把顺序作为判断条件，而非无关的叙事排列。"
+      ],
+      "conclusion_scope": "可支持过程顺序与情境适宜性需要显式记录；不能脱离礼俗语境把该例直接解释成普遍因果定律。",
+      "counterexample_or_boundary": [
+        "只保存动作集合、不保存顺序，会丢失原文强调的条件差异。",
+        "不同礼俗、时代与场景可能改变行为规范，需保留历史语境。"
+      ],
+      "alternative_readings": [
+        "“倮”与浴礼、祭飨次序的具体制度背景需结合注疏和礼制文献核验。"
+      ],
+      "evidence_status": "digital_transcription_candidate",
+      "review_status": "unreviewed"
+    },
+    {
+      "case_id": "xy_016",
+      "source_id": "src_huainan_shuoshan",
+      "period": "qin_han",
+      "text_layer": "base_text",
+      "locator": "说山训；“故决指而身死，或断臂而顾活”段",
+      "excerpt": "故决指而身死，或断臂而顾活。类不可必推。",
+      "problem": "名称相近或外观相似的损伤行为，能否推断其后果相同？",
+      "operation": [
+        "analogy",
+        "analogy_rule",
+        "contextual_constraint",
+        "causal_critique"
+      ],
+      "premises": [
+        "文本将断指与断臂的后果并列，提示相似的损伤描述不能直接推出相同结果。",
+        "后果可能依赖部位、程度、个体状态和处置条件等变量；原文未提供现代医学意义上的因果证据。"
+      ],
+      "conclusion_scope": "可支持对表面相似行为进行结果迁移时必须检查关键条件；不能把该句当作现代医学事实或治疗建议。",
+      "counterexample_or_boundary": [
+        "部位、程度、感染、失血、救治与个体差异均可能影响结果。",
+        "古代格言式例证不是控制变量实验，不能确定各因素的因果贡献。"
+      ],
+      "alternative_readings": [
+        "“决指”“顾活”等词义及具体语境需核对校注，不应将现代医学术语直接回填。"
       ],
       "evidence_status": "digital_transcription_candidate",
       "review_status": "unreviewed"
