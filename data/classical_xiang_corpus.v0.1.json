@@ -2601,5 +2601,91 @@
       "classification",
       "lexical_taxonomy"
     ]
+  },
+  {
+    "record_id": "zhouyi-xici-exhaustion-change-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "周易·系辞下传",
+      "traditional_authority": "传统归属；作者、成篇年代及文本层次按学术争议保留",
+      "composition_period": "战国至汉初层累形成说并存",
+      "genre": "易传"
+    },
+    "period": "uncertain",
+    "source_type": "classical_text",
+    "tradition": [
+      "传统文献",
+      "类象理论研究"
+    ],
+    "witness": {
+      "witness_id": "wikizhouyi-xici-xia",
+      "edition_or_database": "维基文库《周易·系辞下传》数字文本；需核对底本",
+      "url": "https://zh.wikisource.org/zh-hans/周易/繫辭下",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台条款另行核验；仅保留必要短引"
+    },
+    "locator": {
+      "chapter": "系辞下传·通变、制器段",
+      "section_or_line": "易穷则变，变则通，通则久"
+    },
+    "text": "易穷则变，变则通，通则久。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "xici-xia-exhaustion-change-001",
+        "claim_kind": "textual_observation",
+        "subject": "穷、变、通、久",
+        "predicate": "构成有序过程表达",
+        "object": "由受阻/穷尽到变化、通达，再到持续",
+        "interpretive_note": "经文以“穷则变，变则通，通则久”排列四个环节。唐疏将其解释为因事久或劳而随时调整器用，使民得宜；该解释属于注疏层，不能覆盖经文本身的开放语义。",
+        "scope": "限于《系辞下传》通变语境；不得直接等同现代动力系统或因果模型。",
+        "relation_type": "temporal_process",
+        "xiang_domain": "动态过程与时宜",
+        "relation_family": "temporal",
+        "shared_basis": [
+          "状态受阻后发生变化并形成后续状态"
+        ],
+        "non_shared_basis": [
+          "经文的易学义理语境不等同现代系统动力学"
+        ],
+        "scope_conditions": [
+          "需保留时位、条件和过程阶段",
+          "“久”需要跨时间观察，不能由单次变化推定"
+        ],
+        "causal_status": "not_claimed",
+        "conditions": [
+          "需保留时位、条件和过程阶段"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed",
+        "reasoning_operations": [
+          "map_time",
+          "classify",
+          "infer_by_analogy"
+        ]
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引，不复制现代整理本注释。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "数字转录为检索入口；需与《周易正义》所列各版本及《经典释文》独立核对。",
+      "本记录不把唐疏解释直接当作先秦经文唯一原义。"
+    ],
+    "concept_tags": [
+      "state_change"
+    ],
+    "method_families": [
+      "cosmological_correspondence"
+    ],
+    "variant_notes": [
+      "《周易正义》点校本校勘记称石经、岳本、闽本、监本、毛本作“易穷则变，变则通，通则久”；《释文》另记一本作“易穷则变通则久”。需继续核对《经典释文》具体版本、石经拓本及宋本系统。",
+      "此处的句读与“变通”是否连读会影响过程结构解释；当前记录保留多见本读法，并将异文单独记录，不自动消解。"
+    ]
   }
 ]
