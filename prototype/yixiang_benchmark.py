@@ -5,7 +5,7 @@ from collections.abc import Mapping, Sequence
 RELATIONS={"morphological","structural","functional","process_mechanism","temporal","situated","symbolic_normative","empirical_correlation","causal_analogy"}
 DECISIONS={"accept","reject","conditional","abstain"}
 CAUSAL={"symbolic","normative","co_occurrence","correlational","mechanistic_hypothesis","intervention_supported","unknown"}
-CLAIM_KINDS={"taxonomic_similarity","argumentative_analogy","action_outcome","practical_utility","symbolic_correspondence"}
+CLAIM_KINDS={"taxonomic_similarity","argumentative_analogy","action_outcome","practical_utility","symbolic_correspondence","correlative_causation"}
 SOURCE_STATUS={"verified_primary","critical_edition","unverified_transcription","secondary_quotation","research_hypothesis","synthetic_fixture"}
 REQUIRED={"claim_kind","case_id","source_lineage","source_status","target_claim","relation_families","shared_basis","non_shared_basis","scope_conditions","required_invariants","known_counterexamples","causal_status","evidence_refs","independence_group","gold_decision","gold_rationale","label_status","reviewers","split_group"}
 def _strings(v,f,nonempty=True):
