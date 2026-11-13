@@ -139,3 +139,98 @@ def assess_analogy(
         mapped_entity_coverage=coverage, evidence_support_ratio=evidence_ratio,
         counterexample_count=counterexample_count, threshold=min_relation_f1,
     )
+
+@dataclass(frozen=True)
+class DiscoveredAnalogy:
+    mapping: tuple[tuple[str, str], ...]
+    assessment: AnalogyAssessment
+
+
+@dataclass(frozen=True)
+class AnalogyDiscoveryResult:
+    candidates: tuple[DiscoveredAnalogy, ...]
+    evaluated_mappings: int
+    truncated: bool
+
+
+def discover_analogy_mappings(
+    *,
+    source_domain: str,
+    target_domain: str,
+    source_entities: tuple[str, ...],
+    target_entities: tuple[str, ...],
+    source_relations: tuple[Relation, ...],
+    target_relations: tuple[Relation, ...],
+    dimensions: tuple[str, ...] = ("relation",),
+    conditions: tuple[str, ...] = ("candidate mapping is evaluated under the supplied graph snapshot",),
+    evidence: tuple[Evidence, ...] = (),
+    validity_scope: str = "the supplied finite entity and relation graphs only",
+    min_relation_f1: float = 0.8,
+    max_evaluations: int = 10000,
+    max_results: int = 20,
+) -> AnalogyDiscoveryResult:
+    """Enumerate and rank injective source-to-target mappings by relation fit.
+
+    This bounded exhaustive baseline is useful for small symbolic graphs. It
+    does not infer entities, relation labels, or domain semantics. A truncated
+    search is explicitly reported; results must not be treated as exhaustive.
+    """
+    from itertools import islice, permutations
+
+    if not source_entities or not target_entities:
+        raise ValueError("source_entities and target_entities must be non-empty")
+    if len(source_entities) > len(target_entities):
+        raise ValueError("target graph must have at least as many entities as source graph")
+    if len(set(source_entities)) != len(source_entities):
+        raise ValueError("source entity ids must be unique")
+    if len(set(target_entities)) != len(target_entities):
+        raise ValueError("target entity ids must be unique")
+    if max_evaluations < 1 or max_results < 1:
+        raise ValueError("max_evaluations and max_results must be positive")
+    if not source_relations or not target_relations:
+        raise ValueError("both graphs must contain relations for analogy discovery")
+
+    ranked: list[DiscoveredAnalogy] = []
+    evaluated = 0
+    iterator = permutations(target_entities, len(source_entities))
+    for targets in islice(iterator, max_evaluations):
+        mapping = dict(zip(source_entities, targets))
+        candidate = AnalogyCandidate(
+            candidate_id=f"discovery-{evaluated + 1}",
+            source_domain=source_domain,
+            target_domain=target_domain,
+            source_entities=source_entities,
+            target_entities=target_entities,
+            mapping=mapping,
+            dimensions=dimensions,
+            source_relations=source_relations,
+            target_relations=target_relations,
+            conditions=conditions,
+            evidence=evidence,
+            validity_scope=validity_scope,
+        )
+        assessment = assess_analogy(
+            candidate, min_relation_f1=min_relation_f1,
+            min_entity_coverage=1.0, require_evidence=bool(evidence),
+        )
+        ranked.append(DiscoveredAnalogy(
+            mapping=tuple(mapping.items()), assessment=assessment,
+        ))
+        evaluated += 1
+
+    total_mappings = 1
+    for factor in range(len(target_entities) - len(source_entities) + 1, len(target_entities) + 1):
+        total_mappings *= factor
+    truncated = evaluated < total_mappings
+    ranked.sort(key=lambda item: (
+        -item.assessment.relation_f1,
+        -item.assessment.relation_precision,
+        -item.assessment.relation_recall,
+        item.mapping,
+    ))
+    return AnalogyDiscoveryResult(
+        candidates=tuple(ranked[:max_results]),
+        evaluated_mappings=evaluated,
+        truncated=truncated,
+    )
+
