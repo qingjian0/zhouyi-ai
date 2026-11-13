@@ -675,6 +675,11 @@
     "method_families": [
       "analogical_argument",
       "analogy_limit"
+    ],
+    "concept_tags": [
+      "analogy_limit",
+      "causal_inference_limit",
+      "analogy_method"
     ]
   },
   {
@@ -757,6 +762,11 @@
     "method_families": [
       "classification",
       "analogical_argument"
+    ],
+    "concept_tags": [
+      "classification",
+      "analogy_method",
+      "name_reality"
     ]
   },
   {
