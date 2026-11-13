@@ -6,7 +6,6 @@ symmetric, reversible, transitive, or causal by default.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from math import isfinite
 from typing import Mapping, Sequence
 
 
@@ -49,6 +48,10 @@ class RelationOntology:
                 raise ValueError("relation type keys must be non-empty strings")
             if not isinstance(spec, RelationType) or spec.name != key:
                 raise ValueError("relation type key must match RelationType.name")
+            if type(spec.symmetric) is not bool:
+                raise ValueError("symmetric must be a boolean")
+            if spec.inverse_of is not None and (not isinstance(spec.inverse_of, str) or not spec.inverse_of):
+                raise ValueError("inverse_of must be a non-empty relation type name")
             if spec.symmetric and spec.inverse_of is not None:
                 raise ValueError("a symmetric relation cannot also declare inverse_of")
             if spec.inverse_of is not None:
@@ -61,8 +64,8 @@ class RelationOntology:
     def normalize(self, edge: Edge) -> tuple[str, str, str]:
         if not isinstance(edge, Edge):
             raise ValueError("all relations must be Edge instances")
-        if not edge.source or not edge.target or not edge.kind:
-            raise ValueError("edge endpoints and kind must be non-empty")
+        if any(not isinstance(value, str) or not value for value in (edge.source, edge.target, edge.kind)):
+            raise ValueError("edge endpoints and kind must be non-empty strings")
         if edge.kind not in self.types:
             raise ValueError(f"unknown relation kind: {edge.kind}")
         spec = self.types[edge.kind]
