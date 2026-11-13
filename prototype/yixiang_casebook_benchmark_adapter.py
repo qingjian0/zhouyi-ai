@@ -26,6 +26,7 @@ FOCUS_TO_RELATION = {
     "posture": "situated",
     "geometry": "structural",
     "task_condition": "situated",
+    "context": "situated",
     "classification_boundary": "structural",
     "inference_scope": "structural",
     "non_overextension": "structural",
