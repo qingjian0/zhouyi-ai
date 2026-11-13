@@ -9,7 +9,7 @@ from prototype.cpg_ei_heldout_family_symbolic import evaluate_protocol_views
 
 
 class HeldoutFamilyFewshotSymbolicTests(unittest.TestCase):
-    def test_small_benchmark_runs_and_beats_no_data_shape_contract(self):
+    def test_small_benchmark_returns_metrics(self):
         report = run_fewshot_benchmark(
             family_count=20, input_dim=4, output_dim=3,
             seeds=(901,), support_sizes=(4, 8),
@@ -37,8 +37,10 @@ class HeldoutFamilyFewshotSymbolicTests(unittest.TestCase):
             candidates, masks, 4,
         )
         self.assertEqual(a["test"]["selection_digest"], b["test"]["selection_digest"])
-        self.assertNotEqual(a["test"]["summary"]["symbolic_bit_accuracy_mean"],
-                            b["test"]["summary"]["symbolic_bit_accuracy_mean"])
+        self.assertEqual(
+            [row["selected_rule_digest"] for row in a["test"]["family_results"]],
+            [row["selected_rule_digest"] for row in b["test"]["family_results"]],
+        )
 
     def test_support_sizes_are_nested_for_fixed_seed(self):
         corpus = generate_mixed_corpus(family_count=20, input_dim=4, output_dim=3, seed=904)
