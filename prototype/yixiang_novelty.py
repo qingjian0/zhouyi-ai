@@ -55,6 +55,8 @@ class ResidualCase:
             if item[0] in context_keys:
                 raise ValueError("context keys must be unique")
             context_keys.add(item[0])
+        if self.context != tuple(sorted(self.context)):
+            raise ValueError("context entries must be sorted for deterministic records")
         if not isinstance(self.evidence_refs, tuple) or not self.evidence_refs:
             raise ValueError("each residual requires evidence references")
         if any(not isinstance(ref, str) or not ref.strip() for ref in self.evidence_refs):
@@ -70,7 +72,7 @@ class NoveltyProposal:
     support_residual_ids: tuple[str, ...]
     support_observation_ids: tuple[str, ...]
     domains: tuple[str, ...]
-    context_values: tuple[tuple[str, tuple[str, ...]], ...]
+    context_records: tuple[tuple[str, tuple[tuple[str, str], ...]], ...]
     evidence_refs: tuple[str, ...]
     status: ProposalStatus = ProposalStatus.PROPOSED
     version: int = 1
@@ -96,8 +98,14 @@ def propose_novel_structures(
     if not isinstance(known_signatures, tuple):
         raise ValueError("known_signatures must be a tuple")
     for signature in known_signatures:
-        if not isinstance(signature, tuple):
-            raise ValueError("known signatures must be tuples")
+        if not isinstance(signature, tuple) or not signature:
+            raise ValueError("known signatures must be non-empty tuples")
+        if signature != tuple(sorted(signature)) or len(set(signature)) != len(signature):
+            raise ValueError("known signatures must be sorted and unique")
+        for item in signature:
+            if (not isinstance(item, tuple) or len(item) != 3
+                    or any(not isinstance(part, str) or not part.strip() for part in item)):
+                raise ValueError("known signature entries must be non-empty typed triples")
     for residual in residuals:
         if not isinstance(residual, ResidualCase):
             raise ValueError("residuals must contain ResidualCase values")
@@ -122,18 +130,17 @@ def propose_novel_structures(
         if (len(cases) < min_support or len(domains) < min_domains
                 or len(evidence_refs) < min_independent_evidence):
             continue
-        context_keys = sorted({key for case in cases for key, _ in case.context})
-        context_values = tuple(
-            (key, tuple(sorted({value for case in cases for k, value in case.context if k == key})))
-            for key in context_keys
-        )
+        context_records = tuple(sorted(
+            ((case.residual_id, case.context) for case in cases),
+            key=lambda item: item[0],
+        ))
         support_ids = tuple(sorted(case.residual_id for case in cases))
         # Stable content-derived ID; no time or random dependency.
         proposal_id = "novel-" + sha256(repr(signature).encode("utf-8")).hexdigest()
         proposals.append(NoveltyProposal(
             proposal_id, signature, support_ids,
             tuple(sorted(case.observation_id for case in cases)),
-            domains, context_values, evidence_refs,
+            domains, context_records, evidence_refs,
         ))
     return tuple(sorted(
         proposals,
@@ -153,7 +160,7 @@ def review_proposal(
         raise ValueError("proposal must be a NoveltyProposal")
     if proposal.status != ProposalStatus.PROPOSED:
         raise ValueError("only a proposed version can receive an initial review")
-    if decision not in (ProposalStatus.ACCEPTED, ProposalStatus.REJECTED):
+    if not isinstance(decision, ProposalStatus) or decision not in (ProposalStatus.ACCEPTED, ProposalStatus.REJECTED):
         raise ValueError("review decision must be accepted or rejected")
     if not isinstance(reviewer, str) or not reviewer.strip():
         raise ValueError("reviewer is required")
@@ -161,7 +168,7 @@ def review_proposal(
         raise ValueError("review note is required")
     return NoveltyProposal(
         proposal.proposal_id, proposal.signature, proposal.support_residual_ids,
-        proposal.support_observation_ids, proposal.domains, proposal.context_values,
+        proposal.support_observation_ids, proposal.domains, proposal.context_records,
         proposal.evidence_refs, decision, proposal.version + 1,
         f"{proposal.proposal_id}:v{proposal.version}", f"{reviewer}: {note}",
     )
