@@ -10,8 +10,8 @@
 | P0-D | 类象计算引擎 | 类象发现、解释、验证、迁移、组合和拒绝机制 | 规则评估器与有界图映射发现基线已实现；学习型抽取/迁移待开展 |
 | P0-E | 易象状态引擎 | 层次状态、爻位、卦变、状态转移与路径 | 64态结构编码与显式动爻转移原型已实现；经典语义/路径模型待开展 |
 | P0-F | 五行与时位势变 | 条件关系、制化、乘侮、消长及动态演化 | 设计草案，模型实验未开始 |
-| P0-G | 多尺度时间与层级过程 | 事件时间/观测时间、多尺度阶段、局部—整体递归 | M1 时间层级/区间关系原型（6 项测试）与确定性合成基准（7 项测试）已实现；CI 43378162638 对其提交通过。M2 typed relation 结构原型（8 项测试）已新增，等待本轮 CI 验证；双向递归学习仍未实现 |
-| P0-H | 竞争类象与证据裁决 | 多假设保留、适用边界、未决机制、反例驱动更新 | 研究议程已定义；原型待开展 |
+| P0-G | 多尺度时间与层级过程 | 事件时间/观测时间、多尺度阶段、局部—整体递归 | M1 时间层级/区间关系原型与确定性合成基准已有通过记录；M2 typed relation 结构原型和 M2.1 双向候选约束评分已实现；最新分支 CI 尚待验证；循环式消息传递/递归学习未实现 |
+| P0-H | 竞争类象与证据裁决 | 多假设保留、适用边界、未决机制、反例驱动更新 | M2.1 已提供竞争假设排序、未知特征保留和反例残差基线；概率校准、学习型裁决与反例驱动模型重构待开展 |
 | P1-A | 反事实与干预边界 | 条件变化、反事实一致性、混杂识别与拒绝 | 研究议程已定义；实验待开展 |
 | P1-B | 主动观测 | 信息增益、预测分歧、观测成本与选择偏差 | 研究议程已定义；原型待开展 |
 | P1-C | 新象发现与结构重组 | 残差聚类、候选新象、版本化、回滚 | 研究议程已定义；原型待开展 |
@@ -23,12 +23,13 @@
 
 详细研究问题、候选机制、基线、指标、失败标准与里程碑见 [类象认知下一阶段研究计划 v0.1](docs/YIXIANG_NEXT_RESEARCH_PROGRAM_V0_1.md)。
 
-M1 多尺度时间原型：[数据结构设计](docs/YIXIANG_MULTISCALE_TIME_M1_V0_1.md)、[实现](prototype/yixiang_multiscale_time.py)、[测试](tests/test_yixiang_multiscale_time.py)；[合成基准协议](docs/YIXIANG_TEMPORAL_BENCHMARK_M1_V0_1.md)、[生成器](prototype/yixiang_temporal_benchmark.py)、[测试](tests/test_yixiang_temporal_benchmark.py)。M2 整体—局部关系类型：[设计与边界](docs/YIXIANG_HIERARCHICAL_STRUCTURE_M2_V0_1.md)、[原型](prototype/yixiang_hierarchical_structure.py)、[测试](tests/test_yixiang_hierarchical_structure.py)。
+M1 多尺度时间原型：[数据结构设计](docs/YIXIANG_MULTISCALE_TIME_M1_V0_1.md)、[实现](prototype/yixiang_multiscale_time.py)、[测试](tests/test_yixiang_multiscale_time.py)；[合成基准协议](docs/YIXIANG_TEMPORAL_BENCHMARK_M1_V0_1.md)、[生成器](prototype/yixiang_temporal_benchmark.py)、[测试](tests/test_yixiang_temporal_benchmark.py)。M2 整体—局部关系类型：[设计与边界](docs/YIXIANG_HIERARCHICAL_STRUCTURE_M2_V0_1.md)、[原型](prototype/yixiang_hierarchical_structure.py)、[测试](tests/test_yixiang_hierarchical_structure.py)。M2.1 双向候选约束评估：[设计与边界](docs/YIXIANG_BIDIRECTIONAL_CONSTRAINTS_M2_1_V0_1.md)、[原型](prototype/yixiang_bidirectional_constraints.py)、[测试](tests/test_yixiang_bidirectional_constraints.py)。
 
 建议实施顺序：
+
 1. M1：多尺度时间表示和合成基准。
-2. M2：整体—局部关系类型原型；下一步实现双向递归与局部扰动实验。
-3. M3：竞争类象、证据剖面与未决机制。
+2. M2：整体—局部 typed relation 与双向候选约束评估；下一步做结构扰动实验。
+3. M3：竞争类象、证据剖面、置信度校准与未决机制。
 4. M4：反事实与干预边界。
 5. M5：主动观测的信息增益基线。
 6. M6：新象发现、版本化和回滚。
