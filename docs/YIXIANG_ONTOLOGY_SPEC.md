@@ -108,3 +108,8 @@
 - 如何构造由独立专家标注、带争议标签和反例的评估集？
 
 这些问题在得到可靠来源与实验支持前保持开放。
+
+
+## 8. 传统类象语料库接口
+
+语料规范见 `schemas/classical-xiang-corpus.schema.json`，首批候选样本见 `data/classical_xiang_corpus.v0.1.json`。清代以前为主体，清代及以后仅作补充校勘层。原文、注疏、目录、现代研究、观察、假设和模型生成内容必须分型；标签是项目检索轴，不冒充古代统一分类。详见 `docs/CLASSICAL_XIANG_CORPUS_V0_1.md`。
