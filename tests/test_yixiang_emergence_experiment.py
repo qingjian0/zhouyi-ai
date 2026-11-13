@@ -53,10 +53,15 @@ class EmergenceExperimentTests(unittest.TestCase):
     def test_complete_preregistered_experiment_only_enters_review(self):
         result = audit_emergence_experiment(protocol(), measurements())
         self.assertEqual(result.decision, ExperimentDecision.HUMAN_REVIEW)
-        self.assertEqual(len(result.contrasts), 7)
+        self.assertEqual(len(result.contrasts), 6)
         self.assertEqual(result.scope_shift_mean, 3.1)
         self.assertEqual(result.interpretation_ceiling, "descriptive_preregistered_contrast_only")
         self.assertIn("not_causal_identification", result.non_claims)
+
+    def test_every_member_requires_its_own_standalone_baseline(self):
+        rows = tuple(row for row in measurements() if row.arm != "member_only:function")
+        result = audit_emergence_experiment(protocol(), rows)
+        self.assertIn("REQUIRED_EXPERIMENT_ARMS_MISSING", result.reason_codes)
 
     def test_missing_bridge_ablation_blocks(self):
         rows = tuple(row for row in measurements() if row.arm != "bridge_removed")
