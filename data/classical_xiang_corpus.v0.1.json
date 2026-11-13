@@ -3511,5 +3511,92 @@
       "classification",
       "analogical_argument"
     ]
+  },
+  {
+    "record_id": "lixinqiu-lushi-lei-argument-2022-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "《吕氏春秋》中的“类”观念及其说理",
+      "traditional_authority": "李秋红",
+      "composition_period": "2022年",
+      "genre": "现代逻辑史与论证实践研究论文"
+    },
+    "period": "modern_post_1912",
+    "source_type": "modern_scholarship",
+    "tradition": [
+      "中国逻辑史",
+      "先秦论证实践",
+      "《吕氏春秋》研究"
+    ],
+    "witness": {
+      "witness_id": "lixinqiu-2022-lushi-lei-pdf",
+      "edition_or_database": "《逻辑学研究》2022年第1期，82–95页；中国人民大学哲学院期刊论文页面所载 PDF",
+      "url": "https://studiesinlogic.sysu.edu.cn/sites/default/files/2022-10/1674-3202%282022%29-01-0082-14.pdf",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "editor_or_transcriber": "李秋红",
+      "license_status": "保留书目信息与概述；全文版权依期刊条款"
+    },
+    "locator": {
+      "chapter": "摘要、第2节、第3节、第4节",
+      "section_or_line": "第82–89页"
+    },
+    "text": "该研究主张《吕氏春秋》中的“类”具有多种语用：知类、知邻类、类同相召与类固不必不可一概等同于形式类比推理；其中邻类侧重行动方法与结果的联系，类固不必强调实际应用效果与说理规则之间的差别，并须结合政治伦理劝说情境解释。",
+    "text_status": "paraphrase",
+    "claims": [
+      {
+        "claim_id": "lixinqiu-lushi-lei-multiple-functions-001",
+        "claim_kind": "modern_scholarship_claim",
+        "subject": "《吕氏春秋》中的“类”观念",
+        "predicate": "具有多种语用与说理功能",
+        "object": "知类、知邻类、类同相召、类固不必等用法不能简单合并为一种形式类比规则",
+        "interpretive_note": "李秋红（2022）提出，《吕氏春秋》中的“类”须区分具体语境：“邻类”主要讨论行动方法与结果之间的因果联系；“类固不必”强调不能只凭形式说理规则预测实际应用效果；相关说理还应放回政治伦理劝说的社会情境。此为现代学术解释，不是原典唯一读法。",
+        "scope": "仅作为现代解释史材料；不得替代《吕氏春秋》版本校勘，也不得覆盖其他学者对推类的解释。",
+        "relation_type": "historical_interpretation_of_argumentative_practice",
+        "conditions": [
+          "区分《吕氏春秋》不同篇章中的类概念用法",
+          "区分文本原句、现代解释和项目工程映射",
+          "保留形式类比解释与说理情境解释之间的争议"
+        ],
+        "supports": [],
+        "counterevidence": [
+          "既有逻辑史研究常从类比推理或推类方法解释相关材料；需并列比较，不以单篇现代论文裁定。"
+        ],
+        "review_status": "unreviewed",
+        "xiang_domain": "history of logic and argumentation",
+        "relation_family": "rhetorical_analogy",
+        "shared_basis": [
+          "不同篇章反复使用类及相关论说语汇"
+        ],
+        "non_shared_basis": [
+          "不同语境中的类可能承担分类、因果说明、规范判断或劝说功能"
+        ],
+        "scope_conditions": [
+          "现代研究层",
+          "仅用于解释史比较与工程问题识别"
+        ],
+        "causal_status": "not_claimed",
+        "reasoning_operations": [
+          "compare",
+          "identify_difference"
+        ]
+      }
+    ],
+    "rights": {
+      "text_license": "现代论文版权归原作者/出版方；本记录仅保留书目信息与概述",
+      "database_license": "按期刊与网站条款使用",
+      "reuse_notes": "不复制论文正文；引述时遵守学术引用规范。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "现代学术解释层，不属于清代以前原典主体语料；应与原典、注疏及其他现代研究分层。"
+    ],
+    "concept_tags": [
+      "analogy_limit",
+      "commentarial_exegesis"
+    ],
+    "method_families": [
+      "comparative_exegesis"
+    ]
   }
 ]
