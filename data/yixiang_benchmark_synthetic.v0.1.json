@@ -1563,5 +1563,43 @@
     "reviewers": [],
     "split_group": "holdout",
     "label_status": "fixture_expected"
+  },
+  {
+    "case_id": "dyn-045",
+    "claim_kind": "taxonomic_similarity",
+    "source_lineage": [
+      "fixture:dyn-045"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "A predicate observed in one subclass member can be promoted to the entire supercategory without universal evidence.",
+    "relation_families": [
+      "structural",
+      "functional"
+    ],
+    "shared_basis": [
+      "the observed individual is a member of the broader category"
+    ],
+    "non_shared_basis": [
+      "the predicate is individual-specific and no universal inheritance rule is established"
+    ],
+    "scope_conditions": [
+      "upward generalization requires evidence that the predicate applies to all members"
+    ],
+    "required_invariants": [
+      "membership in a broader category does not transfer every individual predicate to that category"
+    ],
+    "known_counterexamples": [
+      "one fast horse does not imply all mammals are fast"
+    ],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:dyn-045"
+    ],
+    "independence_group": "fixture-group-dyn-045",
+    "gold_decision": "reject",
+    "gold_rationale": "A subclass or individual property cannot be generalized to the supercategory without universal scope and counterexample review.",
+    "reviewers": [],
+    "split_group": "holdout",
+    "label_status": "fixture_expected"
   }
 ]
