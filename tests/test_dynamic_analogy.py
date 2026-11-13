@@ -102,6 +102,12 @@ class DynamicAnalogyTests(unittest.TestCase):
         self.assertFalse(result.accepted)
         self.assertIn("INSUFFICIENT_SOURCE_TRANSITIONS", result.reason_codes)
 
+    def test_partial_entity_mapping_ignores_unmapped_target_subgraph(self):
+        candidate = systems()
+        result = assess_dynamic_analogy(candidate, min_entity_coverage=1.0)
+        self.assertEqual(result.mapped_entity_coverage, 1.0)
+        self.assertEqual(result.observed_state_facts, 3)
+
     def test_rejects_non_finite_threshold(self):
         with self.assertRaises(ValueError):
             assess_dynamic_analogy(systems(), min_state_f1=float("nan"))
