@@ -44,7 +44,8 @@
 - `source_lineage`：作品、版本、注疏谱系、数字见证；用于防止同源泄漏。
 - `source_status`：原典已核、可靠校本、数字转录候选、二手转引、研究假设。
 - `target_claim`：本次迁移真正要检验的命题。
-- `relation_families`：明确关系族。
+- `claim_kind`：明确五种类象主张用途之一：taxonomic_similarity / argumentative_analogy / action_outcome / practical_utility / symbolic_correspondence。
+- `relation_families`：明确关系族。claim kind 与 relation family 是正交维度，不能相互替代。
 - `shared_basis`：共享依据及可观测/可核验方式。
 - `non_shared_basis`：关键差异，不得只写“其他差异”。
 - `scope_conditions`：主体、环境、尺度、时间、资源、制度等边界。
@@ -198,14 +199,14 @@
 7. [待开展] 接入 M7 输出快照，评估器继续保持管线外置。
 8. [待开展] 形成首轮人工标注基准报告后再扩到 B5–B6。
 
-新增 dyn-037 至 dyn-039：dyn-037 检验不能将琴瑟等物理共鸣机制直接外推为政治祥瑞机制；dyn-038 检验同结果异过程不能推出机制同一；dyn-039 检验即时成功不能替代延迟效用。新增样例仍为 synthetic fixture，不是古籍 gold。
+新增 dyn-037 至 dyn-041：dyn-037 检验物理共鸣不能外推为政治祥瑞机制；dyn-038 检验同结果异过程不能推出机制同一；dyn-039 检验即时成功不能替代延迟效用；dyn-040 检验单一外观特征不能决定类属；dyn-041 检验良好意图不能替代行动方法、条件和结果证据。五种 claim kind 均有显式样例。新增样例仍为 synthetic fixture，不是古籍 gold。
 
-当前 39 条 synthetic fixture 仅验证接口与计分逻辑，不是古籍 gold 数据，也不代表真实人工审阅。没有人工 gold 标注、独立来源谱系审核和实际观察结果之前，不得宣称基准验证了类象理论的普遍有效性。
+当前 41 条 synthetic fixture 仅验证接口与计分逻辑，不是古籍 gold 数据，也不代表真实人工审阅。没有人工 gold 标注、独立来源谱系审核和实际观察结果之前，不得宣称基准验证了类象理论的普遍有效性。
 
 
 ## 12. 工程核验状态
 
-本分支已提交 schema、validator、评估器、单元测试和 39 条 synthetic contract fixtures。当前可见的 GitHub workflow run 与 commit status 尚未提供完整 CI 通过证据；不得将代码已提交等同于测试已执行。需要在具备仓库运行环境时执行：
+本分支已提交 schema、validator、评估器、单元测试和 41 条 synthetic contract fixtures。当前可见的 GitHub workflow run 与 commit status 尚未提供完整 CI 通过证据；不得将代码已提交等同于测试已执行。需要在具备仓库运行环境时执行：
 
 ```bash
 python -m unittest tests.test_yixiang_benchmark -v
