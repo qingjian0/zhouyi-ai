@@ -7,9 +7,9 @@
 
 ## 项目状态
 
-- 当前阶段：M1 多尺度时间、M2 整体—局部关系与类象认知研究；统一时空关系表示持续推进
+- 当前阶段：M1 多尺度时间、M2 整体—局部结构、M2.1 双向约束与 M3 竞争类象研究
 - 理论版本：CPG-EI v0.3（研究草案，持续修订）
-- 代码状态：已有静态抽象、动态转移、多元关系、情境联合比较、时序轨迹对齐、多尺度时间及整体—局部候选约束评估基础原型；尚无规模化模型或性能结论
+- 代码状态：已有多尺度时间、typed relations、整体—局部候选约束、竞争类象证据剖面和未决裁决规则原型；尚无规模化模型或性能结论
 - 验证原则：所有架构主张均须通过可复现实验、消融和公平对照验证
 
 ## 核心研究问题
@@ -36,61 +36,35 @@
 - [数学理论 v0.3](docs/THEORY_v0.3.md)
 - [架构设计](docs/ARCHITECTURE.md)
 - [易象模块：可检验化设计](docs/YIXIANG_MODULE.md)
-- [类象发生、抽象、迁移与修正机制 v0.1](docs/YIXIANG_GENERATIVE_MECHANISM_V0_1.md)
 - [类象认知下一阶段研究计划 v0.1](docs/YIXIANG_NEXT_RESEARCH_PROGRAM_V0_1.md)
 - [传统类象研究文献地图与校勘计划 v0.1](docs/CLASSICAL_YIXIANG_SOURCE_MAP_V0_1.md)
-- [M2 整体—局部关系结构原型说明](docs/YIXIANG_HIERARCHICAL_STRUCTURE_M2_V0_1.md)
-- [M2.1 双向整体—局部约束评估说明](docs/YIXIANG_BIDIRECTIONAL_CONSTRAINTS_M2_1_V0_1.md)
-- [整体—局部关系结构原型](prototype/yixiang_hierarchical_structure.py)
-- [整体—局部关系结构测试](tests/test_yixiang_hierarchical_structure.py)
-- [双向约束评估原型](prototype/yixiang_bidirectional_constraints.py)
-- [双向约束评估测试](tests/test_yixiang_bidirectional_constraints.py)
-- [多尺度时间模型 M1 设计与验收](docs/YIXIANG_MULTISCALE_TIME_M1_V0_1.md)
-- [多尺度时间原型](prototype/yixiang_multiscale_time.py)
-- [多尺度时间测试](tests/test_yixiang_multiscale_time.py)
-- [M1 合成时间基准协议](docs/YIXIANG_TEMPORAL_BENCHMARK_M1_V0_1.md)
-- [合成时间基准生成器](prototype/yixiang_temporal_benchmark.py)
-- [合成时间基准测试](tests/test_yixiang_temporal_benchmark.py)
-- [传统古籍类象研究总纲与语料建设规范](docs/CLASSICAL_YIXIANG_CORPUS_AND_RESEARCH_PROTOCOL.md)
-- [古典类象理论札记 01：取类、推类与止推边界](docs/CLASSICAL_YIXIANG_THEORY_MEMO_01.md)
+- [M2 整体—局部关系结构说明](docs/YIXIANG_HIERARCHICAL_STRUCTURE_M2_V0_1.md)
+- [M2.1 双向整体—局部约束说明](docs/YIXIANG_BIDIRECTIONAL_CONSTRAINTS_M2_1_V0_1.md)
+- [M3 竞争类象与证据裁决说明](docs/YIXIANG_COMPETING_HYPOTHESES_M3_V0_1.md)
+- [M2 结构原型](prototype/yixiang_hierarchical_structure.py)
+- [M2.1 双向约束原型](prototype/yixiang_bidirectional_constraints.py)
+- [M3 竞争类象原型](prototype/yixiang_competing_hypotheses.py)
+- [M2 测试](tests/test_yixiang_hierarchical_structure.py)
+- [M2.1 测试](tests/test_yixiang_bidirectional_constraints.py)
+- [M3 测试](tests/test_yixiang_competing_hypotheses.py)
+- [M1 多尺度时间模型](prototype/yixiang_multiscale_time.py)
+- [M1 合成时间基准](docs/YIXIANG_TEMPORAL_BENCHMARK_M1_V0_1.md)
+- [传统古籍类象研究总纲](docs/CLASSICAL_YIXIANG_CORPUS_AND_RESEARCH_PROTOCOL.md)
 - [传统古籍候选来源目录（90 项）](data/classical_yixiang_source_catalog.json)
-- [古籍来源目录使用说明](data/README.md)
-- [结构化类象古籍语料 v0.1](docs/CLASSICAL_XIANG_CORPUS_V0_1.md)
-- [类象语料 JSON Schema](schemas/classical-xiang-corpus.schema.json)
-- [类象语料候选样本](data/classical_xiang_corpus.v0.1.json)
-- [类象语料结构校验器](prototype/classical_xiang_corpus.py)
+- [结构化类象古籍语料](docs/CLASSICAL_XIANG_CORPUS_V0_1.md)
+- [类象语料 Schema](schemas/classical-xiang-corpus.schema.json)
 - [类象抽象与反例修正原型](prototype/yixiang_process.py)
-- [类象多元角色关系研究 v0.1](docs/YIXIANG_NARY_RELATIONS_V0_1.md)
-- [类象多元关系评估原型](prototype/yixiang_relations.py)
+- [类象多元关系原型](prototype/yixiang_relations.py)
 - [动态类象状态转移原型](prototype/yixiang_dynamics.py)
-- [动态类象状态转移测试](tests/test_yixiang_dynamics.py)
-- [时空情境联合类象研究](docs/YIXIANG_SITUATED_MODEL_V0_1.md)
 - [时空情境联合比较原型](prototype/yixiang_situated.py)
-- [时空情境联合测试](tests/test_yixiang_situated.py)
-- [时序—关系联合类象模型 v0.1](docs/YIXIANG_TEMPORAL_RELATIONAL_MODEL_V0_1.md)
 - [时序轨迹对齐原型](prototype/yixiang_trajectory.py)
-- [时序轨迹对齐测试](tests/test_yixiang_trajectory.py)
 - [相关工作与文献](docs/RELATED_WORK.md)
-- [2026-11-10 研究增量报告](docs/RESEARCH_FINDINGS_2026-11-10.md)
 - [实验计划与验收标准](docs/EXPERIMENTS.md)
-- [E02 动态超图实验设计](docs/E02_DYNAMIC_HYPERGRAPH.md)
-- [E02-A 结果审计与下一阶段协议](docs/E02A_NEXT_RESEARCH_2026-11-10.md)
-- [E02-B 三元有限域关系诊断协议](docs/E02B_TERNARY_PROTOCOL.md)
-- [E02-B 学习器对照原型](prototype/e02_ternary_learners.py)
-- [E02-C 超边生命周期原型](prototype/e02_edge_lifecycle.py)
-- [E02-B 三元有限域学习器对照结果](docs/E02B_RESULTS_2026-11-10.md)
-- [E02-D 未见规则族归纳基准](prototype/e02_rule_ood.py)
-- [E02-D 实验协议](docs/E02D_RULE_FAMILY_OOD.md)
-- [E02-D 支持样本量扫描结果](docs/E02D_SUPPORT_SWEEP_RESULTS_2026-11-10.md)
-- [E01-B 五种子结果报告](docs/E01B_RESULTS_2026-11-10.md)
-- [E01-C 组合 OOD 结果报告](docs/E01C_RESULTS_2026-11-10.md)
 - [研究风险与证伪条件](docs/RISKS_AND_FALSIFICATION.md)
 - [开发路线图](ROADMAP.md)
 - [原型代码](prototype/)
 
-## 快速开始（当前原型）
-
-当前原型优先验证组合策略和跨位置组合，不代表完整模型：
+## 快速开始
 
 ```bash
 python -m unittest discover -s tests -v
@@ -109,4 +83,4 @@ python -m prototype.e01_learned_ranker --json
 
 ## 许可与引用
 
-本仓库初始阶段采用 MIT License。若后续引入外部数据集、论文代码或古籍数字化文本，须逐项核查其许可证、来源和引用要求。研究引用见 [RELATED_WORK.md](docs/RELATED_WORK.md)。
+本仓库初始阶段采用 MIT License。引入外部数据集、论文代码或古籍数字化文本前，须逐项核查许可证、来源和引用要求。研究引用见 [RELATED_WORK.md](docs/RELATED_WORK.md)。
