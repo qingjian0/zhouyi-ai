@@ -23,7 +23,15 @@ class ClassicalYixiangCasebookTests(unittest.TestCase):
         works = {source["work"] for source in self.book["sources"]}
         self.assertTrue({"周易·系辞下传", "墨子", "荀子", "公孙龙子", "淮南子", "论衡"}.issubset(works))
         self.assertTrue(any(source["chapter"] == "要略" for source in self.book["sources"]))
-        self.assertGreaterEqual(len(self.book["cases"]), 10)
+        self.assertGreaterEqual(len(self.book["cases"]), 11)
+
+    def test_non_aggression_case_separates_harm_progression_and_quantity_scaling(self):
+        case = next(item for item in self.book["cases"] if item["case_id"] == "xy_011")
+        self.assertEqual(case["source_id"], "src_feigong")
+        self.assertTrue(any("第一条论证链" in premise for premise in case["premises"]))
+        self.assertTrue(any("第二条论证" in premise for premise in case["premises"]))
+        self.assertTrue(any("防御" in boundary for boundary in case["counterexample_or_boundary"]))
+        self.assertIn("normative_argument", case["operation"])
 
     def test_no_candidate_excerpt_is_misrepresented_as_verified(self):
         for case in self.book["cases"]:
