@@ -684,9 +684,9 @@
   },
   {
     "record_id": "xunzi-zhengming-tuilei-001",
-    "record_version": "0.2.0",
+    "record_version": "0.2.1",
     "work": {
-      "title": "荀子·正名",
+      "title": "荀子·正名篇",
       "traditional_authority": "传统归于荀况；篇章内部结构及文本层次仍依现代校勘研究审慎处理",
       "composition_period": "战国晚期至秦汉传承层次待考",
       "genre": "诸子/正名与论辩"
@@ -748,6 +748,40 @@
         "supports": [],
         "counterevidence": [],
         "review_status": "unreviewed"
+      },
+      {
+        "claim_id": "xunzi-zhengming-bianyi-tuilei-001",
+        "claim_kind": "textual_observation",
+        "subject": "辨异与推类",
+        "predicate": "先辨异而后推类",
+        "object": "类推必须受辨异和名实约束",
+        "interpretive_note": "这是项目类象引擎最直接的先秦方法论基准之一：类推不是自由联想，必须检查异同是否过度、推论是否悖理。",
+        "scope": "限于荀子名辩与正名语境；项目操作化不等同荀子原有形式逻辑系统。",
+        "relation_type": "rhetorical_analogy",
+        "xiang_domain": "名学与推理约束",
+        "relation_family": "rhetorical_analogy",
+        "shared_basis": [
+          "对象在指定分类标准下具有可比属性"
+        ],
+        "non_shared_basis": [
+          "属性差异可能使类推不成立"
+        ],
+        "scope_conditions": [
+          "显式声明分类标准、异同点和推论范围"
+        ],
+        "causal_status": "not_claimed",
+        "conditions": [
+          "显式声明分类标准、异同点和推论范围"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed",
+        "reasoning_operations": [
+          "identify_difference",
+          "abstract_shared_basis",
+          "infer_by_analogy",
+          "refuse_transfer"
+        ]
       }
     ],
     "rights": {
@@ -757,7 +791,8 @@
     },
     "review_status": "candidate",
     "review_notes": [
-      "数字文本可定位至《正名篇》末段相关论述；尚未与可靠校点本完成异文校勘。"
+      "数字文本可定位至《正名篇》末段相关论述；尚未与可靠校点本完成异文校勘。",
+      "需与可靠校点本、影印本及异文对读；数字转录不等同于底本校勘。"
     ],
     "method_families": [
       "classification",
@@ -767,6 +802,10 @@
       "classification",
       "analogy_method",
       "name_reality"
+    ],
+    "variant_notes": [
+      "同一维基文库《正名篇》数字文本另见 URL https://zh.wikisource.org/zh/荀子/正名篇；与 https://zh.wikisource.org/wiki/荀子/正名篇 为同一数字文本的 URL 形式差异，不作为第二个独立版本或独立证据。",
+      "原有两条项目记录合并为一个文本记录；各自的 claim_id 与解释边界均保留，不能把重复文本见证计作独立复现。"
     ]
   },
   {
@@ -1581,87 +1620,6 @@
     ],
     "method_families": [
       "classification"
-    ]
-  },
-  {
-    "record_id": "xunzi-zhengming-tui-lei-001",
-    "record_version": "0.1.0",
-    "work": {
-      "title": "荀子·正名篇",
-      "traditional_authority": "传统归属；作者、成篇年代及文本层次按学术争议保留",
-      "composition_period": "先秦",
-      "genre": "诸子论辩/名学"
-    },
-    "period": "pre_qin",
-    "source_type": "classical_text",
-    "tradition": [
-      "传统文献",
-      "类象理论研究"
-    ],
-    "witness": {
-      "witness_id": "wikixunzi-zhengming",
-      "edition_or_database": "维基文库《荀子·正名篇》数字文本；需核对王先谦集解及校本",
-      "url": "https://zh.wikisource.org/zh/荀子/正名篇",
-      "access_date": "2026-11-13",
-      "witness_kind": "digital_transcription",
-      "license_status": "数字平台条款另行核验；仅保留必要短引"
-    },
-    "locator": {
-      "chapter": "正名篇",
-      "section_or_line": "辨异推类段"
-    },
-    "text": "正名而期，质请而喻，辨异而不过，推类而不悖。",
-    "text_status": "quotation_fragment",
-    "claims": [
-      {
-        "claim_id": "xunzi-zhengming-bianyi-tuilei-001",
-        "claim_kind": "textual_observation",
-        "subject": "辨异与推类",
-        "predicate": "先辨异而后推类",
-        "object": "类推必须受辨异和名实约束",
-        "interpretive_note": "这是项目类象引擎最直接的先秦方法论基准之一：类推不是自由联想，必须检查异同是否过度、推论是否悖理。",
-        "scope": "限于荀子名辩与正名语境；项目操作化不等同荀子原有形式逻辑系统。",
-        "relation_type": "rhetorical_analogy",
-        "xiang_domain": "名学与推理约束",
-        "relation_family": "rhetorical_analogy",
-        "shared_basis": [
-          "对象在指定分类标准下具有可比属性"
-        ],
-        "non_shared_basis": [
-          "属性差异可能使类推不成立"
-        ],
-        "scope_conditions": [
-          "显式声明分类标准、异同点和推论范围"
-        ],
-        "causal_status": "not_claimed",
-        "conditions": [
-          "显式声明分类标准、异同点和推论范围"
-        ],
-        "supports": [],
-        "counterevidence": [],
-        "review_status": "unreviewed",
-        "reasoning_operations": [
-          "identify_difference",
-          "abstract_shared_basis",
-          "infer_by_analogy",
-          "refuse_transfer"
-        ]
-      }
-    ],
-    "rights": {
-      "text_license": "古典原文通常公有领域；数字转录及数据库条款另行核验",
-      "database_license": "未核验",
-      "reuse_notes": "仅保存必要短引，不复制现代整理本注释。"
-    },
-    "review_status": "candidate",
-    "review_notes": [
-      "需与可靠校点本、影印本及异文对读；数字转录不等同于底本校勘。"
-    ],
-    "concept_tags": [
-      "analogy_limit"
-    ],
-    "method_families": [
-      "analogical_argument"
     ]
   },
   {
