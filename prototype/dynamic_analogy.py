@@ -6,7 +6,7 @@ simulation check, not causal identification or a learned analogy model.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 import math
 from typing import Mapping
 
