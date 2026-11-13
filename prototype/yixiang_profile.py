@@ -7,7 +7,7 @@ provided by a named textual tradition/edition and a precise source locator.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable, Mapping
+from typing import Mapping
 
 TRIGRAM_LINES_BOTTOM_TO_TOP: Mapping[str, tuple[int, int, int]] = {
     "乾": (1, 1, 1),
