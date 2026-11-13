@@ -49,8 +49,12 @@ class YixiangProcessTests(unittest.TestCase):
         revised = revise_pattern(p, positive_examples=(self.a, self.b),
                                  counterexamples=(counter,))
         self.assertEqual(revised.version, 2)
-        self.assertNotIn("flow", revised.invariant_features)
-        self.assertIn(("flow", "directed"), revised.excluded_features)
+        self.assertEqual(revised.invariant_features, {"flow": "directed"})
+        self.assertEqual(revised.excluded_patterns, ((("boundary", "channel"), ("flow", "directed")),))
+        negative = Observation("x2", "blocked-river", {"flow": "directed", "boundary": "channel"}, (), {}, ("source:x2",))
+        positive = Observation("y", "vascular", {"flow": "directed", "boundary": "vessel"}, (), {}, ("source:y",))
+        self.assertFalse(classify_observation(revised, negative).accepted)
+        self.assertTrue(classify_observation(revised, positive).accepted)
         self.assertEqual(revised.counterexample_ids, ("x",))
 
     def test_support_threshold_and_tied_values_are_not_overclaimed(self):
