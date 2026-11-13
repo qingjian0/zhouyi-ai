@@ -1,7 +1,7 @@
 import unittest
 
 from prototype.yixiang_mozi_inference import (
-    ConclusionKind, InferenceMove, MoziTransferClaim, RelationStatus,
+    ConclusionKind, XiaoquTerm, MoziTransferClaim, RelationStatus,
     TransferDecision, assess_mozi_transfer,
 )
 
@@ -10,7 +10,7 @@ class MoziInferenceTests(unittest.TestCase):
     def claim(self, **overrides):
         values = dict(
             claim_id="mozi-001",
-            move=InferenceMove.TUI,
+            term=XiaoquTerm.TUI,
             conclusion_kind=ConclusionKind.STRUCTURAL,
             source_case="source-case",
             target_case="target-case",
@@ -22,10 +22,16 @@ class MoziInferenceTests(unittest.TestCase):
         values.update(overrides)
         return MoziTransferClaim(**values)
 
-    def test_move_is_not_a_truth_guarantee(self):
-        result = assess_mozi_transfer(self.claim(move=InferenceMove.MOU))
+    def test_term_is_not_a_truth_guarantee(self):
+        result = assess_mozi_transfer(self.claim(term=XiaoquTerm.MOU))
         self.assertEqual(result.decision, TransferDecision.SCOPE_RECORDED)
         self.assertFalse(result.move_is_truth_guarantee)
+
+    def test_all_seven_xiaoqu_terms_are_representable(self):
+        self.assertEqual(
+            {term.value for term in XiaoquTerm},
+            {"huo", "jia", "xiao", "pi", "mou", "yuan", "tui"},
+        )
 
     def test_missing_basis_is_refused(self):
         result = assess_mozi_transfer(self.claim(shared_basis=()))
@@ -68,8 +74,8 @@ class MoziInferenceTests(unittest.TestCase):
         self.assertIn("CHALLENGING_EVIDENCE_REQUIRES_SCOPE_REFINEMENT", result.reason_codes)
 
     def test_invalid_enum_is_rejected(self):
-        with self.assertRaisesRegex(ValueError, "move"):
-            assess_mozi_transfer(self.claim(move="analogy"))
+        with self.assertRaisesRegex(ValueError, "term"):
+            assess_mozi_transfer(self.claim(term="analogy"))
 
 
 if __name__ == "__main__":
