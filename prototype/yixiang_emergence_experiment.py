@@ -131,7 +131,7 @@ def audit_emergence_experiment(
 ) -> EmergenceExperimentAudit:
     """Check completeness and preregistered descriptive contrasts.
 
-    Arms: member_baseline, intact_composite, bridge_removed,
+    Arms: member_only:<member_id>, intact_composite, bridge_removed,
     member_removed:<member_id>, control:<control_id>, and context_shift.
     Independent units may be paired across arms, but measurement/evidence IDs
     must be unique. No p-values or causal claims are computed.
@@ -161,7 +161,8 @@ def audit_emergence_experiment(
     if len(evidence_refs) != len(set(evidence_refs)):
         raise ValueError("evidence_ref values must be unique across measurements")
 
-    required_arms = {"member_baseline", "intact_composite", "bridge_removed", "context_shift"}
+    required_arms = {"intact_composite", "bridge_removed", "context_shift"}
+    required_arms.update(f"member_only:{member_id}" for member_id in protocol.member_ids)
     required_arms.update(f"member_removed:{member_id}" for member_id in protocol.necessary_member_ids)
     required_arms.update(f"control:{control_id}" for control_id in protocol.control_ids)
     missing = sorted(required_arms - set(grouped))
@@ -194,10 +195,11 @@ def audit_emergence_experiment(
 
     contrasts = []
     if not missing:
-        comparisons = [
-            ("composite_vs_member_baseline", "member_baseline"),
-            ("composite_vs_bridge_removed", "bridge_removed"),
-        ]
+        comparisons = [("composite_vs_bridge_removed", "bridge_removed")]
+        comparisons.extend(
+            (f"composite_vs_member_only:{member_id}", f"member_only:{member_id}")
+            for member_id in protocol.member_ids
+        )
         comparisons.extend(
             (f"composite_vs_member_removed:{member_id}", f"member_removed:{member_id}")
             for member_id in protocol.necessary_member_ids
