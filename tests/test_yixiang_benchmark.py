@@ -71,5 +71,15 @@ class BenchmarkContractTests(unittest.TestCase):
   a=make_case("a",split="train"); b=make_case("b",split="test")
   a["independence_group"]=b["independence_group"]="same-source-family"
   self.assertEqual(group_leakage([a,b],group_field="independence_group")["leakage_count"],1)
- def test_abstention_is_valid_gold(self): validate_case(make_case("a","abstain"))
+ def test_abstention_is_valid_gold(self):
+  validate_case(make_case("a","abstain"))
+  c=make_case("short","abstain"); c["gold_rationale"]="unclear"
+  with self.assertRaisesRegex(ValueError,"abstain rationale"):
+   validate_case(c)
+ def test_schema_declares_python_fixture_and_abstention_constraints(self):
+  root=Path(__file__).resolve().parents[1]
+  schema=json.loads((root/"schemas/yixiang-benchmark-case.schema.json").read_text(encoding="utf-8"))
+  rendered=json.dumps(schema)
+  self.assertIn('"minContains": 1',rendered)
+  self.assertIn('"minLength": 20',rendered)
 if __name__=="__main__": unittest.main()
