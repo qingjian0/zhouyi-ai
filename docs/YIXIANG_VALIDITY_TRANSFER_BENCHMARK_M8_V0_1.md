@@ -198,12 +198,12 @@
 7. [待开展] 接入 M7 输出快照，评估器继续保持管线外置。
 8. [待开展] 形成首轮人工标注基准报告后再扩到 B5–B6。
 
-当前 22 条 synthetic fixture 仅验证接口与计分逻辑，不是古籍 gold 数据，也不代表真实人工审阅。没有人工 gold 标注、独立来源谱系审核和实际观察结果之前，不得宣称基准验证了类象理论的普遍有效性。
+当前 30 条 synthetic fixture 仅验证接口与计分逻辑，不是古籍 gold 数据，也不代表真实人工审阅。没有人工 gold 标注、独立来源谱系审核和实际观察结果之前，不得宣称基准验证了类象理论的普遍有效性。
 
 
 ## 12. 工程核验状态
 
-本分支已提交 schema、validator、评估器、单元测试和 22 条 synthetic contract fixtures。当前可见的 GitHub workflow run 与 commit status 尚未提供完整 CI 通过证据；不得将代码已提交等同于测试已执行。需要在具备仓库运行环境时执行：
+本分支已提交 schema、validator、评估器、单元测试和 30 条 synthetic contract fixtures。当前可见的 GitHub workflow run 与 commit status 尚未提供完整 CI 通过证据；不得将代码已提交等同于测试已执行。需要在具备仓库运行环境时执行：
 
 ```bash
 python -m unittest tests.test_yixiang_benchmark -v
