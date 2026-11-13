@@ -33,7 +33,7 @@ class TrajectoryAlignmentTests(unittest.TestCase):
             snap("r2",20,("x","y"),value="resting"),
             snap("r3",30,("x","y"),value="active"))
         r=align_trajectories(self.source,target,entity_mapping=self.mapping,
-            required_context=("season",),min_source_coverage=1.0,min_target_coverage=1.0)
+            required_context=("season",),min_source_coverage=1.0,min_target_coverage=1.0,require_same_stage=True)
         self.assertFalse(r.accepted)
         self.assertIn("SOURCE_COVERAGE_BELOW_THRESHOLD",r.reason_codes)
 
