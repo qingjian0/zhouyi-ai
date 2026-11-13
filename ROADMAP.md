@@ -30,7 +30,7 @@
 7. M6：新象发现、版本化和回滚。
 8. M7：统一闭环与公平消融。
 
-M1 文档与实现见 `docs/YIXIANG_MULTISCALE_TIME_M1_V0_1.md`、`prototype/yixiang_multiscale_time.py`；M2 见 `docs/YIXIANG_HIERARCHICAL_STRUCTURE_M2_V0_1.md`、`prototype/yixiang_hierarchical_structure.py`；M2.1 见 `docs/YIXIANG_BIDIRECTIONAL_CONSTRAINTS_M2_1_V0_1.md`、`prototype/yixiang_bidirectional_constraints.py`；古籍类象校勘札记见 `docs/CLASSICAL_YIXIANG_THEORY_NOTES_PREQIN_HAN_V0_1.md`；跨时代综合框架见 `docs/CLASSICAL_YIXIANG_THEORY_SYNTHESIS_V0_2.md`；古籍数字来源与版本规程见 `docs/CLASSICAL_TEXT_DIGITAL_SOURCE_POLICY_V0_1.md`；M3 见 `docs/YIXIANG_COMPETING_HYPOTHESES_M3_V0_1.md`、`prototype/yixiang_competing_hypotheses.py`；M4 见 `docs/YIXIANG_COUNTERFACTUAL_M4_V0_1.md`、`prototype/yixiang_counterfactual.py`。
+M1 文档与实现见 `docs/YIXIANG_MULTISCALE_TIME_M1_V0_1.md`、`prototype/yixiang_multiscale_time.py`；M2 见 `docs/YIXIANG_HIERARCHICAL_STRUCTURE_M2_V0_1.md`、`prototype/yixiang_hierarchical_structure.py`；M2.1 见 `docs/YIXIANG_BIDIRECTIONAL_CONSTRAINTS_M2_1_V0_1.md`、`prototype/yixiang_bidirectional_constraints.py`；古籍类象校勘札记见 `docs/CLASSICAL_YIXIANG_THEORY_NOTES_PREQIN_HAN_V0_1.md`；《墨子·小取》类推与异文专题见 `docs/CLASSICAL_YIXIANG_MOZI_XIAOQU_ANALYSIS_V0_1.md`；跨时代综合框架见 `docs/CLASSICAL_YIXIANG_THEORY_SYNTHESIS_V0_2.md`；古籍数字来源与版本规程见 `docs/CLASSICAL_TEXT_DIGITAL_SOURCE_POLICY_V0_1.md`；M3 见 `docs/YIXIANG_COMPETING_HYPOTHESES_M3_V0_1.md`、`prototype/yixiang_competing_hypotheses.py`；M4 见 `docs/YIXIANG_COUNTERFACTUAL_M4_V0_1.md`、`prototype/yixiang_counterfactual.py`。
 
 ## 执行原则
 
