@@ -60,6 +60,10 @@ def build_heldout_family_protocol(corpus: dict[str, Any], *, support_size: int =
         family_id = row["family_id"]
         grouped[family_id].append(row)
         split = row["family_split"]
+        if split not in ("train", "development", "locked"):
+            raise ValueError("unknown teacher-family split")
+        if row["state_split"] not in ("train", "development", "locked"):
+            raise ValueError("unknown within-family state split")
         if family_id in family_split and family_split[family_id] != split:
             raise ValueError("a teacher family appears in multiple family splits")
         family_split[family_id] = split
@@ -71,6 +75,13 @@ def build_heldout_family_protocol(corpus: dict[str, Any], *, support_size: int =
     }
     if any(not by_split[split] for split in by_split):
         raise ValueError("train, development, and locked family splits must be non-empty")
+    for family_id, rows in grouped.items():
+        states = [tuple(row["state"]) for row in rows]
+        if len(states) != len(set(states)):
+            raise ValueError("a teacher family contains duplicate state rows")
+        state_splits = {row["state_split"] for row in rows}
+        if state_splits != {"train", "development", "locked"}:
+            raise ValueError("every family must contain train, development, and locked states")
     if set(by_split["train"]) & set(by_split["development"]):
         raise ValueError("training and validation teacher families overlap")
     if set(by_split["train"]) & set(by_split["locked"]):
