@@ -54,6 +54,14 @@
       "url": "https://ctext.org/lunheng/gan-lei/zhs",
       "digital_witness": "页面列《四部丛刊初编》《汉魏丛书》《四库全书》系统等版本入口",
       "witness_limit": "数字录文未完成影印逐字校核；王充的论辩须结合全篇，不可截句代表其全部立场。"
+    },
+    {
+      "source_id": "src_yaolue",
+      "work": "淮南子",
+      "chapter": "要略",
+      "url": "https://ctext.org/huainanzi/yao-lve",
+      "digital_witness": "中国哲学书电子化计划《要略》数字文本入口；含《说山》《说林》编纂宗旨自述",
+      "witness_limit": "数字录文不是独立影印底本；需核对传世版本、上下文及高诱注。"
     }
   ],
   "cases": [
@@ -285,6 +293,66 @@
       ],
       "alternative_readings": [
         "“感类”及“慊惧自思”的具体含义应结合篇章论敌、版本异文和王充其他篇章解释。"
+      ],
+      "evidence_status": "digital_transcription_candidate",
+      "review_status": "unreviewed"
+    },
+    {
+      "case_id": "xy_009",
+      "source_id": "src_xunzi",
+      "period": "pre_qin",
+      "text_layer": "base_text",
+      "locator": "正名篇；“物有同状而异所者，有异状而同所者”段",
+      "excerpt": "物有同状而异所者，有异状而同所者，可别也。状同而为异所者，虽可合，谓之二实。状变而实无别而为异者，谓之化。有化而无别，谓之一实。",
+      "problem": "观察形态、所在位置与对象连续性如何区分？表面形态能否直接决定对象同一性？",
+      "operation": [
+        "observation",
+        "classification",
+        "reference",
+        "contextual_constraint"
+      ],
+      "premises": [
+        "文本明确区分形态相同但所在不同、形态不同但所在相同的情形。",
+        "文本进一步讨论形态变化而实未分离的情况。"
+      ],
+      "conclusion_scope": "可支持将可见形态、个体化条件、实体连续性分开标注；不能仅凭这段话直接套用现代形而上学的实体同一性理论。",
+      "counterexample_or_boundary": [
+        "同形物可能是两个个体；外观变化也可能仍是同一连续对象。",
+        "位置相同本身不足以证明实体同一，仍需时序、因果连续性和语境证据。"
+      ],
+      "alternative_readings": [
+        "“所”“实”“化”的具体训释及句读须参照杨倞注、王先谦集解等注本分层核对。"
+      ],
+      "evidence_status": "digital_transcription_candidate",
+      "review_status": "unreviewed"
+    },
+    {
+      "case_id": "xy_010",
+      "source_id": "src_yaolue",
+      "period": "qin_han",
+      "text_layer": "base_text",
+      "locator": "要略；《说山》《说林》篇旨说明段",
+      "excerpt": "《说山》、《说林》者，所以窍窕穿凿百事之壅遏，而通行贯扃万物之窒塞者也。假譬取象，异类殊形，以领理人之意，解除结细……",
+      "problem": "跨越不同物类的譬喻与取象，如何帮助理解事理？跨类表达是否意味着属性和机制也可跨域迁移？",
+      "operation": [
+        "metaphor",
+        "xiang_extraction",
+        "analogy",
+        "rhetoric",
+        "contextual_constraint"
+      ],
+      "premises": [
+        "文本将《说山》《说林》的作用描述为疏通百事万物的理解阻塞。",
+        "“假譬取象，异类殊形”明示可借不同类别、不同形态的譬喻引导理解。"
+      ],
+      "conclusion_scope": "可支持《淮南子》对《说山》《说林》文体与方法的自我说明：跨类譬喻是理解工具；不能由此推出跨类对象之间存在同一实体机制或全部属性可迁移。",
+      "counterexample_or_boundary": [
+        "譬喻可只帮助理解，不必构成事实证明。",
+        "源域与目标域可能只共享一个局部关系，其他属性不可迁移。",
+        "不同篇章的具体譬喻仍需逐例评估，不能由总序替代个案分析。"
+      ],
+      "alternative_readings": [
+        "“窍窕”“穿凿”“贯扃”等词的训诂及传本异文需要单独核查；引文截断处不作为完整句义的唯一依据。"
       ],
       "evidence_status": "digital_transcription_candidate",
       "review_status": "unreviewed"
