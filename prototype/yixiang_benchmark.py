@@ -6,7 +6,7 @@ RELATIONS={"morphological","structural","functional","process_mechanism","tempor
 DECISIONS={"accept","reject","conditional","abstain"}
 CAUSAL={"symbolic","normative","co_occurrence","correlational","mechanistic_hypothesis","intervention_supported","unknown"}
 SOURCE_STATUS={"verified_primary","critical_edition","unverified_transcription","secondary_quotation","research_hypothesis","synthetic_fixture"}
-REQUIRED={"case_id","source_lineage","source_status","target_claim","relation_families","shared_basis","non_shared_basis","scope_conditions","required_invariants","known_counterexamples","causal_status","evidence_refs","independence_group","gold_decision","gold_rationale","reviewers","split_group"}
+REQUIRED={"case_id","source_lineage","source_status","target_claim","relation_families","shared_basis","non_shared_basis","scope_conditions","required_invariants","known_counterexamples","causal_status","evidence_refs","independence_group","gold_decision","gold_rationale","label_status","reviewers","split_group"}
 def _strings(v,f,nonempty=True):
     if not isinstance(v,list) or (nonempty and not v): raise ValueError(f"{f} must be a {'non-empty ' if nonempty else ''}list")
     if any(not isinstance(x,str) or not x.strip() for x in v): raise ValueError(f"{f} entries must be non-empty strings")
@@ -22,8 +22,17 @@ def validate_case(c:Mapping)->None:
     _strings(c["source_lineage"],"source_lineage"); _strings(c["relation_families"],"relation_families")
     if not set(c["relation_families"])<=RELATIONS: raise ValueError("unknown relation family")
     for f in ("shared_basis","non_shared_basis","scope_conditions","required_invariants","known_counterexamples"): _strings(c[f],f,False)
-    _strings(c["evidence_refs"],"evidence_refs"); _strings(c["reviewers"],"reviewers")
-    if len(c["reviewers"]) < 2: raise ValueError("gold labels require at least two independent reviewers")
+    _strings(c["evidence_refs"],"evidence_refs")
+    _strings(c["reviewers"],"reviewers",False)
+    if c["label_status"] not in {"fixture_expected","pending_review","adjudicated"}:
+        raise ValueError("unknown label_status")
+    if c["source_status"] == "synthetic_fixture":
+        if c["label_status"] != "fixture_expected" or c["reviewers"]:
+            raise ValueError("synthetic fixtures cannot claim human adjudication")
+    elif c["label_status"] == "fixture_expected":
+        raise ValueError("fixture_expected labels require synthetic_fixture source_status")
+    if c["label_status"] == "adjudicated" and len(c["reviewers"]) < 2:
+        raise ValueError("adjudicated labels require at least two distinct reviewer IDs")
     if not isinstance(c["source_status"],str) or c["source_status"] not in SOURCE_STATUS: raise ValueError("unknown source_status")
     if not isinstance(c["causal_status"],str) or c["causal_status"] not in CAUSAL: raise ValueError("unknown causal_status")
     if not isinstance(c["gold_decision"],str) or c["gold_decision"] not in DECISIONS: raise ValueError("unknown gold_decision")
@@ -75,7 +84,7 @@ def evaluate_predictions(cases:Sequence[Mapping],predictions:Sequence[Mapping])-
             "by_source_status":stratify("source_status",set(c["source_status"] for c in cases))}
 def group_leakage(cases:Sequence[Mapping],*,group_field="source_lineage")->dict:
     """Report source groups spanning splits; never silently repair leakage."""
-    if group_field not in {"source_lineage","independence_group","split_group"}: raise ValueError("unsupported grouping field")
+    if group_field not in {"source_lineage","independence_group"}: raise ValueError("unsupported grouping field")
     validate_dataset(cases); memberships=defaultdict(set)
     for c in cases:
         values=c[group_field] if group_field=="source_lineage" else [c[group_field]]
