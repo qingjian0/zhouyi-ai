@@ -37,6 +37,12 @@ class TemporalBenchmarkTests(unittest.TestCase):
     def test_missing_indices_are_validated(self):
         with self.assertRaises(ValueError):
             generate_temporal_benchmark(missing_indices=(-1,))
+        with self.assertRaises(ValueError):
+            generate_temporal_benchmark(missing_indices=(30,))
+
+    def test_non_finite_time_values_are_rejected(self):
+        with self.assertRaises(ValueError):
+            generate_temporal_benchmark(sample_interval=float("nan"))
 
     def test_pairwise_event_order_accuracy(self):
         self.assertEqual(event_order_accuracy(("a", "b", "c"), ("a", "b", "c")), 1.0)
