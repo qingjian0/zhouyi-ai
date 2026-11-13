@@ -1,7 +1,7 @@
 {
  "$schema":"https://json-schema.org/draft/2020-12/schema",
  "title":"Zhouyi-AI M8 Yixiang Benchmark Case","type":"object","additionalProperties":false,
- "required":["case_id","source_lineage","source_status","target_claim","relation_families","shared_basis","non_shared_basis","scope_conditions","required_invariants","known_counterexamples","causal_status","evidence_refs","independence_group","gold_decision","gold_rationale","reviewers","split_group"],
+ "required":["case_id","source_lineage","source_status","target_claim","relation_families","shared_basis","non_shared_basis","scope_conditions","required_invariants","known_counterexamples","causal_status","evidence_refs","independence_group","gold_decision","gold_rationale","label_status","reviewers","split_group"],
  "properties":{
  "case_id":{"type":"string","minLength":1},
  "source_lineage":{"type":"array","minItems":1,"uniqueItems":true,"items":{"type":"string","minLength":1}},
@@ -14,6 +14,12 @@
  "causal_status":{"enum":["symbolic","normative","co_occurrence","correlational","mechanistic_hypothesis","intervention_supported","unknown"]},
  "evidence_refs":{"type":"array","minItems":1,"uniqueItems":true,"items":{"type":"string","minLength":1}},
  "independence_group":{"type":"string","minLength":1},"gold_decision":{"enum":["accept","reject","conditional","abstain"]},
- "gold_rationale":{"type":"string","minLength":1},"reviewers":{"type":"array","minItems":2,"uniqueItems":true,"items":{"type":"string","minLength":1}},
+ "gold_rationale":{"type":"string","minLength":1},"label_status":{"enum":["fixture_expected","pending_review","adjudicated"]},"reviewers":{"type":"array","minItems":0,"uniqueItems":true,"items":{"type":"string","minLength":1}},
  "split_group":{"type":"string","minLength":1}}
+ ,
+ "allOf":[
+  {"if":{"properties":{"source_status":{"const":"synthetic_fixture"}},"required":["source_status"]},"then":{"properties":{"label_status":{"const":"fixture_expected"},"reviewers":{"maxItems":0}}}},
+  {"if":{"properties":{"label_status":{"const":"adjudicated"}},"required":["label_status"]},"then":{"properties":{"reviewers":{"minItems":2}}}},
+  {"if":{"properties":{"label_status":{"const":"fixture_expected"}},"required":["label_status"]},"then":{"properties":{"source_status":{"const":"synthetic_fixture"}}}}
+ ]
 }
