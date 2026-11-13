@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "https://zhouyi-ai.example/schemas/yixiang-state.schema.json",
+  "$id": "urn:zhouyi-ai:schema:yixiang-state:v0.1",
   "title": "Zhouyi-AI Yixiang State and Transition",
   "description": "Convention-explicit structural representation. Binary indices are computational identifiers, not classical sequence numbers or semantic labels.",
   "oneOf": [
