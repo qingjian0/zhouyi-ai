@@ -7,7 +7,6 @@ labels are report-only. Teacher manifests are used only for post-hoc scoring.
 from __future__ import annotations
 
 import argparse
-import itertools
 import json
 import random
 from collections import defaultdict
@@ -20,7 +19,7 @@ from prototype.cpg_ei_mixed_operator_discovery import (
     _truth_mask,
     enumerate_rule_hypotheses,
 )
-from prototype.cpg_ei_relation_operators import RelationRule, evaluate_rule, rule_manifest
+from prototype.cpg_ei_relation_operators import RelationRule, rule_manifest
 
 
 def _state_index(state: tuple[int, ...]) -> int:
