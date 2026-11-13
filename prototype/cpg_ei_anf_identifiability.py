@@ -65,18 +65,35 @@ def _monomial_feature_mask(state: Iterable[int], input_dim: int) -> int:
 
 
 def solve_gf2_affine_system(
-    input_dim: int, observations: Iterable[tuple[Iterable[int], int]]
+    input_dim: int,
+    observations: Iterable[tuple[Iterable[int], int]],
+    *,
+    max_degree: int | None = None,
 ) -> dict:
-    """Solve observed ANF equations and expose rank, nullspace and ambiguity."""
+    """Solve observed ANF equations in the complete or degree-limited basis."""
     if isinstance(input_dim, bool) or not isinstance(input_dim, int) or input_dim < 1:
         raise ValueError("input_dim must be a positive integer")
-    coefficient_count = 1 << input_dim
+    if max_degree is not None and (
+        isinstance(max_degree, bool) or not isinstance(max_degree, int)
+        or max_degree < 0 or max_degree > input_dim
+    ):
+        raise ValueError("max_degree must be an integer in [0, input_dim]")
+    basis_masks = tuple(
+        mask for mask in range(1 << input_dim)
+        if max_degree is None or mask.bit_count() <= max_degree
+    )
+    coefficient_count = len(basis_masks)
     rows = []
     for state, target in observations:
         state_tuple = tuple(state)
-        if len(state_tuple) != input_dim or target not in (0, 1):
+        if (len(state_tuple) != input_dim or any(bit not in (0, 1) for bit in state_tuple)
+                or target not in (0, 1)):
             raise ValueError("invalid observation")
-        feature_mask = _monomial_feature_mask(state_tuple, input_dim)
+        state_bits = _state_mask(state_tuple)
+        feature_mask = 0
+        for column, monomial_mask in enumerate(basis_masks):
+            if (monomial_mask & state_bits) == monomial_mask:
+                feature_mask |= 1 << column
         rows.append(feature_mask | (int(target) << coefficient_count))
     if not rows:
         raise ValueError("at least one observation is required")
@@ -114,6 +131,8 @@ def solve_gf2_affine_system(
             "consistent": False,
             "observation_count": len(rows),
             "coefficient_count": coefficient_count,
+            "basis_monomial_masks": list(basis_masks),
+            "max_degree": max_degree,
             "rank": rank,
             "nullity": None,
             "unique": False,
@@ -151,6 +170,8 @@ def solve_gf2_affine_system(
         "consistent": True,
         "observation_count": len(rows),
         "coefficient_count": coefficient_count,
+        "basis_monomial_masks": list(basis_masks),
+        "max_degree": max_degree,
         "rank": rank,
         "nullity": coefficient_count - rank,
         "unique": rank == coefficient_count,
@@ -191,17 +212,19 @@ def _variable_identifiability(system: dict, input_dim: int) -> dict:
         return {"definitely_relevant": [], "possibly_relevant": list(range(input_dim)),
                 "definitely_irrelevant": []}
     statuses = system["coefficient_status"]
+    basis_masks = system["basis_monomial_masks"]
     definitely_relevant = []
     possibly_relevant = []
     definitely_irrelevant = []
     for variable in range(input_dim):
-        involved = [
-            mask for mask in range(1, 1 << input_dim)
-            if (mask >> variable) & 1
+        involved_statuses = [
+            statuses[column]
+            for column, monomial_mask in enumerate(basis_masks)
+            if monomial_mask and ((monomial_mask >> variable) & 1)
         ]
-        if any(statuses[mask] == "forced_one" for mask in involved):
+        if any(status == "forced_one" for status in involved_statuses):
             definitely_relevant.append(variable)
-        elif any(statuses[mask] == "ambiguous" for mask in involved):
+        elif any(status == "ambiguous" for status in involved_statuses):
             possibly_relevant.append(variable)
         else:
             definitely_irrelevant.append(variable)
@@ -302,7 +325,102 @@ def run_anf_identifiability_audit(corpus: dict) -> dict:
             "model, cross-family transfer, open-world induction, causal discovery, "
             "Yi-Xue understanding, or natural-language reasoning."
         ),
+        "degree_sweep": run_anf_degree_sweep(corpus),
         "family_results": family_results,
+    }
+
+
+
+
+def run_anf_degree_sweep(corpus: dict) -> dict:
+    """Measure representation and training identifiability at each ANF degree."""
+    manifest = corpus["manifest"]
+    input_dim = manifest["input_dim"]
+    output_dim = manifest["output_dim"]
+    grouped: dict[str, list[dict]] = defaultdict(list)
+    for row in corpus["rows"]:
+        grouped[row["family_id"]].append(row)
+
+    degree_results = []
+    for max_degree in range(input_dim + 1):
+        systems = []
+        for family_id in sorted(grouped):
+            rows = grouped[family_id]
+            all_rows = sorted(rows, key=lambda row: _state_mask(row["state"]))
+            train_rows = [row for row in rows if row["state_split"] == "train"]
+            for output_index in range(output_dim):
+                oracle = truth_table_to_anf(
+                    input_dim, [row["target"][output_index] for row in all_rows]
+                )
+                oracle_degree = max(
+                    (mask.bit_count() for mask, value in enumerate(oracle) if value),
+                    default=0,
+                )
+                representable = oracle_degree <= max_degree
+                observations = [
+                    (row["state"], row["target"][output_index])
+                    for row in train_rows
+                ]
+                system = solve_gf2_affine_system(
+                    input_dim, observations, max_degree=max_degree
+                )
+                identifiability = _variable_identifiability(system, input_dim)
+                oracle_support = _support_variables(oracle, input_dim)
+                possible_support = (
+                    identifiability["definitely_relevant"]
+                    + identifiability["possibly_relevant"]
+                )
+                systems.append({
+                    "family_id": family_id,
+                    "output_index": output_index,
+                    "oracle_degree": oracle_degree,
+                    "oracle_representable": representable,
+                    "training_system_consistent": system["consistent"],
+                    "rank": system["rank"],
+                    "nullity": system["nullity"],
+                    "unique": system["unique"],
+                    "oracle_support": oracle_support,
+                    "possible_support": sorted(possible_support),
+                    "oracle_support_contained": (
+                        all(variable in possible_support for variable in oracle_support)
+                        if representable and system["consistent"] else None
+                    ),
+                })
+        degree_results.append({
+            "max_degree": max_degree,
+            "basis_coefficient_count": sum(
+                1 for mask in range(1 << input_dim)
+                if mask.bit_count() <= max_degree
+            ),
+            "output_system_count": len(systems),
+            "oracle_representability_rate": sum(
+                item["oracle_representable"] for item in systems
+            ) / len(systems),
+            "training_consistency_rate": sum(
+                item["training_system_consistent"] for item in systems
+            ) / len(systems),
+            "unique_training_solution_rate": sum(
+                item["unique"] for item in systems
+            ) / len(systems),
+            "mean_training_rank": sum(item["rank"] for item in systems) / len(systems),
+            "mean_training_nullity": sum(
+                item["nullity"] or 0 for item in systems
+            ) / len(systems),
+            "oracle_support_containment_rate_when_representable": (
+                sum(item["oracle_support_contained"] is True for item in systems)
+                / max(1, sum(item["oracle_support_contained"] is not None for item in systems))
+            ),
+            "per_output": systems,
+        })
+    return {
+        "basis_definition": "ANF monomials with degree <= max_degree, including constant",
+        "degree_results": degree_results,
+        "interpretation": (
+            "Degree restriction reduces the coefficient space but may exclude "
+            "higher-degree teacher functions. Rates are computed on the same "
+            "training partition; full truth tables are used only for the labelled "
+            "oracle degree/representability reference."
+        ),
     }
 
 
