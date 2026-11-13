@@ -1601,5 +1601,83 @@
     "reviewers": [],
     "split_group": "holdout",
     "label_status": "fixture_expected"
+  },
+  {
+    "case_id": "dyn-046",
+    "claim_kind": "argumentative_analogy",
+    "source_lineage": [
+      "fixture:dyn-046"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Because a ring can represent circular form, all wheel functions and use-properties may be transferred to the ring.",
+    "relation_families": [
+      "morphological",
+      "structural",
+      "functional"
+    ],
+    "shared_basis": [
+      "a selected circular-form resemblance"
+    ],
+    "non_shared_basis": [
+      "object identity, material, mechanical structure, movement, and use are not established as shared"
+    ],
+    "scope_conditions": [
+      "only the declared shape dimension may be retained unless further evidence supports additional dimensions"
+    ],
+    "required_invariants": [
+      "dimension-limited representation must not be expanded into whole-object or functional identity"
+    ],
+    "known_counterexamples": [
+      "a ring may be circular without functioning as a wheel"
+    ],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:dyn-046"
+    ],
+    "independence_group": "fixture-group-dyn-046",
+    "gold_decision": "reject",
+    "gold_rationale": "A selected shape resemblance licenses only that representational dimension, not transfer of wheel function or mechanism.",
+    "reviewers": [],
+    "split_group": "holdout",
+    "label_status": "fixture_expected"
+  },
+  {
+    "case_id": "dyn-047",
+    "claim_kind": "action_outcome",
+    "source_lineage": [
+      "fixture:dyn-047"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "A bowstring is necessary for launching an arrow; therefore the string alone is sufficient to produce the full act of archery.",
+    "relation_families": [
+      "structural",
+      "functional",
+      "process_mechanism"
+    ],
+    "shared_basis": [
+      "the bowstring participates in the arrow-launch process"
+    ],
+    "non_shared_basis": [
+      "the full action also depends on bow, arrow, archer, draw, aim, release, and operating conditions"
+    ],
+    "scope_conditions": [
+      "distinguish necessary enabling components from sufficient causes and the whole action system"
+    ],
+    "required_invariants": [
+      "necessity of one component does not imply sufficiency or causal completeness"
+    ],
+    "known_counterexamples": [
+      "a string without a bow, arrow, archer, and coordinated action does not constitute archery"
+    ],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:dyn-047"
+    ],
+    "independence_group": "fixture-group-dyn-047",
+    "gold_decision": "reject",
+    "gold_rationale": "The claim commits a necessary-to-sufficient inference and collapses a component's role into the full multi-component process.",
+    "reviewers": [],
+    "split_group": "holdout",
+    "label_status": "fixture_expected"
   }
 ]
