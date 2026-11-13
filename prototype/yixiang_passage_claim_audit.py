@@ -139,8 +139,8 @@ def assess_claim_coverage(claim_id,atoms,contexts,passages,witnesses,links):
     if AtomDecision.CONFLICTED in decisions: result=ClaimCoverageDecision.CONFLICTED
     elif all(x.whole_support_ids and x.decision==AtomDecision.SUPPORT_ONLY for x in assessments): result=ClaimCoverageDecision.FULL_ATOM_COVERAGE
     elif any(x.decision==AtomDecision.SUPPORTED_WITH_QUALIFICATION for x in assessments): result=ClaimCoverageDecision.QUALIFIED_COVERAGE
+    elif decisions=={AtomDecision.QUALIFICATION_ONLY}: result=ClaimCoverageDecision.QUALIFICATION_ONLY
     elif any(x.whole_support_ids or x.partial_support_ids for x in assessments): result=ClaimCoverageDecision.PARTIAL_ATOM_COVERAGE
     elif decisions=={AtomDecision.UNREVIEWED}: result=ClaimCoverageDecision.UNREVIEWED
-    elif decisions=={AtomDecision.QUALIFICATION_ONLY}: result=ClaimCoverageDecision.QUALIFICATION_ONLY
     else: result=ClaimCoverageDecision.INSUFFICIENT
     return ClaimAssessment(claim_id,result,assessments,uncovered)
