@@ -86,6 +86,14 @@
       "url": "https://ctext.org/huainanzi/shuo-shan-xun",
       "digital_witness": "中国哲学书电子化计划《说山训》数字文本及平行段落检索入口",
       "witness_limit": "平行段落显示部分文字存在不同录文与异文；须分别记录见证、核对影印底本及高诱注，不得将平行文本拼成单一校定本。"
+    },
+    {
+      "source_id": "src_lushi_ansi",
+      "work": "吕氏春秋",
+      "chapter": "孟冬纪·安死",
+      "url": "https://ctext.org/lv-shi-chun-qiu/an-si",
+      "digital_witness": "中国哲学书电子化计划《安死》数字文本入口；另有《四部丛刊》系统及其他转录可供后续比对",
+      "witness_limit": "当前仅完成数字文本定位；需核对卷篇、影印页、引《诗》文字及高诱注，不视为完成版本校勘。"
     }
   ],
   "cases": [
@@ -573,6 +581,71 @@
       ],
       "alternative_readings": [
         "“决指”“顾活”等词义及具体语境需核对校注，不应将现代医学术语直接回填。"
+      ],
+      "evidence_status": "digital_transcription_candidate",
+      "review_status": "unreviewed"
+    },
+    {
+      "case_id": "xy_017",
+      "source_id": "src_lushi_ansi",
+      "period": "qin_han",
+      "text_layer": "base_text",
+      "locator": "安死；厚葬、发冢与“知邻类”论述段",
+      "excerpt": "夫爱人者众，知爱人者寡。……夫爱之而反危之，其此之谓乎。《诗》曰：“不敢暴虎，不敢冯河，人知其一，莫知其他”，此言不知邻类也。",
+      "problem": "行动者的良好意图是否足以保证行动结果符合目标？如何表示行动方法与结果之间的关联，以及对结果的规范评价？",
+      "operation": [
+        "normative_argument",
+        "contextual_constraint",
+        "causal_critique",
+        "analogy"
+      ],
+      "premises": [
+        "文本以厚葬可能导致墓葬被发掘的风险，说明爱护死者的意图可能产生相反结果。",
+        "“知邻类”被用于提醒行动者辨认行为方式与后续结果之间的联系。",
+        "该段将行动是否真正保护死者与行为者自认为的爱护区分开来。"
+      ],
+      "conclusion_scope": "可支持对《安死》篇行动—结果论证的分析；不能仅凭古代文本断言所有厚葬必然导致盗墓，也不能把文本中的必然性措辞直接升级为现代经验因果结论。",
+      "counterexample_or_boundary": [
+        "墓葬风险还可能受社会秩序、地理、安保、时代和盗掘动机等条件影响。",
+        "良好意图与实际结果是不同评价维度，不能相互替代。",
+        "文本中的行动—结果关系仍需历史材料和独立证据核验。"
+      ],
+      "alternative_readings": [
+        "“邻类”究竟侧重相邻类别、行动后果关系还是更广义的结果关联，现代学者有解释分歧。",
+        "《诗》引文及“东冢抇”等字形、句读需进一步校勘。"
+      ],
+      "evidence_status": "digital_transcription_candidate",
+      "review_status": "unreviewed"
+    },
+    {
+      "case_id": "xy_018",
+      "source_id": "src_lushi_bielei",
+      "period": "qin_han",
+      "text_layer": "base_text",
+      "locator": "别类；高阳应将为室家及房屋后期失败故事",
+      "excerpt": "高阳应将为室家，匠对曰：“未可也。木尚生，加涂其上，必将挠。……木益枯则劲，涂益乾则轻，以益劲任益轻则不败。”……室之始成也善，其后果败。高阳应好小察，而不通乎大理也。",
+      "problem": "局部趋势推理在形式上看似连贯，为什么仍可能在整体工程和延迟结果上失败？",
+      "operation": [
+        "analogy",
+        "contextual_constraint",
+        "causal_critique",
+        "observation"
+      ],
+      "premises": [
+        "匠人根据木料尚生、承重与涂泥重量提出房屋后期可能挠曲失败的判断。",
+        "高阳应以木料变干更坚、涂泥变干更轻的局部趋势反驳，推断结构不会失败。",
+        "文本报告房屋初成良好而后期果然失败，并以“好小察而不通乎大理”评价其推断。"
+      ],
+      "conclusion_scope": "可支持区分局部属性趋势、整体结构约束与延迟结果；不能把古代房屋故事直接当作现代结构工程实验，也不能未经版本核对将所有平行文本细节拼成一条定本。",
+      "counterexample_or_boundary": [
+        "局部木材强度增加不自动证明整体结构在湿材、连接、荷载和时间变化下安全。",
+        "即时成形成功不等于长期稳定；必须记录延迟结果。",
+        "材料状态、施工方式、连接结构和荷载等变量不能由单一局部趋势替代。"
+      ],
+      "alternative_readings": [
+        "人物名见高阳应、高阳魋等不同录文；须分别记录传本，不可无说明地统一。",
+        "不同平行文本在“木尚生”“生材任重涂”等表述上有差异。",
+        "“好小察”可作局部细察而不通整体事理的批评；其具体思想史含义仍需与全篇论证合看。"
       ],
       "evidence_status": "digital_transcription_candidate",
       "review_status": "unreviewed"
