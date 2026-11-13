@@ -120,8 +120,8 @@
 ## 8. 与现有代码的衔接
 
 新增 `prototype/yixiang_process.py`：
-- `Observation`：带证据的观察记录；
-- `derive_pattern`：从显式特征中抽取样本内共同项；
+- `Observation`：带证据的观察记录；每个特征必须声明 `morphology/attribute/function/process/spatiotemporal/potential/integrated` 等维度，抽象时只纳入本轮明确选择的维度，防止把季节、形态和功能等异质特征混为同一类；
+- `derive_pattern`：从显式特征中抽取样本内共同项；仅对所选维度执行精确值比较，缺失值按未支持处理；
 - `classify_observation`：按候选不变量和排除项评估成员资格；
 - `revise_pattern`：利用正例和反例生成新版本。
 
