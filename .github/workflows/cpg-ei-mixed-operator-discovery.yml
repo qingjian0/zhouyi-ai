@@ -63,6 +63,10 @@ jobs:
             artifacts/expanded-mixed-operators-v2.jsonl
             artifacts/expanded-mixed-operators-v2-manifest.json
           if-no-files-found: error
+      - name: Run held-out-family transfer protocol tests for child PR
+        if: github.event_name == 'pull_request' && github.head_ref == 'research/cpg-ei-heldout-family-transfer-protocol-v1-2026-11-13'
+        run: |
+          python -m unittest discover -s tests -p 'test_cpg_ei_heldout_family_protocol.py' -v
       - name: Upload reproducible report
         uses: actions/upload-artifact@v4
         with:
