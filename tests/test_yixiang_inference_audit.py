@@ -8,13 +8,16 @@ from prototype.yixiang_inference_audit import (
 def claim(move=InferenceMove.EXEMPLIFICATION, roles=None, **overrides):
     refs = {AnchorRole.SOURCE: "src:1", AnchorRole.TARGET: "tgt:1",
             AnchorRole.PRECEDENT: "precedent:1", AnchorRole.STANDARD: "standard:1"}
-    anchors = tuple(EvidenceAnchor(role, refs[role], f"{role.value} evidence")
+    observation_ids = {AnchorRole.SOURCE: "obs-a", AnchorRole.TARGET: "obs-b",
+                       AnchorRole.PRECEDENT: "precedent-obs", AnchorRole.STANDARD: "standard-obs"}
+    anchors = tuple(EvidenceAnchor(role, refs[role], f"{role.value} evidence", observation_ids[role])
                     for role in (roles or (AnchorRole.SOURCE, AnchorRole.TARGET)))
     values = dict(claim_id="claim-1", move=move, source_observation_id="obs-a",
         target_observation_id="obs-b", shared_basis=("same relation role",),
         warrant="the shared basis is relevant under the stated scope",
         conclusion="provisional extension", scope_conditions=("same operating context",),
-        known_differences=("material differs",), anchors=anchors)
+        known_differences=("material differs",), anchors=anchors,
+        evidence_refs=tuple(refs[role] for role in (roles or (AnchorRole.SOURCE, AnchorRole.TARGET))))
     values.update(overrides)
     return InferenceMoveClaim(**values)
 
@@ -58,10 +61,21 @@ class InferenceMoveAuditTests(unittest.TestCase):
         self.assertIn("MISSING_MOVE_SPECIFIC_EVIDENCE_ROLE", result.reason_codes)
 
     def test_duplicate_anchor_ref_is_reported(self):
-        anchors = (EvidenceAnchor(AnchorRole.SOURCE, "same", "source"),
-                   EvidenceAnchor(AnchorRole.TARGET, "same", "target"))
-        result = audit_inference_move(claim(anchors=anchors))
+        anchors = (EvidenceAnchor(AnchorRole.SOURCE, "same", "source", "obs-a"),
+                   EvidenceAnchor(AnchorRole.TARGET, "same", "target", "obs-b"))
+        result = audit_inference_move(claim(anchors=anchors, evidence_refs=("same",)))
         self.assertIn("DUPLICATE_EVIDENCE_ANCHOR", result.reason_codes)
+
+
+    def test_unlinked_anchor_is_blocked(self):
+        result = audit_inference_move(claim(evidence_refs=("different-ref",)))
+        self.assertIn("UNLINKED_EVIDENCE_ANCHOR", result.reason_codes)
+
+    def test_source_anchor_must_match_source_observation(self):
+        anchors = (EvidenceAnchor(AnchorRole.SOURCE, "src:1", "source evidence", "wrong-obs"),
+                   EvidenceAnchor(AnchorRole.TARGET, "tgt:1", "target evidence", "obs-b"))
+        result = audit_inference_move(claim(anchors=anchors))
+        self.assertIn("SOURCE_ANCHOR_OBSERVATION_MISMATCH", result.reason_codes)
 
     def test_same_source_and_target_is_rejected(self):
         with self.assertRaisesRegex(ValueError, "must differ"):
