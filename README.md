@@ -7,7 +7,7 @@
 
 ## 项目状态
 
-- 当前阶段：M1 多尺度时间、M2 整体—局部结构、M2.1 双向约束、M3 竞争类象与 M4 反事实条件干预研究
+- 当前阶段：M1–M4 基础机制已建立研究原型；M5 主动观测的信息增益原型正在接入验证
 - 理论版本：CPG-EI v0.3（研究草案，持续修订）
 - 代码状态：已有多尺度时间、typed relations、整体—局部候选约束、竞争类象证据剖面、未决裁决及 M4 条件干预原型；尚无规模化模型或性能结论
 - 验证原则：所有架构主张均须通过可复现实验、消融和公平对照验证
@@ -39,7 +39,7 @@
 - [类象认知下一阶段研究计划 v0.1](docs/YIXIANG_NEXT_RESEARCH_PROGRAM_V0_1.md)
 - [传统类象研究文献地图与校勘计划 v0.1](docs/CLASSICAL_YIXIANG_SOURCE_MAP_V0_1.md)
 - [先秦两汉类象理论校勘札记 v0.1](docs/CLASSICAL_YIXIANG_THEORY_NOTES_PREQIN_HAN_V0_1.md)
-- [传统类象理论综合框架 v0.2](docs/CLASSICAL_YIXIANG_THEORY_SYNTHESIS_V0_2.md)
+- [传统类象理论综合框架 v0.2](docs/CLASSICAL_YIXIANG_THEORY_SYNTHESIS_V0_2.md)\n- [《墨子·小取》类推结构与异文专题](docs/CLASSICAL_YIXIANG_MOZI_XIAOQU_ANALYSIS_V0_1.md)\n- [《墨子·大取》与《墨经》同异—类—故专题](docs/CLASSICAL_YIXIANG_MOZI_DAQU_MOJING_ANALYSIS_V0_1.md)\n- [M5 主动观测与信息增益基线](docs/YIXIANG_ACTIVE_OBSERVATION_M5_V0_1.md)
 - [古籍数字来源、版本见证与校勘工作规程 v0.1](docs/CLASSICAL_TEXT_DIGITAL_SOURCE_POLICY_V0_1.md)
 - [M2 整体—局部关系结构说明](docs/YIXIANG_HIERARCHICAL_STRUCTURE_M2_V0_1.md)
 - [M2.1 双向整体—局部约束说明](docs/YIXIANG_BIDIRECTIONAL_CONSTRAINTS_M2_1_V0_1.md)
@@ -56,7 +56,7 @@
 - [M1 多尺度时间模型](prototype/yixiang_multiscale_time.py)
 - [M1 合成时间基准](docs/YIXIANG_TEMPORAL_BENCHMARK_M1_V0_1.md)
 - [传统古籍类象研究总纲](docs/CLASSICAL_YIXIANG_CORPUS_AND_RESEARCH_PROTOCOL.md)
-- [传统古籍候选来源目录（90 项）](data/classical_yixiang_source_catalog.json)
+- [传统古籍候选来源目录（111 项）](data/classical_yixiang_source_catalog.json)
 - [结构化类象古籍语料](docs/CLASSICAL_XIANG_CORPUS_V0_1.md)
 - [类象语料 Schema](schemas/classical-xiang-corpus.schema.json)
 - [类象抽象与反例修正原型](prototype/yixiang_process.py)
