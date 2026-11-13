@@ -90,6 +90,7 @@ def _assess_atom(atom_id,links,spans,allowed_layers):
     amb=tuple(sorted(x.evidence_id for x in ambiguous))
     if whole and contra: decision=AtomDecision.CONFLICTED
     elif whole and qual: decision=AtomDecision.SUPPORTED_WITH_QUALIFICATION
+    elif whole and amb: decision=AtomDecision.AMBIGUOUS
     elif whole: decision=AtomDecision.SUPPORT_ONLY
     elif contra: decision=AtomDecision.CONFLICTED
     elif qual: decision=AtomDecision.QUALIFICATION_ONLY
