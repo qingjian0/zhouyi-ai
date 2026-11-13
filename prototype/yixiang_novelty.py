@@ -100,12 +100,12 @@ def propose_novel_structures(
     for signature in known_signatures:
         if not isinstance(signature, tuple) or not signature:
             raise ValueError("known signatures must be non-empty tuples")
-        if signature != tuple(sorted(signature)) or len(set(signature)) != len(signature):
-            raise ValueError("known signatures must be sorted and unique")
         for item in signature:
             if (not isinstance(item, tuple) or len(item) != 3
                     or any(not isinstance(part, str) or not part.strip() for part in item)):
                 raise ValueError("known signature entries must be non-empty typed triples")
+        if signature != tuple(sorted(signature)) or len(set(signature)) != len(signature):
+            raise ValueError("known signatures must be sorted and unique")
     for residual in residuals:
         if not isinstance(residual, ResidualCase):
             raise ValueError("residuals must contain ResidualCase values")
