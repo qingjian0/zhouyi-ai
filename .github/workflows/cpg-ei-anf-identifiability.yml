@@ -1,0 +1,36 @@
+name: CPG-EI ANF identifiability oracle
+
+on:
+  push:
+    branches:
+      - research/cpg-ei-anf-identifiability-oracle-v1-2026-11-13
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  anf-identifiability:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run ANF and GF(2) contract tests
+        run: |
+          python -m unittest discover -s tests -p 'test_cpg_ei_anf_identifiability.py' -v
+      - name: Run matched-corpus identifiability audit
+        run: |
+          python -m prototype.cpg_ei_anf_identifiability \
+            --families 8 --input-dim 8 --output-dim 8 --seed 20261114 \
+            --json artifacts/anf-identifiability.json
+      - name: Upload machine-readable audit
+        uses: actions/upload-artifact@v4
+        with:
+          name: zhouyi-cpg-ei-anf-identifiability-v1
+          path: artifacts/anf-identifiability.json
+          if-no-files-found: error
+          retention-days: 30
