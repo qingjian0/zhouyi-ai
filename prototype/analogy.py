@@ -119,6 +119,8 @@ def assess_analogy(
     reasons = []
     if coverage < min_entity_coverage:
         reasons.append("INSUFFICIENT_ENTITY_COVERAGE")
+    if not candidate.source_relations or not candidate.target_relations:
+        reasons.append("INSUFFICIENT_RELATION_DATA")
     if relation_f1 < min_relation_f1:
         reasons.append("RELATION_STRUCTURE_NOT_PRESERVED")
     if require_evidence and (not evidence_count or not support_count):
