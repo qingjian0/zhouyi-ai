@@ -16,7 +16,8 @@
     "text",
     "text_status",
     "claims",
-    "review_status"
+    "review_status",
+    "concept_tags"
   ],
   "properties": {
     "record_id": {
@@ -283,6 +284,32 @@
       "items": {
         "type": "string"
       }
+    },
+    "concept_tags": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "observation",
+          "image_selection",
+          "analogy_method",
+          "analogy_limit",
+          "classification",
+          "correspondence",
+          "yin_yang",
+          "state_change",
+          "cosmology",
+          "sensory_classification",
+          "causal_inference_limit",
+          "metaphor",
+          "name_reality",
+          "ritual_institution",
+          "natural_knowledge",
+          "commentarial_exegesis"
+        ]
+      },
+      "description": "Project retrieval facets only; not a claim that ancient authors used this unified taxonomy."
     }
   }
 }
