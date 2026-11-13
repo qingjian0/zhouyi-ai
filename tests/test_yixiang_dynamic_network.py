@@ -103,6 +103,14 @@ class DynamicNetworkAuditTests(unittest.TestCase):
         self.assertEqual(result.durable_relation_signatures, ("r",))
         self.assertEqual(result.decision, DynamicDecision.HUMAN_REVIEW)
 
+    def test_invalid_jiu_evidence_cannot_create_durability_result(self):
+        snapshots = (snap("s1", 1, "A", ("r",)),)
+        evidence = (phase(Phase.JIU, "s1", "absent", "w1", "maintained", "p1"),
+                    phase(Phase.JIU, "s1", "absent", "w2", "maintained", "p2"))
+        result = audit_dynamic_network(snapshots, (), evidence)
+        self.assertIn("JIU_REQUIRES_OBSERVED_MAINTAINED_RELATION", result.reason_codes)
+        self.assertEqual(result.durable_relation_signatures, ())
+
     def test_invalid_minimum_durability_is_rejected(self):
         with self.assertRaises(ValueError):
             audit_dynamic_network((snap("s1", 1, "A", ("r",)),), (), (),
