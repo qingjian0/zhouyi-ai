@@ -56,6 +56,7 @@
 - `gold_rationale`：可追溯裁决依据。
 - `label_status`：`fixture_expected` / `pending_review` / `adjudicated`，明确区分接口测试标签与人工裁决标签。
 - `reviewers`：审阅者标识；只有 `adjudicated` 标签才要求至少两个不同标识。合成夹具必须使用空列表，不得伪造审阅记录。
+- 计分资格：`pending_review` 永不参与 gold 评分；`fixture_expected` 仅在显式传入 `allow_fixture_expected=True` 时允许做接口/计分测试，报告必须标注 `evaluation_basis=fixture_expected`；正式 gold 评分仅接受全体样本均为 `adjudicated` 的数据集，不允许混合不同标签状态。
 - `split_group`：按作品、版本、注疏谱系、领域或主体分组，供严格留出。
 
 古籍语料原始记录继续保存原貌；评估样本通过引用 record_id/claim_id 建立链接，不把现代裁决写回古籍原文层。
@@ -189,11 +190,12 @@
 ## 11. 实施顺序与当前状态
 
 1. [已实现] 独立 benchmark schema 与 validator，不改变古籍 corpus 原始层。
-2. [待开展] 建立 30–50 个人工审查的最小对照样本，先覆盖 B0–B4；未校勘古籍例只进入 exploratory pool。
-3. [首版已实现] source lineage / independence group 跨 split 泄漏报告；自动报告不等于自动修复数据划分。
-4. [首版已实现] deterministic evaluator：四态混淆矩阵、per-class 指标、macro-F1、关系族/来源状态分层混淆矩阵与 Macro-F1、abstention coverage / selective risk。
-5. [待开展] 接入 M7 输出快照，评估器继续保持管线外置。
-6. [待开展] 形成首轮人工标注基准报告后再扩到 B5–B6。
+2. [已实现] 评分资格门禁：pending_review 不可计分；synthetic fixture 需要显式 opt-in 并在报告中标注；正式 gold 评分只接受 adjudicated 数据集。
+3. [待开展] 建立 30–50 个人工审查的最小对照样本，先覆盖 B0–B4；未校勘古籍例只进入 exploratory pool。
+4. [首版已实现] source lineage / independence group 跨 split 泄漏报告；自动报告不等于自动修复数据划分。
+5. [首版已实现] deterministic evaluator：四态混淆矩阵、per-class 指标、macro-F1、关系族/来源状态分层混淆矩阵与 Macro-F1、abstention coverage / selective risk。
+6. [待开展] 接入 M7 输出快照，评估器继续保持管线外置。
+7. [待开展] 形成首轮人工标注基准报告后再扩到 B5–B6。
 
 当前 12 条 synthetic fixture 仅验证接口与计分逻辑，不是古籍 gold 数据，也不代表真实人工审阅。没有人工 gold 标注、独立来源谱系审核和实际观察结果之前，不得宣称基准验证了类象理论的普遍有效性。
 
