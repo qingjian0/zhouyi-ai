@@ -29,11 +29,9 @@
     "independence_group": "fixture-group-syn-001",
     "gold_decision": "accept",
     "gold_rationale": "Synthetic gold label; uncertainty is documented for abstention.",
-    "reviewers": [
-      "reviewer-a",
-      "reviewer-b"
-    ],
-    "split_group": "train"
+    "reviewers": [],
+    "split_group": "train",
+    "label_status": "fixture_expected"
   },
   {
     "case_id": "syn-002",
@@ -65,11 +63,9 @@
     "independence_group": "fixture-group-syn-002",
     "gold_decision": "reject",
     "gold_rationale": "Synthetic gold label; uncertainty is documented for abstention.",
-    "reviewers": [
-      "reviewer-a",
-      "reviewer-b"
-    ],
-    "split_group": "train"
+    "reviewers": [],
+    "split_group": "train",
+    "label_status": "fixture_expected"
   },
   {
     "case_id": "syn-003",
@@ -101,11 +97,9 @@
     "independence_group": "fixture-group-syn-003",
     "gold_decision": "conditional",
     "gold_rationale": "Synthetic gold label; uncertainty is documented for abstention.",
-    "reviewers": [
-      "reviewer-a",
-      "reviewer-b"
-    ],
-    "split_group": "train"
+    "reviewers": [],
+    "split_group": "train",
+    "label_status": "fixture_expected"
   },
   {
     "case_id": "syn-004",
@@ -137,11 +131,9 @@
     "independence_group": "fixture-group-syn-004",
     "gold_decision": "abstain",
     "gold_rationale": "Synthetic gold label; uncertainty is documented for abstention.",
-    "reviewers": [
-      "reviewer-a",
-      "reviewer-b"
-    ],
-    "split_group": "train"
+    "reviewers": [],
+    "split_group": "train",
+    "label_status": "fixture_expected"
   },
   {
     "case_id": "syn-005",
@@ -173,11 +165,9 @@
     "independence_group": "fixture-group-syn-005",
     "gold_decision": "accept",
     "gold_rationale": "Synthetic gold label; uncertainty is documented for abstention.",
-    "reviewers": [
-      "reviewer-a",
-      "reviewer-b"
-    ],
-    "split_group": "dev"
+    "reviewers": [],
+    "split_group": "dev",
+    "label_status": "fixture_expected"
   },
   {
     "case_id": "syn-006",
@@ -209,11 +199,9 @@
     "independence_group": "fixture-group-syn-006",
     "gold_decision": "reject",
     "gold_rationale": "Synthetic gold label; uncertainty is documented for abstention.",
-    "reviewers": [
-      "reviewer-a",
-      "reviewer-b"
-    ],
-    "split_group": "dev"
+    "reviewers": [],
+    "split_group": "dev",
+    "label_status": "fixture_expected"
   },
   {
     "case_id": "syn-007",
@@ -245,11 +233,9 @@
     "independence_group": "fixture-group-syn-007",
     "gold_decision": "conditional",
     "gold_rationale": "Synthetic gold label; uncertainty is documented for abstention.",
-    "reviewers": [
-      "reviewer-a",
-      "reviewer-b"
-    ],
-    "split_group": "dev"
+    "reviewers": [],
+    "split_group": "dev",
+    "label_status": "fixture_expected"
   },
   {
     "case_id": "syn-008",
@@ -281,11 +267,9 @@
     "independence_group": "fixture-group-syn-008",
     "gold_decision": "abstain",
     "gold_rationale": "Synthetic gold label; uncertainty is documented for abstention.",
-    "reviewers": [
-      "reviewer-a",
-      "reviewer-b"
-    ],
-    "split_group": "dev"
+    "reviewers": [],
+    "split_group": "dev",
+    "label_status": "fixture_expected"
   },
   {
     "case_id": "syn-009",
@@ -317,11 +301,9 @@
     "independence_group": "fixture-group-syn-009",
     "gold_decision": "accept",
     "gold_rationale": "Synthetic gold label; uncertainty is documented for abstention.",
-    "reviewers": [
-      "reviewer-a",
-      "reviewer-b"
-    ],
-    "split_group": "test"
+    "reviewers": [],
+    "split_group": "test",
+    "label_status": "fixture_expected"
   },
   {
     "case_id": "syn-010",
@@ -353,11 +335,9 @@
     "independence_group": "fixture-group-syn-010",
     "gold_decision": "reject",
     "gold_rationale": "Synthetic gold label; uncertainty is documented for abstention.",
-    "reviewers": [
-      "reviewer-a",
-      "reviewer-b"
-    ],
-    "split_group": "test"
+    "reviewers": [],
+    "split_group": "test",
+    "label_status": "fixture_expected"
   },
   {
     "case_id": "syn-011",
@@ -389,11 +369,9 @@
     "independence_group": "fixture-group-syn-011",
     "gold_decision": "conditional",
     "gold_rationale": "Synthetic gold label; uncertainty is documented for abstention.",
-    "reviewers": [
-      "reviewer-a",
-      "reviewer-b"
-    ],
-    "split_group": "test"
+    "reviewers": [],
+    "split_group": "test",
+    "label_status": "fixture_expected"
   },
   {
     "case_id": "syn-012",
@@ -425,10 +403,8 @@
     "independence_group": "fixture-group-syn-012",
     "gold_decision": "abstain",
     "gold_rationale": "Synthetic gold label; uncertainty is documented for abstention.",
-    "reviewers": [
-      "reviewer-a",
-      "reviewer-b"
-    ],
-    "split_group": "test"
+    "reviewers": [],
+    "split_group": "test",
+    "label_status": "fixture_expected"
   }
 ]
