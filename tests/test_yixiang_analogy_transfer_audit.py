@@ -30,6 +30,16 @@ class M17Tests(unittest.TestCase):
     def test_duplicate_evidence_refs_rejected(self):
         with self.assertRaises(ValueError): assess_analogy_transfer(proposal(evidence_refs=("text:1","text:1")))
     def test_relation_signatures_are_explicit(self): self.assertEqual(assess_analogy_transfer(proposal(target_relation_signature=("agent","owns","object"),relation_preserved=False)).status,TransferStatus.RELATION_MISMATCH)
+    def test_huainanzi_counterexample_casebook_preserves_species_and_context(self):
+        import json
+        from pathlib import Path
+        path=Path(__file__).resolve().parents[1]/"data"/"yixiang_analogy_transfer_huainanzi_m17.v0.1.json"
+        data=json.loads(path.read_text(encoding="utf-8"))
+        ids={item["case_id"] for item in data["cases"]}
+        self.assertIn("poison-species-difference",ids)
+        self.assertIn("same-object-different-use",ids)
+        self.assertIn("same-action-different-posture",ids)
+
     def test_truth_fields_are_never_certified(self):
         result=assess_analogy_transfer(proposal())
         self.assertFalse(result.transfer_truth_established)
