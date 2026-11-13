@@ -69,10 +69,9 @@ def assess_analogy(
     Relation kinds are exact and directed by default. Symmetry, inverse
     relations, and causal semantics must be modeled explicitly elsewhere.
     """
-    if not 0.0 <= min_relation_f1 <= 1.0:
-        raise ValueError("min_relation_f1 must be in [0, 1]")
-    if not 0.0 <= min_entity_coverage <= 1.0:
-        raise ValueError("min_entity_coverage must be in [0, 1]")
+    for name, value in (("min_relation_f1", min_relation_f1), ("min_entity_coverage", min_entity_coverage)):
+        if isinstance(value, bool) or not isinstance(value, (int, float)) or not 0.0 <= value <= 1.0:
+            raise ValueError(f"{name} must be a finite number in [0, 1]")
     if not candidate.candidate_id or not candidate.source_domain or not candidate.target_domain:
         raise ValueError("candidate id and both domains are required")
     if not candidate.dimensions:
@@ -177,16 +176,22 @@ def discover_analogy_mappings(
     """
     from itertools import islice, permutations
 
+    if not source_domain.strip() or not target_domain.strip():
+        raise ValueError("source_domain and target_domain must be non-empty")
     if not source_entities or not target_entities:
         raise ValueError("source_entities and target_entities must be non-empty")
+    if not dimensions or len(set(dimensions)) != len(dimensions) or set(dimensions) - ANALOGY_DIMENSIONS:
+        raise ValueError("dimensions must be non-empty, unique, and known")
+    if isinstance(min_relation_f1, bool) or not isinstance(min_relation_f1, (int, float)) or not 0.0 <= min_relation_f1 <= 1.0:
+        raise ValueError("min_relation_f1 must be a finite number in [0, 1]")
     if len(source_entities) > len(target_entities):
         raise ValueError("target graph must have at least as many entities as source graph")
     if len(set(source_entities)) != len(source_entities):
         raise ValueError("source entity ids must be unique")
     if len(set(target_entities)) != len(target_entities):
         raise ValueError("target entity ids must be unique")
-    if max_evaluations < 1 or max_results < 1:
-        raise ValueError("max_evaluations and max_results must be positive")
+    if type(max_evaluations) is not int or type(max_results) is not int or max_evaluations < 1 or max_results < 1:
+        raise ValueError("max_evaluations and max_results must be positive integers")
     if not source_relations or not target_relations:
         raise ValueError("both graphs must contain relations for analogy discovery")
 
