@@ -88,16 +88,24 @@ PR #422 exact-head workflow [#43349730473](https://github.com/qingjian0/zhouyi-a
 
 这些是同一 PR head 上的工作流证据，不代表任何父 PR 已合并。
 
-### 后续性能工程：向量化优化器
+### 后续性能工程：向量化优化器（PR #427，前一 head 已通过）
 
 PR #427 在 #422 之上保留原 scalar optimizer 作为 reference/fallback，并新增 NumPy float64 向量化路径：每个 fit 仅编码一次 train/development feature matrix，再使用矩阵乘法计算 logits 与 batch gradients。BCE、mean-gradient、non-bias L2、学习率、development checkpoint/patience 规则保持不变。CI 固定 NumPy 2.3.5 和单线程 BLAS 设置。
 
-当前 PR #427 exact-head workflow 尚未完成：
-- [Vectorized parity/speed #43365196479](https://github.com/qingjian0/zhouyi-ai/actions/runs/43365196479)：queued/running，待 scalar-reference 全量基准。
-- [Hybrid regression #43365196396](https://github.com/qingjian0/zhouyi-ai/actions/runs/43365196396)：queued。
-- [Early-stopping regression #43365196471](https://github.com/qingjian0/zhouyi-ai/actions/runs/43365196471)：queued。
-不得在完成数值一致性与 exact-head artifact 前记录加速倍数。
+前一 head `f142d669fff95fcce86b904c5721d616cd4b6769` 的 exact-head workflow [#43365196479](https://github.com/qingjian0/zhouyi-ai/actions/runs/43365196479) 已成功，测试、完整 paired benchmark 和 artifact upload 全部通过。同一 corpus digest `f56948816847a587c194931588027f97d99a4541644932b81f2df26e7b381c15`、8 families / 2,048 rows、128/64/64 split、600 max epochs：
+- Scalar reference：296.59 s；locked bit / exact-state accuracy 86.1328% / 23.6328%。
+- NumPy vectorized：2.45 s；locked bit / exact-state accuracy 86.1328% / 23.6328%。
+- Paired speedup：121.03×；8 个 family 的 best epoch 全部一致；accuracy delta 0；best development loss 最大差值 2.22e-16。
+- 该计时排除 corpus generation，且没有开启 tracemalloc；不可与 #422 instrumented compute-accounting wall time 直接比较。
 
+前一 head 的 [hybrid regression #43365196396](https://github.com/qingjian0/zhouyi-ai/actions/runs/43365196396) 和 [early-stopping regression #43365196471](https://github.com/qingjian0/zhouyi-ai/actions/runs/43365196471) 也已成功。
+
+当前 head `7e445c5be6317dcda982dd4cfd93ccbd2e463cb3` 修正了 feature accounting：区分一次性 cached feature-matrix encodings 与每 epoch gradient feature contributions，并补充无 NumPy fallback 及两种后端 accounting tests。当前 exact-head workflows 尚待完成：
+- [Vectorized parity/speed #43365872933](https://github.com/qingjian0/zhouyi-ai/actions/runs/43365872933)
+- [Hybrid regression #43365872867](https://github.com/qingjian0/zhouyi-ai/actions/runs/43365872867)
+- [Early-stopping regression #43365872882](https://github.com/qingjian0/zhouyi-ai/actions/runs/43365872882)
+
+因此，121.03× 是前一 head 的已验证实现结果；当前 head 的 accounting/fallback 修订尚未通过 exact-head CI。PR #427 仍是探索分支，不是独立 merge 候选；应将 full-basis 证据用于决定是否把 #426 的 canonical NumPy optimizer API 扩展到 full-basis learner。
 ### 组合规则 out-of-grammar 基准（PR #428，待验证）
 
 PR #428 使用 `(x_a AND x_b) XOR (x_c AND x_d)` 作为组合教师规则。当前符号发现器的候选空间只包含单一声明算子，因此测试目标刻意位于单算子 grammar 之外。
