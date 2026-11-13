@@ -53,9 +53,9 @@ Early-stopping 结果的平均 best epoch 为 420.875，平均执行 439.625 epo
 3. #413：有限符号 mixed-operator discovery，基于 #411。
 4. #417：trainable polynomial baseline，基于 #413。
 5. #418：五种子 replication，作为 #417 的独立子分支。
-6. #419 → #420 → #421 → #422：匹配对照 → sample-efficiency → development early stopping → compute-accounted symbolic-support hybrid。
+6. #419 → #420 → #421 → #422 → #427：匹配对照 → sample-efficiency → development early stopping → compute-accounted symbolic-support hybrid → vectorized optimizer parity/performance。
 
-#418 与 #419 是 #417 的兄弟分支，不是彼此的父子依赖。#422 的 base 是 #421；不得跳过父链独立合并。#422 当前 exact head 为 251ecbe2f0cee36ce877fbbb4135df9a1cc0f67c，较 #421 base head 49a4147200a3fae52c0d06898f036623536e1fed 前进 4 commits。
+#418 与 #419 是 #417 的兄弟分支，不是彼此的父子依赖。#422 的 base 是 #421；#427 的 base 是 #422；不得跳过父链独立合并。#422 当前 exact head 为 251ecbe2f0cee36ce877fbbb4135df9a1cc0f67c，较 #421 base head 49a4147200a3fae52c0d06898f036623536e1fed 前进 4 commits。#427 当前 exact head 为 f142d669fff95fcce86b904c5721d616cd4b6769，较 #422 前进 11 commits。
 
 ### 当前新增研究：符号支持约束 hybrid
 
@@ -67,7 +67,12 @@ PR #422 增加三路同数据对照：
 
 Hybrid 的 support 选择只读取 train labels；development 仅用于 checkpoint 选择；locked 仅用于最终报告。该实现补充候选评估数、truth-table state evaluations、feature count、gradient feature contributions、wall time、Python allocation peak 和 process-wide RSS high-water。
 
-PR #422 exact-head focused leakage/accounting tests 已通过；compute benchmark 与 artifact 尚待该 exact head 的 workflow 完成。不得在 artifact 生成前宣称 hybrid 有质量或效率提升。
+PR #422 exact-head workflow [#43349730473](https://github.com/qingjian0/zhouyi-ai/actions/runs/43349730473) 已成功，focused leakage/accounting tests、三路 benchmark 和 artifact upload 全部通过。结果：
+- Exhaustive symbolic：11.54 s，99.90% locked bit accuracy，98.44% full-truth-table exact recovery。
+- Full polynomial + development early stopping：1,467.69 s，86.13% locked bit / 23.63% exact-state accuracy。
+- Symbolic-support hybrid：711.25 s，90.04% locked bit / 41.21% exact-state accuracy。
+- Hybrid 使用 1,752 个非 bias features（64 个 output heads 合计），full model 对应 16,320 个 feature slots；hybrid 相对 full model 约 2.06× wall-time speedup。
+- Python traced allocation peaks 分别为 1.89 MB / 1.63 MB / 3.54 MB；34.58 MB 是所有方法共用进程的 peak RSS，不能当作每个方法独立 RSS。
 
 ### 精确 CI 证据
 
@@ -78,9 +83,19 @@ PR #422 exact-head focused leakage/accounting tests 已通过；compute benchmar
 - [Matched comparison #43349730471](https://github.com/qingjian0/zhouyi-ai/actions/runs/43349730471)：success。
 - [Sample efficiency #43349730472](https://github.com/qingjian0/zhouyi-ai/actions/runs/43349730472)：success。
 - [Early stopping #43349730489](https://github.com/qingjian0/zhouyi-ai/actions/runs/43349730489)：success。
-- [Compute-accounted hybrid #43349730473](https://github.com/qingjian0/zhouyi-ai/actions/runs/43349730473)：focused tests passed；benchmark step仍在运行，artifact尚未发布。
+- [Compute-accounted hybrid #43349730473](https://github.com/qingjian0/zhouyi-ai/actions/runs/43349730473)：success，benchmark 与 artifact 均完成。
 
 这些是同一 PR head 上的工作流证据，不代表任何父 PR 已合并。
+
+### 后续性能工程：向量化优化器
+
+PR #427 在 #422 之上保留原 scalar optimizer 作为 reference/fallback，并新增 NumPy float64 向量化路径：每个 fit 仅编码一次 train/development feature matrix，再使用矩阵乘法计算 logits 与 batch gradients。BCE、mean-gradient、non-bias L2、学习率、development checkpoint/patience 规则保持不变。CI 固定 NumPy 2.3.5 和单线程 BLAS 设置。
+
+当前 PR #427 exact-head workflow 尚未完成：
+- [Vectorized parity/speed #43365196479](https://github.com/qingjian0/zhouyi-ai/actions/runs/43365196479)：queued/running，待 scalar-reference 全量基准。
+- [Hybrid regression #43365196396](https://github.com/qingjian0/zhouyi-ai/actions/runs/43365196396)：queued。
+- [Early-stopping regression #43365196471](https://github.com/qingjian0/zhouyi-ai/actions/runs/43365196471)：queued。
+不得在完成数值一致性与 exact-head artifact 前记录加速倍数。
 
 ## E09 / E12-A6 / N0.10 状态边界
 
@@ -103,8 +118,8 @@ E09、E12-A6/ZPCM 与 N0.10 仍由独立研究分支承载。现有架构收敛�
 
 ## 下一阶段优先顺序
 
-1. 完成 #422 exact-head compute-accounted artifact，核查质量、候选评估、特征数、wall time 与内存。
-2. 若 hybrid 结果稳定，再在独立种子上复现；不得使用 locked 结果调参。
+1. 完成 #427 exact-head scalar/vectorized parity 和 full wall-time benchmark；若数值不一致，先修复再考虑启用。
+2. 对 #422 hybrid 进行独立种子复现，并增加组合规则/严格未见 teacher-family 评估；不得使用 locked 结果调参。
 3. 将 E12-A6 普通启动、bounded restore、checkpoint anchor 与 crash fallback 分开验收。
 4. 将 E09 trusted identity / receipt / replay 与真实进程隔离分开验收。
 5. 将 N0.10 data provenance、checkpoint fingerprints、streaming runner 和 locked evaluator 收敛到一个明确集成祖先。
@@ -114,7 +129,7 @@ E09、E12-A6/ZPCM 与 N0.10 仍由独立研究分支承载。现有架构收敛�
 ## 架构文档与分支优先级审计
 
 - PR #265 的主架构 v2 文档位于分支 `architecture/cpg-ei-master-convergence-v2-2026-11-12`，HEAD `86541fe33ebe93d145bc4f39f6b36821850dfc51`，基于 PR #253 的逐文件运行时映射分支 HEAD `564ac728620002f13db2d8b69975c2779a149e9f`。#265 相对父分支仅前进 2 commits，但相对 main 为 251 commits ahead / 9 commits behind；它是旧的长依赖栈，不能直接作为当前稳定集成祖先。
-- PR #358 的全项目收敛基线以 main `b8b43926e666d83a9ce09d2e71eb9294b2d86c97` 为父基线；当前 Draft 分支 HEAD `966b859552ca43f066e0ffbd6752e250a1dfc383`，相对 main 为 28 ahead / 0 behind，仅改动 README、ROADMAP 和架构/状态文档。该分支是本轮更干净的治理文档候选，但最新 docs-only head 尚未发现对应 workflow run，不宣称 exact-head CI 已通过。
+- PR #358 的全项目收敛基线以 main `b8b43926e666d83a9ce09d2e71eb9294b2d86c97` 为父基线；当前 Draft 分支在本次状态更新前 HEAD `8cf3061432be3dc58c1fee90af093321bfa46aa9`，相对 main 为 90 ahead / 0 behind，包含 README、ROADMAP 和架构/状态文档。该 head 的文档测试 workflow [#43351080279](https://github.com/qingjian0/zhouyi-ai/actions/runs/43351080279) 已成功；本次刷新后的新 head 仍需重新运行 exact-head CI。
 - PR #381 的 execution snapshot HEAD `1126a644e26458610ae8d867056551cfe5e819c0` 有 workflow #43253222365 success；它是 2026-11-12 的分支证据快照，不是第二套架构所有权规范。
 - #265 的主架构 v2 与 #358 的项目收敛基线都包含模块责任、运行闭环和 KV-independent 分层，存在文档权威重叠。应选定一个唯一架构决策入口；另一个保留为逐文件证据/历史审计并链接过去，避免两个“master”同时有效。
 
