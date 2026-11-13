@@ -80,7 +80,7 @@ def assess_analogy_transfer(proposal: AnalogyProposal) -> TransferAssessment:
         if value is not None and not isinstance(value, bool):
             raise ValueError(f"{name} must be bool or None")
     failed, unresolved = [], []
-    for name in ("warrant_comparable", "relation_preserved", "scope_compatible"):
+    for name in ("warrant_comparable", "relation_preserved", "scope_compatible", "conditions_compatible"):
         value = getattr(proposal, name)
         if value is False: failed.append(name)
         elif value is None: unresolved.append(name)
