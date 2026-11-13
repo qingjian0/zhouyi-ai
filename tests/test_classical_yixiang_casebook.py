@@ -24,10 +24,11 @@ class ClassicalYixiangCasebookTests(unittest.TestCase):
         self.assertTrue({"周易·系辞下传", "墨子", "荀子", "公孙龙子", "淮南子", "论衡"}.issubset(works))
         self.assertTrue(any(source["chapter"] == "要略" for source in self.book["sources"]))
         self.assertGreaterEqual(len(self.book["cases"]), 11)
-        self.assertEqual(len(self.book["cases"]), 16)
+        self.assertEqual(len(self.book["cases"]), 18)
         self.assertTrue({"吕氏春秋", "淮南子"}.issubset(works))
         self.assertTrue(any(source["chapter"] == "恃君览·别类" for source in self.book["sources"]))
         self.assertTrue(any(source["chapter"] == "说山训" for source in self.book["sources"]))
+        self.assertTrue(any(source["chapter"] == "孟冬纪·安死" for source in self.book["sources"]))
 
     def test_non_aggression_case_separates_harm_progression_and_quantity_scaling(self):
         case = next(item for item in self.book["cases"] if item["case_id"] == "xy_011")
@@ -56,6 +57,17 @@ class ClassicalYixiangCasebookTests(unittest.TestCase):
         self.assertTrue(any("顺序" in item for item in by_id["xy_015"]["counterexample_or_boundary"]))
         self.assertEqual(by_id["xy_016"]["source_id"], "src_huainan_shuoshan")
         self.assertIn("现代医学", by_id["xy_016"]["conclusion_scope"])
+
+    def test_lushi_action_outcome_and_delayed_effect_cases(self):
+        by_id = {case["case_id"]: case for case in self.book["cases"]}
+        neighbor = by_id["xy_017"]
+        self.assertEqual(neighbor["source_id"], "src_lushi_ansi")
+        self.assertIn("causal_critique", neighbor["operation"])
+        self.assertTrue(any("意图" in item for item in neighbor["counterexample_or_boundary"]))
+        delayed = by_id["xy_018"]
+        self.assertEqual(delayed["source_id"], "src_lushi_bielei")
+        self.assertTrue(any("长期稳定" in item for item in delayed["counterexample_or_boundary"]))
+        self.assertTrue(any("延迟结果" in item for item in delayed["counterexample_or_boundary"]))
 
     def test_all_case_operations_are_allowed_by_schema(self):
         schema = json.loads(
