@@ -47,7 +47,7 @@
 - [古籍证据来源谱系审计测试](tests/test_yixiang_evidence_independence.py)
 - [古典类象词义、名物与推类分层研究 v0.1](docs/CLASSICAL_YIXIANG_LEXICAL_NOMENCLATURE_INFERENCE_V0_1.md)
 - [古籍候选来源目录（148 项，均为待核验候选）](data/classical_yixiang_source_catalog.json)
-- [古典类象案例集 v0.1（23 条原典案例，数字转录候选）](data/classical_yixiang_casebook.v0.1.json)
+- [古典类象案例集 v0.1（24 条原典案例，数字转录候选）](data/classical_yixiang_casebook.v0.1.json)
 - [古典类象案例集研究说明与校勘门槛](docs/CLASSICAL_YIXIANG_CASEBOOK_V0_1.md)
 - [古典类象案例集 Schema](schemas/classical-yixiang-casebook.schema.json)
 - [古典类象案例集测试](tests/test_classical_yixiang_casebook.py)
