@@ -129,13 +129,13 @@ def search_sequences(actions, scenarios, horizon, beam_width, max_total_cost,
         if not a.safety_approved or not a.feasible: warnings.append("action_not_eligible:"+a.action_id)
     eligible=[a for a in actions if a.safety_approved and a.feasible and a.risk<=a.max_risk]
     for s in scenarios:
-        if not _valid_scenario(s,{a.action_id for a in eligible}):
+        if not _valid_scenario(s,set(ids)):
             issues.append("invalid_or_uncalibrated_scenario:"+s.scenario_id)
     if issues:
         return SearchResult(SearchDisposition.BLOCKED,(),(),0.0,0,tuple(sorted(set(issues))),tuple(sorted(set(warnings))))
     if not eligible:
         return SearchResult(SearchDisposition.NO_FEASIBLE_SEQUENCE,(),(),0.0,0,(),tuple(sorted(set(warnings))))
-    beam=[tuple()]; seen=set(); ranked={}; expanded=0; greedy=tuple(); greedy_utility=float("-inf")
+    beam=[tuple()]; seen=set(); ranked={}; expanded=0;
     for depth in range(1,min(horizon,len(eligible))+1):
         candidates=[]
         for prefix in beam:
@@ -151,10 +151,24 @@ def search_sequences(actions, scenarios, horizon, beam_width, max_total_cost,
                 ranked[seq]=score; candidates.append(score)
         if not candidates: break
         candidates.sort(key=lambda x:(-x.utility,x.total_cost,x.total_risk,x.action_ids))
-        if candidates[0].utility>greedy_utility:
-            greedy=candidates[0].action_ids; greedy_utility=candidates[0].utility
         beam=[x.action_ids for x in candidates[:beam_width]]
     best=tuple(sorted(ranked.values(),key=lambda x:(-x.utility,x.total_cost,x.total_risk,x.action_ids)))
+    # True one-step greedy baseline: maximize incremental robust-EIG utility at each step.
+    greedy=tuple(); greedy_utility=0.0; current_eig=0.0
+    for _ in range(min(horizon,len(eligible))):
+        extensions=[]
+        for a in eligible:
+            if a.action_id in greedy: continue
+            seq=greedy+(a.action_id,)
+            score=_score(seq,eligible,scenarios,cost_weight,risk_weight)
+            if score.total_cost<=max_total_cost+1e-9 and score.total_risk<=max_total_risk+1e-9:
+                marginal=(score.robust_eig-current_eig)-cost_weight*a.cost-risk_weight*a.risk
+                extensions.append((marginal,score))
+        if not extensions: break
+        extensions.sort(key=lambda x:(-x[0],x[1].action_ids))
+        marginal,chosen=extensions[0]
+        if marginal<=0: break
+        greedy=chosen.action_ids; current_eig=chosen.robust_eig; greedy_utility=chosen.utility
     warnings.extend(("open_loop_sequences_only_no_outcome_contingent_branching","bounded_beam_search_is_not_global_optimality_proof","robustness_only_over_declared_model_scenarios","validation_data_must_remain_unseen_until_search_and_policy_freeze","search_ranking_is_not_execution_authorization"))
     return SearchResult(SearchDisposition.CANDIDATES_FOUND if best else SearchDisposition.NO_FEASIBLE_SEQUENCE,
                         best,greedy,greedy_utility,expanded,(),tuple(sorted(set(warnings))),False,False)
