@@ -1,6 +1,6 @@
 # M62 — Gold admission and provenance gates v0.1
 
-Status: implementation added; 17 focused tests passed on head `6032663924243c2ea65ba442fab4d59a1d8c9ead`; combined M61/M62 repository-wide workflow `43590149812` passed.
+Status: implementation added; 17 focused tests passed on head 6032663924243c2ea65ba442fab4d59a1d8c9ead; combined M61/M62 repository-wide workflow 43590149812 passed.
 
 ## Problem found
 
@@ -40,11 +40,19 @@ The M62 tests verify that:
 
 A candidate source family has been identified for the first real source audit: the 四部丛刊初编影宋本《周易》, described by the CText catalog as a facsimile of a Song printed edition held by 上海涵芬楼. The CText page states that its text was automatically OCR-matched to the base edition, so the digital transcription is marked unreviewed and cannot enter gold until each cited span is checked against the actual scan.
 
-For 咸卦, the source page contains the distinct textual layers:
+M67 has now located an accessible Wikimedia DJVU scan of the Four Books Congkan facsimile:
+- DJVU index: https://zh.wikisource.org/wiki/Index:Sibu_Congkan0001-王弼-周易-2-1.djvu
+- File metadata: https://zh.wikisource.org/wiki/File:Sibu_Congkan0001-王弼-周易-2-1.djvu
+- Page 9 transcription and scan locator: https://zh.wikisource.org/wiki/Page:Sibu_Congkan0001-王弼-周易-2-1.djvu/9
+- Page 10 transcription and scan locator: https://zh.wikisource.org/wiki/Page:Sibu_Congkan0001-王弼-周易-2-1.djvu/10
+
+The file page reports a 146-page DJVU. Page 9 and page 10 images were opened for preliminary visual spot-checking. This advances the source from catalogue-only discovery to scan-accessible discovery, but does not constitute complete character-level verification or independent adjudication. The global index is marked unproofread; individual Wikisource page status is separate and is not equivalent to M62 Gold review.
+
+For 咸卦, the source page contains distinct textual layers:
 - 《象传》 text: “象曰山上有泽咸君子以虚受人”
 - 王弼注: “以虚受人物乃感应”
 
-These must remain separate. The first is the received 《象传》 text, whose composition and attribution are historically layered and contested; the second is commentary attributed to Wang Bi. Neither line is being admitted as gold in this PR. The Song witness, 1920s facsimile, OCR transcription, and modern web rendering are separate provenance layers.
+These must remain separate. The first is the received 《象传》 text, whose composition and attribution are historically layered and contested; the second is commentary attributed to Wang Bi. Neither line is being admitted as gold in this PR. The Song witness, 1920s facsimile, digital scan, OCR transcription, and modern web rendering are separate provenance layers.
 
 A separate 四库全书本 witness exists for the same work and passage. Its page explicitly identifies the base as 景印文渊阁四库全书第七册 and opens with “钦定四库全书”; it is a Qing witness and therefore a collation witness, not independent pre-Qing primary evidence.
 
@@ -64,15 +72,17 @@ A 2023 modern critical edition of 《周易注》 states that it uses the Four B
 
 ## Related concept research
 
-See [Classical yixiang concept map](YIXIANG_CLASSICAL_CONCEPT_MAP_V0_1.md) for source-layer-separated notes on 《系辞上》《系辞下》《说卦传》 and the 咸卦 《象传》 example. The concept map is a research guide only; its quotations remain discovery-stage until verified against the scan-backed witness.
+See [Classical yixiang concept map](YIXIANG_CLASSICAL_CONCEPT_MAP_V0_1.md) for source-layer-separated notes on 《系辞上》《系辞下》《说卦传》 and the 咸卦 《象传》 example. See [M67 scan-backed source audit](YIXIANG_M67_SCAN_BACKED_SOURCE_AUDIT_V0_1.md) for the page 9/10 DJVU image locators and the Wang Bi commentary-layer finding. The concept map and M67 audit remain research/discovery records, not Gold admissions.
 
 ## References
 
 - CText catalog for 《周易》 in 四部丛刊初编: https://ctext.org/library.pl?if=gb&remap=gb&res=77330
-- CText volume four OCR text: https://ctext.org/wiki.pl?chapter=119825&if=en&remap=gb
+- Wikisource work page: https://zh.wikisource.org/zh-hans/周易_(四部丛刊本)
+- Wikisource DJVU index: https://zh.wikisource.org/wiki/Index:Sibu_Congkan0001-王弼-周易-2-1.djvu
+- Wikisource DJVU file metadata: https://zh.wikisource.org/wiki/File:Sibu_Congkan0001-王弼-周易-2-1.djvu
 - Wikisource 四部丛刊本, 卷四: https://zh.wikisource.org/wiki/周易_(四部叢刊本)/卷四
-- Wikisource 四部丛刊本, 卷七（系辞上）: https://zh.wikisource.org/zh-hans/周易_(四部丛刊本)/卷七
-- Wikisource 四部丛刊本, 卷八（系辞下）: https://wk.100ke.info/zh-hans/周易_(四部丛刊本)/卷八
+- Wikisource 四部丛刊本, 卷七（系辞上）: https://zh.wikisource.org/zh-hans/周易_(四部叢刊本)/卷七
+- Wikisource 四部丛刊本, 卷八（系辞下）: https://wk.100ke.info/zh-hans/周易_(四部叢刊本)/卷八
 - Wikisource 四库全书本, 卷四: https://zh.wikisource.org/wiki/周易註_(四庫全書本)/卷04
 - CText bibliographic note on the 1919–1922 first series and 1924 reprint: https://ctext.org/wiki.pl?chapter=543417&if=gb&remap=gb
 - Peking University Confucian Canon editorial center on the edition lineage and Song-printing debate: https://ruzang.pku.edu.cn/rzen/info/1017/1177.htm
