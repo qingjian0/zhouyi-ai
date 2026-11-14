@@ -99,3 +99,13 @@ class M19Tests(unittest.TestCase):
         with self.assertRaises(ValueError): to_benchmark_case(bad,split_group="test")
 
 if __name__=="__main__": unittest.main()
+
+    def test_malformed_enum_values_raise_value_error(self):
+        with self.assertRaises(ValueError):
+            assess_review_packet(packet(source=SourceVerification([], "w","e","v","loc","text",(),(),"note")))
+        with self.assertRaises(ValueError):
+            assess_review_packet(packet(annotations=(annotation(decision=[]),annotation("reviewer-b"))))
+        with self.assertRaises(ValueError):
+            assess_review_packet(packet(adjudication=adjudication(decision=[])))
+        with self.assertRaises(ValueError):
+            to_benchmark_case(packet(adjudication=adjudication()),split_group=[])
