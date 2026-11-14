@@ -15,10 +15,17 @@ from prototype.yixiang_pc_skeleton_m54 import pc_skeleton_baseline
 METHODS = ("random", "correlation", "pc_skeleton")
 SCENARIOS = (
     "linear_gaussian",
+    "linear_weak",
+    "linear_near_null",
+    "linear_null",
     "nonlinear_quadratic",
+    "nonlinear_interaction",
     "non_gaussian_noise",
     "latent_common_cause",
     "selection_collider",
+    "measurement_error_proxy",
+    "collinear_linear",
+    "mechanism_heterogeneity",
 )
 
 
@@ -40,9 +47,25 @@ def generate_scenario(name, *, n=240, seed=0):
             y = 1.25 * x + rng.gauss(0.0, 0.8)
             parents = ("x",)
             values = (x, z, w, y)
+        elif name == "linear_weak":
+            y = 0.30 * x + rng.gauss(0.0, 0.8)
+            parents = ("x",)
+            values = (x, z, w, y)
+        elif name == "linear_near_null":
+            y = 0.10 * x + rng.gauss(0.0, 0.8)
+            parents = ("x",)
+            values = (x, z, w, y)
+        elif name == "linear_null":
+            y = rng.gauss(0.0, 0.8)
+            parents = ()
+            values = (x, z, w, y)
         elif name == "nonlinear_quadratic":
             y = (x * x - 1.0) + rng.gauss(0.0, 0.6)
             parents = ("x",)
+            values = (x, z, w, y)
+        elif name == "nonlinear_interaction":
+            y = x * z + rng.gauss(0.0, 0.6)
+            parents = ("x", "z")
             values = (x, z, w, y)
         elif name == "non_gaussian_noise":
             y = 1.1 * x + _laplace(rng)
@@ -54,7 +77,7 @@ def generate_scenario(name, *, n=240, seed=0):
             y = 1.3 * latent + rng.gauss(0.0, 0.35)
             parents = ()
             values = (x, z, w, y)
-        else:
+        elif name == "selection_collider":
             # X and Y are independent causes of an unobserved selection node.
             # Conditioning the sample on S creates selection-induced association.
             y = rng.gauss(0.0, 1.0)
@@ -62,6 +85,24 @@ def generate_scenario(name, *, n=240, seed=0):
             if selection_score < 0.9:
                 continue
             parents = ()
+            values = (x, z, w, y)
+        elif name == "measurement_error_proxy":
+            latent = rng.gauss(0.0, 1.0)
+            x = latent + rng.gauss(0.0, 0.9)
+            y = 1.1 * latent + rng.gauss(0.0, 0.5)
+            parents = ()
+            values = (x, z, w, y)
+        elif name == "collinear_linear":
+            z = x + rng.gauss(0.0, 0.05)
+            y = 1.0 * x + rng.gauss(0.0, 0.8)
+            parents = ("x",)
+            values = (x, z, w, y)
+        else:
+            # A hidden regime flips the sign of the direct mechanism.
+            # The pooled marginal association can cancel although x is causal in each regime.
+            regime_sign = 1.0 if len(rows) % 2 == 0 else -1.0
+            y = regime_sign * x + rng.gauss(0.0, 0.4)
+            parents = ("x",)
             values = (x, z, w, y)
         row = {"unit_id": len(rows), "x": values[0], "z": values[1],
                "w": values[2], "y": values[3]}
