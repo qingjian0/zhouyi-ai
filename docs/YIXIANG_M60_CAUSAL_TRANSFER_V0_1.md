@@ -23,6 +23,7 @@ Does a system distinguish observational association from intervention, preserve 
 - Naive observational difference.
 - Adjust for every observed non-exposure/non-outcome variable (deliberately unsafe baseline).
 - Graph-aware direct-parent backdoor adjustment, with explicit abstention for latent exposure parents.
+- A domain-renaming control verifies that the inferred causal mapping does not depend on variable names.
 - Metrics: identification accuracy, MAE on identifiable cases, and number of identified cases scored.
 
 The public case exposes a DAG and exact observed joint distribution. Structural equations and true intervention effects are evaluator-only. The current graph routine is intentionally scoped to the tested direct-parent backdoor subset; it is not a complete do-calculus or generalized adjustment implementation.
