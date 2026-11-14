@@ -287,6 +287,8 @@ def audit_multiaxis_transfer(candidate, source_versions=(), evidence=()):
             issues.append("missing_or_unknown_constraint_evidence:" + c.constraint_id)
         elif len({e.axis for e in erefs}) < 2:
             issues.append("constraint_evidence_must_cover_multiple_axes:" + c.constraint_id)
+        if erefs and {e.side for e in erefs} != {EvidenceSide.SOURCE, EvidenceSide.TARGET}:
+            issues.append("constraint_evidence_must_cover_source_and_target:" + c.constraint_id)
         if not set(c.counterexample_refs).issubset(set(c.evidence_refs)):
             issues.append("constraint_counterexamples_must_be_linked_evidence:" + c.constraint_id)
         if c.outcome == ConstraintOutcome.SATISFIED:
