@@ -7,7 +7,7 @@ def obs(i,context="x",result=ObservationResult.PRESERVED,review=ReviewState.REVI
  return Observation(i,"c",context,"object-"+context,result,("e"+i,),"measurement",review)
 def test(kind=TestKind.FALSIFICATION,context="y",reviewers=("reviewer",)):
  return FalsificationTest("t","c",kind,(context,),"controlled perturbation","failure expected if boundary crossed","observed outcome",("et",),reviewers)
-def audit(contexts=(cx("x"),cx("y")),candidates=(cand(),),evidence=(ev("eo","x"),ev("et","y")),observations=(),tests=(),cex=(),evaluations=()):
+def audit(contexts=(cx("x"),cx("y")),candidates=(cand(),),evidence=(ev("eo","x"),ev("et","y"),ev("e1","x"),ev("e2","y")),observations=(),tests=(),cex=(),evaluations=()):
  return audit_invariant_discovery(contexts,candidates,evidence,observations,tests,cex,evaluations)
 class M31Tests(unittest.TestCase):
  def test_candidate_is_not_proven(self): self.assertEqual(audit().candidate_states,(("c","candidate"),))
@@ -97,11 +97,12 @@ class M31Tests(unittest.TestCase):
   self.assertEqual(audit(tests=(t,)).falsification_coverage,(("c",0),))
  def test_bounded_requires_cross_context_review_and_falsification(self):
   r=audit(observations=(obs("1","x"),obs("2","y")),tests=(test(),))
+  self.assertTrue(r.valid, r.issues)
   self.assertEqual(r.candidate_states,(("c","bounded"),))
  def test_holdout_context_must_exist(self):
   e=Evaluation("ev",("o1",),("o2",),("train",),("test",),("missing",),("feature_similarity","classification","structural_relation"),("acc",),"r",10,"bootstrap",("small",))
   self.assertIn("invalid_holdout_contexts:ev",audit(evaluations=(e,)).issues)
  def test_holdout_context_family_must_be_unseen(self):
-  e=Evaluation("ev",("o1",),("o2",),("fam-x",),("fam-y",),("x",),("feature_similarity","classification","structural_relation"),("acc",),"r",10,"bootstrap",("small",))
+  e=Evaluation("ev",("o1",),("o2",),("x",),("fam-y",),("x",),("feature_similarity","classification","structural_relation"),("acc",),"r",10,"bootstrap",("small",))
   self.assertIn("holdout_context_family_leakage:ev",audit(evaluations=(e,)).issues)
 if __name__=="__main__": unittest.main()
