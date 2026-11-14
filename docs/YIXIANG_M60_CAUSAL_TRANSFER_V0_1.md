@@ -9,7 +9,7 @@ Status: executable exact-distribution synthetic diagnostic; not empirical causal
 
 ## Research question
 
-Does a system distinguish observational association from intervention, preserve total effects through mediators, avoid conditioning on colliders, and abstain when latent confounding makes the effect non-identifiable from the available evidence?
+Does a system distinguish observational association from intervention, preserve total effects through mediators, avoid conditioning on colliders, and abstain from a back-door identification claim when no valid observed adjustment set is available?
 
 ## Implemented SCM cases
 
@@ -24,7 +24,7 @@ Does a system distinguish observational association from intervention, preserve 
 - Adjust for every observed non-exposure/non-outcome variable (deliberately unsafe baseline).
 - Graph-aware minimum adjustment-set search using ancestral moralization and d-separation in the back-door graph; hidden variables remain in the graph but cannot be selected as observed controls.
 - A domain-renaming control verifies that the inferred causal mapping does not depend on variable names.
-- Metrics: back-door criterion accuracy, MAE on identifiable cases, and number of identified cases scored.
+- Metrics: back-door criterion accuracy, MAE on cases identified by the back-door criterion, and number of such cases scored.
 
 The public case exposes a DAG and exact observed joint distribution. Structural equations and true intervention effects are evaluator-only. The graph routine validates DAG acyclicity, searches observed, non-descendant adjustment sets and validates them using the sufficient back-door criterion via d-separation. It is still not a complete do-calculus, generalized adjustment, front-door, IV, or latent-projection identification implementation.
 
@@ -34,7 +34,7 @@ This benchmark validates causal-estimation distinctions under known synthetic SC
 
 ## M61 extension
 
-The follow-on M61 branch replaces the hard-coded direct-parent heuristic with a graph-theoretic search: construct the back-door graph by removing outgoing treatment edges; moralize the ancestral subgraph of treatment, outcome, and candidate controls; then test separation after conditioning. The minimum-cardinality valid observed set is selected. If no observed set blocks the back-door paths, the system abstains. Tests cover chains, forks, colliders, mediation, observed confounding, and hidden common causes.
+The follow-on M61 branch replaces the hard-coded direct-parent heuristic with a graph-theoretic search: construct the back-door graph by removing outgoing treatment edges; moralize the ancestral subgraph of treatment, outcome, and candidate controls; then test separation after conditioning. The minimum-cardinality valid observed set is selected. If no observed set blocks the back-door paths, the system abstains from a back-door claim; it does not infer global non-identifiability, since front-door, IV, and other strategies are outside this implementation. Tests cover chains, forks, colliders, mediation, observed confounding, hidden common causes, and cyclic-graph rejection.
 
 ## Next gates
 
