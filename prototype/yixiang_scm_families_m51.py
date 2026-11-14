@@ -1,6 +1,7 @@
 """M51 heterogeneous SCM family suite: binary-logistic and nonlinear-interaction mechanisms."""
 from dataclasses import dataclass
 from math import exp, isfinite
+from itertools import product
 import random
 
 
@@ -186,13 +187,32 @@ def evaluate_family(spec, target, candidates, top_k):
     env = FamilyEnvironment(spec)
     units = tuple(range(spec.population_size))
     effects = {}
+    contextual_strength = {}
     for candidate in candidates:
         zero = env.sample(units, {candidate: 0.0})
         one = env.sample(units, {candidate: 1.0})
         mean_zero = sum(dict(row.values)[target] for row in zero) / len(zero)
         mean_one = sum(dict(row.values)[target] for row in one) / len(one)
         effects[candidate] = mean_one - mean_zero
-    selected = tuple(sorted(candidates, key=lambda name: (-abs(effects[name]), name))[:top_k])
+
+        # Average absolute controlled contrast over every binary context of
+        # the remaining candidates. This detects pure interactions whose
+        # marginal average effect can cancel around a zero-mean population.
+        others = tuple(name for name in candidates if name != candidate)
+        context_effects = []
+        for context_values in product((0.0, 1.0), repeat=len(others)):
+            context = dict(zip(others, context_values))
+            zero_context = env.sample(units, {**context, candidate: 0.0})
+            one_context = env.sample(units, {**context, candidate: 1.0})
+            m0 = sum(dict(row.values)[target] for row in zero_context) / len(zero_context)
+            m1 = sum(dict(row.values)[target] for row in one_context) / len(one_context)
+            context_effects.append(m1 - m0)
+        contextual_strength[candidate] = (
+            sum(abs(value) for value in context_effects) / len(context_effects)
+        )
+    selected = tuple(sorted(
+        candidates, key=lambda name: (-contextual_strength[name], name)
+    )[:top_k])
     truth = env.oracle(target)["direct_parents"]
     truth_set, selected_set = set(truth), set(selected)
     tp = len(truth_set & selected_set)
