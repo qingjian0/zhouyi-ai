@@ -2,9 +2,9 @@ name: tests
 
 on:
   push:
-    branches: [main]
+    branches: [main, integration/e12a6-lifecycle-interop-2026-11-11, integration/e09-v03-evidence-binding-2026-11-11, integration/csg-gcr-typed-hyperedge-bridge-2026-11-11, integration/csg-branch-delta-2026-11-11, integration/csg-gcr-monotonic-pruning-2026-11-11, integration/csg-branch-delta-typed-bridge-2026-11-11, integration/csg-gcr-e12a6-lifecycle-adapter-2026-11-11, integration/e12a6-zpcm-lifecycle-persistence-2026-11-11, integration/e09-e12a6-evidence-binding-2026-11-11, integration/csg-gcr-e12a6-atomic-ingestion-2026-11-11, integration/csg-gcr-e12a6-lifecycle-e2e-2026-11-11, integration/e09-authenticated-branch-merge-2026-11-11, integration/e09-ed25519-issuer-keyring-2026-11-11, architecture/production-trust-boundary-v1-2026-11-12, security/e09-verification-receipt-v1-2026-11-12, security/e12a6-atomic-receipt-consumption-2026-11-12, security/e12a6-writer-service-v1-2026-11-12, security/e12a6-writer-audit-lock-v1-2026-11-12, security/e12a6-single-writer-runtime-v1-2026-11-12, security/e12a6-uds-peer-auth-v1-2026-11-12, research/m0-memory-measurement-v1-2026-11-12, research/m1-streaming-evidence-ingest-v1-2026-11-12, integration/m1-m2-e09-yixiang-convergence-v1-2026-11-12, fix/m1-persisted-manifest-generation-2026-11-12, fix/zpcm-event-index-and-query-plan-v2-2026-11-12]
   pull_request:
-    branches: [main]
+    branches: [main, integration/cpg-ei-v1-foundation-2026-11-11, integration/e12a20-interop-adapter-2026-11-11, integration/e12a6-lifecycle-interop-2026-11-11, integration/e09-v03-evidence-binding-2026-11-11, integration/csg-gcr-executable-slice-2026-11-11, integration/csg-gcr-typed-hyperedge-bridge-2026-11-11, integration/csg-branch-delta-2026-11-11, integration/csg-gcr-monotonic-pruning-2026-11-11, integration/csg-branch-delta-typed-bridge-2026-11-11, integration/csg-gcr-e12a6-lifecycle-adapter-2026-11-11, integration/e12a6-zpcm-lifecycle-persistence-2026-11-11, integration/e09-e12a6-evidence-binding-2026-11-11, integration/csg-gcr-e12a6-atomic-ingestion-2026-11-11, integration/e09-ed25519-issuer-keyring-2026-11-11, architecture/production-trust-boundary-v1-2026-11-12, security/e09-authority-verifier-services-2026-11-12, security/e09-verification-receipt-v1-2026-11-12, security/e12a6-atomic-receipt-consumption-2026-11-12, security/e12a6-writer-service-v1-2026-11-12, security/e12a6-writer-audit-lock-v1-2026-11-12, security/e12a6-uds-peer-auth-v1-2026-11-12, research/m0-memory-measurement-v1-2026-11-12, research/m1-streaming-evidence-ingest-v1-2026-11-12, integration/m1-m2-e09-yixiang-convergence-v1-2026-11-12, integration/m2-paged-trlw-yixiang-csg-e2e-v2-2026-11-12]
 
 jobs:
   unit-tests:
@@ -14,6 +14,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - name: Install Ed25519 verification dependency
+        run: python -m pip install "cryptography>=42.0.0"
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
       - name: Run E01 demonstration
