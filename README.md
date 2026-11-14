@@ -253,3 +253,7 @@ python -m prototype.e01_learned_ranker --json
 - [M32 类象不变量组合与层级涌现专题](docs/YIXIANG_M32_INVARIANT_COMPOSITION_V0_1.md)
 - [M32 不变量组合审计原型](prototype/yixiang_invariant_composition_m32.py)
 - [M32 专项测试](tests/test_yixiang_invariant_composition_m32.py)
+
+- [M33 类象组合因果干预与反事实分解专题](docs/YIXIANG_M33_CAUSAL_INTERVENTION_V0_1.md)
+- [M33 因果干预审计原型](prototype/yixiang_causal_intervention_m33.py)
+- [M33 专项测试](tests/test_yixiang_causal_intervention_m33.py)
