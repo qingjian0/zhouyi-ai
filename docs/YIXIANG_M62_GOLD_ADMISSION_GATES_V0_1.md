@@ -62,11 +62,17 @@ The Four Books Congkan catalog identifies the book as a facsimile of a Song prin
 
 A 2023 modern critical edition of 《周易注》 states that it uses the Four Books Congkan Song facsimile as its base and collates Dunhuang manuscripts, the National Library's Fuzhou Gongshi Ku copy, other Song printed editions, and other scholarly collation records. This is a valuable collation roadmap, but the modern edition itself is not a substitute for recording each underlying witness separately.
 
+## Related concept research
+
+See [Classical yixiang concept map](YIXIANG_CLASSICAL_CONCEPT_MAP_V0_1.md) for source-layer-separated notes on 《系辞上》《系辞下》《说卦传》 and the 咸卦 《象传》 example. The concept map is a research guide only; its quotations remain discovery-stage until verified against the scan-backed witness.
+
 ## References
 
 - CText catalog for 《周易》 in 四部丛刊初编: https://ctext.org/library.pl?if=gb&remap=gb&res=77330
 - CText volume four OCR text: https://ctext.org/wiki.pl?chapter=119825&if=en&remap=gb
 - Wikisource 四部丛刊本, 卷四: https://zh.wikisource.org/wiki/周易_(四部叢刊本)/卷四
+- Wikisource 四部丛刊本, 卷七（系辞上）: https://zh.wikisource.org/zh-hans/周易_(四部丛刊本)/卷七
+- Wikisource 四部丛刊本, 卷八（系辞下）: https://wk.100ke.info/zh-hans/周易_(四部丛刊本)/卷八
 - Wikisource 四库全书本, 卷四: https://zh.wikisource.org/wiki/周易註_(四庫全書本)/卷04
 - CText bibliographic note on the 1919–1922 first series and 1924 reprint: https://ctext.org/wiki.pl?chapter=543417&if=gb&remap=gb
 - Peking University Confucian Canon editorial center on the edition lineage and Song-printing debate: https://ruzang.pku.edu.cn/rzen/info/1017/1177.htm
