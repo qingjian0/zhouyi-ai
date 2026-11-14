@@ -200,6 +200,7 @@ def generate_iv_cases():
     }
     confounded = {
         **valid,
+        "topological_order": ["U", "Z", "X", "Y"],
         "nodes": {
             **valid["nodes"],
             "Z": {"parents": ["U"], "cpt": {"0": 0.2, "1": 0.8}},
