@@ -225,6 +225,8 @@ def generate_dataset(*, count: int = 240, seed: int = 5601,
         # The second domain changes surface form but keeps or reverses the relation.
         valid_transfer = bool(task_rng.getrandbits(1))
         target_predicate = predicate if valid_transfer else f"not_{predicate}"
+        transfer_distance = TRANSFER_DISTANCES[index % len(TRANSFER_DISTANCES)]
+        analogy_granularity = ANALOGY_GRANULARITIES[index % len(ANALOGY_GRANULARITIES)]
         source_domain = "familiar-domain"
         target_domain = {
             "within_domain": "familiar-domain",
@@ -236,8 +238,6 @@ def generate_dataset(*, count: int = 240, seed: int = 5601,
         target_values["surface_color"] = feature_rng.choice(("red", "blue", "green"))
         target_values["surface_shape"] = feature_rng.choice(("round", "angular", "flat"))
         target = _make_observation(case_id, target_domain, target_values, target_predicate)
-        transfer_distance = TRANSFER_DISTANCES[index % len(TRANSFER_DISTANCES)]
-        analogy_granularity = ANALOGY_GRANULARITIES[index % len(ANALOGY_GRANULARITIES)]
         context = TaskContext(
             task_id=task_id,
             purpose={
