@@ -7,9 +7,11 @@
 
 ## 项目状态
 
-- 当前阶段：M1 数学理论定稿与 M2 最小原型准备
-- 理论版本：CPG-EI v0.3（研究草案）
-- 代码状态：E01 组合选择基线原型正在建立；尚无规模化模型或性能结论
+- 当前研究阶段：E02-I 七场景关系生命周期验证已完成；E02-I2 关系身份与谱系进入设计审查
+- 理论版本：CPG-EI v0.3（研究草案，尚待进一步数学审查）
+- 已有实验：E02-F/G 有限定合成任务结果；E02-H 在 30 个种子上完成成员与真值表恢复；E02-I 在 7 场景 × 20 seeds 下完成 140 个 episode
+- 当前验证：E02-I 全流程 CI 成功，160 个无关系窗口 false CREATE 为 0；结果仅适用于当前有限合成协议
+- 尚未实现：开放世界关系发现、因果发现、规模化模型及完整 E03 并行组合引擎
 - 验证原则：所有架构主张均须通过可复现实验、消融和公平对照验证
 
 ## 核心研究问题
@@ -52,6 +54,8 @@
 - [E01-C 组合 OOD 结果报告](docs/E01C_RESULTS_2026-11-10.md)
 - [研究风险与证伪条件](docs/RISKS_AND_FALSIFICATION.md)
 - [开发路线图](ROADMAP.md)
+- [E02-I 关系演化协议](docs/E02I_RELATION_EVOLUTION.md)
+- [E02-I 完整 CI 结果（2026-11-10）](docs/E02I_CI_RESULTS_2026-11-10.md)
 - [原型代码](prototype/)
 
 ## 快速开始（当前原型）
@@ -76,3 +80,14 @@ python -m prototype.e01_learned_ranker --json
 ## 许可与引用
 
 本仓库初始阶段采用 MIT License。若后续引入外部数据集、论文代码或古籍数字化文本，须逐项核查其许可证、来源和引用要求。研究引用见 [RELATED_WORK.md](docs/RELATED_WORK.md)。
+
+
+## E02-I
+
+Evidence-gated relation structure evolution prototype and reproducible experiment: `docs/E02I_RELATION_EVOLUTION.md`.
+
+
+E02-I seven-scenario lifecycle validation completed successfully in GitHub Actions run 42821097953.
+
+
+E02-I distinguishes candidate quality from persistent relation quality.

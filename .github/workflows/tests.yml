@@ -2,9 +2,9 @@ name: tests
 
 on:
   push:
-    branches: [main]
+    branches: [main, research/e02i-ci-runner, research/e02i-persistent-evidence]
   pull_request:
-    branches: [main]
+    branches: [main, research/e02e-autonomous-discovery, research/e02f-falsification, research/e02g-multienvironment-stability, research/e02i-relation-evolution, research/e02h-baseline, research/e02i-persistent-evidence]
 
 jobs:
   unit-tests:
@@ -34,3 +34,16 @@ jobs:
         run: python -m prototype.e02_rule_ood --seed 17 --support-size 6 --json
       - name: Run E02-D multi-seed support identifiability sweep
         run: python -m prototype.e02_rule_ood --sweep --seeds 100 --start-seed 100 --json
+      - name: Run E02-E multi-seed autonomous relation discovery
+        run: python -m prototype.e02e_discovery --seeds 20 --start-seed 7 --json
+      - name: Run E02-F train-only nuisance falsification
+        run: python -m prototype.e02f_falsification --seeds 100 --start-seed 100
+      - name: Run E02-G multi-environment stability classification
+        run: python -m prototype.e02g_multienvironment --seeds 50 --start-seed 700 --repeats 5
+      - name: Run E02-H unknown Boolean rule discovery
+        run: python -m prototype.e02h_boolean_rules --seeds 30 --start-seed 900
+      - name: Run E02-I evidence-gated relation evolution
+        run: python -m prototype.e02i_relation_evolution --seeds 20 --start-seed 1200
+      - name: Run E02-I2 identity lineage ledger tests
+        if: github.event_name == 'pull_request' && github.event.pull_request.head.ref == 'research/e02i2-relation-lineage'
+        run: python -m unittest tests.test_e02i2_lineage -v
