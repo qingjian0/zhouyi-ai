@@ -7,10 +7,15 @@
 
 ## 项目状态
 
-- 当前阶段：M1 数学理论定稿与 M2 最小原型准备
-- 理论版本：CPG-EI v0.3（研究草案）
-- 代码状态：E01 组合选择基线原型正在建立；尚无规模化模型或性能结论
-- 验证原则：所有架构主张均须通过可复现实验、消融和公平对照验证
+- 稳定基线：main（本次核查基线 b8b43926e666d83a9ce09d2e71eb9294b2d86c97）。
+- 当前阶段：多条组件级研究线并行验证；尚未完成统一认知运行时的端到端集成。
+- 理论版本：CPG-EI v0.3（研究草案），不是已证实的模型理论。
+- CPG-EI：已有 400-family / 102,400-row 合成混合算子语料，以及有限符号搜索、trainable polynomial、五种子、sample-efficiency 和 early-stopping 对照。PR #422 的 symbolic-support hybrid 已通过 exact-head CI；PR #427 正在验证 full-basis NumPy optimizer；PR #428 测试组合规则 OOG；PR #431 扩大到 1,600 个教师结构；PR #432/#436 建立真正的 held-out-family few-shot 评估；PR #425/#430 研究 ANF 可识别性；PR #434 测试主动查询。相关 exact-head CI 尚有多项待完成。
+- E09 / E12-A6 / ZPCM 与 N0.10：各自存在分段实现和验证分支；分支级成功不等于已集成或达到生产隔离要求。
+- 训练准备度：只允许可复现的组件级受控训练；统一端到端联合训练尚未获准。
+- 验证原则：所有架构主张均须通过可复现实验、消融、公平对照和明确的 claim boundary 验证。
+
+当前 CPG-EI 结果限于合成有限 Boolean 规则。它们不证明开放式关系发现、跨 family zero-shot transfer、因果发现、易学理解、自然语言推理或优于 Transformer。最新 exact-head 数据、分支依赖与待验证边界见 [2026-11-13 研究状态增补](docs/RESEARCH_STATUS_2026-11-13.md)。
 
 ## 核心研究问题
 
@@ -52,11 +57,13 @@
 - [E01-C 组合 OOD 结果报告](docs/E01C_RESULTS_2026-11-10.md)
 - [研究风险与证伪条件](docs/RISKS_AND_FALSIFICATION.md)
 - [开发路线图](ROADMAP.md)
+- [全项目架构收敛与阶段收尾基线](docs/PROJECT_CONVERGENCE_EXECUTION_BASELINE_2026-11-12.md)
+- [2026-11-13 研究状态增补](docs/RESEARCH_STATUS_2026-11-13.md)
 - [原型代码](prototype/)
 
-## 快速开始（当前原型）
+## 快速开始（基础原型）
 
-当前原型优先验证组合策略和跨位置组合，不代表完整模型：
+当前命令只运行基础组合选择原型，不代表完整模型：
 
 ```bash
 python -m unittest discover -s tests -v
