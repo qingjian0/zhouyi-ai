@@ -135,6 +135,17 @@ E. 完整 M23 + 反例保留 + M17 推类门禁。
 - 类别可能重叠、层级化或随任务改变，不能强制单标签分类。
 - 若 M23 只增加标注负担而未降低过度泛化，或仅提高拒绝率而不提高正确分类，应暂停扩展并回到简单基线。
 
-## 10. 原典数字见证与校勘入口\n\n- 《周易·系辞下》“仰观俯察、近取诸身、远取诸物”：维基文库传世文本 https://zh.wikisource.org/zh-hans/周易/繫辭下；《周易正义》孔颖达疏本 https://zh.wikisource.org/zh-hans/周易正義/08.2。后者注疏本包含唐疏解释，必须与经文分层。\n- 《说卦传》：识典古籍页面 https://www.shidianguji.com/book/SK0145/chapter/1jzobna8suecy；日本国立公文书馆藏《御纂周易折中》影像节选 https://upload.wikimedia.org/wikipedia/commons/8/89/NAJDA-273-0095_%E5%BE%A1%E7%BA%82%E5%91%A8%E6%98%93%E6%8A%98%E4%B8%AD13.pdf。后者是清代编纂/刊本影像，属于后世见证，不能代替先秦文本源头。\n- 《荀子·正名》：维基文库传世文本 https://zh.wikisource.org/zh-hans/荀子/正名篇；《荀子集解》卷十六影印 https://upload.wikimedia.org/wikipedia/commons/e/e1/SSID-12437212_%E8%8D%80%E5%AD%90%E9%9B%86%E8%A7%A3_%E4%B8%8B.pdf。\n- 《墨子·小取》：维基文库 https://zh.wikisource.org/zh-hans/墨子/小取；中国哲学书电子化计划 https://ctext.org/mozi/minor-illustrations/zhs；识典古籍 https://www.shidianguji.com/book/SK1758/chapter/1jurj3oudsldf。王引之校补、孙诒让《墨子闲诂》及胡适新诂均须单列为校勘/解释史层。\n- 《庄子·齐物论》：维基文库 https://zh.wikisource.org/zh-hans/莊子/齊物論。\n- 《淮南子·说林训》：中国哲学书电子化计划 https://ctext.org/huainanzi/shuo-lin-xun/zh；其中“类不可必推”“六尺之席……势施异也”是本研究的拒推案例入口。\n\n数字网页只作为可定位的文本见证，不等于完成版本校勘。每条引用仍需记录底本、卷篇、页码/行号、异文、断句和注释层。\n\n## 11. 研究结论边界
+## 10. 原典数字见证与校勘入口
+
+- 《周易·系辞下》“仰观俯察、近取诸身、远取诸物”：维基文库传世文本 https://zh.wikisource.org/zh-hans/周易/繫辭下；《周易正义》孔颖达疏本 https://zh.wikisource.org/zh-hans/周易正義/08.2。后者注疏本包含唐疏解释，必须与经文分层。
+- 《说卦传》：识典古籍页面 https://www.shidianguji.com/book/SK0145/chapter/1jzobna8suecy；日本国立公文书馆藏《御纂周易折中》影像节选 https://upload.wikimedia.org/wikipedia/commons/8/89/NAJDA-273-0095_%E5%BE%A1%E7%BA%82%E5%91%A8%E6%98%93%E6%8A%98%E4%B8%AD13.pdf。后者是清代编纂/刊本影像，属于后世见证，不能代替先秦文本源头。
+- 《荀子·正名》：维基文库传世文本 https://zh.wikisource.org/zh-hans/荀子/正名篇；《荀子集解》卷十六影印 https://upload.wikimedia.org/wikipedia/commons/e/e1/SSID-12437212_%E8%8D%80%E5%AD%90%E9%9B%86%E8%A7%A3_%E4%B8%8B.pdf。
+- 《墨子·小取》：维基文库 https://zh.wikisource.org/zh-hans/墨子/小取；中国哲学书电子化计划 https://ctext.org/mozi/minor-illustrations/zhs；识典古籍 https://www.shidianguji.com/book/SK1758/chapter/1jurj3oudsldf。王引之校补、孙诒让《墨子闲诂》及胡适新诂均须单列为校勘/解释史层。
+- 《庄子·齐物论》：维基文库 https://zh.wikisource.org/zh-hans/莊子/齊物論。
+- 《淮南子·说林训》：中国哲学书电子化计划 https://ctext.org/huainanzi/shuo-lin-xun/zh；其中“类不可必推”“六尺之席……势施异也”是本研究的拒推案例入口。
+
+数字网页只作为可定位的文本见证，不等于完成版本校勘。每条引用仍需记录底本、卷篇、页码/行号、异文、断句和注释层。
+
+## 11. 研究结论边界
 
 M23 是观测—取象—立类的可追溯数据契约原型。它不实现自动感知，不证明古典易象是一套现代机器学习算法，也不声称已经发现了人类认知的唯一机制。
