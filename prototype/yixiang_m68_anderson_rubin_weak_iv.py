@@ -188,7 +188,7 @@ def _evaluate_ar(prepared, beta: float, alpha: float):
     unrestricted = restricted - qstat
     if unrestricted <= 1e-12:
         raise ValueError("zero_unrestricted_residual_variance")
-    q = len(prepared[2][0])
+    q = len(prepared[2])
     statistic = (qstat / q) / (unrestricted / df2)
     p_value = max(0.0, min(1.0, 1.0 - _f_cdf(statistic, q, df2)))
     critical = _f_quantile(1.0 - alpha, q, df2)
