@@ -199,11 +199,29 @@ def generate_dataset(*, count: int = 240, seed: int = 5701) -> Tuple[List[Dict[s
             entity = f"{case_id}-decoy-{i}"
             distractors[role] = entity
             nodes[entity] = pattern["role_types"][role]
+        # Hard transfer levels deliberately preserve every binary edge under
+        # each candidate mapping. Only higher-order/global constraints can
+        # distinguish the planted mapping there.
+        decoy_roles = roles if level == "basic" else sorted({
+            role for edge in pattern["hyperedges"] for role in edge["roles"]
+        })
+        candidates = [dict(true_mapping)]
+        for role in decoy_roles:
+            decoy = dict(true_mapping)
+            decoy[role] = distractors[role]
+            candidates.append(decoy)
         binary = [
             {"source": true_mapping[e["source"]], "predicate": e["predicate"],
              "target": true_mapping[e["target"]]}
             for e in pattern["binary_relations"]
         ]
+        if level != "basic":
+            for mapping in candidates[1:]:
+                binary.extend(
+                    {"source": mapping[e["source"]], "predicate": e["predicate"],
+                     "target": mapping[e["target"]]}
+                    for e in pattern["binary_relations"]
+                )
         hyperedges = [
             {"predicate": edge["predicate"],
              "nodes": [true_mapping[role] for role in edge["roles"]]}
@@ -214,21 +232,15 @@ def generate_dataset(*, count: int = 240, seed: int = 5701) -> Tuple[List[Dict[s
                 "source": true_mapping["r0"], "predicate": "cross_link",
                 "target": true_mapping["r3"],
             })
-        # Distractor noise is generated independently of the planted structure.
-        predicates = ("supports", "directs", "contains", "signals")  # reserve blocks for negatives and cross_link for the global-count constraint
+        # Distractor noise cannot corrupt forbidden/global-count constraints.
+        predicates = ("supports", "directs", "contains", "signals")
         for _ in range(2 + 3 * LEVELS.index(level)):
-            left, right = rng.sample(list(true_mapping.values()), 2)  # noise cannot accidentally validate a decoy entity
+            left, right = rng.sample(list(true_mapping.values()), 2)
             binary.append({"source": left, "predicate": rng.choice(predicates), "target": right})
         for role in roles:
             if rng.random() < 0.5:
-                left = true_mapping[role]
-                right = distractors[role]
-                binary.append({"source": left, "predicate": "incidental", "target": right})
-        candidates = [dict(true_mapping)]
-        for role in roles:
-            decoy = dict(true_mapping)
-            decoy[role] = distractors[role]
-            candidates.append(decoy)
+                binary.append({"source": true_mapping[role], "predicate": "incidental",
+                               "target": distractors[role]})
         rng.shuffle(candidates)
         target = {"nodes": nodes, "binary_relations": binary, "hyperedges": hyperedges}
         # The planted mapping is guaranteed to satisfy all constraints. The
