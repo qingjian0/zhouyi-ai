@@ -177,3 +177,22 @@ def evaluate_predictions(cases: Sequence[Mapping[str, Any]],
         "selective_accuracy": exact / covered if covered else 0.0,
         "per_difficulty": counts,
     }
+
+
+
+def run_baselines(cases: Sequence[Mapping[str, Any]],
+                  evaluator_truth: Mapping[str, Any], *,
+                  max_states: int = 250_000) -> Dict[str, Any]:
+    """Run the three symbolic controls on the same public cases."""
+    results: Dict[str, Any] = {}
+    for mode in MODES:
+        predictions = []
+        for case in cases:
+            public_case = {key: value for key, value in case.items()
+                           if key != "candidate_mappings"}
+            predictions.append(predict(public_case, mode=mode, max_states=max_states))
+        results[mode] = {
+            "metrics": evaluate_predictions(cases, predictions, evaluator_truth),
+            "predictions": predictions,
+        }
+    return results
