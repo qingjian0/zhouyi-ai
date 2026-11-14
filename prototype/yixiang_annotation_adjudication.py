@@ -15,6 +15,7 @@ DECISIONS = {"accept", "reject", "conditional", "abstain"}
 CAUSAL = {"symbolic", "normative", "co_occurrence", "correlational", "mechanistic_hypothesis", "intervention_supported", "unknown"}
 SOURCE_STATUSES = {"verified_primary", "critical_edition", "unverified_transcription", "secondary_quotation", "research_hypothesis"}
 SPLITS = {"train", "dev", "test", "holdout"}
+RELATIONS = {"morphological", "structural", "functional", "process_mechanism", "temporal", "situated", "symbolic_normative", "empirical_correlation", "causal_analogy"}
 
 @dataclass(frozen=True)
 class SourceVerification:
@@ -49,6 +50,15 @@ class FinalAdjudication:
     adjudicator_id: str
     rationale: str
     evidence_refs: Tuple[str, ...]
+    claim: str
+    text_layer: str
+    relation_families: Tuple[str, ...]
+    shared_basis: Tuple[str, ...]
+    non_shared_basis: Tuple[str, ...]
+    scope_conditions: Tuple[str, ...]
+    required_invariants: Tuple[str, ...]
+    known_counterexamples: Tuple[str, ...]
+    causal_status: str
 
 @dataclass(frozen=True)
 class ReviewPacket:
@@ -115,7 +125,19 @@ def _validate_adjudication(adjudication, reviewers):
         raise ValueError("unknown final adjudication decision")
     _text(adjudication.adjudicator_id, "adjudicator_id")
     _text(adjudication.rationale, "adjudication rationale")
+    _text(adjudication.claim, "adjudicated claim")
+    _text(adjudication.text_layer, "adjudicated text_layer")
     _tuple(adjudication.evidence_refs, "adjudication evidence_refs", allow_empty=False)
+    for field in ("relation_families", "shared_basis", "non_shared_basis", "scope_conditions", "required_invariants", "known_counterexamples"):
+        _tuple(getattr(adjudication, field), field, allow_empty=(field != "relation_families"))
+    if not set(adjudication.relation_families) <= RELATIONS:
+        raise ValueError("unknown adjudicated relation family")
+    if adjudication.causal_status not in CAUSAL:
+        raise ValueError("unknown adjudicated causal_status")
+    if adjudication.decision == "accept" and not adjudication.shared_basis:
+        raise ValueError("final accept requires shared_basis")
+    if adjudication.decision == "conditional" and not adjudication.scope_conditions:
+        raise ValueError("final conditional requires scope_conditions")
     if adjudication.adjudicator_id in reviewers:
         raise ValueError("adjudicator must be distinct from independent reviewers")
 
@@ -171,12 +193,12 @@ def to_benchmark_case(packet: ReviewPacket, *, split_group: str) -> dict:
     return {
         "claim_kind": packet.claim_kind, "case_id": packet.case_id,
         "source_lineage": [packet.source.work_id, packet.source.edition_id, packet.source.witness_id],
-        "source_status": packet.source.source_status, "target_claim": representative.claim,
-        "relation_families": ["structural"], "shared_basis": list(representative.shared_basis),
-        "non_shared_basis": list(representative.non_shared_basis), "scope_conditions": list(representative.scope_conditions),
-        "required_invariants": list(representative.required_invariants),
-        "known_counterexamples": list(representative.known_counterexamples),
-        "causal_status": representative.causal_status,
+        "source_status": packet.source.source_status, "target_claim": final.claim,
+        "relation_families": list(final.relation_families), "shared_basis": list(final.shared_basis),
+        "non_shared_basis": list(final.non_shared_basis), "scope_conditions": list(final.scope_conditions),
+        "required_invariants": list(final.required_invariants),
+        "known_counterexamples": list(final.known_counterexamples),
+        "causal_status": final.causal_status,
         "evidence_refs": sorted(set(packet.source.verification_refs) | set(final.evidence_refs) | {r for a in packet.annotations for r in a.evidence_refs}),
         "independence_group": packet.independence_group, "gold_decision": final.decision,
         "gold_rationale": final.rationale, "label_status": "adjudicated",
