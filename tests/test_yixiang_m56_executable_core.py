@@ -4,7 +4,8 @@ import tempfile
 import unittest
 
 from prototype.yixiang_m56_executable_core import (
-    SCHEMA_VERSION, TASK_FEATURES, audit_dataset, category_decision,
+    ANALOGY_GRANULARITIES, TRANSFER_DISTANCES, SCHEMA_VERSION, TASK_FEATURES,
+    audit_dataset, category_decision,
     generate_dataset, relation_preservation, revise_category,
     select_features_by_rule, task_shift_views, validate_case, write_dataset,
 )
@@ -52,6 +53,21 @@ class M56ExecutableCoreTests(unittest.TestCase):
         self.assertEqual(set(selections[1]), set(TASK_FEATURES["flow_task"]))
         self.assertEqual(set(selections[2]), set(TASK_FEATURES["containment_task"]))
         self.assertEqual(cases[0]["observations"], views[1]["observations"])
+
+    def test_near_far_transfer_and_granularity_are_explicit(self):
+        cases, truth = generate_dataset(count=120, seed=221)
+        distances = {case["task_context"]["transfer_distance"] for case in cases}
+        granularities = {case["task_context"]["analogy_granularity"] for case in cases}
+        self.assertEqual(distances, set(TRANSFER_DISTANCES))
+        self.assertEqual(granularities, set(ANALOGY_GRANULARITIES))
+        for case in cases:
+            expected_domain = {
+                "within_domain": "familiar-domain",
+                "near_domain": "near-transfer-domain",
+                "far_domain": "far-transfer-domain",
+            }[case["task_context"]["transfer_distance"]]
+            self.assertEqual(case["observations"][1]["domain"], expected_domain)
+            self.assertIn(case["case_id"], truth)
 
     def test_nuisance_does_not_enter_gold_relevant_features(self):
         cases, truth = generate_dataset(count=60, seed=23)
