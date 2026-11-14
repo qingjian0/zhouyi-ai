@@ -7,15 +7,15 @@
 
 ## 项目状态
 
-> **当前状态分层：稳定 main 尚未合入本轮研究 PR；以下 M57–M62 是连续 Draft 研究分支，不代表已发布版本。**
+> **当前状态分层：稳定 main 尚未合入本轮研究 PR；以下 M57–M67 是连续 Draft 研究分支，不代表已发布版本。**
 
 - 稳定分支：当前 README 的历史状态记录仍以 M1–M22 为主；本轮研究变更没有合并到 main。
-- 当前研究栈：M57 非路径高阶关系基准、M58 自主实体/角色映射、M59 古籍证据溯源、M60 因果干预基准、M61 DAG 后门准则识别、M62 古籍 Gold 准入与扫描核验门禁。
-- 已通过全仓 CI：M57、M58、M59、M60、M61；M62 合并栈的全仓 CI #43590149812 已全部通过。
-- M57–M62 对应 PR 均保持 Draft，按依赖关系分层提交；没有任何一个已合并到稳定 main。
-- M59/M62 当前尚未建立真实、已扫描核验并双人审定的古籍 Gold 记录。现有《周易》四部丛刊宋本数字转录仍为来源发现候选，OCR 未经扫描逐字校验，不计入 Gold。
-- M60/M61 是有限范围的合成因果诊断；M61 只实现已知 DAG 下的充分后门准则，不等于完整因果识别。
-- 尚未完成：真实古籍扫描校勘与双人标注、文本自主取象与实体发现、前门/工具变量等更广泛因果识别、有限样本因果估计、Transformer/LLM 公平对照、端到端类象认知能力验证。
+- 当前研究栈：M57 非路径高阶关系基准、M58 自主实体/角色映射、M59 古籍证据溯源、M60 因果干预基准、M61 DAG 后门准则识别、M62 Gold 准入门禁、M63 前门识别、M64 图筛选工具变量、M65 排除限制敏感性、M66 多工具变量敏感性、M67《周易》影印扫描来源审计。
+- 已通过全仓 CI：M57–M66 的相应全仓验证均已通过；M65 全仓运行 #43594100995、M66 全仓运行 #43594859442 均已完成成功。M67 为文献来源审计文档，不声称模型验证。
+- M57–M67 对应研究 PR 均保持 Draft，按依赖关系分层提交；没有任何一个已合并到稳定 main。
+- M59/M62/M67 当前尚未建立真实、已扫描逐字核验并双人审定的古籍 Gold 记录。《周易》四部丛刊影印本的 146 页 DJVU 与第 9、10 页图像已定位并做初步目视抽查；尚未完成逐字校勘和独立裁决，不计入 Gold。
+- M60–M66 是有限范围的合成因果诊断：M61 后门、M63 单中介前门、M64 单工具变量、M65 单 IV 排除限制敏感性、M66 多 IV 线性矩敏感性；均不等于完整因果识别或有限样本稳健推断。
+- 尚未完成：古籍逐页影像校勘与双人标注、文本自主取象与实体发现、一般因果识别、弱工具变量稳健置信集、有限样本因果估计、Transformer/LLM 公平对照、端到端类象认知能力验证。
 
 **本轮研究 PR：**
 - [M57 非路径高阶关系基准](https://github.com/qingjian0/zhouyi-ai/pull/488)
@@ -24,6 +24,11 @@
 - [M60 因果干预与迁移](https://github.com/qingjian0/zhouyi-ai/pull/491)
 - [M61 后门调整与 d-separation](https://github.com/qingjian0/zhouyi-ai/pull/492)
 - [M62 Gold 准入与扫描核验](https://github.com/qingjian0/zhouyi-ai/pull/494)
+- [M63 单中介前门识别](https://github.com/qingjian0/zhouyi-ai/pull/495)
+- [M64 图筛选工具变量识别](https://github.com/qingjian0/zhouyi-ai/pull/496)
+- [M65 排除限制敏感性分析](https://github.com/qingjian0/zhouyi-ai/pull/497)
+- [M66 多工具变量有界敏感性](https://github.com/qingjian0/zhouyi-ai/pull/498)
+- [M67《周易》影印扫描来源审计](https://github.com/qingjian0/zhouyi-ai/pull/499)
 
 - 理论版本：CPG-EI v0.3（研究草案，持续修订）。
 - 验证原则：所有架构主张均须通过可复现实验、消融、公平对照和独立数据验证；合成数据通过不等于真实类象能力已被证明。
@@ -51,6 +56,9 @@
 - [M57–M62 研究状态与剩余门禁](docs/RESEARCH_STATUS_2026-11-14.md)
 - [M61 后门准则与 d-separation 规范](docs/YIXIANG_M61_GENERAL_ADJUSTMENT_V0_1.md)
 - [M62 Gold 准入与扫描核验门禁](docs/YIXIANG_M62_GOLD_ADMISSION_GATES_V0_1.md)
+- [M65 排除限制敏感性分析](docs/YIXIANG_M65_INVALID_IV_SENSITIVITY_V0_1.md)
+- [M66 多工具变量有界敏感性分析](docs/YIXIANG_M66_MULTIPLE_IV_BOUNDS_V0_1.md)
+- [M67《周易》扫描来源审计](docs/YIXIANG_M67_SCAN_BACKED_SOURCE_AUDIT_V0_1.md)
 - [传统类象概念图：系辞、说卦与咸卦分层](docs/YIXIANG_CLASSICAL_CONCEPT_MAP_V0_1.md)
 
 - [研究总纲与问题定义](docs/RESEARCH_CHARTER.md)
