@@ -212,8 +212,10 @@ def audit_invariant_discovery(contexts,candidates,evidence,observations,tests,co
     for ev in evaluations:
         if set(ev.train_object_ids)&set(ev.test_object_ids): issues.append("object_leakage:"+ev.evaluation_id)
         if set(ev.train_context_families)&set(ev.test_context_families): issues.append("context_family_leakage:"+ev.evaluation_id)
-        if not ev.holdout_context_ids or set(ev.holdout_context_ids)&{x for x in ev.train_context_families}:
+        if not ev.holdout_context_ids or any(x not in cmap for x in ev.holdout_context_ids):
             issues.append("invalid_holdout_contexts:"+ev.evaluation_id)
+        elif any(cmap[x].family_id in set(ev.train_context_families) for x in ev.holdout_context_ids):
+            issues.append("holdout_context_family_leakage:"+ev.evaluation_id)
         required={"feature_similarity","classification","structural_relation"}
         if not required.issubset(set(ev.baselines)): issues.append("missing_baselines:"+ev.evaluation_id)
         if not ev.metrics or not ev.results_ref or ev.sample_size<=0 or not ev.confidence_interval_method:
