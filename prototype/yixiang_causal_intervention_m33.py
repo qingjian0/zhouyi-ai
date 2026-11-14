@@ -191,6 +191,8 @@ def audit_causal_interventions_m33(interventions, units, evidence, pairs=(), cla
             issues.append("pair_unit_family_mismatch:" + pair.pair_id)
         if control.outcome_measure != treatment.outcome_measure:
             issues.append("pair_outcome_measure_mismatch:" + pair.pair_id)
+        if control.context_family != treatment.context_family:
+            issues.append("pair_context_family_mismatch:" + pair.pair_id)
         if not all((pair.matching_basis.strip(), pair.exchangeability_argument.strip(),
                     pair.consistency_argument.strip(), pair.positivity_argument.strip(),
                     pair.interference_assessment.strip())):
@@ -223,26 +225,30 @@ def audit_causal_interventions_m33(interventions, units, evidence, pairs=(), cla
         if any(x.review != EvidenceReview.REVIEWED for x in refs):
             needs_review = True
         assignment_types = {
-            getattr(u, "assignment_kind", AssignmentKind.OBSERVATIONAL.value)
-            for u in units if u.intervention_id == claim.intervention_id
+            u.assignment_kind for u in units if u.intervention_id == claim.intervention_id
         }
-        # StudyUnit intentionally does not encode assignment; design strength is declared
-        # by the identification strategy and audited conservatively.
-        if "random" not in claim.identification_strategy.lower() and "quasi" not in claim.identification_strategy.lower():
+        if not assignment_types:
+            issues.append("causal_claim_requires_study_units:" + claim.claim_id)
+            claim_states.append((claim.claim_id, "blocked"))
+        elif AssignmentKind.OBSERVATIONAL in assignment_types:
             claim_states.append((claim.claim_id, "associational_only"))
             needs_review = True
-        elif not claim.assumptions or not claim.alternative_explanations:
-            claim_states.append((claim.claim_id, "blocked"))
-        else:
+        elif assignment_types == {AssignmentKind.SIMULATED}:
+            claim_states.append((claim.claim_id, "simulation_only"))
+            needs_review = True
+        elif assignment_types <= {AssignmentKind.RANDOMIZED, AssignmentKind.QUASI_EXPERIMENTAL}:
             claim_states.append((claim.claim_id, "review_required"))
             needs_review = True
+        else:
+            issues.append("incompatible_assignment_designs:" + claim.claim_id)
+            claim_states.append((claim.claim_id, "blocked"))
         if not any(p.intervention_id == claim.intervention_id for p in pairs):
             issues.append("causal_claim_requires_counterfactual_design:" + claim.claim_id)
 
     valid = not issues
     if not valid:
         disposition = CausalDisposition.BLOCKED
-    elif any(state == "associational_only" for _, state in claim_states):
+    elif any(state in ("associational_only", "simulation_only") for _, state in claim_states):
         disposition = CausalDisposition.ASSOCIATIONAL_ONLY
     else:
         disposition = CausalDisposition.REVIEW_REQUIRED if needs_review or claims else CausalDisposition.ASSOCIATIONAL_ONLY
