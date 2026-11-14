@@ -51,6 +51,8 @@ class ContextRevision:
     revalidated_claim_ids: Tuple[str, ...]
     added_dimensions: Tuple[str, ...]
     retired_dimensions: Tuple[str, ...]
+    added_excluded_dimensions: Tuple[str, ...]
+    retired_excluded_dimensions: Tuple[str, ...]
     added_assumptions: Tuple[str, ...]
     retired_assumptions: Tuple[str, ...]
     changed_axes: Tuple[str, ...]
@@ -92,6 +94,8 @@ def _snapshot(snapshot: ContextSnapshot, field: str) -> None:
         raise ValueError(f"{field}.version must be a non-negative integer")
     for name in ("active_dimensions", "excluded_dimensions", "assumptions"):
         _unique_text(getattr(snapshot, name), f"{field}.{name}")
+    if set(snapshot.active_dimensions) & set(snapshot.excluded_dimensions):
+        raise ValueError(f"{field} dimensions cannot be both active and excluded")
 
 
 def assess_context_revision(revision: ContextRevision) -> RevisionAssessment:
@@ -104,7 +108,7 @@ def assess_context_revision(revision: ContextRevision) -> RevisionAssessment:
     _require_text(revision.rationale, "rationale")
     for name in (
         "trigger_evidence_refs", "affected_claim_ids", "revalidated_claim_ids",
-        "added_dimensions", "retired_dimensions", "added_assumptions",
+        "added_dimensions", "retired_dimensions", "added_excluded_dimensions", "retired_excluded_dimensions", "added_assumptions",
         "retired_assumptions", "changed_axes",
     ):
         _unique_text(getattr(revision, name), name)
@@ -119,6 +123,8 @@ def assess_context_revision(revision: ContextRevision) -> RevisionAssessment:
 
     added_dimensions = tuple(sorted(set(after.active_dimensions) - set(before.active_dimensions)))
     retired_dimensions = tuple(sorted(set(before.active_dimensions) - set(after.active_dimensions)))
+    added_excluded_dimensions = tuple(sorted(set(after.excluded_dimensions) - set(before.excluded_dimensions)))
+    retired_excluded_dimensions = tuple(sorted(set(before.excluded_dimensions) - set(after.excluded_dimensions)))
     added_assumptions = tuple(sorted(set(after.assumptions) - set(before.assumptions)))
     retired_assumptions = tuple(sorted(set(before.assumptions) - set(after.assumptions)))
     changed_axes = tuple(
@@ -132,6 +138,8 @@ def assess_context_revision(revision: ContextRevision) -> RevisionAssessment:
     for label, actual, declared in (
         ("added_dimensions", added_dimensions, revision.added_dimensions),
         ("retired_dimensions", retired_dimensions, revision.retired_dimensions),
+        ("added_excluded_dimensions", added_excluded_dimensions, revision.added_excluded_dimensions),
+        ("retired_excluded_dimensions", retired_excluded_dimensions, revision.retired_excluded_dimensions),
         ("added_assumptions", added_assumptions, revision.added_assumptions),
         ("retired_assumptions", retired_assumptions, revision.retired_assumptions),
         ("changed_axes", changed_axes, revision.changed_axes),
@@ -139,7 +147,7 @@ def assess_context_revision(revision: ContextRevision) -> RevisionAssessment:
         if set(actual) != set(declared):
             undeclared.append(label)
 
-    changed = bool(added_dimensions or retired_dimensions or added_assumptions or retired_assumptions or changed_axes)
+    changed = bool(added_dimensions or retired_dimensions or added_excluded_dimensions or retired_excluded_dimensions or added_assumptions or retired_assumptions or changed_axes)
     stale = tuple(sorted(set(revision.affected_claim_ids) - set(revision.revalidated_claim_ids)))
 
     if not revision.reviewed:
@@ -152,9 +160,9 @@ def assess_context_revision(revision: ContextRevision) -> RevisionAssessment:
         status = RevisionStatus.UNDECLARED_CHANGE
     elif not changed:
         status = RevisionStatus.NO_OP
-    elif revision.kind == RevisionKind.EXPAND and (retired_dimensions or retired_assumptions or changed_axes or not (added_dimensions or added_assumptions)):
+    elif revision.kind == RevisionKind.EXPAND and (retired_dimensions or retired_excluded_dimensions or retired_assumptions or changed_axes or not (added_dimensions or added_excluded_dimensions or added_assumptions)):
         status = RevisionStatus.INVALID_REVISION_KIND
-    elif revision.kind == RevisionKind.CONTRACT and (added_dimensions or added_assumptions or changed_axes or not (retired_dimensions or retired_assumptions)):
+    elif revision.kind == RevisionKind.CONTRACT and (added_dimensions or added_excluded_dimensions or added_assumptions or changed_axes or not (retired_dimensions or retired_excluded_dimensions or retired_assumptions)):
         status = RevisionStatus.INVALID_REVISION_KIND
     elif revision.kind == RevisionKind.REVISE and not changed:
         status = RevisionStatus.INVALID_REVISION_KIND
