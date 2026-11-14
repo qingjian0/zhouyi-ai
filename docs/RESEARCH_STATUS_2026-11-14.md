@@ -10,7 +10,7 @@ This status applies to the stacked research branches and open Draft pull request
 | M60 | Exact-distribution binary SCM; confounding, mediation, collider, latent confounding, domain renaming | 7 tests | Passed on head 407990b64ec74613a0c3e9915a0b7db87ff9a146 | https://github.com/qingjian0/zhouyi-ai/pull/491 |
 | M61 | DAG d-separation, minimum observed back-door set, cycle rejection, correct abstention semantics | 13 tests | Passed on head 55099cccac00323d47b87358d3bb2e33c6be97a0 | https://github.com/qingjian0/zhouyi-ai/pull/492 |
 | M62 | Gold-admission gates; pending records excluded from gold counts; scan-verified transcription required | 17 tests passed on code/test head 6032663924243c2ea65ba442fab4d59a1d8c9ead | Passed: run #43590149812 on the combined M61/M62 stack | https://github.com/qingjian0/zhouyi-ai/pull/494 |
-| M63 | Single-observed-mediator front-door criterion and exact binary front-door functional; back-door comparator retained | 4 new focused regressions added; exact-head run pending | Full repository workflow pending | https://github.com/qingjian0/zhouyi-ai/pull/495 |
+| M63 | Single-observed-mediator front-door criterion and exact binary front-door functional; back-door comparator retained | 5 new focused regressions added; exact-head run pending | Full repository workflow pending | https://github.com/qingjian0/zhouyi-ai/pull/495 |
 
 ## Important scientific boundaries
 
