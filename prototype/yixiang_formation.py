@@ -31,6 +31,9 @@ class Observation:
     context_id: str
     context_version: int
     description: str
+    modality: str
+    recording_method: str
+    interpretation_note: str
     evidence_refs: Tuple[str, ...]
     observer_id: str
 
@@ -122,8 +125,9 @@ def assess_formation(trace: FormationTrace) -> FormationAssessment:
     for obs in trace.observations:
         if not isinstance(obs, Observation):
             raise ValueError("observations must contain Observation")
-        for name in ("observation_id", "subject_id", "context_id", "description", "observer_id"):
+        for name in ("observation_id", "subject_id", "context_id", "description", "modality", "recording_method", "observer_id"):
             _text(getattr(obs, name), f"observation.{name}")
+        _text(obs.interpretation_note, "observation.interpretation_note") if obs.interpretation_note else None
         _version(obs.context_version, "observation.context_version")
         _items(obs.evidence_refs, "observation.evidence_refs", allow_empty=False)
         if obs.observation_id in observation_ids:
