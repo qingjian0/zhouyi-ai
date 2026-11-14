@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main, research/yixiang-first-priority]
+    branches: [main, research/yixiang-first-priority, 'research/yixiang-*']
 
 jobs:
   unit-tests:
