@@ -91,3 +91,10 @@ if __name__=="__main__": unittest.main()
         self.assertEqual(case["gold_decision"],"conditional")
         self.assertEqual(case["scope_conditions"],["仅在类别谓词保持时"])
         self.assertEqual(case["relation_families"],["structural","functional"])
+
+    def test_export_runs_m8_validation(self):
+        p=packet(adjudication=adjudication())
+        case=to_benchmark_case(p,split_group="test")
+        self.assertEqual(case["source_status"],"critical_edition")
+        bad=packet(claim_kind="not-an-m8-claim-kind",adjudication=adjudication())
+        with self.assertRaises(ValueError): to_benchmark_case(bad,split_group="test")
