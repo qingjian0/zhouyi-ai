@@ -71,7 +71,7 @@ def search_policy(actions, scenarios, horizon=3, max_nodes=5000,
                   cost_weight=0.01, risk_weight=0.01, max_total_cost=float("inf"),
                   max_total_risk=float("inf")):
     actions=tuple(actions); scenarios=tuple(scenarios); issues=[]; warnings=[]
-    if horizon<0 or max_nodes<1 or any(not isfinite(x) or x<0 for x in (cost_weight,risk_weight)):
+    if horizon<0 or max_nodes<1 or any(not isfinite(x) or x<0 for x in (cost_weight,risk_weight)) or max_total_cost<0 or max_total_risk<0 or max_total_cost!=max_total_cost or max_total_risk!=max_total_risk:
         issues.append("invalid_search_limits")
     if not actions: issues.append("no_actions")
     if not scenarios: issues.append("no_scenarios")
@@ -106,7 +106,9 @@ def search_policy(actions, scenarios, horizon=3, max_nodes=5000,
         nonlocal expanded,capped
         stop_values=tuple(_entropy_reward(b or {}) for b in bs)
         stop_node=PolicyNode(None,(),stop_values,depth)
+        active_indices=[i for i,b in enumerate(bs) if b is not None]
         best_node=stop_node; best_values=stop_values
+        best_key=min(stop_values[i] for i in active_indices) if active_indices else 0.0
         if depth>=horizon: return best_node,best_values
         candidates=[]
         for a in eligible:
@@ -126,11 +128,12 @@ def search_policy(actions, scenarios, horizon=3, max_nodes=5000,
                 branch_nodes.append((outcome,child))
                 for i,p in enumerate(probs): branch_values[i].append(p*child_vals[i])
             values=tuple(sum(branch_values[i])-cost_weight*a.cost-risk_weight*a.risk for i in range(len(scenarios)))
-            candidates.append((min(values),PolicyNode(a.action_id,tuple(branch_nodes),values,depth),values))
+            active_key=min(values[i] for i in active_indices) if active_indices else 0.0
+            candidates.append((active_key,PolicyNode(a.action_id,tuple(branch_nodes),values,depth),values))
             if capped: break
         if candidates:
             candidates.sort(key=lambda x:(-x[0],x[1].action_id or ""))
-            if candidates[0][0]>min(best_values):
+            if candidates[0][0]>best_key:
                 _,best_node,best_values=candidates[0]
         return best_node,best_values
     root,values=solve(beliefs,0,frozenset(),0.0,0.0)
