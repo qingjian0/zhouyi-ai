@@ -77,6 +77,12 @@ class M59ClassicalEvidenceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "core_primary_text_requires_pre_qing_witness"):
             validate_record(record)
 
+    def test_unresolvable_witness_identifier_is_rejected(self):
+        record = fixture()
+        record["witnesses"][0]["source_uri"] = "not-a-source"
+        with self.assertRaisesRegex(ValueError, "invalid_witness_source_uri"):
+            validate_record(record)
+
     def test_independent_annotators_must_be_distinct(self):
         record = fixture()
         record["independent_annotations"][1]["annotator_id"] = "a1"
