@@ -71,6 +71,7 @@ def generate_scenario(name, *, n=240, seed=0):
 
 def run_paired_suite(*, seeds=range(20), n=240, scenarios=SCENARIOS):
     """Run all implemented baselines on identical train-only scenario/seed data."""
+    seeds = tuple(seeds)
     records = []
     for scenario in scenarios:
         if scenario not in SCENARIOS:
@@ -110,12 +111,6 @@ def run_paired_suite(*, seeds=range(20), n=240, scenarios=SCENARIOS):
                     "recall": result.recall,
                     "f1": result.f1,
                     "shd": result.structural_hamming_distance,
-                    "predicted_parents": tuple(
-                        # Preserve the raw graph output independently of summary metrics.
-                        next(proposal.predicted_parents for name, adapter in baseline_set
-                             if name == result.baseline_id
-                             for proposal in (adapter(comparison_context),))
-                    ) if False else (),
                     "budget_violation": result.budget_violation,
                     "invalid_proposal": result.invalid_proposal,
                 })
