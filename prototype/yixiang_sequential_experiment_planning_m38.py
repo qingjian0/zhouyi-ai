@@ -23,6 +23,7 @@ class Prior:
 
 @dataclass(frozen=True)
 class Likelihood:
+    action_id: str
     hypothesis_id: str
     outcome: str
     probability: float
@@ -95,21 +96,21 @@ def _unique(items, key):
     values=[getattr(x,key) for x in items]
     return len(values)==len(set(values))
 
-def _scenario_valid(s):
+def _scenario_valid(s, action_ids):
     if not s.scenario_id or not s.provenance_ref or not s.calibrated:
         return False
     hs=[p.hypothesis_id for p in s.priors]
     if len(hs)<2 or len(hs)!=len(set(hs)): return False
     if any(not h or p.probability<0 for h,p in ((p.hypothesis_id,p) for p in s.priors)): return False
     if abs(sum(p.probability for p in s.priors)-1.0)>1e-8: return False
-    outcomes={}
-    seen=set()
+    outcomes={}; seen=set()
     for l in s.likelihoods:
-        if l.hypothesis_id not in hs or not l.outcome or not (0<=l.probability<=1): return False
-        key=(l.hypothesis_id,l.outcome)
+        if l.action_id not in action_ids or l.hypothesis_id not in hs or not l.outcome or not (0<=l.probability<=1): return False
+        key=(l.action_id,l.hypothesis_id,l.outcome)
         if key in seen: return False
-        seen.add(key); outcomes.setdefault(l.hypothesis_id,[]).append(l.probability)
-    return all(h in outcomes and abs(sum(outcomes[h])-1.0)<=1e-8 for h in hs)
+        seen.add(key); outcomes.setdefault((l.action_id,l.hypothesis_id),[]).append(l.probability)
+    return all((a,h) in outcomes and abs(sum(outcomes[(a,h)])-1.0)<=1e-8
+               for a in action_ids for h in hs)
 
 def audit_policy(policy, actions, scenarios):
     issues=[]; warnings=[]; scores=[]
@@ -122,8 +123,9 @@ def audit_policy(policy, actions, scenarios):
     amap={a.action_id:a for a in actions}; nmap={n.node_id:n for n in nodes}
     if policy.root_node_id not in nmap: issues.append("missing_root_node")
     if not scenarios: issues.append("no_model_scenarios")
+    used_action_ids={n.action_id for n in nodes}
     for s in scenarios:
-        if not _scenario_valid(s): issues.append("invalid_or_uncalibrated_scenario:"+s.scenario_id)
+        if not _scenario_valid(s,used_action_ids): issues.append("invalid_or_uncalibrated_scenario:"+s.scenario_id)
     for a in actions:
         if not all((a.action_id,a.design_ref,a.measurement_ref,a.selection_split,a.validation_split)):
             issues.append("incomplete_action:"+a.action_id)
@@ -159,7 +161,7 @@ def audit_policy(policy, actions, scenarios):
         return PolicyAudit(Disposition.BLOCKED,(),0.0,tuple(sorted(set(issues))),tuple(sorted(set(warnings))))
     for s in scenarios:
         prior={p.hypothesis_id:p.probability for p in s.priors}
-        likelihood={(l.hypothesis_id,l.outcome):l.probability for l in s.likelihoods}
+        likelihood={(l.action_id,l.hypothesis_id,l.outcome):l.probability for l in s.likelihoods}
         terminal_entropy=0.0; expected_cost=0.0; worst_risk=0.0; leaves=0
         def evaluate(node_id, belief, path_prob, cost, risk, depth):
             nonlocal terminal_entropy,expected_cost,worst_risk,leaves
