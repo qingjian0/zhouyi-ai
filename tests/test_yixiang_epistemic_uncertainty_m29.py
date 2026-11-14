@@ -27,12 +27,18 @@ class M29Tests(unittest.TestCase):
  def test_soft_uncertainty_review(self):
   r=self.run_graph(["a","b"],[ev("e","a",r=EvidenceReview.UNREVIEWED,reviewers=())],deps=[d("d","a","b",DependencyStrength.SOFT)])
   self.assertEqual(self.state(r,"b"),EpistemicState.REVIEW_REQUIRED)
+ def test_hard_unknown_prerequisite_becomes_insufficient(self):
+  r=self.run_graph(["a","b"],deps=[d("d","a","b")])
+  self.assertEqual(self.state(r,"b"),EpistemicState.INSUFFICIENT)
  def test_hard_insufficient_propagates(self):
   r=self.run_graph(["a","b"],[ev("e","a")],deps=[d("d","a","b")]);self.assertEqual(self.state(r,"b"),EpistemicState.INSUFFICIENT)
  def test_m27_adapter(self):
   class F:stale_node_ids=("n1",);review_node_ids=("n2",)
   out=adapt_m27_invalidation(F(),(("n1","a"),("n2","b")))
   self.assertEqual(out[0][1],EpistemicState.STALE);self.assertEqual(out[1][1],EpistemicState.REVIEW_REQUIRED)
+ def test_invalid_m27_graph_rejected(self):
+  class F:valid_graph=False;stale_node_ids=();review_node_ids=()
+  with self.assertRaises(ValueError):adapt_m27_invalidation(F(),())
  def test_m27_unmapped_rejected(self):
   class F:stale_node_ids=("n1",);review_node_ids=()
   with self.assertRaises(ValueError):adapt_m27_invalidation(F(),())
