@@ -2,7 +2,7 @@ import unittest
 
 from prototype.yixiang_m60_causal_transfer import (
     backdoor_adjusted_effect, generate_dataset, observational_difference,
-    _d_separated, infer_backdoor_set, predict, rename_case, run_baselines,
+    _d_separated, infer_backdoor_set, infer_frontdoor_mediator, predict, rename_case, run_baselines,
 )
 
 
