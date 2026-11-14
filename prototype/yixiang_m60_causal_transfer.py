@@ -130,6 +130,18 @@ def _graph_parts(case: Mapping[str, Any]):
     for source, target in edges:
         parents[target].add(source)
         children[source].add(target)
+    indegree = {node: len(parents[node]) for node in nodes}
+    ready = [node for node in nodes if indegree[node] == 0]
+    visited = 0
+    while ready:
+        current = ready.pop()
+        visited += 1
+        for child in children[current]:
+            indegree[child] -= 1
+            if indegree[child] == 0:
+                ready.append(child)
+    if visited != len(nodes):
+        raise ValueError("dag_contains_cycle")
     return nodes, edges, parents, children
 
 
@@ -225,27 +237,29 @@ def infer_backdoor_set(case: Mapping[str, Any]) -> Dict[str, Any]:
     outcome = case["query"]["outcome"]
     nodes, edges, parents, children = _graph_parts(case)
     observed = list(case["observed_variables"])
-    if exposure not in observed or outcome not in observed or exposure not in nodes:
+    if (len(set(observed)) != len(observed) or not set(observed) <= set(nodes)
+            or exposure not in observed or outcome not in observed
+            or exposure not in nodes):
         raise ValueError("query_variables_missing_from_dag")
     candidates = [node for node in observed
                   if node not in (exposure, outcome)
                   and node not in _descendants(exposure, children)]
     if len(candidates) > 18:
-        return {"identified": False, "reason": "adjustment_search_budget_exceeded",
+        return {"backdoor_identified": False, "reason": "adjustment_search_budget_exceeded",
                 "latent_parents": [], "adjustment_set": []}
     for size in range(len(candidates) + 1):
         for adjustment in combinations(candidates, size):
             if _valid_backdoor_adjustment(case, adjustment):
-                return {"identified": True, "reason": "valid_backdoor_adjustment",
+                return {"backdoor_identified": True, "reason": "valid_backdoor_adjustment",
                         "latent_parents": [], "adjustment_set": list(adjustment)}
-    return {"identified": False, "reason": "no_observed_backdoor_adjustment_set",
+    return {"backdoor_identified": False, "reason": "no_observed_backdoor_adjustment_set",
             "latent_parents": [], "adjustment_set": []}
 
 
 def predict(case: Mapping[str, Any], method: str = "graph_backdoor") -> Dict[str, Any]:
     if method == "naive_observational":
         estimate = observational_difference(case)
-        return {"case_id": case["case_id"], "status": "identified",
+        return {"case_id": case["case_id"], "status": "identified_by_backdoor",
                 "estimate": estimate, "adjustment_set": [], "method": method}
     if method == "all_observed_adjustment":
         adjustment = [v for v in case["observed_variables"]
@@ -256,8 +270,8 @@ def predict(case: Mapping[str, Any], method: str = "graph_backdoor") -> Dict[str
     if method != "graph_backdoor":
         raise ValueError("unknown_causal_baseline")
     result = infer_backdoor_set(case)
-    if not result["identified"]:
-        return {"case_id": case["case_id"], "status": "not_identifiable",
+    if not result["backdoor_identified"]:
+        return {"case_id": case["case_id"], "status": "not_identified_by_backdoor",
                 "estimate": None, "adjustment_set": [], "reason": result["reason"],
                 "method": method}
     estimate = backdoor_adjusted_effect(case, result["adjustment_set"])
@@ -362,10 +376,10 @@ def evaluate_predictions(cases: Sequence[Mapping[str, Any]],
     for case in cases:
         label = truth[case["case_id"]]
         prediction = by_id[case["case_id"]]
-        predicted_identifiable = prediction["status"] == "identified"
-        if predicted_identifiable == label["identifiable"]:
+        predicted_identifiable = prediction["status"] == "identified_by_backdoor"
+        if predicted_identifiable == label["backdoor_identifiable"]:
             identification_correct += 1
-        if label["identifiable"] and predicted_identifiable and prediction["estimate"] is not None:
+        if label["backdoor_identifiable"] and predicted_identifiable and prediction["estimate"] is not None:
             absolute_errors.append(abs(prediction["estimate"] - label["ate"]))
     mae = (sum(absolute_errors) / len(absolute_errors)
            if absolute_errors else None)
@@ -373,7 +387,7 @@ def evaluate_predictions(cases: Sequence[Mapping[str, Any]],
         mae = 0.0
     return {
         "cases": len(cases),
-        "identification_accuracy": identification_correct / len(cases) if cases else 0.0,
+        "backdoor_criterion_accuracy": identification_correct / len(cases) if cases else 0.0,
         "identified_case_mae": mae,
         "identified_cases_scored": len(absolute_errors),
     }
