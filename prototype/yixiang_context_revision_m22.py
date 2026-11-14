@@ -67,6 +67,8 @@ class RevisionAssessment:
     stale_claim_ids: Tuple[str, ...]
     added_dimensions: Tuple[str, ...]
     retired_dimensions: Tuple[str, ...]
+    added_excluded_dimensions: Tuple[str, ...]
+    retired_excluded_dimensions: Tuple[str, ...]
     semantic_validity_established: bool = False
     adjudication: str = "human_review_required"
 
@@ -182,4 +184,6 @@ def assess_context_revision(revision: ContextRevision) -> RevisionAssessment:
         stale_claim_ids=stale,
         added_dimensions=added_dimensions,
         retired_dimensions=retired_dimensions,
+        added_excluded_dimensions=added_excluded_dimensions,
+        retired_excluded_dimensions=retired_excluded_dimensions,
     )
