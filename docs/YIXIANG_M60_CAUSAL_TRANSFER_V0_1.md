@@ -2,6 +2,11 @@
 
 Status: executable exact-distribution synthetic diagnostic; not empirical causal discovery.
 
+## Methodological anchors
+
+- Hernán & Robins, Causal Inference: What If (2020; current online edition): defines causal effects through interventions and treats confounding, backdoor adjustment, selection bias, and mediation as distinct problems. The M60 cases mirror these distinctions, but use exact synthetic distributions rather than empirical study data.
+- Peters, Janzing & Schölkopf, Elements of Causal Inference (MIT Press, 2017): develops structural causal models, intervention distributions, hidden variables, and domain adaptation. This motivates separating the graph, observational distribution, and evaluator-only intervention truth.
+
 ## Research question
 
 Does a system distinguish observational association from intervention, preserve total effects through mediators, avoid conditioning on colliders, and abstain when latent confounding makes the effect non-identifiable from the available evidence?
