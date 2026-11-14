@@ -23,7 +23,7 @@ class M65InvalidIVSensitivityTests(unittest.TestCase):
         narrow = bounded_exclusion_effect_set(case, direct_effect_bound=0.05)
         wide = bounded_exclusion_effect_set(case, direct_effect_bound=0.20)
         self.assertTrue(wide["identified_set"][0] <= narrow["identified_set"][0])
-        self.assertTrue(narrow["identified_set"][1] >= wide["identified_set"][1])
+        self.assertTrue(wide["identified_set"][1] >= narrow["identified_set"][1])
         self.assertGreater(
             wide["identified_set"][1] - wide["identified_set"][0],
             narrow["identified_set"][1] - narrow["identified_set"][0],
