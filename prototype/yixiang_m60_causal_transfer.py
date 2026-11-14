@@ -256,7 +256,137 @@ def infer_backdoor_set(case: Mapping[str, Any]) -> Dict[str, Any]:
             "latent_parents": [], "adjustment_set": []}
 
 
+
+def _frontdoor_path_intercepted(nodes: Sequence[str], edges: Sequence[Tuple[str, str]],
+                                exposure: str, outcome: str, mediator: str) -> bool:
+    """Return True iff every directed exposure->outcome path crosses mediator."""
+    children = {node: [] for node in nodes}
+    for source, target in edges:
+        if source != mediator:
+            children[source].append(target)
+    pending = [exposure]
+    visited: set[str] = set()
+    while pending:
+        current = pending.pop()
+        if current == mediator or current in visited:
+            continue
+        if current == outcome:
+            return False
+        visited.add(current)
+        pending.extend(children[current])
+    return True
+
+
+def infer_frontdoor_mediator(case: Mapping[str, Any]) -> Dict[str, Any]:
+    """Check the single-observed-mediator front-door criterion in a fully specified DAG."""
+    nodes, edges, parents, children = _graph_parts(case)
+    exposure = case["query"]["exposure"]
+    outcome = case["query"]["outcome"]
+    observed = list(case["observed_variables"])
+    if (len(set(observed)) != len(observed) or not set(observed) <= set(nodes)
+            or exposure not in observed or outcome not in observed):
+        raise ValueError("query_variables_missing_from_dag")
+    candidates = [node for node in observed if node not in (exposure, outcome)]
+    for mediator in candidates:
+        if not _frontdoor_path_intercepted(nodes, edges, exposure, outcome, mediator):
+            continue
+        # Criterion 2: no open back-door path from X to M.
+        graph_without_outgoing_x = [(a, b) for a, b in edges if a != exposure]
+        if not _d_separated(nodes, graph_without_outgoing_x, exposure, mediator, []):
+            continue
+        # Criterion 3: X blocks every back-door path from M to Y.
+        graph_without_outgoing_m = [(a, b) for a, b in edges if a != mediator]
+        if not _d_separated(nodes, graph_without_outgoing_m, mediator, outcome, [exposure]):
+            continue
+        return {"frontdoor_identified": True, "reason": "valid_frontdoor_mediator",
+                "mediator": mediator}
+    return {"frontdoor_identified": False, "reason": "no_valid_observed_frontdoor_mediator",
+            "mediator": None}
+
+
+def frontdoor_adjusted_effect(case: Mapping[str, Any], mediator: str) -> float | None:
+    """Compute the binary front-door functional from the observed joint distribution."""
+    query = case["query"]
+    exposure, outcome = query["exposure"], query["outcome"]
+    variables = list(case["observed_variables"])
+    if mediator not in variables or mediator in (exposure, outcome):
+        raise ValueError("invalid_frontdoor_mediator")
+    joint = case["observational_joint"]
+
+    def mass_where(condition: Mapping[str, int]) -> float:
+        total = 0.0
+        for key, probability in joint.items():
+            assignment = _decode(key, variables)
+            if all(assignment[name] == value for name, value in condition.items()):
+                total += probability
+        return total
+
+    def p_m_given_x(m_value: int, x_value: int) -> float | None:
+        denominator = mass_where({exposure: x_value})
+        if denominator <= 0:
+            return None
+        return mass_where({exposure: x_value, mediator: m_value}) / denominator
+
+    def p_y_given_m_x(y_value: int, m_value: int, x_value: int) -> float | None:
+        denominator = mass_where({mediator: m_value, exposure: x_value})
+        if denominator <= 0:
+            return None
+        return mass_where({outcome: y_value, mediator: m_value, exposure: x_value}) / denominator
+
+    def p_x(x_value: int) -> float:
+        return mass_where({exposure: x_value})
+
+    def intervention_mean(x_value: int) -> float | None:
+        total = 0.0
+        for m_value in (0, 1):
+            first = p_m_given_x(m_value, x_value)
+            if first is None:
+                return None
+            inner = 0.0
+            for x_prime in (0, 1):
+                px = p_x(x_prime)
+                if px <= 0:
+                    continue
+                py = p_y_given_m_x(1, m_value, x_prime)
+                if py is None:
+                    return None
+                inner += py * px
+            total += first * inner
+        return total
+
+    mean_one = intervention_mean(1)
+    mean_zero = intervention_mean(0)
+    return None if mean_one is None or mean_zero is None else mean_one - mean_zero
+
+
+def identify_and_estimate(case: Mapping[str, Any]) -> Dict[str, Any]:
+    """Prefer valid back-door adjustment, then a valid front-door mediator; otherwise abstain."""
+    backdoor = infer_backdoor_set(case)
+    if backdoor["backdoor_identified"]:
+        estimate = backdoor_adjusted_effect(case, backdoor["adjustment_set"])
+        if estimate is None:
+            return {"status": "backdoor_estimation_failed", "estimate": None,
+                    "strategy": "backdoor", "adjustment_set": backdoor["adjustment_set"],
+                    "reason": "positivity_failure"}
+        return {"status": "identified_by_backdoor", "estimate": estimate,
+                "strategy": "backdoor", "adjustment_set": backdoor["adjustment_set"]}
+    frontdoor = infer_frontdoor_mediator(case)
+    if frontdoor["frontdoor_identified"]:
+        estimate = frontdoor_adjusted_effect(case, frontdoor["mediator"])
+        if estimate is None:
+            return {"status": "frontdoor_estimation_failed", "estimate": None,
+                    "strategy": "frontdoor", "mediator": frontdoor["mediator"],
+                    "reason": "positivity_failure"}
+        return {"status": "identified_by_frontdoor", "estimate": estimate,
+                "strategy": "frontdoor", "mediator": frontdoor["mediator"]}
+    return {"status": "not_identified_by_implemented_criteria", "estimate": None,
+            "strategy": None, "reason": "backdoor_and_frontdoor_criteria_failed"}
+
+
 def predict(case: Mapping[str, Any], method: str = "graph_backdoor") -> Dict[str, Any]:
+    if method == "graph_identification":
+        result = identify_and_estimate(case)
+        return {"case_id": case["case_id"], **result, "method": method}
     if method == "naive_observational":
         estimate = observational_difference(case)
         return {"case_id": case["case_id"], "status": "estimate_only",
@@ -305,6 +435,10 @@ def _make_case(case_id: str, scm: Mapping[str, Any], exposure: str,
         "observational_joint": joint,
     }
     truth["backdoor_identifiable"] = infer_backdoor_set(public)["backdoor_identified"]
+    truth["frontdoor_identifiable"] = infer_frontdoor_mediator(public)["frontdoor_identified"]
+    truth["identifiable_by_available_strategy"] = (
+        truth["backdoor_identifiable"] or truth["frontdoor_identifiable"]
+    )
     return public, truth
 
 
@@ -362,6 +496,63 @@ def generate_dataset() -> Tuple[list[Dict[str, Any]], Dict[str, Any]]:
         case, labels = _make_case(case_id, scm, "X", "Y")
         cases.append(case)
         truth[case_id] = labels
+
+    # A latent common cause confounds X and Y, but M fully mediates X->Y.
+    # This is the canonical front-door pattern: L->X, L->Y, X->M->Y.
+    frontdoor_scm = {
+        "topological_order": ["L", "X", "M", "Y"],
+        "nodes": {
+            "L": {"parents": [], "p1": 0.5},
+            "X": {"parents": ["L"], "cpt": {"0": 0.1, "1": 0.9}},
+            "M": {"parents": ["X"], "cpt": {"0": 0.2, "1": 0.8}},
+            "Y": {"parents": ["M"], "cpt": {"0": 0.1, "1": 0.7}},
+        },
+        "edges": [("L", "X"), ("L", "Y"), ("X", "M"), ("M", "Y")],
+        "observed_variables": ["X", "M", "Y"],
+    }
+    case, labels = _make_case("frontdoor_latent_confounding", frontdoor_scm, "X", "Y")
+    cases.append(case)
+    truth[case["case_id"]] = labels
+
+    # Direct X->Y effect violates complete mediation even though a mediator exists.
+    direct_scm = {
+        "topological_order": ["L", "X", "M", "Y"],
+        "nodes": {
+            "L": {"parents": [], "p1": 0.5},
+            "X": {"parents": ["L"], "cpt": {"0": 0.1, "1": 0.9}},
+            "M": {"parents": ["X"], "cpt": {"0": 0.2, "1": 0.8}},
+            "Y": {"parents": ["M", "X"], "cpt": {
+                "0,0": 0.1, "0,1": 0.3, "1,0": 0.7, "1,1": 0.9}},
+        },
+        "edges": [("L", "X"), ("L", "Y"), ("X", "M"), ("M", "Y"), ("X", "Y")],
+        "observed_variables": ["X", "M", "Y"],
+    }
+    case, labels = _make_case("frontdoor_direct_path_invalid", direct_scm, "X", "Y")
+    cases.append(case)
+    truth[case["case_id"]] = labels
+
+    # A latent V confounds mediator and outcome, violating front-door criterion 3.
+    mediator_confounding_scm = {
+        "topological_order": ["L", "V", "X", "M", "Y"],
+        "nodes": {
+            "L": {"parents": [], "p1": 0.5},
+            "V": {"parents": [], "p1": 0.5},
+            "X": {"parents": ["L"], "cpt": {"0": 0.1, "1": 0.9}},
+            "M": {"parents": ["X", "V"], "cpt": {
+                "0,0": 0.1, "0,1": 0.7, "1,0": 0.3, "1,1": 0.9}},
+            "Y": {"parents": ["M", "L", "V"], "cpt": {
+                "0,0,0": 0.05, "0,0,1": 0.45, "0,1,0": 0.15, "0,1,1": 0.55,
+                "1,0,0": 0.45, "1,0,1": 0.85, "1,1,0": 0.55, "1,1,1": 0.95}},
+        },
+        "edges": [("L", "X"), ("L", "Y"), ("V", "M"), ("V", "Y"),
+                  ("X", "M"), ("M", "Y")],
+        "observed_variables": ["X", "M", "Y"],
+    }
+    case, labels = _make_case("frontdoor_mediator_confounding_invalid",
+                              mediator_confounding_scm, "X", "Y")
+    cases.append(case)
+    truth[case["case_id"]] = labels
+
     return cases, truth
 
 
@@ -373,6 +564,7 @@ def evaluate_predictions(cases: Sequence[Mapping[str, Any]],
         raise ValueError("prediction_case_id_mismatch")
     absolute_errors = []
     identification_correct = 0
+    general_identification_correct = 0
     for case in cases:
         label = truth[case["case_id"]]
         prediction = by_id[case["case_id"]]
@@ -381,6 +573,12 @@ def evaluate_predictions(cases: Sequence[Mapping[str, Any]],
         }
         if predicted_identifiable == label["backdoor_identifiable"]:
             identification_correct += 1
+        predicted_any = prediction["status"] in {
+            "identified_by_backdoor", "backdoor_estimation_failed",
+            "identified_by_frontdoor", "frontdoor_estimation_failed"
+        }
+        if predicted_any == label.get("identifiable_by_available_strategy", label["backdoor_identifiable"]):
+            general_identification_correct += 1
         if label["backdoor_identifiable"] and predicted_identifiable and prediction["estimate"] is not None:
             absolute_errors.append(abs(prediction["estimate"] - label["ate"]))
     mae = (sum(absolute_errors) / len(absolute_errors)
@@ -390,6 +588,7 @@ def evaluate_predictions(cases: Sequence[Mapping[str, Any]],
     return {
         "cases": len(cases),
         "backdoor_criterion_accuracy": identification_correct / len(cases) if cases else 0.0,
+        "implemented_identification_strategy_accuracy": general_identification_correct / len(cases) if cases else 0.0,
         "identified_case_mae": mae,
         "identified_cases_scored": len(absolute_errors),
     }
@@ -398,7 +597,7 @@ def evaluate_predictions(cases: Sequence[Mapping[str, Any]],
 def run_baselines(cases: Sequence[Mapping[str, Any]],
                   truth: Mapping[str, Any]) -> Dict[str, Any]:
     results: Dict[str, Any] = {}
-    for method in ("naive_observational", "all_observed_adjustment", "graph_backdoor"):
+    for method in ("naive_observational", "all_observed_adjustment", "graph_backdoor", "graph_identification"):
         predictions = [predict(case, method) for case in cases]
         results[method] = {
             "metrics": evaluate_predictions(cases, predictions, truth),
