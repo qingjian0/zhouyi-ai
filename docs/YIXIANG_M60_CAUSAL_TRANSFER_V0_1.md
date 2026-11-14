@@ -16,7 +16,7 @@ Does a system distinguish observational association from intervention, preserve 
 1. Observed confounder: U causes both X and Y, while X also causes Y. The naive observational difference is biased; adjustment for U recovers the exact total effect.
 2. Mediation: X causes M, which causes Y, and X also has a direct effect on Y. The total effect must not adjust away M.
 3. Collider: X and Y independently cause C. Conditioning on C induces a spurious association; C is not a valid adjustment variable.
-4. Latent confounder: an unobserved L causes both X and Y. The graph-aware baseline must abstain rather than report an observational association as a causal effect.
+4. Latent confounder: an unobserved L causes both X and Y. The graph-aware baseline must abstain from claiming a back-door-identified effect rather than report an observational association as a causal effect.
 
 ## Baselines and metrics
 
@@ -24,9 +24,9 @@ Does a system distinguish observational association from intervention, preserve 
 - Adjust for every observed non-exposure/non-outcome variable (deliberately unsafe baseline).
 - Graph-aware minimum adjustment-set search using ancestral moralization and d-separation in the back-door graph; hidden variables remain in the graph but cannot be selected as observed controls.
 - A domain-renaming control verifies that the inferred causal mapping does not depend on variable names.
-- Metrics: identification accuracy, MAE on identifiable cases, and number of identified cases scored.
+- Metrics: back-door criterion accuracy, MAE on identifiable cases, and number of identified cases scored.
 
-The public case exposes a DAG and exact observed joint distribution. Structural equations and true intervention effects are evaluator-only. The graph routine now searches observed, non-descendant adjustment sets and validates them using the sufficient back-door criterion via d-separation. It is still not a complete do-calculus, generalized adjustment, front-door, IV, or latent-projection identification implementation.
+The public case exposes a DAG and exact observed joint distribution. Structural equations and true intervention effects are evaluator-only. The graph routine validates DAG acyclicity, searches observed, non-descendant adjustment sets and validates them using the sufficient back-door criterion via d-separation. It is still not a complete do-calculus, generalized adjustment, front-door, IV, or latent-projection identification implementation.
 
 ## Interpretation boundary
 
@@ -43,3 +43,12 @@ The follow-on M61 branch replaces the hard-coded direct-parent heuristic with a 
 3. Add counterfactual queries with explicit structural-equation assumptions; do not score individual counterfactuals from observational marginals alone.
 4. Add domain-renamed transfer pairs and held-out mechanism families.
 5. Link claims to M59 source witnesses before any classical-text causal annotation enters a gold set.
+
+
+## Recent benchmark design implications
+
+- CausalReasoningBenchmark (Sawarni, Tan & Syrgkanis, 2026) separates causal identification specifications from numerical effect estimation. M60/M61 should therefore report the proposed strategy and control set separately from estimation error; a correct number alone is insufficient evidence of correct causal reasoning.
+- CausalPitfalls (ICLR 2026) explicitly tests Simpson's paradox, selection bias, and related statistical pitfalls under direct and code-assisted protocols. The existing collider and confounding cases are a starting subset, not a complete coverage claim.
+- Machlanski, Samothrakis & Clarke (2026) report that causal estimator model-selection metrics can be inconsistent across scenarios. Future finite-sample comparisons must avoid tuning solely on one proxy metric and must report sensitivity across estimands and data regimes.
+
+These findings motivate a separate identification-specification score, estimation score, abstention calibration, and scenario-wise reporting. They do not imply that the synthetic M60/M61 results establish real-world causal competence.
