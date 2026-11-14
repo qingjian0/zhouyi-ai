@@ -2,7 +2,7 @@ import unittest
 
 from prototype.yixiang_m60_causal_transfer import (
     backdoor_adjusted_effect, generate_dataset, observational_difference,
-    predict, rename_case, run_baselines,
+    _d_separated, infer_backdoor_set, predict, rename_case, run_baselines,
 )
 
 
@@ -52,6 +52,27 @@ class M60CausalTransferTests(unittest.TestCase):
         self.assertEqual(graph["identified_case_mae"], 0.0)
         self.assertGreater(all_adjust["identified_case_mae"], 0.0)
         self.assertGreater(naive["identified_case_mae"], 0.0)
+
+    def test_minimum_backdoor_set_is_found_from_graph_not_hardcoded_parents(self):
+        result = infer_backdoor_set(self.by_id["observed_confounder"])
+        self.assertTrue(result["identified"])
+        self.assertEqual(result["adjustment_set"], ["U"])
+
+    def test_mediator_is_excluded_from_total_effect_adjustment(self):
+        result = infer_backdoor_set(self.by_id["mediated_total_effect"])
+        self.assertEqual(result["adjustment_set"], [])
+
+    def test_hidden_common_cause_has_no_observed_backdoor_set(self):
+        result = infer_backdoor_set(self.by_id["latent_confounder"])
+        self.assertFalse(result["identified"])
+        self.assertEqual(result["reason"], "no_observed_backdoor_adjustment_set")
+
+    def test_d_separation_distinguishes_chain_fork_and_collider(self):
+        nodes = ["A", "B", "C"]
+        self.assertFalse(_d_separated(nodes, [("A", "B"), ("B", "C")], "A", "C", []))
+        self.assertTrue(_d_separated(nodes, [("A", "B"), ("B", "C")], "A", "C", ["B"]))
+        self.assertFalse(_d_separated(nodes, [("A", "B"), ("C", "B")], "A", "C", ["B"]))
+        self.assertTrue(_d_separated(nodes, [("A", "B"), ("C", "B")], "A", "C", []))
 
     def test_causal_mapping_transfers_under_domain_renaming(self):
         source = self.by_id["observed_confounder"]
