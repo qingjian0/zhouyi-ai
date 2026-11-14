@@ -16,6 +16,29 @@ jobs:
           python-version: "3.11"
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
+      - name: Run N0.10 higher-order necessary benchmark
+        run: |
+          python -m unittest tests.test_n10_higher_order_benchmark -v
+          python -m prototype.n10_higher_order_benchmark \
+            --seeds 5 --start-seed 7 --train-samples 3000 \
+            --test-samples 1504 --epochs 120 --json > n10-higher-order.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          result = json.loads(Path("n10-higher-order.json").read_text())
+          summary = result["summary"]
+          assert result["seed_count"] == 5
+          assert summary["unary_pairwise_triple.accuracy"]["mean"] >= 0.95
+          assert 0.40 <= summary["unary_pairwise.accuracy"]["mean"] <= 0.60
+          assert 0.40 <= summary["triple_model_after_triple_mask.accuracy"]["mean"] <= 0.60
+          print(json.dumps({"summary": summary}, indent=2))
+          PY
+      - name: Upload N0.10 higher-order result artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: n10-higher-order-results
+          path: n10-higher-order.json
+          if-no-files-found: error
       - name: Run E01 demonstration
         run: python -m prototype.e01_sparse_composition --json
       - name: Run E01-B five-seed evaluation

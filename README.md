@@ -51,6 +51,7 @@
 - [E01-B 五种子结果报告](docs/E01B_RESULTS_2026-11-10.md)
 - [E01-C 组合 OOD 结果报告](docs/E01C_RESULTS_2026-11-10.md)
 - [研究风险与证伪条件](docs/RISKS_AND_FALSIFICATION.md)
+- [N0.10 高阶必要性基准](docs/N10_HIGHER_ORDER_NECESSARY_BENCHMARK_2026-11-12.md)
 - [开发路线图](ROADMAP.md)
 - [原型代码](prototype/)
 
