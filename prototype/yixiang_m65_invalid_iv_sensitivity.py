@@ -8,7 +8,7 @@ from __future__ import annotations
 from math import isfinite
 from typing import Any, Dict, Mapping, Sequence
 
-from prototype.yixiang_m60_causal_transfer import _d_separated, _graph_parts
+from prototype.yixiang_m60_causal_transfer import _decode, _d_separated, _graph_parts
 from prototype.yixiang_m64_instrumental_variable import _covariance, _has_directed_path
 
 
