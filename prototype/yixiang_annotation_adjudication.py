@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 from typing import Tuple
+from prototype.yixiang_benchmark import validate_case
 
 class ReviewStatus(str, Enum):
     SOURCE_UNVERIFIED = "source_unverified"
@@ -138,6 +139,8 @@ def _validate_adjudication(adjudication, reviewers):
         raise ValueError("final accept requires shared_basis")
     if adjudication.decision == "conditional" and not adjudication.scope_conditions:
         raise ValueError("final conditional requires scope_conditions")
+    if adjudication.decision == "abstain" and len(adjudication.rationale.strip()) < 20:
+        raise ValueError("final abstain rationale must explain unresolved uncertainty")
     if adjudication.adjudicator_id in reviewers:
         raise ValueError("adjudicator must be distinct from independent reviewers")
 
@@ -189,8 +192,7 @@ def to_benchmark_case(packet: ReviewPacket, *, split_group: str) -> dict:
     if split_group not in SPLITS:
         raise ValueError("split_group must be train/dev/test/holdout; exploratory is not gold")
     final = packet.adjudication
-    representative = packet.annotations[0]
-    return {
+    case = {
         "claim_kind": packet.claim_kind, "case_id": packet.case_id,
         "source_lineage": [packet.source.work_id, packet.source.edition_id, packet.source.witness_id],
         "source_status": packet.source.source_status, "target_claim": final.claim,
