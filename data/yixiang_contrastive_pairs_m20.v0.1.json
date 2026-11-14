@@ -1,0 +1,58 @@
+[
+  {
+    "pair_id": "m20:relation-direction",
+    "case_ids": [
+      "m20:relation-direction:direction-preserved",
+      "m20:relation-direction:direction-reversed"
+    ]
+  },
+  {
+    "pair_id": "m20:material-origin",
+    "case_ids": [
+      "m20:material-origin:material-to-property",
+      "m20:material-origin:unverified-property-bridge"
+    ]
+  },
+  {
+    "pair_id": "m20:same-result-mechanism",
+    "case_ids": [
+      "m20:same-result-mechanism:same-result-unseen-mechanism",
+      "m20:same-result-mechanism:mechanism-bounded-transfer"
+    ]
+  },
+  {
+    "pair_id": "m20:agent-goal-affordance",
+    "case_ids": [
+      "m20:agent-goal-affordance:goal-aligned-use",
+      "m20:agent-goal-affordance:goal-mismatch-use"
+    ]
+  },
+  {
+    "pair_id": "m20:posture-task-geometry",
+    "case_ids": [
+      "m20:posture-task-geometry:posture-held",
+      "m20:posture-task-geometry:posture-shifted"
+    ]
+  },
+  {
+    "pair_id": "m20:species-context",
+    "case_ids": [
+      "m20:species-context:same-species-bounded",
+      "m20:species-context:cross-species-transfer"
+    ]
+  },
+  {
+    "pair_id": "m20:appearance-proxy",
+    "case_ids": [
+      "m20:appearance-proxy:appearance-only",
+      "m20:appearance-proxy:appearance-counterexample"
+    ]
+  },
+  {
+    "pair_id": "m20:class-vs-quantity",
+    "case_ids": [
+      "m20:class-vs-quantity:class-membership",
+      "m20:class-vs-quantity:quantity-predicate"
+    ]
+  }
+]
