@@ -47,7 +47,7 @@ class M33Tests(unittest.TestCase):
     def test_unknown_unit_intervention(self):
         self.assertIn("unknown_unit_intervention:u0",base(interventions=(),units=(unit("u0","present",1,"e0"),)).issues)
     def test_unit_requires_evidence(self):
-        self.assertIn("unit_requires_evidence:u0",base(units=(unit("u0","present",1,"e0"),unit("u1","removed",.7,"e1")),evidence=()).issues)
+        self.assertIn("unit_requires_evidence:u0",base(units=(unit("u0","present",1,None),unit("u1","removed",.7,None)),evidence=()).issues)
     def test_unknown_unit_evidence(self):
         self.assertIn("unknown_unit_evidence:u0:e0",base(evidence=(evidence("e1"),)).issues)
     def test_unit_evidence_context_must_match(self):
