@@ -91,3 +91,8 @@ M17 v0.1（19 项专项测试）将类推迁移拆为共同特征、迁移主张
 ### M18 当前实现边界
 
 M18 v0.1 提供 M17 casebook 到 M8 benchmark 的安全适配器，当前 10 项专项测试。所有案例均保持 unverified_transcription + pending_review，gold_decision=abstain 仅为占位；reviewers 为空、split_group=exploratory，M8 evaluate_predictions 会拒绝评分。shared/non-shared basis、scope、invariants 与 counterexamples 不从 audit_focus 自动生成，未知映射直接报错。此批数据不是人工 gold，不得用于正式性能结论。
+
+
+### M19 当前实现边界
+
+M19 v0.1 提供人工审定包与状态机，当前 20 项专项测试。来源核验、两份独立标注、分歧登记和独立最终裁决分层保存；一致标注不会自动升级为 gold，未核验来源不能导出，裁决者必须明确给出最终 claim/文本层/关系族/依据/范围/不变量/反例/因果状态。只有显式裁决且来源核验、身份隔离等门禁通过，才可导出 M8 adjudicated case；导出时仅使用裁决者的最终标注，不从任一初审者记录中抽取字段。程序不能验证现实身份或判断文本真伪，仍需人工抽查和来源谱系审计。
