@@ -55,6 +55,21 @@ class M57NonPathBenchmarkTests(unittest.TestCase):
         pattern = case["pattern"]
         self.assertTrue(pattern["hyperedges"])
         self.assertTrue(pattern["global_counts"])
+        target_edges = {
+            (edge["source"], edge["predicate"], edge["target"])
+            for edge in case["target_graph"]["binary_relations"]
+        }
+        # Every candidate in the hard non-path condition passes all binary
+        # relation checks; hyperedges/global constraints must break the tie.
+        for candidate in case["candidate_mappings"]:
+            for edge in pattern["binary_relations"]:
+                self.assertIn((candidate[edge["source"]], edge["predicate"],
+                               candidate[edge["target"]]), target_edges)
+        full_valid = [
+            i for i, candidate in enumerate(case["candidate_mappings"])
+            if check_mapping(pattern, case["target_graph"], candidate)["valid"]
+        ]
+        self.assertEqual(len(full_valid), 1)
         self.assertTrue(check_mapping(pattern, case["target_graph"], mapping)["valid"])
 
     def test_rejects_non_injective_mapping(self):
