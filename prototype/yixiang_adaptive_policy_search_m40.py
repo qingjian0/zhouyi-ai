@@ -82,20 +82,20 @@ def search_policy(actions, scenarios, horizon=3, max_nodes=5000,
             not all(isfinite(x) and x>=0 for x in (a.cost,a.risk,a.risk_limit))):
             issues.append("invalid_action:"+a.action_id)
         if a.risk>a.risk_limit: issues.append("action_risk_limit:"+a.action_id)
+    eligible=tuple(a for a in actions if a.approved and a.feasible)
     for s in scenarios:
         hs=[p.hypothesis for p in s.priors]
         if not s.provenance or not s.calibrated or len(hs)<2 or len(set(hs))!=len(hs):
             issues.append("invalid_scenario:"+s.scenario_id); continue
         if any(not isfinite(p.probability) or p.probability<0 for p in s.priors) or abs(sum(p.probability for p in s.priors)-1)>1e-8:
             issues.append("invalid_prior:"+s.scenario_id)
-        for a in actions:
+        for a in eligible:
             for h in hs:
                 ls=[l for l in s.likelihoods if l.action==a.action_id and l.hypothesis==h]
                 if not ls or any(not isfinite(l.probability) or not 0<=l.probability<=1 for l in ls) or abs(sum(l.probability for l in ls)-1)>1e-8:
                     issues.append("invalid_likelihood:"+s.scenario_id+":"+a.action_id+":"+h)
     if issues:
         return SearchResult(None,(),0.0,0,"blocked",tuple(sorted(set(issues))),())
-    eligible=tuple(a for a in actions if a.approved and a.feasible)
     if len(eligible)!=len(actions): warnings.append("unapproved_or_infeasible_actions_excluded")
     if not eligible:
         return SearchResult(None,(),0.0,0,"no_feasible_actions",(),tuple(warnings))
