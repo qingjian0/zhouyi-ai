@@ -101,3 +101,8 @@ M19 v0.1 提供人工审定包与状态机，当前 20 项专项测试。来源�
 ### M20 当前实现边界
 
 M20 v0.1 新增 16 条 synthetic_fixture，组成 8 组成对对抗样例，覆盖关系方向、材料来源与属性继承、同结果异机制、主体目标、姿态几何、物种条件、外观代理、类属与数量谓词。每一对共享 independence_group 且同 split；holdout 仅为模板留出，不等同真实世界 OOD。10 项专项测试验证数据契约、配对隔离、关键标签、反例字段与 M8 fixture opt-in。全部样例不是古籍 gold，不能用于理论有效性结论。
+
+
+### M21 当前实现边界
+
+M21 v0.1 新增成对评估器与 12 项专项测试，使用 M20 的 contrastive independence_group 计算 pair_exact_accuracy、decision_flip_sensitivity、collapsed_pair_rate、pair_selective_coverage 和 pair_selective_risk。每组必须恰好两例、同 split、预期决策不同；fixture_expected 必须显式 opt-in，pending_review 和混合标签状态拒绝评分。该指标只补充 M8，不取代逐类指标；当前数据仍是合成夹具。
