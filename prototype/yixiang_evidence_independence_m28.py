@@ -278,7 +278,7 @@ def assess_evidence_independence(
             pairs.append(tuple(sorted((left.witness_id, right.witness_id))))
 
     unresolved = tuple(sorted({e.witness_id for e in relevant
-                               if not witness_map[e.witness_id].lineage_complete}))
+                               if not effective_lineage_complete(e.witness_id)}))
     return EvidenceIndependence(
         claim_id=claim_id,
         reviewed_support_records=len(reviewed_support),
