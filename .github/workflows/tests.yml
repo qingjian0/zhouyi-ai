@@ -16,6 +16,10 @@ jobs:
           python-version: "3.11"
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
+      - name: Run E12-M2.2 calibration smoke test
+        run: python -m prototype.e12m2_m2_calibration --seeds 3 --permutations 9 --swaps-per-edge 2 --injections 2 --seed-start 17
+      - name: Run E12-M2.5 exact finite-chain audit smoke test
+        run: python -m prototype.e12m2_finite_chain_audit
       - name: Run E01 demonstration
         run: python -m prototype.e01_sparse_composition --json
       - name: Run E01-B five-seed evaluation
