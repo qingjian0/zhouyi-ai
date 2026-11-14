@@ -83,3 +83,34 @@ result requires a larger pre-registered seed matrix, preserved raw run outputs,
 scenario-stratified paired intervals, multiplicity correction, and independent
 review of generator semantics. No Transformer, SCM learner, or Zhouyi agent
 is claimed as measured unless an actual executable adapter is added and run.
+
+
+## Expanded M55 design and dependence-aware uncertainty
+
+The current runner includes twelve scenario families:
+- strong, weak, near-null, and null linear-Gaussian effects;
+- quadratic and two-parent multiplicative nonlinear mechanisms;
+- non-Gaussian Laplace noise;
+- latent common-cause confounding;
+- collider-based selection;
+- a noisy observed proxy for a latent cause (measurement-error stress);
+- near-collinear observed predictors;
+- hidden alternating-sign mechanism heterogeneity.
+
+The standard study uses 50 seeds (1000–1049) at sample sizes 120, 240, and 480. Every scenario/size/seed cell runs the same three implemented methods and preserves the raw predicted-parent set and evaluator truth in a JSONL artifact.
+
+A statistical dependence correction is important here: the three candidate-edge outcomes within one seed are not independent replicates. Therefore the reported false-positive-rate and power uncertainty intervals bootstrap independent seed-level clusters, not individual edges. The paired F1 contrasts also pair methods by the exact same scenario, sample size, and seed. Confirmatory paired p-values are sign-flip randomization tests and are adjusted across the declared contrast family using Holm; BH is retained as a secondary exploratory adjustment.
+
+## First completed five-scenario sweep (historical baseline)
+
+The first 50-seed sweep produced 2,250 method records in approximately 3.72 seconds of wall time, with maximum resident set size 16,684 KiB. Its results showed:
+- linear-Gaussian: correlation screening and PC-style were essentially tied at high F1;
+- Laplace-noise linear: both were also close;
+- quadratic nonlinear: PC-style was materially worse than correlation screening;
+- latent common-cause and collider-selection cases: all three methods produced false-positive associations, with no reliable direct-parent recovery.
+
+These are synthetic results and not population estimates. The expanded twelve-scenario run supersedes this first sweep for M55 acceptance. The first run's raw artifact is retained in GitHub Actions run 43585306200.
+
+## Resource accounting and artifacts
+
+The dedicated workflow runs the study as a separate process under `/usr/bin/time -v` and uploads raw JSONL records, scenario summaries, paired contrasts, stdout, and process resource statistics as a 90-day artifact. This gives an external process-level wall-time and peak-RSS record, although it is not a per-adapter sandbox or a security boundary.
