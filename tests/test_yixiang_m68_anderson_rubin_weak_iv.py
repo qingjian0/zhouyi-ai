@@ -16,6 +16,16 @@ def strong_iv_data():
     return {"x": x, "y": y, "z": [[z1[i], z2[i]] for i in range(n)]}
 
 
+def weak_reduced_form_data():
+    n = 32
+    z1 = [1.0 if i % 2 == 0 else -1.0 for i in range(n)]
+    z2 = [1.0 if (i // 2) % 2 == 0 else -1.0 for i in range(n)]
+    x = [1.0 if (i // 4) % 2 == 0 else -1.0 for i in range(n)]
+    noise = [0.25 if (i // 8) % 2 == 0 else -0.25 for i in range(n)]
+    y = [10.0 * z1[i] + noise[i] for i in range(n)]
+    return {"x": x, "y": y, "z": [[z1[i], z2[i]] for i in range(n)]}
+
+
 def no_first_stage_data():
     n = 32
     z1 = [1.0 if i % 2 == 0 else -1.0 for i in range(n)]
@@ -37,6 +47,13 @@ class M68AndersonRubinTests(unittest.TestCase):
         result = anderson_rubin_confidence_set(no_first_stage_data())
         self.assertEqual(result["set_shape"], "all_real")
         self.assertEqual(result["components"], [{"lower": None, "upper": None}])
+
+    def test_weak_identification_preserves_disconnected_two_ray_set(self):
+        result = anderson_rubin_confidence_set(weak_reduced_form_data())
+        self.assertEqual(result["set_shape"], "two_unbounded_rays")
+        self.assertEqual(len(result["components"]), 2)
+        self.assertIsNone(result["components"][0]["lower"])
+        self.assertIsNone(result["components"][1]["upper"])
 
     def test_strong_iv_set_is_bounded_and_contains_true_coefficient(self):
         result = anderson_rubin_confidence_set(strong_iv_data())
