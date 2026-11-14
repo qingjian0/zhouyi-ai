@@ -97,6 +97,18 @@ class ContextRevisionTests(unittest.TestCase):
         self.assertEqual(result.status, RevisionStatus.UNDECLARED_CHANGE)
         self.assertIn("retired_excluded_dimensions", result.undeclared_changes)
 
+    def test_contract_can_add_an_excluded_dimension(self):
+        before = ContextSnapshot("ctx-1", 1, "objects", "identify", ("shape",), (), ("same_scale",))
+        after = ContextSnapshot("ctx-1", 2, "objects", "identify", ("shape",), ("function",), ("same_scale",))
+        result = assess_context_revision(revision(before=before, after=after, kind=RevisionKind.CONTRACT, added_dimensions=(), added_excluded_dimensions=("function",)))
+        self.assertEqual(result.status, RevisionStatus.CONTEXT_CONTRACTED)
+
+    def test_expand_can_remove_an_exclusion(self):
+        before = ContextSnapshot("ctx-1", 1, "objects", "identify", ("shape",), ("function",), ("same_scale",))
+        after = ContextSnapshot("ctx-1", 2, "objects", "identify", ("shape",), (), ("same_scale",))
+        result = assess_context_revision(revision(before=before, after=after, kind=RevisionKind.EXPAND, added_dimensions=(), retired_excluded_dimensions=("function",)))
+        self.assertEqual(result.status, RevisionStatus.CONTEXT_EXPANDED)
+
     def test_revise_without_change_is_noop(self):
         result = assess_context_revision(revision(kind=RevisionKind.REVISE, after=snapshot(version=2), added_dimensions=()))
         self.assertEqual(result.status, RevisionStatus.NO_OP)
