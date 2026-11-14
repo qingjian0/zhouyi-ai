@@ -57,8 +57,10 @@ def _partial_correlation_pvalue(x_values, y_values, conditioning_columns):
     residual_y = _residualize(y, basis)
     vx = _dot(residual_x, residual_x)
     vy = _dot(residual_y, residual_y)
+    # Zero/near-zero residual variance is not evidence of independence:
+    # the test is unidentified under this degeneracy, so retain the edge.
     if vx <= 1e-20 or vy <= 1e-20:
-        return 1.0
+        return 0.0
 
     correlation = _dot(residual_x, residual_y) / sqrt(vx * vy)
     correlation = max(-0.999999999999, min(0.999999999999, correlation))
