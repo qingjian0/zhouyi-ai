@@ -2,7 +2,7 @@ import unittest
 
 from prototype.yixiang_m60_causal_transfer import (
     backdoor_adjusted_effect, generate_dataset, observational_difference,
-    predict, run_baselines,
+    predict, rename_case, run_baselines,
 )
 
 
@@ -52,6 +52,17 @@ class M60CausalTransferTests(unittest.TestCase):
         self.assertEqual(graph["identified_case_mae"], 0.0)
         self.assertGreater(all_adjust["identified_case_mae"], 0.0)
         self.assertGreater(naive["identified_case_mae"], 0.0)
+
+    def test_causal_mapping_transfers_under_domain_renaming(self):
+        source = self.by_id["observed_confounder"]
+        target = rename_case(
+            source, {"U": "context", "X": "decision", "Y": "result"},
+            case_id="renamed_domain",
+        )
+        source_prediction = predict(source, "graph_backdoor")
+        target_prediction = predict(target, "graph_backdoor")
+        self.assertAlmostEqual(source_prediction["estimate"], target_prediction["estimate"], places=12)
+        self.assertEqual(target_prediction["adjustment_set"], ["context"])
 
 
 if __name__ == "__main__":
