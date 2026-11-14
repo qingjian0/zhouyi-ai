@@ -141,7 +141,7 @@ def audit_epistemic_graph(claim_ids,evidence,judgements,conditions,dependencies)
             target=edge.dependent_claim_id; source_state=effective[source]; tj=jmap.get(target)
             if tj and tj.state==EpistemicState.REVALIDATED:
                 trace.append((target,"revalidation_barrier",edge.dependency_id))
-            elif source_state not in (EpistemicState.PROVISIONAL,EpistemicState.REVALIDATED,EpistemicState.UNKNOWN):
+            elif source_state not in (EpistemicState.PROVISIONAL,EpistemicState.REVALIDATED):
                 if edge.strength==DependencyStrength.SOFT:candidate=EpistemicState.REVIEW_REQUIRED
                 elif source_state==EpistemicState.STALE:candidate=EpistemicState.STALE
                 elif source_state in (EpistemicState.CONFLICTED,EpistemicState.WEAKENED,EpistemicState.CONDITIONAL,EpistemicState.INSUFFICIENT):candidate=source_state
