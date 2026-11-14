@@ -9,7 +9,7 @@ This status applies to the stacked research branches and open Draft pull request
 | M59 | Classical source/witness provenance, exact spans, independent annotations, leakage control | 9 tests | Passed on head eac82ee4d16f31d328abdeb41b2a10f245c61699 | https://github.com/qingjian0/zhouyi-ai/pull/490 |
 | M60 | Exact-distribution binary SCM; confounding, mediation, collider, latent confounding, domain renaming | 7 tests | Passed on head 407990b64ec74613a0c3e9915a0b7db87ff9a146 | https://github.com/qingjian0/zhouyi-ai/pull/491 |
 | M61 | DAG d-separation, minimum observed back-door set, cycle rejection, correct abstention semantics | 13 tests | Passed on head 55099cccac00323d47b87358d3bb2e33c6be97a0 | https://github.com/qingjian0/zhouyi-ai/pull/492 |
-| M62 | Gold-admission gates; pending records excluded from gold counts; scan-verified transcription required | 17 tests passed on code/test head 6032663924243c2ea65ba442fab4d59a1d8c9ead | Run 43590149812 is still running | https://github.com/qingjian0/zhouyi-ai/pull/494 |
+| M62 | Gold-admission gates; pending records excluded from gold counts; scan-verified transcription required | 17 tests passed on code/test head 6032663924243c2ea65ba442fab4d59a1d8c9ead | Passed: run #43590149812 on the combined M61/M62 stack | https://github.com/qingjian0/zhouyi-ai/pull/494 |
 
 ## Important scientific boundaries
 
@@ -21,11 +21,13 @@ This status applies to the stacked research branches and open Draft pull request
 
 ## Next research gates
 
-1. Complete M62 full repository CI and retarget its PR to M61 to restore a clean stacked diff.
+1. Review and merge the stacked Draft PRs in dependency order only when explicitly authorized; M62 has already been retargeted to M61 and its full CI passed.
 2. Build a scan-backed, edition-aware source register, beginning with the Song-witness 《周易》 and a separate Qing Siku collation witness.
 3. Add structured identification-strategy scoring beyond back-door adjustment (front-door, IV, and explicit non-identifiability cases).
 4. Add finite-sample causal estimation, uncertainty intervals, positivity diagnostics, and sensitivity analysis.
 5. Connect the M57/M58 relational tasks to source-grounded annotations only after M59/M62 admission gates pass.
 6. Run fair baselines against actual model adapters under fixed data, compute budgets, and held-out source families.
+
+README now explicitly distinguishes the stable main baseline from the M57–M62 Draft research stack.
 
 No overall project-completion claim is made. The current work advances infrastructure and controlled diagnostics; the end-to-end yixiang system remains unproven.
