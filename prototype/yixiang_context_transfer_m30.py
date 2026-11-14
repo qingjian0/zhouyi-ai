@@ -79,19 +79,27 @@ def audit_context_transfer(contexts,pairs,evidence,assessments,permissions,shift
             issues.append("invalid_evidence_context:"+e.evidence_id)
         if not e.method.strip() or not e.scope.strip(): issues.append("incomplete_evidence:"+e.evidence_id)
     stability=[]
+    assessment_ids=[a.assessment_id for a in assessments]
+    if len(assessment_ids)!=len(set(assessment_ids)): issues.append("duplicate_assessment_id")
     for a in assessments:
         p=pmap.get(a.pair_id)
         if p is None: issues.append("unknown_assessment_pair:"+a.assessment_id); continue
         if not a.evidence_refs or any(x not in emap for x in a.evidence_refs):
             issues.append("missing_or_unknown_assessment_evidence:"+a.assessment_id)
         else:
+            covered=set()
             for x in a.evidence_refs:
                 if not set(emap[x].context_ids).intersection({p.source_context_id,p.target_context_id}):
                     issues.append("assessment_evidence_context_mismatch:"+a.assessment_id)
+                covered.update(emap[x].context_ids)
+            if not {p.source_context_id,p.target_context_id}.issubset(covered):
+                issues.append("assessment_evidence_must_cover_both_contexts:"+a.assessment_id)
         if not a.method.strip() or not a.scope.strip() or not a.rationale.strip():
             issues.append("incomplete_stability_assessment:"+a.assessment_id)
         if a.outcome==StabilityOutcome.STABLE and not a.reviewer_ids:
             issues.append("stable_claim_requires_reviewers:"+a.assessment_id)
+        if a.outcome==StabilityOutcome.STABLE and any(x in emap and not emap[x].reviewed for x in a.evidence_refs):
+            issues.append("stable_claim_requires_reviewed_evidence:"+a.assessment_id)
         if a.outcome==StabilityOutcome.STABLE and a.counterexample_refs:
             issues.append("stable_claim_has_unresolved_counterexamples:"+a.assessment_id)
         if a.outcome==StabilityOutcome.STABLE: stability.append(a.assessment_id)
@@ -103,9 +111,13 @@ def audit_context_transfer(contexts,pairs,evidence,assessments,permissions,shift
         if not t.evidence_refs or len(refs)!=len(t.evidence_refs):
             issues.append("missing_or_unknown_permission_evidence:"+t.permission_id)
         else:
+            covered=set()
             for e in refs:
                 if not set(e.context_ids).intersection({p.source_context_id,p.target_context_id}):
                     issues.append("permission_evidence_context_mismatch:"+t.permission_id)
+                covered.update(e.context_ids)
+            if not {p.source_context_id,p.target_context_id}.issubset(covered):
+                issues.append("permission_evidence_must_cover_both_contexts:"+t.permission_id)
         bases={e.basis for e in refs}
         if t.decision in (TransferDecision.ALLOW,TransferDecision.CONDITIONAL):
             if not (bases&_REQUIRED_BASIS[t.transfer_kind]):
