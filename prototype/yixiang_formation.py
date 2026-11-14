@@ -38,6 +38,7 @@ class Observation:
 @dataclass(frozen=True)
 class FeatureSelection:
     feature_id: str
+    subject_id: str
     label: str
     operational_description: str
     observation_refs: Tuple[str, ...]
@@ -117,6 +118,7 @@ def assess_formation(trace: FormationTrace) -> FormationAssessment:
 
     observation_ids = set()
     observation_evidence = set()
+    observations_by_id = {}
     for obs in trace.observations:
         if not isinstance(obs, Observation):
             raise ValueError("observations must contain Observation")
@@ -127,14 +129,16 @@ def assess_formation(trace: FormationTrace) -> FormationAssessment:
         if obs.observation_id in observation_ids:
             raise ValueError("observation_id values must be unique")
         observation_ids.add(obs.observation_id)
+        observations_by_id[obs.observation_id] = obs
         observation_evidence.update(obs.evidence_refs)
 
     feature_ids = set()
     ungrounded, missing_rationale, missing_obs = [], [], []
+    declaration_mismatches = []
     for feature in trace.selected_features:
         if not isinstance(feature, FeatureSelection):
             raise ValueError("selected_features must contain FeatureSelection")
-        for name in ("feature_id", "label", "operational_description", "selection_rationale", "purpose"):
+        for name in ("feature_id", "subject_id", "label", "operational_description", "selection_rationale", "purpose"):
             if name == "selection_rationale" and not getattr(feature, name).strip():
                 continue
             _text(getattr(feature, name), f"feature.{name}")
@@ -147,14 +151,18 @@ def assess_formation(trace: FormationTrace) -> FormationAssessment:
         feature_ids.add(feature.feature_id)
         if not feature.observation_refs or not set(feature.observation_refs) <= observation_ids:
             missing_obs.append(feature.feature_id)
-        if not feature.evidence_refs or not set(feature.evidence_refs) <= observation_evidence:
-            ungrounded.append(feature.feature_id)
+        else:
+            linked_observations = [observations_by_id[ref] for ref in feature.observation_refs]
+            linked_evidence = {ref for obs in linked_observations for ref in obs.evidence_refs}
+            if not feature.evidence_refs or not set(feature.evidence_refs) <= linked_evidence:
+                ungrounded.append(feature.feature_id)
+            if any(obs.subject_id != feature.subject_id for obs in linked_observations):
+                declaration_mismatches.append(f"{feature.feature_id}:subject_mismatch")
         if not isinstance(feature.selection_rationale, str) or not feature.selection_rationale.strip():
             missing_rationale.append(feature.feature_id)
 
     assignment_ids = set()
     missing_criterion, missing_membership, unresolved = [], [], []
-    declaration_mismatches = []
     for assignment in trace.category_assignments:
         if not isinstance(assignment, CategoryAssignment):
             raise ValueError("category_assignments must contain CategoryAssignment")
@@ -175,6 +183,8 @@ def assess_formation(trace: FormationTrace) -> FormationAssessment:
             missing_criterion.append(assignment.assignment_id)
         if not assignment.feature_refs or not set(assignment.feature_refs) <= feature_ids:
             declaration_mismatches.append(f"{assignment.assignment_id}:unknown_feature_ref")
+        elif any(feature.subject_id != assignment.subject_id for feature in trace.selected_features if feature.feature_id in assignment.feature_refs):
+            declaration_mismatches.append(f"{assignment.assignment_id}:subject_mismatch")
         if not assignment.evidence_refs:
             missing_membership.append(assignment.assignment_id)
         if assignment.counterexample_refs and assignment.counterexamples_resolved is not True:
