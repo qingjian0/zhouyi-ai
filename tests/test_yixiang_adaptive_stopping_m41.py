@@ -4,7 +4,7 @@ from prototype.yixiang_adaptive_stopping_m41 import *
 def terminal(**kw):
  d=dict(expected_reward=.9,expected_decision_loss=.05,confidence=.9,evidence_ref="val",validation_locked=True); d.update(kw); return TerminalOption(**d)
 def continuation(**kw):
- d=dict(expected_future_reward=.95,experiment_cost=.1,experiment_risk=.02,uncertainty_penalty=.01,evidence_ref="future",safety_approved=True,feasible=True); d.update(kw); return ContinuationOption(**d)
+ d=dict(expected_future_reward=1.05,experiment_cost=.1,experiment_risk=.02,uncertainty_penalty=.01,evidence_ref="future",safety_approved=True,feasible=True); d.update(kw); return ContinuationOption(**d)
 
 class M41Tests(unittest.TestCase):
  def test_continue_when_incremental_value_positive(self): self.assertEqual(audit_stopping(terminal(),continuation()).decision,Decision.CONTINUE)
