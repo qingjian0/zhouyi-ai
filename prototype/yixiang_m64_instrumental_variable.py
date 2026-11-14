@@ -10,7 +10,7 @@ from itertools import product
 from typing import Any, Dict, Mapping, Sequence, Tuple
 
 from prototype.yixiang_m60_causal_transfer import (
-    _decode, _d_separated, enumerate_joint,
+    _decode, _d_separated, _graph_parts, enumerate_joint,
 )
 
 
@@ -67,8 +67,7 @@ def _covariance(joint: Mapping[str, float], variables: Sequence[str],
 def infer_iv_instrument(case: Mapping[str, Any], instrument: str | None = None,
                         min_abs_first_stage: float = 1e-8) -> Dict[str, Any]:
     """Check graphical IV exclusion/exogeneity and observed population relevance."""
-    nodes = list(case["dag"]["nodes"])
-    edges = [tuple(edge) for edge in case["dag"]["edges"]]
+    nodes, edges, _, _ = _graph_parts(case)
     exposure = case["query"]["exposure"]
     outcome = case["query"]["outcome"]
     observed = list(case["observed_variables"])
