@@ -187,3 +187,11 @@ M33 v0.1 增加成员移除/替换、关系边移除、顺序交换、情境改�
 - 记录 DomainSpec、MechanismSpec、DomainDifference、InvarianceClaim、TransportQuery。
 - 审计机制差异与不变性主张冲突；测量、处理版本、结果定义变化必须显式登记。
 - 26 项专项测试已编写，尚未执行；不运行 do-calculus，不声称运输性已识别。
+
+
+### M36：类象因果机制发现 v0.1
+
+- 分支：`research/yixiang-causal-mechanism-discovery-m36-2026-11-14`；文档：`docs/YIXIANG_M36_CAUSAL_MECHANISM_DISCOVERY_V0_1.md`。
+- 区分观察、干预与反事实证据；登记竞争机制、混杂与潜变量、发现/验证数据隔离、反例检验。
+- 观察性证据单独仅支持关联性候选；反事实模拟不是独立实测干预；反例未决时保留未决。
+- 32 项专项测试已编写，尚未执行；原型不自动学习 DAG/SCM、不估计因果效应、不执行主动实验、不认证因果真值。
