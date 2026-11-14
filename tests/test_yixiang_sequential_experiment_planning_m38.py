@@ -3,8 +3,8 @@ from prototype.yixiang_sequential_experiment_planning_m38 import *
 
 def scenario():
     priors=(Prior("h1",.5),Prior("h2",.5))
-    likes=(Likelihood("h1","a",.9),Likelihood("h1","b",.1),
-           Likelihood("h2","a",.1),Likelihood("h2","b",.9))
+    likes=(Likelihood("a1","h1","a",.9),Likelihood("a1","h1","b",.1),
+           Likelihood("a1","h2","a",.1),Likelihood("a1","h2","b",.9))
     return ModelScenario("s1",priors,likes,"model-ref",True)
 
 def action(aid="a1",**kw):
@@ -45,16 +45,16 @@ class M38Tests(unittest.TestCase):
         s=scenario(); bad=ModelScenario("s",(Prior("h1",.5),Prior("h1",.5)),s.likelihoods,"r",True)
         self.assertTrue(any(x.startswith("invalid_or_uncalibrated") for x in audit(scens=(bad,)).issues))
     def test_likelihood_out_of_range_blocks(self):
-        s=scenario(); bad=ModelScenario("s",s.priors,(Likelihood("h1","a",2),), "r",True)
+        s=scenario(); bad=ModelScenario("s",s.priors,(Likelihood("a1","h1","a",2),), "r",True)
         self.assertTrue(any(x.startswith("invalid_or_uncalibrated") for x in audit(scens=(bad,)).issues))
     def test_likelihoods_must_sum_to_one(self):
-        s=scenario(); bad=ModelScenario("s",s.priors,(Likelihood("h1","a",.5),Likelihood("h2","a",1)), "r",True)
+        s=scenario(); bad=ModelScenario("s",s.priors,(Likelihood("a1","h1","a",.5),Likelihood("a1","h2","a",1)), "r",True)
         self.assertTrue(any(x.startswith("invalid_or_uncalibrated") for x in audit(scens=(bad,)).issues))
     def test_unknown_hypothesis_likelihood_blocks(self):
-        s=scenario(); bad=ModelScenario("s",s.priors,s.likelihoods+(Likelihood("h3","a",1),),"r",True)
+        s=scenario(); bad=ModelScenario("s",s.priors,s.likelihoods+(Likelihood("a1","h3","a",1),),"r",True)
         self.assertTrue(any(x.startswith("invalid_or_uncalibrated") for x in audit(scens=(bad,)).issues))
     def test_duplicate_likelihood_blocks(self):
-        s=scenario(); bad=ModelScenario("s",s.priors,s.likelihoods+(Likelihood("h1","a",.1),),"r",True)
+        s=scenario(); bad=ModelScenario("s",s.priors,s.likelihoods+(Likelihood("a1","h1","a",.1),),"r",True)
         self.assertTrue(any(x.startswith("invalid_or_uncalibrated") for x in audit(scens=(bad,)).issues))
     def test_duplicate_action_blocks(self): self.assertIn("duplicate_action_id",audit(acts=(action(),action())).issues)
     def test_duplicate_node_blocks(self):
@@ -87,16 +87,36 @@ class M38Tests(unittest.TestCase):
     def test_unapproved_action_blocks(self): self.assertTrue(any(x.startswith("policy_uses_unapproved_action") for x in audit(acts=(action(safety_review=Review.PENDING),)).issues))
     def test_infeasible_action_blocks(self): self.assertTrue(any(x.startswith("policy_uses_unapproved_action") for x in audit(acts=(action(feasible=False),)).issues))
     def test_action_risk_limit_blocks(self): self.assertTrue(any(x.startswith("policy_uses_unapproved_action") for x in audit(acts=(action(risk=.8),)).issues))
-    def test_cost_budget_blocks(self): self.assertTrue(any(x.startswith("total_cost_exceeded") for x in audit(policy(policy=policy(),max_total_cost=.5)).issues))
+    def test_cost_budget_blocks(self): self.assertTrue(any(x.startswith("total_cost_exceeded") for x in audit(policy(max_total_cost=.5)).issues))
     def test_risk_budget_blocks(self): self.assertTrue(any(x.startswith("path_risk_exceeded") for x in audit(policy(max_total_risk=.05)).issues))
     def test_min_robust_eig_marks_fragile(self): self.assertEqual(audit(policy(min_robust_eig=2)).disposition,Disposition.FRAGILE_POLICY)
     def test_uninformative_policy_flagged(self):
         s=ModelScenario("s",(Prior("h1",.5),Prior("h2",.5)),
-          (Likelihood("h1","a",.5),Likelihood("h1","b",.5),Likelihood("h2","a",.5),Likelihood("h2","b",.5)),"r",True)
+          (Likelihood("a1","h1","a",.5),Likelihood("a1","h1","b",.5),Likelihood("a1","h2","a",.5),Likelihood("a1","h2","b",.5)),"r",True)
         self.assertEqual(audit(scens=(s,)).disposition,Disposition.NO_INFORMATION_GAIN)
     def test_robust_minimum_across_scenarios(self):
         s2=ModelScenario("s2",(Prior("h1",.5),Prior("h2",.5)),
-          (Likelihood("h1","a",.6),Likelihood("h1","b",.4),Likelihood("h2","a",.4),Likelihood("h2","b",.6)),"r2",True)
+          (Likelihood("a1","h1","a",.6),Likelihood("a1","h1","b",.4),Likelihood("a1","h2","a",.4),Likelihood("a1","h2","b",.6)),"r2",True)
         r=audit(scens=(scenario(),s2)); self.assertAlmostEqual(r.robust_min_eig,min(x.expected_information_gain for x in r.scenario_scores))
-    def test_scenario_scores_are_per_model(self): self.assertEqual(len(audit(scens=(scenario(),scenario2())).scenario_scores),2) if False else self.assertEqual(len(audit().scenario_scores),1)
+    def test_scenario_scores_are_per_model(self): self.assertEqual(len(audit(scens=(scenario(),scenario())) .scenario_scores),2)
     def test_validation_holdout_warning(self): self.assertIn("validation_split_must_remain_unseen_until_final_evaluation",audit().warnings)
+
+    def test_action_specific_likelihoods_required(self):
+        s=scenario()
+        bad=ModelScenario("s",s.priors,tuple(Likelihood("other",x.hypothesis_id,x.outcome,x.probability) for x in s.likelihoods),"r",True)
+        self.assertTrue(any(x.startswith("invalid_or_uncalibrated") for x in audit(scens=(bad,)).issues))
+    def test_branch_must_cover_all_declared_outcomes(self):
+        p=policy(nodes=(PlanNode("n1","a1",(OutcomeBranch("a",stop=True),)),))
+        self.assertTrue(any(x.startswith("branch_outcome_coverage_mismatch") for x in audit(p).issues))
+    def test_two_step_conditional_policy_evaluates(self):
+        s=scenario()
+        likes=s.likelihoods+(
+          Likelihood("a2","h1","c",.9),Likelihood("a2","h1","d",.1),
+          Likelihood("a2","h2","c",.2),Likelihood("a2","h2","d",.8))
+        s2=ModelScenario("s2",s.priors,likes,"model-ref",True)
+        p=policy(nodes=(
+          PlanNode("n1","a1",(OutcomeBranch("a","n2"),OutcomeBranch("b",stop=True))),
+          PlanNode("n2","a2",(OutcomeBranch("c",stop=True),OutcomeBranch("d",stop=True)))))
+        r=audit(p,acts=(action("a1"),action("a2")),scens=(s2,))
+        self.assertEqual(r.disposition,Disposition.ROBUST_POLICY_REVIEW)
+        self.assertGreater(r.scenario_scores[0].terminal_paths,2)
