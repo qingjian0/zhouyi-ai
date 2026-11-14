@@ -40,6 +40,7 @@ def evaluate_contrastive_pairs(cases: Sequence[Mapping], predictions: Sequence[M
     exact = 0
     fully_answered = 0
     flip_correct = 0
+    submitted_pairs = 0
     collapsed = 0
     rows = []
     for group_id, members in sorted(groups.items()):
@@ -48,11 +49,13 @@ def evaluate_contrastive_pairs(cases: Sequence[Mapping], predictions: Sequence[M
         guess = [predicted.get(m["case_id"], "abstain") for m in members]
         pair_exact = guess == gold
         pair_answered = all(value != "abstain" for value in guess)
+        pair_submitted = all(m["case_id"] in predicted for m in members)
         expected_flip = gold[0] != gold[1]
         predicted_flip = guess[0] != guess[1]
         exact += pair_exact
         fully_answered += pair_answered
-        flip_correct += expected_flip and pair_answered and predicted_flip
+        submitted_pairs += pair_submitted
+        flip_correct += expected_flip and pair_submitted and predicted_flip
         collapsed += not predicted_flip
         rows.append({"group_id": group_id, "case_ids": [m["case_id"] for m in members],
                      "gold_decisions": gold, "predicted_decisions": guess,
@@ -60,7 +63,8 @@ def evaluate_contrastive_pairs(cases: Sequence[Mapping], predictions: Sequence[M
                      "expected_flip": expected_flip, "predicted_flip": predicted_flip})
     total = len(groups)
     return {"pair_count": total, "pair_exact_accuracy": exact / total,
-            "decision_flip_sensitivity": flip_correct / total,
+            "submitted_pairs": submitted_pairs,
+            "decision_flip_sensitivity": flip_correct / submitted_pairs if submitted_pairs else None,
             "collapsed_pair_count": collapsed, "collapsed_pair_rate": collapsed / total,
             "fully_answered_pairs": fully_answered, "pair_selective_coverage": fully_answered / total,
             "pair_selective_risk": 1 - exact / fully_answered if fully_answered else None,
