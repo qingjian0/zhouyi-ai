@@ -51,6 +51,8 @@ class M68AndersonRubinTests(unittest.TestCase):
         self.assertGreaterEqual(result["ar_f_statistic"], 0.0)
         self.assertGreaterEqual(result["p_value"], 0.0)
         self.assertLessEqual(result["p_value"], 1.0)
+        self.assertGreater(result["critical_value"], 3.3)
+        self.assertLess(result["critical_value"], 3.4)
 
     def test_instrument_rank_deficiency_is_rejected(self):
         data = strong_iv_data()
