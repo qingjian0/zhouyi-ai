@@ -64,3 +64,22 @@ unit tests. It does not claim the full scenario matrix has been executed, nor
 that Zhouyi/Yixiang outperforms established methods. The next experiment commit
 must add reproducible generators and raw multi-seed results before drawing
 substantive conclusions.
+
+
+## Implemented paired synthetic runner
+
+`prototype/yixiang_experiments_m55.py` now generates five deterministic
+stress scenarios: linear-Gaussian direct effect, quadratic nonlinear effect,
+non-Gaussian Laplace noise, latent common-cause confounding, and collider-based
+selection. For each scenario/seed it runs the three currently implemented
+comparators—Random, marginal correlation, and the M54 PC-style skeleton—through
+the same M54 train-only comparison harness and emits per-method metrics.
+The test suite verifies deterministic generators, complete paired method
+cells, and clean budget/proposal status on a small smoke matrix.
+
+This is a smoke-tested experiment harness, not yet a completed large-scale
+study. The committed tests use a small seed/scenario subset. A scientific
+result requires a larger pre-registered seed matrix, preserved raw run outputs,
+scenario-stratified paired intervals, multiplicity correction, and independent
+review of generator semantics. No Transformer, SCM learner, or Zhouyi agent
+is claimed as measured unless an actual executable adapter is added and run.
