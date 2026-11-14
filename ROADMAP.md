@@ -170,3 +170,12 @@ M32 v0.1 将 M31 不变量候选组合为并行、有序、包含、交互、对
 ### M33 当前实现边界
 
 M33 v0.1 增加成员移除/替换、关系边移除、顺序交换、情境改变与成员值设定等干预声明；记录对照/处理条件、研究单位、匹配对、识别假设、替代解释和因果主张。观察性关联降级为 ASSOCIATIONAL_ONLY；随机化/准实验声明仍需人工审查，不认证因果真值。专项测试已编写，尚未执行；精确 HEAD CI 待验证。当前没有因果效应估计器、DAG 调整集求解或敏感性分析。
+
+
+### M34：类象组合的因果机制分解与跨情境效应异质性
+
+- 分支：`research/yixiang-mechanism-decomposition-m34-2026-11-14`；专题文档：`docs/YIXIANG_M34_MECHANISM_DECOMPOSITION_V0_1.md`。
+- 估计对象分层：TE/CDE/NDE/NIE/interventional indirect effect/factorial interaction/CATE。
+- 审计中介识别假设、处理后混杂、cross-world 假设、析因单元、测量不变性、机制路径与发现/验证数据分割。
+- 预测性 attribution 不得升级为因果贡献；有效声明仍需人工复审，不代表因果真值。
+- 26 项专项测试已编写，未执行；尚无真实效应估计器、DAG 调整集求解、HTE 学习器或跨情境 transportability 估计。
