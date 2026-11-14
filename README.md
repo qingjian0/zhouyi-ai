@@ -249,3 +249,7 @@ python -m prototype.e01_learned_ranker --json
 - [M31 类象不变量发现、反证与适用边界专题](docs/YIXIANG_M31_INVARIANT_DISCOVERY_V0_1.md)
 - [M31 不变量发现与反证审计原型](prototype/yixiang_invariant_discovery_m31.py)
 - [M31 专项测试](tests/test_yixiang_invariant_discovery_m31.py)
+
+- [M32 类象不变量组合与层级涌现专题](docs/YIXIANG_M32_INVARIANT_COMPOSITION_V0_1.md)
+- [M32 不变量组合审计原型](prototype/yixiang_invariant_composition_m32.py)
+- [M32 专项测试](tests/test_yixiang_invariant_composition_m32.py)
