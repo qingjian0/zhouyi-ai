@@ -7,7 +7,9 @@ def candidate(eid="e1",means=(0,4),**kw):
  feasibility=CandidateStatus.FEASIBLE,safety_review=SafetyReview.APPROVED,design_ref="design",
  measurement_ref="measure",source_family="src",selection_split="select",validation_split="holdout",limitation_refs=("lim",))
  d.update(kw); return ExperimentCandidate(**d)
-def rank(*cs,**kw): return rank_experiments(("h1","h2"),cs,max_cost=10,max_risk=1,**kw)
+def rank(*cs,**kw):
+ options={"max_cost":10,"max_risk":1}; options.update(kw)
+ return rank_experiments(("h1","h2"),cs,**options)
 class M37Tests(unittest.TestCase):
  def test_selects_discriminating_candidate(self): self.assertEqual(rank(candidate()).selected_experiment_id,"e1")
  def test_no_separation_has_no_design(self): self.assertEqual(rank(candidate(means=(2,2))).disposition,DesignDisposition.NO_DISCRIMINATING_DESIGN)
