@@ -28,8 +28,9 @@ def fixture(record_id="record-1", split="train", work_group="work-A",
         "witnesses": [{
             "witness_id": "witness-1", "edition": "synthetic fixture transcription",
             "publisher": "test fixture", "publication_date": "not applicable",
-            "digitization_source": "generated test string", "access_date": "2026-11-14",
-            "witness_period_class": "pre_qing", "locator": "synthetic/test",
+            "digitization_source": "generated test string", "source_uri": "urn:synthetic:test-fixture",
+            "access_date": "2026-11-14", "witness_period_class": "pre_qing",
+            "locator": "synthetic/test",
             "variants": [], "text": text,
         }],
         "evidence_spans": [{
