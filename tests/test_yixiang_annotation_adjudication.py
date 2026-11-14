@@ -8,7 +8,7 @@ def annotation(reviewer="reviewer-a", decision="accept", **changes):
     values.update(changes)
     return IndependentAnnotation(**values)
 def adjudication(decision="accept", adjudicator="adjudicator-c", **changes):
-    values=dict(decision=decision,adjudicator_id=adjudicator,rationale="经复核原文、异文与两份独立标注，形成最终裁决。",evidence_refs=("adjudication:record-1",))
+    values=dict(decision=decision,adjudicator_id=adjudicator,rationale="经复核原文、异文与两份独立标注，形成最终裁决。",evidence_refs=("adjudication:record-1",),claim="白马属于马类。",text_layer="main_text",relation_families=("structural",),shared_basis=("category-membership",) if decision=="accept" else (),non_shared_basis=(),scope_conditions=("同一谓词适用范围",) if decision=="conditional" else (),required_invariants=("predicate-preservation",),known_counterexamples=(),causal_status="unknown")
     values.update(changes)
     return FinalAdjudication(**values)
 def packet(**changes):
@@ -73,6 +73,8 @@ class M19Tests(unittest.TestCase):
         case=to_benchmark_case(packet(adjudication=adjudication()),split_group="dev")
         self.assertIn("scan:page-11",case["evidence_refs"])
         self.assertIn("adjudication:record-1",case["evidence_refs"])
+        self.assertEqual(case["target_claim"],"白马属于马类。")
+        self.assertEqual(case["relation_families"],["structural"])
     def test_missing_source_locator_rejected(self):
         s=source()
         bad=SourceVerification(s.source_status,s.work_id,s.edition_id,s.witness_id,"",s.transcription,s.verification_refs,s.verified_by,s.verification_note)
@@ -82,3 +84,10 @@ class M19Tests(unittest.TestCase):
         with self.assertRaises(ValueError): assess_review_packet(packet(annotations=(a,annotation("reviewer-b"))))
 
 if __name__=="__main__": unittest.main()
+    def test_disagreement_export_uses_final_adjudicator_content(self):
+        p=packet(annotations=(annotation(),annotation("reviewer-b",decision="reject",shared_basis=())),adjudication=adjudication(decision="conditional",shared_basis=(),scope_conditions=("仅在类别谓词保持时",),claim="仅在限定条件下可作类推。",relation_families=("structural","functional")))
+        case=to_benchmark_case(p,split_group="test")
+        self.assertEqual(case["target_claim"],"仅在限定条件下可作类推。")
+        self.assertEqual(case["gold_decision"],"conditional")
+        self.assertEqual(case["scope_conditions"],["仅在类别谓词保持时"])
+        self.assertEqual(case["relation_families"],["structural","functional"])
