@@ -32,7 +32,7 @@ M28 区分证据独立性，M29 进一步区分证据记录状态与类象主张
 
 - HARD：上游 STALE、CONFLICTED、WEAKENED、CONDITIONAL、INSUFFICIENT 等不确定性向下游传播。
 - SOFT：上游发生不确定变化时，下游进入 REVIEW_REQUIRED，不直接宣称失效。
-- UNKNOWN 不自动污染下游：未知的可选关联不能等同于必要前提；若它是必要前提，应由调用者登记为 HARD 并提供 INSUFFICIENT 的审定状态。
+- UNKNOWN 不自动污染可选关联；但若 UNKNOWN 节点被登记为 HARD 必要前提，下游自动降为 INSUFFICIENT；若为 SOFT 依赖，则进入 REVIEW_REQUIRED。
 - REVALIDATED 是人工复核屏障，阻止旧状态机械传播越过该节点。
 - 多条依赖同时作用时，保留更严重的状态及来源轨迹，不覆盖其他来源的证据记录。
 
