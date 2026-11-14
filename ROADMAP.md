@@ -26,7 +26,7 @@
 | P1-K | 古典论辩术语的竞争解释审计 | 解释史分层、原典锚点、逻辑分类/论辩过程/统一类比框架竞争、共享依据与解释独立性边界 | M16 v0.1 解释竞争登记原型、种子解释登记数据/Schema、15 项专项测试与专题文档已提交；不选胜者、不固化古典术语与现代逻辑类别的一对一映射；最新 head 完整 CI #43502670578 成功 |
 | P1-L | 动态情境修订与旧主张失效传播 | 情境版本、目标/维度/前提变更、受影响类象主张局部重审 | M22 v0.1 原型、专项测试与专题文档已提交；显式审计扩展/收缩/修订、排除维度变化与 stale-claim；等待 exact-head CI；不认证语义有效性 |
 | P1-M | 观象—取象—立类形成机制 | 原始观察、特征选择、任务目的、类别判准、成员证据与反例的可追溯链 | M23 v0.1 原型、27 项专项测试与专题文档已提交；记录模态、记录方法与解释备注分离，特征证据按对象隔离；仅审计来源链完整性，不自动感知或判真；等待 exact-head CI |
-| P1-N | 序贯主动实验规划与决策 | 多步策略树、按动作的机制似然、模型情景稳健 EIG、停止分支、成本/风险与验证隔离 | M38 v0.1 有限策略树审计原型与专项测试已提交；只评估显式策略，不自动搜索/执行，不估计或校准概率；exact-head CI 待验证 |\n| P1-EVAL | 理论贡献验证 | 消融、跨域迁移、错误类比拒绝、OOD 与成本评估 | M5/M6/M7 测试已接入；修正 M6 测试断言后，最新 CI 待验证；此前 head 曾因断言不匹配失败 |
+| P1-N | 序贯主动实验规划与决策 | 多步策略树、按动作的机制似然、模型情景稳健 EIG、停止分支、成本/风险与验证隔离 | M38 v0.1 有限策略树审计原型与专项测试已提交；只评估显式策略，不自动搜索/执行，不估计或校准概率；exact-head CI 待验证 |\n| P1-O | 非短视实验策略搜索 | 有界自动搜索、贪心对照、成本/风险约束、模型情景稳健性 | M39 v0.1 仅搜索 open-loop 动作序列；未实现结果条件分支树搜索，beam search 不保证全局最优；测试待执行与 CI 待核查 |\n| P1-EVAL | 理论贡献验证 | 消融、跨域迁移、错误类比拒绝、OOD 与成本评估 | M5/M6/M7 测试已接入；修正 M6 测试断言后，最新 CI 待验证；此前 head 曾因断言不匹配失败 |
 | P1-EVAL-M8 | 类象有效性与迁移基准 | 独立 case schema、四态裁决 gold、来源谱系泄漏检测、分层指标 | M8 v0.1 schema/validator、四态评估、关系族/来源状态分层指标、来源谱系与独立性分组泄漏报告、gold 资格门禁、命令行报告入口及 47 条 synthetic fixtures 已提交；run #43458221635 的 403 项单元测试及 E01/E02 全部步骤成功；人工 gold 标注未开始 |
 | P2 | 通用模型与工程 | 语言生成、训练优化、加速、部署 | 按核心研究需要推进 |
 
@@ -37,7 +37,7 @@
 3. M2.1：局部证据评分整体假设，整体预期反馈局部核验。
 4. M3：竞争类象、证据分层、适用条件与未决裁决。
 5. M4：反事实与干预边界（显式条件干预、未知保留、稳定性/状态变化判定）。
-6. M38：类象因果机制的多步主动实验规划与序贯决策（见 `docs/YIXIANG_M38_SEQUENTIAL_EXPERIMENT_PLANNING_V0_1.md`、`prototype/yixiang_sequential_experiment_planning_m38.py`）。\n20. M5：主动观测的信息增益基线（见 `docs/YIXIANG_ACTIVE_OBSERVATION_M5_V0_1.md`、`prototype/yixiang_active_observation.py`）。
+6. M39：类象因果机制的有界自动策略搜索（见 `docs/YIXIANG_M39_POLICY_SEARCH_V0_1.md`、`prototype/yixiang_policy_search_m39.py`）。\n21. M38：类象因果机制的多步主动实验规划与序贯决策（见 `docs/YIXIANG_M38_SEQUENTIAL_EXPERIMENT_PLANNING_V0_1.md`、`prototype/yixiang_sequential_experiment_planning_m38.py`）。\n20. M5：主动观测的信息增益基线（见 `docs/YIXIANG_ACTIVE_OBSERVATION_M5_V0_1.md`、`prototype/yixiang_active_observation.py`）。
 7. M6：残差驱动的新象提议、人工审查、版本化和回滚（见 `docs/YIXIANG_NOVELTY_DISCOVERY_M6_V0_1.md`、`prototype/yixiang_novelty.py`）。
 8. M7：统一闭环与公平消融（见 `docs/YIXIANG_UNIFIED_COGNITIVE_LOOP_M7_V0_1.md`、`prototype/yixiang_m7_pipeline.py`）。
 9. M9：多视角类象候选竞争与有独立桥接证据的显式组合（见 `docs/YIXIANG_M9_MULTIVIEW_COMPOSITION_V0_1.md`、`prototype/yixiang_multiview_composition.py`）。
