@@ -52,3 +52,11 @@ The follow-on M61 branch replaces the hard-coded direct-parent heuristic with a 
 - Machlanski, Samothrakis & Clarke (2026) report that causal estimator model-selection metrics can be inconsistent across scenarios. Future finite-sample comparisons must avoid tuning solely on one proxy metric and must report sensitivity across estimands and data regimes.
 
 These findings motivate a separate identification-specification score, estimation score, abstention calibration, and scenario-wise reporting. They do not imply that the synthetic M60/M61 results establish real-world causal competence.
+
+
+## Selected 2026 references
+
+- Sawarni, Tan & Syrgkanis, *CausalReasoningBenchmark: A Real-World Benchmark for Disentangled Evaluation of Causal Identification and Estimation* (2026): https://arxiv.org/abs/2602.20571
+- Du et al., *Ice Cream Doesn't Cause Drowning: Benchmarking LLMs Against Statistical Pitfalls in Causal Inference* (ICLR 2026): https://proceedings.iclr.cc/paper_files/paper/2026/hash/9235c376df778f1aaf486a882afb7471-Abstract-Conference.html
+- Machlanski, Samothrakis & Clarke, *The Challenges of Hyperparameter Tuning for Accurate Causal Effect Estimation* (Machine Learning, 2026): https://link.springer.com/article/10.1007/s10994-026-07140-9
+- de Vassimon Manela, Yang & Evans, *Testing Generalizability in Causal Inference* (UAI 2025): https://proceedings.mlr.press/v286/vassimon-manela25a.html
