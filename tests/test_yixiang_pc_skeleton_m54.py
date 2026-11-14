@@ -2,7 +2,9 @@ import random
 import unittest
 from types import MappingProxyType
 
-from prototype.yixiang_fair_baselines_m54 import AgentContext
+from prototype.yixiang_fair_baselines_m54 import (
+    AgentContext, EvaluatorTruth, run_fair_comparison,
+)
 from prototype.yixiang_pc_skeleton_m54 import (
     _partial_correlation_pvalue, pc_skeleton_baseline,
 )
@@ -45,6 +47,31 @@ class PCStyleSkeletonTests(unittest.TestCase):
     def test_insufficient_degrees_of_freedom_fails_conservatively(self):
         self.assertEqual(_partial_correlation_pvalue([1, 2, 3, 4],
                          [2, 4, 6, 8], [[0, 1, 0, 1]]), 0.0)
+
+    def test_zero_residual_variance_is_not_misclassified_as_independence(self):
+        constant = [1.0] * 40
+        varying = [float(i) for i in range(40)]
+        self.assertEqual(_partial_correlation_pvalue(constant, varying, []), 0.0)
+        self.assertEqual(_partial_correlation_pvalue(varying, varying, []), 0.0)
+
+    def test_adapter_integrates_with_m54_train_only_harness(self):
+        rng = random.Random(440)
+        data = []
+        for i in range(180):
+            x = rng.gauss(0, 1)
+            z = rng.gauss(0, 1)
+            y = 1.7 * x + rng.gauss(0, 0.3)
+            data.append({"unit_id": i, "x": x, "z": z, "y": y})
+        result = run_fair_comparison(
+            rows=data, train_ids=range(120), validation_ids=range(120, 150),
+            test_ids=range(150, 180), candidate_variables=("x", "z"),
+            target="y", evaluator_truth=EvaluatorTruth(("x",)),
+            baselines=(("pc_skeleton", pc_skeleton_baseline),),
+            max_samples=120, max_interventions=0, max_cost=0.0,
+        )
+        self.assertEqual(len(result.results), 1)
+        self.assertEqual(result.results[0].baseline_id, "pc_skeleton")
+        self.assertEqual(result.train_unit_ids, tuple(range(120)))
 
     def test_rejects_invalid_alpha_and_depth(self):
         rows = [{"x": float(i), "z": float(i % 2), "y": float(2 * i)}
