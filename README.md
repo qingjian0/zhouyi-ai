@@ -7,10 +7,10 @@
 
 ## 项目状态
 
-- 当前阶段：M1 数学理论定稿与 M2 最小原型准备
+- 当前阶段：MTS-0 最小预序列训练与验证闭环工程验收；后续进入多种子与结构 OOD 实验
 - 理论版本：CPG-EI v0.3（研究草案）
-- 代码状态：E01 组合选择基线原型正在建立；尚无规模化模型或性能结论
-- 验证原则：所有架构主张均须通过可复现实验、消融和公平对照验证
+- 代码状态：E01 稀疏组合学习器已有实验与对照；MTS-0 运行器已提交 Draft PR，专项 CI 尚待确认
+- 验证原则：所有架构主张均须通过可复现实验、消融和公平对照验证；未执行的测试不得标记为通过
 
 ## 核心研究问题
 
@@ -51,6 +51,9 @@
 - [E01-B 五种子结果报告](docs/E01B_RESULTS_2026-11-10.md)
 - [E01-C 组合 OOD 结果报告](docs/E01C_RESULTS_2026-11-10.md)
 - [研究风险与证伪条件](docs/RISKS_AND_FALSIFICATION.md)
+- [MTS-0 最小预序列训练与验证门](docs/MTS0_TRAINING_GATE_2026-11-11.md)
+- [MTS-0 运行器](prototype/mts0_runner.py)
+- [MTS-0 训练闭环测试](tests/test_mts0_runner.py)
 - [开发路线图](ROADMAP.md)
 - [原型代码](prototype/)
 
@@ -62,6 +65,7 @@
 python -m unittest discover -s tests -v
 python -m prototype.e01_sparse_composition
 python -m prototype.e01_learned_ranker --json
+python -m prototype.mts0_runner --seed 7 --train-samples 1200 --test-samples 400 --epochs 180 --json
 ```
 
 ## 研究状态标记

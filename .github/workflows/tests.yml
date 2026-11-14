@@ -16,6 +16,63 @@ jobs:
           python-version: "3.11"
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
+      - name: Run MTS-0 prequential smoke experiment
+        run: |
+          python -m prototype.mts0_runner \
+            --seed 7 --train-samples 1200 --test-samples 400 --epochs 180 --json \
+            > mts0-smoke.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          result = json.loads(Path("mts0-smoke.json").read_text())
+          audit = result["audit"]
+          assert audit["prediction_commits"] == 400
+          assert audit["locked_test_reveals"] == 400
+          assert audit["learner_visible_locked_test_reveals"] == 0
+          assert audit["selector_visible_locked_test_reveals"] == 0
+          assert audit["evaluator_visible_locked_test_reveals"] == 400
+          assert audit["prediction_batch_sealed_before_reveal"] is True
+          assert audit["all_predictions_committed_before_reveal"] is True
+          assert audit["learner_and_evaluator_are_distinct_processes"] is True
+          assert audit["evaluator_started_after_batch_seal"] is True
+          assert audit["learner_received_locked_test_label_count"] == 0
+          assert audit["evaluator_received_locked_test_label_count"] == 400
+          assert audit["learner_pid"] != audit["evaluator_pid"]
+          print(json.dumps({"metrics": result["metrics"], "audit": audit}, indent=2))
+          PY
+      - name: Run MTS-0 five-seed full-size evaluation
+        run: |
+          python -m prototype.mts0_runner \
+            --seeds 5 --start-seed 7 --train-samples 1200 \
+            --test-samples 400 --epochs 180 --json > mts0-five-seed.json
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          result = json.loads(Path("mts0-five-seed.json").read_text())
+          assert result["seed_count"] == 5
+          assert len(result["per_seed"]) == 5
+          assert set(row["seed"] for row in result["per_seed"]) == {7, 8, 9, 10, 11}
+          for row in result["per_seed"]:
+              audit = row["audit"]
+              assert audit["prediction_commits"] == 400
+              assert audit["locked_test_reveals"] == 400
+              assert audit["learner_visible_locked_test_reveals"] == 0
+              assert audit["selector_visible_locked_test_reveals"] == 0
+              assert audit["evaluator_visible_locked_test_reveals"] == 400
+              assert audit["prediction_batch_sealed_before_reveal"] is True
+              assert audit["all_predictions_committed_before_reveal"] is True
+          print(json.dumps({
+              "configuration": result["configuration"],
+              "summary": result["summary"],
+              "per_seed": result["per_seed"],
+          }, indent=2))
+          PY
+      - name: Upload MTS-0 result artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: mts0-five-seed-results
+          path: mts0-five-seed.json
+          if-no-files-found: error
       - name: Run E01 demonstration
         run: python -m prototype.e01_sparse_composition --json
       - name: Run E01-B five-seed evaluation
