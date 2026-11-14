@@ -205,7 +205,7 @@ def anderson_rubin_test(data: Mapping[str, Any], beta_null: float,
     statistic, p_value, reject, critical, df2 = _evaluate_ar(
         prepared, float(beta_null), float(alpha)
     )
-    q = len(prepared[2][0])
+    q = len(prepared[2])
     return {
         "status": "computed_under_iid_gaussian_homoskedastic_linear_model",
         "beta_null": float(beta_null),
@@ -235,7 +235,7 @@ def anderson_rubin_confidence_set(data: Mapping[str, Any],
     qcoef, rcoef, df2 = _projection_terms(prepared)
     q2, q1, q0 = qcoef
     r2, r1, r0 = rcoef
-    q = len(prepared[2][0])
+    q = len(prepared[2])
     critical = _f_quantile(1.0 - alpha, q, df2)
     # F(beta) <= critical iff this quadratic is non-positive.
     factor = df2 + critical * q
