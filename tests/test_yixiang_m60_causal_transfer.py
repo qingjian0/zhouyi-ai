@@ -50,8 +50,22 @@ class M60CausalTransferTests(unittest.TestCase):
         naive = results["naive_observational"]["metrics"]
         all_adjust = results["all_observed_adjustment"]["metrics"]
         self.assertEqual(graph["identified_case_mae"], 0.0)
-        self.assertGreater(all_adjust["identified_case_mae"], 0.0)
-        self.assertGreater(naive["identified_case_mae"], 0.0)
+        all_adjust_predictions = results["all_observed_adjustment"]["predictions"]
+        naive_predictions = results["naive_observational"]["predictions"]
+        eligible_ids = [case_id for case_id, label in self.truth.items()
+                        if label["backdoor_identifiable"]]
+        all_adjust_errors = [
+            abs(next(p for p in all_adjust_predictions if p["case_id"] == case_id)["estimate"]
+                - self.truth[case_id]["ate"])
+            for case_id in eligible_ids
+        ]
+        naive_errors = [
+            abs(next(p for p in naive_predictions if p["case_id"] == case_id)["estimate"]
+                - self.truth[case_id]["ate"])
+            for case_id in eligible_ids
+        ]
+        self.assertGreater(sum(all_adjust_errors) / len(all_adjust_errors), 0.0)
+        self.assertGreater(sum(naive_errors) / len(naive_errors), 0.0)
 
     def test_minimum_backdoor_set_is_found_from_graph_not_hardcoded_parents(self):
         result = infer_backdoor_set(self.by_id["observed_confounder"])
