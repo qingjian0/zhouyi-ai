@@ -18,7 +18,12 @@ def act(i,**kw):
 def run(actions=None,scenarios=None,**kw):
     d=dict(horizon=2,beam_width=4,max_total_cost=5,max_total_risk=1,cost_weight=0,risk_weight=0)
     d.update(kw)
-    return search_sequences(actions or (act("a1"),act("a2"),act("a3")),scenarios or (sc(),),**d)
+    if actions is None: actions=(act("a1"),act("a2"),act("a3"))
+    if scenarios is None:
+        ids={a.action_id for a in actions}
+        s=sc()
+        scenarios=(ModelScenario(s.scenario_id,s.priors,tuple(x for x in s.likelihoods if x.action_id in ids),s.provenance_ref,s.calibrated),)
+    return search_sequences(actions,scenarios,**d)
 
 class M39Tests(unittest.TestCase):
     def test_returns_candidates(self): self.assertEqual(run().disposition,SearchDisposition.CANDIDATES_FOUND)
@@ -46,11 +51,11 @@ class M39Tests(unittest.TestCase):
     def test_duplicate_action_blocks(self): self.assertIn("duplicate_action_id",run(actions=(act("a1"),act("a1"))).issues)
     def test_selection_validation_overlap_blocks(self): self.assertTrue(any(x.startswith("selection_validation_overlap") for x in run(actions=(act("a1",validation_split="select"),)).issues))
     def test_unapproved_action_excluded(self):
-        r=run(actions=(act("a1",safety_approved=False),))
-        self.assertNotIn("a1",r.ranked_sequences[0].action_ids)
+        r=run(actions=(act("a1",safety_approved=False),act("a2")))
+        self.assertTrue(all("a1" not in x.action_ids for x in r.ranked_sequences))
     def test_infeasible_action_excluded(self):
-        r=run(actions=(act("a1",feasible=False),))
-        self.assertNotIn("a1",r.ranked_sequences[0].action_ids)
+        r=run(actions=(act("a1",feasible=False),act("a2")))
+        self.assertTrue(all("a1" not in x.action_ids for x in r.ranked_sequences))
     def test_action_risk_limit_violation_blocks(self): self.assertTrue(any(x.startswith("action_risk_limit_exceeded") for x in run(actions=(act("a1",risk=1),)).issues))
     def test_unnormalized_prior_blocks(self):
         s=sc(); bad=ModelScenario("bad",(Prior("h1",.2),Prior("h2",.2)),s.likelihoods,"p",True)
@@ -78,3 +83,11 @@ class M39Tests(unittest.TestCase):
         self.assertTrue(any(x.action_ids==("a1","a2") for x in r.ranked_sequences))
     def test_warnings_disclose_open_loop_limit(self):
         self.assertIn("open_loop_sequences_only_no_outcome_contingent_branching",run().warnings)
+
+    def test_greedy_is_reported_separately(self):
+        r=run(); self.assertIsInstance(r.greedy_sequence,tuple)
+    def test_empty_action_list_is_not_replaced_by_defaults(self):
+        self.assertIn("no_actions",run(actions=()).issues)
+    def test_search_expansion_respects_unique_action_limit(self):
+        r=run(horizon=3)
+        self.assertTrue(all(len(x.action_ids)<=3 for x in r.ranked_sequences))
