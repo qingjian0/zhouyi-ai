@@ -124,3 +124,9 @@ class M38Tests(unittest.TestCase):
     def test_unknown_branch_outcome_blocks_without_crashing(self):
         p=policy(nodes=(PlanNode("n1","a1",(OutcomeBranch("a",stop=True),OutcomeBranch("z",stop=True))),))
         self.assertTrue(any(x.startswith("branch_has_no_likelihood") for x in audit(p).issues))
+
+    def test_nan_prior_probability_blocks(self):
+        s=scenario(); bad=ModelScenario("s",(Prior("h1",float("nan")),Prior("h2",.5)),s.likelihoods,"r",True)
+        self.assertTrue(any(x.startswith("invalid_or_uncalibrated") for x in audit(scens=(bad,)).issues))
+    def test_nan_action_cost_blocks(self):
+        self.assertTrue(any(x.startswith("negative_cost_or_risk") for x in audit(acts=(action(cost=float("nan")),)).issues))
