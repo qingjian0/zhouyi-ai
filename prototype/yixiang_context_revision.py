@@ -160,9 +160,9 @@ def assess_context_revision(revision: ContextRevision) -> RevisionAssessment:
         status = RevisionStatus.UNDECLARED_CHANGE
     elif not changed:
         status = RevisionStatus.NO_OP
-    elif revision.kind == RevisionKind.EXPAND and (retired_dimensions or retired_excluded_dimensions or retired_assumptions or changed_axes or not (added_dimensions or added_excluded_dimensions or added_assumptions)):
+    elif revision.kind == RevisionKind.EXPAND and (retired_dimensions or added_excluded_dimensions or retired_assumptions or changed_axes or not (added_dimensions or retired_excluded_dimensions or added_assumptions)):
         status = RevisionStatus.INVALID_REVISION_KIND
-    elif revision.kind == RevisionKind.CONTRACT and (added_dimensions or added_excluded_dimensions or added_assumptions or changed_axes or not (retired_dimensions or retired_excluded_dimensions or retired_assumptions)):
+    elif revision.kind == RevisionKind.CONTRACT and (added_dimensions or retired_excluded_dimensions or added_assumptions or changed_axes or not (retired_dimensions or added_excluded_dimensions or retired_assumptions)):
         status = RevisionStatus.INVALID_REVISION_KIND
     elif revision.kind == RevisionKind.REVISE and not changed:
         status = RevisionStatus.INVALID_REVISION_KIND
