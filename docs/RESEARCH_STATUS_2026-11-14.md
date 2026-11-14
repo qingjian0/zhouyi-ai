@@ -1,6 +1,6 @@
 # Zhouyi-AI research status — 2026-11-14
 
-This status applies to the stacked research branches and open Draft pull requests. None of these changes has been merged to stable main.
+This status applies to the stacked research branches and open Draft pull requests. None of M57–M65 has been merged to stable main.
 
 | Milestone | Scope | Focused validation | Repository-wide validation | PR |
 |---|---|---:|---|---|
@@ -10,26 +10,25 @@ This status applies to the stacked research branches and open Draft pull request
 | M60 | Exact-distribution binary SCM; confounding, mediation, collider, latent confounding, domain renaming | 7 tests | Passed on head 407990b64ec74613a0c3e9915a0b7db87ff9a146 | https://github.com/qingjian0/zhouyi-ai/pull/491 |
 | M61 | DAG d-separation, minimum observed back-door set, cycle rejection, correct abstention semantics | 13 tests | Passed on head 55099cccac00323d47b87358d3bb2e33c6be97a0 | https://github.com/qingjian0/zhouyi-ai/pull/492 |
 | M62 | Gold-admission gates; pending records excluded from gold counts; scan-verified transcription required | 17 tests passed on code/test head 6032663924243c2ea65ba442fab4d59a1d8c9ead | Passed: run #43590149812 on the combined M61/M62 stack | https://github.com/qingjian0/zhouyi-ai/pull/494 |
-| M63 | Single-observed-mediator front-door criterion and exact binary front-door functional; back-door comparator retained | 5 new focused regressions | Passed: focused workflow #43592406857 on the M63 head | https://github.com/qingjian0/zhouyi-ai/pull/495 |
-| M64 | Graphical IV screening, exact-population binary Wald ratio, explicit LATE vs ATE semantics | 7 focused tests passed on head `c86b05674b45079a25d99b4b89b516791f772973` (run #43593904145) | Full repository workflow #43593904033 in progress | https://github.com/qingjian0/zhouyi-ai/pull/496 |
+| M63 | Single-observed-mediator front-door criterion and exact binary front-door functional; back-door comparator retained | 5 focused regressions | Passed: focused workflow #43592406857 | https://github.com/qingjian0/zhouyi-ai/pull/495 |
+| M64 | Graphical IV screening, exact-population binary Wald ratio, explicit LATE vs ATE semantics | 7 focused tests passed on code/test head c86b05674b45079a25d99b4b89b516791f772973 (run #43593904145) | Passed: full unit suite and all E01/E02 stages in #43593904033 | https://github.com/qingjian0/zhouyi-ai/pull/496 |
+| M65 | Bounded-exclusion IV sensitivity interval under linear covariance moments; exogeneity/relevance retained | 4 focused tests passed on code/test head e52788f996f733d941a107b55cadd3541068e07c (run #43594100977; 11 combined M64/M65 tests) | **Passed**: full repository run #43594100995; unit tests and every E01/E02 stage succeeded | https://github.com/qingjian0/zhouyi-ai/pull/497 |
 
 ## Important scientific boundaries
 
 - M57/M58 demonstrate symbolic performance on controlled synthetic relational graphs. They do not demonstrate learned neural relational reasoning or performance on historical texts.
-- M60/M61 cover a limited sufficient back-door criterion for fully specified DAGs. M63 adds one binary, single-observed-mediator front-door route. Neither implements general causal identification, instrumental variables, PAG/CPDAG, or complete do-calculus.
+- M60/M61 cover a limited sufficient back-door criterion for fully specified DAGs. M63 adds one binary, single-observed-mediator front-door route. M64/M65 add narrow graph-screened IV and bounded-exclusion sensitivity cases; none implements general causal identification or complete do-calculus.
 - M62 is a corpus-governance improvement. It does not create an authenticated historical gold corpus.
-- The Four Books Congkan Song-facsimile 《周易》 is a promising source candidate, but the CText digital transcription is OCR-derived. It remains discovery-only until its cited spans are verified against scans and adjudicated.
+- The Four Books Congkan Song-facsimile 《周易》 is a promising source candidate, but the CText digital transcription is OCR-derived. It remains discovery-only until cited spans are verified against scans and adjudicated.
 - 《象传》 text and Wang Bi's commentary are separate textual layers. The received 《象传》 text must not be attributed to Wang Bi.
 
 ## Next research gates
 
-1. Review and merge the stacked Draft PRs in dependency order only when explicitly authorized; M62 has already been retargeted to M61 and its full CI passed.
+1. Review and merge the stacked Draft PRs in dependency order only when explicitly authorized.
 2. Build a scan-backed, edition-aware source register, beginning with the Song-witness 《周易》 and a separate Qing Siku collation witness.
-3. Extend beyond the current single-mediator front-door case to carefully specified IV and broader identification cases; keep abstention local to implemented criteria.
-4. Add finite-sample causal estimation, uncertainty intervals, positivity diagnostics, and sensitivity analysis.
-5. Connect the M57/M58 relational tasks to source-grounded annotations only after M59/M62 admission gates pass.
+3. Extend the narrow IV sensitivity prototype to multiple instruments and explicit bounded violations without silently promoting sensitivity sets to ATE/LATE confidence intervals.
+4. Add finite-sample uncertainty, weak-instrument-robust inference, positivity diagnostics, and covariate-adjusted designs.
+5. Connect M57/M58 relational tasks to source-grounded annotations only after M59/M62 admission gates pass.
 6. Run fair baselines against actual model adapters under fixed data, compute budgets, and held-out source families.
 
-README explicitly distinguishes the stable main baseline from the Draft research stack. M63 remains Draft stacked on M62; focused exact-head workflow #43592406857 passed. M64 is a new Draft stacked on M63; its seven-test focused workflow #43593904145 passed on the current head, while repository-wide workflow #43593904033 is running.
-
-No overall project-completion claim is made. The current work advances infrastructure and controlled diagnostics; the end-to-end yixiang system remains unproven.
+No overall project-completion claim is made. Current work advances infrastructure and controlled diagnostics; the end-to-end yixiang system remains unproven.

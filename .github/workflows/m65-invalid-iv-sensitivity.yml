@@ -1,0 +1,23 @@
+name: M65 invalid-IV sensitivity
+on:
+  pull_request:
+    branches:
+      - research/yixiang-m64-instrumental-variable-2026-11-14
+    paths:
+      - "prototype/yixiang_m64_instrumental_variable.py"
+      - "prototype/yixiang_m65_invalid_iv_sensitivity.py"
+      - "tests/test_yixiang_m65_invalid_iv_sensitivity.py"
+      - "docs/YIXIANG_M65_INVALID_IV_SENSITIVITY_V0_1.md"
+      - ".github/workflows/m65-invalid-iv-sensitivity.yml"
+  workflow_dispatch:
+jobs:
+  m65-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run M64/M65 IV tests
+        run: python -m unittest tests.test_yixiang_m64_instrumental_variable tests.test_yixiang_m65_invalid_iv_sensitivity -v
