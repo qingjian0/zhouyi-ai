@@ -15,6 +15,11 @@ from prototype.yixiang_ablation_evaluation_m48 import (
 from prototype.yixiang_reproducibility_manifest_m49 import (
     ArtifactRef, RunManifest, SplitItem, audit_manifest,
 )
+from prototype.yixiang_adaptive_policy_search_m40 import PolicyNode, SearchResult
+from prototype.yixiang_adaptive_stopping_m41 import StopAudit, Decision
+from prototype.yixiang_model_robustness_m42 import RobustnessAudit, RobustnessStatus
+from prototype.yixiang_policy_transport_m43 import TransportAudit, TransportStatus
+from prototype.yixiang_unified_adaptive_decision_m44 import PipelineInput, audit_pipeline
 
 DATASET_VERSION = "m50-synthetic-confounded-scm-v0.1"
 PROTOCOL_VERSION = "m50-paired-do-intervention-v0.1"
@@ -57,12 +62,24 @@ def _event(ledger, event_id, kind, run_id, payload, source, code_commit, seq):
     )
 
 
+def _m44_offline_preflight():
+    # No M37-M43 evidence bundle is supplied by this synthetic offline benchmark.
+    # M44 must therefore fail closed to human review and never authorize execution.
+    policy = PolicyNode(None, (), (0.9,), 0)
+    search = SearchResult(policy, (("seeded-policy", 0.9),), 0.9, 1,
+                          "stop_policy", (), ())
+    stopping = StopAudit(Decision.CONTINUE, 0.8, 0.9, 0.1, (), ())
+    robustness = RobustnessAudit(RobustnessStatus.ROBUST_WITHIN_DECLARED_SET,
+                                 0.9, 0.8, 0.9, 0.1, (("seeded-policy", 0.8),), (), ())
+    transport = TransportAudit(TransportStatus.CONDITIONALLY_TRANSPORTABLE, 0.8, (), ())
+    return audit_pipeline(PipelineInput(search, stopping, robustness, transport, ()))
+
+
 def run_episode(seed, code_commit, episode_index):
     run_id = f"m50-episode-{episode_index}-seed-{seed}"
     environment = _environment(seed)
     unit_ids = tuple(range(POPULATION_SIZE))
     observational = environment.sample(unit_ids)
-    truth = environment.oracle(TARGET)["direct_parents"]  # evaluator boundary only
     ledger = EvidenceLedger()
     event_seq = 0
 
@@ -95,6 +112,8 @@ def run_episode(seed, code_commit, episode_index):
         BaselineOutput("observational_correlation", correlation_selected,
                        correlation_selected, POPULATION_SIZE, 0.0, True, True),
     )
+    # Oracle access is deliberately delayed until all candidate selections exist.
+    truth = environment.oracle(TARGET)["direct_parents"]  # evaluator boundary only
     scores = []
     for output in outputs:
         score = evaluate_episode(truth, output.predicted_parents, output,
@@ -142,6 +161,9 @@ def run_benchmark(episode_count=5, seed_start=7,
         raise ValueError("seed_start_must_be_nonnegative")
     if len(code_commit) < 7 or any(c not in "0123456789abcdefABCDEF" for c in code_commit):
         raise ValueError("code_commit_must_be_hex_sha")
+    preflight = _m44_offline_preflight()
+    if preflight.execution_authorized or preflight.causal_truth_established:
+        raise AssertionError("m44_preflight_must_not_authorize_offline_runner")
     episodes = tuple(run_episode(seed_start + i, code_commit, i)
                      for i in range(episode_count))
     all_scores = {name: [] for name in
@@ -216,6 +238,7 @@ def run_benchmark(episode_count=5, seed_start=7,
     manifest_audit = audit_manifest(manifest)
     return {
         "protocol": PROTOCOL_VERSION, "summaries": summaries,
+        "m44_preflight": preflight,
         "paired_ablation": ablation, "episode_count": episode_count,
         "ledger_event_count": len(ledger_records),
         "ledger_valid": all(e["ledger_audit"].valid for e in episodes),
