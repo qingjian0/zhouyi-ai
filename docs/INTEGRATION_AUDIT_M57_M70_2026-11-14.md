@@ -44,3 +44,16 @@ PR #493 and #502 are not part of the active chain; they were superseded/closed. 
 ## Current status
 
 Integration review has started. No source-code merge or production promotion has been performed. The next safe action is a file-level and commit-level audit of the M60/M61 divergence before any branch reconciliation.
+
+
+## Shared-path audit
+
+The per-PR file lists show these intentional or potentially conflicting shared paths:
+
+- M59 (#490) and M62 (#494): `prototype/yixiang_m59_classical_evidence.py` and its tests are modified by the later Gold-admission gate. This is a sequential extension and must be reviewed as one cumulative implementation.
+- M60 (#491) and M61 (#492): the M60 causal document, implementation, and tests are extended by M61. The workflow files `m61-general-adjustment.yml` and `m62-gold-admission.yml` occur in both PR diffs. The two M62 workflow versions target different base branches (M60 versus M61), so the current M61 PR has a real workflow-path collision in addition to its stale base.
+- M61 (#492) and M63 (#495): M63 extends the shared M60 causal implementation and tests with front-door logic. Review the cumulative module rather than treating M63 as an independent file addition.
+- M62 (#494), M63 (#495), M64–M66 (#496–#498), M67 (#499), M68 (#500), and M70 (#503): README/research-status and Gold-admission documentation are touched by successive PRs. These are cumulative documentation updates; check that no later branch drops earlier status or limitations.
+- M67 (#499) and M68 (#500) both touch `m68-anderson-rubin-weak-iv.yml`; M68 (#500) and M69 (#501) both touch `m69-heteroskedastic-ar.yml`. These are pre-staged/stacked workflow definitions and should be checked for correct target-branch filters, not blindly duplicated.
+
+The file overlap itself does not prove a code defect. The key distinction is whether the later PR is based on the exact preceding head and whether its changed file intentionally extends the prior version. PR #492 currently fails that condition: its base is two commits ahead of its merge base, and GitHub reports the PR as dirty.
