@@ -443,7 +443,7 @@ def _make_case(case_id: str, scm: Mapping[str, Any], exposure: str,
 
 
 def generate_dataset() -> Tuple[list[Dict[str, Any]], Dict[str, Any]]:
-    """Return four exact synthetic SCM cases and evaluator-only intervention effects."""
+    """Return controlled exact synthetic SCM cases and evaluator-only intervention effects."""
     cases: list[Dict[str, Any]] = []
     truth: Dict[str, Any] = {}
     scms = [
@@ -563,6 +563,7 @@ def evaluate_predictions(cases: Sequence[Mapping[str, Any]],
     if len(by_id) != len(predictions) or set(by_id) != {c["case_id"] for c in cases}:
         raise ValueError("prediction_case_id_mismatch")
     absolute_errors = []
+    general_absolute_errors = []
     identification_correct = 0
     general_identification_correct = 0
     for case in cases:
@@ -581,16 +582,24 @@ def evaluate_predictions(cases: Sequence[Mapping[str, Any]],
             general_identification_correct += 1
         if label["backdoor_identifiable"] and predicted_identifiable and prediction["estimate"] is not None:
             absolute_errors.append(abs(prediction["estimate"] - label["ate"]))
+        if label.get("identifiable_by_available_strategy", label["backdoor_identifiable"]) and predicted_any and prediction["estimate"] is not None:
+            general_absolute_errors.append(abs(prediction["estimate"] - label["ate"]))
     mae = (sum(absolute_errors) / len(absolute_errors)
            if absolute_errors else None)
     if mae is not None and mae < 1e-12:
         mae = 0.0
+    general_mae = (sum(general_absolute_errors) / len(general_absolute_errors)
+                   if general_absolute_errors else None)
+    if general_mae is not None and general_mae < 1e-12:
+        general_mae = 0.0
     return {
         "cases": len(cases),
         "backdoor_criterion_accuracy": identification_correct / len(cases) if cases else 0.0,
         "implemented_identification_strategy_accuracy": general_identification_correct / len(cases) if cases else 0.0,
         "identified_case_mae": mae,
         "identified_cases_scored": len(absolute_errors),
+        "implemented_strategy_identified_case_mae": general_mae,
+        "implemented_strategy_cases_scored": len(general_absolute_errors),
     }
 
 
