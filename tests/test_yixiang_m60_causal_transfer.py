@@ -114,5 +114,32 @@ class M60CausalTransferTests(unittest.TestCase):
         self.assertEqual(target_prediction["adjustment_set"], ["context"])
 
 
+    def test_frontdoor_identifies_effect_under_latent_exposure_outcome_confounding(self):
+        case = self.by_id["frontdoor_latent_confounding"]
+        self.assertFalse(infer_backdoor_set(case)["backdoor_identified"])
+        frontdoor = infer_frontdoor_mediator(case)
+        self.assertTrue(frontdoor["frontdoor_identified"])
+        self.assertEqual(frontdoor["mediator"], "M")
+        prediction = predict(case, "graph_identification")
+        self.assertEqual(prediction["status"], "identified_by_frontdoor")
+        self.assertAlmostEqual(prediction["estimate"], self.truth[case["case_id"]]["ate"], places=10)
+
+    def test_frontdoor_rejects_unmediated_direct_effect(self):
+        case = self.by_id["frontdoor_direct_path_invalid"]
+        result = infer_frontdoor_mediator(case)
+        self.assertFalse(result["frontdoor_identified"])
+
+    def test_frontdoor_rejects_unobserved_mediator_outcome_confounding(self):
+        case = self.by_id["frontdoor_mediator_confounding_invalid"]
+        result = infer_frontdoor_mediator(case)
+        self.assertFalse(result["frontdoor_identified"])
+
+    def test_identification_strategy_uses_frontdoor_after_backdoor_fails(self):
+        case = self.by_id["frontdoor_latent_confounding"]
+        prediction = predict(case, "graph_identification")
+        self.assertEqual(prediction["strategy"], "frontdoor")
+        self.assertEqual(prediction["status"], "identified_by_frontdoor")
+
+
 if __name__ == "__main__":
     unittest.main()
