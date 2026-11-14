@@ -91,3 +91,8 @@ class M39Tests(unittest.TestCase):
     def test_search_expansion_respects_unique_action_limit(self):
         r=run(horizon=3)
         self.assertTrue(all(len(x.action_ids)<=3 for x in r.ranked_sequences))
+
+    def test_outcome_path_cap_bounds_enumeration(self):
+        r=run(horizon=1,max_outcome_paths=1)
+        self.assertIn("some_sequences_skipped_by_outcome_path_cap",r.warnings)
+        self.assertEqual(r.disposition,SearchDisposition.NO_FEASIBLE_SEQUENCE)
