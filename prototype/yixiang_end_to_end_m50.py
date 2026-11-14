@@ -204,7 +204,9 @@ def run_benchmark(episode_count=5, seed_start=7,
 
     ledger_records = [record for episode in episodes
                       for record in episode["ledger"].export_records()]
-    ledger_digest = episodes[-1]["ledger"].head_digest
+    ledger_digest = sha256("|".join(
+        episode["ledger"].head_digest for episode in episodes
+    ).encode("utf-8")).hexdigest()
     result_payload = {
         "protocol": PROTOCOL_VERSION, "seed_start": seed_start,
         "episode_count": episode_count, "summaries": summaries,
