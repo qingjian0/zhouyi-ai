@@ -32,8 +32,8 @@ def _partial_correlation_pvalue(x_values, y_values, conditioning_columns):
     """Two-sided Fisher-z p-value for a partial correlation.
 
     Conditioning columns are orthogonalized with modified Gram-Schmidt.
-    Singular/constant residuals are treated as conditionally independent;
-    insufficient degrees of freedom are treated conservatively as dependent.
+    Singular conditioning columns are skipped; degenerate residual variances
+    and insufficient degrees of freedom are handled conservatively as dependent.
     """
     n = len(x_values)
     k = len(conditioning_columns)
