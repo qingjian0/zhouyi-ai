@@ -304,7 +304,7 @@ def _make_case(case_id: str, scm: Mapping[str, Any], exposure: str,
         "query": {"exposure": exposure, "outcome": outcome, "estimand": "total_effect"},
         "observational_joint": joint,
     }
-    truth["identifiable"] = infer_backdoor_set(public)["identified"]
+    truth["backdoor_identifiable"] = infer_backdoor_set(public)["backdoor_identified"]
     return public, truth
 
 
