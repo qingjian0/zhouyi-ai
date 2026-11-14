@@ -9,8 +9,8 @@ def intervention(**kw):
     d.update(kw); return Intervention(**d)
 def evidence(i, family=None, review=EvidenceReview.REVIEWED):
     return CausalEvidence(i,f"src-{family or i}","experiment",review,"ctx")
-def unit(i, condition, outcome, ref):
-    return StudyUnit(i,"family-1","ctx","source-"+i,"i",condition,outcome,"whole-output",(ref,))
+def unit(i, condition, outcome, ref, assignment=AssignmentKind.RANDOMIZED):
+    return StudyUnit(i,"family-1","ctx","source-"+i,"i",condition,outcome,"whole-output",(ref,),assignment)
 def pair(**kw):
     d=dict(pair_id="p",intervention_id="i",unit_family="family-1",
            control_unit_id="u0",treatment_unit_id="u1",matching_basis="matched units",
@@ -62,9 +62,9 @@ class M33Tests(unittest.TestCase):
     def test_pair_conditions_must_match(self):
         self.assertIn("pair_condition_mismatch:p",base(pairs=(pair(control_unit_id="u1"),)).issues)
     def test_pair_family_must_match(self):
-        self.assertIn("pair_unit_family_mismatch:p",base(units=(unit("u0","present",1,"e0"),StudyUnit("u1","other","ctx","s","i","removed",.7,"whole-output",("e1",))),pairs=(pair(unit_family="family-1"),)).issues)
+        self.assertIn("pair_unit_family_mismatch:p",base(units=(unit("u0","present",1,"e0"),StudyUnit("u1","other","ctx","s","i","removed",.7,"whole-output",("e1",),AssignmentKind.RANDOMIZED)),pairs=(pair(unit_family="family-1"),)).issues)
     def test_pair_outcome_measure_must_match(self):
-        self.assertIn("pair_outcome_measure_mismatch:p",base(units=(unit("u0","present",1,"e0"),StudyUnit("u1","family-1","ctx","s","i","removed",.7,"other",("e1",))),pairs=(pair(),)).issues)
+        self.assertIn("pair_outcome_measure_mismatch:p",base(units=(unit("u0","present",1,"e0"),StudyUnit("u1","family-1","ctx","s","i","removed",.7,"other",("e1",),AssignmentKind.RANDOMIZED)),pairs=(pair(),)).issues)
     def test_pair_requires_identification_assumptions(self):
         self.assertIn("incomplete_counterfactual_assumptions:p",base(pairs=(pair(exchangeability_argument=""),)).issues)
     def test_duplicate_pair_id(self):
@@ -78,7 +78,9 @@ class M33Tests(unittest.TestCase):
         self.assertIn("causal_claim_requires_counterfactual_design:c",base(claims=(claim(),)).issues)
     def test_observational_claim_is_not_causal(self):
         c=claim(identification_strategy="observational regression")
-        r=base(pairs=(pair(),),claims=(c,))
+        us=(unit("u0","present",1.0,"e0",AssignmentKind.OBSERVATIONAL),
+            unit("u1","removed",0.7,"e1",AssignmentKind.OBSERVATIONAL))
+        r=base(units=us,pairs=(pair(),),claims=(c,))
         self.assertEqual(r.claim_dispositions,(("c","associational_only"),))
         self.assertEqual(r.disposition,CausalDisposition.ASSOCIATIONAL_ONLY)
     def test_claim_requires_assumptions_and_alternatives(self):
@@ -94,6 +96,17 @@ class M33Tests(unittest.TestCase):
     def test_unreviewed_evidence_requires_review(self):
         r=base(pairs=(pair(),),evidence=(evidence("e0",review=EvidenceReview.UNREVIEWED),evidence("e1")))
         self.assertEqual(r.disposition,CausalDisposition.REVIEW_REQUIRED)
+    def test_simulated_design_is_not_real_world_causal_evidence(self):
+        us=(unit("u0","present",1.0,"e0",AssignmentKind.SIMULATED),
+            unit("u1","removed",0.7,"e1",AssignmentKind.SIMULATED))
+        r=base(units=us,pairs=(pair(),),claims=(claim(),))
+        self.assertEqual(r.claim_dispositions,(("c","simulation_only"),))
+        self.assertEqual(r.disposition,CausalDisposition.ASSOCIATIONAL_ONLY)
+    def test_pair_context_family_must_match(self):
+        us=(unit("u0","present",1.0,"e0"),
+            StudyUnit("u1","family-1","other","source-u1","i","removed",0.7,"whole-output",("e1",),AssignmentKind.RANDOMIZED))
+        es=(evidence("e0"),CausalEvidence("e1","src-e1","experiment",EvidenceReview.REVIEWED,"other"))
+        self.assertIn("pair_context_family_mismatch:p",base(units=us,evidence=es,pairs=(pair(),)).issues)
     def test_no_claim_remains_associational_only(self):
         self.assertEqual(base().disposition,CausalDisposition.ASSOCIATIONAL_ONLY)
     def test_disputed_evidence_does_not_certify_causality(self):
