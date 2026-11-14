@@ -1,9 +1,16 @@
 import unittest
-from prototype.yixiang_end_to_end_m50 import run_benchmark, run_episode
+from prototype.yixiang_end_to_end_m50 import run_benchmark, run_episode, _m44_offline_preflight
+from prototype.yixiang_unified_adaptive_decision_m44 import PipelineStatus
 
 COMMIT = "abcdef1234567890abcdef1234567890abcdef12"
 
 class M50Tests(unittest.TestCase):
+    def test_m44_missing_evidence_fails_closed_to_human_review(self):
+        gate = _m44_offline_preflight()
+        self.assertEqual(gate.status, PipelineStatus.REVIEW_REQUIRED)
+        self.assertFalse(gate.execution_authorized)
+        self.assertFalse(gate.causal_truth_established)
+
     def test_end_to_end_run_completes(self):
         result = run_benchmark(episode_count=3, seed_start=7, code_commit=COMMIT)
         self.assertEqual(result["episode_count"], 3)
