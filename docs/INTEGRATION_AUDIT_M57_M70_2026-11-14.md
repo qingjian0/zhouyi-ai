@@ -57,3 +57,14 @@ The per-PR file lists show these intentional or potentially conflicting shared p
 - M67 (#499) and M68 (#500) both touch `m68-anderson-rubin-weak-iv.yml`; M68 (#500) and M69 (#501) both touch `m69-heteroskedastic-ar.yml`. These are pre-staged/stacked workflow definitions and should be checked for correct target-branch filters, not blindly duplicated.
 
 The file overlap itself does not prove a code defect. The key distinction is whether the later PR is based on the exact preceding head and whether its changed file intentionally extends the prior version. PR #492 currently fails that condition: its base is two commits ahead of its merge base, and GitHub reports the PR as dirty.
+
+
+## M61 conflict root-cause check
+
+A direct comparison of the two workflow files on the M60 and M61 branch tips confirms:
+
+- `.github/workflows/m61-general-adjustment.yml` is byte-identical on both branches.
+- `.github/workflows/m62-gold-admission.yml` differs only in its `pull_request.branches` filter: the M60 tip targets the M60 branch, while the M61 tip targets the M61 branch.
+- The two commits that advanced M60 after the M61 fork are CI workflow setup commits, not additional runtime changes.
+
+This isolates the observed merge conflict to the M62 workflow path rather than the M61 causal implementation. The correct semantic resolution is to preserve the M62 validation workflow while deciding whether it should listen to both stacked target branches or be owned only by the M61 stage. Do not resolve by dropping either workflow purpose. No branch rewrite has been performed.
