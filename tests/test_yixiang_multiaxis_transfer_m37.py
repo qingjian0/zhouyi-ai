@@ -121,9 +121,19 @@ class M37Tests(unittest.TestCase):
         self.assertIn("constraint_evidence_must_cover_multiple_axes:c1",
                       audit_multiaxis_transfer(c, v, e).issues)
 
+    def test_cross_axis_evidence_must_cover_source_and_target(self):
+        c, v, e = fixtures()
+        bad = CrossAxisConstraint("c1", ("m-rel", "m-time"), "rule",
+                                  ("e-rel-s", "e-time-s"),
+                                  ConstraintOutcome.SATISFIED, "scope", (), ("reviewer",), "checked")
+        c = TransferCandidate(c.candidate_id, c.source_context_id, c.target_context_id,
+                              c.required_axes, c.mappings, (bad,), c.scope, c.limitations)
+        self.assertIn("constraint_evidence_must_cover_source_and_target:c1",
+                      audit_multiaxis_transfer(c, v, e).issues)
+
     def test_unresolved_constraint_is_conditional(self):
         c, v, e = fixtures()
-        bad = CrossAxisConstraint("c1", ("m-rel", "m-time"), "rule", ("e-rel-s", "e-time-s"),
+        bad = CrossAxisConstraint("c1", ("m-rel", "m-time"), "rule", ("e-rel-s", "e-rel-t", "e-time-s", "e-time-t"),
                                   ConstraintOutcome.UNRESOLVED, "scope", (), ("reviewer",), "pending")
         c = TransferCandidate(c.candidate_id, c.source_context_id, c.target_context_id,
                               c.required_axes, c.mappings, (bad,), c.scope, c.limitations)
