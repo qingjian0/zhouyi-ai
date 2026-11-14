@@ -1,0 +1,1683 @@
+[
+  {
+    "case_id": "syn-001",
+    "source_lineage": [
+      "fixture:syn-001"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Synthetic test of a proposed relation transfer.",
+    "relation_families": [
+      "structural"
+    ],
+    "shared_basis": [
+      "same relation topology"
+    ],
+    "non_shared_basis": [
+      "different physical substrate"
+    ],
+    "scope_conditions": [
+      "context fixed"
+    ],
+    "required_invariants": [
+      "edge direction preserved"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:syn-001"
+    ],
+    "independence_group": "fixture-group-syn-001",
+    "gold_decision": "accept",
+    "gold_rationale": "Synthetic gold label; uncertainty is documented for abstention.",
+    "reviewers": [],
+    "split_group": "train",
+    "label_status": "fixture_expected",
+    "claim_kind": "argumentative_analogy"
+  },
+  {
+    "case_id": "syn-002",
+    "source_lineage": [
+      "fixture:syn-002"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Synthetic test of a proposed relation transfer.",
+    "relation_families": [
+      "structural"
+    ],
+    "shared_basis": [
+      "same relation topology"
+    ],
+    "non_shared_basis": [
+      "different physical substrate"
+    ],
+    "scope_conditions": [
+      "context fixed"
+    ],
+    "required_invariants": [
+      "edge direction preserved"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:syn-002"
+    ],
+    "independence_group": "fixture-group-syn-002",
+    "gold_decision": "reject",
+    "gold_rationale": "Synthetic gold label; uncertainty is documented for abstention.",
+    "reviewers": [],
+    "split_group": "train",
+    "label_status": "fixture_expected",
+    "claim_kind": "argumentative_analogy"
+  },
+  {
+    "case_id": "syn-003",
+    "source_lineage": [
+      "fixture:syn-003"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Synthetic test of a proposed relation transfer.",
+    "relation_families": [
+      "structural"
+    ],
+    "shared_basis": [
+      "same relation topology"
+    ],
+    "non_shared_basis": [
+      "different physical substrate"
+    ],
+    "scope_conditions": [
+      "declared condition remains fixed"
+    ],
+    "required_invariants": [
+      "edge direction preserved"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:syn-003"
+    ],
+    "independence_group": "fixture-group-syn-003",
+    "gold_decision": "conditional",
+    "gold_rationale": "Synthetic gold label; uncertainty is documented for abstention.",
+    "reviewers": [],
+    "split_group": "train",
+    "label_status": "fixture_expected",
+    "claim_kind": "argumentative_analogy"
+  },
+  {
+    "case_id": "syn-004",
+    "source_lineage": [
+      "fixture:syn-004"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Synthetic test of a proposed relation transfer.",
+    "relation_families": [
+      "structural"
+    ],
+    "shared_basis": [
+      "same relation topology"
+    ],
+    "non_shared_basis": [
+      "different physical substrate"
+    ],
+    "scope_conditions": [
+      "context fixed"
+    ],
+    "required_invariants": [
+      "edge direction preserved"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:syn-004"
+    ],
+    "independence_group": "fixture-group-syn-004",
+    "gold_decision": "abstain",
+    "gold_rationale": "Synthetic gold label; uncertainty is documented for abstention.",
+    "reviewers": [],
+    "split_group": "train",
+    "label_status": "fixture_expected",
+    "claim_kind": "argumentative_analogy"
+  },
+  {
+    "case_id": "syn-005",
+    "source_lineage": [
+      "fixture:syn-005"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Synthetic test of a proposed relation transfer.",
+    "relation_families": [
+      "structural"
+    ],
+    "shared_basis": [
+      "same relation topology"
+    ],
+    "non_shared_basis": [
+      "different physical substrate"
+    ],
+    "scope_conditions": [
+      "context fixed"
+    ],
+    "required_invariants": [
+      "edge direction preserved"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:syn-005"
+    ],
+    "independence_group": "fixture-group-syn-005",
+    "gold_decision": "accept",
+    "gold_rationale": "Synthetic gold label; uncertainty is documented for abstention.",
+    "reviewers": [],
+    "split_group": "dev",
+    "label_status": "fixture_expected",
+    "claim_kind": "argumentative_analogy"
+  },
+  {
+    "case_id": "syn-006",
+    "source_lineage": [
+      "fixture:syn-006"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Synthetic test of a proposed relation transfer.",
+    "relation_families": [
+      "structural"
+    ],
+    "shared_basis": [
+      "same relation topology"
+    ],
+    "non_shared_basis": [
+      "different physical substrate"
+    ],
+    "scope_conditions": [
+      "context fixed"
+    ],
+    "required_invariants": [
+      "edge direction preserved"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:syn-006"
+    ],
+    "independence_group": "fixture-group-syn-006",
+    "gold_decision": "reject",
+    "gold_rationale": "Synthetic gold label; uncertainty is documented for abstention.",
+    "reviewers": [],
+    "split_group": "dev",
+    "label_status": "fixture_expected",
+    "claim_kind": "argumentative_analogy"
+  },
+  {
+    "case_id": "syn-007",
+    "source_lineage": [
+      "fixture:syn-007"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Synthetic test of a proposed relation transfer.",
+    "relation_families": [
+      "structural"
+    ],
+    "shared_basis": [
+      "same relation topology"
+    ],
+    "non_shared_basis": [
+      "different physical substrate"
+    ],
+    "scope_conditions": [
+      "declared condition remains fixed"
+    ],
+    "required_invariants": [
+      "edge direction preserved"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:syn-007"
+    ],
+    "independence_group": "fixture-group-syn-007",
+    "gold_decision": "conditional",
+    "gold_rationale": "Synthetic gold label; uncertainty is documented for abstention.",
+    "reviewers": [],
+    "split_group": "dev",
+    "label_status": "fixture_expected",
+    "claim_kind": "argumentative_analogy"
+  },
+  {
+    "case_id": "syn-008",
+    "source_lineage": [
+      "fixture:syn-008"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Synthetic test of a proposed relation transfer.",
+    "relation_families": [
+      "structural"
+    ],
+    "shared_basis": [
+      "same relation topology"
+    ],
+    "non_shared_basis": [
+      "different physical substrate"
+    ],
+    "scope_conditions": [
+      "context fixed"
+    ],
+    "required_invariants": [
+      "edge direction preserved"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:syn-008"
+    ],
+    "independence_group": "fixture-group-syn-008",
+    "gold_decision": "abstain",
+    "gold_rationale": "Synthetic gold label; uncertainty is documented for abstention.",
+    "reviewers": [],
+    "split_group": "dev",
+    "label_status": "fixture_expected",
+    "claim_kind": "argumentative_analogy"
+  },
+  {
+    "case_id": "syn-009",
+    "source_lineage": [
+      "fixture:syn-009"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Synthetic test of a proposed relation transfer.",
+    "relation_families": [
+      "structural"
+    ],
+    "shared_basis": [
+      "same relation topology"
+    ],
+    "non_shared_basis": [
+      "different physical substrate"
+    ],
+    "scope_conditions": [
+      "context fixed"
+    ],
+    "required_invariants": [
+      "edge direction preserved"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:syn-009"
+    ],
+    "independence_group": "fixture-group-syn-009",
+    "gold_decision": "accept",
+    "gold_rationale": "Synthetic gold label; uncertainty is documented for abstention.",
+    "reviewers": [],
+    "split_group": "test",
+    "label_status": "fixture_expected",
+    "claim_kind": "argumentative_analogy"
+  },
+  {
+    "case_id": "syn-010",
+    "source_lineage": [
+      "fixture:syn-010"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Synthetic test of a proposed relation transfer.",
+    "relation_families": [
+      "structural"
+    ],
+    "shared_basis": [
+      "same relation topology"
+    ],
+    "non_shared_basis": [
+      "different physical substrate"
+    ],
+    "scope_conditions": [
+      "context fixed"
+    ],
+    "required_invariants": [
+      "edge direction preserved"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:syn-010"
+    ],
+    "independence_group": "fixture-group-syn-010",
+    "gold_decision": "reject",
+    "gold_rationale": "Synthetic gold label; uncertainty is documented for abstention.",
+    "reviewers": [],
+    "split_group": "test",
+    "label_status": "fixture_expected",
+    "claim_kind": "argumentative_analogy"
+  },
+  {
+    "case_id": "syn-011",
+    "source_lineage": [
+      "fixture:syn-011"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Synthetic test of a proposed relation transfer.",
+    "relation_families": [
+      "structural"
+    ],
+    "shared_basis": [
+      "same relation topology"
+    ],
+    "non_shared_basis": [
+      "different physical substrate"
+    ],
+    "scope_conditions": [
+      "declared condition remains fixed"
+    ],
+    "required_invariants": [
+      "edge direction preserved"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:syn-011"
+    ],
+    "independence_group": "fixture-group-syn-011",
+    "gold_decision": "conditional",
+    "gold_rationale": "Synthetic gold label; uncertainty is documented for abstention.",
+    "reviewers": [],
+    "split_group": "test",
+    "label_status": "fixture_expected",
+    "claim_kind": "argumentative_analogy"
+  },
+  {
+    "case_id": "syn-012",
+    "source_lineage": [
+      "fixture:syn-012"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Synthetic test of a proposed relation transfer.",
+    "relation_families": [
+      "structural"
+    ],
+    "shared_basis": [
+      "same relation topology"
+    ],
+    "non_shared_basis": [
+      "different physical substrate"
+    ],
+    "scope_conditions": [
+      "context fixed"
+    ],
+    "required_invariants": [
+      "edge direction preserved"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:syn-012"
+    ],
+    "independence_group": "fixture-group-syn-012",
+    "gold_decision": "abstain",
+    "gold_rationale": "Synthetic gold label; uncertainty is documented for abstention.",
+    "reviewers": [],
+    "split_group": "test",
+    "label_status": "fixture_expected",
+    "claim_kind": "argumentative_analogy"
+  },
+  {
+    "case_id": "same-013",
+    "source_lineage": [
+      "fixture:same-013"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Attribute match does not establish entity identity.",
+    "relation_families": [
+      "structural"
+    ],
+    "shared_basis": [
+      "shared visible attribute"
+    ],
+    "non_shared_basis": [
+      "different entities"
+    ],
+    "scope_conditions": [
+      "identity claim requires identity evidence"
+    ],
+    "required_invariants": [
+      "entity identity preserved"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:same-013"
+    ],
+    "independence_group": "fixture-group-same-013",
+    "gold_decision": "reject",
+    "gold_rationale": "Synthetic expected label for a targeted sameness-scope negative control; requires human adjudication before any real-world claim.",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "test",
+    "claim_kind": "argumentative_analogy"
+  },
+  {
+    "case_id": "same-014",
+    "source_lineage": [
+      "fixture:same-014"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Identical names do not establish identical referents.",
+    "relation_families": [
+      "symbolic_normative"
+    ],
+    "shared_basis": [
+      "same lexical label"
+    ],
+    "non_shared_basis": [
+      "different referents"
+    ],
+    "scope_conditions": [
+      "referent must be resolved"
+    ],
+    "required_invariants": [
+      "reference identity"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:same-014"
+    ],
+    "independence_group": "fixture-group-same-014",
+    "gold_decision": "reject",
+    "gold_rationale": "Synthetic expected label for a targeted sameness-scope negative control; requires human adjudication before any real-world claim.",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "test",
+    "claim_kind": "argumentative_analogy"
+  },
+  {
+    "case_id": "same-015",
+    "source_lineage": [
+      "fixture:same-015"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Different names may refer to one continuing object.",
+    "relation_families": [
+      "symbolic_normative"
+    ],
+    "shared_basis": [
+      "verified referent continuity"
+    ],
+    "non_shared_basis": [
+      "different naming conventions"
+    ],
+    "scope_conditions": [
+      "same referent across contexts"
+    ],
+    "required_invariants": [
+      "referent continuity"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:same-015"
+    ],
+    "independence_group": "fixture-group-same-015",
+    "gold_decision": "conditional",
+    "gold_rationale": "Synthetic expected label for a targeted sameness-scope negative control; requires human adjudication before any real-world claim.",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "test",
+    "claim_kind": "argumentative_analogy"
+  },
+  {
+    "case_id": "same-016",
+    "source_lineage": [
+      "fixture:same-016"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "A part is not identical to its whole.",
+    "relation_families": [
+      "structural"
+    ],
+    "shared_basis": [
+      "part-whole relation"
+    ],
+    "non_shared_basis": [
+      "part and whole have different identity conditions"
+    ],
+    "scope_conditions": [
+      "part_of cannot be rewritten as identical_to"
+    ],
+    "required_invariants": [
+      "mereological relation preserved"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:same-016"
+    ],
+    "independence_group": "fixture-group-same-016",
+    "gold_decision": "reject",
+    "gold_rationale": "Synthetic expected label for a targeted sameness-scope negative control; requires human adjudication before any real-world claim.",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "test",
+    "claim_kind": "argumentative_analogy"
+  },
+  {
+    "case_id": "same-017",
+    "source_lineage": [
+      "fixture:same-017"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Sharing a superordinate class does not transfer every subordinate property.",
+    "relation_families": [
+      "structural"
+    ],
+    "shared_basis": [
+      "same superordinate category"
+    ],
+    "non_shared_basis": [
+      "different subordinate classes"
+    ],
+    "scope_conditions": [
+      "only properties valid at the shared class level"
+    ],
+    "required_invariants": [
+      "taxonomic level preserved"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:same-017"
+    ],
+    "independence_group": "fixture-group-same-017",
+    "gold_decision": "conditional",
+    "gold_rationale": "Synthetic expected label for a targeted sameness-scope negative control; requires human adjudication before any real-world claim.",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "test",
+    "claim_kind": "argumentative_analogy"
+  },
+  {
+    "case_id": "same-018",
+    "source_lineage": [
+      "fixture:same-018"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Same observed outcome does not establish same causal mechanism.",
+    "relation_families": [
+      "process_mechanism"
+    ],
+    "shared_basis": [
+      "same observed outcome"
+    ],
+    "non_shared_basis": [
+      "mechanism not observed"
+    ],
+    "scope_conditions": [
+      "mechanism evidence required"
+    ],
+    "required_invariants": [
+      "outcome-mechanism distinction"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:same-018"
+    ],
+    "independence_group": "fixture-group-same-018",
+    "gold_decision": "abstain",
+    "gold_rationale": "Synthetic expected label for a targeted sameness-scope negative control; requires human adjudication before any real-world claim.",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "test",
+    "claim_kind": "argumentative_analogy"
+  },
+  {
+    "case_id": "same-019",
+    "source_lineage": [
+      "fixture:same-019"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Different distances can share a non-arrival predicate without sharing a process.",
+    "relation_families": [
+      "temporal"
+    ],
+    "shared_basis": [
+      "same predicate non-arrival"
+    ],
+    "non_shared_basis": [
+      "different distance and duration"
+    ],
+    "scope_conditions": [
+      "claim restricted to predicate only"
+    ],
+    "required_invariants": [
+      "predicate scope preserved"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:same-019"
+    ],
+    "independence_group": "fixture-group-same-019",
+    "gold_decision": "conditional",
+    "gold_rationale": "Synthetic expected label for a targeted sameness-scope negative control; requires human adjudication before any real-world claim.",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "test",
+    "claim_kind": "argumentative_analogy"
+  },
+  {
+    "case_id": "same-020",
+    "source_lineage": [
+      "fixture:same-020"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Different times may explain apparently conflicting predicates.",
+    "relation_families": [
+      "temporal"
+    ],
+    "shared_basis": [
+      "same entity and predicate"
+    ],
+    "non_shared_basis": [
+      "different observation times"
+    ],
+    "scope_conditions": [
+      "time alignment unresolved"
+    ],
+    "required_invariants": [
+      "time index explicit"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:same-020"
+    ],
+    "independence_group": "fixture-group-same-020",
+    "gold_decision": "abstain",
+    "gold_rationale": "Synthetic expected label for a targeted sameness-scope negative control; requires human adjudication before any real-world claim.",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "test",
+    "claim_kind": "argumentative_analogy"
+  },
+  {
+    "case_id": "same-021",
+    "source_lineage": [
+      "fixture:same-021"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "One necessary condition is not automatically sufficient for an outcome.",
+    "relation_families": [
+      "process_mechanism"
+    ],
+    "shared_basis": [
+      "condition is necessary"
+    ],
+    "non_shared_basis": [
+      "other required conditions unknown"
+    ],
+    "scope_conditions": [
+      "sufficiency requires joint-condition evidence"
+    ],
+    "required_invariants": [
+      "necessary-sufficient distinction"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:same-021"
+    ],
+    "independence_group": "fixture-group-same-021",
+    "gold_decision": "abstain",
+    "gold_rationale": "Synthetic expected label for a targeted sameness-scope negative control; requires human adjudication before any real-world claim.",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "test",
+    "claim_kind": "argumentative_analogy"
+  },
+  {
+    "case_id": "same-022",
+    "source_lineage": [
+      "fixture:same-022"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "A conjunction of conditions may be required before an outcome is supported.",
+    "relation_families": [
+      "process_mechanism"
+    ],
+    "shared_basis": [
+      "joint condition set"
+    ],
+    "non_shared_basis": [
+      "individual conditions may be insufficient"
+    ],
+    "scope_conditions": [
+      "all required conditions jointly hold"
+    ],
+    "required_invariants": [
+      "condition conjunction preserved"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:same-022"
+    ],
+    "independence_group": "fixture-group-same-022",
+    "gold_decision": "conditional",
+    "gold_rationale": "Synthetic expected label for a targeted sameness-scope negative control; requires human adjudication before any real-world claim.",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "test",
+    "claim_kind": "argumentative_analogy"
+  },
+  {
+    "case_id": "dyn-023",
+    "source_lineage": [
+      "fixture:dyn-023"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "The same object can have different uses for different agents.",
+    "relation_families": [
+      "functional"
+    ],
+    "shared_basis": [
+      "same object"
+    ],
+    "non_shared_basis": [
+      "different agent capabilities and goals"
+    ],
+    "scope_conditions": [
+      "agent and task must be specified"
+    ],
+    "required_invariants": [
+      "object identity is not functional equivalence"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:dyn-023"
+    ],
+    "independence_group": "fixture-group-dyn-023",
+    "gold_decision": "conditional",
+    "gold_rationale": "Synthetic expected label for dynamic context and standpoint boundary testing; not an adjudicated classical-text claim.",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "test",
+    "claim_kind": "argumentative_analogy"
+  },
+  {
+    "case_id": "dyn-024",
+    "source_lineage": [
+      "fixture:dyn-024"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Different processes can reach the same target outcome.",
+    "relation_families": [
+      "functional"
+    ],
+    "shared_basis": [
+      "same target outcome"
+    ],
+    "non_shared_basis": [
+      "different process paths"
+    ],
+    "scope_conditions": [
+      "claim is limited to outcome equivalence"
+    ],
+    "required_invariants": [
+      "outcome equivalence does not imply mechanism identity"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:dyn-024"
+    ],
+    "independence_group": "fixture-group-dyn-024",
+    "gold_decision": "accept",
+    "gold_rationale": "Synthetic expected label for dynamic context and standpoint boundary testing; not an adjudicated classical-text claim.",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "test",
+    "claim_kind": "argumentative_analogy"
+  },
+  {
+    "case_id": "dyn-025",
+    "source_lineage": [
+      "fixture:dyn-025"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "A shared environment does not imply equal capability across agents.",
+    "relation_families": [
+      "situated"
+    ],
+    "shared_basis": [
+      "shared external environment"
+    ],
+    "non_shared_basis": [
+      "different agent capabilities"
+    ],
+    "scope_conditions": [
+      "capability evidence required"
+    ],
+    "required_invariants": [
+      "environment-agent interaction preserved"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:dyn-025"
+    ],
+    "independence_group": "fixture-group-dyn-025",
+    "gold_decision": "reject",
+    "gold_rationale": "Synthetic expected label for dynamic context and standpoint boundary testing; not an adjudicated classical-text claim.",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "test",
+    "claim_kind": "argumentative_analogy"
+  },
+  {
+    "case_id": "dyn-026",
+    "source_lineage": [
+      "fixture:dyn-026"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Changing the reference object can reverse a relational label without changing either entity.",
+    "relation_families": [
+      "structural"
+    ],
+    "shared_basis": [
+      "same pair of entities"
+    ],
+    "non_shared_basis": [
+      "reference frame changes"
+    ],
+    "scope_conditions": [
+      "relation is indexed to the reference frame"
+    ],
+    "required_invariants": [
+      "role reversal is not entity-state reversal"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:dyn-026"
+    ],
+    "independence_group": "fixture-group-dyn-026",
+    "gold_decision": "conditional",
+    "gold_rationale": "Synthetic expected label for dynamic context and standpoint boundary testing; not an adjudicated classical-text claim.",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "test",
+    "claim_kind": "argumentative_analogy"
+  },
+  {
+    "case_id": "dyn-027",
+    "source_lineage": [
+      "fixture:dyn-027"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "A predicate may change across time phases without a contradiction.",
+    "relation_families": [
+      "temporal"
+    ],
+    "shared_basis": [
+      "same entity and predicate family"
+    ],
+    "non_shared_basis": [
+      "different time phases and state evidence"
+    ],
+    "scope_conditions": [
+      "time-indexed claims and transition evidence"
+    ],
+    "required_invariants": [
+      "temporal indexing preserved"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:dyn-027"
+    ],
+    "independence_group": "fixture-group-dyn-027",
+    "gold_decision": "conditional",
+    "gold_rationale": "Synthetic expected label for dynamic context and standpoint boundary testing; not an adjudicated classical-text claim.",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "test",
+    "claim_kind": "argumentative_analogy"
+  },
+  {
+    "case_id": "dyn-028",
+    "source_lineage": [
+      "fixture:dyn-028"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Similar actions may have different normative evaluations when reasons and contexts differ.",
+    "relation_families": [
+      "symbolic_normative"
+    ],
+    "shared_basis": [
+      "similar observable action"
+    ],
+    "non_shared_basis": [
+      "different reasons, roles, and contexts"
+    ],
+    "scope_conditions": [
+      "normative evidence for reasons and context is missing"
+    ],
+    "required_invariants": [
+      "surface action does not determine normative status"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:dyn-028"
+    ],
+    "independence_group": "fixture-group-dyn-028",
+    "gold_decision": "abstain",
+    "gold_rationale": "Synthetic expected label for dynamic context and standpoint boundary testing; not an adjudicated classical-text claim.",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "test",
+    "claim_kind": "argumentative_analogy"
+  },
+  {
+    "case_id": "dyn-029",
+    "source_lineage": [
+      "fixture:dyn-029"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "A seasonal label alone does not establish identical environmental conditions.",
+    "relation_families": [
+      "temporal"
+    ],
+    "shared_basis": [
+      "same season label"
+    ],
+    "non_shared_basis": [
+      "local environment and measured conditions unknown"
+    ],
+    "scope_conditions": [
+      "environmental measurements and location required"
+    ],
+    "required_invariants": [
+      "calendar label is not a physical measurement"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:dyn-029"
+    ],
+    "independence_group": "fixture-group-dyn-029",
+    "gold_decision": "abstain",
+    "gold_rationale": "Synthetic expected label for dynamic context and standpoint boundary testing; not an adjudicated classical-text claim.",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "test",
+    "claim_kind": "argumentative_analogy"
+  },
+  {
+    "case_id": "dyn-030",
+    "source_lineage": [
+      "fixture:dyn-030"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Same observed outcome with unobserved process paths does not establish mechanism equivalence.",
+    "relation_families": [
+      "process_mechanism"
+    ],
+    "shared_basis": [
+      "same observed outcome"
+    ],
+    "non_shared_basis": [
+      "process paths not observed"
+    ],
+    "scope_conditions": [
+      "mechanism evidence or intervention required"
+    ],
+    "required_invariants": [
+      "outcome and mechanism remain distinct"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:dyn-030"
+    ],
+    "independence_group": "fixture-group-dyn-030",
+    "gold_decision": "abstain",
+    "gold_rationale": "Synthetic expected label for dynamic context and standpoint boundary testing; not an adjudicated classical-text claim.",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "test",
+    "claim_kind": "argumentative_analogy"
+  },
+  {
+    "case_id": "dyn-031",
+    "source_lineage": [
+      "fixture:dyn-031"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Properties of components do not determine a combined system when interaction effects are unobserved.",
+    "relation_families": [
+      "process_mechanism"
+    ],
+    "shared_basis": [
+      "known component properties"
+    ],
+    "non_shared_basis": [
+      "unobserved interaction terms"
+    ],
+    "scope_conditions": [
+      "combination-level evidence required"
+    ],
+    "required_invariants": [
+      "component properties are not additive by default"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:dyn-031"
+    ],
+    "independence_group": "fixture-group-dyn-031",
+    "gold_decision": "abstain",
+    "gold_rationale": "Synthetic expected label for non-monotonic composition, scale, locality, and sequence boundary testing; not a verified historical or scientific fact.",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "test",
+    "claim_kind": "argumentative_analogy"
+  },
+  {
+    "case_id": "dyn-032",
+    "source_lineage": [
+      "fixture:dyn-032"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "A category may persist across scale while a capability claim fails to scale.",
+    "relation_families": [
+      "structural"
+    ],
+    "shared_basis": [
+      "shared category membership"
+    ],
+    "non_shared_basis": [
+      "different scale and capability thresholds"
+    ],
+    "scope_conditions": [
+      "separate taxonomic membership from quantitative capability"
+    ],
+    "required_invariants": [
+      "category invariance does not imply capability invariance"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:dyn-032"
+    ],
+    "independence_group": "fixture-group-dyn-032",
+    "gold_decision": "conditional",
+    "gold_rationale": "Synthetic expected label for non-monotonic composition, scale, locality, and sequence boundary testing; not a verified historical or scientific fact.",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "test",
+    "claim_kind": "argumentative_analogy"
+  },
+  {
+    "case_id": "dyn-033",
+    "source_lineage": [
+      "fixture:dyn-033"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "A local feature alone does not establish a whole-object classification.",
+    "relation_families": [
+      "morphological"
+    ],
+    "shared_basis": [
+      "one local feature match"
+    ],
+    "non_shared_basis": [
+      "whole-object evidence absent"
+    ],
+    "scope_conditions": [
+      "whole-object classification requires broader evidence"
+    ],
+    "required_invariants": [
+      "local feature is not sufficient proxy"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:dyn-033"
+    ],
+    "independence_group": "fixture-group-dyn-033",
+    "gold_decision": "reject",
+    "gold_rationale": "Synthetic expected label for non-monotonic composition, scale, locality, and sequence boundary testing; not a verified historical or scientific fact.",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "test",
+    "claim_kind": "argumentative_analogy"
+  },
+  {
+    "case_id": "dyn-034",
+    "source_lineage": [
+      "fixture:dyn-034"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "The same actions in a different order may produce a different outcome.",
+    "relation_families": [
+      "temporal"
+    ],
+    "shared_basis": [
+      "same action set"
+    ],
+    "non_shared_basis": [
+      "different sequence order"
+    ],
+    "scope_conditions": [
+      "ordered process and conditions must be represented"
+    ],
+    "required_invariants": [
+      "unordered action set loses sequence information"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:dyn-034"
+    ],
+    "independence_group": "fixture-group-dyn-034",
+    "gold_decision": "conditional",
+    "gold_rationale": "Synthetic expected label for non-monotonic composition, scale, locality, and sequence boundary testing; not a verified historical or scientific fact.",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "test",
+    "claim_kind": "argumentative_analogy"
+  },
+  {
+    "case_id": "dyn-035",
+    "source_lineage": [
+      "fixture:dyn-035"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "A conclusion may reverse when dose, site, or environmental conditions change.",
+    "relation_families": [
+      "process_mechanism"
+    ],
+    "shared_basis": [
+      "similar intervention label"
+    ],
+    "non_shared_basis": [
+      "dose, site, and context not aligned"
+    ],
+    "scope_conditions": [
+      "condition alignment or intervention evidence required"
+    ],
+    "required_invariants": [
+      "intervention name alone does not fix treatment"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:dyn-035"
+    ],
+    "independence_group": "fixture-group-dyn-035",
+    "gold_decision": "abstain",
+    "gold_rationale": "Synthetic expected label for non-monotonic composition, scale, locality, and sequence boundary testing; not a verified historical or scientific fact.",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "test",
+    "claim_kind": "argumentative_analogy"
+  },
+  {
+    "case_id": "dyn-036",
+    "source_lineage": [
+      "fixture:dyn-036"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "A combined outcome cannot be predicted by summing isolated component effects without interaction testing.",
+    "relation_families": [
+      "process_mechanism"
+    ],
+    "shared_basis": [
+      "isolated component effects"
+    ],
+    "non_shared_basis": [
+      "joint interaction effect unknown"
+    ],
+    "scope_conditions": [
+      "joint condition evaluation required"
+    ],
+    "required_invariants": [
+      "no assumed linear superposition"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:dyn-036"
+    ],
+    "independence_group": "fixture-group-dyn-036",
+    "gold_decision": "abstain",
+    "gold_rationale": "Synthetic expected label for non-monotonic composition, scale, locality, and sequence boundary testing; not a verified historical or scientific fact.",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "test",
+    "claim_kind": "argumentative_analogy"
+  },
+  {
+    "case_id": "dyn-037",
+    "source_lineage": [
+      "fixture:dyn-037"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Do not transfer a physical resonance mechanism directly to a political omen claim.",
+    "relation_families": [
+      "process_mechanism",
+      "symbolic_normative"
+    ],
+    "shared_basis": [
+      "both are described using same-kind correspondence language"
+    ],
+    "non_shared_basis": [
+      "physical resonance has measurable coupling; political omen claims use symbolic and historical interpretation"
+    ],
+    "scope_conditions": [
+      "independent evidence for the target domain is required"
+    ],
+    "required_invariants": [
+      "evidence standard remains domain-appropriate"
+    ],
+    "known_counterexamples": [
+      "physical resonance example"
+    ],
+    "causal_status": "symbolic",
+    "evidence_refs": [
+      "fixture:dyn-037"
+    ],
+    "independence_group": "fixture-group-dyn-037",
+    "gold_decision": "abstain",
+    "gold_rationale": "Cross-domain mechanism is not established by shared vocabulary or a physical example.",
+    "reviewers": [],
+    "split_group": "test",
+    "label_status": "fixture_expected",
+    "claim_kind": "symbolic_correspondence"
+  },
+  {
+    "case_id": "dyn-038",
+    "source_lineage": [
+      "fixture:dyn-038"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Do not infer identical mechanisms from different processes that reach the same outcome.",
+    "relation_families": [
+      "functional",
+      "process_mechanism"
+    ],
+    "shared_basis": [
+      "same observed goal outcome"
+    ],
+    "non_shared_basis": [
+      "different process paths and unknown causal mechanisms"
+    ],
+    "scope_conditions": [
+      "only outcome-level equivalence is claimed"
+    ],
+    "required_invariants": [
+      "process identity must be independently supported"
+    ],
+    "known_counterexamples": [
+      "same outcome produced by multiple mechanisms"
+    ],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:dyn-038"
+    ],
+    "independence_group": "fixture-group-dyn-038",
+    "gold_decision": "reject",
+    "gold_rationale": "The target claim asserts mechanism identity although only outcome equivalence is supported.",
+    "reviewers": [],
+    "split_group": "holdout",
+    "label_status": "fixture_expected",
+    "claim_kind": "argumentative_analogy"
+  },
+  {
+    "case_id": "dyn-039",
+    "source_lineage": [
+      "fixture:dyn-039"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Evaluate practical utility using delayed outcomes rather than initial success alone.",
+    "relation_families": [
+      "functional",
+      "temporal"
+    ],
+    "shared_basis": [
+      "same stated goal and initially successful result"
+    ],
+    "non_shared_basis": [
+      "delayed harm appears after the initial observation window"
+    ],
+    "scope_conditions": [
+      "long-term utility requires a declared horizon and delayed outcome"
+    ],
+    "required_invariants": [
+      "immediate success does not erase delayed failure"
+    ],
+    "known_counterexamples": [
+      "delayed adverse outcome"
+    ],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:dyn-039"
+    ],
+    "independence_group": "fixture-group-dyn-039",
+    "gold_decision": "conditional",
+    "gold_rationale": "Utility may be supported only within the stated short horizon; long-term effectiveness remains unresolved.",
+    "reviewers": [],
+    "split_group": "test",
+    "label_status": "fixture_expected",
+    "claim_kind": "practical_utility"
+  },
+  {
+    "case_id": "dyn-040",
+    "claim_kind": "taxonomic_similarity",
+    "source_lineage": [
+      "fixture:dyn-040"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Reject a category assignment based only on one shared visible feature.",
+    "relation_families": [
+      "morphological"
+    ],
+    "shared_basis": [
+      "same visible feature"
+    ],
+    "non_shared_basis": [
+      "different defining category properties"
+    ],
+    "scope_conditions": [
+      "classification requires defining properties beyond a single proxy"
+    ],
+    "required_invariants": [
+      "category-defining criteria preserved"
+    ],
+    "known_counterexamples": [
+      "lookalike objects from distinct categories"
+    ],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:dyn-040"
+    ],
+    "independence_group": "fixture-group-dyn-040",
+    "gold_decision": "reject",
+    "gold_rationale": "A shared visible proxy is insufficient to establish the same taxonomic class.",
+    "reviewers": [],
+    "split_group": "test",
+    "label_status": "fixture_expected"
+  },
+  {
+    "case_id": "dyn-041",
+    "claim_kind": "action_outcome",
+    "source_lineage": [
+      "fixture:dyn-041"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Do not infer successful action from benevolent intention without outcome evidence.",
+    "relation_families": [
+      "functional",
+      "causal_analogy"
+    ],
+    "shared_basis": [
+      "same stated benevolent goal"
+    ],
+    "non_shared_basis": [
+      "method, operating conditions, and observed outcome are missing"
+    ],
+    "scope_conditions": [
+      "intention is recorded separately from action and result"
+    ],
+    "required_invariants": [
+      "actor intention does not substitute for observed outcome"
+    ],
+    "known_counterexamples": [
+      "well-intended action with adverse result"
+    ],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:dyn-041"
+    ],
+    "independence_group": "fixture-group-dyn-041",
+    "gold_decision": "abstain",
+    "gold_rationale": "The action-outcome claim lacks method, conditions, and observed results; intention alone cannot decide effectiveness.",
+    "reviewers": [],
+    "split_group": "holdout",
+    "label_status": "fixture_expected"
+  },
+  {
+    "case_id": "dyn-042",
+    "claim_kind": "correlative_causation",
+    "source_lineage": [
+      "fixture:dyn-042"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "A classical text's celestial-omen and political-transition correspondence is a historical causal claim, not independently verified empirical causation.",
+    "relation_families": [
+      "symbolic_normative",
+      "causal_analogy"
+    ],
+    "shared_basis": [
+      "the text links a celestial sign and a political event through a shared qi or category framework"
+    ],
+    "non_shared_basis": [
+      "textual cosmological explanation is not an independent observation or intervention identifying a causal mechanism"
+    ],
+    "scope_conditions": [
+      "record the historical theory as a claim while withholding modern empirical confirmation"
+    ],
+    "required_invariants": [
+      "historical proposition and empirical causal status remain separate"
+    ],
+    "known_counterexamples": [
+      "retrospective omen selection",
+      "political legitimation narratives",
+      "alternative historical causes"
+    ],
+    "causal_status": "symbolic",
+    "evidence_refs": [
+      "fixture:dyn-042"
+    ],
+    "independence_group": "fixture-group-dyn-042",
+    "gold_decision": "abstain",
+    "gold_rationale": "The fixture records a classical correlative-causal proposition, but textual assertion alone cannot establish its empirical causal mechanism.",
+    "reviewers": [],
+    "split_group": "holdout",
+    "label_status": "fixture_expected"
+  },
+  {
+    "case_id": "dyn-043",
+    "claim_kind": "taxonomic_similarity",
+    "source_lineage": [
+      "fixture:dyn-043"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Two observations with matching visible features necessarily refer to the same individual.",
+    "relation_families": [
+      "morphological",
+      "structural"
+    ],
+    "shared_basis": [
+      "same recorded visible features"
+    ],
+    "non_shared_basis": [
+      "distinct spatial tracks and independent referent anchors"
+    ],
+    "scope_conditions": [
+      "individual identity requires continuity or separation evidence beyond appearance"
+    ],
+    "required_invariants": [
+      "appearance similarity must not override independent individuation evidence"
+    ],
+    "known_counterexamples": [
+      "two visually indistinguishable objects observed at different positions"
+    ],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:dyn-043"
+    ],
+    "independence_group": "fixture-group-dyn-043",
+    "gold_decision": "reject",
+    "gold_rationale": "The same appearance can belong to two distinct individuals; the claim improperly equates feature similarity with referent identity.",
+    "reviewers": [],
+    "split_group": "test",
+    "label_status": "fixture_expected"
+  },
+  {
+    "case_id": "dyn-044",
+    "claim_kind": "taxonomic_similarity",
+    "source_lineage": [
+      "fixture:dyn-044"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "A changed visible form necessarily indicates a different individual despite continuous identity tracking.",
+    "relation_families": [
+      "morphological",
+      "temporal"
+    ],
+    "shared_basis": [
+      "same persistent referent anchor across observations"
+    ],
+    "non_shared_basis": [
+      "visible features changed across time while continuity evidence remains"
+    ],
+    "scope_conditions": [
+      "a tracked referent is continuously observed across the time interval"
+    ],
+    "required_invariants": [
+      "feature change must be separated from referent replacement"
+    ],
+    "known_counterexamples": [
+      "growth, aging, seasonal change, or material transformation of one tracked object"
+    ],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:dyn-044"
+    ],
+    "independence_group": "fixture-group-dyn-044",
+    "gold_decision": "reject",
+    "gold_rationale": "Visible form change alone does not establish a new individual when continuity evidence supports the same referent.",
+    "reviewers": [],
+    "split_group": "holdout",
+    "label_status": "fixture_expected"
+  },
+  {
+    "case_id": "dyn-045",
+    "claim_kind": "taxonomic_similarity",
+    "source_lineage": [
+      "fixture:dyn-045"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "A predicate observed in one subclass member can be promoted to the entire supercategory without universal evidence.",
+    "relation_families": [
+      "structural",
+      "functional"
+    ],
+    "shared_basis": [
+      "the observed individual is a member of the broader category"
+    ],
+    "non_shared_basis": [
+      "the predicate is individual-specific and no universal inheritance rule is established"
+    ],
+    "scope_conditions": [
+      "upward generalization requires evidence that the predicate applies to all members"
+    ],
+    "required_invariants": [
+      "membership in a broader category does not transfer every individual predicate to that category"
+    ],
+    "known_counterexamples": [
+      "one fast horse does not imply all mammals are fast"
+    ],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:dyn-045"
+    ],
+    "independence_group": "fixture-group-dyn-045",
+    "gold_decision": "reject",
+    "gold_rationale": "A subclass or individual property cannot be generalized to the supercategory without universal scope and counterexample review.",
+    "reviewers": [],
+    "split_group": "holdout",
+    "label_status": "fixture_expected"
+  },
+  {
+    "case_id": "dyn-046",
+    "claim_kind": "argumentative_analogy",
+    "source_lineage": [
+      "fixture:dyn-046"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Because a ring can represent circular form, all wheel functions and use-properties may be transferred to the ring.",
+    "relation_families": [
+      "morphological",
+      "structural",
+      "functional"
+    ],
+    "shared_basis": [
+      "a selected circular-form resemblance"
+    ],
+    "non_shared_basis": [
+      "object identity, material, mechanical structure, movement, and use are not established as shared"
+    ],
+    "scope_conditions": [
+      "only the declared shape dimension may be retained unless further evidence supports additional dimensions"
+    ],
+    "required_invariants": [
+      "dimension-limited representation must not be expanded into whole-object or functional identity"
+    ],
+    "known_counterexamples": [
+      "a ring may be circular without functioning as a wheel"
+    ],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:dyn-046"
+    ],
+    "independence_group": "fixture-group-dyn-046",
+    "gold_decision": "reject",
+    "gold_rationale": "A selected shape resemblance licenses only that representational dimension, not transfer of wheel function or mechanism.",
+    "reviewers": [],
+    "split_group": "holdout",
+    "label_status": "fixture_expected"
+  },
+  {
+    "case_id": "dyn-047",
+    "claim_kind": "action_outcome",
+    "source_lineage": [
+      "fixture:dyn-047"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "A bowstring is necessary for launching an arrow; therefore the string alone is sufficient to produce the full act of archery.",
+    "relation_families": [
+      "structural",
+      "functional",
+      "process_mechanism"
+    ],
+    "shared_basis": [
+      "the bowstring participates in the arrow-launch process"
+    ],
+    "non_shared_basis": [
+      "the full action also depends on bow, arrow, archer, draw, aim, release, and operating conditions"
+    ],
+    "scope_conditions": [
+      "distinguish necessary enabling components from sufficient causes and the whole action system"
+    ],
+    "required_invariants": [
+      "necessity of one component does not imply sufficiency or causal completeness"
+    ],
+    "known_counterexamples": [
+      "a string without a bow, arrow, archer, and coordinated action does not constitute archery"
+    ],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:dyn-047"
+    ],
+    "independence_group": "fixture-group-dyn-047",
+    "gold_decision": "reject",
+    "gold_rationale": "The claim commits a necessary-to-sufficient inference and collapses a component's role into the full multi-component process.",
+    "reviewers": [],
+    "split_group": "holdout",
+    "label_status": "fixture_expected"
+  }
+]

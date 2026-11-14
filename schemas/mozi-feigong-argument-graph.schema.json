@@ -1,0 +1,256 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/qingjian0/zhouyi-ai/blob/main/schemas/mozi-feigong-argument-graph.schema.json",
+  "title": "Mozi Feigong structured argument graph",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "graph_id",
+    "source_ref",
+    "shared_normative_basis",
+    "chains",
+    "cross_chain_relation",
+    "adversarial_cases",
+    "engineering_mapping"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.1"
+    },
+    "graph_id": {
+      "const": "zhouyi-ai.mozi-feigong-argument-graph"
+    },
+    "source_ref": {
+      "type": "object",
+      "required": [
+        "case_id",
+        "source_id",
+        "work",
+        "chapter",
+        "evidence_status",
+        "review_status"
+      ],
+      "properties": {
+        "case_id": {
+          "const": "xy_011"
+        },
+        "source_id": {
+          "const": "src_feigong"
+        },
+        "work": {
+          "const": "墨子"
+        },
+        "chapter": {
+          "const": "非攻上"
+        },
+        "evidence_status": {
+          "const": "digital_transcription_candidate"
+        },
+        "review_status": {
+          "const": "unreviewed"
+        }
+      },
+      "additionalProperties": false
+    },
+    "shared_normative_basis": {
+      "type": "object",
+      "required": [
+        "id",
+        "statement",
+        "status",
+        "caution"
+      ],
+      "properties": {
+        "id": {
+          "const": "R1"
+        },
+        "statement": {
+          "type": "string",
+          "minLength": 1
+        },
+        "status": {
+          "const": "textual_argument_reconstruction"
+        },
+        "caution": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "additionalProperties": false
+    },
+    "chains": {
+      "type": "array",
+      "minItems": 2,
+      "maxItems": 2,
+      "items": {
+        "type": "object",
+        "required": [
+          "chain_id",
+          "chain_kind",
+          "sequence",
+          "comparison_dimensions",
+          "inference",
+          "scope_conditions",
+          "failure_conditions"
+        ],
+        "properties": {
+          "chain_id": {
+            "enum": [
+              "A_HARM_PROGRESSION",
+              "B_QUANTITY_SCALING"
+            ]
+          },
+          "chain_kind": {
+            "enum": [
+              "harm_progression_across_action_types",
+              "quantity_scaling_within_action_type"
+            ]
+          },
+          "sequence": {
+            "type": "array",
+            "minItems": 3,
+            "items": {
+              "type": "object",
+              "required": [
+                "step",
+                "action",
+                "textual_judgment"
+              ],
+              "properties": {
+                "step": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "action": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "harm_scope": {
+                  "type": "string"
+                },
+                "textual_judgment": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "basis": {
+                  "type": "string"
+                },
+                "quantity": {
+                  "type": [
+                    "integer",
+                    "null"
+                  ],
+                  "minimum": 0
+                }
+              },
+              "additionalProperties": false
+            }
+          },
+          "comparison_dimensions": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            }
+          },
+          "inference": {
+            "type": "string",
+            "minLength": 1
+          },
+          "scope_conditions": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            }
+          },
+          "failure_conditions": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "cross_chain_relation": {
+      "type": "object",
+      "required": [
+        "relation",
+        "explanation",
+        "prohibited_inference"
+      ],
+      "properties": {
+        "relation": {
+          "const": "shared_normative_basis_but_distinct_inference_structure"
+        },
+        "explanation": {
+          "type": "string"
+        },
+        "prohibited_inference": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "adversarial_cases": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "case_id",
+          "scenario",
+          "expected",
+          "reason"
+        ],
+        "properties": {
+          "case_id": {
+            "type": "string"
+          },
+          "scenario": {
+            "type": "string"
+          },
+          "expected": {
+            "type": "string"
+          },
+          "reason": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "engineering_mapping": {
+      "type": "object",
+      "required": [
+        "m2",
+        "m3",
+        "m4",
+        "m5",
+        "m8"
+      ],
+      "properties": {
+        "m2": {
+          "type": "string"
+        },
+        "m3": {
+          "type": "string"
+        },
+        "m4": {
+          "type": "string"
+        },
+        "m5": {
+          "type": "string"
+        },
+        "m8": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

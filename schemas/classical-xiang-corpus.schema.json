@@ -1,0 +1,415 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/qingjian0/zhouyi-ai/blob/main/schemas/classical-xiang-corpus.schema.json",
+  "title": "Zhouyi-AI Classical Xiang Corpus Record",
+  "description": "Source-grounded pre-Qing textual records; text occurrence is not an endorsed doctrine.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "record_id",
+    "record_version",
+    "work",
+    "period",
+    "source_type",
+    "witness",
+    "locator",
+    "text",
+    "text_status",
+    "claims",
+    "review_status",
+    "concept_tags",
+    "method_families"
+  ],
+  "properties": {
+    "record_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "record_version": {
+      "type": "string",
+      "minLength": 1
+    },
+    "work": {
+      "type": "object",
+      "required": [
+        "title",
+        "traditional_authority",
+        "composition_period",
+        "genre"
+      ],
+      "properties": {
+        "title": {
+          "type": "string"
+        },
+        "traditional_authority": {
+          "type": "string"
+        },
+        "composition_period": {
+          "type": "string"
+        },
+        "genre": {
+          "type": "string"
+        },
+        "attribution_note": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "period": {
+      "enum": [
+        "pre_qin",
+        "qin_han",
+        "wei_jin_northern_southern",
+        "sui_tang",
+        "song_yuan",
+        "ming",
+        "qing_pre_1912",
+        "modern_post_1912",
+        "uncertain"
+      ]
+    },
+    "source_type": {
+      "enum": [
+        "classical_text",
+        "historical_commentary",
+        "bibliographic_record",
+        "modern_scholarship",
+        "field_observation",
+        "research_hypothesis",
+        "synthetic_fixture",
+        "model_generated"
+      ]
+    },
+    "tradition": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "witness": {
+      "type": "object",
+      "required": [
+        "witness_id",
+        "edition_or_database",
+        "url",
+        "access_date",
+        "witness_kind"
+      ],
+      "properties": {
+        "witness_id": {
+          "type": "string"
+        },
+        "edition_or_database": {
+          "type": "string"
+        },
+        "url": {
+          "type": "string",
+          "format": "uri"
+        },
+        "access_date": {
+          "type": "string",
+          "format": "date"
+        },
+        "witness_kind": {
+          "enum": [
+            "critical_edition",
+            "printed_edition",
+            "facsimile",
+            "digital_transcription",
+            "catalogue",
+            "secondary_transcription",
+            "unknown"
+          ]
+        },
+        "editor_or_transcriber": {
+          "type": "string"
+        },
+        "license_status": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "locator": {
+      "type": "object",
+      "required": [
+        "chapter",
+        "section_or_line"
+      ],
+      "properties": {
+        "juan": {
+          "type": "string"
+        },
+        "chapter": {
+          "type": "string",
+          "minLength": 1
+        },
+        "section_or_line": {
+          "type": "string",
+          "minLength": 1
+        },
+        "page": {
+          "type": "string"
+        },
+        "folio": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "text": {
+      "type": "string",
+      "minLength": 1
+    },
+    "text_status": {
+      "enum": [
+        "verified_against_witness",
+        "transcribed_unverified",
+        "ocr_unverified",
+        "paraphrase",
+        "quotation_fragment"
+      ]
+    },
+    "variant_notes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "claims": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": [
+          "claim_id",
+          "claim_kind",
+          "subject",
+          "predicate",
+          "object",
+          "interpretive_note",
+          "scope",
+          "review_status"
+        ],
+        "properties": {
+          "claim_id": {
+            "type": "string"
+          },
+          "claim_kind": {
+            "enum": [
+              "textual_observation",
+              "traditional_interpretation",
+              "commentarial_interpretation",
+              "project_operational_definition",
+              "research_hypothesis",
+              "modern_scholarship_claim"
+            ]
+          },
+          "subject": {
+            "type": "string"
+          },
+          "predicate": {
+            "type": "string"
+          },
+          "object": {
+            "type": "string"
+          },
+          "interpretive_note": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string"
+          },
+          "relation_type": {
+            "type": "string"
+          },
+          "conditions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "supports": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "counterevidence": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "review_status": {
+            "enum": [
+              "unreviewed",
+              "reviewed",
+              "disputed",
+              "rejected"
+            ]
+          },
+          "xiang_domain": {
+            "type": "string",
+            "minLength": 1,
+            "description": "Historical domain of the claim; project retrieval facet, not an ancient unified category."
+          },
+          "relation_family": {
+            "enum": [
+              "generative",
+              "taxonomic",
+              "functional",
+              "directional",
+              "temporal",
+              "correlative",
+              "symbolic",
+              "normative_analogy",
+              "causal_assertion",
+              "rhetorical_analogy",
+              "lexical"
+            ],
+            "description": "Typed relation family used for retrieval and evaluation; not a claim that ancient authors used this taxonomy."
+          },
+          "shared_basis": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Explicitly shared features or relations supporting a proposed analogy."
+          },
+          "non_shared_basis": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Known differences that limit or block transfer."
+          },
+          "scope_conditions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Conditions and context under which the claim is stated or considered applicable."
+          },
+          "causal_status": {
+            "enum": [
+              "not_claimed",
+              "textual_causal_assertion",
+              "observational_support",
+              "experimental_support",
+              "challenged",
+              "unassessed"
+            ],
+            "description": "Separates a text's causal assertion from independently supported causal evidence."
+          },
+          "reasoning_operations": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": {
+              "enum": [
+                "observe",
+                "select_image",
+                "classify",
+                "compare",
+                "abstract_shared_basis",
+                "identify_difference",
+                "infer_by_analogy",
+                "shift_perspective",
+                "map_function",
+                "map_time",
+                "map_position",
+                "symbolize",
+                "rhetorical_indirection",
+                "transfer_norm",
+                "test_counterexample",
+                "intervene_condition",
+                "refuse_transfer"
+              ]
+            },
+            "description": "Explicit operation(s) visible in the text or used by the project; project labels do not imply an ancient formal system."
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "rights": {
+      "type": "object",
+      "properties": {
+        "text_license": {
+          "type": "string"
+        },
+        "database_license": {
+          "type": "string"
+        },
+        "reuse_notes": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "review_status": {
+      "enum": [
+        "unreviewed",
+        "candidate",
+        "reviewed",
+        "disputed",
+        "rejected",
+        "superseded"
+      ]
+    },
+    "review_notes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "concept_tags": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "observation",
+          "image_selection",
+          "analogy_method",
+          "analogy_limit",
+          "classification",
+          "correspondence",
+          "yin_yang",
+          "state_change",
+          "cosmology",
+          "sensory_classification",
+          "causal_inference_limit",
+          "metaphor",
+          "name_reality",
+          "ritual_institution",
+          "natural_knowledge",
+          "commentarial_exegesis"
+        ]
+      },
+      "description": "Project retrieval facets only; not a claim that ancient authors used this unified taxonomy."
+    },
+    "method_families": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "classification",
+          "analogical_argument",
+          "rhetorical_analogy",
+          "cosmological_correspondence",
+          "lexical_taxonomy",
+          "symbolic_correspondence",
+          "phenomenological_observation",
+          "causal_claim",
+          "commentarial_exegesis",
+          "comparative_exegesis"
+        ]
+      },
+      "description": "Distinguishes historically different inference/textual practices; project taxonomy, not an ancient unified classification."
+    }
+  }
+}

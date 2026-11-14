@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://zhouyi-ai.local/schemas/classical-yixiang-source-catalog.schema.json",
+  "title": "Classical Yixiang Source Catalog",
+  "type": "object",
+  "required": ["schema_version", "catalog_id", "policy", "status_legend", "works"],
+  "properties": {
+    "schema_version": { "type": "string", "minLength": 1 },
+    "catalog_id": { "type": "string", "minLength": 1 },
+    "policy": {
+      "type": "object",
+      "required": ["primary_period", "supplement_periods", "default_ingestion_status", "textual_claims_require_exact_edition_and_locator", "do_not_back_project_later_interpretations"],
+      "properties": {
+        "primary_period": { "const": "pre-Qing" },
+        "supplement_periods": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+        "supplement_role": { "type": "array", "items": { "type": "string" } },
+        "default_ingestion_status": { "const": "candidate_not_ingested" },
+        "textual_claims_require_exact_edition_and_locator": { "const": true },
+        "do_not_back_project_later_interpretations": { "const": true }
+      },
+      "additionalProperties": true
+    },
+    "status_legend": { "type": "object", "minProperties": 1 },
+    "works": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["work_id", "title", "period_tier", "priority", "focus", "target_sections", "ingestion_status", "edition", "locator_policy"],
+        "properties": {
+          "work_id": { "type": "string", "pattern": "^[a-z0-9_]+$" },
+          "title": { "type": "string", "minLength": 1 },
+          "period_tier": { "type": "string", "minLength": 1 },
+          "priority": { "enum": ["P0", "P1", "P2"] },
+          "focus": { "type": "string", "minLength": 1 },
+          "target_sections": { "type": "string", "minLength": 1 },
+          "ingestion_status": { "enum": ["candidate_not_ingested", "metadata_reviewed", "text_sampled", "chapter_indexed", "fully_collated"] },
+          "edition": { "type": ["string", "null"] },
+          "locator_policy": { "type": "string", "minLength": 1 }
+        },
+        "additionalProperties": true
+      }
+    }
+  },
+  "additionalProperties": true
+}

@@ -1,0 +1,61 @@
+{
+  "schema_version": "0.1",
+  "casebook_id": "huainanzi-shuolin-analogy-transfer-m17",
+  "primary_text": "《淮南子·说林训》",
+  "policy": "西汉传世文本作为先秦以后补充案例；仍需核对版本与注疏，不将其解释回填为先秦原典。",
+  "cases": [
+    {
+      "case_id": "silkworm-cicada-diet",
+      "passage": "蠶食而不飲，蟬飲而不食，二十二日而化；蜉蝣不食不飲，三日而死。",
+      "source_ref": "huainanzi-shuolin-xun",
+      "audit_focus": [
+        "species_specific_diet",
+        "life_cycle_condition"
+      ],
+      "note": "不同生物的摄取方式与生命周期不可仅凭表面相似互推。"
+    },
+    {
+      "case_id": "poison-species-difference",
+      "passage": "人食礜石而死，蠶食之而不飢；魚食巴菽而死，鼠食之而肥。類不可必推。",
+      "source_ref": "huainanzi-shuolin-xun",
+      "audit_focus": [
+        "species_context",
+        "substance_effect",
+        "counterexample"
+      ],
+      "note": "文本明确以物种差异反对无条件推广；不可将古代毒物名称直接映射为现代化学物质而不校核。"
+    },
+    {
+      "case_id": "material-origin-not-property-inheritance",
+      "passage": "瓦以火成，不可以得火；竹以水生，不可以得水。",
+      "source_ref": "huainanzi-shuolin-xun",
+      "audit_focus": [
+        "origin_relation",
+        "property_inheritance"
+      ],
+      "note": "由某种材料/过程生成，不意味着成品保留或可取得该来源的全部属性。"
+    },
+    {
+      "case_id": "same-object-different-use",
+      "passage": "柳下惠見飴，曰：可以養老。盜跖見飴，曰：可以黏牡。見物同而用之異。",
+      "source_ref": "huainanzi-shuolin-xun",
+      "audit_focus": [
+        "agent_goal",
+        "affordance",
+        "context"
+      ],
+      "note": "同一对象因主体目标与情境不同而有不同用途判断。"
+    },
+    {
+      "case_id": "same-action-different-posture",
+      "passage": "今有六尺之席，臥而越之，下材弗難；植而逾之，上材弗易，勢施異也。",
+      "source_ref": "huainanzi-shuolin-xun",
+      "audit_focus": [
+        "posture",
+        "geometry",
+        "task_condition"
+      ],
+      "note": "任务材料相同但姿态/空间条件改变，难度关系改变。"
+    }
+  ]
+}

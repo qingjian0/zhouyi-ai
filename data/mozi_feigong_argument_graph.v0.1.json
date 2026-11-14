@@ -1,0 +1,157 @@
+{
+  "schema_version": "0.1",
+  "graph_id": "zhouyi-ai.mozi-feigong-argument-graph",
+  "source_ref": {
+    "case_id": "xy_011",
+    "source_id": "src_feigong",
+    "work": "墨子",
+    "chapter": "非攻上",
+    "evidence_status": "digital_transcription_candidate",
+    "review_status": "unreviewed"
+  },
+  "shared_normative_basis": {
+    "id": "R1",
+    "statement": "亏人自利应受否定；侵害他人而为己谋利构成该论证中的共同规范理由。",
+    "status": "textual_argument_reconstruction",
+    "caution": "这是对篇章论证的工作性重构，不是无条件适用于所有行动的现代伦理公理。"
+  },
+  "chains": [
+    {
+      "chain_id": "A_HARM_PROGRESSION",
+      "chain_kind": "harm_progression_across_action_types",
+      "sequence": [
+        {
+          "step": 1,
+          "action": "窃桃李",
+          "harm_scope": "财物/园圃",
+          "textual_judgment": "不义",
+          "basis": "亏人自利"
+        },
+        {
+          "step": 2,
+          "action": "攘犬豕鸡豚",
+          "harm_scope": "牲畜财产",
+          "textual_judgment": "不义更甚",
+          "basis": "亏人愈多"
+        },
+        {
+          "step": 3,
+          "action": "取马牛",
+          "harm_scope": "更大牲畜财产",
+          "textual_judgment": "不仁义更甚、罪益厚",
+          "basis": "亏人愈多"
+        },
+        {
+          "step": 4,
+          "action": "杀不辜人并取其财物",
+          "harm_scope": "生命及财物",
+          "textual_judgment": "不义更甚",
+          "basis": "亏人愈多"
+        },
+        {
+          "step": 5,
+          "action": "攻国",
+          "harm_scope": "国家/群体规模的侵害",
+          "textual_judgment": "被论敌誉为义，墨子指出其判断矛盾",
+          "basis": "将共同规范理由扩展到攻伐"
+        }
+      ],
+      "comparison_dimensions": [
+        "受害者损失",
+        "损害严重性",
+        "侵害范围",
+        "是否以损人自利"
+      ],
+      "inference": "若共同规范理由确实适用于各步骤，损害扩大不应使原本被否定的侵害反而自动转为正当；论者必须提出相关差异才能区别攻伐。",
+      "scope_conditions": [
+        "比较对象均属于主动侵害且以损人自利为核心特征",
+        "各步骤的损害与责任关系须可比",
+        "攻国段的具体语境须支持其被描述为攻伐而非防御"
+      ],
+      "failure_conditions": [
+        "防御、救援或制止侵害",
+        "行为目的与责任结构显著不同",
+        "受害范围、因果链或规范理由不相同"
+      ]
+    },
+    {
+      "chain_id": "B_QUANTITY_SCALING",
+      "chain_kind": "quantity_scaling_within_action_type",
+      "sequence": [
+        {
+          "step": 1,
+          "action": "杀一人",
+          "quantity": 1,
+          "textual_judgment": "不义"
+        },
+        {
+          "step": 2,
+          "action": "杀十人",
+          "quantity": 10,
+          "textual_judgment": "十重不义"
+        },
+        {
+          "step": 3,
+          "action": "杀百人",
+          "quantity": 100,
+          "textual_judgment": "百重不义"
+        },
+        {
+          "step": 4,
+          "action": "大规模攻国",
+          "quantity": null,
+          "textual_judgment": "若同属杀害无辜的侵害，不能仅因规模扩大而反称为义"
+        }
+      ],
+      "comparison_dimensions": [
+        "受害人数",
+        "被害者是否无辜",
+        "行为性质",
+        "责任条件"
+      ],
+      "inference": "在行为性质与责任条件保持的前提下，数量扩大不会使不义判断消失；论者若区别国家攻伐，须提出相关且可辩护的条件差异。",
+      "scope_conditions": [
+        "被害者均为无辜者",
+        "行为性质与责任归属具有足够连续性",
+        "数量增加没有同时改变关键正当化条件"
+      ],
+      "failure_conditions": [
+        "被害者责任状态不同",
+        "行为性质或正当化条件变化",
+        "“十重/百重”被误作严格线性道德计量而非论辩强化"
+      ]
+    }
+  ],
+  "cross_chain_relation": {
+    "relation": "shared_normative_basis_but_distinct_inference_structure",
+    "explanation": "A 链跨越行为类型并比较损害递进；B 链主要固定杀害行为类别并扩展受害数量。二者共享 R1，但推理结构不可合并。",
+    "prohibited_inference": "不能仅因二者都涉及规模扩大，就将损害严重性、人数与不义程度视为同一量纲或线性比例。"
+  },
+  "adversarial_cases": [
+    {
+      "case_id": "AC1",
+      "scenario": "防御行动造成与攻伐相似的损害",
+      "expected": "ABSTAIN_OR_REJECT_UNCONDITIONAL_TRANSFER",
+      "reason": "目的、责任与必要性条件可能不同"
+    },
+    {
+      "case_id": "AC2",
+      "scenario": "受害人数相同但被害者责任状态不同",
+      "expected": "ABSTAIN",
+      "reason": "数量相同不足以保持规范相关关系"
+    },
+    {
+      "case_id": "AC3",
+      "scenario": "规模扩大但施害者、受害者和责任归属发生变化",
+      "expected": "ABSTAIN",
+      "reason": "角色映射和范围条件未证明保持"
+    }
+  ],
+  "engineering_mapping": {
+    "m2": "保留两条不同结构的有向链与共享规范依据节点。",
+    "m3": "将损害递进、规范一致性反证、数量累积强化保留为竞争解释。",
+    "m4": "干预行动目的、受害数量、责任归属与可避免损害。",
+    "m5": "优先查询能区分主动攻伐/防御及责任状态的证据。",
+    "m8": "将两链识别、迁移范围、正当差异和弃权能力纳入评测。"
+  }
+}

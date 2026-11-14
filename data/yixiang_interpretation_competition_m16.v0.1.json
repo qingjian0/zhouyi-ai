@@ -1,0 +1,146 @@
+{
+  "schema_version": "0.1",
+  "case_id": "mozi-xiaoqu-seven-dialectical-terms",
+  "title": "《墨子·小取》七事解释竞争登记",
+  "primary_policy": "先秦原典为主体；清代、民国与当代研究只作为解释史补充，不回填为原典定义。",
+  "primary_text_refs": [
+    "mozi-xiaoqu",
+    "mozi-jingxia"
+  ],
+  "adjudication": "not_performed",
+  "positions": [
+    {
+      "position_id": "hu-shih-1919",
+      "author": "胡适",
+      "work": "《墨辩新诂·小取篇》",
+      "publication_year": 1919,
+      "source_layer": "post_qing_scholarship",
+      "framework": "logical_taxonomy",
+      "target_terms": [
+        "效",
+        "辟",
+        "侔",
+        "援",
+        "推"
+      ],
+      "interpretation": "将效解释为演绎论证，辟为举例说明，侔为比辞，援为援例/个体到个体，推为由已取事例推广到未取同类的归纳。",
+      "scope": "胡适对《小取》七事中相关五项的现代逻辑解释，不作为先秦原典的唯一固有分类。",
+      "textual_basis_refs": [
+        "mozi-xiaoqu"
+      ],
+      "scholarship_refs": [
+        "hu-shih-xiaoqu-xingu"
+      ],
+      "caveats": [
+        "现代逻辑术语是解释框架，不等于原典自觉分类。",
+        "需与不同断句、校注及后续研究对读。"
+      ]
+    },
+    {
+      "position_id": "tang-chun-i-2004",
+      "author": "唐君毅",
+      "work": "《原辩：墨子小取篇论“辩”辨义》，收入《中国哲学原论·辩义》",
+      "publication_year": 2004,
+      "source_layer": "post_qing_scholarship",
+      "framework": "dialectical_process",
+      "target_terms": [
+        "或",
+        "假",
+        "效",
+        "辟",
+        "侔",
+        "援",
+        "推"
+      ],
+      "interpretation": "唐君毅主张七事并非七种并列逻辑规则，而是一个整体辩论历程中的七事。郑育仁2015年修订稿据其实践/对话观点进一步排列为质疑、假设指出缺失、提出效法言论、举例说明、排比、从对方立场援引、将观点推向对方可接受范围；此顺序是郑文的再阐释，不冒充唐氏原文逐字定义。",
+      "scope": "依据郑育仁2015年修订稿对唐君毅《原辩》2004年版本的转述和再展开登记；应继续核对唐氏原书页182–222及郑文的论述边界。",
+      "textual_basis_refs": [
+        "mozi-xiaoqu"
+      ],
+      "scholarship_refs": [
+        "tang-chun-i-2004",
+        "zheng-yuren-2015"
+      ],
+      "caveats": [
+        "当前是二手转述记录，须取得并核对唐氏原书后再升级。"
+      ]
+    },
+    {
+      "position_id": "zhou-boqun-2024",
+      "author": "周博群",
+      "work": "〈再论《墨子·小取》篇的“辩学七事”〉，《饶宗颐国学院院刊》第十一期",
+      "publication_year": 2024,
+      "source_layer": "contemporary_research",
+      "framework": "unified_analogy",
+      "target_terms": [
+        "或",
+        "假",
+        "效",
+        "辟",
+        "侔",
+        "援",
+        "推"
+      ],
+      "interpretation": "把七事视为完整类比论证理论的组成部分，而非七种相互独立的论式类型；并将《小取》末尾的谬误分析视为对侔式论证的一种特定表现的讨论。",
+      "scope": "按论文摘要登记其主要主张；未获取全文，具体论证步骤和案例需全文核验。",
+      "textual_basis_refs": [
+        "mozi-xiaoqu"
+      ],
+      "scholarship_refs": [
+        "zhou-boqun-2024-hku"
+      ],
+      "caveats": [
+        "目前依据公开摘要，不将摘要代替全文。"
+      ]
+    },
+    {
+      "position_id": "jin-rongdong-preprint",
+      "author": "晋荣东",
+      "work": "〈何为推类：评述与新解〉（作者主页列为《国学论衡》第十二辑、出版中）",
+      "publication_year": null,
+      "source_layer": "contemporary_research",
+      "framework": "general_inference",
+      "target_terms": [
+        "推类",
+        "推"
+      ],
+      "interpretation": "主张推类不等同于任何一种特定推理类型；根据案例提出援理、贯通、引例三种推理路径，分别对应演绎、归纳与类比。",
+      "scope": "按作者公开预印本和作者主页登记；未虚填出版年份，须继续核对正式出版信息。",
+      "textual_basis_refs": [
+        "mozi-xiaoqu",
+        "mozi-jingxia"
+      ],
+      "scholarship_refs": [
+        "jin-rongdong-preprint",
+        "jin-rongdong-author-profile"
+      ],
+      "caveats": [
+        "出版年尚未核实，publication_year 保持 null。",
+        "预印本与最终出版文本可能存在修订。"
+      ]
+    },
+    {
+      "position_id": "li-wei-2016",
+      "author": "李巍",
+      "work": "〈逻辑方法还是伦理实践？——先秦儒墨“推类”思想辨析〉，《文史哲》2016年第5期",
+      "publication_year": 2016,
+      "source_layer": "post_qing_scholarship",
+      "framework": "ethical_practice",
+      "target_terms": [
+        "推类"
+      ],
+      "interpretation": "强调推类作为伦理实践，将既有场合中被认可的言行依其类推广到其他场合，主要关涉言行正当性。",
+      "scope": "该观点由晋荣东的公开论文转述并讨论；此处记录为竞争解释位置，不预设其排斥推理维度。",
+      "textual_basis_refs": [
+        "mozi-xiaoqu",
+        "mozi-jingxia"
+      ],
+      "scholarship_refs": [
+        "li-wei-2016-as-cited-by-jin"
+      ],
+      "caveats": [
+        "当前经晋荣东论文转述登记，须进一步取得李巍原文直接核验。"
+      ]
+    }
+  ]
+}

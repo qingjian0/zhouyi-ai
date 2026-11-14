@@ -1,0 +1,952 @@
+{
+  "schema_version": "0.1",
+  "casebook_id": "zhouyi-ai.classical-yixiang-casebook",
+  "policy": {
+    "primary_period": "pre-Qing",
+    "text_status": "digital_transcription_requires_image_or_edition_review",
+    "interpretation_policy": "所有摘录均为数字转录候选，不标记为已校勘原文；先保留原典语境、文本层次和竞争解释，再做现代操作化。后世注疏不得回填为早期原文；不同文本中的同名术语不得预设同义。"
+  },
+  "sources": [
+    {
+      "source_id": "src_xici",
+      "work": "周易·系辞下传",
+      "chapter": "系辞下传第二章（“古者包牺氏之王天下也”段）",
+      "url": "https://ctext.org/text.pl?if=gb&node=46944&remap=gb&show=parallel",
+      "digital_witness": "中国哲学书电子化计划《系辞下传》相关平行段落索引；当前定位依据为平行文本检索结果，尚未锁定独立的《系辞下传》影印底本页码。",
+      "witness_limit": "该 URL 是平行段落检索入口，不是单一底本页面；需继续回溯具体见证、卷次和影印页，不能将平行引文列表视为版本互证。"
+    },
+    {
+      "source_id": "src_mozi",
+      "work": "墨子",
+      "chapter": "卷十一·小取",
+      "url": "https://ctext.org/mozi/minor-illustrations/zhs",
+      "digital_witness": "页面列出《正统道藏》《墨子闲诂》《四部丛刊初编》等相关版本入口",
+      "witness_limit": "网页数字录文不等于逐字影印校勘；版本间异文与断句仍需逐条复核。"
+    },
+    {
+      "source_id": "src_xunzi",
+      "work": "荀子",
+      "chapter": "正名",
+      "url": "https://ctext.org/xunzi/zheng-ming/ens",
+      "digital_witness": "页面标明《四部丛刊初编》本等版本入口；《荀子》总页说明数字文本拟依扫描本",
+      "witness_limit": "需在图像底本上核对具体字形、句读及篇章层累问题。"
+    },
+    {
+      "source_id": "src_gongsun",
+      "work": "公孙龙子",
+      "chapter": "白马论",
+      "url": "https://ctext.org/gongsunlongzi/bai-ma-lun/zh",
+      "digital_witness": "页面列《墨海金壶》《守山阁丛书》《正统道藏》等版本入口",
+      "witness_limit": "传世文本与篇章归属、版本关系存在学术问题；本项目不将辩者命题直接当作已证成的逻辑定理。"
+    },
+    {
+      "source_id": "src_huainan",
+      "work": "淮南子",
+      "chapter": "说林训",
+      "url": "https://ctext.org/huainanzi/shuo-lin-xun/zhs",
+      "digital_witness": "页面列《四部丛刊初编》《摛藻堂四库全书荟要》《正统道藏》等版本入口",
+      "witness_limit": "数字文本可供检索定位，不能替代版本校勘；《说林训》格言式材料须保留上下文。"
+    },
+    {
+      "source_id": "src_lunheng",
+      "work": "论衡",
+      "chapter": "感类篇",
+      "url": "https://ctext.org/lunheng/gan-lei/zhs",
+      "digital_witness": "页面列《四部丛刊初编》《汉魏丛书》《四库全书》系统等版本入口",
+      "witness_limit": "数字录文未完成影印逐字校核；王充的论辩须结合全篇，不可截句代表其全部立场。"
+    },
+    {
+      "source_id": "src_yaolue",
+      "work": "淮南子",
+      "chapter": "要略",
+      "url": "https://ctext.org/huainanzi/yao-lve",
+      "digital_witness": "中国哲学书电子化计划《要略》数字文本入口；含《说山》《说林》编纂宗旨自述",
+      "witness_limit": "数字录文不是独立影印底本；需核对传世版本、上下文及高诱注。"
+    },
+    {
+      "source_id": "src_feigong",
+      "work": "墨子",
+      "chapter": "卷五·非攻上",
+      "url": "https://ctext.org/mozi/condemnation-of-offensive-war-i/zh",
+      "digital_witness": "中国哲学书电子化计划《非攻上》数字文本入口；页面列《正统道藏》《墨子闲诂》《四部丛刊初编》等版本入口。",
+      "witness_limit": "当前案例仅依据数字录文定位；需回看具体版本影像，核验“扡/拖”等字形、异文、段落衔接及孙诒让《墨子间诂》校语，不将网页平行版本列表视为已完成互校。"
+    },
+    {
+      "source_id": "src_lushi_bielei",
+      "work": "吕氏春秋",
+      "chapter": "恃君览·别类",
+      "url": "https://ctext.org/lv-shi-chun-qiu/bie-lei",
+      "digital_witness": "中国哲学书电子化计划《别类》数字文本入口，页面标注《四部丛刊初编》本资源",
+      "witness_limit": "当前仅完成检索定位，未逐字核对影印页、卷次、注释与版本异文；网页底本标注不等于本项目已完成校勘。"
+    },
+    {
+      "source_id": "src_huainan_shuoshan",
+      "work": "淮南子",
+      "chapter": "说山训",
+      "url": "https://ctext.org/huainanzi/shuo-shan-xun",
+      "digital_witness": "中国哲学书电子化计划《说山训》数字文本及平行段落检索入口",
+      "witness_limit": "平行段落显示部分文字存在不同录文与异文；须分别记录见证、核对影印底本及高诱注，不得将平行文本拼成单一校定本。"
+    },
+    {
+      "source_id": "src_lushi_ansi",
+      "work": "吕氏春秋",
+      "chapter": "孟冬纪·安死",
+      "url": "https://ctext.org/lv-shi-chun-qiu/an-si",
+      "digital_witness": "中国哲学书电子化计划《安死》数字文本入口；另有《四部丛刊》系统及其他转录可供后续比对",
+      "witness_limit": "当前仅完成数字文本定位；需核对卷篇、影印页、引《诗》文字及高诱注，不视为完成版本校勘。"
+    },
+    {
+      "source_id": "src_lushi_yingtong",
+      "work": "吕氏春秋",
+      "chapter": "有始览·应同",
+      "url": "https://ctext.org/lv-shi-chun-qiu/ying-tong/zhs",
+      "digital_witness": "中国哲学书电子化计划《应同》数字文本入口，检索结果标注《四部丛刊初编》本。",
+      "witness_limit": "当前仅完成数字检索定位，未逐字核对影印页、卷次、篇章层累及相关五行文献；数字录文中的祥瑞—德运—政事联系应先视为文本内部主张，不作为现代自然因果事实。 现代解释史还存在《应同》是否为邹衍遗说、是否兼含“应”（感应）与“同”（从同/帝王霸论），以及与后期墨家思想关系等争议；须保留竞争解释，不能预设唯一学派归属。"
+    },
+    {
+      "source_id": "src_chunqiu_fanlu",
+      "work": "春秋繁露",
+      "chapter": "卷十三·同类相动第五十七",
+      "url": "https://www.shidianguji.com/zh/book/SBCK018/chapter/SBCK018_72",
+      "digital_witness": "识典古籍《春秋繁露·同类相动》数字转录；另有四库全书本维基文库与不同数字整理本可供平行比对。",
+      "witness_limit": "《春秋繁露》篇章形成、作者归属及卷次文本层次须独立研究；不同数字整理本有“注水/注冰”等异文。当前未逐字核对影印底本，不能把传世文本直接等同董仲舒亲撰定本。 四库全书本卷首提要说明《春秋繁露》宋代以来卷帙不一，楼钥校本、明刻本及四库本存在缺篇、缺字和校补差异，并指出今本未必全出董仲舒；必须按具体版本标记，不能把传世篇章一概视为董仲舒亲撰。"
+    },
+    {
+      "source_id": "src_mojing_jingxia",
+      "work": "墨子",
+      "chapter": "卷十·经下、经说下",
+      "url": "https://ctext.org/mozi/canon-ii/zhs",
+      "digital_witness": "中国哲学书电子化计划《经下》《经说下》数字文本；另有《墨子闲诂》、吴毓江校注等校释入口。",
+      "witness_limit": "“推类之难，说在之大小”及经说中的四足兽、牛马文字存在传本、校改与断句差异；孙诒让《墨子闲诂》与吴毓江校注的解释并不完全一致。当前仅为检索候选，未逐字核验影印底本，不得拼合为单一校定本。"
+    },
+    {
+      "source_id": "src_mojing_jingshang",
+      "work": "墨子",
+      "chapter": "卷十·经上、经说上",
+      "url": "https://ctext.org/mozi/canon-i/zhs",
+      "digital_witness": "中国哲学书电子化计划《经上》《经说上》数字文本；另有《墨子闲诂》、吴毓江校注及国家图书馆藏本影像入口。",
+      "witness_limit": "“有实必待之名也”有“文多”等传写/校改问题；经说中“臧”等私名例及相关字形须回看影印本。孙诒让校改与数字平台正文不能混为同一底本，当前未完成逐字校勘。"
+    }
+  ],
+  "cases": [
+    {
+      "case_id": "xy_001",
+      "source_id": "src_xici",
+      "period": "pre_qin",
+      "text_layer": "base_text",
+      "locator": "系辞下传第二章；检索定位语“近取诸身，远取诸物”",
+      "excerpt": "近取诸身，远取诸物。",
+      "problem": "取象材料的来源范围如何界定？近身经验与外部物象是否构成两类互补观察域？",
+      "operation": [
+        "observation",
+        "xiang_extraction",
+        "classification"
+      ],
+      "premises": [
+        "文本并列身体经验与外物观察两种取材路径。",
+        "“近/远”首先是取材范围的对举，不能未经论证就等同于空间距离或认知难度。"
+      ],
+      "conclusion_scope": "可支持“取象可同时利用身体与外物经验”的文本解释；不能仅凭此句推导具体八卦—物象配属表，也不能把后世注家的配象全部回填为经传原义。",
+      "counterexample_or_boundary": [
+        "同一外物可有多种可观察属性，文本未在此句指定选择哪一属性。",
+        "不同历史层次的《易传》解释可能扩展或改变取象含义。"
+      ],
+      "alternative_readings": [
+        "“近/远”可作经验范围之喻，不必视为严格空间分类。"
+      ],
+      "evidence_status": "digital_transcription_candidate",
+      "review_status": "unreviewed"
+    },
+    {
+      "case_id": "xy_002",
+      "source_id": "src_mozi",
+      "period": "pre_qin",
+      "text_layer": "base_text",
+      "locator": "小取篇首及“或也者”以下定义段",
+      "excerpt": "以类取，以类予。……辟也者，举他物而以明之也。侔也者，比辞而俱行也。援也者，曰“子然，我奚独不可以然也？”推也者，以其所不取之同于其所取者，予之也。",
+      "problem": "类比与推类有哪些不同操作？如何防止把譬喻、并列句式和推论规则混成一个“相似度”？",
+      "operation": [
+        "analogy",
+        "analogy_rule",
+        "rhetoric",
+        "classification"
+      ],
+      "premises": [
+        "篇首把辩论目标关联到明同异、察名实、决嫌疑。",
+        "篇中分别界定辟、侔、援、推，显示至少存在不同论辩操作。"
+      ],
+      "conclusion_scope": "可以把四种操作作为候选标注类型；不能直接将现代逻辑学的类比、归纳、演绎分类一一等同于墨家术语，须逐例核对其论证功能。",
+      "counterexample_or_boundary": [
+        "形式相似的两句话不必具有相同推理功能。",
+        "援例中的“彼亦如此”可能依赖前提一致性；若关键条件不同，推论不成立。",
+        "譬喻可只承担说明功能，不必推出目标命题。"
+      ],
+      "alternative_readings": [
+        "“以类取/予”的句法与“推”的关系仍需结合《大取》《经说》及校注讨论。"
+      ],
+      "evidence_status": "digital_transcription_candidate",
+      "review_status": "unreviewed"
+    },
+    {
+      "case_id": "xy_003",
+      "source_id": "src_xunzi",
+      "period": "pre_qin",
+      "text_layer": "base_text",
+      "locator": "正名篇；“后王之成名”段",
+      "excerpt": "散名之加于万物者，则从诸夏之成俗曲期，远方异俗之乡，则因之而为通。",
+      "problem": "名称与对象的对应是天然固定，还是受共同体约定、地域习俗和沟通目的制约？",
+      "operation": [
+        "naming",
+        "reference",
+        "classification"
+      ],
+      "premises": [
+        "文本区分刑名、爵名、文名与施加于万物的散名。",
+        "散名依成俗约定，异俗地区可因地调整以求通达。"
+      ],
+      "conclusion_scope": "可支持荀子此处关于名称规范和约定俗成的论述；不能据此推出对象本身完全由语言创造，也不能把“约定”误解为任意命名。",
+      "counterexample_or_boundary": [
+        "不同地域词语不同不必意味着所指对象不同。",
+        "同一名称在不同地域可能指向不同对象，需由语境和实物证据判断。",
+        "制度性名称与普通名物词的规范机制不同。"
+      ],
+      "alternative_readings": [
+        "“曲期”涉及共同约定或俗成的解释，应与历代注释分层登记。"
+      ],
+      "evidence_status": "digital_transcription_candidate",
+      "review_status": "unreviewed"
+    },
+    {
+      "case_id": "xy_004",
+      "source_id": "src_gongsun",
+      "period": "pre_qin",
+      "text_layer": "base_text",
+      "locator": "白马论；“马者，所以命形也”及求马/求白马段",
+      "excerpt": "马者，所以命形也；白者，所以命色也。命色者非命形也。……求马，黄、黑马皆可致；求白马，黄、黑马不可致。",
+      "problem": "“白马”与“马”的关系涉及类属包含、属性限定、指称条件还是语词组合？",
+      "operation": [
+        "naming",
+        "reference",
+        "classification",
+        "analogy_rule"
+      ],
+      "premises": [
+        "“马”可用于一般类称；“白马”增加颜色限定。",
+        "求马与求白马的应答范围不同，说明限定词改变了请求条件。"
+      ],
+      "conclusion_scope": "可支持“限定属性会缩小满足指称条件的对象集合”；不能把“白马非马”直接读成白马在生物分类上不属于马。此案例用于区分词项组合、指称范围与类属关系。",
+      "counterexample_or_boundary": [
+        "白马仍可满足“马”这一上位类称；“求白马”比“求马”条件更窄。",
+        "论辩中的“非”可能针对名实、指称或语义组合，不应不加区分地译为集合论的非成员关系。"
+      ],
+      "alternative_readings": [
+        "《白马论》不同段落的论证目标和语义层次并不完全相同。",
+        "篇章传承及文本归属应单独研究。"
+      ],
+      "evidence_status": "digital_transcription_candidate",
+      "review_status": "unreviewed"
+    },
+    {
+      "case_id": "xy_005",
+      "source_id": "src_huainan",
+      "period": "qin_han",
+      "text_layer": "base_text",
+      "locator": "说林训；“短绠不可以汲深，器小不可以盛大”句",
+      "excerpt": "短绠不可以汲深，器小不可以盛大，非其任也。",
+      "problem": "对象能否完成任务取决于对象固有类别，还是取决于能力/尺度与任务要求之间的匹配？",
+      "operation": [
+        "classification",
+        "contextual_constraint",
+        "analogy"
+      ],
+      "premises": [
+        "短绳长度与汲取深度之间存在尺度约束。",
+        "容器容量与承载量之间存在容量约束。",
+        "文本以两组关系类比“非其任”。"
+      ],
+      "conclusion_scope": "可支持“能力—任务适配”这一条件性类比；不能将短绳、器皿的物理限制直接扩展为人的固定本质或社会身份判断。",
+      "counterexample_or_boundary": [
+        "若更换绳长、容器或任务条件，结论可能改变。",
+        "两个例子虽共享“能力不足以满足要求”的结构，但其物理机制并不相同。"
+      ],
+      "alternative_readings": [
+        "“任”可侧重承当、胜任或器用范围，需结合高诱注及版本语境确认。"
+      ],
+      "evidence_status": "digital_transcription_candidate",
+      "review_status": "unreviewed"
+    },
+    {
+      "case_id": "xy_006",
+      "source_id": "src_huainan",
+      "period": "qin_han",
+      "text_layer": "base_text",
+      "locator": "说林训；“钓者静之”段",
+      "excerpt": "钓者静之，𦋯者扣舟，罩者抑之，罣者举之，为之异，得鱼一也。",
+      "problem": "多个不同操作路径能否因结果相同而被归为同一种机制？",
+      "operation": [
+        "multi_path_means_end",
+        "classification",
+        "analogy_rule"
+      ],
+      "premises": [
+        "钓、网、罩、罣等方法在操作方式上不同。",
+        "文本将其共同结果概括为得鱼。"
+      ],
+      "conclusion_scope": "可支持“不同手段可达成同一目标”的功能层归类；不能据结果相同推断工具、过程、风险或因果机制相同。",
+      "counterexample_or_boundary": [
+        "同一结果可能由不同因果路径产生。",
+        "不同方法在效率、成本、适用水域和目标鱼种上可能不同，原句未比较这些维度。"
+      ],
+      "alternative_readings": [
+        "器具名物与具体操作的训释需回到古注、方言和考古/渔具资料复核。"
+      ],
+      "evidence_status": "digital_transcription_candidate",
+      "review_status": "unreviewed"
+    },
+    {
+      "case_id": "xy_007",
+      "source_id": "src_huainan",
+      "period": "qin_han",
+      "text_layer": "base_text",
+      "locator": "说林训；“汤放其主而有荣名，崔杼弑其君而被大谤”段",
+      "excerpt": "汤放其主而有荣名，崔杼弑其君而被大谤，所为之则同，所以为之则异。",
+      "problem": "外在行为形式相似，能否直接推出行为性质、道德评价或历史后果相同？",
+      "operation": [
+        "classification",
+        "contextual_constraint",
+        "normative_argument"
+      ],
+      "premises": [
+        "文本指出两事在“所为”层面相似。",
+        "文本同时指出“所以为之”存在差异。",
+        "评价并非只由动作表面形式决定。"
+      ],
+      "conclusion_scope": "可支持区分行为外形与行为动机/情境的分析框架；不能仅凭此句断定两历史事件所有事实细节或动机已被可靠证实。",
+      "counterexample_or_boundary": [
+        "行为结果、制度背景、行动者身份和可选方案可能改变评价。",
+        "动机陈述可能存在史料偏差，必须独立核验。"
+      ],
+      "alternative_readings": [
+        "“所以为之”可涵盖目的、缘由或情境根据，需结合上下文及注释确定。"
+      ],
+      "evidence_status": "digital_transcription_candidate",
+      "review_status": "unreviewed"
+    },
+    {
+      "case_id": "xy_008",
+      "source_id": "src_lunheng",
+      "period": "qin_han",
+      "text_layer": "base_text",
+      "locator": "感类篇；阴阳不和、灾变与汤旱自责段",
+      "excerpt": "阴阳不和，灾变发起，或时先世遗咎，或时气自然。贤圣感类，慊惧自思，灾变恶徵，何为至乎？……汤本无过，以五过自责，天何故雨？",
+      "problem": "灾异与政治行为的时间共现、象征性解释和真实因果之间如何区分？",
+      "operation": [
+        "correspondence",
+        "causal_critique",
+        "rhetoric"
+      ],
+      "premises": [
+        "篇章列出灾变的不同解释路径，包括先世遗咎、气自然等。",
+        "汤旱自责与降雨的叙事被用来质疑“自责导致天应”的简单因果解释。"
+      ],
+      "conclusion_scope": "可支持王充在此段对感类/天人感应因果链的质疑；不能把该段简化成现代气象学证明，也不能将其立场扩展为王充对所有对应关系的一概否定。",
+      "counterexample_or_boundary": [
+        "先后相继不等于因果。",
+        "象征性政治叙事与自然机制是不同解释层。",
+        "若要检验降雨因果，需要独立气象、历史和统计证据。"
+      ],
+      "alternative_readings": [
+        "“感类”及“慊惧自思”的具体含义应结合篇章论敌、版本异文和王充其他篇章解释。"
+      ],
+      "evidence_status": "digital_transcription_candidate",
+      "review_status": "unreviewed"
+    },
+    {
+      "case_id": "xy_009",
+      "source_id": "src_xunzi",
+      "period": "pre_qin",
+      "text_layer": "base_text",
+      "locator": "正名篇；“物有同状而异所者，有异状而同所者”段",
+      "excerpt": "物有同状而异所者，有异状而同所者，可别也。状同而为异所者，虽可合，谓之二实。状变而实无别而为异者，谓之化。有化而无别，谓之一实。",
+      "problem": "观察形态、所在位置与对象连续性如何区分？表面形态能否直接决定对象同一性？",
+      "operation": [
+        "observation",
+        "classification",
+        "reference",
+        "contextual_constraint"
+      ],
+      "premises": [
+        "文本明确区分形态相同但所在不同、形态不同但所在相同的情形。",
+        "文本进一步讨论形态变化而实未分离的情况。"
+      ],
+      "conclusion_scope": "可支持将可见形态、个体化条件、实体连续性分开标注；不能仅凭这段话直接套用现代形而上学的实体同一性理论。",
+      "counterexample_or_boundary": [
+        "同形物可能是两个个体；外观变化也可能仍是同一连续对象。",
+        "位置相同本身不足以证明实体同一，仍需时序、因果连续性和语境证据。"
+      ],
+      "alternative_readings": [
+        "“所”“实”“化”的具体训释及句读须参照杨倞注、王先谦集解等注本分层核对。"
+      ],
+      "evidence_status": "digital_transcription_candidate",
+      "review_status": "unreviewed"
+    },
+    {
+      "case_id": "xy_010",
+      "source_id": "src_yaolue",
+      "period": "qin_han",
+      "text_layer": "base_text",
+      "locator": "要略；《说山》《说林》篇旨说明段",
+      "excerpt": "《说山》、《说林》者，所以窍窕穿凿百事之壅遏，而通行贯扃万物之窒塞者也。假譬取象，异类殊形，以领理人之意，解除结细……",
+      "problem": "跨越不同物类的譬喻与取象，如何帮助理解事理？跨类表达是否意味着属性和机制也可跨域迁移？",
+      "operation": [
+        "metaphor",
+        "xiang_extraction",
+        "analogy",
+        "rhetoric",
+        "contextual_constraint"
+      ],
+      "premises": [
+        "文本将《说山》《说林》的作用描述为疏通百事万物的理解阻塞。",
+        "“假譬取象，异类殊形”明示可借不同类别、不同形态的譬喻引导理解。"
+      ],
+      "conclusion_scope": "可支持《淮南子》对《说山》《说林》文体与方法的自我说明：跨类譬喻是理解工具；不能由此推出跨类对象之间存在同一实体机制或全部属性可迁移。",
+      "counterexample_or_boundary": [
+        "譬喻可只帮助理解，不必构成事实证明。",
+        "源域与目标域可能只共享一个局部关系，其他属性不可迁移。",
+        "不同篇章的具体譬喻仍需逐例评估，不能由总序替代个案分析。"
+      ],
+      "alternative_readings": [
+        "“窍窕”“穿凿”“贯扃”等词的训诂及传本异文需要单独核查；引文截断处不作为完整句义的唯一依据。"
+      ],
+      "evidence_status": "digital_transcription_candidate",
+      "review_status": "unreviewed"
+    },
+    {
+      "case_id": "xy_011",
+      "source_id": "src_feigong",
+      "period": "pre_qin",
+      "text_layer": "base_text",
+      "locator": "非攻上；由窃桃李递进至攻国，以及杀一人/十人/百人与攻国的两段论证",
+      "excerpt": "今有一人，入人园圃，窃其桃李，众闻则非之……至攘人犬豕鸡豚者……至入人栏廏，取人马牛者……至杀不辜人也……今至大为攻国，则弗知非，从而誉之，谓之义。……杀一人谓之不义……杀十人十重不义……杀百人百重不义……今至大为不义攻国，则弗知而非，从而誉之，谓之义。",
+      "problem": "《非攻上》如何把不同规模的侵害行为纳入同一规范判断？从个体盗窃到国家战争的类推依赖什么共同理由？数量递增、损害递增与不义程度之间是否构成同一条推理？",
+      "operation": [
+        "analogy",
+        "analogy_rule",
+        "normative_argument",
+        "rhetoric",
+        "contextual_constraint"
+      ],
+      "premises": [
+        "第一条论证链以“亏人自利”为共同理由，将窃桃李、攘犬豕鸡豚、取马牛、杀无辜者排列为损害逐渐加重的行为，并以“亏人愈多”支持“不仁滋甚、罪益厚”的递进评价。",
+        "论证把攻国置于该递进链末端，指责论者对小规模侵害作否定判断，却对更大规模的攻伐反而称义。",
+        "第二条论证以杀一人、十人、百人的数量递增为显式扩展，形成“既以杀一人为不义，就不能仅因规模更大而反向称义”的规范一致性挑战。",
+        "两条论证共享反对“亏人自利”的规范理由，但第一条偏向损害程度递进，第二条偏向对同一行为类别作数量扩展；二者不应合并成单一推理步骤。"
+      ],
+      "conclusion_scope": "可支持对《非攻上》论证策略的分析：以损害他人、为己谋利作为共同规范依据，构造由小至大的递进类推，并揭示对不同规模侵害采取双重标准的矛盾。它是针对攻伐行为的规范论辩，不是关于所有战争、所有集体行动或所有暴力情形的无条件经验定律。",
+      "counterexample_or_boundary": [
+        "防御、救援、制止侵害与主动攻伐的行为目的和情境不同；不能仅凭都造成损害就视为同一类。",
+        "“亏人愈多”支持损害程度的递进评价，但不自动证明所有道德维度都按人数线性增长。",
+        "由个体行为扩展到国家行为，必须证明行动主体、受害者范围、责任归属和规范理由在相关维度上保持；国家规模差异本身既不能自动免责，也不能自动证明所有情境等同。",
+        "第二段数量递增论证预设每一被杀者均属“不辜”且行为条件可比；若合法性、责任或因果条件不同，数量类推需重新评估。",
+        "论证揭示的是墨家对攻伐的规范批判；不能将其当作现代战争法或经验伦理学已被独立证明的结论。"
+      ],
+      "alternative_readings": [
+        "“攻国”在篇章语境中应结合墨家“非攻”论敌与攻伐分类解释，不宜不加区分地等同于所有战争。",
+        "第一段可读为损害程度的序列类推，也可读为以对方已接受的个案评价揭示规范不一致；两种分析层次可以并存。",
+        "第二段的“十重不义”“百重不义”可能具有论辩上的累积/强化表达，是否应作严格算术式解释需谨慎。"
+      ],
+      "evidence_status": "digital_transcription_candidate",
+      "review_status": "unreviewed"
+    },
+    {
+      "case_id": "xy_012",
+      "source_id": "src_xunzi",
+      "period": "pre_qin",
+      "text_layer": "base_text",
+      "locator": "正名篇；“然则何缘而以同异”至“此制名之枢要也”段",
+      "excerpt": "凡同类同情者，其天官之意物也同。……心有征知，征知必将待天官之当簿其类，然后可也。……然后随而命之，同则同之，异则异之。……物有同状而异所者，有异状而同所者，可别也。状同而为异所者，虽可合，谓之二实。状变而实无别而为异者，谓之化。",
+      "problem": "类象判断如何从感官观察进入心的征知、同异辨别、分类命名，并进一步区分外观变化与对象连续性？",
+      "operation": [
+        "observation",
+        "perception_grounding",
+        "classification",
+        "naming",
+        "reference",
+        "identity_tracking",
+        "contextual_constraint"
+      ],
+      "premises": [
+        "文本按目、耳、口、鼻、形体等辨别不同性质，显示同异判断具有具体观察维度与通道条件。",
+        "“征知”仍须等待天官“当簿其类”，不能脱离观察记录任意判定。",
+        "“同则同之，异则异之”之后，文本区分大共名、大别名及约定俗成的命名规则。",
+        "“同状而异所”可为二实，“状变而实无别”可称为化，要求将外观、个体化条件与对象连续性分开。"
+      ],
+      "conclusion_scope": "可支持把辨物过程拆为观察、证据约束的识别、维度化同异、分类命名与对象连续性判断；不能把“天官/征知”直接等同现代神经科学或机器学习模块，也不能仅凭外观或名称判定实体同一。",
+      "counterexample_or_boundary": [
+        "两个对象可在颜色和轮廓上相同，却是不同个体；局部属性相同不等于整体同一。",
+        "同一对象可在形态改变后保持时序与因果连续性；外观变化不自动意味着换物。",
+        "同名可能异指，异名也可能同指；须记录共同体、时代和语境范围。",
+        "仅有视觉证据不能推出声音、气味、内部结构或机制相同。",
+        "位置相同不足以单独证明实体连续性，仍需时间、边界与因果证据。"
+      ],
+      "alternative_readings": [
+        "“天官”“征知”“当簿其类”的具体训释应结合杨倞注及历代校注分层核查。",
+        "“同类同情”中的“情”不应未经论证直接现代化为情绪或统计分布。",
+        "“所”“实”“化”的语义及句读存在解释空间；当前工程拆分是分析模型，不是唯一训诂结论。"
+      ],
+      "evidence_status": "digital_transcription_candidate",
+      "review_status": "unreviewed"
+    },
+    {
+      "case_id": "xy_013",
+      "source_id": "src_lushi_bielei",
+      "period": "qin_han",
+      "text_layer": "base_text",
+      "locator": "别类；“物多类然而不然”至“类固不必，可推知也”段",
+      "excerpt": "物多类然而不然……草有莘有藟，独食之则杀人，合而食之则益寿……金柔锡柔，合两柔则为刚……小方，大方之类也；小马，大马之类也；小智，非大智之类也。",
+      "problem": "表面相类是否足以支持推类？组合成分、尺度和性质之间是否存在非单调变化？",
+      "operation": [
+        "classification",
+        "analogy",
+        "analogy_rule",
+        "contextual_constraint"
+      ],
+      "premises": [
+        "篇章以“物多类然而不然”提出相类与可推之间并非必然关系。",
+        "草类材料单独与合用时的文本叙述不同，提示组合效应不能由单项性质简单相加。",
+        "小方/大方、小马/大马与小智/大智的并列，提示尺度变化对类别判断和能力推断的影响并不相同。"
+      ],
+      "conclusion_scope": "可支持把类属保持、尺度外推与组合效应分开分析；不能将古代物性叙述当作现代化学/药理事实，也不能把文本中的小智/大智直接等同于现代智力测量。",
+      "counterexample_or_boundary": [
+        "同一类别在尺度变化后可能仍保持类属，但功能或能力未必按比例扩大。",
+        "组成项的单独属性不能保证组合物保留相同属性；必须单独观察组合结果。",
+        "具体草名、毒性及合用效果须由本草、版本和现代实验分别核验。"
+      ],
+      "alternative_readings": [
+        "“莘”“藟”等名物及“万堇”字形、训释需回到不同传本和高诱注核查。",
+        "“小智，非大智之类”可能涉及能力类别而非纯粹数量尺度，不能简单形式化为数值外推失败。"
+      ],
+      "evidence_status": "digital_transcription_candidate",
+      "review_status": "unreviewed"
+    },
+    {
+      "case_id": "xy_014",
+      "source_id": "src_huainan_shuoshan",
+      "period": "qin_han",
+      "text_layer": "base_text",
+      "locator": "说山训；“物固有似然而似不然者”段",
+      "excerpt": "小马大目，不可谓大马；大马之目眇，可谓之眇马。物固有似然而似不然者。……类不可必推。",
+      "problem": "局部可见特征与整体类别之间是什么关系？某个特征相似是否足以支持整体分类？",
+      "operation": [
+        "observation",
+        "classification",
+        "analogy_rule",
+        "contextual_constraint"
+      ],
+      "premises": [
+        "文本将眼睛大小与马的整体大小/类别判断分开。",
+        "“似然而似不然”明确提示表面特征相似不必推出整体判断相同。",
+        "“类不可必推”要求推类必须检查具体适用条件。"
+      ],
+      "conclusion_scope": "可支持局部特征不能单独决定整体类别的分析；不能把文本例子扩展为现代动物学分类规则。",
+      "counterexample_or_boundary": [
+        "小马可能具有较大的眼睛，但这不使其成为大马。",
+        "大马的眼睛出现局部异常，不因此改变其整体类别。",
+        "若局部特征与目标类别有经验证的诊断关系，仍可作为证据，但不能无条件当作充分条件。"
+      ],
+      "alternative_readings": [
+        "“大目”“目眇”的语义、句读与相关异文需进一步校勘。"
+      ],
+      "evidence_status": "digital_transcription_candidate",
+      "review_status": "unreviewed"
+    },
+    {
+      "case_id": "xy_015",
+      "source_id": "src_huainan_shuoshan",
+      "period": "qin_han",
+      "text_layer": "base_text",
+      "locator": "说山训；“先倮而浴则可”段",
+      "excerpt": "先倮而浴则可，以浴而倮则不可；先祭而后飨则可，先飨而后祭则不可。物之先后，各有所宜也。",
+      "problem": "相同动作或事件集合在顺序改变后，是否仍具有相同适用性与结果？",
+      "operation": [
+        "contextual_constraint",
+        "analogy",
+        "classification"
+      ],
+      "premises": [
+        "文本用先后次序不同的行为组合，指出其可否与适宜性不同。",
+        "“物之先后，各有所宜”把顺序作为判断条件，而非无关的叙事排列。"
+      ],
+      "conclusion_scope": "可支持过程顺序与情境适宜性需要显式记录；不能脱离礼俗语境把该例直接解释成普遍因果定律。",
+      "counterexample_or_boundary": [
+        "只保存动作集合、不保存顺序，会丢失原文强调的条件差异。",
+        "不同礼俗、时代与场景可能改变行为规范，需保留历史语境。"
+      ],
+      "alternative_readings": [
+        "“倮”与浴礼、祭飨次序的具体制度背景需结合注疏和礼制文献核验。"
+      ],
+      "evidence_status": "digital_transcription_candidate",
+      "review_status": "unreviewed"
+    },
+    {
+      "case_id": "xy_016",
+      "source_id": "src_huainan_shuoshan",
+      "period": "qin_han",
+      "text_layer": "base_text",
+      "locator": "说山训；“故决指而身死，或断臂而顾活”段",
+      "excerpt": "故决指而身死，或断臂而顾活。类不可必推。",
+      "problem": "名称相近或外观相似的损伤行为，能否推断其后果相同？",
+      "operation": [
+        "analogy",
+        "analogy_rule",
+        "contextual_constraint",
+        "causal_critique"
+      ],
+      "premises": [
+        "文本将断指与断臂的后果并列，提示相似的损伤描述不能直接推出相同结果。",
+        "后果可能依赖部位、程度、个体状态和处置条件等变量；原文未提供现代医学意义上的因果证据。"
+      ],
+      "conclusion_scope": "可支持对表面相似行为进行结果迁移时必须检查关键条件；不能把该句当作现代医学事实或治疗建议。",
+      "counterexample_or_boundary": [
+        "部位、程度、感染、失血、救治与个体差异均可能影响结果。",
+        "古代格言式例证不是控制变量实验，不能确定各因素的因果贡献。"
+      ],
+      "alternative_readings": [
+        "“决指”“顾活”等词义及具体语境需核对校注，不应将现代医学术语直接回填。"
+      ],
+      "evidence_status": "digital_transcription_candidate",
+      "review_status": "unreviewed"
+    },
+    {
+      "case_id": "xy_017",
+      "source_id": "src_lushi_ansi",
+      "period": "qin_han",
+      "text_layer": "base_text",
+      "locator": "安死；厚葬、发冢与“知邻类”论述段",
+      "excerpt": "夫爱人者众，知爱人者寡。……夫爱之而反危之，其此之谓乎。《诗》曰：“不敢暴虎，不敢冯河，人知其一，莫知其他”，此言不知邻类也。",
+      "problem": "行动者的良好意图是否足以保证行动结果符合目标？如何表示行动方法与结果之间的关联，以及对结果的规范评价？",
+      "operation": [
+        "normative_argument",
+        "contextual_constraint",
+        "causal_critique",
+        "analogy"
+      ],
+      "premises": [
+        "文本以厚葬可能导致墓葬被发掘的风险，说明爱护死者的意图可能产生相反结果。",
+        "“知邻类”被用于提醒行动者辨认行为方式与后续结果之间的联系。",
+        "该段将行动是否真正保护死者与行为者自认为的爱护区分开来。"
+      ],
+      "conclusion_scope": "可支持对《安死》篇行动—结果论证的分析；不能仅凭古代文本断言所有厚葬必然导致盗墓，也不能把文本中的必然性措辞直接升级为现代经验因果结论。",
+      "counterexample_or_boundary": [
+        "墓葬风险还可能受社会秩序、地理、安保、时代和盗掘动机等条件影响。",
+        "良好意图与实际结果是不同评价维度，不能相互替代。",
+        "文本中的行动—结果关系仍需历史材料和独立证据核验。"
+      ],
+      "alternative_readings": [
+        "“邻类”究竟侧重相邻类别、行动后果关系还是更广义的结果关联，现代学者有解释分歧。",
+        "《诗》引文及“东冢抇”等字形、句读需进一步校勘。"
+      ],
+      "evidence_status": "digital_transcription_candidate",
+      "review_status": "unreviewed"
+    },
+    {
+      "case_id": "xy_018",
+      "source_id": "src_lushi_bielei",
+      "period": "qin_han",
+      "text_layer": "base_text",
+      "locator": "别类；高阳应将为室家及房屋后期失败故事",
+      "excerpt": "高阳应将为室家，匠对曰：“未可也。木尚生，加涂其上，必将挠。……木益枯则劲，涂益乾则轻，以益劲任益轻则不败。”……室之始成也善，其后果败。高阳应好小察，而不通乎大理也。",
+      "problem": "局部趋势推理在形式上看似连贯，为什么仍可能在整体工程和延迟结果上失败？",
+      "operation": [
+        "analogy",
+        "contextual_constraint",
+        "causal_critique",
+        "observation"
+      ],
+      "premises": [
+        "匠人根据木料尚生、承重与涂泥重量提出房屋后期可能挠曲失败的判断。",
+        "高阳应以木料变干更坚、涂泥变干更轻的局部趋势反驳，推断结构不会失败。",
+        "文本报告房屋初成良好而后期果然失败，并以“好小察而不通乎大理”评价其推断。"
+      ],
+      "conclusion_scope": "可支持区分局部属性趋势、整体结构约束与延迟结果；不能把古代房屋故事直接当作现代结构工程实验，也不能未经版本核对将所有平行文本细节拼成一条定本。",
+      "counterexample_or_boundary": [
+        "局部木材强度增加不自动证明整体结构在湿材、连接、荷载和时间变化下安全。",
+        "即时成形成功不等于长期稳定；必须记录延迟结果。",
+        "材料状态、施工方式、连接结构和荷载等变量不能由单一局部趋势替代。"
+      ],
+      "alternative_readings": [
+        "人物名见高阳应、高阳魋等不同录文；须分别记录传本，不可无说明地统一。",
+        "不同平行文本在“木尚生”“生材任重涂”等表述上有差异。",
+        "“好小察”可作局部细察而不通整体事理的批评；其具体思想史含义仍需与全篇论证合看。"
+      ],
+      "evidence_status": "digital_transcription_candidate",
+      "review_status": "unreviewed"
+    },
+    {
+      "case_id": "xy_019",
+      "source_id": "src_lushi_yingtong",
+      "period": "qin_han",
+      "text_layer": "base_text",
+      "locator": "有始览·应同；黄帝、禹、汤、文王祥瑞与五行德运对应段",
+      "excerpt": "凡帝王者之将兴也，天必先见祥乎下民。黄帝之时，天先见大蚓大蝼，黄帝曰“土气胜”，土气胜，故其色尚黄，其事则土。及禹之时，天先见草木秋冬不杀，禹曰“木气胜”，木气胜，故其色尚青，其事则木。及汤之时，天先见金刃生于水，汤曰“金气胜”，金气胜，故其色尚白，其事则金。",
+      "problem": "文本如何将天象征兆、五行德运、颜色和政事组织成王朝兴替的解释链？这种象征/政治对应能否直接当作自然因果关系？",
+      "operation": [
+        "correspondence",
+        "normative_argument",
+        "rhetoric",
+        "contextual_constraint"
+      ],
+      "premises": [
+        "篇章将王朝兴起前的祥瑞征兆与土、木、金等五行之气相联系。",
+        "五行之气进一步与颜色尚取和政事属性建立对应。",
+        "文本以此构成解释王朝兴替及政治秩序的叙事框架。"
+      ],
+      "conclusion_scope": "可支持重建《应同》篇内部的祥瑞—德运—颜色—政事对应结构，以及其政治宇宙论功能；不能据此断言天象在现代经验意义上导致王朝兴替，也不能把五行配属直接当作自然科学分类。",
+      "counterexample_or_boundary": [
+        "文本中的对应关系是历史思想与政治解释材料，不等于已验证的物理因果机制。",
+        "祥瑞叙事可能承担合法性建构、历史追溯和政治修辞功能，须与实际天象记录分开。",
+        "五行德运框架内部的解释一致性不能替代对具体历史事件的独立史料核验。"
+      ],
+      "alternative_readings": [
+        "篇章中的五行相胜、德运更替与祥瑞征兆可能涉及不同思想层次，需结合《吕氏春秋》全书及先秦两汉五行文献考察。",
+        "具体祥瑞名物及其与历史人物、年代的对应仍需版本与史料复核。",
+        "熊凯 2006 提出《应同》兼有“应”（感应/五德）与“同”（从同/帝王霸论）两方面，并假设其五德论可能经后期墨家改造；此为现代竞争解释，不是定论。"
+      ],
+      "evidence_status": "digital_transcription_candidate",
+      "review_status": "unreviewed"
+    },
+    {
+      "case_id": "xy_020",
+      "source_id": "src_chunqiu_fanlu",
+      "period": "qin_han",
+      "text_layer": "base_text",
+      "locator": "卷十三·同类相动第五十七；“今平地注水”至“物故以类相召”段",
+      "excerpt": "今平地注水，去燥就湿；均薪施火，去湿就燥。百物其去所与异，而从其所与同，故气同则会，声比则应。试调琴瑟而错之，鼓其宫则他宫应之，鼓其商而他商应之。……美事召美类，恶事召恶类，类之相应而起也。",
+      "problem": "文本如何从物性趋同、声音共振等例子，扩展到人事、祥瑞和政治兴亡的“同类相动”？不同领域之间的机制是否相同？",
+      "operation": [
+        "correspondence",
+        "analogy",
+        "analogy_rule",
+        "contextual_constraint",
+        "causal_critique"
+      ],
+      "premises": [
+        "篇章先以水趋湿、火趋燥和琴瑟同音相应作为“同类相动”的例证。",
+        "随后将同类相应扩展到美恶之事、帝王兴亡与祥瑞妖孽等人事政治领域。",
+        "文本以“物故以类相召”概括其宇宙论解释，但不同例证的可观察机制并不相同。"
+      ],
+      "conclusion_scope": "可支持重建《同类相动》篇内部由物性趋同、声学共鸣到人事政治感应的论证扩展；不能因前段物理例证可观察，就直接证明后段天人感应或王朝祥瑞具有相同机制，也不能将传世篇章的全部主张无差别归于董仲舒本人。",
+      "counterexample_or_boundary": [
+        "琴瑟共鸣可提出可测量的声学条件，但不能自动验证祥瑞与王朝兴亡之间的因果关系。",
+        "不同领域共享“同类”这一解释词，不代表它们具有同一种作用机制或相同证据标准。",
+        "历史上的祥瑞记录、政治叙事与自然现象观察需要独立来源，不能互相循环证明。"
+      ],
+      "alternative_readings": [
+        "“同类相动”可被解释为宇宙论中的感应律则，也可从篇章论证结构角度理解为由可感应例证向天人关系的类推；二者需并列审查。",
+        "《春秋繁露》篇章层累与董仲舒著作归属问题，要求将传世文本、汉代思想背景和后世编定层分开。"
+      ],
+      "evidence_status": "digital_transcription_candidate",
+      "review_status": "unreviewed"
+    },
+    {
+      "case_id": "xy_021",
+      "source_id": "src_mozi",
+      "period": "pre_qin",
+      "text_layer": "base_text",
+      "locator": "卷十一·小取；“夫物有以同而不率遂同”至“不可常用也”段",
+      "excerpt": "夫物有以同而不率遂同。……其然也，有所以然也；其然也同，其所以然不必同。其取之也，有所以取之；其取之也同，其所以取之不必同。是故辟、侔、援、推之辞，行而异，转而危，远而失，流而离本，则不可不审也，不可常用也。",
+      "problem": "在辟、侔、援、推等论辩操作中，哪些相同关系足以支持迁移？相同结果、相同命题形式或相同取舍，是否能保证其原因和根据也相同？",
+      "operation": [
+        "analogy",
+        "analogy_rule",
+        "causal_critique",
+        "contextual_constraint"
+      ],
+      "premises": [
+        "文本承认事物可在某一方面相同，但不因此整体相同。",
+        "文本明确区分“其然”与“所以然”，并指出结果/表面判断相同不保证其原因相同。",
+        "文本还区分取舍结果与取舍根据；相同的取舍不保证其理由相同。",
+        "辟、侔、援、推均可能在迁移中发生偏离，因此不可不审、不可常用。"
+      ],
+      "conclusion_scope": "可支持建立论辩操作与推理担保分离的约束：必须显式记录共享根据、关键差异、结论类型和适用范围；若从相同结果推出相同原因，应拒绝或暂停。不能据此把辟、侔、援、推机械等同于现代四种逻辑算子，也不能把本段当作唯一训诂定论。",
+      "counterexample_or_boundary": [
+        "同果异因：相同结果可能由不同机制产生，结果相似不足以确认因果机制相同。",
+        "句式平行或词项相同可能掩盖对象、条件、角色和规范标准差异。",
+        "若只选择支持案例而不记录反例，推类可能因样本选择偏差而离本。",
+        "同一论辩操作在不同任务、语境和结论类型下，其适用边界不同。"
+      ],
+      "alternative_readings": [
+        "“辟、侔、援、推”的具体训释及彼此边界在注家和现代研究中有不同解释；项目暂将其作为历史论辩操作标签，而非已定型的形式逻辑算子。",
+        "《小取》“其然/所以然”可从结果与原因、命题成立与成立根据等角度解释；这些解释应并列保存，不预先合并。",
+        "清代以来《墨子闲诂》等校释可用于定位异文与解释史，但不得回填为先秦原文。"
+      ],
+      "evidence_status": "digital_transcription_candidate",
+      "review_status": "unreviewed"
+    },
+    {
+      "case_id": "xy_022",
+      "source_id": "src_mojing_jingxia",
+      "period": "pre_qin",
+      "text_layer": "base_text",
+      "locator": "卷十·经下“推类之难，说在之大小”及经说下对应解释",
+      "excerpt": "推类之难，说在之大小。",
+      "problem": "当推类跨越总名、类名与种别名时，谓词是否能沿分类层级自由迁移？“四足兽”与“牛马”的大小层级如何限制推类？",
+      "operation": [
+        "classification",
+        "analogy_rule",
+        "contextual_constraint",
+        "causal_critique"
+      ],
+      "premises": [
+        "《经下》明确以“推类之难”提出类推难题，并将问题关联到“大小”。",
+        "《经说下》及后世校释围绕四足兽与牛马的总名、种别名关系展开解释。",
+        "不同校本对关键字句有异文和校改，解释层级不能被伪装成无争议正文。"
+      ],
+      "conclusion_scope": "可支持建立总名/类名/种别名层级门禁：类别成员关系与谓词适用范围必须分别记录；不能从某个种别或个体的属性无条件上推到上位总名，也不能仅凭名称包含关系断言所有谓词均可向下继承。不能把此条机械解释为现代集合论或生物分类学定理。",
+      "counterexample_or_boundary": [
+        "某匹马的个体属性不因此成为所有四足兽的共同属性。",
+        "上位类别成员资格成立，不代表该成员继承某一兄弟子类的特有属性。",
+        "总名、类名和私名的层级关系需结合具体谓词，不可只靠名词外延大小决定推论方向。",
+        "“四足兽/牛马”解释依赖经说、校注与异文，须保留版本和解释分层。"
+      ],
+      "alternative_readings": [
+        "《墨子闲诂》对“谓四足兽与牛马”一段有“与牛马异”等校改及大小解释；吴毓江校注本另有异文处理。",
+        "“大小”可理解为名类外延层级，也可能涉及同异关系与谓词适用范围；当前工程操作化不是唯一训诂。",
+        "《经下》正文与《经说下》解释文字必须分层保存，不能把注家校改并入正文摘录。"
+      ],
+      "evidence_status": "digital_transcription_candidate",
+      "review_status": "unreviewed"
+    },
+    {
+      "case_id": "xy_023",
+      "source_id": "src_mojing_jingshang",
+      "period": "pre_qin",
+      "text_layer": "base_text",
+      "locator": "卷十·经上“名，达、类、私”及经说上对应释名条",
+      "excerpt": "名，达、类、私。……名：物，达也。有实必待之名也。命之马，类也；若实也者，必以是名也。命之臧，私也；是名也止于是实也。",
+      "problem": "名称的外延层级如何区分？广名、类名与私名分别允许怎样的指称与谓词推广？",
+      "operation": [
+        "naming",
+        "classification",
+        "reference",
+        "contextual_constraint"
+      ],
+      "premises": [
+        "《经上》以“达、类、私”区分名称层级。",
+        "《经说上》以“物”“马”“臧”分别说明广泛共名、类别名称与限于特定实的私名。",
+        "名称层级与对象成员资格有关，但不能仅凭词语外延大小决定所有谓词的继承范围。"
+      ],
+      "conclusion_scope": "可支持将名称层级、类别成员关系与个体指称分开建模；广名覆盖范围大，不意味着每个个体属性都能上推为广名谓词；类名只适用于其类别成员，私名不自动推广为类名。不能把“达/类/私”直接等同现代集合论、公理化类型系统或完整本体论。",
+      "counterexample_or_boundary": [
+        "一个名为“臧”的个体具有某属性，不意味着所有同类对象都具有该属性。",
+        "“马”作为类名可指该类成员，但不能将马的特有属性推广到“物”这一广名。",
+        "同一对象可同时被广名、类名和私名指称；指称层级不等于对象实体层级互斥。"
+      ],
+      "alternative_readings": [
+        "“有实必待之名也”存在“文多”等异文与孙诒让校改，必须保存底本、校改和解释层。",
+        "“达、类、私”可从名称外延、指称范围或概念层级解释；不同现代研究对其与一般/特殊/个别的对应关系并非完全一致。",
+        "“臧”在经说中的私名示例应结合原文和注释理解，不得直接把后世常见词义回填为先秦原义。"
+      ],
+      "evidence_status": "digital_transcription_candidate",
+      "review_status": "unreviewed"
+    },
+    {
+      "case_id": "xy_024",
+      "source_id": "src_mojing_jingshang",
+      "period": "pre_qin",
+      "text_layer": "base_text",
+      "locator": "卷十·经上“知，闻、说、亲”及经说上对应释知条",
+      "excerpt": "知，闻、说、亲。……知：传受之，闻也；方不㢓，说也；身观焉，亲也。",
+      "problem": "同一判断的证据来自传闻、推论还是亲身观察？不同知识来源能否互相替代？",
+      "operation": [
+        "observation",
+        "perception_grounding",
+        "contextual_constraint",
+        "causal_critique"
+      ],
+      "premises": [
+        "《经上》把知分为闻、说、亲三种来源。",
+        "《经说上》分别以传受、推论和亲身观察解释三者。",
+        "传闻可以报告事实，推论可以由既有材料得出结论，亲历则提供直接观察；三者证据地位不同。"
+      ],
+      "conclusion_scope": "可支持对知识来源进行 provenance 分层：亲历观察、传受报告和推论必须分别记录；模型输出应另行标记，不能冒充亲历或独立证据。不能把闻、说、亲简单等同现代证据等级，也不能仅凭“亲”字断言观察无误。",
+      "counterexample_or_boundary": [
+        "传闻来源可能存在转述失真；须记录报告者、传递链和原始出处。",
+        "推论可能有效也可能无效；推理过程不能替代其前提证据。",
+        "亲身观察可能受感官限制、观察条件和测量误差影响。",
+        "模型输出若仅复述传闻或推论，不能因生成形式而升级为独立观察。"
+      ],
+      "alternative_readings": [
+        "“方不㢓/方不障”等字句存在数字录文与校释差异，当前仅引用较稳定的“知，闻、说、亲”经文。",
+        "闻、说、亲的具体认识论含义应结合《经说上》全文和历代校注，不能只凭现代证据术语作一一对应。"
+      ],
+      "evidence_status": "digital_transcription_candidate",
+      "review_status": "unreviewed"
+    },
+    {
+      "case_id": "xy_025",
+      "source_id": "src_huainan_shuoshan",
+      "period": "qin_han",
+      "text_layer": "base_text",
+      "locator": "说山训；“此类之推者也”“此类之不推者也”及“类不可必推”段",
+      "excerpt": "貍头愈鼠，鸡头巳瘘，虻散积血，斫木愈龋，此类之推者也。膏之杀鳖，鹊，矢中猬，烂灰生蝇，漆见蟹而不乾，此类之不推者也。……类不可必推。",
+      "problem": "《说山训》为何同时列出“类之推者”与“类之不推者”？类推是否应由共享名称或表面相似决定，还是由具体关系、作用条件和可迁移的不变量决定？",
+      "operation": [
+        "analogy",
+        "classification",
+        "contextual_constraint",
+        "causal_critique"
+      ],
+      "premises": [
+        "篇章并列可推与不可推的例子，直接否定“凡相类皆可推”的一概规则。",
+        "可推案例与不可推案例涉及不同对象、用途和作用关系；是否可迁移必须逐条识别其共同机制或相关关系，不能只按词面归类。",
+        "“推与不推，若非而是，若是而非，孰能通其微”提示判断边界可能依赖细微条件，而非简单二分的静态相似度。"
+      ],
+      "conclusion_scope": "可支持一种关系与条件敏感的推类框架：每次迁移都要说明比较维度、作用关系、主体/对象、环境条件和反例；文本列举的经验主张仍是古典文本内容，不直接作为现代医学或生物学事实。",
+      "counterexample_or_boundary": [
+        "同属一个大类不意味着相同用途、机制或效果。",
+        "看似相似的材料在接触对象、剂量、温度、时间或环境改变时，效果可能不同。",
+        "古代疗效与物性例证需现代独立证据复核，不可直接作为医疗建议或科学事实。",
+        "“类不可必推”不等于任何类推都无效；篇章本身保留可推案例，要求逐关系审查。"
+      ],
+      "alternative_readings": [
+        "“推与不推”可解释为经验性类推的适用与失效，也可能包含对辨察能力与情境判断的强调；须结合全篇和高诱注保留解释层次。",
+        "不同数字转录对“鸡头巳瘘”等字句存在识读与异文风险，当前摘录不视为校定原文。"
+      ],
+      "evidence_status": "digital_transcription_candidate",
+      "review_status": "unreviewed"
+    },
+    {
+      "case_id": "xy_026",
+      "source_id": "src_huainan_shuoshan",
+      "period": "qin_han",
+      "text_layer": "base_text",
+      "locator": "说林训；“环可以喻员，不必以轮；绦可以为繶，不必以紃”段",
+      "excerpt": "环可以喻员，不必以轮；绦可以为繶，不必以紃。",
+      "problem": "类比是否可以只保持一个选定结构维度，而不迁移对象身份、全部用途或完整机制？",
+      "operation": [
+        "analogy",
+        "contextual_constraint",
+        "classification"
+      ],
+      "premises": [
+        "文本以环、绦为喻体，强调可取其某一形制关系作譬喻。",
+        "“可以喻”说明特定维度的表征/说明关系，不自动表示对象同一或功能全同。",
+        "“不必”限制了将某一具体器物作为唯一或必需对应物的做法；具体训释仍需结合版本和高诱注等解释层。"
+      ],
+      "conclusion_scope": "可作为维度选择性类比的候选文本案例：源域与目标域可以只在被声明的结构属性上对应；系统必须明确保留的维度、未迁移的维度及解释边界。不能据此断言环就是轮、绦就是繶/紃，也不能将局部形制相似升级为用途或因果等价。",
+      "counterexample_or_boundary": [
+        "圆形相似不意味着环与轮具有相同结构、运动方式或用途。",
+        "一个喻体可在形状维度有效、在材料、功能、制造方式或因果机制维度失效。",
+        "若比较维度未声明，系统不得自行挑选最有利的相似点。",
+        "“繶”“紃”及相关字形、训释和断句仍需版本校勘，不将当前数字录文当作定本。"
+      ],
+      "alternative_readings": [
+        "“员/圆”“繶/紃”等字词及其名物训释存在需要进一步核对的空间；当前只把该句作为维度受限譬喻的研究入口。",
+        "该句可偏重形制譬喻，也可能涉及名物与制度用语；不可在未完成训诂前锁定唯一技术解释。"
+      ],
+      "evidence_status": "digital_transcription_candidate",
+      "review_status": "unreviewed"
+    }
+  ]
+}

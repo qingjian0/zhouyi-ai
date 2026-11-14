@@ -1,0 +1,3602 @@
+[
+  {
+    "record_id": "zhouyi-xici-lei-ju-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "周易·系辞上传",
+      "traditional_authority": "传统归属与作者/成篇年代问题保留学术争议",
+      "composition_period": "战国至汉初层累形成说并存",
+      "genre": "易传"
+    },
+    "period": "uncertain",
+    "source_type": "classical_text",
+    "tradition": [
+      "易传",
+      "类象研究"
+    ],
+    "witness": {
+      "witness_id": "ctext-zhouyi-xici-search-witness",
+      "edition_or_database": "中国哲学书电子化计划《周易》相关文本入口；需进一步确认底本与页面所用版本",
+      "url": "https://ctext.org/book-of-changes/yi-jing/zhs",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "平台条款另行核验；仅保留必要短引"
+    },
+    "locator": {
+      "chapter": "系辞上传·第一章",
+      "section_or_line": "天尊地卑章"
+    },
+    "text": "方以类聚，物以群分，吉凶生矣。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "xici-fang-lei-001",
+        "claim_kind": "textual_observation",
+        "subject": "方与物",
+        "predicate": "以类聚/以群分",
+        "object": "类聚与群分",
+        "interpretive_note": "原文并置‘方以类聚’与‘物以群分’，并联系吉凶判断；‘方’的训义及指向须并列记录。",
+        "scope": "限于所引语句及其语境；不得直接外推为现代自然科学因果定律。",
+        "conditions": [
+          "保留历代训诂与注家异说"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "短引与元数据，不复制现代注释。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "需与《周易正义》及其他独立经传校本逐字校勘；当前仅为数字检索见证。"
+    ],
+    "concept_tags": [
+      "classification",
+      "analogy_method",
+      "observation"
+    ],
+    "method_families": [
+      "classification"
+    ]
+  },
+  {
+    "record_id": "lujia-xinyu-shushi-leicong-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "新语·术事",
+      "traditional_authority": "传统归于陆贾；文本传承与具体篇章形成仍应参考校勘本",
+      "composition_period": "西汉",
+      "genre": "政论/子书"
+    },
+    "period": "qin_han",
+    "source_type": "classical_text",
+    "tradition": [
+      "汉代政论",
+      "推类",
+      "类应"
+    ],
+    "witness": {
+      "witness_id": "ctext-xinyu-shushi",
+      "edition_or_database": "中国哲学书电子化计划；页面列有《四部丛刊初编》本等底本信息",
+      "url": "https://ctext.org/xinyu/shushi/zhs",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台条款另行核验；仅保留必要短引"
+    },
+    "locator": {
+      "chapter": "术事",
+      "section_or_line": "故性藏于人，则气达于天段"
+    },
+    "text": "事以类相从，声以音相应。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "xinyu-shushi-leicong-001",
+        "claim_kind": "textual_observation",
+        "subject": "事与声",
+        "predicate": "以类相从/以音相应",
+        "object": "分类趋从与音声响应",
+        "interpretive_note": "汉代文本把事类趋从、声与音响应并列，并置于治本、正形、养根等论述中；可用于研究跨域类应结构，但不等同现代因果机制。",
+        "scope": "限于《新语·术事》语境；与《系辞》相关语句的承袭关系需单独考证。",
+        "relation_type": "class_affinity_and_correspondence",
+        "conditions": [
+          "保留篇章论说语境",
+          "区分相似关系与因果关系"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "短引，不复制现代注释。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "需与《四部丛刊初编》影印本或可靠校点本核对。"
+    ],
+    "concept_tags": [
+      "analogy_method",
+      "correspondence",
+      "observation"
+    ],
+    "method_families": [
+      "analogical_argument",
+      "cosmological_correspondence"
+    ]
+  },
+  {
+    "record_id": "zhouyi-shuogua-guanbian-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "周易·说卦传",
+      "traditional_authority": "传统列入十翼；成篇年代与层次存在研究讨论",
+      "composition_period": "战国至汉初层累形成说并存",
+      "genre": "易传"
+    },
+    "period": "uncertain",
+    "source_type": "classical_text",
+    "tradition": [
+      "易传",
+      "阴阳",
+      "卦爻生成"
+    ],
+    "witness": {
+      "witness_id": "ctext-shuogua-secondary-citation",
+      "edition_or_database": "中国哲学书电子化计划所收后世易学文献引录；非独立经传底本",
+      "url": "https://ctext.org/wiki.pl?chapter=3650253&if=gb&remap=gb",
+      "access_date": "2026-11-13",
+      "witness_kind": "secondary_transcription",
+      "license_status": "数字平台条款另行核验"
+    },
+    "locator": {
+      "chapter": "说卦传",
+      "section_or_line": "观变于阴阳而立卦"
+    },
+    "text": "观变于阴阳而立卦，发挥于刚柔而生爻。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "shuogua-guanbian-001",
+        "claim_kind": "textual_observation",
+        "subject": "阴阳变化",
+        "predicate": "观变而立卦",
+        "object": "卦的建立",
+        "interpretive_note": "语句将观察阴阳变化与立卦联系，将刚柔发挥与生爻联系；可作为结构生成研究入口。",
+        "scope": "仅陈述传文思想，不据此推定历史上唯一的卦画起源机制。",
+        "relation_type": "state_observation_to_symbolic_structure",
+        "conditions": [
+          "区分文本思想与易学史实证问题"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录条款另行核验",
+      "database_license": "未核验"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "当前数字见证来自后世文献引录；须继续寻找独立经传底本核对。"
+    ],
+    "concept_tags": [
+      "yin_yang",
+      "state_change",
+      "image_selection"
+    ],
+    "method_families": [
+      "symbolic_correspondence",
+      "phenomenological_observation"
+    ]
+  },
+  {
+    "record_id": "zhouyi-yaoyi-nixingxiang-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "周易要义（引《系辞》）",
+      "traditional_authority": "具体编者、成书年代及文本层次待据目录与版本考订",
+      "composition_period": "待考",
+      "genre": "易学注疏/义疏材料"
+    },
+    "period": "uncertain",
+    "source_type": "historical_commentary",
+    "tradition": [
+      "易传注疏",
+      "拟象解释"
+    ],
+    "witness": {
+      "witness_id": "ctext-zhouyi-yaoyi-xici",
+      "edition_or_database": "中国哲学书电子化计划《周易要义》数字转录",
+      "url": "https://ctext.org/wiki.pl?chapter=519834&if=gb&remap=gb",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台条款另行核验"
+    },
+    "locator": {
+      "chapter": "卷十七",
+      "section_or_line": "拟形容谓之象"
+    },
+    "text": "圣人有以见天下之赜，而拟诸其形容，象其物宜，是故谓之象。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "zhouyi-yaoyi-nixingxiang-001",
+        "claim_kind": "commentarial_interpretation",
+        "subject": "象",
+        "predicate": "拟诸形容/象其物宜",
+        "object": "对天下事物形态与适宜之象的拟取",
+        "interpretive_note": "此处作为注疏所引《系辞》语句的见证；不能将注疏编者的解释与《系辞》原文混同。‘拟’与‘象’的关系须继续对勘不同注家。",
+        "scope": "仅作为注疏传承中的引文记录，不据此定论象的唯一哲学定义。",
+        "relation_type": "observation_and_analogical_representation",
+        "conditions": [
+          "原文与注文分层",
+          "待考编者与版本"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      }
+    ],
+    "rights": {
+      "text_license": "古典引文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "需要核实《周易要义》的作者、时代、版本及原文上下文。"
+    ],
+    "concept_tags": [
+      "image_selection",
+      "commentarial_exegesis"
+    ],
+    "method_families": [
+      "commentarial_exegesis"
+    ]
+  },
+  {
+    "record_id": "mozi-xiaoqu-tuilei-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "墨子·小取",
+      "traditional_authority": "传统题署与文本层次须按校勘本进一步核验",
+      "composition_period": "战国时期或战国层累材料；具体篇章年代仍待考",
+      "genre": "墨家名辩篇章"
+    },
+    "period": "pre_qin",
+    "source_type": "classical_text",
+    "tradition": [
+      "先秦诸子",
+      "类比/推类",
+      "类象理论"
+    ],
+    "witness": {
+      "witness_id": "ctext-mozi-xiaoqu",
+      "edition_or_database": "数字古籍转录检索见证；需与可靠整理本或影印本复核",
+      "url": "https://ctext.org/mozi/book-11/zhs",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台及转录许可另行核验"
+    },
+    "locator": {
+      "chapter": "小取",
+      "section_or_line": "以类取，以类予"
+    },
+    "text": "以类取，以类予。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "mozi-xiaoqu-leiqu-001",
+        "claim_kind": "textual_observation",
+        "subject": "辩论与推论",
+        "predicate": "以类取/以类予",
+        "object": "依类选择与给予论据",
+        "interpretive_note": "《小取》把‘以类取，以类予’置于明同异、察名实、论求群言之比的论辩框架中；它是推类方法的直接文本证据，不等于所有类推都有效。",
+        "scope": "限于该篇文本语境；不自动推广为普遍有效的现代推理规则。",
+        "conditions": [
+          "保留原文语境",
+          "异文与注家解释分层"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引与来源元数据。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "尚未完成影印底本逐字校勘。"
+    ],
+    "concept_tags": [
+      "analogy_method",
+      "classification",
+      "name_reality"
+    ],
+    "method_families": [
+      "analogical_argument"
+    ]
+  },
+  {
+    "record_id": "mozi-xiaoqu-tuili-limit-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "墨子·小取",
+      "traditional_authority": "传统题署与文本层次须按校勘本进一步核验",
+      "composition_period": "战国时期或战国层累材料；具体篇章年代仍待考",
+      "genre": "墨家名辩篇章"
+    },
+    "period": "pre_qin",
+    "source_type": "classical_text",
+    "tradition": [
+      "先秦诸子",
+      "类比/推类",
+      "类象理论"
+    ],
+    "witness": {
+      "witness_id": "ctext-mozi-xiaoqu-limit",
+      "edition_or_database": "数字古籍转录检索见证；需与可靠整理本或影印本复核",
+      "url": "https://ctext.org/mozi/book-11/zhs",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台及转录许可另行核验"
+    },
+    "locator": {
+      "chapter": "小取",
+      "section_or_line": "其然也同，其所以然不必同"
+    },
+    "text": "其然也同，其所以然不必同。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "mozi-xiaoqu-cause-gap-001",
+        "claim_kind": "textual_observation",
+        "subject": "相同现象",
+        "predicate": "不必推出",
+        "object": "相同原因",
+        "interpretive_note": "这是极关键的类推限制：表面结果相同，不足以推出其所以然相同。项目应把‘现象同而机制未必同’设为核心反例测试。",
+        "scope": "限于该篇文本语境；不自动推广为普遍有效的现代推理规则。",
+        "conditions": [
+          "保留原文语境",
+          "异文与注家解释分层"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引与来源元数据。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "尚未完成影印底本逐字校勘。"
+    ],
+    "concept_tags": [
+      "analogy_limit",
+      "causal_inference_limit"
+    ],
+    "method_families": [
+      "analogical_argument",
+      "causal_claim"
+    ]
+  },
+  {
+    "record_id": "mozi-xiaoqu-analogy-caution-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "墨子·小取",
+      "traditional_authority": "传统题署与文本层次须按校勘本进一步核验",
+      "composition_period": "战国时期或战国层累材料；具体篇章年代仍待考",
+      "genre": "墨家名辩篇章"
+    },
+    "period": "pre_qin",
+    "source_type": "classical_text",
+    "tradition": [
+      "先秦诸子",
+      "类比/推类",
+      "类象理论"
+    ],
+    "witness": {
+      "witness_id": "ctext-mozi-xiaoqu-caution",
+      "edition_or_database": "数字古籍转录检索见证；需与可靠整理本或影印本复核",
+      "url": "https://ctext.org/mozi/book-11/zhs",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台及转录许可另行核验"
+    },
+    "locator": {
+      "chapter": "小取",
+      "section_or_line": "则不可不审也，不可常用也"
+    },
+    "text": "则不可不审也，不可常用也。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "mozi-xiaoqu-caution-001",
+        "claim_kind": "textual_observation",
+        "subject": "譬侔援推",
+        "predicate": "须审察且不可常用",
+        "object": "类推方法的适用边界",
+        "interpretive_note": "《小取》明确警告譬、侔、援、推可能在推移过程中失当或离本；这是建立拒绝类比、边界条件与失效诊断的重要经典依据。",
+        "scope": "限于该篇文本语境；不自动推广为普遍有效的现代推理规则。",
+        "conditions": [
+          "保留原文语境",
+          "异文与注家解释分层"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引与来源元数据。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "尚未完成影印底本逐字校勘。"
+    ],
+    "concept_tags": [
+      "analogy_limit",
+      "analogy_method"
+    ],
+    "method_families": [
+      "analogical_argument"
+    ]
+  },
+  {
+    "record_id": "xunzi-zhengming-tonglei-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "荀子·正名",
+      "traditional_authority": "传统题署与文本层次须按校勘本进一步核验",
+      "composition_period": "战国时期或战国层累材料；具体篇章年代仍待考",
+      "genre": "名辩/正名论"
+    },
+    "period": "pre_qin",
+    "source_type": "classical_text",
+    "tradition": [
+      "先秦诸子",
+      "类比/推类",
+      "类象理论"
+    ],
+    "witness": {
+      "witness_id": "wikisource-xunzi-zhengming",
+      "edition_or_database": "数字古籍转录检索见证；需与可靠整理本或影印本复核",
+      "url": "https://zh.wikisource.org/zh-hans/荀子/正名篇",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台及转录许可另行核验"
+    },
+    "locator": {
+      "chapter": "正名",
+      "section_or_line": "凡同类同情者，其天官之意物也同"
+    },
+    "text": "凡同类同情者，其天官之意物也同。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "xunzi-zhengming-samekind-001",
+        "claim_kind": "textual_observation",
+        "subject": "同类同情之物",
+        "predicate": "感官知觉有相同条件",
+        "object": "比方疑似而通",
+        "interpretive_note": "《正名》把同异判断联系到感官对形色声味等对象的辨识条件；类的判断不只是词面相似，还涉及感知条件与对象性质。",
+        "scope": "限于该篇文本语境；不自动推广为普遍有效的现代推理规则。",
+        "conditions": [
+          "保留原文语境",
+          "异文与注家解释分层"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引与来源元数据。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "尚未完成影印底本逐字校勘。"
+    ],
+    "concept_tags": [
+      "sensory_classification",
+      "classification",
+      "name_reality"
+    ],
+    "method_families": [
+      "classification",
+      "lexical_taxonomy",
+      "phenomenological_observation"
+    ]
+  },
+  {
+    "record_id": "lushi-chunqiu-yingtong-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "吕氏春秋·有始览·应同",
+      "traditional_authority": "传统题署与文本层次须按校勘本进一步核验",
+      "composition_period": "战国时期或战国层累材料；具体篇章年代仍待考",
+      "genre": "杂家/类应与感应论"
+    },
+    "period": "pre_qin",
+    "source_type": "classical_text",
+    "tradition": [
+      "先秦诸子",
+      "类比/推类",
+      "类象理论"
+    ],
+    "witness": {
+      "witness_id": "wikisource-lushi-yingtong",
+      "edition_or_database": "数字古籍转录检索见证；需与可靠整理本或影印本复核",
+      "url": "https://zh.wikisource.org/zh-hans/吕氏春秋/卷十三",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台及转录许可另行核验"
+    },
+    "locator": {
+      "chapter": "有始览·应同",
+      "section_or_line": "类固相召，气同则合，声比则应"
+    },
+    "text": "类固相召，气同则合，声比则应。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "lushi-yingtong-class-call-001",
+        "claim_kind": "textual_observation",
+        "subject": "物类/气/声",
+        "predicate": "相召/相合/相应",
+        "object": "类应关系命题",
+        "interpretive_note": "这是战国末期类应与感应论述的重要文本；应作为历史思想主张保存，不作为现代自然因果事实。",
+        "scope": "限于该篇文本语境；不自动推广为普遍有效的现代推理规则。",
+        "conditions": [
+          "保留原文语境",
+          "异文与注家解释分层"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引与来源元数据。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "尚未完成影印底本逐字校勘。"
+    ],
+    "concept_tags": [
+      "correspondence",
+      "cosmology"
+    ],
+    "method_families": [
+      "cosmological_correspondence",
+      "causal_claim"
+    ]
+  },
+  {
+    "record_id": "mozi-xiaoqu-tuilei-boundary-001",
+    "record_version": "0.2.0",
+    "work": {
+      "title": "墨子·小取",
+      "traditional_authority": "传统归于墨翟及墨家后学；篇章形成与编纂层次仍需专门考订",
+      "composition_period": "战国时期墨家论辩文献，具体层次待考",
+      "genre": "名辩/论辩"
+    },
+    "period": "pre_qin",
+    "source_type": "classical_text",
+    "tradition": [
+      "墨家",
+      "名辩",
+      "推类",
+      "论证边界"
+    ],
+    "witness": {
+      "witness_id": "ctext-mozi-xiaoqu-multi-edition",
+      "edition_or_database": "中国哲学书电子化计划《墨子·小取》页面，列有《正统道藏》《墨子闲诂》《四部丛刊初编》等多个文本见证",
+      "url": "https://ctext.org/mozi/minor-illustrations/zh",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台条款另行核验；仅保留必要短引"
+    },
+    "locator": {
+      "chapter": "小取第四十五",
+      "section_or_line": "夫物有以同而不率遂同；其然也同，其所以然不必同；辟侔援推之辞段"
+    },
+    "text": "夫物有以同而不率遂同。其然也同，其所以然不必同。其取之也同，其所以取之不必同。是故辟、侔、援、推之辞……则不可不审也，不可常用也。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "mozi-xiaoqu-same-not-same-cause-001",
+        "claim_kind": "textual_observation",
+        "subject": "事物/论证",
+        "predicate": "表面相同不必然具有相同所以然",
+        "object": "同一结果或取法不能保证其理由/根据相同",
+        "interpretive_note": "《小取》明确区分‘其然’与‘所以然’，指出相同结果或取法并不保证根据相同。可转化为类象迁移中的机制等价审查要求；这是现代工程启发，不应把古文直接等同现代因果理论。",
+        "scope": "限于《小取》论辩语境及所引段落；具体训诂与句读须以校勘本复核。",
+        "relation_type": "similar_outcome_not_sufficient_for_same_reason",
+        "conditions": [
+          "保留篇章上下文",
+          "区分现象相同与所以然相同",
+          "不得直接推为现代因果学说"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      },
+      {
+        "claim_id": "mozi-xiaoqu-analogy-stop-rule-001",
+        "claim_kind": "textual_observation",
+        "subject": "辟、侔、援、推等论辩方式",
+        "predicate": "不可不审/不可常用",
+        "object": "类推与援引需要审查适用边界",
+        "interpretive_note": "文本提醒相关论辩方式在推行、转折、远推时可能失当或离本。适合作为拒绝无条件迁移的古典证据入口。",
+        "scope": "不把墨家论辩术直接等同现代算法；需结合全篇例证研究各术语。",
+        "relation_type": "conditional_inference_with_stop_boundary",
+        "conditions": [
+          "区分辟、侔、援、推的具体定义",
+          "结合后续正反例",
+          "不以单句概括全篇论证理论"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引与来源元数据。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "已通过可访问数字文本发现原文片段；尚未逐字对照影印底本和多版本异文。",
+      "搜索见证列有多种底本，但不能据此声称本项目已完成版本校勘。"
+    ],
+    "method_families": [
+      "analogical_argument",
+      "causal_claim"
+    ],
+    "concept_tags": [
+      "analogy_limit",
+      "causal_inference_limit",
+      "analogy_method"
+    ]
+  },
+  {
+    "record_id": "xunzi-zhengming-tuilei-001",
+    "record_version": "0.2.1",
+    "work": {
+      "title": "荀子·正名篇",
+      "traditional_authority": "传统归于荀况；篇章内部结构及文本层次仍依现代校勘研究审慎处理",
+      "composition_period": "战国晚期至秦汉传承层次待考",
+      "genre": "诸子/正名与论辩"
+    },
+    "period": "pre_qin",
+    "source_type": "classical_text",
+    "tradition": [
+      "荀子",
+      "正名",
+      "辨异",
+      "推类"
+    ],
+    "witness": {
+      "witness_id": "wikisource-xunzi-zhengming",
+      "edition_or_database": "维基文库《荀子·正名篇》数字转录；需继续核对可靠点校本和影印本",
+      "url": "https://zh.wikisource.org/wiki/荀子/正名篇",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "古典原文通常公有领域；数字转录条款另行核验"
+    },
+    "locator": {
+      "chapter": "正名篇",
+      "section_or_line": "正名而期，质请而喻，辨异而不过，推类而不悖"
+    },
+    "text": "正名而期，质请而喻，辨异而不过，推类而不悖。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "xunzi-zhengming-tuilei-noncontradiction-001",
+        "claim_kind": "textual_observation",
+        "subject": "推类",
+        "predicate": "不悖",
+        "object": "推类应避免悖乱/矛盾",
+        "interpretive_note": "原文将‘推类而不悖’与‘辨异而不过’并列，显示推类与辨异共同受到规范约束。具体‘悖’及其论证语境需结合《正名》全篇训诂。",
+        "scope": "限于《荀子·正名》此句及其上下文，不将其直接解释为现代形式逻辑定理。",
+        "relation_type": "analogy_inference_consistency_constraint",
+        "conditions": [
+          "保留辨异与推类的并列关系",
+          "回看全篇名实论证",
+          "与《小取》推类术语比较但不预设同义"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      },
+      {
+        "claim_id": "xunzi-zhengming-distinction-boundary-001",
+        "claim_kind": "textual_observation",
+        "subject": "辨异",
+        "predicate": "不过",
+        "object": "辨别差异须有适当限度",
+        "interpretive_note": "‘辨异而不过’提示分类不仅要发现相同，也要避免过度区分或失度；可作为类别边界与过拟合审查的研究入口。",
+        "scope": "项目中的边界/过拟合术语是现代类比，不等于荀子原文已有统计学习概念。",
+        "relation_type": "category_boundary_constraint",
+        "conditions": [
+          "不把现代统计术语倒灌为古义",
+          "需结合正名篇上下文解释"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      },
+      {
+        "claim_id": "xunzi-zhengming-bianyi-tuilei-001",
+        "claim_kind": "textual_observation",
+        "subject": "辨异与推类",
+        "predicate": "先辨异而后推类",
+        "object": "类推必须受辨异和名实约束",
+        "interpretive_note": "这是项目类象引擎最直接的先秦方法论基准之一：类推不是自由联想，必须检查异同是否过度、推论是否悖理。",
+        "scope": "限于荀子名辩与正名语境；项目操作化不等同荀子原有形式逻辑系统。",
+        "relation_type": "rhetorical_analogy",
+        "xiang_domain": "名学与推理约束",
+        "relation_family": "rhetorical_analogy",
+        "shared_basis": [
+          "对象在指定分类标准下具有可比属性"
+        ],
+        "non_shared_basis": [
+          "属性差异可能使类推不成立"
+        ],
+        "scope_conditions": [
+          "显式声明分类标准、异同点和推论范围"
+        ],
+        "causal_status": "not_claimed",
+        "conditions": [
+          "显式声明分类标准、异同点和推论范围"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed",
+        "reasoning_operations": [
+          "identify_difference",
+          "abstract_shared_basis",
+          "infer_by_analogy",
+          "refuse_transfer"
+        ]
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引与来源元数据。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "数字文本可定位至《正名篇》末段相关论述；尚未与可靠校点本完成异文校勘。",
+      "需与可靠校点本、影印本及异文对读；数字转录不等同于底本校勘。"
+    ],
+    "method_families": [
+      "classification",
+      "analogical_argument"
+    ],
+    "concept_tags": [
+      "classification",
+      "analogy_method",
+      "name_reality"
+    ],
+    "variant_notes": [
+      "同一维基文库《正名篇》数字文本另见 URL https://zh.wikisource.org/zh/荀子/正名篇；与 https://zh.wikisource.org/wiki/荀子/正名篇 为同一数字文本的 URL 形式差异，不作为第二个独立版本或独立证据。",
+      "原有两条项目记录合并为一个文本记录；各自的 claim_id 与解释边界均保留，不能把重复文本见证计作独立复现。"
+    ]
+  },
+  {
+    "record_id": "zhuangzi-qiwulun-bishi-perspective-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "庄子·齐物论",
+      "traditional_authority": "传统归于庄周；内篇文本层次与形成过程仍有学术讨论",
+      "composition_period": "战国时期文本层；具体成篇过程待考",
+      "genre": "道家哲学/论辩"
+    },
+    "period": "pre_qin",
+    "source_type": "classical_text",
+    "tradition": [
+      "先秦诸子",
+      "视角转换",
+      "名辩与分类"
+    ],
+    "witness": {
+      "witness_id": "wikisource-zhuangzi-qiwulun",
+      "edition_or_database": "维基文库《庄子·齐物论》数字转录；须与可靠校点本及古本异文复核",
+      "url": "https://zh.wikisource.org/zh-hans/莊子/齊物論",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "古典文本公有领域；数字平台条款另行核验"
+    },
+    "locator": {
+      "chapter": "齐物论第二",
+      "section_or_line": "物无非彼至彼是莫得其偶段"
+    },
+    "text": "物无非彼，物无非是，自彼则不见，自知则知之。故曰：“彼出于是，是亦因彼。”……彼亦一是非，此亦一是非。果且有彼是乎哉？果且无彼是乎哉？彼是莫得其偶，谓之道枢。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "zhuangzi-qiwulun-perspective-001",
+        "claim_kind": "textual_observation",
+        "subject": "彼/是判断",
+        "predicate": "相因而生并受视域关系制约",
+        "object": "彼是方生及道枢论述",
+        "interpretive_note": "文本将彼与是置于相互依待的论述中，并追问彼是之偶。此处适合作为视角依赖、对立项生成和判断边界的研究材料；不可简化为所有判断等价或一切差异均不存在。",
+        "scope": "限于《齐物论》该段的论辩语境；不外推为现代认识论定理。",
+        "conditions": [
+          "保留上下文与古本异文",
+          "区分文本陈述、郭象等注家解释和现代哲学阐释"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文公有领域；数字转录条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保留必要短引与来源元数据。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "数字转录检索见证，尚未与郭庆藩《庄子集释》及其他可靠校本逐字校勘。"
+    ],
+    "concept_tags": [
+      "classification",
+      "analogy_limit",
+      "name_reality",
+      "observation"
+    ],
+    "method_families": [
+      "rhetorical_analogy",
+      "comparative_exegesis"
+    ]
+  },
+  {
+    "record_id": "xunzi-jiebi-multidifference-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "荀子·解蔽",
+      "traditional_authority": "传统归于荀况；篇章文本层次须参考校勘本",
+      "composition_period": "战国末期文本层；具体篇章形成仍待专门考订",
+      "genre": "先秦哲学/认识论与心术论"
+    },
+    "period": "pre_qin",
+    "source_type": "classical_text",
+    "tradition": [
+      "先秦诸子",
+      "认识论",
+      "分类与辨异"
+    ],
+    "witness": {
+      "witness_id": "wikisource-xunzi-jiebi",
+      "edition_or_database": "维基文库《荀子·解蔽篇》数字转录；须与可靠校点本复核",
+      "url": "https://zh.wikisource.org/zh-hans/荀子/解蔽篇",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "古典文本公有领域；数字平台条款另行核验"
+    },
+    "locator": {
+      "chapter": "解蔽篇第二十一",
+      "section_or_line": "兼陈万物而中县衡段"
+    },
+    "text": "是故众异不得相蔽以乱其伦也。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "xunzi-jiebi-multidifference-001",
+        "claim_kind": "textual_observation",
+        "subject": "众异",
+        "predicate": "不得相蔽以乱其伦",
+        "object": "辨异而保持分类秩序",
+        "interpretive_note": "《解蔽》把兼陈万物与防止众异相蔽联系起来。可转化为类象引擎的反偏见约束：不得让单一维度或局部类别吞并其他差异；但这是对文本论旨的工程化研究入口，不等同现代分类学公理。",
+        "scope": "限于《解蔽》该段的认识论与心术论语境。",
+        "conditions": [
+          "结合上文‘凡万物异则莫不相为蔽’及下文‘虚壹而静’阅读",
+          "保留不同注家对‘伦’的训释"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文公有领域；数字转录条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保留必要短引与来源元数据。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "需与王先谦《荀子集解》及现代整理本校勘；当前为数字转录见证。"
+    ],
+    "concept_tags": [
+      "classification",
+      "analogy_limit",
+      "observation"
+    ],
+    "method_families": [
+      "classification",
+      "analogical_argument"
+    ]
+  },
+  {
+    "record_id": "xunzi-jiebi-xin-xuzhiyingjing-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "荀子·解蔽",
+      "traditional_authority": "传统归于荀况；篇章文本层次须参考校勘本",
+      "composition_period": "战国末期文本层；具体篇章形成仍待专门考订",
+      "genre": "先秦哲学/认识论与心术论"
+    },
+    "period": "pre_qin",
+    "source_type": "classical_text",
+    "tradition": [
+      "先秦诸子",
+      "认识论",
+      "观察方法"
+    ],
+    "witness": {
+      "witness_id": "wikisource-xunzi-jiebi",
+      "edition_or_database": "维基文库《荀子·解蔽篇》数字转录；须与可靠校点本复核",
+      "url": "https://zh.wikisource.org/zh-hans/荀子/解蔽篇",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "古典文本公有领域；数字平台条款另行核验"
+    },
+    "locator": {
+      "chapter": "解蔽篇第二十一",
+      "section_or_line": "人何以知道至虚壹而静段"
+    },
+    "text": "人何以知道？曰：心。心何以知？曰：虚壹而静。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "xunzi-jiebi-xuzhijing-001",
+        "claim_kind": "textual_observation",
+        "subject": "心之认知",
+        "predicate": "以虚壹而静为知的条件",
+        "object": "虚、壹、静的认识方法",
+        "interpretive_note": "该句提出‘虚壹而静’作为求知方法，后文分别解释虚、不以已知妨碍将受；壹、不以一知害另一知；静、不以纷扰乱知。可启发模型的开放输入、并列证据和抑制噪声机制，但不能将古代心术术语直接等同现代机器学习机制。",
+        "scope": "限于《解蔽》该段；具体训诂与三义边界须结合全文和注疏。",
+        "conditions": [
+          "结合后文逐项定义，不以现代词义替换古义",
+          "工程映射单独标注为项目假设"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文公有领域；数字转录条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保留必要短引与来源元数据。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "需与王先谦《荀子集解》及现代整理本校勘；当前为数字转录见证。"
+    ],
+    "concept_tags": [
+      "observation",
+      "analogy_limit",
+      "natural_knowledge"
+    ],
+    "method_families": [
+      "phenomenological_observation",
+      "classification"
+    ]
+  },
+  {
+    "record_id": "huainanzi-tianwen-feather-scale-class-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "淮南子·天文训",
+      "traditional_authority": "传统归于淮南王刘安及门客编纂；具体篇章层次需据校勘本研究",
+      "composition_period": "西汉前期编纂；传本与篇章层次仍需校核",
+      "genre": "子书/宇宙论与自然知识"
+    },
+    "period": "qin_han",
+    "source_type": "classical_text",
+    "tradition": [
+      "汉代自然知识",
+      "阴阳分类",
+      "物类与感应"
+    ],
+    "witness": {
+      "witness_id": "wikisource-huainanzi-tianwen-huainanzi-tianwen-feather-scale-class-001",
+      "edition_or_database": "维基文库《淮南子·天文训》数字转录检索见证",
+      "url": "https://zh.wikisource.org/zh-hans/淮南子/天文训",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "古典原文公有领域；数字转录许可按平台条款核验"
+    },
+    "locator": {
+      "chapter": "天文训",
+      "section_or_line": "毛羽者，飞行之类也"
+    },
+    "text": "毛羽者，飞行之类也，故属于阳。介鳞者，蛰伏之类也，故属于阴。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "huainanzi-tianwen-class-by-motion-001",
+        "claim_kind": "textual_observation",
+        "subject": "毛羽与介鳞之物",
+        "predicate": "按飞行/蛰伏分类并配阴阳",
+        "object": "动物类别与阴阳属性",
+        "interpretive_note": "文本以活动方式或习性作为分类依据，并将类属纳入阴阳框架；应研究其分类标准与古代自然知识语境，不当作现代生物分类。",
+        "scope": "限于《天文训》的汉代宇宙论语境；不直接视为现代生物学或物理因果结论。",
+        "conditions": [
+          "区分古代分类框架与现代科学分类",
+          "保留历史思想语境"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录条款另行核验",
+      "database_license": "按平台条款核验",
+      "reuse_notes": "仅保存必要短引。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "需与可靠校点本或影印底本核对篇章文字与断句。"
+    ],
+    "concept_tags": [
+      "classification",
+      "yin_yang",
+      "natural_knowledge"
+    ],
+    "method_families": [
+      "classification",
+      "cosmological_correspondence"
+    ]
+  },
+  {
+    "record_id": "huainanzi-tianwen-wuleixiangdong-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "淮南子·天文训",
+      "traditional_authority": "传统归于淮南王刘安及门客编纂；具体篇章层次需据校勘本研究",
+      "composition_period": "西汉前期编纂；传本与篇章层次仍需校核",
+      "genre": "子书/宇宙论与自然知识"
+    },
+    "period": "qin_han",
+    "source_type": "classical_text",
+    "tradition": [
+      "汉代自然知识",
+      "阴阳分类",
+      "物类与感应"
+    ],
+    "witness": {
+      "witness_id": "wikisource-huainanzi-tianwen-huainanzi-tianwen-wuleixiangdong-001",
+      "edition_or_database": "维基文库《淮南子·天文训》数字转录检索见证",
+      "url": "https://zh.wikisource.org/zh-hans/淮南子/天文训",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "古典原文公有领域；数字转录许可按平台条款核验"
+    },
+    "locator": {
+      "chapter": "天文训",
+      "section_or_line": "物类相动，本标相应"
+    },
+    "text": "物类相动，本标相应。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "huainanzi-tianwen-class-motion-001",
+        "claim_kind": "textual_observation",
+        "subject": "物类",
+        "predicate": "相动/相应",
+        "object": "物类之间的关联命题",
+        "interpretive_note": "这是汉代气化宇宙论中的类应命题；可作为历史思想与关系模型研究材料，但不能仅凭文本相应关系推定现代因果机制。",
+        "scope": "限于《天文训》的汉代宇宙论语境；不直接视为现代生物学或物理因果结论。",
+        "conditions": [
+          "区分古代分类框架与现代科学分类",
+          "保留历史思想语境"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录条款另行核验",
+      "database_license": "按平台条款核验",
+      "reuse_notes": "仅保存必要短引。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "需与可靠校点本或影印底本核对篇章文字与断句。"
+    ],
+    "concept_tags": [
+      "correspondence",
+      "cosmology",
+      "causal_inference_limit"
+    ],
+    "method_families": [
+      "cosmological_correspondence",
+      "causal_claim"
+    ]
+  },
+  {
+    "record_id": "zhouyi-shuogua-functional-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "周易·说卦传",
+      "traditional_authority": "传统列入十翼；成篇年代与层次存在研究讨论",
+      "composition_period": "战国至汉初层累形成说并存",
+      "genre": "易传"
+    },
+    "period": "uncertain",
+    "source_type": "classical_text",
+    "tradition": [
+      "易传",
+      "八卦取象",
+      "功能关系"
+    ],
+    "witness": {
+      "witness_id": "ctext-zhouyi-shuogua-functional",
+      "edition_or_database": "中国哲学书电子化计划《周易·说卦》数字文本；底本信息仍需进一步核验",
+      "url": "https://ctext.org/book-of-changes/shuo-gua/zh",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "平台条款另行核验；仅保留必要短引"
+    },
+    "locator": {
+      "chapter": "说卦传",
+      "section_or_line": "雷以动之、风以散之章"
+    },
+    "text": "雷以动之，风以散之，雨以润之，日以烜之。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "shuogua-functional-001",
+        "claim_kind": "textual_observation",
+        "subject": "雷、风、雨、日",
+        "predicate": "动、散、润、烜",
+        "object": "八卦象与作用功能的对应",
+        "interpretive_note": "传文将自然现象与作用动词配对，呈现功能/过程映射，不应压缩为单纯名物同义词。各句的卦象指代须结合完整上下文校核。",
+        "scope": "限于《说卦传》该章语境；不据此推定现代物理因果机制。",
+        "relation_type": "symbol_to_function_mapping",
+        "xiang_domain": "自然过程与功能",
+        "relation_family": "functional",
+        "shared_basis": [
+          "文本明确并列的作用角色与变化过程"
+        ],
+        "non_shared_basis": [
+          "各自然现象的具体物理机制不可由该短句互相等同"
+        ],
+        "scope_conditions": [
+          "保留八卦及上下文语境",
+          "区分象征功能与经验因果"
+        ],
+        "causal_status": "not_claimed",
+        "conditions": [
+          "与前后句及不同传本对读"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "需与可靠经传校本及《周易正义》等注疏对勘。"
+    ],
+    "concept_tags": [
+      "image_selection",
+      "correspondence",
+      "natural_knowledge"
+    ],
+    "method_families": [
+      "symbolic_correspondence",
+      "phenomenological_observation"
+    ]
+  },
+  {
+    "record_id": "guanzi-banfa-normative-analogy-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "管子·版法解",
+      "traditional_authority": "传统题署为《管子》；篇章年代与编纂层次须依研究文献审查",
+      "composition_period": "战国至汉代层累形成说并存",
+      "genre": "政论/制度论"
+    },
+    "period": "uncertain",
+    "source_type": "classical_text",
+    "tradition": [
+      "管子学派材料",
+      "时令",
+      "政治规范类比"
+    ],
+    "witness": {
+      "witness_id": "ctext-guanzi-banfa-jie",
+      "edition_or_database": "中国哲学书电子化计划《管子·版法解》数字文本；页面列有四部丛刊及四库等资源",
+      "url": "https://ctext.org/guanzi/ban-fa-jie/zhs",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "平台条款另行核验；仅保留必要短引"
+    },
+    "locator": {
+      "chapter": "版法解",
+      "section_or_line": "法天地之位、象四时之行"
+    },
+    "text": "版法者，法天地之位，象四时之行，以治天下。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "guanzi-banfa-normative-001",
+        "claim_kind": "textual_observation",
+        "subject": "天地之位与四时之行",
+        "predicate": "法/象",
+        "object": "以自然秩序作为治理制度的取法依据",
+        "interpretive_note": "该段呈现由自然时空秩序向政治制度的规范性映射；它是政治哲学中的取法/类比，不应直接归为自然因果规律。",
+        "scope": "限于《版法解》政治治理语境；篇章年代及《管子》编纂层次需另行审查。",
+        "relation_type": "natural_order_to_normative_institution",
+        "xiang_domain": "政治制度与自然秩序",
+        "relation_family": "normative_analogy",
+        "shared_basis": [
+          "以方位与时序组织秩序的结构对应"
+        ],
+        "non_shared_basis": [
+          "自然过程与人制定的政治制度并非同一类实体"
+        ],
+        "scope_conditions": [
+          "保留规范性论证语境",
+          "不得将价值判断转写为经验因果"
+        ],
+        "causal_status": "not_claimed",
+        "conditions": [
+          "与《四时》等篇及不同版本对读"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "需与《四部丛刊初编》本、四库本及可靠校点本对读；篇章年代未定。"
+    ],
+    "concept_tags": [
+      "correspondence",
+      "metaphor",
+      "ritual_institution"
+    ],
+    "method_families": [
+      "rhetorical_analogy",
+      "comparative_exegesis"
+    ]
+  },
+  {
+    "record_id": "zhouyi-xici-xiang-zhi-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "周易·系辞下传",
+      "traditional_authority": "传统归属；作者、成篇年代及文本层次按学术争议保留",
+      "composition_period": "战国至汉初层累形成说并存",
+      "genre": "易传"
+    },
+    "period": "uncertain",
+    "source_type": "classical_text",
+    "tradition": [
+      "传统文献",
+      "类象理论研究"
+    ],
+    "witness": {
+      "witness_id": "wikizhouyi-xici-xia",
+      "edition_or_database": "维基文库《周易·系辞下传》数字文本；需核对底本",
+      "url": "https://zh.wikisource.org/zh-hans/周易/繫辭下",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台条款另行核验；仅保留必要短引"
+    },
+    "locator": {
+      "chapter": "系辞下传·第二章",
+      "section_or_line": "古者包牺氏观象制卦章"
+    },
+    "text": "古者包牺氏之王天下也，仰则观象于天，俯则观法于地，观鸟兽之文，与地之宜，近取诸身，远取诸物。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "xici-xia-near-far-001",
+        "claim_kind": "textual_observation",
+        "subject": "圣人取象活动",
+        "predicate": "近取诸身、远取诸物",
+        "object": "从近身与远物观察材料建立卦象表征",
+        "interpretive_note": "文本并列仰观俯察、鸟兽之文、地宜、近身与远物，显示取象资料来源具有尺度和领域差异；不应简化成单一相似度检索。",
+        "scope": "限于《系辞下传》所述圣人制卦叙事；该叙事的历史性与成篇层次需独立考辨。",
+        "relation_type": "symbolic",
+        "xiang_domain": "观察方法与跨尺度表征",
+        "relation_family": "symbolic",
+        "shared_basis": [
+          "近身/远物均作为观察取象来源"
+        ],
+        "non_shared_basis": [
+          "身体经验与外部自然物并非同一观察域"
+        ],
+        "scope_conditions": [
+          "保留远近尺度、观察对象与制卦叙事语境"
+        ],
+        "causal_status": "not_claimed",
+        "conditions": [
+          "保留远近尺度、观察对象与制卦叙事语境"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed",
+        "reasoning_operations": [
+          "observe",
+          "select_image",
+          "compare"
+        ]
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引，不复制现代整理本注释。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "需与可靠校点本、影印本及异文对读；数字转录不等同于底本校勘。"
+    ],
+    "concept_tags": [
+      "observation"
+    ],
+    "method_families": [
+      "phenomenological_observation"
+    ]
+  },
+  {
+    "record_id": "zhouyi-xici-motion-change-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "周易·系辞下传",
+      "traditional_authority": "传统归属；作者、成篇年代及文本层次按学术争议保留",
+      "composition_period": "战国至汉初层累形成说并存",
+      "genre": "易传"
+    },
+    "period": "uncertain",
+    "source_type": "classical_text",
+    "tradition": [
+      "传统文献",
+      "类象理论研究"
+    ],
+    "witness": {
+      "witness_id": "wikizhouyi-xici-xia",
+      "edition_or_database": "维基文库《周易·系辞下传》数字文本；需核对底本",
+      "url": "https://zh.wikisource.org/zh-hans/周易/繫辭下",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台条款另行核验；仅保留必要短引"
+    },
+    "locator": {
+      "chapter": "系辞下传·第一章",
+      "section_or_line": "刚柔相推与变通章"
+    },
+    "text": "刚柔相推，变在其中矣；变通者，趣时者也。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "xici-xia-change-time-001",
+        "claim_kind": "textual_observation",
+        "subject": "刚柔关系",
+        "predicate": "相推、变、趣时",
+        "object": "刚柔交互与变化、时宜之间的结构关系",
+        "interpretive_note": "原文将刚柔相推与变化联系，并将变通联系到时；属于易传自身的理论陈述。",
+        "scope": "限于经传哲学语境；不可直接等同现代动力系统方程。",
+        "relation_type": "generative",
+        "xiang_domain": "动态关系与时序",
+        "relation_family": "generative",
+        "shared_basis": [
+          "交互作用与状态变化的关联"
+        ],
+        "non_shared_basis": [
+          "刚柔为易学范畴，不等同具体物理力"
+        ],
+        "scope_conditions": [
+          "保留时位语境及经传概念定义"
+        ],
+        "causal_status": "not_claimed",
+        "conditions": [
+          "保留时位语境及经传概念定义"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed",
+        "reasoning_operations": [
+          "map_time",
+          "map_position",
+          "infer_by_analogy"
+        ]
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引，不复制现代整理本注释。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "需与可靠校点本、影印本及异文对读；数字转录不等同于底本校勘。"
+    ],
+    "concept_tags": [
+      "state_change"
+    ],
+    "method_families": [
+      "cosmological_correspondence"
+    ]
+  },
+  {
+    "record_id": "zhuangzi-qiwulun-perspective-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "庄子·齐物论",
+      "traditional_authority": "传统归属；作者、成篇年代及文本层次按学术争议保留",
+      "composition_period": "先秦",
+      "genre": "诸子寓言/论辩"
+    },
+    "period": "pre_qin",
+    "source_type": "classical_text",
+    "tradition": [
+      "传统文献",
+      "类象理论研究"
+    ],
+    "witness": {
+      "witness_id": "wikizhuangzi-qiwulun",
+      "edition_or_database": "维基文库《庄子·齐物论》数字文本；需核对郭象注本系统",
+      "url": "https://zh.wikisource.org/zh-hans/莊子/齊物論",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台条款另行核验；仅保留必要短引"
+    },
+    "locator": {
+      "chapter": "齐物论",
+      "section_or_line": "彼是互因与视角转换段"
+    },
+    "text": "物无非彼，物无非是。自彼则不见，自知则知之。故曰彼出于是，是亦因彼。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "zhuangzi-qiwulun-perspective-claim-001",
+        "claim_kind": "textual_observation",
+        "subject": "彼与是",
+        "predicate": "依视角互相成立",
+        "object": "对象判断受观察立场和指称关系影响",
+        "interpretive_note": "文本揭示彼/是判断的相互依存与视角条件，可用于防止模型把单一观察视角绝对化。",
+        "scope": "限于《齐物论》论辩语境；不应推成所有事实判断都相对或不可判定。",
+        "relation_type": "correlative",
+        "xiang_domain": "认识论与视角",
+        "relation_family": "correlative",
+        "shared_basis": [
+          "判断双方共享相互指涉关系"
+        ],
+        "non_shared_basis": [
+          "不同观察者的事实证据仍可能有强弱差别"
+        ],
+        "scope_conditions": [
+          "记录观察主体、指称基准、争论语境"
+        ],
+        "causal_status": "not_claimed",
+        "conditions": [
+          "记录观察主体、指称基准、争论语境"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed",
+        "reasoning_operations": [
+          "shift_perspective",
+          "compare"
+        ]
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引，不复制现代整理本注释。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "需与可靠校点本、影印本及异文对读；数字转录不等同于底本校勘。"
+    ],
+    "concept_tags": [
+      "analogy_method"
+    ],
+    "method_families": [
+      "comparative_exegesis"
+    ]
+  },
+  {
+    "record_id": "zhuangzi-qiwulun-category-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "庄子·齐物论",
+      "traditional_authority": "传统归属；作者、成篇年代及文本层次按学术争议保留",
+      "composition_period": "先秦",
+      "genre": "诸子寓言/论辩"
+    },
+    "period": "pre_qin",
+    "source_type": "classical_text",
+    "tradition": [
+      "传统文献",
+      "类象理论研究"
+    ],
+    "witness": {
+      "witness_id": "wikizhuangzi-qiwulun",
+      "edition_or_database": "维基文库《庄子·齐物论》数字文本；需核对郭象注本系统",
+      "url": "https://zh.wikisource.org/zh-hans/莊子/齊物論",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台条款另行核验；仅保留必要短引"
+    },
+    "locator": {
+      "chapter": "齐物论",
+      "section_or_line": "物固有所然与名谓段"
+    },
+    "text": "道，行之而成；物，谓之而然。恶乎然？然于然。恶乎不然？不然于不然。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "zhuangzi-qiwulun-naming-001",
+        "claim_kind": "textual_observation",
+        "subject": "物与名谓",
+        "predicate": "命名参与类别成立",
+        "object": "对象分类与语言命名存在关联",
+        "interpretive_note": "可用于研究分类标签如何参与认知建构，要求把对象属性证据与语言命名行为分开。",
+        "scope": "限于庄子论辩文本；不能据此否定对象的独立存在或经验约束。",
+        "relation_type": "taxonomic",
+        "xiang_domain": "名实与分类认识",
+        "relation_family": "taxonomic",
+        "shared_basis": [
+          "命名行为与类别判断存在关联"
+        ],
+        "non_shared_basis": [
+          "名称约定不等于对象全部性质"
+        ],
+        "scope_conditions": [
+          "保留语境、论辩对象及命名层级"
+        ],
+        "causal_status": "not_claimed",
+        "conditions": [
+          "保留语境、论辩对象及命名层级"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed",
+        "reasoning_operations": [
+          "classify",
+          "shift_perspective"
+        ]
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引，不复制现代整理本注释。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "需与可靠校点本、影印本及异文对读；数字转录不等同于底本校勘。"
+    ],
+    "concept_tags": [
+      "name_reality"
+    ],
+    "method_families": [
+      "classification"
+    ]
+  },
+  {
+    "record_id": "lushi-chunqiu-yingtong-physical-analogy-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "吕氏春秋·有始览·应同",
+      "traditional_authority": "传统归属；作者、成篇年代及文本层次按学术争议保留",
+      "composition_period": "先秦",
+      "genre": "杂家/类应论"
+    },
+    "period": "pre_qin",
+    "source_type": "classical_text",
+    "tradition": [
+      "传统文献",
+      "类象理论研究"
+    ],
+    "witness": {
+      "witness_id": "ctext-lushi-yingtong",
+      "edition_or_database": "中国哲学书电子化计划《吕氏春秋·应同》相似段落与异文对读",
+      "url": "https://ctext.org/text.pl?if=gb&node=23540&show=parallel",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台条款另行核验；仅保留必要短引"
+    },
+    "locator": {
+      "chapter": "有始览·应同",
+      "section_or_line": "类固相召段"
+    },
+    "text": "类固相召，气同则合，声比则应。鼓宫而宫动，鼓角而角动。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "lushi-yingtong-correspondence-001",
+        "claim_kind": "textual_observation",
+        "subject": "类、气、声",
+        "predicate": "同类相召与响应",
+        "object": "文本提出类别、气与声之间的对应/响应关系",
+        "interpretive_note": "此段同时包含音律共振类比、自然感应和政治天命论述；必须拆分各断言并保留其历史思想属性。",
+        "scope": "限于《吕氏春秋·应同》文本；不同版本有“类固/类同”等异文，需以校本定文。",
+        "relation_type": "correlative",
+        "xiang_domain": "类应与感应论",
+        "relation_family": "correlative",
+        "shared_basis": [
+          "声类相应的结构类比"
+        ],
+        "non_shared_basis": [
+          "音律现象不能自动证明宇宙感应或政治天命"
+        ],
+        "scope_conditions": [
+          "对读异文；区分可观察声学现象与宇宙论解释"
+        ],
+        "causal_status": "not_claimed",
+        "conditions": [
+          "对读异文；区分可观察声学现象与宇宙论解释"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed",
+        "reasoning_operations": [
+          "classify",
+          "map_function",
+          "infer_by_analogy",
+          "test_counterexample"
+        ]
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引，不复制现代整理本注释。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "需与可靠校点本、影印本及异文对读；数字转录不等同于底本校勘。"
+    ],
+    "concept_tags": [
+      "correspondence"
+    ],
+    "method_families": [
+      "cosmological_correspondence"
+    ]
+  },
+  {
+    "record_id": "wenxin-diaolong-bixing-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "文心雕龙·比兴",
+      "traditional_authority": "传统归属；作者、成篇年代及文本层次按学术争议保留",
+      "composition_period": "中古至宋元，具体层次待考",
+      "genre": "文论"
+    },
+    "period": "wei_jin_northern_southern",
+    "source_type": "classical_text",
+    "tradition": [
+      "传统文献",
+      "类象理论研究"
+    ],
+    "witness": {
+      "witness_id": "ctext-wenxin-bixing",
+      "edition_or_database": "中国哲学书电子化计划《文心雕龙·比兴》；页面列多种底本",
+      "url": "https://ctext.org/wenxin-diaolong/bi-xing/zhs",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台条款另行核验；仅保留必要短引"
+    },
+    "locator": {
+      "chapter": "卷八·比兴",
+      "section_or_line": "比者附也、兴者起也"
+    },
+    "text": "比者，附也；兴者，起也。附理者切类以指事，起情者依微以拟议。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "wenxin-bixing-analogy-001",
+        "claim_kind": "textual_observation",
+        "subject": "比与兴",
+        "predicate": "附理切类、依微拟议",
+        "object": "比与兴是两种不同的表达/联想机制",
+        "interpretive_note": "刘勰将比与兴分别界定为附理切类和依微拟议，提示类象既可承担论理指事，也可承担情感唤起与含蓄表达。",
+        "scope": "限于文学修辞与诗学语境；不可直接把兴的审美联想等同于事实推理。",
+        "relation_type": "rhetorical_analogy",
+        "xiang_domain": "文学修辞与象征",
+        "relation_family": "rhetorical_analogy",
+        "shared_basis": [
+          "比类双方在特定理路或情境上建立联系"
+        ],
+        "non_shared_basis": [
+          "情感触发与事实蕴含不是同一评价标准"
+        ],
+        "scope_conditions": [
+          "区分比/兴、论证效力与审美效力"
+        ],
+        "causal_status": "not_claimed",
+        "conditions": [
+          "区分比/兴、论证效力与审美效力"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed",
+        "reasoning_operations": [
+          "compare",
+          "rhetorical_indirection"
+        ]
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引，不复制现代整理本注释。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "需与可靠校点本、影印本及异文对读；数字转录不等同于底本校勘。"
+    ],
+    "concept_tags": [
+      "metaphor"
+    ],
+    "method_families": [
+      "rhetorical_analogy"
+    ]
+  },
+  {
+    "record_id": "zhouyi-zhengyi-xici-subject-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "周易正义·系辞下卷",
+      "traditional_authority": "传统归属；作者、成篇年代及文本层次按学术争议保留",
+      "composition_period": "中古至宋元，具体层次待考",
+      "genre": "经学注疏"
+    },
+    "period": "sui_tang",
+    "source_type": "historical_commentary",
+    "tradition": [
+      "传统文献",
+      "类象理论研究"
+    ],
+    "witness": {
+      "witness_id": "wikizhouyi-zhengyi-xici",
+      "edition_or_database": "维基文库《周易正义》数字文本；孔颖达疏，需核对十三经注疏版本",
+      "url": "https://zh.wikisource.org/zh-hans/周易正义/08.2",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台条款另行核验；仅保留必要短引"
+    },
+    "locator": {
+      "chapter": "系辞下卷八之二",
+      "section_or_line": "近取诸身、远取诸物疏"
+    },
+    "text": "近取诸身者，若耳目鼻口之属是也；远取诸物者，若雷风山泽之类也。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "zhouyi-zhengyi-near-far-001",
+        "claim_kind": "commentarial_interpretation",
+        "subject": "近取与远取",
+        "predicate": "以身体器官和自然物解释取象范围",
+        "object": "唐代疏家将经文的近取/远取具体解释为身体器官与自然物",
+        "interpretive_note": "这是唐代解释层，不可回填为先秦经文原义；同时保存其对取象尺度的经典化阐释。",
+        "scope": "限于孔颖达疏释；须与王弼注、韩康伯注及其他疏本对读。",
+        "relation_type": "symbolic",
+        "xiang_domain": "注疏解释与取象范围",
+        "relation_family": "symbolic",
+        "shared_basis": [
+          "近身身体与远物自然皆作为解释对象"
+        ],
+        "non_shared_basis": [
+          "疏家解释不是经文原句，也不是唯一解释"
+        ],
+        "scope_conditions": [
+          "严格标记注疏层、疏家与所释经文"
+        ],
+        "causal_status": "not_claimed",
+        "conditions": [
+          "严格标记注疏层、疏家与所释经文"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed",
+        "reasoning_operations": [
+          "select_image",
+          "compare"
+        ]
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引，不复制现代整理本注释。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "需与可靠校点本、影印本及异文对读；数字转录不等同于底本校勘。"
+    ],
+    "concept_tags": [
+      "commentarial_exegesis"
+    ],
+    "method_families": [
+      "commentarial_exegesis"
+    ]
+  },
+  {
+    "record_id": "chunqiu-fanlu-tonglei-dong-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "春秋繁露·同类相动",
+      "traditional_authority": "传统归属；成篇年代、编纂层次与传本问题保留学术争议",
+      "composition_period": "秦汉",
+      "genre": "经学/天人感应论"
+    },
+    "period": "qin_han",
+    "source_type": "classical_text",
+    "tradition": [
+      "传统文献",
+      "类象理论研究"
+    ],
+    "witness": {
+      "witness_id": "wikichunqiu-fanlu",
+      "edition_or_database": "维基文库《春秋繁露》（四库全书本）数字文本；须注意篇章真伪与后世传本问题",
+      "url": "https://zh.wikisource.org/zh-hans/春秋繁露_(四库全书本)/全览",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台条款另行核验；仅保留必要短引"
+    },
+    "locator": {
+      "chapter": "卷十三·同类相动",
+      "section_or_line": "第五十七"
+    },
+    "text": "今平地注水去燥就湿，均薪施火去湿就燥，百物其去所与异而从其所与同，故气同则会，声比则应。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "fanlu-tonglei-correspondence-001",
+        "claim_kind": "textual_observation",
+        "subject": "同类、气、声",
+        "predicate": "同类相从与响应",
+        "object": "作者以水趋湿、火就燥、琴瑟同宫响应等现象论证类应",
+        "interpretive_note": "本篇将可观察的趋湿、趋燥、音律响应与政治祥瑞、阴阳感应并列。必须分别标记经验描述、类比推论、宇宙论主张和政治征兆，不得整体视为实证因果。",
+        "scope": "限于《春秋繁露》卷十三传本文本；董仲舒作者归属、篇章层次及四库本与他本异文均需专门校勘。",
+        "relation_type": "correlative",
+        "xiang_domain": "汉代宇宙论与类应",
+        "relation_family": "correlative",
+        "shared_basis": [
+          "趋湿趋燥及同音响应等可观察现象"
+        ],
+        "non_shared_basis": [
+          "可观察的局部物理现象不自动推出天人感应或祥瑞灾异因果"
+        ],
+        "scope_conditions": [
+          "分拆物理观察、音律类比、宇宙论和政治解释；校勘篇章异文"
+        ],
+        "causal_status": "not_claimed",
+        "conditions": [
+          "分拆物理观察、音律类比、宇宙论和政治解释；校勘篇章异文"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed",
+        "reasoning_operations": [
+          "observe",
+          "classify",
+          "infer_by_analogy",
+          "test_counterexample"
+        ]
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引，不复制现代整理本注释。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "数字文本为检索见证；须与可靠校点本、影印本及异文对读。"
+    ],
+    "concept_tags": [
+      "correspondence"
+    ],
+    "method_families": [
+      "cosmological_correspondence"
+    ]
+  },
+  {
+    "record_id": "guanzi-sishi-seasonal-order-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "管子·四时",
+      "traditional_authority": "传统归属；成篇年代、编纂层次与传本问题保留学术争议",
+      "composition_period": "先秦",
+      "genre": "政论/时令论"
+    },
+    "period": "pre_qin",
+    "source_type": "classical_text",
+    "tradition": [
+      "传统文献",
+      "类象理论研究"
+    ],
+    "witness": {
+      "witness_id": "ctext-guanzi-sishi",
+      "edition_or_database": "中国哲学书电子化计划《管子·四时》；页面列四部丛刊、四库等底本",
+      "url": "https://ctext.org/guanzi/si-shi/zh",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台条款另行核验；仅保留必要短引"
+    },
+    "locator": {
+      "chapter": "四时",
+      "section_or_line": "阴阳与四时关系段"
+    },
+    "text": "是故阴阳者，天地之大理也；四时者，阴阳之大经也。刑德者，四时之合也。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "guanzi-sishi-seasonal-order-001",
+        "claim_kind": "textual_observation",
+        "subject": "阴阳、四时、刑德",
+        "predicate": "层级组织与时令对应",
+        "object": "天地阴阳、四时运行与刑德政令之间的层级对应",
+        "interpretive_note": "文本将宇宙秩序、时间周期和政治刑德配置为对应结构，适合研究时位与制度类象；属于规范性政治宇宙论，不能直接视为现代自然因果。",
+        "scope": "限于《管子·四时》篇章；《管子》多层编纂，作者和年代不能简单统一。",
+        "relation_type": "normative_analogy",
+        "xiang_domain": "时序与政治制度",
+        "relation_family": "normative_analogy",
+        "shared_basis": [
+          "周期秩序与政令配置之间的结构映射"
+        ],
+        "non_shared_basis": [
+          "自然四时与政治刑德属于不同领域，规范映射不等于因果"
+        ],
+        "scope_conditions": [
+          "记录四时阶段、政令类别、篇章层次和规范目的"
+        ],
+        "causal_status": "not_claimed",
+        "conditions": [
+          "记录四时阶段、政令类别、篇章层次和规范目的"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed",
+        "reasoning_operations": [
+          "map_time",
+          "map_position",
+          "transfer_norm"
+        ]
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引，不复制现代整理本注释。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "数字文本为检索见证；须与可靠校点本、影印本及异文对读。"
+    ],
+    "concept_tags": [
+      "ritual_institution"
+    ],
+    "method_families": [
+      "comparative_exegesis"
+    ]
+  },
+  {
+    "record_id": "huainanzi-dixing-spatiotemporal-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "淮南子·地形训",
+      "traditional_authority": "传统归属；成篇年代、编纂层次与传本问题保留学术争议",
+      "composition_period": "秦汉",
+      "genre": "宇宙地理/地理志"
+    },
+    "period": "qin_han",
+    "source_type": "classical_text",
+    "tradition": [
+      "传统文献",
+      "类象理论研究"
+    ],
+    "witness": {
+      "witness_id": "shidianguji-huainanzi-dixing",
+      "edition_or_database": "识典古籍《淮南子·地形训》；页面标注东汉高诱注、清庄逵吉校刊，需分层使用",
+      "url": "https://www.shidianguji.com/book/HY1403/chapter/1klrgn1dmnwv8",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台条款另行核验；仅保留必要短引"
+    },
+    "locator": {
+      "chapter": "地形训",
+      "section_or_line": "天地空间与四时纲纪段"
+    },
+    "text": "地形之所载，六合之间，四极之内，照之以日月，经之以星辰，纪之以四时，要之以太岁。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "huainanzi-dixing-spatiotemporal-001",
+        "claim_kind": "textual_observation",
+        "subject": "地形、日月星辰、四时、太岁",
+        "predicate": "空间结构与时间秩序联合定位",
+        "object": "地理空间由天文周期与岁时系统共同组织",
+        "interpretive_note": "文本以六合、四极、日月、星辰、四时和太岁构成空间—时间框架，可用于类象模型的多尺度坐标与时位条件研究。",
+        "scope": "限于汉代宇宙地理知识体系；不应把古代方位地理和岁时模型直接当作现代地理测量。",
+        "relation_type": "temporal",
+        "xiang_domain": "时空结构与宇宙地理",
+        "relation_family": "temporal",
+        "shared_basis": [
+          "地理描述与天文/历法周期之间的定位关系"
+        ],
+        "non_shared_basis": [
+          "古代宇宙地理模型不等同现代经纬度与天文学"
+        ],
+        "scope_conditions": [
+          "保留古代方位术语、岁时基准、文本层次与知识史语境"
+        ],
+        "causal_status": "not_claimed",
+        "conditions": [
+          "保留古代方位术语、岁时基准、文本层次与知识史语境"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed",
+        "reasoning_operations": [
+          "observe",
+          "map_time",
+          "map_position"
+        ]
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引，不复制现代整理本注释。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "数字文本为检索见证；须与可靠校点本、影印本及异文对读。"
+    ],
+    "concept_tags": [
+      "cosmology"
+    ],
+    "method_families": [
+      "cosmological_correspondence"
+    ]
+  },
+  {
+    "record_id": "zhouyi-yihai-zhaiyao-commentary-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "周易义海撮要·卷七",
+      "traditional_authority": "传统归属；成篇年代、编纂层次与传本问题保留学术争议",
+      "composition_period": "宋代",
+      "genre": "易学汇解/注疏汇编"
+    },
+    "period": "song_yuan",
+    "source_type": "historical_commentary",
+    "tradition": [
+      "传统文献",
+      "类象理论研究"
+    ],
+    "witness": {
+      "witness_id": "wikizhouyi-yihai-zhaiyao",
+      "edition_or_database": "维基文库《周易义海撮要》（四库全书本），宋李衡撰；汇录多家注说",
+      "url": "https://zh.wikisource.org/zh-hans/周易義海撮要_(四庫全書本)/卷07",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台条款另行核验；仅保留必要短引"
+    },
+    "locator": {
+      "chapter": "卷七·系辞上",
+      "section_or_line": "方以类聚物以群分章汇解"
+    },
+    "text": "方有类物有群则有同有异有聚有分顺其所同则吉乖其所趣则凶。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "yihai-zhaiyao-fang-lei-001",
+        "claim_kind": "commentarial_interpretation",
+        "subject": "方以类聚、物以群分",
+        "predicate": "汇集多家训释",
+        "object": "宋代汇解将类聚群分解释为同异、聚分及趋向关系",
+        "interpretive_note": "该汇编并列孔颖达、胡瑗、朱熹等不同解释，显示同一句经文可形成多种解释路径；适合建立注疏观点图谱，不应把某一条汇解冒充经文本义。",
+        "scope": "限于宋代汇编所录注说；具体引文需回查各注家原书和版本，四库本为后世传本。",
+        "relation_type": "taxonomic",
+        "xiang_domain": "经学诠释史与类聚解释",
+        "relation_family": "taxonomic",
+        "shared_basis": [
+          "围绕同异、聚分解释经文"
+        ],
+        "non_shared_basis": [
+          "不同注家解释的概念框架与历史语境不同"
+        ],
+        "scope_conditions": [
+          "每一注家观点独立成条并保留引用层级"
+        ],
+        "causal_status": "not_claimed",
+        "conditions": [
+          "每一注家观点独立成条并保留引用层级"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed",
+        "reasoning_operations": [
+          "compare",
+          "shift_perspective"
+        ]
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引，不复制现代整理本注释。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "数字文本为检索见证；须与可靠校点本、影印本及异文对读。"
+    ],
+    "concept_tags": [
+      "commentarial_exegesis"
+    ],
+    "method_families": [
+      "commentarial_exegesis"
+    ]
+  },
+  {
+    "record_id": "sunzi-xushi-water-analogy-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "孙子兵法·虚实篇",
+      "traditional_authority": "传统归属；成篇年代、编纂层次与传本问题保留学术争议",
+      "composition_period": "先秦",
+      "genre": "兵家兵势论"
+    },
+    "period": "pre_qin",
+    "source_type": "classical_text",
+    "tradition": [
+      "传统文献",
+      "跨领域类象研究"
+    ],
+    "witness": {
+      "witness_id": "wikisunzu",
+      "edition_or_database": "维基文库《孙子兵法》数字文本；应与银雀山汉简及古本异文对读",
+      "url": "https://zh.wikisource.org/zh-hans/孫子",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台条款另行核验；仅保留必要短引"
+    },
+    "locator": {
+      "chapter": "虚实第六",
+      "section_or_line": "兵形象水与因敌变化段"
+    },
+    "text": "夫兵形象水，水之形，避高而趋下；兵之形，避实而击虚。水因地而制流，兵因敌而制胜。故兵无常势，水无常形；能因敌变化而取胜者，谓之神。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "sunzi-xushi-water-analogy-001",
+        "claim_kind": "textual_observation",
+        "subject": "水之流形与兵之态势",
+        "predicate": "因地制流、因敌制胜",
+        "object": "水的流动受地形制约，用兵策略随敌情变化",
+        "interpretive_note": "这是跨域结构类比：水形依地形、兵势依敌情；不变的是约束关系，变化的是具体形态。应把稳定原则与动态适应分开建模。人民网引述银雀山汉简异文“兵无成势，无恒形”，提示传世文本与出土材料需对勘。",
+        "scope": "限于《孙子·虚实篇》策略类比；不能把军事策略直接推广为所有自然或社会领域的普遍因果。",
+        "relation_type": "functional",
+        "xiang_domain": "兵法策略与动态适应",
+        "relation_family": "functional",
+        "shared_basis": [
+          "系统形态受外部环境条件约束"
+        ],
+        "non_shared_basis": [
+          "水流物理规律与军事决策目标、主体和反馈机制不同"
+        ],
+        "scope_conditions": [
+          "记录环境状态、对手状态、目标函数和应变动作；比较传世本与银雀山汉简异文"
+        ],
+        "causal_status": "not_claimed",
+        "reasoning_operations": [
+          "compare",
+          "abstract_shared_basis",
+          "map_function",
+          "identify_difference",
+          "infer_by_analogy"
+        ],
+        "conditions": [
+          "记录环境状态、对手状态、目标函数和应变动作；比较传世本与银雀山汉简异文"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引，不复制现代整理本注释。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "数字文本为检索见证；须与可靠校点本、影印本及异文对读。"
+    ],
+    "concept_tags": [
+      "state_change"
+    ],
+    "method_families": [
+      "analogical_argument"
+    ]
+  },
+  {
+    "record_id": "huangdi-neijing-suwen-fourqi-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "黄帝内经·素问·四气调神大论",
+      "traditional_authority": "传统归属；成篇年代、编纂层次与传本问题保留学术争议",
+      "composition_period": "秦汉文本层次，成篇与传承仍须考辨",
+      "genre": "医经/养生理论"
+    },
+    "period": "qin_han",
+    "source_type": "classical_text",
+    "tradition": [
+      "传统文献",
+      "跨领域类象研究"
+    ],
+    "witness": {
+      "witness_id": "ctext-neijing-si-qi",
+      "edition_or_database": "中国哲学书电子化计划《四气调神大论》；页面标注《四部丛刊初编》本《重广补注黄帝内经素问》",
+      "url": "https://ctext.org/huangdi-neijing/si-qi-diao-shen-da-lun/zhs",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台条款另行核验；仅保留必要短引"
+    },
+    "locator": {
+      "chapter": "素问·四气调神大论篇第二",
+      "section_or_line": "春夏秋冬四时养生段"
+    },
+    "text": "四时阴阳者，万物之终始也，死生之本也。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "neijing-fourqi-seasonal-cycle-001",
+        "claim_kind": "textual_observation",
+        "subject": "四时阴阳与生命过程",
+        "predicate": "生长收藏与养生顺时",
+        "object": "四时周期被用于组织生命过程和养生原则",
+        "interpretive_note": "文本把春生、夏长、秋收、冬藏与养生行为、脏腑和病候联系起来，适合抽取周期阶段与条件约束；医学理论陈述应与现代临床证据分层。",
+        "scope": "限于《素问》四气调神篇的传统医学理论语境；不得作为个人诊疗建议或现代临床因果结论。",
+        "relation_type": "temporal",
+        "xiang_domain": "医学、时令与生命周期",
+        "relation_family": "temporal",
+        "shared_basis": [
+          "季节阶段与生命活动节律之间的文本对应"
+        ],
+        "non_shared_basis": [
+          "古代脏腑五行理论不等同现代生理机制"
+        ],
+        "scope_conditions": [
+          "标注篇章层次、传本、新校正注及现代临床证据状态"
+        ],
+        "causal_status": "not_claimed",
+        "reasoning_operations": [
+          "map_time",
+          "classify",
+          "infer_by_analogy",
+          "test_counterexample"
+        ],
+        "conditions": [
+          "标注篇章层次、传本、新校正注及现代临床证据状态"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引，不复制现代整理本注释。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "数字文本为检索见证；须与可靠校点本、影印本及异文对读。"
+    ],
+    "concept_tags": [
+      "natural_knowledge"
+    ],
+    "method_families": [
+      "cosmological_correspondence"
+    ]
+  },
+  {
+    "record_id": "kaogongji-four-factor-craft-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "周礼·考工记",
+      "traditional_authority": "传统归属；成篇年代、编纂层次与传本问题保留学术争议",
+      "composition_period": "先秦至秦汉层累形成说并存",
+      "genre": "礼制/工艺技术"
+    },
+    "period": "uncertain",
+    "source_type": "classical_text",
+    "tradition": [
+      "传统文献",
+      "跨领域类象研究"
+    ],
+    "witness": {
+      "witness_id": "shidianguji-kaogongji",
+      "edition_or_database": "识典古籍《考工记》数字文本，页面标注明郭正域批点；应继续核对《周礼》经注本",
+      "url": "https://www.shidianguji.com/book/CADAL02043244/chapter/1liz4baok43sm",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台条款另行核验；仅保留必要短引"
+    },
+    "locator": {
+      "chapter": "考工记上篇",
+      "section_or_line": "天时地气材美工巧段"
+    },
+    "text": "天有时，地有气，材有美，工有巧，合此四者，然后可以为良。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "kaogongji-four-factor-quality-001",
+        "claim_kind": "textual_observation",
+        "subject": "工艺成品质量",
+        "predicate": "时、地、材、工多条件合成",
+        "object": "器物质量由时间、地域环境、材料和工艺共同制约",
+        "interpretive_note": "此段给出多因素合成模型：单独材料好、工艺巧仍不足，必须同时满足时、地、材、工条件。可用于研究类象的多条件适用域和交互项。",
+        "scope": "限于《考工记》工艺制度语境；其中橘枳、地域材料等古代地理解释须与现代科学知识分层。",
+        "relation_type": "generative",
+        "xiang_domain": "工艺、材料与环境适配",
+        "relation_family": "generative",
+        "shared_basis": [
+          "成品质量由多个互补条件共同决定"
+        ],
+        "non_shared_basis": [
+          "文本中的地气概念和物种迁移解释不等同现代生态学"
+        ],
+        "scope_conditions": [
+          "分离时间、地域、材料、工艺变量；缺失任一条件时不轻率判定"
+        ],
+        "causal_status": "not_claimed",
+        "reasoning_operations": [
+          "classify",
+          "identify_difference",
+          "abstract_shared_basis",
+          "infer_by_analogy"
+        ],
+        "conditions": [
+          "分离时间、地域、材料、工艺变量；缺失任一条件时不轻率判定"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed"
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引，不复制现代整理本注释。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "数字文本为检索见证；须与可靠校点本、影印本及异文对读。"
+    ],
+    "concept_tags": [
+      "natural_knowledge"
+    ],
+    "method_families": [
+      "phenomenological_observation"
+    ]
+  },
+  {
+    "record_id": "mozi-daqu-sameness-types-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "墨子·大取",
+      "traditional_authority": "传统题署与文本层次须按校勘本进一步核验",
+      "composition_period": "战国时期或战国层累材料；具体篇章年代仍待考",
+      "genre": "墨家名辩篇章"
+    },
+    "period": "pre_qin",
+    "source_type": "classical_text",
+    "tradition": [
+      "先秦诸子",
+      "类比/推类",
+      "类象理论"
+    ],
+    "witness": {
+      "witness_id": "ctext-mozi-daqu",
+      "edition_or_database": "中国哲学书电子化计划数字转录检索见证；需与可靠整理本或影印本复核",
+      "url": "https://ctext.org/mozi/major-illustrations/zhs",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台及转录许可另行核验"
+    },
+    "locator": {
+      "chapter": "大取",
+      "section_or_line": "重同，具同，连同，同类之同，同名之同；丘同，附同，是之同，然之同，同根之同"
+    },
+    "text": "重同，具同，连同，同类之同，同名之同；丘同，附同，是之同，然之同，同根之同。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "mozi-daqu-sameness-types-001",
+        "claim_kind": "textual_observation",
+        "subject": "同异关系",
+        "predicate": "区分多种同",
+        "object": "同并非单一关系",
+        "interpretive_note": "《大取》列出多种‘同’的名称，提示类同依据具有多样性；个别术语的断句和含义仍待版本校勘与注家比较，不将现代关系类型直接等同古代术语。",
+        "scope": "限于《大取》当前数字见证所见列举；具体术语释义保持未决。",
+        "review_status": "unreviewed",
+        "relation_family": "lexical",
+        "causal_status": "not_claimed",
+        "reasoning_operations": [
+          "classify",
+          "identify_difference"
+        ]
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引与来源元数据。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "数字转录尚未与影印底本逐字校勘；‘丘同、附同’等术语释义待考。"
+    ],
+    "concept_tags": [
+      "classification",
+      "analogy_method",
+      "analogy_limit"
+    ],
+    "method_families": [
+      "classification",
+      "lexical_taxonomy",
+      "analogical_argument"
+    ]
+  },
+  {
+    "record_id": "mojing-jingshuoshang-difference-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "墨经·经说上",
+      "traditional_authority": "墨家经说材料；篇章层次与传本问题须依校勘本核验",
+      "composition_period": "战国时期或战国层累材料；具体条目年代仍待考",
+      "genre": "墨家名辩与概念辨析"
+    },
+    "period": "pre_qin",
+    "source_type": "classical_text",
+    "tradition": [
+      "先秦诸子",
+      "类比/推类",
+      "类象理论"
+    ],
+    "witness": {
+      "witness_id": "ctext-mojing-jingshuoshang",
+      "edition_or_database": "中国哲学书电子化计划数字转录检索见证；需与可靠整理本或影印本复核",
+      "url": "https://ctext.org/mozi/book-10/zhs",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台及转录许可另行核验"
+    },
+    "locator": {
+      "chapter": "经说上",
+      "section_or_line": "异：二必异，二也。不连属，不体也。不同所，不合也。不有同，不类也"
+    },
+    "text": "异：二必异，二也。不连属，不体也。不同所，不合也。不有同，不类也。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "mojing-jingshuoshang-difference-001",
+        "claim_kind": "textual_observation",
+        "subject": "异与类",
+        "predicate": "从数目、连属、同处与共同点辨析",
+        "object": "异并非单一的相似性反面",
+        "interpretive_note": "当前数字见证把‘二必异’、不连属、不同所、不有同等判断并列呈现。具体句读和‘体/所’术语须结合经说上下文与校注研究；项目先保留其区分结构，不强行统一释义。",
+        "scope": "限于《经说上》当前数字见证所见条目；不据此推定全书所有‘同/异’用法一致。",
+        "review_status": "unreviewed",
+        "relation_family": "taxonomic",
+        "causal_status": "not_claimed",
+        "reasoning_operations": [
+          "classify",
+          "identify_difference"
+        ]
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引与来源元数据。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "数字转录尚未与影印底本逐字校勘；经文、经说和后世校释须分层。"
+    ],
+    "concept_tags": [
+      "classification",
+      "name_reality",
+      "analogy_limit"
+    ],
+    "method_families": [
+      "classification",
+      "lexical_taxonomy"
+    ]
+  },
+  {
+    "record_id": "zhouyi-xici-exhaustion-change-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "周易·系辞下传",
+      "traditional_authority": "传统归属；作者、成篇年代及文本层次按学术争议保留",
+      "composition_period": "战国至汉初层累形成说并存",
+      "genre": "易传"
+    },
+    "period": "uncertain",
+    "source_type": "classical_text",
+    "tradition": [
+      "传统文献",
+      "类象理论研究"
+    ],
+    "witness": {
+      "witness_id": "wikizhouyi-xici-xia",
+      "edition_or_database": "维基文库《周易·系辞下传》数字文本；需核对底本",
+      "url": "https://zh.wikisource.org/zh-hans/周易/繫辭下",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台条款另行核验；仅保留必要短引"
+    },
+    "locator": {
+      "chapter": "系辞下传·通变、制器段",
+      "section_or_line": "易穷则变，变则通，通则久"
+    },
+    "text": "易穷则变，变则通，通则久。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "xici-xia-exhaustion-change-001",
+        "claim_kind": "textual_observation",
+        "subject": "穷、变、通、久",
+        "predicate": "构成有序过程表达",
+        "object": "由受阻/穷尽到变化、通达，再到持续",
+        "interpretive_note": "经文以“穷则变，变则通，通则久”排列四个环节。唐疏将其解释为因事久或劳而随时调整器用，使民得宜；该解释属于注疏层，不能覆盖经文本身的开放语义。",
+        "scope": "限于《系辞下传》通变语境；不得直接等同现代动力系统或因果模型。",
+        "relation_type": "temporal_process",
+        "xiang_domain": "动态过程与时宜",
+        "relation_family": "temporal",
+        "shared_basis": [
+          "状态受阻后发生变化并形成后续状态"
+        ],
+        "non_shared_basis": [
+          "经文的易学义理语境不等同现代系统动力学"
+        ],
+        "scope_conditions": [
+          "需保留时位、条件和过程阶段",
+          "“久”需要跨时间观察，不能由单次变化推定"
+        ],
+        "causal_status": "not_claimed",
+        "conditions": [
+          "需保留时位、条件和过程阶段"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed",
+        "reasoning_operations": [
+          "map_time",
+          "classify",
+          "infer_by_analogy"
+        ]
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引，不复制现代整理本注释。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "数字转录为检索入口；需与《周易正义》所列各版本及《经典释文》独立核对。",
+      "本记录不把唐疏解释直接当作先秦经文唯一原义。"
+    ],
+    "concept_tags": [
+      "state_change"
+    ],
+    "method_families": [
+      "cosmological_correspondence"
+    ],
+    "variant_notes": [
+      "《周易正义》点校本校勘记称石经、岳本、闽本、监本、毛本作“易穷则变，变则通，通则久”；《释文》另记一本作“易穷则变通则久”。需继续核对《经典释文》具体版本、石经拓本及宋本系统。",
+      "此处的句读与“变通”是否连读会影响过程结构解释；当前记录保留多见本读法，并将异文单独记录，不自动消解。"
+    ]
+  },
+  {
+    "record_id": "lunheng-wushi-analogy-fit-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "论衡·物势篇",
+      "traditional_authority": "东汉王充撰；篇章传本与文字异同仍需版本校勘",
+      "composition_period": "东汉时期",
+      "genre": "论辩与自然哲学"
+    },
+    "period": "qin_han",
+    "source_type": "classical_text",
+    "tradition": [
+      "两汉诸子",
+      "类推批判",
+      "类象理论"
+    ],
+    "witness": {
+      "witness_id": "shidianguji-lunheng-wushi",
+      "edition_or_database": "识典古籍《论衡·物势篇》数字转录；需与可靠点校本及影印本复核",
+      "url": "https://www.shidianguji.com/book/SBCK093/chapter/SBCK093_19",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台及转录许可另行核验"
+    },
+    "locator": {
+      "chapter": "物势篇",
+      "section_or_line": "夫比不应事，未可谓喻；文不称实，未可谓是也"
+    },
+    "text": "夫比不应事，未可谓喻；文不称实，未可谓是也。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "lunheng-wushi-analogy-fit-001",
+        "claim_kind": "textual_observation",
+        "subject": "天地生人与陶冶造器之比喻",
+        "predicate": "要求比喻切合所论之事且文辞符合事实",
+        "object": "类比成立不能仅凭表面措辞，必须检查喻体与本体之间的实际对应",
+        "interpretive_note": "王充在《物势篇》中讨论“天地为炉、万物为铜、阴阳为火、造化为工”之喻，指出若比喻不切合所论之事，便不足以称喻；文辞若不符合事实，也不足以称是。此处体现的是对类比适切性的批评，不等同现代统计验证或因果识别方法。",
+        "scope": "限于《物势篇》该段论辩；不将王充的具体自然哲学立场推广为所有类比的统一标准。",
+        "relation_type": "analogy_validity",
+        "xiang_domain": "类比论证与事实适切性",
+        "relation_family": "rhetorical_analogy",
+        "shared_basis": [
+          "喻体与本体之间必须存在可说明的对应关系"
+        ],
+        "non_shared_basis": [
+          "陶冶者有意造器与天地生人是否属于同类意向行为，正是该段争论的关键差异"
+        ],
+        "scope_conditions": [
+          "必须核验比喻是否回应目标论题",
+          "必须列出喻体与本体的共同点和关键差异",
+          "不能以修辞流畅替代事实适切性"
+        ],
+        "causal_status": "challenged",
+        "conditions": [
+          "比喻的共同点与差异均须显式列出"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed",
+        "reasoning_operations": [
+          "compare",
+          "identify_difference",
+          "test_counterexample",
+          "refuse_transfer"
+        ]
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引与来源元数据。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "当前为识典古籍数字转录见证，尚未与可靠点校本、版本影像逐字校勘。",
+      "本记录只抽取类比适切性论辩，不将王充整套宇宙论作为现代事实。"
+    ],
+    "concept_tags": [
+      "analogy_method",
+      "analogy_limit",
+      "causal_inference_limit",
+      "classification"
+    ],
+    "method_families": [
+      "analogical_argument",
+      "rhetorical_analogy"
+    ]
+  },
+  {
+    "record_id": "hanfeizi-nanshi-analogy-scope-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "韩非子·难势",
+      "traditional_authority": "传统题署韩非；《难势》篇章归属、慎到材料与论辩层次须结合校勘研究",
+      "composition_period": "战国末至秦汉传本层次；具体篇章形成与材料来源仍待考",
+      "genre": "法家论辩篇章"
+    },
+    "period": "pre_qin",
+    "source_type": "classical_text",
+    "tradition": [
+      "先秦法家",
+      "类推论证",
+      "势与条件"
+    ],
+    "witness": {
+      "witness_id": "ctext-hanfeizi-nanshi",
+      "edition_or_database": "中国哲学书电子化计划《韩非子·难势》数字文本；需与可靠整理本或影印本复核",
+      "url": "https://ctext.org/hanfeizi/nan-shi/zhs",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台及转录许可另行核验"
+    },
+    "locator": {
+      "chapter": "难势",
+      "section_or_line": "夫有云雾之势而能乘游之者，龙蛇之材美也；此则不知类之患也"
+    },
+    "text": "夫有云雾之势而能乘游之者，龙蛇之材美也；今云盛而螾弗能乘也，雾浓而蚁不能游也。夫有盛云浓雾之势而不能乘游者，螾蚁之材薄也。……欲追速致远，不知任王良；欲进利除害，不知任贤能，此则不知类之患也。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "hanfeizi-nanshi-analogy-scope-001",
+        "claim_kind": "textual_observation",
+        "subject": "龙蛇乘云雾与蚯蚓蚂蚁处云雾",
+        "predicate": "以主体材能限制外部势的类比迁移",
+        "object": "共享外部条件不意味着不同主体具有相同能力或结果",
+        "interpretive_note": "《难势》以龙蛇乘云游雾、蚯蚓蚂蚁不能乘游为例，强调外部势与主体材能共同决定结果，并以“不知类之患”批评不辨适用对象的推类。这里的“类”属于篇章论辩语境，不应直接等同现代分类学或统计类别。",
+        "scope": "限于《难势》该段关于势、材与推类的论辩；不将其简化为现代因果定律。",
+        "relation_type": "conditional_analogy_transfer",
+        "xiang_domain": "主体能力、外部条件与类推边界",
+        "relation_family": "rhetorical_analogy",
+        "shared_basis": [
+          "龙蛇与蚯蚓蚂蚁都处于云雾这一外部环境条件"
+        ],
+        "non_shared_basis": [
+          "主体材能不同，能否乘游的结果不同"
+        ],
+        "scope_conditions": [
+          "类推必须同时检查外部条件与主体能力",
+          "环境相同不足以推出功能或结果相同",
+          "“势”在本篇中的政治论辩含义需与自然环境譬喻分层解释"
+        ],
+        "causal_status": "not_claimed",
+        "conditions": [
+          "主体能力与外部条件均纳入适用范围"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed",
+        "reasoning_operations": [
+          "compare",
+          "abstract_shared_basis",
+          "identify_difference",
+          "infer_by_analogy",
+          "test_counterexample",
+          "refuse_transfer"
+        ]
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引与来源元数据。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "数字转录尚未与可靠校勘本逐字复核。",
+      "《难势》篇中慎子与应慎子等论辩层次须独立处理，不将各段观点混为一说。"
+    ],
+    "concept_tags": [
+      "analogy_method",
+      "analogy_limit",
+      "classification",
+      "natural_knowledge"
+    ],
+    "method_families": [
+      "analogical_argument",
+      "rhetorical_analogy"
+    ]
+  },
+  {
+    "record_id": "huainanzi-shuolin-analogy-nontransfer-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "淮南子·说林训",
+      "traditional_authority": "传统题署刘安及门客编纂；具体篇章层次与编纂过程仍需学术考辨",
+      "composition_period": "西汉时期，包含不同材料层次",
+      "genre": "杂家子书与譬喻论说"
+    },
+    "period": "qin_han",
+    "source_type": "classical_text",
+    "tradition": [
+      "两汉诸子",
+      "类推边界",
+      "物类与功能"
+    ],
+    "witness": {
+      "witness_id": "ctext-huainanzi-shuolin",
+      "edition_or_database": "中国哲学书电子化计划《淮南子·说林训》数字文本；需与可靠点校本及影印本复核",
+      "url": "https://ctext.org/huainanzi/shuo-lin-xun/zhs",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台及转录许可另行核验"
+    },
+    "locator": {
+      "chapter": "说林训",
+      "section_or_line": "非其用也；环可以喻员，不必以轮；见物同，而用之异；类不可必推"
+    },
+    "text": "毋贻盲者镜，毋予躄者履，毋赏越人章甫，非其用也。……环可以喻员，不必以轮；绦可以为纆，不必以紃。……柳下惠见饴，曰可以养老；盗跖见饴，曰可以黏牡；见物同，而用之异。……人食礜石而死，蚕食之而不饥；鱼食巴菽而死，鼠食之而肥；类不可必推。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "huainanzi-shuolin-analogy-nontransfer-001",
+        "claim_kind": "textual_observation",
+        "subject": "同一物在不同主体处的用途与效应",
+        "predicate": "不能仅凭对象相同就推定用途或结果相同",
+        "object": "主体种类、用途与作用条件不同，会限制类推迁移",
+        "interpretive_note": "《说林训》先举柳下惠与盗跖见饴而用途判断不同，再举不同生物对同一食物的不同反应，归结为“类不可必推”。这段材料直接限制由表面同物推断同用、同效的做法；具体古代物性记载不应未经现代验证就当作生物学事实。",
+        "scope": "限于《说林训》该段关于物类、用途和效应差异的论说；不将其归纳为所有类别推理都无效。",
+        "relation_type": "subject_conditioned_function",
+        "xiang_domain": "主体差异与功能迁移边界",
+        "relation_family": "functional",
+        "shared_basis": [
+          "不同主体面对同一物或同一外部对象"
+        ],
+        "non_shared_basis": [
+          "主体种类、用途目标及生理/情境条件不同"
+        ],
+        "scope_conditions": [
+          "迁移功能或结果前须核验主体类型",
+          "同一对象不保证不同主体具有同一用途与效应",
+          "古代自然知识主张须与现代经验验证分开"
+        ],
+        "causal_status": "unassessed",
+        "conditions": [
+          "主体类型和作用情境需显式记录"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed",
+        "reasoning_operations": [
+          "compare",
+          "identify_difference",
+          "map_function",
+          "test_counterexample",
+          "refuse_transfer"
+        ]
+      },
+      {
+        "claim_id": "huainanzi-shuolin-affordance-fit-001",
+        "claim_kind": "textual_observation",
+        "subject": "镜、履、章甫与不同接受者",
+        "predicate": "物的用途适配依赖接受者的能力与习俗",
+        "object": "同一物并不对所有主体都具有相同效用",
+        "interpretive_note": "《说林训》以盲者、跛者、越人分别对应镜、履、章甫，指出物虽存在其通常用途，但接受者条件不匹配时便“非其用也”。这段材料适合研究主体—工具—任务的适配关系；不应把古代对特定群体的表达直接转译成现代能力标签。",
+        "scope": "限于该段譬喻的工具适配论证；现代系统应使用具体任务能力和情境变量，不以身份类别作未经证实的推断。",
+        "relation_type": "agent_tool_task_fit",
+        "xiang_domain": "主体能力与工具功能适配",
+        "relation_family": "functional",
+        "shared_basis": [
+          "工具具有可供执行的功能"
+        ],
+        "non_shared_basis": [
+          "接受者的能力、需求、任务和习俗可能不同"
+        ],
+        "scope_conditions": [
+          "评估工具效用时必须同时表示主体、任务和环境",
+          "不得从群体标签推断个体能力"
+        ],
+        "causal_status": "not_claimed",
+        "conditions": [
+          "主体能力与任务需求相匹配"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed",
+        "reasoning_operations": [
+          "classify",
+          "map_function",
+          "identify_difference",
+          "refuse_transfer"
+        ]
+      },
+      {
+        "claim_id": "huainanzi-shuolin-analogy-dimension-001",
+        "claim_kind": "textual_observation",
+        "subject": "环喻员与绦为纆",
+        "predicate": "类比可以只映射特定结构维度而不要求对象整体相同",
+        "object": "环可用于譬喻圆形，但不必等同车轮；绦可为纆，但不必等同紃",
+        "interpretive_note": "《说林训》列举不同物件之间的局部譬喻关系，提示类比映射可以针对某一维度或用途，而非要求源对象与目标对象整体同一。具体字词“员、纆、紃”的训释及版本异文仍需校勘。",
+        "scope": "限于当前数字见证的短句；词义、字形和异文需对照古注及校勘本。",
+        "relation_type": "dimension_specific_analogy",
+        "xiang_domain": "局部结构映射与类比抽象",
+        "relation_family": "rhetorical_analogy",
+        "shared_basis": [
+          "被映射的特定形状或用途维度"
+        ],
+        "non_shared_basis": [
+          "源对象与目标对象在整体结构、材料和用途上并不相同"
+        ],
+        "scope_conditions": [
+          "必须标明类比映射的具体维度",
+          "不得把局部相似扩展成整体等同"
+        ],
+        "causal_status": "not_claimed",
+        "conditions": [
+          "映射维度需明确且可核验"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed",
+        "reasoning_operations": [
+          "abstract_shared_basis",
+          "identify_difference",
+          "infer_by_analogy",
+          "refuse_transfer"
+        ]
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引与来源元数据。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "数字转录尚未与可靠点校本、影印本逐字校勘。",
+      "有关礜石、巴菽等物性的历史记载只作为古代文本主张保存，不视为已验证现代生物学事实。"
+    ],
+    "concept_tags": [
+      "analogy_method",
+      "analogy_limit",
+      "classification",
+      "natural_knowledge"
+    ],
+    "method_families": [
+      "analogical_argument",
+      "phenomenological_observation"
+    ]
+  },
+  {
+    "record_id": "xunzi-feixiang-appearance-inference-limit-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "荀子·非相篇",
+      "traditional_authority": "传统题署荀况；篇章传承与注释层次依校勘本复核",
+      "composition_period": "战国晚期，传本与后世编定层次仍需考辨",
+      "genre": "论辩篇章"
+    },
+    "period": "pre_qin",
+    "source_type": "classical_text",
+    "tradition": [
+      "先秦儒家",
+      "形相批判",
+      "类推边界"
+    ],
+    "witness": {
+      "witness_id": "wikisource-xunzi-feixiang",
+      "edition_or_database": "维基文库《荀子·非相篇》数字转录；另有国家图书馆藏本影印检索线索，须逐页核验",
+      "url": "https://zh.wikisource.org/zh-hans/荀子/非相篇",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台条款另行核验"
+    },
+    "locator": {
+      "chapter": "非相篇第五",
+      "section_or_line": "故相形不如论心，论心不如择术；形相虽恶而心术善，形相虽善而心术恶"
+    },
+    "text": "故相形不如论心，论心不如择术。……形相虽恶而心术善，无害为君子也；形相虽善而心术恶，无害为小人也。故长短、小大、善恶、形相，非吉凶也。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "xunzi-feixiang-appearance-inference-limit-001",
+        "claim_kind": "textual_observation",
+        "subject": "外在形相与人的吉凶、德行判断",
+        "predicate": "反对仅凭外貌形相推断人的德行或吉凶",
+        "object": "应转向论心与择术，外形与道德评价不能简单对应",
+        "interpretive_note": "《非相篇》批评以形状颜色推断吉凶妖祥的相人之术，提出“相形不如论心，论心不如择术”，并以形相与心术可能不一致作为论据。此处是对外观代理指标的批判，不应直接等同现代心理测量理论。",
+        "scope": "限于《非相篇》对相人之术的论辩；不据此否定所有可观察外在特征在具体任务中的预测价值。",
+        "relation_type": "appearance_to_character_inference",
+        "xiang_domain": "外观表征与内在属性推断边界",
+        "relation_family": "taxonomic",
+        "shared_basis": [
+          "外在形相常被用作判断人的线索"
+        ],
+        "non_shared_basis": [
+          "外观与心术/行为实践并非一一对应"
+        ],
+        "scope_conditions": [
+          "判断对象属性时必须检查代理特征的效度",
+          "应优先使用与目标属性直接相关的行为与实践证据",
+          "不得把外貌特征当作德行或命运的充分依据"
+        ],
+        "causal_status": "challenged",
+        "conditions": [
+          "目标属性须有直接相关证据"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed",
+        "reasoning_operations": [
+          "compare",
+          "identify_difference",
+          "test_counterexample",
+          "refuse_transfer"
+        ]
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引与来源元数据。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "数字转录尚未与国家图书馆影印本、可靠点校本逐字核对。",
+      "该记录只标注荀子对相人推断的批判，不扩展为现代心理学定论。"
+    ],
+    "method_families": [
+      "classification",
+      "analogical_argument"
+    ],
+    "concept_tags": [
+      "analogy_limit",
+      "classification",
+      "causal_inference_limit"
+    ]
+  },
+  {
+    "record_id": "xunzi-feixiang-yileidulei-temporal-analogy-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "荀子·非相篇",
+      "traditional_authority": "传统题署荀况；篇章传承与注释层次依校勘本复核",
+      "composition_period": "战国晚期，传本与后世编定层次仍需考辨",
+      "genre": "论辩篇章"
+    },
+    "period": "pre_qin",
+    "source_type": "classical_text",
+    "tradition": [
+      "先秦儒家",
+      "以类度类",
+      "历史推论"
+    ],
+    "witness": {
+      "witness_id": "wikisource-xunzi-feixiang",
+      "edition_or_database": "维基文库《荀子·非相篇》数字转录；另有国家图书馆藏本影印检索线索，须逐页核验",
+      "url": "https://zh.wikisource.org/zh-hans/荀子/非相篇",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台条款另行核验"
+    },
+    "locator": {
+      "chapter": "非相篇第五",
+      "section_or_line": "以人度人，以情度情，以类度类；古今一度，类不悖虽久同理"
+    },
+    "text": "以人度人，以情度情，以类度类。古今一度也。类不悖，虽久同理。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "xunzi-feixiang-yileidulei-temporal-analogy-001",
+        "claim_kind": "textual_observation",
+        "subject": "以类度类与古今推论",
+        "predicate": "以当前可考的人情与类别结构推度古代时，依赖相关类型和基本条件的连续性",
+        "object": "跨时代类推须说明哪些性质被假定为稳定，不能把所有历史情境都视为相同",
+        "interpretive_note": "《非相篇》在反驳古今人情全然不同的说法时，提出“以人度人，以情度情，以类度类”，并说“类不悖，虽久同理”。此处是特定论辩中的历史推度原则；它依赖人情与相关类别在目标维度上具有连续性，并不意味着时代制度、环境和具体事件完全不变。",
+        "scope": "限于《非相篇》古今人情与历史推度语境；跨时代迁移须另行核验制度、环境、技术和社会条件变化。",
+        "relation_type": "temporal_analogy",
+        "xiang_domain": "跨时代类推与不变量条件",
+        "relation_family": "temporal",
+        "shared_basis": [
+          "不同历史时期的人在特定人情维度上可被比较"
+        ],
+        "non_shared_basis": [
+          "制度、环境、技术、知识与社会结构可能发生显著变化"
+        ],
+        "scope_conditions": [
+          "必须明确跨时代推论所依赖的不变量",
+          "须控制制度和环境差异",
+          "历史类推只能在声明的维度和范围内成立"
+        ],
+        "causal_status": "not_claimed",
+        "conditions": [
+          "相关性质在目标维度上保持连续"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed",
+        "reasoning_operations": [
+          "compare",
+          "abstract_shared_basis",
+          "identify_difference",
+          "map_time",
+          "infer_by_analogy",
+          "refuse_transfer"
+        ]
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引与来源元数据。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "数字转录尚未与可靠点校本及影印本逐字校勘。",
+      "“古今一度”属于篇章论辩立场，项目将其作为待检验的跨时代类推假设，不视为无条件事实。"
+    ],
+    "method_families": [
+      "analogical_argument",
+      "comparative_exegesis"
+    ],
+    "concept_tags": [
+      "analogy_method",
+      "analogy_limit",
+      "classification",
+      "state_change"
+    ]
+  },
+  {
+    "record_id": "lunheng-ganlei-correspondence-causal-critique-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "论衡·感类篇",
+      "traditional_authority": "东汉王充撰；《感类》与相关篇章的互见、异文需按校勘本核验",
+      "composition_period": "东汉时期",
+      "genre": "自然哲学与灾异论辩"
+    },
+    "period": "qin_han",
+    "source_type": "classical_text",
+    "tradition": [
+      "两汉思想",
+      "天人感应批判",
+      "相关与因果辨析"
+    ],
+    "witness": {
+      "witness_id": "ctext-lunheng-ganlei",
+      "edition_or_database": "中国哲学书电子化计划《论衡·感类》；页面列有《四部丛刊初编》等多个数字底本入口，须逐一核对",
+      "url": "https://ctext.org/lunheng/gan-lei/zhs",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "数字平台及转录许可另行核验"
+    },
+    "locator": {
+      "juan": "卷十八",
+      "chapter": "感类篇第五十五",
+      "section_or_line": "旱不为汤至，雨不应自责；然而前旱后雨者，自然之气也"
+    },
+    "text": "旱不为汤至，雨不应自责。然而前旱后雨者，自然之气也。",
+    "text_status": "quotation_fragment",
+    "claims": [
+      {
+        "claim_id": "lunheng-ganlei-correspondence-causal-critique-001",
+        "claim_kind": "textual_observation",
+        "subject": "成汤自责与旱后降雨",
+        "predicate": "反对仅凭时间先后认定天人感应因果",
+        "object": "旱后降雨与君主自责先后相继，不足以证明降雨由自责招致",
+        "interpretive_note": "王充针对“汤自责，天应以雨”的说法指出，成汤自责与随后降雨之间不能仅凭先后关系建立因果；并将旱后雨解释为“自然之气”。这既是对灾异谴告和感应因果的批判，也包含王充自身的古代气论解释。项目保存其论证结构，不将“自然之气”直接等同现代气象学机制。",
+        "scope": "限于《感类篇》对汤旱自责与降雨关系的论辩；不据此断言所有类感、相关或象征关系均无效。",
+        "relation_type": "temporal_cooccurrence_vs_causal_attribution",
+        "xiang_domain": "感应、时间先后与因果归因",
+        "relation_family": "correlative",
+        "shared_basis": [
+          "自责事件与降雨在叙事中存在时间先后关系"
+        ],
+        "non_shared_basis": [
+          "时间先后并不单独证明因果机制；自然气候过程可能构成替代解释"
+        ],
+        "scope_conditions": [
+          "必须区分叙事中的时间顺序与可识别的因果关系",
+          "需要比较替代解释和反事实预期",
+          "历史气论与现代气象机制分别表述"
+        ],
+        "causal_status": "challenged",
+        "conditions": [
+          "需要独立证据支持从先后关系到因果关系的跨越"
+        ],
+        "supports": [],
+        "counterevidence": [],
+        "review_status": "unreviewed",
+        "reasoning_operations": [
+          "observe",
+          "compare",
+          "identify_difference",
+          "test_counterexample",
+          "refuse_transfer"
+        ]
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "仅保存必要短引与来源元数据。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "《四部丛刊初编》本等多种数字底本入口待逐一核对。",
+      "“五过/六过”及《尚书》引文出处需进一步校勘；本记录暂不裁决。",
+      "王充的气论解释属于历史思想主张，不作为现代气象学事实。"
+    ],
+    "concept_tags": [
+      "correspondence",
+      "causal_inference_limit",
+      "analogy_limit",
+      "observation"
+    ],
+    "method_families": [
+      "causal_claim",
+      "analogical_argument",
+      "phenomenological_observation"
+    ],
+    "variant_notes": [
+      "《感类篇》数字见证作“自责以五过”；《感虚篇》相关段落据部分校释材料作“六过”，需回查各版本、篇章互见与校勘记。",
+      "“汤自责，天应以雨”被王充作为所批评的旧说引述；该引文在今本《尚书》中的出处问题，须独立核验，不把它当作已确认的《尚书》原文。"
+    ]
+  },
+  {
+    "record_id": "lushi-chunqiu-bielei-nonmonotonic-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "吕氏春秋·似顺论·别类",
+      "traditional_authority": "传统归于吕不韦及其门客编纂；具体篇章层次与编纂过程仍须审慎处理",
+      "composition_period": "战国末至秦汉之际的编纂层次问题待考",
+      "genre": "杂家/论说"
+    },
+    "period": "pre_qin",
+    "source_type": "classical_text",
+    "tradition": [
+      "先秦诸子",
+      "类推边界",
+      "组合性质",
+      "尺度迁移"
+    ],
+    "witness": {
+      "witness_id": "ctext-lushi-bielei-sibu-congkan",
+      "edition_or_database": "中国哲学书电子化计划《吕氏春秋·别类》；页面标注《四部丛刊初编》本",
+      "url": "https://ctext.org/lv-shi-chun-qiu/bie-lei/zhs",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "license_status": "平台及数字转录许可另行核验；只保留必要短引"
+    },
+    "locator": {
+      "chapter": "似顺论·别类",
+      "section_or_line": "似顺论·别类：组合性质、小方/大方与小智/大智、射招/射兽、高阳应造室诸段"
+    },
+    "text": "物多类然而不然。……金柔锡柔，合两柔则为刚，燔之则为淖。……小方，大方之类也；小马，大马之类也；小智，非大智之类也。……射招者欲其中小也，射兽者欲其中大也。……高阳应将为室家……室之始成也善，其后果败。",
+    "text_status": "quotation_fragment",
+    "variant_notes": [
+      "不同数字转录对“漆淖水淖”“湿/泾”“淖/蹇”等字有差异；本条不据网页转录定校。",
+      "《四库全书》本及其他整理本须逐字对勘；此处短引只作检索候选，不视为定本。"
+    ],
+    "claims": [
+      {
+        "claim_id": "lushi-bielei-composition-nonmonotonic-001",
+        "claim_kind": "textual_observation",
+        "subject": "单项材料属性",
+        "predicate": "组合后性质发生变化",
+        "object": "金柔、锡柔合而为刚，燔而状态变化的文本例证",
+        "interpretive_note": "篇章用组成项属性与组合态性质的差异，反对把单项性质线性外推为整体性质。这里记录文本论证结构，不把古代材料描述当成现代冶金事实。",
+        "scope": "仅限《别类》文本论证与其所举历史物性主张；现代材料机制须独立验证。",
+        "relation_type": "composition_interaction",
+        "conditions": [
+          "记录组成项、组合操作和结果状态",
+          "不得由单项性质直接推出组合态性质"
+        ],
+        "supports": [],
+        "counterevidence": [
+          "组合结果也可能在特定条件下保留组成项性质；必须逐关系检验。"
+        ],
+        "review_status": "unreviewed",
+        "xiang_domain": "material transformation",
+        "relation_family": "generative",
+        "shared_basis": [
+          "两个组成项各自具有柔的描述"
+        ],
+        "non_shared_basis": [
+          "组合态与加热后的性质描述不同于单项属性"
+        ],
+        "scope_conditions": [
+          "仅作古典论证样本",
+          "不作为现代材料科学证据"
+        ],
+        "causal_status": "unassessed",
+        "reasoning_operations": [
+          "compare",
+          "abstract_shared_basis",
+          "identify_difference",
+          "test_counterexample",
+          "refuse_transfer"
+        ]
+      },
+      {
+        "claim_id": "lushi-bielei-scale-class-vs-capacity-001",
+        "claim_kind": "textual_observation",
+        "subject": "尺度变化与类别/能力判断",
+        "predicate": "区分类别保持和能力外推",
+        "object": "小方/大方、小马/大马与小智/大智的对照",
+        "interpretive_note": "篇章并列尺度变化下可维持的类别关系与不可简单放大的能力关系。工程上应将类属成员关系、连续尺度和能力谓词分离。",
+        "scope": "只支持对文本中三组例子的结构分析，不据此断言普遍分类规律。",
+        "relation_type": "scale_sensitive_taxonomy",
+        "conditions": [
+          "区分类别谓词与程度/能力谓词",
+          "记录尺度变化是否改变关系结构"
+        ],
+        "supports": [],
+        "counterevidence": [
+          "小/大词项在不同语境中可能指形制、程度或价值判断，必须先做词义和指称分析。"
+        ],
+        "review_status": "unreviewed",
+        "xiang_domain": "taxonomy and scale",
+        "relation_family": "taxonomic",
+        "shared_basis": [
+          "对象在某一维度上存在大小/尺度差异"
+        ],
+        "non_shared_basis": [
+          "类别谓词与能力谓词的迁移规则不同"
+        ],
+        "scope_conditions": [
+          "限于《别类》语境",
+          "不得将所有属性统一按尺度比例外推"
+        ],
+        "causal_status": "not_claimed",
+        "reasoning_operations": [
+          "classify",
+          "compare",
+          "identify_difference",
+          "test_counterexample",
+          "refuse_transfer"
+        ]
+      },
+      {
+        "claim_id": "lushi-bielei-dose-extrapolation-limit-001",
+        "claim_kind": "textual_observation",
+        "subject": "治疗剂量与结果尺度",
+        "predicate": "局部治疗能力不能按倍量线性外推",
+        "object": "治偏枯之药加倍并不能据此推出可起死人",
+        "interpretive_note": "篇章用荒谬的倍量外推揭示剂量/适用对象变化可能破坏原有关系。这里只记录反类推论证，不采纳其古代医疗主张。",
+        "scope": "仅分析论证中的尺度迁移错误；不构成医疗知识或现代药理结论。",
+        "relation_type": "dose_and_outcome_scope",
+        "conditions": [
+          "区分治疗对象、病情程度、剂量和结果",
+          "不得把局部效果线性放大为极端结果"
+        ],
+        "supports": [],
+        "counterevidence": [
+          "某些干预存在剂量反应关系，但关系形式必须由独立证据识别。"
+        ],
+        "review_status": "unreviewed",
+        "xiang_domain": "medical analogy critique",
+        "relation_family": "functional",
+        "shared_basis": [
+          "同一药物或治疗手段被用于比较"
+        ],
+        "non_shared_basis": [
+          "目标病情与结果严重程度不同，剂量关系未被证明线性"
+        ],
+        "scope_conditions": [
+          "仅作古典论证样本",
+          "不得用于医疗决策"
+        ],
+        "causal_status": "unassessed",
+        "reasoning_operations": [
+          "compare",
+          "identify_difference",
+          "test_counterexample",
+          "refuse_transfer"
+        ]
+      },
+      {
+        "claim_id": "lushi-bielei-task-dependent-success-001",
+        "claim_kind": "textual_observation",
+        "subject": "射击任务与命中标准",
+        "predicate": "同一动作的成功标准依目标任务而异",
+        "object": "射招求中小、射兽求中大的对照",
+        "interpretive_note": "篇章显示“命中”并非脱离目标的单一成功指标。评价函数由任务目标定义，不能将一个任务的优劣标准直接迁移到另一任务。",
+        "scope": "限于篇章所举射招与射兽的论证；不概括为所有射击任务的经验规律。",
+        "relation_type": "goal_conditioned_evaluation",
+        "conditions": [
+          "记录行动主体、目标对象和任务目的",
+          "成功标准必须绑定任务"
+        ],
+        "supports": [],
+        "counterevidence": [
+          "若两个任务明确采用同一评价目标，部分指标仍可能可比。"
+        ],
+        "review_status": "unreviewed",
+        "xiang_domain": "task and evaluation",
+        "relation_family": "functional",
+        "shared_basis": [
+          "动作形式均为射击与命中"
+        ],
+        "non_shared_basis": [
+          "目标大小与任务目的不同，最优命中尺度相反"
+        ],
+        "scope_conditions": [
+          "必须声明评价目标",
+          "不得只用动作表面相同判定绩效相同"
+        ],
+        "causal_status": "not_claimed",
+        "reasoning_operations": [
+          "compare",
+          "identify_difference",
+          "map_function",
+          "refuse_transfer"
+        ]
+      },
+      {
+        "claim_id": "lushi-bielei-temporal-outcome-001",
+        "claim_kind": "textual_observation",
+        "subject": "造室过程与长期结果",
+        "predicate": "初始状态良好不保证长期稳定",
+        "object": "高阳应造室初成善而后果败",
+        "interpretive_note": "篇章用木材状态、涂饰和后续变形/干燥过程反驳只看局部即时状态的推断。它提示必须区分初始截面、过程演化和延迟结果。",
+        "scope": "仅分析文本中的时间性反例；不将古代工艺描述当作现代建筑工程规范。",
+        "relation_type": "temporal_process_outcome",
+        "conditions": [
+          "记录材料初始状态与后续变化",
+          "结果评价包含明确时间跨度"
+        ],
+        "supports": [],
+        "counterevidence": [
+          "某些结构可在初始状态与长期状态间保持稳定，须由材料与环境证据判断。"
+        ],
+        "review_status": "unreviewed",
+        "xiang_domain": "craft process and time",
+        "relation_family": "temporal",
+        "shared_basis": [
+          "同一建筑项目与材料在时间中持续"
+        ],
+        "non_shared_basis": [
+          "初始观感与长期耐久性是不同结果变量"
+        ],
+        "scope_conditions": [
+          "区分即时表现与延迟结果",
+          "不得从单次快照推断长期稳定"
+        ],
+        "causal_status": "unassessed",
+        "reasoning_operations": [
+          "observe",
+          "map_time",
+          "compare",
+          "identify_difference",
+          "test_counterexample",
+          "refuse_transfer"
+        ]
+      }
+    ],
+    "rights": {
+      "text_license": "古典原文通常公有领域；数字转录及数据库条款另行核验",
+      "database_license": "未核验",
+      "reuse_notes": "必要短引与来源元数据；不复制现代校注。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "须核对《四部丛刊》影印本、《四库全书》本及可靠校点本；异文未决前不得升级为 verified。"
+    ],
+    "concept_tags": [
+      "analogy_limit",
+      "classification",
+      "natural_knowledge"
+    ],
+    "method_families": [
+      "classification",
+      "analogical_argument"
+    ]
+  },
+  {
+    "record_id": "lixinqiu-lushi-lei-argument-2022-001",
+    "record_version": "0.1.0",
+    "work": {
+      "title": "《吕氏春秋》中的“类”观念及其说理",
+      "traditional_authority": "李秋红",
+      "composition_period": "2022年",
+      "genre": "现代逻辑史与论证实践研究论文"
+    },
+    "period": "modern_post_1912",
+    "source_type": "modern_scholarship",
+    "tradition": [
+      "中国逻辑史",
+      "先秦论证实践",
+      "《吕氏春秋》研究"
+    ],
+    "witness": {
+      "witness_id": "lixinqiu-2022-lushi-lei-pdf",
+      "edition_or_database": "《逻辑学研究》2022年第1期，82–95页；中国人民大学哲学院期刊论文页面所载 PDF",
+      "url": "https://studiesinlogic.sysu.edu.cn/sites/default/files/2022-10/1674-3202%282022%29-01-0082-14.pdf",
+      "access_date": "2026-11-13",
+      "witness_kind": "digital_transcription",
+      "editor_or_transcriber": "李秋红",
+      "license_status": "保留书目信息与概述；全文版权依期刊条款"
+    },
+    "locator": {
+      "chapter": "摘要、第2节、第3节、第4节",
+      "section_or_line": "第82–89页"
+    },
+    "text": "该研究主张《吕氏春秋》中的“类”具有多种语用：知类、知邻类、类同相召与类固不必不可一概等同于形式类比推理；其中邻类侧重行动方法与结果的联系，类固不必强调实际应用效果与说理规则之间的差别，并须结合政治伦理劝说情境解释。",
+    "text_status": "paraphrase",
+    "claims": [
+      {
+        "claim_id": "lixinqiu-lushi-lei-multiple-functions-001",
+        "claim_kind": "modern_scholarship_claim",
+        "subject": "《吕氏春秋》中的“类”观念",
+        "predicate": "具有多种语用与说理功能",
+        "object": "知类、知邻类、类同相召、类固不必等用法不能简单合并为一种形式类比规则",
+        "interpretive_note": "李秋红（2022）提出，《吕氏春秋》中的“类”须区分具体语境：“邻类”主要讨论行动方法与结果之间的因果联系；“类固不必”强调不能只凭形式说理规则预测实际应用效果；相关说理还应放回政治伦理劝说的社会情境。此为现代学术解释，不是原典唯一读法。",
+        "scope": "仅作为现代解释史材料；不得替代《吕氏春秋》版本校勘，也不得覆盖其他学者对推类的解释。",
+        "relation_type": "historical_interpretation_of_argumentative_practice",
+        "conditions": [
+          "区分《吕氏春秋》不同篇章中的类概念用法",
+          "区分文本原句、现代解释和项目工程映射",
+          "保留形式类比解释与说理情境解释之间的争议"
+        ],
+        "supports": [],
+        "counterevidence": [
+          "既有逻辑史研究常从类比推理或推类方法解释相关材料；需并列比较，不以单篇现代论文裁定。"
+        ],
+        "review_status": "unreviewed",
+        "xiang_domain": "history of logic and argumentation",
+        "relation_family": "rhetorical_analogy",
+        "shared_basis": [
+          "不同篇章反复使用类及相关论说语汇"
+        ],
+        "non_shared_basis": [
+          "不同语境中的类可能承担分类、因果说明、规范判断或劝说功能"
+        ],
+        "scope_conditions": [
+          "现代研究层",
+          "仅用于解释史比较与工程问题识别"
+        ],
+        "causal_status": "not_claimed",
+        "reasoning_operations": [
+          "compare",
+          "identify_difference"
+        ]
+      }
+    ],
+    "rights": {
+      "text_license": "现代论文版权归原作者/出版方；本记录仅保留书目信息与概述",
+      "database_license": "按期刊与网站条款使用",
+      "reuse_notes": "不复制论文正文；引述时遵守学术引用规范。"
+    },
+    "review_status": "candidate",
+    "review_notes": [
+      "现代学术解释层，不属于清代以前原典主体语料；应与原典、注疏及其他现代研究分层。"
+    ],
+    "concept_tags": [
+      "analogy_limit",
+      "commentarial_exegesis"
+    ],
+    "method_families": [
+      "comparative_exegesis"
+    ]
+  }
+]
