@@ -6,7 +6,7 @@ search policies, execute interventions, or certify causal truth.
 """
 from dataclasses import dataclass
 from enum import Enum
-from math import log
+from math import isfinite, log
 
 class Review(str, Enum):
     PENDING="pending"; APPROVED="approved"; REJECTED="rejected"
@@ -101,11 +101,11 @@ def _scenario_valid(s, action_ids):
         return False
     hs=[p.hypothesis_id for p in s.priors]
     if len(hs)<2 or len(hs)!=len(set(hs)): return False
-    if any(not h or p.probability<0 for h,p in ((p.hypothesis_id,p) for p in s.priors)): return False
+    if any(not h or not isfinite(p.probability) or p.probability<0 for p in s.priors): return False
     if abs(sum(p.probability for p in s.priors)-1.0)>1e-8: return False
     outcomes={}; seen=set()
     for l in s.likelihoods:
-        if l.action_id not in action_ids or l.hypothesis_id not in hs or not l.outcome or not (0<=l.probability<=1): return False
+        if l.action_id not in action_ids or l.hypothesis_id not in hs or not l.outcome or not isfinite(l.probability) or not (0<=l.probability<=1): return False
         key=(l.action_id,l.hypothesis_id,l.outcome)
         if key in seen: return False
         seen.add(key); outcomes.setdefault((l.action_id,l.hypothesis_id),[]).append(l.probability)
@@ -116,7 +116,7 @@ def audit_policy(policy, actions, scenarios):
     issues=[]; warnings=[]; scores=[]
     actions=tuple(actions); scenarios=tuple(scenarios); nodes=tuple(policy.nodes)
     if not policy.policy_id or not policy.root_node_id: issues.append("missing_policy_identity")
-    if policy.max_steps<1 or min(policy.max_total_cost,policy.max_total_risk,policy.min_robust_eig)<0:
+    if policy.max_steps<1 or not all(isfinite(x) and x>=0 for x in (policy.max_total_cost,policy.max_total_risk,policy.min_robust_eig)):
         issues.append("invalid_policy_limits")
     if not _unique(actions,"action_id"): issues.append("duplicate_action_id")
     if not _unique(nodes,"node_id"): issues.append("duplicate_node_id")
@@ -130,7 +130,7 @@ def audit_policy(policy, actions, scenarios):
         if not all((a.action_id,a.design_ref,a.measurement_ref,a.selection_split,a.validation_split)):
             issues.append("incomplete_action:"+a.action_id)
         if a.selection_split==a.validation_split: issues.append("selection_validation_overlap:"+a.action_id)
-        if a.cost<0 or a.risk<0 or a.max_risk<0: issues.append("negative_cost_or_risk:"+a.action_id)
+        if not all(isfinite(x) and x>=0 for x in (a.cost,a.risk,a.max_risk)): issues.append("negative_cost_or_risk:"+a.action_id)
         if a.risk>a.max_risk: warnings.append("action_exceeds_own_risk_limit:"+a.action_id)
         if a.safety_review!=Review.APPROVED: warnings.append("action_not_approved:"+a.action_id)
         if not a.feasible: warnings.append("action_infeasible:"+a.action_id)
