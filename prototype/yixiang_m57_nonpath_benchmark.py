@@ -217,7 +217,7 @@ def generate_dataset(*, count: int = 240, seed: int = 5701) -> Tuple[List[Dict[s
         # Distractor noise is generated independently of the planted structure.
         predicates = ("supports", "directs", "contains", "signals", "blocks")  # keep cross_link reserved for the planted global-count constraint
         for _ in range(2 + 3 * LEVELS.index(level)):
-            left, right = rng.sample(list(nodes), 2)
+            left, right = rng.sample(list(true_mapping.values()), 2)  # noise cannot accidentally validate a decoy entity
             binary.append({"source": left, "predicate": rng.choice(predicates), "target": right})
         for role in roles:
             if rng.random() < 0.5:
@@ -238,9 +238,7 @@ def generate_dataset(*, count: int = 240, seed: int = 5701) -> Tuple[List[Dict[s
             if check_mapping(pattern, target, mapping)["valid"]
         ]
         if len(valid_ids) != 1:
-            # Regenerate with a deterministic alternate seed if accidental
-            # noise creates another satisfying mapping.
-            return generate_dataset(count=count, seed=seed + 1)
+            raise RuntimeError("generator_unique_solution_invariant_failed")
         public = {
             "schema_version": SCHEMA_VERSION,
             "case_id": case_id,
