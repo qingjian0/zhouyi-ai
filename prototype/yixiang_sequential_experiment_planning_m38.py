@@ -175,6 +175,9 @@ def audit_policy(policy, actions, scenarios):
             if expected_outcomes!=declared_outcomes:
                 issues.append("branch_outcome_coverage_mismatch:"+node_id)
             for branch in node.branches:
+                if branch.outcome not in expected_outcomes:
+                    issues.append("branch_has_no_likelihood:"+node_id+":"+branch.outcome)
+                    continue
                 probs=[belief[h]*likelihood[(action.action_id,h,branch.outcome)] for h in belief]
                 marginal=sum(probs)
                 if marginal<=0: issues.append("zero_probability_branch:"+node_id+":"+branch.outcome); continue
