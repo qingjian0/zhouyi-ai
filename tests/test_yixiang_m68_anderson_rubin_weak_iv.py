@@ -54,6 +54,11 @@ class M68AndersonRubinTests(unittest.TestCase):
         self.assertGreater(result["critical_value"], 3.3)
         self.assertLess(result["critical_value"], 3.4)
 
+    def test_strong_instrument_rejects_far_away_null(self):
+        result = anderson_rubin_test(strong_iv_data(), 0.0)
+        self.assertTrue(result["reject"])
+        self.assertLess(result["p_value"], 0.05)
+
     def test_instrument_rank_deficiency_is_rejected(self):
         data = strong_iv_data()
         data["z"] = [[row[0], row[0]] for row in data["z"]]
