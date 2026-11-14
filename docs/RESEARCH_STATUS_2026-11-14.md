@@ -12,7 +12,7 @@ This status applies to the stacked research branches and open Draft pull request
 | M62 | Gold-admission gates; pending records excluded from gold counts; scan-verified transcription required | 17 tests passed on code/test head 6032663924243c2ea65ba442fab4d59a1d8c9ead | Passed: run #43590149812 on the combined M61/M62 stack | https://github.com/qingjian0/zhouyi-ai/pull/494 |
 | M63 | Single-observed-mediator front-door criterion and exact binary front-door functional; back-door comparator retained | 5 new focused regressions | Passed: focused workflow #43592406857 on the M63 head | https://github.com/qingjian0/zhouyi-ai/pull/495 |
 | M64 | Graphical IV screening, exact-population binary Wald ratio, explicit LATE vs ATE semantics | 7 focused tests passed on code/test head `c86b05674b45079a25d99b4b89b516791f772973` (run #43593904145) | Full repo unit tests and E01, E01-B passed; E01-C and later stages running in #43593904033 | https://github.com/qingjian0/zhouyi-ai/pull/496 |
-| M65 | Bounded-exclusion IV sensitivity interval under linear covariance moments; exogeneity/relevance retained | 4 focused tests added; exact-head validation pending | Focused M64/M65 workflow pending | Draft PR pending |
+| M65 | Bounded-exclusion IV sensitivity interval under linear covariance moments; exogeneity/relevance retained | 4 focused tests passed on code/test head `e52788f996f733d941a107b55cadd3541068e07c` (run #43594100977) | Full repo workflow #43594100995 in progress | https://github.com/qingjian0/zhouyi-ai/pull/497 |
 
 ## Important scientific boundaries
 
@@ -31,6 +31,6 @@ This status applies to the stacked research branches and open Draft pull request
 5. Connect the M57/M58 relational tasks to source-grounded annotations only after M59/M62 admission gates pass.
 6. Run fair baselines against actual model adapters under fixed data, compute budgets, and held-out source families.
 
-README explicitly distinguishes the stable main baseline from the Draft research stack. M63 remains Draft stacked on M62; focused exact-head workflow #43592406857 passed. M64 is Draft stacked on M63; its seven-test focused workflow #43593904145 passed. Full repo workflow #43593904033 has passed unit tests, E01 and E01-B; E01-C and later stages are still running. M65 is Draft stacked on M64; exact-head validation is pending.
+README explicitly distinguishes the stable main baseline from the Draft research stack. M63 remains Draft stacked on M62; focused exact-head workflow #43592406857 passed. M64 is Draft stacked on M63; its seven-test focused workflow #43593904145 passed. Full repo workflow #43593904033 has passed unit tests, E01 and E01-B; E01-C and later stages are still running. M65 is Draft stacked on M64; focused M64/M65 workflow #43594100977 passed after two defects were fixed. Full repo workflow #43594100995 is running.
 
 No overall project-completion claim is made. The current work advances infrastructure and controlled diagnostics; the end-to-end yixiang system remains unproven.
