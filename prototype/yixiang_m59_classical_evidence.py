@@ -160,6 +160,25 @@ def validate_record(record: Mapping[str, Any]) -> None:
     else:
         raise ValueError("invalid_adjudication_status")
 
+    admission_status = record.get("admission_status")
+    if admission_status is not None and admission_status not in (
+        "discovery", "review_pending", "adjudicated", "gold", "excluded"
+    ):
+        raise ValueError("invalid_admission_status")
+    if admission_status == "gold":
+        if policy != "core_pre_qing" or source["source_kind"] not in (
+            "primary_text", "critical_edition"
+        ):
+            raise ValueError("gold_record_requires_core_primary_evidence")
+        if status != "adjudicated" or any(
+            decision != "accept" for decision in adjudication["decisions"].values()
+        ):
+            raise ValueError("gold_record_requires_unanimous_adjudication")
+    if admission_status == "adjudicated" and status != "adjudicated":
+        raise ValueError("adjudicated_stage_requires_final_adjudication")
+    if admission_status == "review_pending" and status != "pending":
+        raise ValueError("review_pending_stage_requires_pending_adjudication")
+
     if record.get("split") not in SPLITS:
         raise ValueError("invalid_split")
 
@@ -176,21 +195,48 @@ def validate_split_assignments(records: Sequence[Mapping[str, Any]]) -> None:
         raise ValueError("source_or_text_dependence_group_crosses_splits")
 
 
+def _admission_stage(record: Mapping[str, Any]) -> str:
+    explicit = record.get("admission_status")
+    if explicit is not None:
+        return explicit
+    adjudication = record["adjudication"]
+    if adjudication["status"] == "pending":
+        return "review_pending"
+    decisions = adjudication["decisions"]
+    source = record["source"]
+    if (source["evidence_policy"] == "core_pre_qing"
+            and source["source_kind"] in ("primary_text", "critical_edition")
+            and all(value == "accept" for value in decisions.values())):
+        return "gold"
+    return "adjudicated"
+
+
 def audit_corpus(records: Sequence[Mapping[str, Any]]) -> Dict[str, Any]:
+    """Audit all records while counting only adjudicated core evidence as gold."""
     ids = [record.get("record_id") for record in records]
     if len(ids) != len(set(ids)):
         raise ValueError("duplicate_record_id")
     validate_split_assignments(records)
+    stages = [_admission_stage(record) for record in records]
+    gold = [record for record, stage in zip(records, stages) if stage == "gold"]
     period_counts = Counter(record["source"]["work_period_class"] for record in records)
     policy_counts = Counter(record["source"]["evidence_policy"] for record in records)
-    split_counts = Counter(record["split"] for record in records)
+    all_split_counts = Counter(record["split"] for record in records)
+    gold_split_counts = Counter(record["split"] for record in gold)
     annotation_counts = [len(record["independent_annotations"]) for record in records]
     return {
         "records": len(records),
-        "work_period_counts": dict(period_counts),
-        "evidence_policy_counts": dict(policy_counts),
-        "split_counts": {split: split_counts.get(split, 0) for split in SPLITS},
+        "gold_records": len(gold),
+        "review_pending_records": stages.count("review_pending"),
+        "adjudicated_non_gold_records": stages.count("adjudicated"),
+        "discovery_records": stages.count("discovery"),
+        "excluded_records": stages.count("excluded"),
+        "work_period_counts_all_records": dict(period_counts),
+        "evidence_policy_counts_all_records": dict(policy_counts),
+        "split_counts": {split: gold_split_counts.get(split, 0) for split in SPLITS},
+        "all_record_split_counts": {split: all_split_counts.get(split, 0) for split in SPLITS},
         "minimum_independent_annotations": min(annotation_counts, default=0),
         "all_evidence_spans_exact": True,
         "source_and_text_leakage_checked": True,
+        "gold_admission_requires_adjudication": True,
     }
