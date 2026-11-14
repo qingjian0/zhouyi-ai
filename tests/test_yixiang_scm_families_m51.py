@@ -100,12 +100,14 @@ class M51Tests(unittest.TestCase):
         env = FamilyEnvironment(spec)
         self.assertEqual(dict(env.sample((0,), {"x": 2})[0].values)["y"], 7.0)
 
-    def test_binary_noise_configuration_validated(self):
-        spec = FamilySpec("bad-binary", (
-            FamilyNode("x", (), (), "binary_logistic", noise_scale=1.0),
-        ), 1, 4)
-        with self.assertRaisesRegex(FamilyValidationError, "binary_logistic_noise_scale_must_be_zero"):
-            FamilyEnvironment(spec)
+    def test_binary_logistic_uses_uniform_noise_independent_of_gaussian_scale(self):
+        spec = FamilySpec("binary-default-scale", (
+            FamilyNode("x", (), (), "binary_logistic", intercept=0.0, noise_scale=1.0),
+        ), 1, 32)
+        env = FamilyEnvironment(spec)
+        values = [dict(row.values)["x"] for row in env.sample(tuple(range(32)))]
+        self.assertTrue(set(values) <= {0.0, 1.0})
+        self.assertGreater(len(set(values)), 1)
 
 
 if __name__ == "__main__":
