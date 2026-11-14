@@ -94,7 +94,7 @@ def _tuple(values, field, *, allow_empty=True):
         raise ValueError(f"{field} must not be empty")
 
 def _validate_source(source):
-    if source.source_status not in SOURCE_STATUSES:
+    if not isinstance(source.source_status, str) or source.source_status not in SOURCE_STATUSES:
         raise ValueError("unknown source_status")
     for field in ("work_id", "edition_id", "witness_id", "locator", "transcription", "verification_note"):
         _text(getattr(source, field), field)
@@ -106,13 +106,13 @@ def _validate_source(source):
 
 def _validate_annotation(annotation):
     _text(annotation.reviewer_id, "reviewer_id")
-    if annotation.decision not in DECISIONS:
+    if not isinstance(annotation.decision, str) or annotation.decision not in DECISIONS:
         raise ValueError("unknown annotation decision")
     for field in ("claim", "text_layer", "rationale"):
         _text(getattr(annotation, field), field)
     for field in ("shared_basis", "non_shared_basis", "scope_conditions", "required_invariants", "known_counterexamples", "evidence_refs"):
         _tuple(getattr(annotation, field), field)
-    if annotation.causal_status not in CAUSAL:
+    if not isinstance(annotation.causal_status, str) or annotation.causal_status not in CAUSAL:
         raise ValueError("unknown causal_status")
     if annotation.decision == "accept" and not annotation.shared_basis:
         raise ValueError("accept requires explicit shared_basis")
@@ -122,7 +122,7 @@ def _validate_annotation(annotation):
 def _validate_adjudication(adjudication, reviewers):
     if adjudication is None:
         return
-    if adjudication.decision not in DECISIONS:
+    if not isinstance(adjudication.decision, str) or adjudication.decision not in DECISIONS:
         raise ValueError("unknown final adjudication decision")
     _text(adjudication.adjudicator_id, "adjudicator_id")
     _text(adjudication.rationale, "adjudication rationale")
@@ -133,7 +133,7 @@ def _validate_adjudication(adjudication, reviewers):
         _tuple(getattr(adjudication, field), field, allow_empty=(field != "relation_families"))
     if not set(adjudication.relation_families) <= RELATIONS:
         raise ValueError("unknown adjudicated relation family")
-    if adjudication.causal_status not in CAUSAL:
+    if not isinstance(adjudication.causal_status, str) or adjudication.causal_status not in CAUSAL:
         raise ValueError("unknown adjudicated causal_status")
     if adjudication.decision == "accept" and not adjudication.shared_basis:
         raise ValueError("final accept requires shared_basis")
@@ -189,7 +189,7 @@ def to_benchmark_case(packet: ReviewPacket, *, split_group: str) -> dict:
     assessment = assess_review_packet(packet)
     if not assessment.gold_eligible:
         raise ValueError(f"packet is not gold eligible: {assessment.status.value}; blockers={assessment.blockers}")
-    if split_group not in SPLITS:
+    if not isinstance(split_group, str) or split_group not in SPLITS:
         raise ValueError("split_group must be train/dev/test/holdout; exploratory is not gold")
     final = packet.adjudication
     case = {
