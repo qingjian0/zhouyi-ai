@@ -41,6 +41,18 @@ external metering.
 - Paired multi-seed comparisons against correlation screening and random.
 - No superiority claim until the full M55 statistical protocol is executed.
 
+## Executed calibration harness
+
+`prototype/yixiang_pc_calibration_m54.py` adds deterministic Monte Carlo checks for marginal Gaussian-null Type-I error, conditional-null Type-I error under a generated common-cause structure, and marginal power at predeclared correlation effects. Every estimated rate includes a Wilson 95% interval; the seed, repetitions, alpha, sample sizes, and effect sizes are reported. Unit tests check reproducibility and broad sanity bounds. These narrow linear-Gaussian checks do not establish calibration across arbitrary SCM families.
+
+Run with:
+
+```bash
+python -m prototype.yixiang_pc_calibration_m54 --repetitions 500 --seed 20261114 --json
+```
+
+Near-null grids, larger sample-size sweeps, collinearity, deterministic relations, non-Gaussian noise, nonlinear edges, hidden confounding, selection bias, mechanism drift, and paired multi-seed algorithm comparisons remain open M55 validation.
+
 
 ## M54 integration update
 
