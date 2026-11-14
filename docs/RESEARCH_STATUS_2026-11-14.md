@@ -15,7 +15,7 @@ This status applies to the stacked research branches and open Draft pull request
 | M65 | Bounded-exclusion IV sensitivity interval under linear covariance moments; exogeneity/relevance retained | 4 focused tests; 11 combined M64/M65 tests passed in #43594100977 | **Passed**: full repository run #43594100995; unit tests and every E01/E02 stage succeeded | https://github.com/qingjian0/zhouyi-ai/pull/497 |
 | M66 | Multiple graph-screened instruments; per-instrument bounded reduced-form violations; interval intersection and abstention | 6 M66 tests; 17 combined M64–M66 tests passed in #43594859484 | **Passed**: full repository run #43594859442; unit tests and every E01/E02 stage succeeded | https://github.com/qingjian0/zhouyi-ai/pull/498 |
 | M67 | Scan-backed source audit of the Four Books Congkan 《周易》, including page 9/10 DJVU locators and commentary-layer separation | Documentation/source audit; no code tests required | **Passed**: full repository run #43595103451 | https://github.com/qingjian0/zhouyi-ai/pull/499 |
-| M68 | Classical Anderson–Rubin F test and analytic weak-IV-robust confidence-set inversion under iid Gaussian homoskedastic assumptions | **25 combined M64–M68 tests passed** in #43595417545 (8 M68-specific) | **Running**: full repository run #43595417579 | https://github.com/qingjian0/zhouyi-ai/pull/500 |
+| M68 | Classical Anderson–Rubin F test and analytic weak-IV-robust confidence-set inversion under iid Gaussian homoskedastic assumptions | **26 combined M64–M68 tests passed** in #43595531188 (9 M68-specific) | **Running**: full repository runs #43595527022 / #43595531220 | https://github.com/qingjian0/zhouyi-ai/pull/500 |
 
 ## Important scientific boundaries
 
