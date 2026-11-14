@@ -1,6 +1,6 @@
 # Zhouyi-AI research status — 2026-11-14
 
-This status applies to the stacked research branches and open Draft pull requests. None of M57–M67 has been merged to stable main.
+This status applies to the stacked research branches and open Draft pull requests. None of M57–M68 has been merged to stable main.
 
 | Milestone | Scope | Focused validation | Repository-wide validation | PR |
 |---|---|---:|---|---|
@@ -14,13 +14,13 @@ This status applies to the stacked research branches and open Draft pull request
 | M64 | Graphical IV screening, exact-population binary Wald ratio, explicit LATE vs ATE semantics | 7 focused tests; run #43593904145 | Passed: full unit suite and all E01/E02 stages in #43593904033 | https://github.com/qingjian0/zhouyi-ai/pull/496 |
 | M65 | Bounded-exclusion IV sensitivity interval under linear covariance moments; exogeneity/relevance retained | 4 focused tests; 11 combined M64/M65 tests passed in #43594100977 | **Passed**: full repository run #43594100995; unit tests and every E01/E02 stage succeeded | https://github.com/qingjian0/zhouyi-ai/pull/497 |
 | M66 | Multiple graph-screened instruments; per-instrument bounded reduced-form violations; interval intersection and abstention | 6 M66 tests; 17 combined M64–M66 tests passed in #43594859484 | **Passed**: full repository run #43594859442; unit tests and every E01/E02 stage succeeded | https://github.com/qingjian0/zhouyi-ai/pull/498 |
-| M67 | Scan-backed source audit of the Four Books Congkan 《周易》, including page 9/10 DJVU locators and commentary-layer separation | Documentation/source audit; no code tests required | Documentation-only; no empirical/model validation claimed | https://github.com/qingjian0/zhouyi-ai/pull/499 |
-| M68 | Classical Anderson–Rubin F test and analytic weak-IV-robust confidence-set inversion under iid Gaussian homoskedastic assumptions | 7 focused tests added; pending | Pending | https://github.com/qingjian0/zhouyi-ai/pull/500 |
+| M67 | Scan-backed source audit of the Four Books Congkan 《周易》, including page 9/10 DJVU locators and commentary-layer separation | Documentation/source audit; no code tests required | **Passed**: full repository run #43595103451 | https://github.com/qingjian0/zhouyi-ai/pull/499 |
+| M68 | Classical Anderson–Rubin F test and analytic weak-IV-robust confidence-set inversion under iid Gaussian homoskedastic assumptions | **25 combined M64–M68 tests passed** in #43595417545 (8 M68-specific) | **Running**: full repository run #43595417579 | https://github.com/qingjian0/zhouyi-ai/pull/500 |
 
 ## Important scientific boundaries
 
 - M57/M58 demonstrate symbolic performance on controlled synthetic relational graphs. They do not demonstrate learned neural relational reasoning or performance on historical texts.
-- M60/M61 cover a limited sufficient back-door criterion for fully specified DAGs. M63 adds one binary, single-observed-mediator front-door route. M64–M66 add narrow graph-screened IV diagnostics and linear-moment sensitivity sets; none implements general causal identification or complete do-calculus.
+- M60/M61 cover a limited sufficient back-door criterion for fully specified DAGs. M63 adds one binary, single-observed-mediator front-door route. M64–M66 add narrow graph-screened IV diagnostics and linear-moment sensitivity sets. M68 adds classical AR inference under a specific homoskedastic Gaussian model. None implements general causal identification or all practical robust-inference variants.
 - M62 is a corpus-governance improvement. It does not create an authenticated historical gold corpus.
 - M67 advances the Four Books Congkan 《周易》 from catalogue-only discovery to accessible page-image discovery. The scan is a digital reproduction of the facsimile, not the original Song woodblocks; spot-checking is not complete transcription verification or independent adjudication. No Gold source has been admitted.
 - 《象传》 text and Wang Bi's commentary are separate textual layers. The received 《象传》 text must not be attributed to Wang Bi; the page 9 phrase “夫易者象也” belongs to the Wang Bi commentary layer in this witness and is distinct from the received 《系辞下》 phrase “是故易者象也，象也者像也”.
@@ -29,8 +29,9 @@ This status applies to the stacked research branches and open Draft pull request
 
 1. Review and merge the stacked Draft PRs in dependency order only when explicitly authorized.
 2. Complete page-by-page scan collation and two independent annotations for the selected 《周易》 witness before any Gold admission.
-3. Add finite-sample uncertainty, weak-instrument-robust inference, positivity diagnostics, and covariate-adjusted designs to the causal diagnostics.
-4. Connect M57/M58 relational tasks to source-grounded annotations only after M59/M62 admission gates pass.
-5. Run fair baselines against actual model adapters under fixed data, compute budgets, and held-out source families.
+3. Extend weak-IV inference beyond classical homoskedastic AR to heteroskedastic/cluster-robust AR or CLR with validated calibration, and keep invalid-IV sensitivity separate.
+4. Add covariate-adjusted designs and positivity diagnostics.
+5. Connect M57/M58 relational tasks to source-grounded annotations only after M59/M62 admission gates pass.
+6. Run fair baselines against actual model adapters under fixed data, compute budgets, and held-out source families.
 
 No overall project-completion claim is made. Current work advances infrastructure and controlled diagnostics; the end-to-end yixiang system remains unproven.
