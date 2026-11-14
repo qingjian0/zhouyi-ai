@@ -7,9 +7,9 @@
 
 ## 项目状态
 
-- 当前阶段：M1 数学理论定稿与 M2 最小原型准备
+- 当前阶段：M2 无监督结构发现基线与 M3 易象结构因子化验证
 - 理论版本：CPG-EI v0.3（研究草案）
-- 代码状态：E01 组合选择基线原型正在建立；尚无规模化模型或性能结论
+- 代码状态：E01/E02 组合与关系基线、E12-M2 统计 motif 原型、E12-M3 三位结构关系归纳原型并行研究；尚无规模化模型或性能优势结论
 - 验证原则：所有架构主张均须通过可复现实验、消融和公平对照验证
 
 ## 核心研究问题
@@ -39,6 +39,12 @@
 - [相关工作与文献](docs/RELATED_WORK.md)
 - [2026-11-10 研究增量报告](docs/RESEARCH_FINDINGS_2026-11-10.md)
 - [实验计划与验收标准](docs/EXPERIMENTS.md)
+- [E12-M2 无监督重复结构发现协议](docs/E12M2_UNSUPERVISED_MOTIF_PROTOCOL.md)
+- [E12-M2.1 度保持置换零模型](docs/E12M2_1_DEGREE_PRESERVING_NULL.md)
+- [E12-M2.2 零假设校准与 planted motif 恢复](docs/E12M2_2_CALIBRATION_AND_POWER.md)
+- [E12-M2.3 置换链混合诊断](docs/E12M2_3_PERMUTATION_CHAIN_DIAGNOSTICS.md)
+- [E12-M3 三爻因子化关系泛化协议](docs/E12M3_TRIGRAM_FACTORIZED_GENERALIZATION_2026-11-11.md)
+- [E12-M3 原型](prototype/e12m3_trigram_factorized_generalization.py)
 - [E02 动态超图实验设计](docs/E02_DYNAMIC_HYPERGRAPH.md)
 - [E02-A 结果审计与下一阶段协议](docs/E02A_NEXT_RESEARCH_2026-11-10.md)
 - [E02-B 三元有限域关系诊断协议](docs/E02B_TERNARY_PROTOCOL.md)
@@ -62,6 +68,7 @@
 python -m unittest discover -s tests -v
 python -m prototype.e01_sparse_composition
 python -m prototype.e01_learned_ranker --json
+python -m prototype.e12m3_trigram_factorized_generalization --seeds 100 --json
 ```
 
 ## 研究状态标记
