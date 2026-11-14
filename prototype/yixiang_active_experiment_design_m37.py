@@ -4,7 +4,7 @@ Not Bayesian expected information gain, causal identification, or an executor.
 """
 from dataclasses import dataclass
 from enum import Enum
-from math import sqrt
+from math import sqrt, isfinite
 class CandidateStatus(str, Enum):
     PROPOSED="proposed"; FEASIBLE="feasible"; BLOCKED="blocked"
 class SafetyReview(str, Enum):
@@ -43,7 +43,9 @@ def rank_experiments(hypothesis_ids,candidates,*,max_cost,max_risk):
         if not all((c.experiment_id,c.intervention_target,c.context,c.design_ref,c.measurement_ref,c.source_family,c.selection_split,c.validation_split)):
             issues.append("incomplete_candidate:"+c.experiment_id); continue
         if c.selection_split==c.validation_split: issues.append("selection_validation_split_overlap:"+c.experiment_id)
-        if c.cost<0 or c.risk_level<0 or c.max_acceptable_risk<0: issues.append("negative_cost_or_risk:"+c.experiment_id)
+        if any(not isfinite(v) or v<0 for v in (c.cost,c.risk_level,c.max_acceptable_risk)):
+            issues.append("negative_cost_or_risk:"+c.experiment_id)
+            continue
         pm={p.hypothesis_id:p for p in c.predictions}
         if len(pm)!=len(c.predictions): issues.append("duplicate_prediction:"+c.experiment_id)
         missing=sorted(set(hs)-set(pm)); extra=sorted(set(pm)-set(hs))
