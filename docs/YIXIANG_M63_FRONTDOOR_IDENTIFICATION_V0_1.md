@@ -42,6 +42,8 @@ The synthetic suite adds:
 
 These exact binary SCM cases test implementation logic only. They are not evidence that a classical yixiang claim is causal.
 
+The evaluator now reports back-door criterion accuracy separately from combined implemented-strategy accuracy, and reports effect MAE separately for back-door-identified and combined back-door/front-door cases. This prevents front-door cases from being omitted from the new strategy's error score or incorrectly counted as back-door successes.
+
 ## Known limitations
 
 - No instrumental-variable identification or estimation.
