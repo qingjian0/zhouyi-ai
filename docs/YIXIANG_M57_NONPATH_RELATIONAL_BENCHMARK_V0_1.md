@@ -12,9 +12,9 @@ Recent systematic-relational-reasoning work shows that path-composition benchmar
 
 - Three actual structural difficulty levels: basic binary chain; compositional branching with a ternary hyperedge and negative relation; nonpath disconnected binary components plus multiple hyperedges, all-different constraints, forbidden relations, and a global count.
 - Target graphs contain same-type distractor nodes and relation noise.
-- Candidate role mappings are public; exactly one is expected to satisfy all declared constraints.
+- Candidate role mappings are public; exactly one satisfies all declared constraints. In compositional/nonpath levels, all candidates deliberately satisfy the binary-relation subset, so only hyperedge/negative/global constraints can distinguish the planted mapping.
 - Agent-visible case JSON and evaluator-only answer/split metadata are written separately.
-- Constraint-level diagnostics identify failed type, binary, hyperedge, negative, injectivity, all-different, and global-count requirements.
+- Constraint-level diagnostics identify failed type, binary, hyperedge, negative, injectivity, all-different, and global-count requirements. The hard-level test explicitly proves binary-only ambiguity.
 - Deterministic generation and split/difficulty auditing.
 
 ## Critical interpretation boundary
