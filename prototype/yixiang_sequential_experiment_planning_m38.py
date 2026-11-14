@@ -170,8 +170,12 @@ def audit_policy(policy, actions, scenarios):
             next_cost=cost+action.cost; next_risk=risk+action.risk
             if next_cost>policy.max_total_cost+1e-9: issues.append("total_cost_exceeded:"+policy.policy_id)
             if next_risk>policy.max_total_risk+1e-9: issues.append("path_risk_exceeded:"+policy.policy_id)
+            expected_outcomes={l.outcome for l in s.likelihoods if l.action_id==action.action_id}
+            declared_outcomes={b.outcome for b in node.branches}
+            if expected_outcomes!=declared_outcomes:
+                issues.append("branch_outcome_coverage_mismatch:"+node_id)
             for branch in node.branches:
-                probs=[belief[h]*likelihood[(h,branch.outcome)] for h in belief]
+                probs=[belief[h]*likelihood[(action.action_id,h,branch.outcome)] for h in belief]
                 marginal=sum(probs)
                 if marginal<=0: issues.append("zero_probability_branch:"+node_id+":"+branch.outcome); continue
                 posterior={h:v/marginal for h,v in zip(belief,probs)}
