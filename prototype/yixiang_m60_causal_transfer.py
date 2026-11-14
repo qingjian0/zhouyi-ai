@@ -225,7 +225,7 @@ def infer_backdoor_set(case: Mapping[str, Any]) -> Dict[str, Any]:
     outcome = case["query"]["outcome"]
     nodes, edges, parents, children = _graph_parts(case)
     observed = list(case["observed_variables"])
-    if exposure not in observed or outcome not in nodes or exposure not in nodes:
+    if exposure not in observed or outcome not in observed or exposure not in nodes:
         raise ValueError("query_variables_missing_from_dag")
     candidates = [node for node in observed
                   if node not in (exposure, outcome)
