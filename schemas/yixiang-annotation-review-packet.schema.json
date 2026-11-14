@@ -303,5 +303,67 @@
         }
       }
     }
-  }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "adjudication": {
+            "properties": {
+              "decision": {
+                "const": "accept"
+              }
+            },
+            "required": [
+              "decision"
+            ]
+          }
+        },
+        "required": [
+          "adjudication"
+        ]
+      },
+      "then": {
+        "properties": {
+          "adjudication": {
+            "properties": {
+              "shared_basis": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "adjudication": {
+            "properties": {
+              "decision": {
+                "const": "conditional"
+              }
+            },
+            "required": [
+              "decision"
+            ]
+          }
+        },
+        "required": [
+          "adjudication"
+        ]
+      },
+      "then": {
+        "properties": {
+          "adjudication": {
+            "properties": {
+              "scope_conditions": {
+                "minItems": 1
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
 }
