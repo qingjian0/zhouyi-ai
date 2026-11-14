@@ -24,7 +24,8 @@
 | P1-I | 文本见证谱系与主张证据审计 | 见证来源 DAG、转引依赖、共同祖先、证据立场、人工审查状态与冲突保留 | M14 v0.1 原型、26 项专项测试与专题文档已提交；最新 PR head #8d1fc27 的完整 CI run #43485420130 成功；只审计声明谱系，不认证真伪或语义蕴含 |
 | P1-J | 文本片段—类象主张语义范围审计 | 主张原子化、片段覆盖范围、上下文适配、正文/注释/引文分层、异文保留与反例审计 | M15 v0.1 原型、24 项专项测试与专题文档已提交；新增未决证据门禁，阻止未审查证据与完整支持并存时误报完整覆盖；补强 head 的 CI 待验证（此前 head #9a743ea 的完整 CI run #43488706432 成功）；显式记录正文/注释/引文等文本层，不自动判断语义蕴含或真理 |
 | P1-K | 古典论辩术语的竞争解释审计 | 解释史分层、原典锚点、逻辑分类/论辩过程/统一类比框架竞争、共享依据与解释独立性边界 | M16 v0.1 解释竞争登记原型、种子解释登记数据/Schema、15 项专项测试与专题文档已提交；不选胜者、不固化古典术语与现代逻辑类别的一对一映射；最新 head 完整 CI #43502670578 成功 |
-| P1-L | 动态情境修订与旧主张失效传播 | 情境版本、目标/维度/前提变更、受影响类象主张局部重审 | M22 v0.1 原型、专项测试与专题文档已提交；显式审计扩展/收缩/修订、排除维度变化与 stale-claim；等待 exact-head CI；不认证语义有效性 |\n| P1-M | 观象—取象—立类形成机制 | 原始观察、特征选择、任务目的、类别判准、成员证据与反例的可追溯链 | M23 v0.1 原型、21 项专项测试与专题文档已提交；仅审计来源链完整性，不自动感知或判真；等待 exact-head CI |
+| P1-L | 动态情境修订与旧主张失效传播 | 情境版本、目标/维度/前提变更、受影响类象主张局部重审 | M22 v0.1 原型、专项测试与专题文档已提交；显式审计扩展/收缩/修订、排除维度变化与 stale-claim；等待 exact-head CI；不认证语义有效性 |
+| P1-M | 观象—取象—立类形成机制 | 原始观察、特征选择、任务目的、类别判准、成员证据与反例的可追溯链 | M23 v0.1 原型、27 项专项测试与专题文档已提交；记录模态、记录方法与解释备注分离，特征证据按对象隔离；仅审计来源链完整性，不自动感知或判真；等待 exact-head CI |
 | P1-EVAL | 理论贡献验证 | 消融、跨域迁移、错误类比拒绝、OOD 与成本评估 | M5/M6/M7 测试已接入；修正 M6 测试断言后，最新 CI 待验证；此前 head 曾因断言不匹配失败 |
 | P1-EVAL-M8 | 类象有效性与迁移基准 | 独立 case schema、四态裁决 gold、来源谱系泄漏检测、分层指标 | M8 v0.1 schema/validator、四态评估、关系族/来源状态分层指标、来源谱系与独立性分组泄漏报告、gold 资格门禁、命令行报告入口及 47 条 synthetic fixtures 已提交；run #43458221635 的 403 项单元测试及 E01/E02 全部步骤成功；人工 gold 标注未开始 |
 | P2 | 通用模型与工程 | 语言生成、训练优化、加速、部署 | 按核心研究需要推进 |
@@ -47,7 +48,9 @@
 14. M14：文本见证谱系与类象主张证据审计（见 `docs/YIXIANG_M14_EVIDENCE_PROVENANCE_V0_1.md`、`prototype/yixiang_evidence_provenance.py`）。
 15. M15：文本片段—类象主张语义范围审计（见 `docs/YIXIANG_M15_PASSAGE_CLAIM_SCOPE_AUDIT_V0_1.md`、`prototype/yixiang_passage_claim_audit.py`）。
 16. M16：《墨子·小取》“七事”解释竞争与术语映射防固化（见 `docs/YIXIANG_M16_INTERPRETATION_COMPETITION_V0_1.md`、`prototype/yixiang_interpretation_competition.py`）。
-17. M17：类推迁移门禁——同类不等于可推（见 `docs/YIXIANG_M17_ANALOGY_TRANSFER_AUDIT_V0_1.md`、`prototype/yixiang_analogy_transfer_audit.py`）。\n18. M22：动态情境修订与旧主张失效传播（见 `docs/YIXIANG_M22_CONTEXT_REVISION_V0_1.md`、`prototype/yixiang_context_revision_m22.py`）。\n19. M23：观象—取象—立类形成机制（见 `docs/YIXIANG_M23_FORMATION_V0_1.md`、`prototype/yixiang_formation.py`）。
+17. M17：类推迁移门禁——同类不等于可推（见 `docs/YIXIANG_M17_ANALOGY_TRANSFER_AUDIT_V0_1.md`、`prototype/yixiang_analogy_transfer_audit.py`）。
+18. M22：动态情境修订与旧主张失效传播（见 `docs/YIXIANG_M22_CONTEXT_REVISION_V0_1.md`、`prototype/yixiang_context_revision_m22.py`）。
+19. M23：观象—取象—立类形成机制（见 `docs/YIXIANG_M23_FORMATION_V0_1.md`、`prototype/yixiang_formation.py`）。
 
 M5/M6 当前均为透明规则原型；M6 的“新”只表示不在调用方提供的已知签名集合中，不代表发现了客观新规律。
 
@@ -104,6 +107,16 @@ M19 v0.1 提供人工审定包与状态机，当前 20 项专项测试。来源�
 M20 v0.1 新增 16 条 synthetic_fixture，组成 8 组成对对抗样例，覆盖关系方向、材料来源与属性继承、同结果异机制、主体目标、姿态几何、物种条件、外观代理、类属与数量谓词。每一对共享 independence_group 且同 split；holdout 仅为模板留出，不等同真实世界 OOD。10 项专项测试验证数据契约、配对隔离、关键标签、反例字段与 M8 fixture opt-in。全部样例不是古籍 gold，不能用于理论有效性结论。
 
 
-### M23 当前实现边界\n\nM23 v0.1 将观测、特征选择、类别归属分层保存，校验特征是否引用已有观察证据、选择理由与任务目的是否登记、类别判准和成员证据是否存在、反例是否得到显式处理。原型只审计来源链与声明完整性，不做自动感知、不强制单标签分类，也不认证类别真值。\n\n\n### M22 当前实现边界\n\nM22 v0.1 提供情境版本修订与 stale-claim 传播账本；仅验证声明完整性，不判定情境变化的语义正确性。\n\n\n### M21 当前实现边界
+### M23 当前实现边界
+
+M23 v0.1 将观测、特征选择、类别归属分层保存，校验特征是否引用已有观察证据、选择理由与任务目的是否登记、类别判准和成员证据是否存在、反例是否得到显式处理。原型只审计来源链与声明完整性，不做自动感知、不强制单标签分类，也不认证类别真值。
+
+
+### M22 当前实现边界
+
+M22 v0.1 提供情境版本修订与 stale-claim 传播账本；仅验证声明完整性，不判定情境变化的语义正确性。
+
+
+### M21 当前实现边界
 
 M21 v0.1 新增成对评估器与 12 项专项测试，使用 M20 的 contrastive independence_group 计算 pair_exact_accuracy、decision_flip_sensitivity、collapsed_pair_rate、pair_selective_coverage 和 pair_selective_risk。每组必须恰好两例、同 split、预期决策不同；fixture_expected 必须显式 opt-in，pending_review 和混合标签状态拒绝评分。该指标只补充 M8，不取代逐类指标；当前数据仍是合成夹具。
