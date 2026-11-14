@@ -13,6 +13,8 @@ M57/M58 test relational mapping on generated graphs. They do not establish that 
 - Modern commentary is secondary-only.
 - Uncertain dating remains uncertain; it is not silently assigned to the pre-Qing group.
 - A quoted span must exactly match a specified witness text and Unicode code-point offsets.
+- Witness records require edition, publisher, publication date, digitization source, access date, locator, witness-period class, and a variants list.
+- Core pre-Qing records require a pre-Qing primary witness; critical editions must register their underlying witness basis.
 - Every claim must point to one or more exact evidence spans.
 - At least two distinct annotators must label every claim independently. Adjudication is a separate field and may remain pending.
 - Work-lineage and text-dependence groups must not cross train/validation/test splits.
