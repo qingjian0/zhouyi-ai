@@ -77,7 +77,6 @@ class M21Tests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.score(cases,self.gold_predictions())
 
-if __name__=="__main__": unittest.main()
     def test_pair_manifest_must_cover_each_case_exactly_once(self):
         pairs=self.pairs()
         pairs[0]["case_ids"].append(pairs[1]["case_ids"][0])
@@ -102,3 +101,5 @@ if __name__=="__main__": unittest.main()
     def test_empty_pair_manifest_rejected(self):
         with self.assertRaises(ValueError):
             self.score(self.cases(),self.gold_predictions(),[])
+
+if __name__=="__main__": unittest.main()
