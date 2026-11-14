@@ -150,3 +150,8 @@ M28 v0.1 将来源身份、具体文本见证与派生活动分层，区分作�
 ### M29 当前实现边界
 
 M29 v0.1 区分 UNKNOWN、INSUFFICIENT、REVIEW_REQUIRED、PROVISIONAL、CONDITIONAL、WEAKENED、CONFLICTED、STALE 与 REVALIDATED；以显式人工判断、条件记录和 HARD/SOFT 依赖传播处理不确定性。提供 M27 stale/review 结果到 M29 claim 的显式映射适配器，拒绝未映射节点和无效图。27 项专项测试已编写；当前未执行，exact-head CI 待验证。状态不是概率，不认证语义真值。
+
+
+### M30 当前实现边界
+
+M30 v0.1 新增六维稳定性（形态、属性、结构关系、功能、机制、系统行为）与跨情境迁移权限审计；区分保持、弱化、反转、失效和未知，要求迁移证据与层级匹配，并审计对象/情境家族分组泄漏及三类对照基线。36 项专项测试已编写，尚未执行；exact-head CI 待验证。原型不证明语义不变量或迁移真值，M27/M29 尚未端到端接线。

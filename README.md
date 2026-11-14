@@ -241,3 +241,7 @@ python -m prototype.e01_learned_ranker --json
 - [M29 类象认知不确定性与依赖传播](docs/YIXIANG_M29_EPISTEMIC_UNCERTAINTY_V0_1.md)
 - [M29 认知状态与不确定性传播原型](prototype/yixiang_epistemic_uncertainty_m29.py)
 - [M29 专项测试](tests/test_yixiang_epistemic_uncertainty_m29.py)
+
+- [M30 跨情境迁移与类象认知稳定性专题](docs/YIXIANG_M30_CONTEXT_TRANSFER_STABILITY_V0_1.md)
+- [M30 跨情境迁移审计原型](prototype/yixiang_context_transfer_m30.py)
+- [M30 专项测试](tests/test_yixiang_context_transfer_m30.py)
