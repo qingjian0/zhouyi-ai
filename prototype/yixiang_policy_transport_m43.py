@@ -89,6 +89,8 @@ def audit_policy_transport(q, minimum_overlap=0.8):
     if q.source.context_ref!=q.target.context_ref: required.add(Difference.MECHANISM)
     if q.source.context_ref!=q.target.context_ref: required.add(Difference.SELECTION)
     if required-known: issues.extend("unrecorded_domain_difference:"+x.value for x in sorted(required-known,key=lambda x:x.value))
+    if q.source.context_ref!=q.target.context_ref and not q.invariants:
+        issues.append("missing_mechanism_invariance_evidence")
     for d in q.differences:
         if not d.description or not d.evidence_ref: issues.append("difference_missing_evidence:"+d.difference.value)
         if not d.adjusted: warnings.append("difference_not_adjusted:"+d.difference.value)
