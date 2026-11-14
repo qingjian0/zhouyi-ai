@@ -179,3 +179,11 @@ M33 v0.1 增加成员移除/替换、关系边移除、顺序交换、情境改�
 - 审计中介识别假设、处理后混杂、cross-world 假设、析因单元、测量不变性、机制路径与发现/验证数据分割。
 - 预测性 attribution 不得升级为因果贡献；有效声明仍需人工复审，不代表因果真值。
 - 26 项专项测试已编写，未执行；尚无真实效应估计器、DAG 调整集求解、HTE 学习器或跨情境 transportability 估计。
+
+
+### M35：类象机制的跨情境迁移、因果运输与机制不变性
+
+- 分支：`research/yixiang-causal-transportability-m35-2026-11-14`；文档：`docs/YIXIANG_M35_CAUSAL_TRANSPORTABILITY_V0_1.md`。
+- 记录 DomainSpec、MechanismSpec、DomainDifference、InvarianceClaim、TransportQuery。
+- 审计机制差异与不变性主张冲突；测量、处理版本、结果定义变化必须显式登记。
+- 26 项专项测试已编写，尚未执行；不运行 do-calculus，不声称运输性已识别。
