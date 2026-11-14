@@ -2,7 +2,7 @@ import unittest
 
 from prototype.yixiang_m60_causal_transfer import (
     backdoor_adjusted_effect, generate_dataset, observational_difference,
-    _d_separated, infer_backdoor_set, predict, rename_case, run_baselines,
+    _d_separated, infer_backdoor_set, infer_frontdoor_mediator, predict, rename_case, run_baselines,
 )
 
 
@@ -112,6 +112,43 @@ class M60CausalTransferTests(unittest.TestCase):
         target_prediction = predict(target, "graph_backdoor")
         self.assertAlmostEqual(source_prediction["estimate"], target_prediction["estimate"], places=12)
         self.assertEqual(target_prediction["adjustment_set"], ["context"])
+
+
+    def test_frontdoor_identifies_effect_under_latent_exposure_outcome_confounding(self):
+        case = self.by_id["frontdoor_latent_confounding"]
+        self.assertFalse(infer_backdoor_set(case)["backdoor_identified"])
+        frontdoor = infer_frontdoor_mediator(case)
+        self.assertTrue(frontdoor["frontdoor_identified"])
+        self.assertEqual(frontdoor["mediator"], "M")
+        prediction = predict(case, "graph_identification")
+        self.assertEqual(prediction["status"], "identified_by_frontdoor")
+        self.assertAlmostEqual(prediction["estimate"], self.truth[case["case_id"]]["ate"], places=10)
+
+    def test_frontdoor_rejects_unmediated_direct_effect(self):
+        case = self.by_id["frontdoor_direct_path_invalid"]
+        result = infer_frontdoor_mediator(case)
+        self.assertFalse(result["frontdoor_identified"])
+
+    def test_frontdoor_rejects_unobserved_mediator_outcome_confounding(self):
+        case = self.by_id["frontdoor_mediator_confounding_invalid"]
+        result = infer_frontdoor_mediator(case)
+        self.assertFalse(result["frontdoor_identified"])
+
+    def test_identification_strategy_uses_frontdoor_after_backdoor_fails(self):
+        case = self.by_id["frontdoor_latent_confounding"]
+        prediction = predict(case, "graph_identification")
+        self.assertEqual(prediction["strategy"], "frontdoor")
+        self.assertEqual(prediction["status"], "identified_by_frontdoor")
+
+
+    def test_graph_identification_scores_frontdoor_and_backdoor_cases(self):
+        results = run_baselines(self.cases, self.truth)
+        metrics = results["graph_identification"]["metrics"]
+        self.assertEqual(metrics["implemented_identification_strategy_accuracy"], 1.0)
+        self.assertEqual(metrics["implemented_strategy_identified_case_mae"], 0.0)
+        self.assertEqual(metrics["implemented_strategy_cases_scored"], 4)
+        self.assertEqual(metrics["identified_case_mae"], 0.0)
+        self.assertEqual(metrics["identified_cases_scored"], 3)
 
 
 if __name__ == "__main__":
