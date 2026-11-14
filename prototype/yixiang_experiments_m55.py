@@ -121,7 +121,9 @@ def run_paired_suite(*, seeds=range(20), n=240, scenarios=SCENARIOS):
             rows, parents = generate_scenario(scenario, n=n, seed=seed)
             train_end = int(n * 0.7)
             validation_end = int(n * 0.85)
+            parent_count = max(1, len(parents))
             captured = {}
+
             def capture(name, adapter):
                 def wrapped(context):
                     proposal = adapter(context)
@@ -131,9 +133,9 @@ def run_paired_suite(*, seeds=range(20), n=240, scenarios=SCENARIOS):
 
             baseline_set = (
                 ("random", capture("random", lambda context, current_seed=seed:
-                    random_baseline(context, seed=current_seed, parent_count=1))),
+                    random_baseline(context, seed=current_seed, parent_count=parent_count))),
                 ("correlation", capture("correlation", lambda context:
-                    correlation_screen_baseline(context, parent_count=1))),
+                    correlation_screen_baseline(context, parent_count=parent_count))),
                 ("pc_skeleton", capture("pc_skeleton", pc_skeleton_baseline)),
             )
             comparison = run_fair_comparison(
