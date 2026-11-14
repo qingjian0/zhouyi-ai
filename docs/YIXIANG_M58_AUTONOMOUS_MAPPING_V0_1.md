@@ -10,12 +10,18 @@ Question: can a solver discover role-to-entity correspondences from the pattern 
 - Three controls: type-only, binary/path-only, and full constraints.
 - Full mode enforces binary relations, ordered hyperedges, forbidden relations, injectivity/all-different, and graph-wide counts through the M57 constraint evaluator.
 - Minimum-remaining-values ordering and an explicit state budget prevent unbounded search.
+- A same-case runner evaluates type-only, binary/path-only, and full-constraint solvers with exact accuracy, coverage, selective accuracy, and per-difficulty breakdowns.
 - Ambiguous, unsatisfiable, and budget-exhausted outcomes are explicit; the solver does not silently guess.
 - The public candidate list is not read by the solver. Evaluator labels remain outside the model-facing input.
 
 ## Interpretation
 
 This is a symbolic exact-search baseline, not a learned representation, language understanding, or evidence that a human/LLM can independently extract the graph from a classical text. M57's synthetic generator contains two nodes per role and limited generator families. Success here demonstrates executable entity alignment under a known schema only.
+
+## Literature motivation
+
+- Das & Balke (INLG 2025), [From Prototypical to Relational](https://aclanthology.org/2025.inlg-main.28/): reports that strong embedding/prototypicality scores do not guarantee fine-grained relational mapping. This motivates separating type-only, path-only, and full-constraint controls.
+- Minegishi et al. (2026), [Emergent Analogical Reasoning in Transformers](https://arxiv.org/abs/2602.01992): formalizes analogy as cross-category correspondence and analyzes relational-structure alignment separately from applying the mapping. This supports evaluating mapping discovery and relation application as distinct stages.
 
 ## Required next comparisons
 
