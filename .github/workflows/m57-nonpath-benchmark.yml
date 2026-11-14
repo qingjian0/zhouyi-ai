@@ -1,0 +1,35 @@
+name: M57 non-path relational benchmark
+
+on:
+  pull_request:
+    branches:
+      - research/yixiang-m56-executable-core-2026-11-14
+    paths:
+      - "prototype/yixiang_m57_nonpath_benchmark.py"
+      - "tests/test_yixiang_m57_nonpath_benchmark.py"
+      - ".github/workflows/m57-nonpath-benchmark.yml"
+  workflow_dispatch:
+
+jobs:
+  m57-benchmark:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run M57 benchmark tests
+        run: python -m unittest tests.test_yixiang_m57_nonpath_benchmark -v
+      - name: Generate and audit 900-case dataset
+        run: |
+          python - <<'PY'
+          from prototype.yixiang_m57_nonpath_benchmark import generate_dataset, audit_dataset
+          cases, truth = generate_dataset(count=900, seed=5701)
+          report = audit_dataset(cases, truth)
+          assert report["cases"] == 900
+          assert report["public_truth_leaks"] == 0
+          assert report["unique_valid_mapping_per_case"]
+          assert set(report["difficulty_counts"]) == {"basic", "compositional", "nonpath"}
+          print(report)
+          PY
