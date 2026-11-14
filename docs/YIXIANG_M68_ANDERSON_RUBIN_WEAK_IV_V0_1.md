@@ -40,7 +40,7 @@ No code path silently truncates an unbounded set or replaces it with a Wald inte
 
 ## Tests
 
-Eight tests cover:
+Nine tests cover:
 1. A no-first-stage case where the AR p-value remains valid and the inverted set is all real.
 2. A stronger first-stage case where the inverted set is bounded and contains the structural coefficient.
 3. Finite-sample F degrees of freedom and p-value range.
