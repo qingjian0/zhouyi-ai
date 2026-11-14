@@ -81,7 +81,7 @@ class CompositionM26Tests(unittest.TestCase):
 
     def test_edge_requires_known_endpoints(self):
         edge = CompositionEdge("e", "a", "missing", CompositionKind.INTERACTION,
-                               "interact", "task-x", "ctx", 1, ("ev",), "why")
+                               "interact", "task-x", "ctx", 1, ("ev",), "why", composition_id="cmp")
         result = audit_compositions(self.elements, [composition()], [edge])
         self.assertIn("unknown_edge_endpoint:e", result.issues)
 
@@ -90,6 +90,12 @@ class CompositionM26Tests(unittest.TestCase):
                                "interact", "task-x", "ctx", 1, ("ev",), "why")
         result = audit_compositions(self.elements, [composition()], [edge])
         self.assertIn("self_edge:e", result.issues)
+
+    def test_edge_endpoint_outside_composition_rejected(self):
+        edge = CompositionEdge("e", "a", "c", CompositionKind.INTERACTION,
+                               "interact", "task-x", "ctx", 1, ("ev",), "why", composition_id="cmp")
+        result = audit_compositions(self.elements + [element("c")], [composition()], [edge])
+        self.assertIn("edge_endpoint_outside_composition:e", result.issues)
 
     def test_edge_context_mismatch_rejected(self):
         edge = CompositionEdge("e", "a", "b", CompositionKind.INTERACTION,
