@@ -97,6 +97,18 @@ class M59ClassicalEvidenceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "crosses_splits"):
             validate_split_assignments(records)
 
+    def test_invalid_admission_stage_is_rejected(self):
+        record = fixture()
+        record["admission_status"] = "almost_gold"
+        with self.assertRaisesRegex(ValueError, "invalid_admission_status"):
+            validate_record(record)
+
+    def test_adjudicated_stage_requires_final_adjudication(self):
+        record = fixture()
+        record["admission_status"] = "adjudicated"
+        with self.assertRaisesRegex(ValueError, "adjudicated_stage_requires_final_adjudication"):
+            validate_record(record)
+
     def test_pending_adjudication_never_counts_as_gold(self):
         record = fixture()
         record["admission_status"] = "review_pending"
