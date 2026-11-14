@@ -59,6 +59,7 @@ class CompositionEdge:
     context_version: int
     evidence_refs: Tuple[str, ...]
     rationale: str
+    composition_id: str = ""
 
 
 @dataclass(frozen=True)
@@ -141,6 +142,13 @@ def audit_compositions(
         seen_edges.add(edge.edge_id)
         if edge.source_id not in element_map or edge.target_id not in element_map:
             issues.append(f"unknown_edge_endpoint:{edge.edge_id}")
+        comp = composition_map.get(edge.composition_id)
+        if comp is None:
+            issues.append(f"unknown_edge_composition:{edge.edge_id}")
+        elif edge.source_id not in comp.member_ids or edge.target_id not in comp.member_ids:
+            issues.append(f"edge_endpoint_outside_composition:{edge.edge_id}")
+        elif edge.scope != comp.scope or edge.context_id != comp.context_id or edge.context_version != comp.context_version:
+            issues.append(f"edge_composition_scope_or_context_mismatch:{edge.edge_id}")
         if edge.source_id == edge.target_id:
             issues.append(f"self_edge:{edge.edge_id}")
         if not edge.operation.strip() or not edge.scope.strip() or not edge.rationale.strip():
