@@ -66,9 +66,6 @@ class FamilyEnvironment:
             params = (node.intercept, node.noise_scale, node.interaction_coefficient, *node.coefficients)
             if any(not isfinite(x) for x in params) or node.noise_scale < 0:
                 raise FamilyValidationError("invalid_node_parameter:" + node.name)
-            if node.mechanism == "binary_logistic" and node.noise_scale != 0:
-                # Binary randomness comes from a fixed uniform, not Gaussian noise.
-                raise FamilyValidationError("binary_logistic_noise_scale_must_be_zero:" + node.name)
         self.order = self._topological_order()
         rng = random.Random(spec.seed)
         self._exogenous = {}
