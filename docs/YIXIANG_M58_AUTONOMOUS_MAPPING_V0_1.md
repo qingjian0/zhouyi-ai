@@ -14,6 +14,20 @@ Question: can a solver discover role-to-entity correspondences from the pattern 
 - Ambiguous, unsatisfiable, and budget-exhausted outcomes are explicit; the solver does not silently guess.
 - The public candidate list is not read by the solver. Evaluator labels remain outside the model-facing input.
 
+## Initial controlled result
+
+Dedicated CI ran 90 generated cases (30 per difficulty, seed 5806) with identical public graph inputs:
+
+| Baseline | Exact accuracy over all cases | Coverage | Selective accuracy |
+|---|---:|---:|---:|
+| Type-only | 0.0% | 0.0% | undefined (no predictions) |
+| Binary/path-only | 33.3% | 33.3% | 100.0% |
+| Full constraints | 100.0% | 100.0% | 100.0% |
+
+Path-only solved all 30 basic cases and abstained on all 60 compositional/nonpath cases because the binary constraints leave multiple mappings. Full constraints uniquely recovered all 90 planted mappings.
+
+These are generator-internal symbolic controls, not a comparison against neural models or independent data. The full-constraint solver has access to the same explicit relation schema used to generate the cases; this result validates the benchmark/solver contract, not learned analogy ability.
+
 ## Interpretation
 
 This is a symbolic exact-search baseline, not a learned representation, language understanding, or evidence that a human/LLM can independently extract the graph from a classical text. M57's synthetic generator contains two nodes per role and limited generator families. Success here demonstrates executable entity alignment under a known schema only.
