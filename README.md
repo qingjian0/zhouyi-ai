@@ -245,3 +245,7 @@ python -m prototype.e01_learned_ranker --json
 - [M30 跨情境迁移与类象认知稳定性专题](docs/YIXIANG_M30_CONTEXT_TRANSFER_STABILITY_V0_1.md)
 - [M30 跨情境迁移审计原型](prototype/yixiang_context_transfer_m30.py)
 - [M30 专项测试](tests/test_yixiang_context_transfer_m30.py)
+
+- [M31 类象不变量发现、反证与适用边界专题](docs/YIXIANG_M31_INVARIANT_DISCOVERY_V0_1.md)
+- [M31 不变量发现与反证审计原型](prototype/yixiang_invariant_discovery_m31.py)
+- [M31 专项测试](tests/test_yixiang_invariant_discovery_m31.py)
