@@ -61,6 +61,7 @@ class StudyUnit:
     outcome: float
     outcome_measure: str
     evidence_refs: Tuple[str, ...]
+    assignment: AssignmentKind
 
 
 @dataclass(frozen=True)
