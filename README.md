@@ -158,6 +158,7 @@
 - [M20 16 条合成对抗案例](data/yixiang_analogy_transfer_adversarial_m20.v0.1.json)
 - [M20 专项测试](tests/test_yixiang_analogy_transfer_adversarial_m20.py)
 - [M21 成对类推迁移评估指标](docs/YIXIANG_M21_CONTRASTIVE_PAIR_METRICS_V0_1.md)
+- [M20 显式成对清单](data/yixiang_contrastive_pairs_m20.v0.1.json)
 - [M21 成对评估器](prototype/yixiang_contrastive_pair_metrics.py)
 - [M21 专项测试](tests/test_yixiang_contrastive_pair_metrics.py)
 - [M17 案例集 Schema](schemas/yixiang-analogy-transfer-casebook.schema.json)
