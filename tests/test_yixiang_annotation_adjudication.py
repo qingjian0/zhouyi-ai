@@ -56,9 +56,9 @@ class M19Tests(unittest.TestCase):
         result=assess_review_packet(packet(source=s))
         self.assertIn("source_verifier_overlaps_reviewer",result.blockers)
     def test_accept_requires_shared_basis(self):
-        with self.assertRaises(ValueError): annotation(shared_basis=())
+        with self.assertRaises(ValueError): assess_review_packet(packet(annotations=(annotation(shared_basis=()),annotation("reviewer-b"))))
     def test_conditional_requires_scope(self):
-        with self.assertRaises(ValueError): annotation(decision="conditional",scope_conditions=())
+        with self.assertRaises(ValueError): assess_review_packet(packet(annotations=(annotation(decision="conditional",scope_conditions=()),annotation("reviewer-b"))))
     def test_final_abstain_can_be_adjudicated(self):
         p=packet(adjudication=adjudication(decision="abstain"))
         case=to_benchmark_case(p,split_group="holdout")
