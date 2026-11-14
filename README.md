@@ -233,3 +233,7 @@ python -m prototype.e01_learned_ranker --json
 ## 许可与引用
 
 本仓库初始阶段采用 MIT License。引入外部数据集、论文代码或古籍数字化文本前，须逐项核查许可证、来源和引用要求。研究引用见 [RELATED_WORK.md](docs/RELATED_WORK.md)。
+
+- [M28 类象证据独立性与共同来源污染审计](docs/YIXIANG_M28_EVIDENCE_INDEPENDENCE_V0_1.md)
+- [M28 证据独立性审计原型](prototype/yixiang_evidence_independence_m28.py)
+- [M28 专项测试](tests/test_yixiang_evidence_independence_m28.py)
