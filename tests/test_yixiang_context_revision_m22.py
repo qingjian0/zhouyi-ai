@@ -102,12 +102,18 @@ class ContextRevisionTests(unittest.TestCase):
         after = ContextSnapshot("ctx-1", 2, "objects", "identify", ("shape",), ("function",), ("same_scale",))
         result = assess_context_revision(revision(before=before, after=after, kind=RevisionKind.CONTRACT, added_dimensions=(), added_excluded_dimensions=("function",)))
         self.assertEqual(result.status, RevisionStatus.CONTEXT_CONTRACTED)
+        self.assertEqual(result.added_excluded_dimensions, ("function",))
 
     def test_expand_can_remove_an_exclusion(self):
         before = ContextSnapshot("ctx-1", 1, "objects", "identify", ("shape",), ("function",), ("same_scale",))
         after = ContextSnapshot("ctx-1", 2, "objects", "identify", ("shape",), (), ("same_scale",))
         result = assess_context_revision(revision(before=before, after=after, kind=RevisionKind.EXPAND, added_dimensions=(), retired_excluded_dimensions=("function",)))
         self.assertEqual(result.status, RevisionStatus.CONTEXT_EXPANDED)
+
+    def test_active_and_excluded_dimensions_cannot_overlap(self):
+        bad = ContextSnapshot("ctx-1", 1, "objects", "identify", ("shape", "function"), ("function",), ("same_scale",))
+        with self.assertRaises(ValueError):
+            assess_context_revision(revision(before=bad))
 
     def test_revise_without_change_is_noop(self):
         result = assess_context_revision(revision(kind=RevisionKind.REVISE, after=snapshot(version=2), added_dimensions=()))
