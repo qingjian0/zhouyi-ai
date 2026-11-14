@@ -15,7 +15,7 @@ def observation(**changes):
 
 
 def feature(**changes):
-    values = dict(feature_id="feat-1", label="contour", operational_description="outer boundary shape",
+    values = dict(feature_id="feat-1", subject_id="object-A", label="contour", operational_description="outer boundary shape",
                   observation_refs=("obs-1",), evidence_refs=("source:1",),
                   selection_rationale="Contour is relevant to the stated recognition task.",
                   purpose="recognition", excluded_alternatives=("color",), reviewed=True)
@@ -53,6 +53,19 @@ class FormationTests(unittest.TestCase):
         result = assess_formation(trace(selected_features=(feature(observation_refs=("obs-missing",)),)))
         self.assertEqual(result.status, FormationStatus.MISSING_FEATURE_PROVENANCE)
         self.assertEqual(result.missing_observation_ids, ("feat-1",))
+
+    def test_feature_evidence_must_come_from_its_linked_observations(self):
+        other = observation(observation_id="obs-2", subject_id="object-B", evidence_refs=("source:2",))
+        result = assess_formation(trace(observations=(observation(), other), selected_features=(feature(evidence_refs=("source:2",)),)))
+        self.assertEqual(result.status, FormationStatus.FEATURE_NOT_GROUNDED)
+
+    def test_feature_and_observation_subject_must_match(self):
+        result = assess_formation(trace(selected_features=(feature(subject_id="object-B"),)))
+        self.assertEqual(result.status, FormationStatus.DECLARATION_MISMATCH)
+
+    def test_category_and_feature_subject_must_match(self):
+        result = assess_formation(trace(category_assignments=(assignment(subject_id="object-B"),)))
+        self.assertEqual(result.status, FormationStatus.DECLARATION_MISMATCH)
 
     def test_feature_evidence_must_be_grounded_in_observation(self):
         result = assess_formation(trace(selected_features=(feature(evidence_refs=("invented:2",)),)))
