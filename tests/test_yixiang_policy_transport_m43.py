@@ -54,3 +54,9 @@ class M43Tests(unittest.TestCase):
   self.assertTrue(any(x.startswith("difference_missing_evidence") for x in audit_policy_transport(q).issues))
  def test_no_execution_authority(self): self.assertFalse(audit_policy_transport(fixture()).policy_execution_authorized)
  def test_no_effect_certification(self): self.assertFalse(audit_policy_transport(fixture()).causal_effect_certified)
+
+ def test_context_change_without_invariance_evidence_blocks(self):
+  q=fixture(target=Domain("target","pop","ctx2","measure","action-v1","outcome"),
+   differences=(DomainDifference(Difference.MECHANISM,"mechanism changed","m",True),
+                DomainDifference(Difference.SELECTION,"selection changed","s",True)))
+  self.assertIn("missing_mechanism_invariance_evidence",audit_policy_transport(q).issues)
