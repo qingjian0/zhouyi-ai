@@ -38,6 +38,14 @@ class M28Tests(unittest.TestCase):
         x=assess_evidence_independence("claim",(src("s1"),src("s2")),(wit("a","s1",False),wit("b","s2")),(),(ev("e1","a"),ev("e2","b")))
         self.assertEqual(x.independent_support_pairs,())
         self.assertEqual(x.unresolved_lineage_witnesses,("a",))
+    def test_incomplete_ancestor_blocks_descendant_pair(self):
+        x=assess_evidence_independence("claim",(src("root"),src("s1"),src("s2")),
+            (wit("r","root",False),wit("a","s1"),wit("b","s2")),
+            (edge("d1","r","a"),),
+            (ev("e1","a"),ev("e2","b")))
+        self.assertEqual(x.independent_support_pairs,())
+        self.assertEqual(x.unresolved_lineage_witnesses,("a",))
+
     def test_conflict_is_preserved(self):
         x=assess_evidence_independence("claim",(src("s1"),src("s2")),(wit("a","s1"),wit("b","s2")),(),(ev("e1","a"),ev("e2","b",EvidenceStance.CONTRADICTS)))
         self.assertEqual(x.contradiction_evidence_ids,("e2",))
