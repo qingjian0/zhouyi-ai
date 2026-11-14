@@ -29,6 +29,20 @@ M57/M58 test relational mapping on generated graphs. They do not establish that 
 - Split leakage checks over work lineage and text dependence.
 - Corpus audit counts for period, evidence policy, split, and annotation minimum.
 
+## Source-discovery triage (not yet admitted as gold records)
+
+- The Wikisource entry for 《周易傳義大全》(四庫全書本) identifies the work as compiled by 明胡廣等 and the displayed witness as 欽定四庫全書. This is a useful example of why work date and surviving/digitized witness date must be stored separately: the work belongs to a pre-Qing lineage, while this displayed witness is a Qing imperial collection copy. Until the underlying textual witness lineage is documented, it should be used for collation, not as a standalone pre-Qing witness.
+- The same text page contains the 說卦傳 passage and layers comments from 程子、朱子 and later compilers. These must be segmented into distinct claims and attributed to their own source layers, not merged into one undifferentiated "classical" statement.
+- 《周易玩辭集解》 (四庫全書本), 《周易闡象》 and 《易箋》 are Qing-era commentary witnesses and therefore belong in secondary/commentarial or collation roles, not the pre-Qing core.
+
+Discovery links:
+- https://zh.wikisource.org/zh/周易傳義大全_(四庫全書本)/卷二十四
+- https://zh.wikisource.org/zh-hans/周易玩辞集解_(四库全书本)/卷05
+- https://www.shidianguji.com/book/CADAL02040139/chapter/1l7nrwte3ml9q
+- https://www.shidianguji.com/book/SK0145/chapter/1jzobna8suecy
+
+These are candidate discovery references only. No record is promoted into the dataset until exact edition metadata, witness lineage, quotation offsets, and annotation review are complete.
+
 ## Important limitations
 
 The test fixture uses a short synthetic transcription only to test the validator. It is not a verified quotation, edition, witness, or gold label. No ancient corpus has been ingested or adjudicated yet. The validator cannot authenticate a witness; human bibliographic review and edition-level collation remain mandatory.
