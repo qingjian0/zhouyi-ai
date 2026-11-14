@@ -87,7 +87,7 @@ class CompositionM26Tests(unittest.TestCase):
 
     def test_self_edge_rejected(self):
         edge = CompositionEdge("e", "a", "a", CompositionKind.INTERACTION,
-                               "interact", "task-x", "ctx", 1, ("ev",), "why")
+                               "interact", "task-x", "ctx", 1, ("ev",), "why", composition_id="cmp")
         result = audit_compositions(self.elements, [composition()], [edge])
         self.assertIn("self_edge:e", result.issues)
 
@@ -99,16 +99,16 @@ class CompositionM26Tests(unittest.TestCase):
 
     def test_edge_context_mismatch_rejected(self):
         edge = CompositionEdge("e", "a", "b", CompositionKind.INTERACTION,
-                               "interact", "task-x", "ctx", 2, ("ev",), "why")
+                               "interact", "task-x", "ctx", 2, ("ev",), "why", composition_id="cmp")
         result = audit_compositions(self.elements, [composition()], [edge])
         self.assertIn("edge_context_mismatch:e:a", result.issues)
 
     def test_transformation_cycle_requires_review(self):
         edges = [
             CompositionEdge("e1", "a", "b", CompositionKind.TRANSFORMATION,
-                            "state transition", "task-x", "ctx", 1, ("ev1",), "why"),
+                            "state transition", "task-x", "ctx", 1, ("ev1",), "why", composition_id="cmp"),
             CompositionEdge("e2", "b", "a", CompositionKind.TRANSFORMATION,
-                            "state transition", "task-x", "ctx", 1, ("ev2",), "why"),
+                            "state transition", "task-x", "ctx", 1, ("ev2",), "why", composition_id="cmp"),
         ]
         result = audit_compositions(self.elements, [composition()], edges)
         self.assertTrue(result.valid)
@@ -160,7 +160,7 @@ class CompositionM26Tests(unittest.TestCase):
 
     def test_duplicate_edge_id_rejected(self):
         edge = CompositionEdge("e", "a", "b", CompositionKind.INTERACTION,
-                               "interact", "task-x", "ctx", 1, ("ev",), "why")
+                               "interact", "task-x", "ctx", 1, ("ev",), "why", composition_id="cmp")
         result = audit_compositions(self.elements, [composition()], [edge, edge])
         self.assertIn("duplicate_edge_id:e", result.issues)
 
