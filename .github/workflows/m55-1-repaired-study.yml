@@ -1,0 +1,40 @@
+name: M55.1 repaired statistical study
+
+on:
+  pull_request:
+    branches:
+      - research/yixiang-m55-audit-2026-11-14
+    paths:
+      - "prototype/yixiang_m55_1_repaired_study.py"
+      - "tests/test_yixiang_m55_1_repaired_study.py"
+      - ".github/workflows/m55-1-repaired-study.yml"
+  workflow_dispatch:
+
+jobs:
+  repaired-study:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run M55.1 audit regression tests
+        run: python -m unittest tests.test_yixiang_m55_1_repaired_study -v
+      - name: Run repaired 50-seed study
+        run: |
+          mkdir -p artifacts/m55_1
+          /usr/bin/time -v -o artifacts/m55_1/resource_usage.txt \
+            python -m prototype.yixiang_m55_1_repaired_study \
+              --seeds 50 --start-seed 1000 \
+              --train-sample-sizes 120 240 480 \
+              --bootstrap-repetitions 5000 \
+              --output-dir artifacts/m55_1 > artifacts/m55_1/study_stdout.json
+      - name: Upload repaired raw records and report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m55-1-repaired-study-${{ github.sha }}
+          path: artifacts/m55_1/
+          if-no-files-found: warn
+          retention-days: 90
