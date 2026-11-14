@@ -215,7 +215,7 @@ def generate_dataset(*, count: int = 240, seed: int = 5701) -> Tuple[List[Dict[s
                 "target": true_mapping["r3"],
             })
         # Distractor noise is generated independently of the planted structure.
-        predicates = ("supports", "directs", "contains", "signals", "blocks")  # keep cross_link reserved for the planted global-count constraint
+        predicates = ("supports", "directs", "contains", "signals")  # reserve blocks for negatives and cross_link for the global-count constraint
         for _ in range(2 + 3 * LEVELS.index(level)):
             left, right = rng.sample(list(true_mapping.values()), 2)  # noise cannot accidentally validate a decoy entity
             binary.append({"source": left, "predicate": rng.choice(predicates), "target": right})
