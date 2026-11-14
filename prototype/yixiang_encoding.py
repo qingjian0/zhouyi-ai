@@ -7,6 +7,7 @@ No semantic prediction is implied by an encoded state.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from numbers import Integral
 from typing import Sequence
 
 
@@ -33,6 +34,8 @@ class HexagramState:
 def validate_lines(lines: Sequence[int]) -> tuple[int, ...]:
     if len(lines) not in (3, 6):
         raise ValueError("expected exactly 3 trigram lines or 6 hexagram lines")
+    if any(isinstance(bit, bool) or not isinstance(bit, Integral) for bit in lines):
+        raise ValueError("each line must be an integer encoded as 0 (yin) or 1 (yang)")
     normalized = tuple(int(bit) for bit in lines)
     if any(bit not in (0, 1) for bit in normalized):
         raise ValueError("each line must be encoded as 0 (yin) or 1 (yang)")
@@ -64,6 +67,8 @@ def change_lines(
     if len(lines) != 6:
         raise ValueError("line changes require a six-line hexagram")
     for index in changing_indices:
+        if isinstance(index, bool) or not isinstance(index, Integral):
+            raise ValueError("line index must be an integer in [0, 5]")
         if not 0 <= index < 6:
             raise ValueError("line index must be in [0, 5], bottom line is index 0")
         lines[index] = 1 - lines[index]
