@@ -21,7 +21,7 @@ class M37Tests(unittest.TestCase):
  def test_safety_rejected_excluded(self): self.assertFalse(rank(candidate(safety_review=SafetyReview.REJECTED)).ranked)
  def test_infeasible_excluded(self): self.assertFalse(rank(candidate(feasibility=CandidateStatus.BLOCKED)).ranked)
  def test_duplicate_candidate_ids_block(self): self.assertIn("duplicate_experiment_id",rank(candidate("x"),candidate("x")).issues)
- def test_missing_prediction_blocks(self): self.assertTrue(any(x.startswith("missing_hypothesis_predictions") for x in rank(candidate(predictions=(pred("h1",0),)).__class__ and candidate(predictions=(pred("h1",0),))).issues))
+ def test_missing_prediction_blocks(self):\n  c=candidate(predictions=(pred("h1",0),))\n  self.assertTrue(any(x.startswith("missing_hypothesis_predictions") for x in rank(c).issues))
  def test_unknown_prediction_blocks(self):
   c=candidate(predictions=(pred("h1",0),pred("h2",1),pred("h3",2)))
   self.assertTrue(any(x.startswith("unknown_hypothesis_predictions") for x in rank(c).issues))
