@@ -9,7 +9,8 @@
 
 - 当前阶段：M1 数学理论定稿与 M2 最小原型准备
 - 理论版本：CPG-EI v0.3（研究草案）
-- 代码状态：E01 组合选择基线原型正在建立；尚无规模化模型或性能结论
+- 代码状态：E01 组合选择基线原型正在建立；E12-A0/A1 有限原型已建立；E12-A2-M 有限假设主动测量选择器已提交待测试与基准验证；E12-A3 组合原语归纳协议已建立；E12-A3-M0 有限组合引擎首版已提交，测试待执行
+- 尚无规模化模型或性能优势结论
 - 验证原则：所有架构主张均须通过可复现实验、消融和公平对照验证
 
 ## 核心研究问题
@@ -37,8 +38,23 @@
 - [架构设计](docs/ARCHITECTURE.md)
 - [易象模块：可检验化设计](docs/YIXIANG_MODULE.md)
 - [相关工作与文献](docs/RELATED_WORK.md)
-- [2026-11-10 研究增量报告](docs/RESEARCH_FINDINGS_2026-11-10.md)
 - [实验计划与验收标准](docs/EXPERIMENTS.md)
+- [E12 基础认知单元自主生成研究](docs/E12_GROUNDED_PRIMITIVE_INDUCTION_2026-11-11.md)
+- [E12-A0 可辨识性基线协议](docs/E12A0_IDENTIFIABILITY_BASELINE.md)
+- [E12-A1 类型化谓词生成基线](docs/E12A1_TYPED_PREDICATE_INDUCTION.md)
+- [E12-A2 主动观测选择研究协议](docs/E12A2_ACTIVE_MEASUREMENT_SELECTION.md)
+- [E12-A2 实现审查与验证门槛](docs/E12A2_IMPLEMENTATION_AUDIT_2026-11-11.md)
+- [E12-A2-M 选择器实现记录](docs/E12A2_M_IMPLEMENTATION_2026-11-11.md)
+- [E12-A3 稀疏组合原语自主归纳协议](docs/E12A3_COMPOSITIONAL_PRIMITIVE_INDUCTION.md)
+- [E12-A3 初步 20 种子基准结果审计](docs/E12A3_PRELIMINARY_BENCHMARK_AUDIT_2026-11-11.md)
+- [E12-A3 双实现比较与统一接口设计](docs/E12A3_IMPLEMENTATION_COMPARISON_2026-11-11.md)
+- [E12-A3-M0 组合引擎实现记录](docs/E12A3_M0_IMPLEMENTATION_2026-11-11.md)
+- [E12-A3-M0 组合引擎原型](prototype/e12a3_compositional_induction.py)
+- [E12-A3-M0 单元测试](tests/test_e12a3_compositional_induction.py)
+- [E12 组合泛化与神经符号相关工作](docs/RELATED_WORK_E12_COMPOSITIONALITY_2026-11-11.md)
+- [E12-A1 类型化谓词原型](prototype/e12a1_typed_predicate_induction.py)
+- [E12-A2-M 主动观测选择器](prototype/e12a2_active_measurement_selector.py)
+- [E12-A2-M 单元测试](tests/test_e12a2_active_measurement_selector.py)
 - [E02 动态超图实验设计](docs/E02_DYNAMIC_HYPERGRAPH.md)
 - [E02-A 结果审计与下一阶段协议](docs/E02A_NEXT_RESEARCH_2026-11-10.md)
 - [E02-B 三元有限域关系诊断协议](docs/E02B_TERNARY_PROTOCOL.md)
@@ -47,21 +63,18 @@
 - [E02-B 三元有限域学习器对照结果](docs/E02B_RESULTS_2026-11-10.md)
 - [E02-D 未见规则族归纳基准](prototype/e02_rule_ood.py)
 - [E02-D 实验协议](docs/E02D_RULE_FAMILY_OOD.md)
-- [E02-D 支持样本量扫描结果](docs/E02D_SUPPORT_SWEEP_RESULTS_2026-11-10.md)
-- [E01-B 五种子结果报告](docs/E01B_RESULTS_2026-11-10.md)
-- [E01-C 组合 OOD 结果报告](docs/E01C_RESULTS_2026-11-10.md)
 - [研究风险与证伪条件](docs/RISKS_AND_FALSIFICATION.md)
 - [开发路线图](ROADMAP.md)
 - [原型代码](prototype/)
 
-## 快速开始（当前原型）
-
-当前原型优先验证组合策略和跨位置组合，不代表完整模型：
+## 快速开始
 
 ```bash
 python -m unittest discover -s tests -v
 python -m prototype.e01_sparse_composition
 python -m prototype.e01_learned_ranker --json
+python -m prototype.e12a2_active_measurement_selector
+python -m prototype.e12a3_compositional_induction
 ```
 
 ## 研究状态标记
