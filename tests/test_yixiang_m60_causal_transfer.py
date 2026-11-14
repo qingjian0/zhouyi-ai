@@ -141,5 +141,15 @@ class M60CausalTransferTests(unittest.TestCase):
         self.assertEqual(prediction["status"], "identified_by_frontdoor")
 
 
+    def test_graph_identification_scores_frontdoor_and_backdoor_cases(self):
+        results = run_baselines(self.cases, self.truth)
+        metrics = results["graph_identification"]["metrics"]
+        self.assertEqual(metrics["implemented_identification_strategy_accuracy"], 1.0)
+        self.assertEqual(metrics["implemented_strategy_identified_case_mae"], 0.0)
+        self.assertEqual(metrics["implemented_strategy_cases_scored"], 4)
+        self.assertEqual(metrics["identified_case_mae"], 0.0)
+        self.assertEqual(metrics["identified_cases_scored"], 3)
+
+
 if __name__ == "__main__":
     unittest.main()
