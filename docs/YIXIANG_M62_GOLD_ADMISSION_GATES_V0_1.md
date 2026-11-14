@@ -46,7 +46,21 @@ For 咸卦, the source page contains the distinct textual layers:
 
 These must remain separate. The first is the received 《象传》 text, whose composition and attribution are historically layered and contested; the second is commentary attributed to Wang Bi. Neither line is being admitted as gold in this PR. The Song witness, 1920s facsimile, OCR transcription, and modern web rendering are separate provenance layers.
 
-A separate 四库全书本 witness exists for the same work and passage. It is a Qing witness and therefore a collation witness, not independent pre-Qing primary evidence.
+A separate 四库全书本 witness exists for the same work and passage. Its page explicitly identifies the base as 景印文渊阁四库全书第七册 and opens with “钦定四库全书”; it is a Qing witness and therefore a collation witness, not independent pre-Qing primary evidence.
+
+## Layer separation and witness cautions
+
+The received text and commentary must not be merged:
+
+| Layer | Passage in the 咸卦 witness | Attribution/status |
+|---|---|---|
+| 《象传》 | 象曰山上有泽咸君子以虚受人 | Received canonical layer; traditional attribution is not equivalent to a settled composition date |
+| 王弼注 | 以虚受人物乃感应 | Wei-period commentary layer, not the canonical 《象传》 wording |
+| Modern transcription | punctuation, simplified/traditional conversion, OCR repairs | Editorial/digital layer; every normalization must retain a reversible link to the witness |
+
+The Four Books Congkan catalog identifies the book as a facsimile of a Song printed edition held by Shanghai Hanfenlou. The precise printing lineage should remain qualified: Peking University's editorial/research center summarizes a bibliographic debate over whether the underlying copy is a Song Fuzhou Gongshi Ku edition and whether it was repaired in the Southern Song Ningzong period. Do not hard-code an exact Song reign date until the catalog record and physical copy are inspected.
+
+A 2023 modern critical edition of 《周易注》 states that it uses the Four Books Congkan Song facsimile as its base and collates Dunhuang manuscripts, the National Library's Fuzhou Gongshi Ku copy, other Song printed editions, and other scholarly collation records. This is a valuable collation roadmap, but the modern edition itself is not a substitute for recording each underlying witness separately.
 
 ## References
 
@@ -55,6 +69,8 @@ A separate 四库全书本 witness exists for the same work and passage. It is a
 - Wikisource 四部丛刊本, 卷四: https://zh.wikisource.org/wiki/周易_(四部叢刊本)/卷四
 - Wikisource 四库全书本, 卷四: https://zh.wikisource.org/wiki/周易註_(四庫全書本)/卷04
 - CText bibliographic note on the 1919–1922 first series and 1924 reprint: https://ctext.org/wiki.pl?chapter=543417&if=gb&remap=gb
+- Peking University Confucian Canon editorial center on the edition lineage and Song-printing debate: https://ruzang.pku.edu.cn/rzen/info/1017/1177.htm
+- Commercial Press 2023 modern critical edition and its stated base/variant witnesses: https://www.cp.com.cn/book/4d4efcc9-9.html
 - Commercial Press history records completion of the first series in 1922: https://www.cp.com.cn/ourselves/history/dsj.html
 
 No historical claim is inferred from a modern web page alone. Image inspection, edition-level collation, and independent annotation remain required.
