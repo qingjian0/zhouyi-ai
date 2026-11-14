@@ -4,7 +4,7 @@ from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from prototype.yixiang_benchmark import validate_dataset, validate_prediction
 
-def evaluate_contrastive_pairs(cases: Sequence[Mapping], predictions: Sequence[Mapping], *, allow_fixture_expected: bool = False) -> dict:
+def evaluate_contrastive_pairs(cases: Sequence[Mapping], predictions: Sequence[Mapping], pairs: Sequence[Mapping], *, allow_fixture_expected: bool = False) -> dict:
     """Score paired cases whose expected decisions differ; missing predictions abstain."""
     validate_dataset(cases)
     statuses = {case["label_status"] for case in cases}
@@ -16,18 +16,33 @@ def evaluate_contrastive_pairs(cases: Sequence[Mapping], predictions: Sequence[M
         raise ValueError("contrastive evaluation requires one eligible label population")
     if not isinstance(predictions, Sequence) or isinstance(predictions, (str, bytes)):
         raise ValueError("predictions must be a sequence")
-    groups = defaultdict(list)
-    for case in cases:
-        groups[case["independence_group"]].append(case)
-    if not groups:
-        raise ValueError("at least one contrastive pair is required")
-    for group_id, members in groups.items():
-        if len(members) != 2:
-            raise ValueError(f"contrastive group {group_id} must contain exactly two cases")
+    if not isinstance(pairs, Sequence) or isinstance(pairs, (str, bytes)) or not pairs:
+        raise ValueError("pairs must be a non-empty sequence")
+    by_id = {case["case_id"]: case for case in cases}
+    groups = {}
+    paired_case_ids = []
+    for pair in pairs:
+        if not isinstance(pair, Mapping) or set(pair) != {"pair_id", "case_ids"}:
+            raise ValueError("each pair requires exactly pair_id and case_ids")
+        pair_id = pair["pair_id"]
+        case_ids = pair["case_ids"]
+        if not isinstance(pair_id, str) or not pair_id.strip():
+            raise ValueError("pair_id must be non-empty")
+        if pair_id in groups:
+            raise ValueError("duplicate pair_id")
+        if not isinstance(case_ids, (list, tuple)) or len(case_ids) != 2 or len(set(case_ids)) != 2:
+            raise ValueError(f"pair {pair_id} must reference exactly two distinct case IDs")
+        if any(not isinstance(case_id, str) or case_id not in by_id for case_id in case_ids):
+            raise ValueError(f"pair {pair_id} references an unknown case ID")
+        members = [by_id[case_id] for case_id in case_ids]
         if len({m["split_group"] for m in members}) != 1:
-            raise ValueError(f"contrastive group {group_id} crosses split groups")
+            raise ValueError(f"pair {pair_id} crosses split groups")
         if members[0]["gold_decision"] == members[1]["gold_decision"]:
-            raise ValueError(f"contrastive group {group_id} must have different expected decisions")
+            raise ValueError(f"pair {pair_id} must have different expected decisions")
+        groups[pair_id] = members
+        paired_case_ids.extend(case_ids)
+    if len(paired_case_ids) != len(set(paired_case_ids)) or set(paired_case_ids) != set(by_id):
+        raise ValueError("each case must occur in exactly one contrastive pair")
     predicted = {}
     for item in predictions:
         validate_prediction(item)
