@@ -30,9 +30,13 @@ def evaluate_contrastive_pairs(cases: Sequence[Mapping], predictions: Sequence[M
             raise ValueError("pair_id must be non-empty")
         if pair_id in groups:
             raise ValueError("duplicate pair_id")
-        if not isinstance(case_ids, (list, tuple)) or len(case_ids) != 2 or len(set(case_ids)) != 2:
+        if not isinstance(case_ids, (list, tuple)) or len(case_ids) != 2:
             raise ValueError(f"pair {pair_id} must reference exactly two distinct case IDs")
-        if any(not isinstance(case_id, str) or case_id not in by_id for case_id in case_ids):
+        if any(not isinstance(case_id, str) or not case_id for case_id in case_ids):
+            raise ValueError(f"pair {pair_id} case IDs must be non-empty strings")
+        if len(set(case_ids)) != 2:
+            raise ValueError(f"pair {pair_id} must reference exactly two distinct case IDs")
+        if any(case_id not in by_id for case_id in case_ids):
             raise ValueError(f"pair {pair_id} references an unknown case ID")
         members = [by_id[case_id] for case_id in case_ids]
         if len({m["split_group"] for m in members}) != 1:
