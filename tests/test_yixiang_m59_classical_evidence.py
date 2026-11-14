@@ -97,11 +97,48 @@ class M59ClassicalEvidenceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "crosses_splits"):
             validate_split_assignments(records)
 
+    def test_pending_adjudication_never_counts_as_gold(self):
+        record = fixture()
+        record["admission_status"] = "review_pending"
+        report = audit_corpus([record])
+        self.assertEqual(report["gold_records"], 0)
+        self.assertEqual(report["review_pending_records"], 1)
+        self.assertEqual(report["split_counts"]["train"], 0)
+
+    def test_gold_requires_final_unanimous_adjudication(self):
+        record = fixture()
+        record["admission_status"] = "gold"
+        with self.assertRaisesRegex(ValueError, "gold_record_requires_unanimous_adjudication"):
+            validate_record(record)
+        record["adjudication"] = {
+            "status": "adjudicated", "adjudicator_id": "senior-1",
+            "decisions": {"claim-1": "accept"},
+        }
+        validate_record(record)
+        report = audit_corpus([record])
+        self.assertEqual(report["gold_records"], 1)
+        self.assertEqual(report["split_counts"]["train"], 1)
+
+    def test_secondary_or_collation_record_cannot_be_gold(self):
+        record = fixture(policy="variant_collation")
+        record["admission_status"] = "gold"
+        record["adjudication"] = {
+            "status": "adjudicated", "adjudicator_id": "senior-1",
+            "decisions": {"claim-1": "accept"},
+        }
+        with self.assertRaisesRegex(ValueError, "gold_record_requires_core_primary_evidence"):
+            validate_record(record)
+
     def test_audit_reports_source_policy_and_split_counts(self):
         records = [fixture()]
         report = audit_corpus(records)
         self.assertEqual(report["records"], 1)
-        self.assertEqual(report["work_period_counts"]["pre_qing"], 1)
+        self.assertEqual(report["work_period_counts_all_records"]["pre_qing"], 1)
+        self.assertEqual(report["gold_records"], 0)
+        self.assertEqual(report["review_pending_records"], 1)
+        self.assertEqual(report["split_counts"]["train"], 0)
+        self.assertEqual(report["all_record_split_counts"]["train"], 1)
+        self.assertTrue(report["gold_admission_requires_adjudication"])
         self.assertTrue(report["all_evidence_spans_exact"])
 
 
