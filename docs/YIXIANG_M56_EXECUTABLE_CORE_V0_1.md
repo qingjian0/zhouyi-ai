@@ -12,6 +12,7 @@ Scope: M56-A1 through A3, plus minimal executable contracts for B1, C1, D1
 - A separate evaluator-only truth object containing selected features, hidden class membership, target relation validity, split assignment, and nuisance state.
 - Three task-conditioned feature families: support/load, flow/pressure, and containment/boundary.
 - Task-shift views that hold observations fixed while changing the declared purpose.
+- Explicit within-domain, near-domain, and far-domain transfer-distance labels, plus lexical/feature/relational/mechanism/long-context analogy-granularity labels.
 - Independent-nuisance and train-only spurious-cue conditions. In the latter, the nuisance marker is correlated with the hidden class in training, independent in validation, and reversed in test.
 - A minimal open-set category decision with member, non_member, and unknown states.
 - A directed relation-preservation scorer that requires an explicit role mapping.
@@ -62,7 +63,8 @@ Before expanding the benchmark:
 2. raw agent and evaluator files must remain disjoint and parseable;
 3. nuisance correlation must be measured per split;
 4. task shifts must change the relevant feature set while preserving observations;
-5. relation reversal and role permutation must be rejected correctly;
-6. category abstention and local revision must preserve uncertainty and unaffected scope.
+5. within/near/far transfer distances and analogy granularities must remain explicit in the public schema;
+6. relation reversal and role permutation must be rejected correctly;
+7. category abstention and local revision must preserve uncertainty and unaffected scope.
 
 Only after these controls pass should the project add annotation pilots and real model adapters. Any model comparison must use identical permitted inputs, compute budgets, versioned prompts/configurations, and source-family-held-out test data.
