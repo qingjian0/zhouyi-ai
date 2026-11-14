@@ -61,18 +61,26 @@ def summarize(records, *, bootstrap_repetitions=5000, seed=20261114):
             "budget_violations": sum(bool(row["budget_violation"]) for row in rows),
         })
 
-    lookup = {(row["scenario"], row["sample_size"], row["method"], row["seed"]): row for row in records}
+    paired_cells = defaultdict(dict)
+    for row in records:
+        paired_cells[(row["scenario"], row["sample_size"], row["seed"])][row["method"]] = row
     contrasts = []
-    for scenario in SCENARIOS:
-        for n in sorted({row["sample_size"] for row in records}):
+    observed_scenarios = sorted({row["scenario"] for row in records})
+    observed_sizes = sorted({row["sample_size"] for row in records})
+    for scenario in observed_scenarios:
+        for n in observed_sizes:
             for comparator in ("random", "correlation"):
                 differences = []
                 for seed_value in sorted({row["seed"] for row in records
                                           if row["scenario"] == scenario
                                           and row["sample_size"] == n}):
-                    a = lookup[(scenario, n, "pc_skeleton", seed_value)]["f1"]
-                    b = lookup[(scenario, n, comparator, seed_value)]["f1"]
-                    differences.append(a - b)
+                    cell = paired_cells[(scenario, n, seed_value)]
+                    if "pc_skeleton" not in cell or comparator not in cell:
+                        raise ValueError(
+                            "incomplete_paired_method_cell:"
+                            + str((scenario, n, seed_value, tuple(sorted(cell))))
+                        )
+                    differences.append(cell["pc_skeleton"]["f1"] - cell[comparator]["f1"])
                 interval = paired_bootstrap_interval(
                     differences, repetitions=bootstrap_repetitions,
                     seed=seed + n + len(differences),
