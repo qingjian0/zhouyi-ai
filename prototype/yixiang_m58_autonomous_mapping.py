@@ -158,9 +158,12 @@ def evaluate_predictions(cases: Sequence[Mapping[str, Any]],
         predicted = by_id[case_id].get("mapping")
         expected_id = evaluator_truth[case_id]["correct_candidate_id"]
         expected_index = int(expected_id.split("-")[1])
-        # M57 evaluator truth maps the candidate ID to its private mapping via
-        # a private field populated by the caller, never the public case.
-        expected = evaluator_truth[case_id]["_correct_mapping"]
+        # The evaluator may inspect the private scoring view of the original
+        # case; the prediction function never receives this evaluator call.
+        # The model-facing solver itself ignores candidate_mappings entirely.
+        if "candidate_mappings" not in case:
+            raise ValueError("evaluator_requires_private_scoring_view")
+        expected = case["candidate_mappings"][expected_index]
         is_exact = predicted == expected
         if predicted is not None:
             covered += 1
