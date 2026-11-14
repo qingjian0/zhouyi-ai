@@ -57,8 +57,10 @@ def validate_record(record: Mapping[str, Any]) -> None:
         if not isinstance(witness, Mapping):
             raise ValueError("invalid_witness")
         for key in ("witness_id", "edition", "publisher", "publication_date",
-                    "digitization_source", "access_date", "locator", "text"):
+                    "digitization_source", "source_uri", "access_date", "locator", "text"):
             _require_text(witness.get(key), "witness_" + key + "_required")
+        if not witness["source_uri"].startswith(("https://", "http://", "urn:")):
+            raise ValueError("invalid_witness_source_uri")
         if not isinstance(witness.get("variants"), list):
             raise ValueError("witness_variants_must_be_a_list")
         if witness.get("witness_period_class") not in WORK_PERIODS:
