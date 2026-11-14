@@ -284,3 +284,34 @@ def run_baselines(cases: Sequence[Mapping[str, Any]],
             "predictions": predictions,
         }
     return results
+
+
+
+def rename_case(case: Mapping[str, Any], mapping: Mapping[str, str],
+                case_id: str | None = None) -> Dict[str, Any]:
+    """Create a label-renamed domain view while preserving graph/data structure."""
+    nodes = case["dag"]["nodes"]
+    if set(mapping) != set(nodes) or len(set(mapping.values())) != len(mapping):
+        raise ValueError("rename_mapping_must_be_total_and_injective")
+    old_observed = list(case["observed_variables"])
+    new_observed = [mapping[name] for name in old_observed]
+    renamed_joint = {}
+    for key, probability in case["observational_joint"].items():
+        assignment = _decode(key, old_observed)
+        renamed_joint[_key([assignment[name] for name in old_observed])] = probability
+    return {
+        "schema_version": case["schema_version"],
+        "case_id": case_id or (case["case_id"] + "_renamed"),
+        "dag": {
+            "nodes": [mapping[name] for name in nodes],
+            "edges": [[mapping[source], mapping[target]]
+                      for source, target in case["dag"]["edges"]],
+        },
+        "observed_variables": new_observed,
+        "query": {
+            "exposure": mapping[case["query"]["exposure"]],
+            "outcome": mapping[case["query"]["outcome"]],
+            "estimand": case["query"]["estimand"],
+        },
+        "observational_joint": renamed_joint,
+    }
