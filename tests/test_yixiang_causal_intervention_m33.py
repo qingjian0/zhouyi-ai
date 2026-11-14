@@ -10,7 +10,7 @@ def intervention(**kw):
 def evidence(i, family=None, review=EvidenceReview.REVIEWED):
     return CausalEvidence(i,f"src-{family or i}","experiment",review,"ctx")
 def unit(i, condition, outcome, ref, assignment=AssignmentKind.RANDOMIZED):
-    return StudyUnit(i,"family-1","ctx","source-"+i,"i",condition,outcome,"whole-output",(ref,),assignment)
+    return StudyUnit(i,"family-1","ctx","source-"+i,"i",condition,outcome,"whole-output",(() if ref is None else (ref,)),assignment)
 def pair(**kw):
     d=dict(pair_id="p",intervention_id="i",unit_family="family-1",
            control_unit_id="u0",treatment_unit_id="u1",matching_basis="matched units",
@@ -45,9 +45,9 @@ class M33Tests(unittest.TestCase):
     def test_order_swap_must_name_order(self):
         self.assertIn("order_intervention_must_change_order:i",base(interventions=(intervention(kind=InterventionKind.SWAP_ORDER),)).issues)
     def test_unknown_unit_intervention(self):
-        self.assertIn("unknown_unit_intervention:u0",base(units=(unit("u0","present",1,"e0"),)).issues)
+        self.assertIn("unknown_unit_intervention:u0",base(interventions=(),units=(unit("u0","present",1,"e0"),)).issues)
     def test_unit_requires_evidence(self):
-        self.assertIn("unit_requires_evidence:u0",base(units=(unit("u0","present",1,"e0"),unit("u1","removed",.7,"e1")),evidence=()).issues)
+        self.assertIn("unit_requires_evidence:u0",base(units=(unit("u0","present",1,None),unit("u1","removed",.7,None)),evidence=()).issues)
     def test_unknown_unit_evidence(self):
         self.assertIn("unknown_unit_evidence:u0:e0",base(evidence=(evidence("e1"),)).issues)
     def test_unit_evidence_context_must_match(self):

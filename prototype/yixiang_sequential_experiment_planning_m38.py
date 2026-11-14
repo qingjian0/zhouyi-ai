@@ -101,7 +101,7 @@ def _scenario_valid(s, action_ids):
         return False
     hs=[p.hypothesis_id for p in s.priors]
     if len(hs)<2 or len(hs)!=len(set(hs)): return False
-    if any(not h or not isfinite(p.probability) or p.probability<0 for p in s.priors): return False
+    if any(not p.hypothesis_id or not isfinite(p.probability) or p.probability<0 for p in s.priors): return False
     if abs(sum(p.probability for p in s.priors)-1.0)>1e-8: return False
     outcomes={}; seen=set()
     for l in s.likelihoods:
