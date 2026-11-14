@@ -226,6 +226,13 @@ def assess_evidence_independence(
             ancestors_cache[wid] = result
         return ancestors_cache[wid]
 
+    effective_lineage_cache = {}
+    def effective_lineage_complete(wid):
+        if wid not in effective_lineage_cache:
+            chain = ancestors(wid) | {wid}
+            effective_lineage_cache[wid] = all(witness_map[item].lineage_complete for item in chain)
+        return effective_lineage_cache[wid]
+
     relevant = []
     seen = set()
     for item in evidence:
@@ -256,7 +263,7 @@ def assess_evidence_independence(
         for right in reviewed_support[i + 1:]:
             lw, rw = witness_map[left.witness_id], witness_map[right.witness_id]
             # Unknown lineage blocks positive independence claims.
-            if not (lw.lineage_complete and rw.lineage_complete):
+            if not (effective_lineage_complete(left.witness_id) and effective_lineage_complete(right.witness_id)):
                 continue
             # Ancestor/descendant or shared ancestor means derivational dependence.
             if left.witness_id in ancestors(right.witness_id) or right.witness_id in ancestors(left.witness_id):
