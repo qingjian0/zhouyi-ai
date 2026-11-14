@@ -156,6 +156,8 @@ def audit_epistemic_graph(claim_ids,evidence,judgements,conditions,dependencies)
 
 def adapt_m27_invalidation(invalidation,m27_node_to_claim_id):
     """Explicit mapping: M27 node IDs are never guessed to be M29 claim IDs."""
+    if hasattr(invalidation,"valid_graph") and not invalidation.valid_graph:
+        raise ValueError("invalid M27 graph")
     mapping=dict(m27_node_to_claim_id)
     if len(mapping)!=len(m27_node_to_claim_id):raise ValueError("duplicate M27 node mapping")
     output=[]
