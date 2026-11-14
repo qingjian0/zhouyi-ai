@@ -5,7 +5,6 @@ outcome-contingent policy trees; M38 remains the evaluator for supplied trees.
 """
 from dataclasses import dataclass
 from enum import Enum
-from itertools import product
 from math import isfinite, log
 
 class SearchDisposition(str, Enum):
@@ -84,13 +83,16 @@ def _valid_scenario(s, action_ids):
         seen.add(key); grouped.setdefault((l.action_id,l.hypothesis_id),[]).append(l.probability)
     return all((a,h) in grouped and abs(sum(grouped[(a,h)])-1)<=1e-8 for a in action_ids for h in hs)
 
-def _sequence_eig(sequence, scenario):
+def _sequence_eig(sequence, scenario, max_outcome_paths):
     prior={p.hypothesis_id:p.probability for p in scenario.priors}
     likelihood={(l.action_id,l.hypothesis_id,l.outcome):l.probability for l in scenario.likelihoods}
     initial=_entropy(tuple(prior.values()))
     states=[(prior,1.0)]
+    path_count=1
     for aid in sequence:
         outcomes=sorted({l.outcome for l in scenario.likelihoods if l.action_id==aid})
+        path_count*=len(outcomes)
+        if path_count>max_outcome_paths: return None
         next_states=[]
         for belief,path_prob in states:
             for outcome in outcomes:
@@ -103,18 +105,19 @@ def _sequence_eig(sequence, scenario):
     terminal=sum(prob*_entropy(tuple(belief.values())) for belief,prob in states)
     return initial-terminal
 
-def _score(sequence, actions, scenarios, cost_weight, risk_weight):
+def _score(sequence, actions, scenarios, cost_weight, risk_weight, max_outcome_paths):
     amap={a.action_id:a for a in actions}
     cost=sum(amap[x].cost for x in sequence)
     risk=sum(amap[x].risk for x in sequence)
-    eigs=tuple((s.scenario_id,_sequence_eig(sequence,s)) for s in scenarios)
+    eigs=tuple((s.scenario_id,_sequence_eig(sequence,s,max_outcome_paths)) for s in scenarios)
+    if any(v is None for _,v in eigs): return None
     robust=min(v for _,v in eigs)
     return SequenceScore(tuple(sequence),robust,eigs,cost,risk,robust-cost_weight*cost-risk_weight*risk)
 
 def search_sequences(actions, scenarios, horizon, beam_width, max_total_cost,
-                     max_total_risk, cost_weight=0.0, risk_weight=0.0):
+                     max_total_risk, cost_weight=0.0, risk_weight=0.0, max_outcome_paths=4096):
     actions=tuple(actions); scenarios=tuple(scenarios); issues=[]; warnings=[]
-    if horizon<1 or beam_width<1 or not all(isfinite(x) and x>=0 for x in (max_total_cost,max_total_risk,cost_weight,risk_weight)):
+    if horizon<1 or beam_width<1 or max_outcome_paths<1 or not all(isfinite(x) and x>=0 for x in (max_total_cost,max_total_risk,cost_weight,risk_weight)):
         issues.append("invalid_search_limits")
     ids=[a.action_id for a in actions]
     if len(ids)!=len(set(ids)): issues.append("duplicate_action_id")
@@ -135,7 +138,7 @@ def search_sequences(actions, scenarios, horizon, beam_width, max_total_cost,
         return SearchResult(SearchDisposition.BLOCKED,(),(),0.0,0,tuple(sorted(set(issues))),tuple(sorted(set(warnings))))
     if not eligible:
         return SearchResult(SearchDisposition.NO_FEASIBLE_SEQUENCE,(),(),0.0,0,(),tuple(sorted(set(warnings))))
-    beam=[tuple()]; seen=set(); ranked={}; expanded=0;
+    beam=[tuple()]; seen=set(); ranked={}; expanded=0; capped=False;
     for depth in range(1,min(horizon,len(eligible))+1):
         candidates=[]
         for prefix in beam:
@@ -147,7 +150,10 @@ def search_sequences(actions, scenarios, horizon, beam_width, max_total_cost,
                 cost=sum(next(x.cost for x in eligible if x.action_id==aid) for aid in seq)
                 risk=sum(next(x.risk for x in eligible if x.action_id==aid) for aid in seq)
                 if cost>max_total_cost+1e-9 or risk>max_total_risk+1e-9: continue
-                score=_score(seq,eligible,scenarios,cost_weight,risk_weight)
+                score=_score(seq,eligible,scenarios,cost_weight,risk_weight,max_outcome_paths)
+                if score is None:
+                    capped=True
+                    continue
                 ranked[seq]=score; candidates.append(score)
         if not candidates: break
         candidates.sort(key=lambda x:(-x.utility,x.total_cost,x.total_risk,x.action_ids))
@@ -160,8 +166,8 @@ def search_sequences(actions, scenarios, horizon, beam_width, max_total_cost,
         for a in eligible:
             if a.action_id in greedy: continue
             seq=greedy+(a.action_id,)
-            score=_score(seq,eligible,scenarios,cost_weight,risk_weight)
-            if score.total_cost<=max_total_cost+1e-9 and score.total_risk<=max_total_risk+1e-9:
+            score=_score(seq,eligible,scenarios,cost_weight,risk_weight,max_outcome_paths)
+            if score is not None and score.total_cost<=max_total_cost+1e-9 and score.total_risk<=max_total_risk+1e-9:
                 marginal=(score.robust_eig-current_eig)-cost_weight*a.cost-risk_weight*a.risk
                 extensions.append((marginal,score))
         if not extensions: break
@@ -169,6 +175,7 @@ def search_sequences(actions, scenarios, horizon, beam_width, max_total_cost,
         marginal,chosen=extensions[0]
         if marginal<=0: break
         greedy=chosen.action_ids; current_eig=chosen.robust_eig; greedy_utility=chosen.utility
+    if capped: warnings.append("some_sequences_skipped_by_outcome_path_cap")
     warnings.extend(("open_loop_sequences_only_no_outcome_contingent_branching","bounded_beam_search_is_not_global_optimality_proof","robustness_only_over_declared_model_scenarios","validation_data_must_remain_unseen_until_search_and_policy_freeze","search_ranking_is_not_execution_authorization"))
     return SearchResult(SearchDisposition.CANDIDATES_FOUND if best else SearchDisposition.NO_FEASIBLE_SEQUENCE,
                         best,greedy,greedy_utility,expanded,(),tuple(sorted(set(warnings))),False,False)
