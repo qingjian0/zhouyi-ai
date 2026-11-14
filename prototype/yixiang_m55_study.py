@@ -44,8 +44,22 @@ def summarize(records, *, bootstrap_repetitions=5000, seed=20261114):
         fn = sum(item[2] for item in counts)
         tn = sum(item[3] for item in counts)
         f1_values = [row["f1"] for row in rows]
-        fpr_ci = wilson_interval(fp, fp + tn) if fp + tn else None
-        power_ci = wilson_interval(tp, tp + fn) if tp + fn else None
+        # Bootstrap over independent seed clusters, not individual edges within a seed.
+        seed_fpr = []
+        seed_power = []
+        for row, (seed_tp, seed_fp, seed_fn, seed_tn) in zip(rows, counts):
+            seed_fpr.append(seed_fp / (seed_fp + seed_tn)
+                            if seed_fp + seed_tn else 0.0)
+            if seed_tp + seed_fn:
+                seed_power.append(seed_tp / (seed_tp + seed_fn))
+        fpr_ci = paired_bootstrap_interval(
+            seed_fpr, repetitions=bootstrap_repetitions,
+            seed=seed + n + len(rows) + 11,
+        )["interval"]
+        power_ci = (paired_bootstrap_interval(
+            seed_power, repetitions=bootstrap_repetitions,
+            seed=seed + n + len(rows) + 13,
+        )["interval"] if seed_power else None)
         summaries.append({
             "scenario": scenario, "sample_size": n, "method": method,
             "paired_seeds": len(rows), "mean_precision": mean(row["precision"] for row in rows),
@@ -53,10 +67,10 @@ def summarize(records, *, bootstrap_repetitions=5000, seed=20261114):
             "mean_f1": mean(f1_values), "mean_shd": mean(row["shd"] for row in rows),
             "false_positive_edges": fp, "true_negative_edges": tn,
             "false_positive_rate": fp / (fp + tn) if fp + tn else None,
-            "false_positive_rate_wilson95": fpr_ci,
+            "false_positive_rate_seed_bootstrap95": fpr_ci,
             "true_positive_edges": tp, "false_negative_edges": fn,
             "power": tp / (tp + fn) if tp + fn else None,
-            "power_wilson95": power_ci,
+            "power_seed_bootstrap95": power_ci,
             "invalid_proposals": sum(bool(row["invalid_proposal"]) for row in rows),
             "budget_violations": sum(bool(row["budget_violation"]) for row in rows),
         })
