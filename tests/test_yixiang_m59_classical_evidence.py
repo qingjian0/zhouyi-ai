@@ -8,15 +8,17 @@ from prototype.yixiang_m59_classical_evidence import (
 def fixture(record_id="record-1", split="train", work_group="work-A",
             dependence_group="text-A", work_period="pre_qing",
             policy="core_pre_qing", source_kind="primary_text"):
-    text = "天地定位，山泽通气。"
-    quote = "天地定位"
+    text = "甲乙相应，丙丁相制。"
+    quote = "甲乙相应"
     start = text.index(quote)
     return {
         "schema_version": SCHEMA_VERSION,
         "record_id": record_id,
         "source": {
-            "work_id": "zhouyi-xici", "title": "周易·系辞传",
-            "composition_period": "pre-Qin (traditional attribution; dating contested)",
+            "work_id": "synthetic-fixture", "title": "Synthetic test fixture",
+            "composition_period": "synthetic; no historical dating claim",
+            "attribution": "synthetic fixture generator",
+            "attribution_status": "unknown",
             "work_period_class": work_period,
             "source_kind": source_kind,
             "evidence_policy": policy,
@@ -24,9 +26,11 @@ def fixture(record_id="record-1", split="train", work_group="work-A",
             "text_dependence_group": dependence_group,
         },
         "witnesses": [{
-            "witness_id": "witness-1", "edition": "test transcription",
-            "witness_period_class": "uncertain", "locator": "chapter/test",
-            "text": text,
+            "witness_id": "witness-1", "edition": "synthetic fixture transcription",
+            "publisher": "test fixture", "publication_date": "not applicable",
+            "digitization_source": "generated test string", "access_date": "2026-11-14",
+            "witness_period_class": "pre_qing", "locator": "synthetic/test",
+            "variants": [], "text": text,
         }],
         "evidence_spans": [{
             "span_id": "span-1", "witness_id": "witness-1",
@@ -64,6 +68,12 @@ class M59ClassicalEvidenceTests(unittest.TestCase):
     def test_modern_commentary_is_secondary_only(self):
         record = fixture(source_kind="modern_commentary", policy="core_pre_qing")
         with self.assertRaisesRegex(ValueError, "commentary_cannot_be_core_primary_evidence"):
+            validate_record(record)
+
+    def test_pre_qing_work_with_only_late_witness_cannot_enter_core(self):
+        record = fixture()
+        record["witnesses"][0]["witness_period_class"] = "qing_and_after"
+        with self.assertRaisesRegex(ValueError, "core_primary_text_requires_pre_qing_witness"):
             validate_record(record)
 
     def test_independent_annotators_must_be_distinct(self):
