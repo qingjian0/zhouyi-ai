@@ -105,4 +105,6 @@ M20 v0.1 新增 16 条 synthetic_fixture，组成 8 组成对对抗样例，覆�
 
 ### M21 当前实现边界
 
-M21 v0.1 新增成对评估器与 12 项专项测试，使用 M20 的 contrastive independence_group 计算 pair_exact_accuracy、decision_flip_sensitivity、collapsed_pair_rate、pair_selective_coverage 和 pair_selective_risk。每组必须恰好两例、同 split、预期决策不同；fixture_expected 必须显式 opt-in，pending_review 和混合标签状态拒绝评分。该指标只补充 M8，不取代逐类指标；当前数据仍是合成夹具。
+M21 v0.1 新增成对评估器与 14 项专项测试，使用 M20 的 contrastive independence_group 计算 pair_exact_accuracy、decision_flip_sensitivity、collapsed_pair_rate、pair_selective_coverage 和 pair_selective_risk。每组必须恰好两例、同 split、预期决策不同；fixture_expected 必须显式 opt-in，pending_review 和混合标签状态拒绝评分。该指标只补充 M8，不取代逐类指标；当前数据仍是合成夹具。
+
+M21 配对标识使用独立 manifest（pair_id + case_ids），不复用 M8 independence_group，避免把来源独立性分组与成对对照关系混为一谈。
