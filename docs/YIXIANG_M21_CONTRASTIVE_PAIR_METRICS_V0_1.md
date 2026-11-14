@@ -7,12 +7,12 @@ M20 的 8 组成对样例刻意让同一组中的两个案例具有不同预期�
 ## 2. 指标
 
 - pair_exact_accuracy：一组两例均预测正确的比例。
-- decision_flip_sensitivity：预期裁决不同的两例，预测是否也能区分。
+- decision_flip_sensitivity：在两例预测均已提交的 pair 中，预测裁决是否区分；显式 abstain 是有效决策值，缺失预测不进入该指标分母。
 - collapsed_pair_count/rate：两例被预测成同一决策的组数与比例。
 - pair_selective_coverage：两例均非 abstain 的组比例。
 - pair_selective_risk：在完整作答的组中，至少一例预测错误的组比例。
 
-缺失预测按 abstain 处理；不将部分答题的 pair 算作完整覆盖。fixture_expected 必须显式 opt-in，pending_review 永不计分，混合标签状态拒绝评估；abstain 不计入决策翻转敏感性。所有指标均需与 M8 的 per-class 指标、关系族分层指标和来源泄漏报告共同呈现。
+缺失预测按 abstain 处理；不将部分答题的 pair 算作完整覆盖。fixture_expected 必须显式 opt-in，pending_review 永不计分，混合标签状态拒绝评估；决策翻转敏感性以两例预测都已提交的 pair 为分母；显式 abstain 是合法四态决策，缺失预测则不计入该分母。所有指标均需与 M8 的 per-class 指标、关系族分层指标和来源泄漏报告共同呈现。
 
 ## 3. 数据约束
 
