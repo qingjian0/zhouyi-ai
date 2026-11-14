@@ -54,7 +54,7 @@ Not implemented yet:
 - full counterexample taxonomy (split, weaken, reject, merge) with adjudicated expected actions;
 - held-out source-family and relation-template benchmark results.
 
-The task-rule feature selector is a transparent control derived from the declared task contract. It is not evidence that a system autonomously discovers the right features. Likewise, the category, transfer, and revision functions are reference contracts for testing invariants, not claimed cognitive capabilities.
+The task-rule feature selector is a transparent control derived from the declared task contract. It is not evidence that a system autonomously discovers the right features. The current transfer-distance and analogy-granularity fields are balanced stratification labels; the generator does not yet implement distinct symbolic encodings, increased long-context load, or graded mechanism complexity for each label. They must not be interpreted as measured near/far-transfer difficulty. Likewise, the category, transfer, and revision functions are reference contracts for testing invariants, not claimed cognitive capabilities.
 
 ## 5. Acceptance gates for the next stage
 
