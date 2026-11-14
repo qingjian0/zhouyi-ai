@@ -120,3 +120,7 @@ class M38Tests(unittest.TestCase):
         r=audit(p,acts=(action("a1"),action("a2")),scens=(s2,))
         self.assertEqual(r.disposition,Disposition.ROBUST_POLICY_REVIEW)
         self.assertGreater(r.scenario_scores[0].terminal_paths,2)
+
+    def test_unknown_branch_outcome_blocks_without_crashing(self):
+        p=policy(nodes=(PlanNode("n1","a1",(OutcomeBranch("a",stop=True),OutcomeBranch("z",stop=True))),))
+        self.assertTrue(any(x.startswith("branch_has_no_likelihood") for x in audit(p).issues))
