@@ -88,6 +88,10 @@ class M52Tests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "non_finite"):
             family_macro_average({"f": float("nan")})
 
+    def test_macro_average_rejects_boolean_score(self):
+        with self.assertRaisesRegex(ValueError, "invalid_family_score"):
+            family_macro_average({"f": True})
+
     def test_paired_family_bootstrap_reproducible(self):
         a = {"f1": 0.8, "f2": 0.6, "f3": 0.7}
         b = {"f1": 0.5, "f2": 0.4, "f3": 0.6}
@@ -111,6 +115,17 @@ class M52Tests(unittest.TestCase):
         records = self.valid_records()
         audit = audit_comparison_protocol(records[:2], records[2:3], records[3:])
         self.assertTrue(audit.valid)
+
+    def test_comparison_protocol_rejects_partition_label_mismatch(self):
+        records = self.valid_records()
+        audit = audit_comparison_protocol(
+            train_records=records[2:3],
+            validation_records=records[:2],
+            test_records=records[3:],
+        )
+        self.assertFalse(audit.valid)
+        self.assertTrue(any(error.startswith("partition_split_mismatch:")
+                            for error in audit.errors))
 
 
 if __name__ == "__main__":
