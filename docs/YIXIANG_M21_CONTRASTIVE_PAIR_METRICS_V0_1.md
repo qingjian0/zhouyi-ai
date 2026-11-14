@@ -12,7 +12,7 @@ M20 的 8 组成对样例刻意让同一组中的两个案例具有不同预期�
 - pair_selective_coverage：两例均非 abstain 的组比例。
 - pair_selective_risk：在完整作答的组中，至少一例预测错误的组比例。
 
-缺失预测按 abstain 处理；不将部分答题的 pair 算作完整覆盖。所有指标均需与 M8 的 per-class 指标、关系族分层指标和来源泄漏报告共同呈现。
+缺失预测按 abstain 处理；不将部分答题的 pair 算作完整覆盖。fixture_expected 必须显式 opt-in，pending_review 永不计分，混合标签状态拒绝评估；abstain 不计入决策翻转敏感性。所有指标均需与 M8 的 per-class 指标、关系族分层指标和来源泄漏报告共同呈现。
 
 ## 3. 数据约束
 
@@ -24,7 +24,7 @@ M20 的 8 组成对样例刻意让同一组中的两个案例具有不同预期�
 
 ## 4. 当前验证
 
-原型：prototype/yixiang_contrastive_pair_metrics.py；专项测试 10 项；测试数据来自 M20 的 16 条 synthetic_fixture。完美预测、全 abstain、单侧缺失、同标签塌缩、重复/未知预测和 pair 数据结构错误均有覆盖。
+原型：prototype/yixiang_contrastive_pair_metrics.py；专项测试 12 项；测试数据来自 M20 的 16 条 synthetic_fixture。完美预测、全 abstain、单侧缺失、同标签塌缩、重复/未知预测和 pair 数据结构错误均有覆盖。
 
 ## 5. 边界
 
