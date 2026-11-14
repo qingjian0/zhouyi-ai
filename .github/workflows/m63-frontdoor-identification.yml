@@ -1,0 +1,22 @@
+name: M63 front-door identification
+on:
+  pull_request:
+    branches:
+      - research/yixiang-m62-gold-admission-rerun-2026-11-14
+    paths:
+      - "prototype/yixiang_m60_causal_transfer.py"
+      - "tests/test_yixiang_m60_causal_transfer.py"
+      - "docs/YIXIANG_M63_FRONTDOOR_IDENTIFICATION_V0_1.md"
+      - ".github/workflows/m63-frontdoor-identification.yml"
+  workflow_dispatch:
+jobs:
+  m63-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run M60/M61/M63 causal tests
+        run: python -m unittest tests.test_yixiang_m60_causal_transfer -v
