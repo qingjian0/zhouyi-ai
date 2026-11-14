@@ -29,9 +29,11 @@ def validate_record(record: Mapping[str, Any]) -> None:
     source = record.get("source")
     if not isinstance(source, Mapping):
         raise ValueError("source_required")
-    for key in ("work_id", "title", "composition_period",
+    for key in ("work_id", "title", "composition_period", "attribution",
                 "work_lineage_group", "text_dependence_group"):
         _require_text(source.get(key), "source_" + key + "_required")
+    if source.get("attribution_status") not in ("known", "traditional", "contested", "anonymous", "unknown"):
+        raise ValueError("invalid_attribution_status")
     if source.get("work_period_class") not in WORK_PERIODS:
         raise ValueError("invalid_work_period_class")
     if source.get("source_kind") not in SOURCE_KINDS:
@@ -54,14 +56,31 @@ def validate_record(record: Mapping[str, Any]) -> None:
     for witness in witnesses:
         if not isinstance(witness, Mapping):
             raise ValueError("invalid_witness")
-        for key in ("witness_id", "edition", "locator", "text"):
+        for key in ("witness_id", "edition", "publisher", "publication_date",
+                    "digitization_source", "access_date", "locator", "text"):
             _require_text(witness.get(key), "witness_" + key + "_required")
+        if not isinstance(witness.get("variants"), list):
+            raise ValueError("witness_variants_must_be_a_list")
         if witness.get("witness_period_class") not in WORK_PERIODS:
             raise ValueError("invalid_witness_period_class")
         witness_id = witness["witness_id"]
         if witness_id in witness_by_id:
             raise ValueError("duplicate_witness_id")
         witness_by_id[witness_id] = witness
+
+    if policy == "core_pre_qing":
+        if source["source_kind"] == "primary_text" and not any(
+            witness["witness_period_class"] == "pre_qing"
+            for witness in witness_by_id.values()
+        ):
+            raise ValueError("core_primary_text_requires_pre_qing_witness")
+        if source["source_kind"] == "critical_edition":
+            basis = source.get("basis_witness_ids")
+            if not isinstance(basis, list) or not basis or not set(basis) <= set(witness_by_id):
+                raise ValueError("critical_edition_requires_registered_basis_witnesses")
+            if not any(witness_by_id[witness_id]["witness_period_class"] == "pre_qing"
+                       for witness_id in basis):
+                raise ValueError("critical_edition_requires_pre_qing_basis")
 
     spans = record.get("evidence_spans")
     if not isinstance(spans, list) or not spans:
