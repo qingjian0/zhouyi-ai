@@ -34,10 +34,11 @@ The M62 tests verify that:
 2. A gold record requires final adjudication and all accepted claim decisions.
 3. Secondary/commentarial or collation-only records cannot enter core gold.
 4. Split counts distinguish all records from admitted gold records.
+5. A record cannot enter gold when its cited transcription is unreviewed or lacks an accessible scan URI.
 
 ## Research source discovery (not gold)
 
-A candidate source family has been identified for the first real source audit: the 四部丛刊初编影宋本《周易》, described by the CText catalog as a facsimile of a Song printed edition held by 上海涵芬楼. The CText page states that its text was automatically OCR-matched to the base edition, so the digital transcription is not yet a verified diplomatic transcription.
+A candidate source family has been identified for the first real source audit: the 四部丛刊初编影宋本《周易》, described by the CText catalog as a facsimile of a Song printed edition held by 上海涵芬楼. The CText page states that its text was automatically OCR-matched to the base edition, so the digital transcription is marked unreviewed and cannot enter gold until each cited span is checked against the actual scan.
 
 For 咸卦, the source page contains the distinct textual layers:
 - 《象传》 text: “象曰山上有泽咸君子以虚受人”
