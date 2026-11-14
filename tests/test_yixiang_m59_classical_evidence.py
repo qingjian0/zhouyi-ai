@@ -31,6 +31,8 @@ def fixture(record_id="record-1", split="train", work_group="work-A",
             "digitization_source": "generated test string", "source_uri": "urn:synthetic:test-fixture",
             "access_date": "2026-11-14", "witness_period_class": "pre_qing",
             "locator": "synthetic/test",
+            "transcription_method": "generated_test_fixture",
+            "transcription_review_status": "unreviewed",
             "variants": [], "text": text,
         }],
         "evidence_spans": [{
@@ -126,10 +128,28 @@ class M59ClassicalEvidenceTests(unittest.TestCase):
             "status": "adjudicated", "adjudicator_id": "senior-1",
             "decisions": {"claim-1": "accept"},
         }
+        record["witnesses"][0]["transcription_review_status"] = "verified_against_scan"
+        record["witnesses"][0]["scan_uri"] = "https://example.org/scan/page-1"
         validate_record(record)
         report = audit_corpus([record])
         self.assertEqual(report["gold_records"], 1)
         self.assertEqual(report["split_counts"]["train"], 1)
+
+    def test_gold_requires_transcription_verified_against_scan(self):
+        record = fixture()
+        record["admission_status"] = "gold"
+        record["adjudication"] = {
+            "status": "adjudicated", "adjudicator_id": "senior-1",
+            "decisions": {"claim-1": "accept"},
+        }
+        with self.assertRaisesRegex(ValueError, "gold_record_requires_scan_verified_transcription"):
+            validate_record(record)
+
+    def test_invalid_transcription_review_state_is_rejected(self):
+        record = fixture()
+        record["witnesses"][0]["transcription_review_status"] = "looks_ok"
+        with self.assertRaisesRegex(ValueError, "invalid_transcription_review_status"):
+            validate_record(record)
 
     def test_secondary_or_collation_record_cannot_be_gold(self):
         record = fixture(policy="variant_collation")
