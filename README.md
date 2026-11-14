@@ -257,3 +257,8 @@ python -m prototype.e01_learned_ranker --json
 - [M33 类象组合因果干预与反事实分解专题](docs/YIXIANG_M33_CAUSAL_INTERVENTION_V0_1.md)
 - [M33 因果干预审计原型](prototype/yixiang_causal_intervention_m33.py)
 - [M33 专项测试](tests/test_yixiang_causal_intervention_m33.py)
+
+
+### M34 当前实现边界
+
+M34 v0.1 新增因果机制分解声明审计：区分总效应、直接/间接效应、析因交互和 CATE；显式记录中介识别假设、处理后混杂与 cross-world 假设；记录跨情境测量不变性和机制路径；禁止将 SHAP/attention 等预测归因直接声明为因果贡献。26 项专项测试已编写，尚未执行；本原型不估计真实效应、不认证因果真值，M31/M32/M33 尚未端到端自动适配。
