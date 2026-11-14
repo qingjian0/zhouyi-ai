@@ -7,10 +7,13 @@ class M21Tests(unittest.TestCase):
     def cases(self):
         path=Path(__file__).resolve().parents[1]/"data"/"yixiang_analogy_transfer_adversarial_m20.v0.1.json"
         return json.loads(path.read_text(encoding="utf-8"))
+    def pairs(self):
+        path=Path(__file__).resolve().parents[1]/"data"/"yixiang_contrastive_pairs_m20.v0.1.json"
+        return json.loads(path.read_text(encoding="utf-8"))
     def gold_predictions(self):
         return [{"case_id":c["case_id"],"decision":c["gold_decision"]} for c in self.cases()]
-    def score(self,cases,predictions):
-        return evaluate_contrastive_pairs(cases,predictions,allow_fixture_expected=True)
+    def score(self,cases,predictions,pairs=None):
+        return evaluate_contrastive_pairs(cases,predictions,self.pairs() if pairs is None else pairs,allow_fixture_expected=True)
     def test_perfect_contrastive_predictions(self):
         r=self.score(self.cases(),self.gold_predictions())
         self.assertEqual(r["pair_count"],8)
@@ -66,7 +69,7 @@ class M21Tests(unittest.TestCase):
 
     def test_fixture_scoring_requires_explicit_opt_in(self):
         with self.assertRaises(ValueError):
-            evaluate_contrastive_pairs(self.cases(),self.gold_predictions())
+            evaluate_contrastive_pairs(self.cases(),self.gold_predictions(),self.pairs())
         self.assertEqual(self.score(self.cases(),self.gold_predictions())["pair_exact_accuracy"],1.0)
     def test_pending_review_cases_cannot_be_scored(self):
         cases=self.cases()
@@ -75,3 +78,13 @@ class M21Tests(unittest.TestCase):
             self.score(cases,self.gold_predictions())
 
 if __name__=="__main__": unittest.main()
+    def test_pair_manifest_must_cover_each_case_exactly_once(self):
+        pairs=self.pairs()
+        pairs[0]["case_ids"].append(pairs[1]["case_ids"][0])
+        with self.assertRaises(ValueError):
+            self.score(self.cases(),self.gold_predictions(),pairs)
+    def test_pair_manifest_ids_are_explicit_and_unique(self):
+        pairs=self.pairs()
+        pairs[1]["pair_id"]=pairs[0]["pair_id"]
+        with self.assertRaises(ValueError):
+            self.score(self.cases(),self.gold_predictions(),pairs)
