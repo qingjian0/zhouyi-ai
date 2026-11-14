@@ -145,6 +145,12 @@ class M59ClassicalEvidenceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "gold_record_requires_scan_verified_transcription"):
             validate_record(record)
 
+    def test_invalid_scan_uri_is_rejected(self):
+        record = fixture()
+        record["witnesses"][0]["scan_uri"] = "javascript:alert(1)"
+        with self.assertRaisesRegex(ValueError, "invalid_witness_scan_uri"):
+            validate_record(record)
+
     def test_invalid_transcription_review_state_is_rejected(self):
         record = fixture()
         record["witnesses"][0]["transcription_review_status"] = "looks_ok"
