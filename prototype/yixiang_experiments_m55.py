@@ -80,12 +80,20 @@ def run_paired_suite(*, seeds=range(20), n=240, scenarios=SCENARIOS):
             rows, parents = generate_scenario(scenario, n=n, seed=seed)
             train_end = int(n * 0.7)
             validation_end = int(n * 0.85)
+            captured = {}
+            def capture(name, adapter):
+                def wrapped(context):
+                    proposal = adapter(context)
+                    captured[name] = tuple(proposal.predicted_parents)
+                    return proposal
+                return wrapped
+
             baseline_set = (
-                ("random", lambda context, current_seed=seed:
-                    random_baseline(context, seed=current_seed, parent_count=1)),
-                ("correlation", lambda context:
-                    correlation_screen_baseline(context, parent_count=1)),
-                ("pc_skeleton", pc_skeleton_baseline),
+                ("random", capture("random", lambda context, current_seed=seed:
+                    random_baseline(context, seed=current_seed, parent_count=1))),
+                ("correlation", capture("correlation", lambda context:
+                    correlation_screen_baseline(context, parent_count=1))),
+                ("pc_skeleton", capture("pc_skeleton", pc_skeleton_baseline)),
             )
             comparison = run_fair_comparison(
                 rows=rows,
@@ -106,7 +114,10 @@ def run_paired_suite(*, seeds=range(20), n=240, scenarios=SCENARIOS):
                 records.append({
                     "scenario": scenario,
                     "seed": seed,
+                    "sample_size": n,
                     "method": result.baseline_id,
+                    "predicted_parents": captured[result.baseline_id],
+                    "true_parents": tuple(parents),
                     "precision": result.precision,
                     "recall": result.recall,
                     "f1": result.f1,
