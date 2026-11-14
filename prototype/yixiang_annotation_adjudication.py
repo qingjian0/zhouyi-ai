@@ -206,3 +206,5 @@ def to_benchmark_case(packet: ReviewPacket, *, split_group: str) -> dict:
         "gold_rationale": final.rationale, "label_status": "adjudicated",
         "reviewers": sorted(assessment.reviewer_ids), "split_group": split_group,
     }
+    validate_case(case)
+    return case
