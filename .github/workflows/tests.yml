@@ -2,7 +2,7 @@ name: tests
 
 on:
   push:
-    branches: [main]
+    branches: [main, research/e12a3-m0-composition-engine-2026-11-11, research/e12a6-lifecycle-contract-2026-11-11, research/e12a6-e02d-lifecycle-runner-2026-11-11, research/csl-e12-e09-integration-smoke-2026-11-11]
   pull_request:
     branches: [main]
 
@@ -16,6 +16,10 @@ jobs:
           python-version: "3.11"
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
+      - name: Run E12-A3-M0 focused tests
+        run: python -m unittest tests.test_e12a3_compositional_induction -v
+      - name: Run E12-A3-M0 smoke test
+        run: python -m prototype.e12a3_compositional_induction
       - name: Run E01 demonstration
         run: python -m prototype.e01_sparse_composition --json
       - name: Run E01-B five-seed evaluation
@@ -30,6 +34,20 @@ jobs:
         run: python -m prototype.e02_ternary_learners --seeds 5 --start-seed 7 --json
       - name: Run E02-C hyperedge lifecycle tests
         run: python -m unittest tests.test_e02_edge_lifecycle -v
+      - name: Run E12-A6 x E02-D lifecycle runner
+        run: |
+          mkdir -p artifacts
+          python -m prototype.e12a6_e02_lifecycle_runner --seed 17 --support-size 6 --json > artifacts/e12a6-e02d-seed17.json
+          python -m prototype.e12a6_e02_lifecycle_runner --sweep --seeds 100 --start-seed 100 --json > artifacts/e12a6-e02d-sweep-100.json
+          cat artifacts/e12a6-e02d-sweep-100.json
+      - name: Run E12-A6 x E02-D lifecycle tests
+        run: python -m unittest tests.test_e12a6_e02_lifecycle_runner -v
+      - name: Upload E12-A6 lifecycle result
+        uses: actions/upload-artifact@v4
+        with:
+          name: e12a6-e02d-lifecycle-seed17
+          path: artifacts/e12a6-e02d-*.json
+          if-no-files-found: error
       - name: Run E02-D held-out rule-family induction
         run: python -m prototype.e02_rule_ood --seed 17 --support-size 6 --json
       - name: Run E02-D multi-seed support identifiability sweep
