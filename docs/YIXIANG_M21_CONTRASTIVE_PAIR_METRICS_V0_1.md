@@ -24,7 +24,7 @@ M20 的 8 组成对样例刻意让同一组中的两个案例具有不同预期�
 
 ## 4. 当前验证
 
-原型：prototype/yixiang_contrastive_pair_metrics.py；配对清单：data/yixiang_contrastive_pairs_m20.v0.1.json；专项测试 14 项；测试数据来自 M20 的 16 条 synthetic_fixture。完美预测、全 abstain、单侧缺失、同标签塌缩、重复/未知预测和 pair 数据结构错误均有覆盖。
+原型：prototype/yixiang_contrastive_pair_metrics.py；配对清单：data/yixiang_contrastive_pairs_m20.v0.1.json；专项测试 17 项；测试数据来自 M20 的 16 条 synthetic_fixture。完美预测、全 abstain、单侧缺失、同标签塌缩、重复/未知预测和 pair 数据结构错误均有覆盖。
 
 ## 5. 边界
 
