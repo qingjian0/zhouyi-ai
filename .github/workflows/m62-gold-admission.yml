@@ -1,0 +1,23 @@
+name: M62 gold admission gates
+
+on:
+  pull_request:
+    branches:
+      - research/yixiang-m61-general-adjustment-2026-11-14
+    paths:
+      - "prototype/yixiang_m59_classical_evidence.py"
+      - "tests/test_yixiang_m59_classical_evidence.py"
+      - ".github/workflows/m62-gold-admission.yml"
+  workflow_dispatch:
+
+jobs:
+  m62-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run M59/M62 classical evidence tests
+        run: python -m unittest tests.test_yixiang_m59_classical_evidence -v
