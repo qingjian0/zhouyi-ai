@@ -95,4 +95,13 @@ class M31Tests(unittest.TestCase):
  def test_replication_is_not_falsification_coverage(self):
   t=test(kind=TestKind.REPLICATION)
   self.assertEqual(audit(tests=(t,)).falsification_coverage,(("c",0),))
+ def test_bounded_requires_cross_context_review_and_falsification(self):
+  r=audit(observations=(obs("1","x"),obs("2","y")),tests=(test(),))
+  self.assertEqual(r.candidate_states,(("c","bounded"),))
+ def test_holdout_context_must_exist(self):
+  e=Evaluation("ev",("o1",),("o2",),("train",),("test",),("missing",),("feature_similarity","classification","structural_relation"),("acc",),"r",10,"bootstrap",("small",))
+  self.assertIn("invalid_holdout_contexts:ev",audit(evaluations=(e,)).issues)
+ def test_holdout_context_family_must_be_unseen(self):
+  e=Evaluation("ev",("o1",),("o2",),("fam-x",),("fam-y",),("x",),("feature_similarity","classification","structural_relation"),("acc",),"r",10,"bootstrap",("small",))
+  self.assertIn("holdout_context_family_leakage:ev",audit(evaluations=(e,)).issues)
 if __name__=="__main__": unittest.main()
