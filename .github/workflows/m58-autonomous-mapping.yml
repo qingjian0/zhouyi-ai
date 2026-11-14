@@ -21,3 +21,19 @@ jobs:
           python-version: "3.11"
       - name: Run M58 autonomous mapping tests
         run: python -m unittest tests.test_yixiang_m58_autonomous_mapping -v
+      - name: Run same-case symbolic baseline comparison
+        run: |
+          python - <<'PY'
+          import json
+          from prototype.yixiang_m57_nonpath_benchmark import generate_dataset
+          from prototype.yixiang_m58_autonomous_mapping import run_baselines
+          cases, truth = generate_dataset(count=90, seed=5806)
+          results = run_baselines(cases, truth)
+          metrics = {name: result["metrics"] for name, result in results.items()}
+          assert metrics["full_constraints"]["exact_accuracy"] == 1.0
+          assert metrics["full_constraints"]["coverage"] == 1.0
+          for level in ("compositional", "nonpath"):
+              assert metrics["path_only"]["per_difficulty"][level]["covered"] == 0
+          assert metrics["type_only"]["coverage"] == 0.0
+          print(json.dumps(metrics, ensure_ascii=False, sort_keys=True))
+          PY
