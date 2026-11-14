@@ -23,6 +23,8 @@ TASK_RELATIONS = {
     "containment_task": "contains",
 }
 SPLITS = ("train", "validation", "test")
+TRANSFER_DISTANCES = ("within_domain", "near_domain", "far_domain")
+ANALOGY_GRANULARITIES = ("lexical", "feature", "relational", "mechanism", "long_context")
 
 
 @dataclass(frozen=True)
@@ -103,12 +105,18 @@ class TaskContext:
     purpose: str
     constraints: Tuple[str, ...]
     allowed_evidence: Tuple[str, ...]
+    transfer_distance: str = "within_domain"
+    analogy_granularity: str = "relational"
 
     def validate(self) -> None:
         if self.task_id not in TASK_FEATURES or not self.purpose.strip():
             raise ValueError("invalid_task_context")
         if not self.allowed_evidence:
             raise ValueError("allowed_evidence_required")
+        if self.transfer_distance not in TRANSFER_DISTANCES:
+            raise ValueError("invalid_transfer_distance")
+        if self.analogy_granularity not in ANALOGY_GRANULARITIES:
+            raise ValueError("invalid_analogy_granularity")
 
 
 def validate_case(case: Mapping[str, Any]) -> None:
@@ -217,11 +225,19 @@ def generate_dataset(*, count: int = 240, seed: int = 5601,
         # The second domain changes surface form but keeps or reverses the relation.
         valid_transfer = bool(task_rng.getrandbits(1))
         target_predicate = predicate if valid_transfer else f"not_{predicate}"
-        source = _make_observation(case_id, "source-domain", values, predicate)
+        source_domain = "familiar-domain"
+        target_domain = {
+            "within_domain": "familiar-domain",
+            "near_domain": "near-transfer-domain",
+            "far_domain": "far-transfer-domain",
+        }[transfer_distance]
+        source = _make_observation(case_id, source_domain, values, predicate)
         target_values = dict(values)
         target_values["surface_color"] = feature_rng.choice(("red", "blue", "green"))
         target_values["surface_shape"] = feature_rng.choice(("round", "angular", "flat"))
-        target = _make_observation(case_id, "target-domain", target_values, target_predicate)
+        target = _make_observation(case_id, target_domain, target_values, target_predicate)
+        transfer_distance = TRANSFER_DISTANCES[index % len(TRANSFER_DISTANCES)]
+        analogy_granularity = ANALOGY_GRANULARITIES[index % len(ANALOGY_GRANULARITIES)]
         context = TaskContext(
             task_id=task_id,
             purpose={
@@ -231,6 +247,8 @@ def generate_dataset(*, count: int = 240, seed: int = 5601,
             }[task_id],
             constraints=("use task-relevant evidence", "do not infer from incidental marker"),
             allowed_evidence=("features", "relations", "provenance"),
+            transfer_distance=transfer_distance,
+            analogy_granularity=analogy_granularity,
         )
         public_case = {
             "schema_version": SCHEMA_VERSION,
@@ -261,6 +279,8 @@ def task_shift_views(case: Mapping[str, Any]) -> List[Dict[str, Any]]:
             purpose=f"task-shift:{task_id}",
             constraints=("same observation; changed purpose",),
             allowed_evidence=("features", "relations", "provenance"),
+            transfer_distance=case["task_context"].get("transfer_distance", "within_domain"),
+            analogy_granularity=case["task_context"].get("analogy_granularity", "relational"),
         ))
         views.append(view)
     return views
