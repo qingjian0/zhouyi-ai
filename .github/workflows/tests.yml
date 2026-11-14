@@ -34,3 +34,5 @@ jobs:
         run: python -m prototype.e02_rule_ood --seed 17 --support-size 6 --json
       - name: Run E02-D multi-seed support identifiability sweep
         run: python -m prototype.e02_rule_ood --sweep --seeds 100 --start-seed 100 --json
+      - name: Run E02-E multi-seed autonomous relation discovery
+        run: python -m prototype.e02e_discovery --seeds 20 --start-seed 7 --json
