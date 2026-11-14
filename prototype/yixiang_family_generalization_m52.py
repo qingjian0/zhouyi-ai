@@ -51,6 +51,9 @@ def audit_family_split(records, require_all_splits=True):
     )}
     counts = {split: 0 for split in sorted(VALID_SPLITS)}
     for record in records:
+        if not isinstance(record, FamilySplitRecord):
+            errors.append("invalid_record_type")
+            continue
         if record.split not in VALID_SPLITS:
             errors.append("invalid_split:" + str(record.episode_id))
             continue
@@ -86,7 +89,7 @@ def family_macro_average(scores_by_family):
         raise ValueError("empty_family_scores")
     values = []
     for family_id, score in sorted(scores_by_family.items()):
-        if not family_id or not isinstance(score, (int, float)):
+        if not family_id or isinstance(score, bool) or not isinstance(score, (int, float)):
             raise ValueError("invalid_family_score")
         if score != score or score in (float("inf"), float("-inf")):
             raise ValueError("non_finite_family_score")
@@ -101,15 +104,15 @@ def paired_family_bootstrap(scores_a, scores_b, baseline_a="A", baseline_b="B",
         raise ValueError("paired_family_sets_must_match")
     if not scores_a:
         raise ValueError("empty_family_scores")
-    if not isinstance(samples, int) or samples < 100:
+    if not isinstance(samples, int) or isinstance(samples, bool) or samples < 100:
         raise ValueError("bootstrap_samples_must_be_at_least_100")
-    if not 0.0 < confidence_level < 1.0:
+    if isinstance(confidence_level, bool) or not isinstance(confidence_level, (int, float)) or not 0.0 < confidence_level < 1.0:
         raise ValueError("invalid_confidence_level")
     families = tuple(sorted(scores_a))
     differences = []
     for family in families:
         a, b = scores_a[family], scores_b[family]
-        if any(not isinstance(x, (int, float)) or x != x or
+        if any(isinstance(x, bool) or not isinstance(x, (int, float)) or x != x or
                x in (float("inf"), float("-inf")) for x in (a, b)):
             raise ValueError("non_finite_paired_score:" + family)
         differences.append(float(a) - float(b))
@@ -131,8 +134,32 @@ def paired_family_bootstrap(scores_a, scores_b, baseline_a="A", baseline_b="B",
 
 
 def audit_comparison_protocol(train_records, validation_records, test_records):
-    """Combine partitions and perform one global family-level leakage audit."""
-    return audit_family_split(
-        tuple(train_records) + tuple(validation_records) + tuple(test_records),
-        require_all_splits=True,
+    """Validate caller-declared partitions, then audit global split disjointness."""
+    partitions = (
+        ("train", tuple(train_records)),
+        ("validation", tuple(validation_records)),
+        ("test", tuple(test_records)),
+    )
+    records = []
+    errors = []
+    for expected_split, partition_records in partitions:
+        for record in partition_records:
+            if not isinstance(record, FamilySplitRecord):
+                errors.append("invalid_record_type:" + expected_split)
+                continue
+            if record.split != expected_split:
+                errors.append(
+                    "partition_split_mismatch:" + expected_split + ":"
+                    + str(record.split) + ":" + str(record.episode_id)
+                )
+            records.append(record)
+
+    audit = audit_family_split(records, require_all_splits=True)
+    if not errors:
+        return audit
+    return SplitAudit(
+        False,
+        tuple(sorted(set(audit.errors + tuple(errors)))),
+        audit.counts_by_split,
+        audit.groups_by_split,
     )
