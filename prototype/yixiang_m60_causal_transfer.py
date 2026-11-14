@@ -259,13 +259,13 @@ def infer_backdoor_set(case: Mapping[str, Any]) -> Dict[str, Any]:
 def predict(case: Mapping[str, Any], method: str = "graph_backdoor") -> Dict[str, Any]:
     if method == "naive_observational":
         estimate = observational_difference(case)
-        return {"case_id": case["case_id"], "status": "identified_by_backdoor",
+        return {"case_id": case["case_id"], "status": "estimate_only",
                 "estimate": estimate, "adjustment_set": [], "method": method}
     if method == "all_observed_adjustment":
         adjustment = [v for v in case["observed_variables"]
                       if v not in (case["query"]["exposure"], case["query"]["outcome"])]
         estimate = backdoor_adjusted_effect(case, adjustment)
-        return {"case_id": case["case_id"], "status": "identified",
+        return {"case_id": case["case_id"], "status": "unvalidated_adjustment",
                 "estimate": estimate, "adjustment_set": adjustment, "method": method}
     if method != "graph_backdoor":
         raise ValueError("unknown_causal_baseline")
@@ -276,10 +276,10 @@ def predict(case: Mapping[str, Any], method: str = "graph_backdoor") -> Dict[str
                 "method": method}
     estimate = backdoor_adjusted_effect(case, result["adjustment_set"])
     if estimate is None:
-        return {"case_id": case["case_id"], "status": "not_identifiable",
+        return {"case_id": case["case_id"], "status": "backdoor_estimation_failed",
                 "estimate": None, "adjustment_set": result["adjustment_set"],
                 "reason": "positivity_failure", "method": method}
-    return {"case_id": case["case_id"], "status": "identified",
+    return {"case_id": case["case_id"], "status": "identified_by_backdoor",
             "estimate": estimate, "adjustment_set": result["adjustment_set"],
             "method": method}
 
@@ -376,7 +376,9 @@ def evaluate_predictions(cases: Sequence[Mapping[str, Any]],
     for case in cases:
         label = truth[case["case_id"]]
         prediction = by_id[case["case_id"]]
-        predicted_identifiable = prediction["status"] == "identified_by_backdoor"
+        predicted_identifiable = prediction["status"] in {
+            "identified_by_backdoor", "backdoor_estimation_failed"
+        }
         if predicted_identifiable == label["backdoor_identifiable"]:
             identification_correct += 1
         if label["backdoor_identifiable"] and predicted_identifiable and prediction["estimate"] is not None:
