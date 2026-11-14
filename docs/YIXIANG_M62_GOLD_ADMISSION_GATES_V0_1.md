@@ -1,6 +1,6 @@
 # M62 — Gold admission and provenance gates v0.1
 
-Status: implementation added; exact-head CI pending.
+Status: implementation added; 17 focused tests passed on head `6032663924243c2ea65ba442fab4d59a1d8c9ead`; combined M61/M62 repository-wide workflow `43590149812` passed.
 
 ## Problem found
 
