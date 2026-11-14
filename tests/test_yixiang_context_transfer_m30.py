@@ -63,4 +63,15 @@ class M30Tests(unittest.TestCase):
  def test_semantic_truth_not_established(self): self.assertFalse(self.run_audit(perms=(perm(),)).semantic_validity_established)
  def test_duplicate_evidence_rejected(self): self.assertIn("duplicate_evidence_id",self.run_audit(evs=(ev("e"),ev("e"))).issues)
  def test_duplicate_reference_not_independent_support(self): self.assertTrue(self.run_audit(perms=(perm(refs=("e","e")),)).valid)
+ def test_assessment_requires_both_contexts(self):
+  a=StabilityAssessment("a","p",StabilityDimension.MORPHOLOGY,StabilityOutcome.WEAKENED,("e",),(),"m","s","r")
+  self.assertIn("assessment_evidence_must_cover_both_contexts:a",self.run_audit(evs=(ev("e",contexts=("c1",)),),assess=(a,)).issues)
+ def test_permission_requires_both_contexts(self):
+  self.assertIn("permission_evidence_must_cover_both_contexts:t",self.run_audit(evs=(ev("e",contexts=("c1",)),),perms=(perm(),)).issues)
+ def test_stable_requires_reviewed_evidence(self):
+  self.assertIn("stable_claim_requires_reviewed_evidence:a",self.run_audit(evs=(ev("e",reviewed=False),),assess=(assessment(),)).issues)
+ def test_duplicate_assessment_id_not_silently_accepted(self):
+  a=assessment()
+  r=self.run_audit(assess=(a,a))
+  self.assertIn("duplicate_assessment_id",r.issues)
 if __name__=="__main__": unittest.main()
