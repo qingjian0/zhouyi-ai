@@ -8,7 +8,8 @@ from prototype.yixiang_formation import (
 
 def observation(**changes):
     values = dict(observation_id="obs-1", subject_id="object-A", context_id="ctx-1",
-                  context_version=1, description="A recorded visible contour",
+                  context_version=1, description="A recorded visible contour", modality="vision",
+                  recording_method="direct observation", interpretation_note="Possibly a tool edge",
                   evidence_refs=("source:1",), observer_id="annotator-1")
     values.update(changes)
     return Observation(**values)
@@ -102,6 +103,19 @@ class FormationTests(unittest.TestCase):
     def test_unreviewed_assignment_prevents_pass(self):
         result = assess_formation(trace(category_assignments=(assignment(reviewed=False),)))
         self.assertEqual(result.status, FormationStatus.UNREVIEWED)
+
+    def test_observation_requires_recorded_modality(self):
+        with self.assertRaises(ValueError):
+            assess_formation(trace(observations=(observation(modality=" "),)))
+
+    def test_observation_requires_recording_method(self):
+        with self.assertRaises(ValueError):
+            assess_formation(trace(observations=(observation(recording_method=" "),)))
+
+    def test_observation_interpretation_is_separate_from_description(self):
+        obs = observation(description="Boundary visible in source image", interpretation_note="May indicate a manufactured edge")
+        result = assess_formation(trace(observations=(obs,)))
+        self.assertEqual(result.status, FormationStatus.PROVISIONAL_FORMATION)
 
     def test_observation_context_version_is_validated(self):
         with self.assertRaises(ValueError):
