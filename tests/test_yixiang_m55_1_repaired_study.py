@@ -69,6 +69,11 @@ class M551RepairedStudyTests(unittest.TestCase):
         self.assertEqual(len(report["paired_f1_contrasts"]), 2 * 1 * 4)
         self.assertIn("exchangeability/symmetry", report["inference_note"])
 
+    def test_hidden_regime_generation_is_seed_reproducible(self):
+        first = generate_scenario("mechanism_heterogeneity", train_n=100, seed=91)
+        second = generate_scenario("mechanism_heterogeneity", train_n=100, seed=91)
+        self.assertEqual(first, second)
+
 
 if __name__ == "__main__":
     unittest.main()
