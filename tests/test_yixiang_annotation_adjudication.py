@@ -83,7 +83,6 @@ class M19Tests(unittest.TestCase):
         a=annotation(evidence_refs=("same","same"))
         with self.assertRaises(ValueError): assess_review_packet(packet(annotations=(a,annotation("reviewer-b"))))
 
-if __name__=="__main__": unittest.main()
     def test_disagreement_export_uses_final_adjudicator_content(self):
         p=packet(annotations=(annotation(),annotation("reviewer-b",decision="reject",shared_basis=())),adjudication=adjudication(decision="conditional",shared_basis=(),scope_conditions=("仅在类别谓词保持时",),claim="仅在限定条件下可作类推。",relation_families=("structural","functional")))
         case=to_benchmark_case(p,split_group="test")
@@ -98,3 +97,5 @@ if __name__=="__main__": unittest.main()
         self.assertEqual(case["source_status"],"critical_edition")
         bad=packet(claim_kind="not-an-m8-claim-kind",adjudication=adjudication())
         with self.assertRaises(ValueError): to_benchmark_case(bad,split_group="test")
+
+if __name__=="__main__": unittest.main()
