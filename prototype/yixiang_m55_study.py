@@ -61,7 +61,7 @@ def summarize(records, *, bootstrap_repetitions=5000, seed=20261114):
             "budget_violations": sum(bool(row["budget_violation"]) for row in rows),
         })
 
-    lookup = {(row["scenario"], row["sample_size"], row["method"]): row for row in records}
+    lookup = {(row["scenario"], row["sample_size"], row["method"], row["seed"]): row for row in records}
     contrasts = []
     for scenario in SCENARIOS:
         for n in sorted({row["sample_size"] for row in records}):
