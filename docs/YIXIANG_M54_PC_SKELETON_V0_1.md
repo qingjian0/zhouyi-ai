@@ -21,10 +21,9 @@ random selection and observational marginal-correlation screening only.
 This is a **target-local PC-style skeleton heuristic**, not a full PC algorithm,
 not FCI, and not full-DAG discovery. It does not orient edges, estimate causal
 effects, or identify latent confounding. Its standard Fisher-z calibration
-assumes approximately linear-Gaussian data and adequate sample size. Singular
-or insufficient-degree cases are handled conservatively as dependent except
-for zero residual variance, which is treated as conditionally independent;
-this convention must be stress-tested under degeneracy before broad use.
+assumes approximately linear-Gaussian data and adequate sample size. Insufficient-degree and zero/near-zero residual-variance cases are handled
+conservatively as dependent (edge retained), because the conditional test is
+unidentified or numerically degenerate rather than evidence of independence.
 
 The baseline must be run under the same training split and external resource
 accounting as other M54 adapters. It reports no self-certified cost or sample
@@ -41,3 +40,17 @@ external metering.
   hidden confounding, selection bias, and mechanism drift.
 - Paired multi-seed comparisons against correlation screening and random.
 - No superiority claim until the full M55 statistical protocol is executed.
+
+
+## M54 integration update
+
+The adapter is now exercised through `run_fair_comparison` using the same
+train-only immutable context and evaluator-side truth boundary as the other
+M54 adapters. A degenerate residual variance no longer prunes an edge: it
+returns a conservative dependent result. This avoids interpreting an
+unidentified test as affirmative evidence of conditional independence.
+
+This integration test establishes interface compatibility, not end-to-end
+algorithm superiority or resource-enforced fairness. The harness still relies
+on trusted adapters; process isolation and external resource metering remain
+required for adversarial or production-grade comparisons.
