@@ -188,7 +188,8 @@ def generate_dataset(*, count: int = 240, seed: int = 5601,
         raise ValueError("count_must_be_integer_at_least_20")
     if nuisance_mode not in {"independent", "train_spurious"}:
         raise ValueError("unknown_nuisance_mode")
-    task_rng = random.Random(seed)
+    class_rng = random.Random(seed ^ 0xC1A55E)
+    transfer_rng = random.Random(seed ^ 0x7A4E5F)
     feature_rng = random.Random(seed ^ 0x56A11CE)
     nuisance_rng = random.Random(seed ^ 0xA3D19B7)
     cases: List[Dict[str, Any]] = []
@@ -197,7 +198,7 @@ def generate_dataset(*, count: int = 240, seed: int = 5601,
         task_id = TASKS[index % len(TASKS)]
         split = _split_for(index, count)
         case_id = f"m56-{seed}-{index:05d}"
-        positive = bool(task_rng.getrandbits(1))
+        positive = bool(class_rng.getrandbits(1))
         relevant = TASK_FEATURES[task_id]
         predicate = TASK_RELATIONS[task_id]
         values: Dict[str, Any] = {
@@ -223,7 +224,7 @@ def generate_dataset(*, count: int = 240, seed: int = 5601,
             nuisance = bool(nuisance_rng.getrandbits(1))
         values["incidental_marker"] = "marked" if nuisance else "plain"
         # The second domain changes surface form but keeps or reverses the relation.
-        valid_transfer = bool(task_rng.getrandbits(1))
+        valid_transfer = bool(transfer_rng.getrandbits(1))
         target_predicate = predicate if valid_transfer else f"not_{predicate}"
         transfer_distance = TRANSFER_DISTANCES[index % len(TRANSFER_DISTANCES)]
         analogy_granularity = ANALOGY_GRANULARITIES[index % len(ANALOGY_GRANULARITIES)]
