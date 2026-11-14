@@ -265,11 +265,14 @@ def evaluate_predictions(cases: Sequence[Mapping[str, Any]],
             identification_correct += 1
         if label["identifiable"] and predicted_identifiable and prediction["estimate"] is not None:
             absolute_errors.append(abs(prediction["estimate"] - label["ate"]))
+    mae = (sum(absolute_errors) / len(absolute_errors)
+           if absolute_errors else None)
+    if mae is not None and mae < 1e-12:
+        mae = 0.0
     return {
         "cases": len(cases),
         "identification_accuracy": identification_correct / len(cases) if cases else 0.0,
-        "identified_case_mae": (sum(absolute_errors) / len(absolute_errors)
-                                if absolute_errors else None),
+        "identified_case_mae": mae,
         "identified_cases_scored": len(absolute_errors),
     }
 
