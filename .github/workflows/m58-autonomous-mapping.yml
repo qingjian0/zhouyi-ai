@@ -1,0 +1,23 @@
+name: M58 autonomous mapping baseline
+
+on:
+  pull_request:
+    branches:
+      - research/yixiang-m56-executable-core-2026-11-14
+    paths:
+      - "prototype/yixiang_m58_autonomous_mapping.py"
+      - "tests/test_yixiang_m58_autonomous_mapping.py"
+      - ".github/workflows/m58-autonomous-mapping.yml"
+  workflow_dispatch:
+
+jobs:
+  m58-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run M58 autonomous mapping tests
+        run: python -m unittest tests.test_yixiang_m58_autonomous_mapping -v
