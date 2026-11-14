@@ -120,3 +120,8 @@ M22 v0.1 提供情境版本修订与 stale-claim 传播账本；仅验证声明�
 ### M21 当前实现边界
 
 M21 v0.1 新增成对评估器与 12 项专项测试，使用 M20 的 contrastive independence_group 计算 pair_exact_accuracy、decision_flip_sensitivity、collapsed_pair_rate、pair_selective_coverage 和 pair_selective_risk。每组必须恰好两例、同 split、预期决策不同；fixture_expected 必须显式 opt-in，pending_review 和混合标签状态拒绝评分。该指标只补充 M8，不取代逐类指标；当前数据仍是合成夹具。
+
+
+### M24 当前实现边界
+
+M24 v0.1 新增类别定义、带分类轴的判准、父类层级、多重归属、情境版本化成员记录、纳入/排除/未决边界案例，以及类别 provisional/active/deprecated 生命周期审计。原型检查声明完整性、层级循环、悬空引用和证据引用，不自动发现类别、不自动判定成员资格、不自动拆并类别，也不证明理论真值。专项测试已编写，exact-head CI 尚待查询。
