@@ -136,3 +136,38 @@ def power_estimate(rejections, trials):
     low, high = wilson_interval(rejections, trials)
     return {"rejections": rejections, "trials": trials,
             "power": rejections / trials, "wilson_95": (low, high)}
+
+
+def paired_sign_flip_pvalue(differences, *, repetitions=20000, seed=20261114):
+    """Two-sided Monte Carlo paired randomization p-value for mean difference.
+
+    Uses the plus-one correction, so the returned p-value is never zero.
+    For small n (<=16), enumerates all sign assignments exactly.
+    """
+    values = _finite_numbers(differences, "differences")
+    if not isinstance(seed, int) or isinstance(seed, bool):
+        raise ValueError("seed_must_be_integer")
+    observed = abs(mean(values))
+    n = len(values)
+    if n <= 16:
+        total = 1 << n
+        extreme = 0
+        for mask in range(total):
+            statistic = abs(sum(value if (mask >> index) & 1 else -value
+                                for index, value in enumerate(values)) / n)
+            if statistic >= observed - 1e-15:
+                extreme += 1
+        return {"p_value": extreme / total, "method": "exact_sign_flip",
+                "permutations": total, "observed_mean": mean(values)}
+    if not isinstance(repetitions, int) or isinstance(repetitions, bool) or repetitions < 1000:
+        raise ValueError("repetitions_must_be_integer_at_least_1000")
+    rng = random.Random(seed)
+    extreme = 0
+    for _ in range(repetitions):
+        statistic = abs(sum(value if rng.getrandbits(1) else -value
+                            for value in values) / n)
+        if statistic >= observed - 1e-15:
+            extreme += 1
+    return {"p_value": (extreme + 1) / (repetitions + 1),
+            "method": "monte_carlo_sign_flip",
+            "permutations": repetitions, "observed_mean": mean(values)}
