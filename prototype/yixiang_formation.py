@@ -139,7 +139,7 @@ def assess_formation(trace: FormationTrace) -> FormationAssessment:
         if not isinstance(feature, FeatureSelection):
             raise ValueError("selected_features must contain FeatureSelection")
         for name in ("feature_id", "subject_id", "label", "operational_description", "selection_rationale", "purpose"):
-            if name == "selection_rationale" and not getattr(feature, name).strip():
+            if name == "selection_rationale" and isinstance(getattr(feature, name), str) and not getattr(feature, name).strip():
                 continue
             _text(getattr(feature, name), f"feature.{name}")
         for name in ("observation_refs", "evidence_refs", "excluded_alternatives"):
@@ -167,7 +167,7 @@ def assess_formation(trace: FormationTrace) -> FormationAssessment:
         if not isinstance(assignment, CategoryAssignment):
             raise ValueError("category_assignments must contain CategoryAssignment")
         for name in ("assignment_id", "subject_id", "category_id", "criterion"):
-            if name == "criterion" and not getattr(assignment, name).strip():
+            if name == "criterion" and isinstance(getattr(assignment, name), str) and not getattr(assignment, name).strip():
                 continue
             _text(getattr(assignment, name), f"assignment.{name}")
         for name in ("feature_refs", "evidence_refs", "counterexample_refs"):
