@@ -16,6 +16,7 @@ class M21Tests(unittest.TestCase):
         self.assertEqual(r["pair_count"],8)
         self.assertEqual(r["pair_exact_accuracy"],1.0)
         self.assertEqual(r["decision_flip_sensitivity"],1.0)
+        self.assertEqual(r["submitted_pairs"],8)
         self.assertEqual(r["collapsed_pair_count"],0)
     def test_all_abstain_has_zero_coverage(self):
         predictions=[{"case_id":c["case_id"],"decision":"abstain"} for c in self.cases()]
@@ -34,6 +35,7 @@ class M21Tests(unittest.TestCase):
         predictions=self.gold_predictions()[1:]
         r=self.score(self.cases(),predictions)
         self.assertLess(r["pair_selective_coverage"],1.0)
+        self.assertLess(r["submitted_pairs"],r["pair_count"])
     def test_duplicate_predictions_rejected(self):
         p=self.gold_predictions(); p.append(p[0])
         with self.assertRaises(ValueError): self.score(self.cases(),p)
