@@ -237,3 +237,7 @@ python -m prototype.e01_learned_ranker --json
 - [M28 类象证据独立性与共同来源污染审计](docs/YIXIANG_M28_EVIDENCE_INDEPENDENCE_V0_1.md)
 - [M28 证据独立性审计原型](prototype/yixiang_evidence_independence_m28.py)
 - [M28 专项测试](tests/test_yixiang_evidence_independence_m28.py)
+
+- [M29 类象认知不确定性与依赖传播](docs/YIXIANG_M29_EPISTEMIC_UNCERTAINTY_V0_1.md)
+- [M29 认知状态与不确定性传播原型](prototype/yixiang_epistemic_uncertainty_m29.py)
+- [M29 专项测试](tests/test_yixiang_epistemic_uncertainty_m29.py)
