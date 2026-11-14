@@ -4,9 +4,16 @@ from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from prototype.yixiang_benchmark import validate_dataset, validate_prediction
 
-def evaluate_contrastive_pairs(cases: Sequence[Mapping], predictions: Sequence[Mapping]) -> dict:
+def evaluate_contrastive_pairs(cases: Sequence[Mapping], predictions: Sequence[Mapping], *, allow_fixture_expected: bool = False) -> dict:
     """Score paired cases whose expected decisions differ; missing predictions abstain."""
     validate_dataset(cases)
+    statuses = {case["label_status"] for case in cases}
+    if "pending_review" in statuses:
+        raise ValueError("pending_review cases cannot be scored")
+    if "fixture_expected" in statuses and not allow_fixture_expected:
+        raise ValueError("fixture_expected labels require allow_fixture_expected=True and are not human gold")
+    if len(statuses) != 1 or not statuses <= {"fixture_expected", "adjudicated"}:
+        raise ValueError("contrastive evaluation requires one eligible label population")
     if not isinstance(predictions, Sequence) or isinstance(predictions, (str, bytes)):
         raise ValueError("predictions must be a sequence")
     groups = defaultdict(list)
@@ -45,7 +52,7 @@ def evaluate_contrastive_pairs(cases: Sequence[Mapping], predictions: Sequence[M
         predicted_flip = guess[0] != guess[1]
         exact += pair_exact
         fully_answered += pair_answered
-        flip_correct += expected_flip and predicted_flip
+        flip_correct += expected_flip and pair_answered and predicted_flip
         collapsed += not predicted_flip
         rows.append({"group_id": group_id, "case_ids": [m["case_id"] for m in members],
                      "gold_decisions": gold, "predicted_decisions": guess,
