@@ -13,6 +13,9 @@ SPLITS = ("train", "validation", "test")
 WORK_PERIODS = ("pre_qing", "qing_and_after", "uncertain")
 SOURCE_KINDS = ("primary_text", "critical_edition", "modern_commentary")
 EVIDENCE_POLICIES = ("core_pre_qing", "variant_collation", "secondary_only")
+TRANSCRIPTION_REVIEW_STATES = (
+    "unreviewed", "machine_checked", "verified_against_scan", "collated_against_scan"
+)
 CLAIM_STATUSES = ("explicit", "analogy", "metaphor", "commentarial", "research_hypothesis")
 ANNOTATION_DECISIONS = ("accept", "reject", "uncertain")
 
@@ -57,8 +60,16 @@ def validate_record(record: Mapping[str, Any]) -> None:
         if not isinstance(witness, Mapping):
             raise ValueError("invalid_witness")
         for key in ("witness_id", "edition", "publisher", "publication_date",
-                    "digitization_source", "source_uri", "access_date", "locator", "text"):
+                    "digitization_source", "source_uri", "access_date", "locator", "text",
+                    "transcription_method"):
             _require_text(witness.get(key), "witness_" + key + "_required")
+        if witness.get("transcription_review_status") not in TRANSCRIPTION_REVIEW_STATES:
+            raise ValueError("invalid_transcription_review_status")
+        scan_uri = witness.get("scan_uri")
+        if scan_uri is not None and (
+            not isinstance(scan_uri, str) or not scan_uri.startswith(("https://", "http://"))
+        ):
+            raise ValueError("invalid_witness_scan_uri")
         if not witness["source_uri"].startswith(("https://", "http://", "urn:")):
             raise ValueError("invalid_witness_source_uri")
         if not isinstance(witness.get("variants"), list):
@@ -174,6 +185,15 @@ def validate_record(record: Mapping[str, Any]) -> None:
             decision != "accept" for decision in adjudication["decisions"].values()
         ):
             raise ValueError("gold_record_requires_unanimous_adjudication")
+        used_witness_ids = {
+            span["witness_id"] for span in spans
+        }
+        if any(
+            witness_by_id[witness_id]["transcription_review_status"] != "verified_against_scan"
+            or not witness_by_id[witness_id].get("scan_uri")
+            for witness_id in used_witness_ids
+        ):
+            raise ValueError("gold_record_requires_scan_verified_transcription")
     if admission_status == "adjudicated" and status != "adjudicated":
         raise ValueError("adjudicated_stage_requires_final_adjudication")
     if admission_status == "review_pending" and status != "pending":
