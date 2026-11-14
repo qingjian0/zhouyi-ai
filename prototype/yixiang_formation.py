@@ -149,7 +149,7 @@ def assess_formation(trace: FormationTrace) -> FormationAssessment:
             missing_obs.append(feature.feature_id)
         if not feature.evidence_refs or not set(feature.evidence_refs) <= observation_evidence:
             ungrounded.append(feature.feature_id)
-        if not feature.selection_rationale.strip():
+        if not isinstance(feature.selection_rationale, str) or not feature.selection_rationale.strip():
             missing_rationale.append(feature.feature_id)
 
     assignment_ids = set()
@@ -171,7 +171,7 @@ def assess_formation(trace: FormationTrace) -> FormationAssessment:
         if assignment.assignment_id in assignment_ids:
             raise ValueError("assignment_id values must be unique")
         assignment_ids.add(assignment.assignment_id)
-        if not assignment.criterion.strip():
+        if not isinstance(assignment.criterion, str) or not assignment.criterion.strip():
             missing_criterion.append(assignment.assignment_id)
         if not assignment.feature_refs or not set(assignment.feature_refs) <= feature_ids:
             declaration_mismatches.append(f"{assignment.assignment_id}:unknown_feature_ref")
