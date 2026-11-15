@@ -1,0 +1,211 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/qingjian0/zhouyi-ai/blob/main/schemas/xunzi-zhengming-cognitive-chain.schema.json",
+  "title": "Xunzi Zhengming cognitive chain",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version",
+    "graph_id",
+    "source_ref",
+    "stages",
+    "transfer_gates",
+    "adversarial_cases",
+    "engineering_mapping",
+    "inference_policy"
+  ],
+  "properties": {
+    "schema_version": {
+      "const": "0.1"
+    },
+    "graph_id": {
+      "const": "zhouyi-ai.xunzi-zhengming-cognitive-chain"
+    },
+    "source_ref": {
+      "type": "object",
+      "required": [
+        "case_id",
+        "source_id",
+        "work",
+        "chapter",
+        "evidence_status",
+        "review_status"
+      ],
+      "properties": {
+        "case_id": {
+          "const": "xy_012"
+        },
+        "source_id": {
+          "const": "src_xunzi"
+        },
+        "work": {
+          "const": "荀子"
+        },
+        "chapter": {
+          "const": "正名"
+        },
+        "evidence_status": {
+          "const": "digital_transcription_candidate"
+        },
+        "review_status": {
+          "const": "unreviewed"
+        }
+      },
+      "additionalProperties": false
+    },
+    "stages": {
+      "type": "array",
+      "minItems": 5,
+      "maxItems": 5,
+      "items": {
+        "type": "object",
+        "required": [
+          "stage_id",
+          "order",
+          "source_term",
+          "textual_anchor",
+          "function",
+          "required_evidence",
+          "failure_modes"
+        ],
+        "properties": {
+          "stage_id": {
+            "type": "string"
+          },
+          "order": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "source_term": {
+            "type": "string",
+            "minLength": 1
+          },
+          "textual_anchor": {
+            "type": "string",
+            "minLength": 1
+          },
+          "function": {
+            "type": "string",
+            "minLength": 1
+          },
+          "required_evidence": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            }
+          },
+          "failure_modes": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "transfer_gates": {
+      "type": "array",
+      "minItems": 8,
+      "uniqueItems": true,
+      "items": {
+        "type": "string"
+      }
+    },
+    "adversarial_cases": {
+      "type": "array",
+      "minItems": 5,
+      "items": {
+        "type": "object",
+        "required": [
+          "case_id",
+          "scenario",
+          "expected",
+          "targets"
+        ],
+        "properties": {
+          "case_id": {
+            "type": "string"
+          },
+          "scenario": {
+            "type": "string"
+          },
+          "expected": {
+            "type": "string"
+          },
+          "targets": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "engineering_mapping": {
+      "type": "object",
+      "required": [
+        "m2",
+        "m3",
+        "m4",
+        "m5",
+        "m8"
+      ],
+      "properties": {
+        "m2": {
+          "type": "string"
+        },
+        "m3": {
+          "type": "string"
+        },
+        "m4": {
+          "type": "string"
+        },
+        "m5": {
+          "type": "string"
+        },
+        "m8": {
+          "type": "string"
+        }
+      },
+      "additionalProperties": false
+    },
+    "inference_policy": {
+      "type": "object",
+      "required": [
+        "unknown_is_not_false",
+        "local_match_does_not_imply_global_identity",
+        "name_match_does_not_imply_referent_identity",
+        "appearance_change_does_not_imply_entity_change",
+        "required_failure_output"
+      ],
+      "properties": {
+        "unknown_is_not_false": {
+          "const": true
+        },
+        "local_match_does_not_imply_global_identity": {
+          "const": true
+        },
+        "name_match_does_not_imply_referent_identity": {
+          "const": true
+        },
+        "appearance_change_does_not_imply_entity_change": {
+          "const": true
+        },
+        "required_failure_output": {
+          "type": "array",
+          "contains": {
+            "const": "ABSTAIN"
+          },
+          "minItems": 2
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}
