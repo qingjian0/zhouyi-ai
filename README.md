@@ -52,6 +52,8 @@
 - [E01-C 组合 OOD 结果报告](docs/E01C_RESULTS_2026-11-10.md)
 - [研究风险与证伪条件](docs/RISKS_AND_FALSIFICATION.md)
 - [开发路线图](ROADMAP.md)
+- [E02-I 关系演化协议（独立于 streaming drift 生命周期实验）](docs/E02I_RELATION_EVOLUTION.md)
+- [E02-I 关系演化原型](prototype/e02i_relation_evolution.py)
 - [原型代码](prototype/)
 
 ## 快速开始（当前原型）
@@ -76,3 +78,8 @@ python -m prototype.e01_learned_ranker --json
 ## 许可与引用
 
 本仓库初始阶段采用 MIT License。若后续引入外部数据集、论文代码或古籍数字化文本，须逐项核查其许可证、来源和引用要求。研究引用见 [RELATED_WORK.md](docs/RELATED_WORK.md)。
+
+
+## E02-I 关系演化（Persistent Evidence）
+
+本实验独立于主线已有的 E02-I streaming drift lifecycle，研究候选关系与持久关系分别接受 Gate 验证、两窗口确认重配置，以及连续失败退役。当前仅适用于预注册的有限布尔合成场景。
