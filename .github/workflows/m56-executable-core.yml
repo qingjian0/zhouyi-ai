@@ -1,0 +1,43 @@
+name: M56 executable core
+
+on:
+  pull_request:
+    branches:
+      - research/yixiang-m56-classification-protocol-2026-11-14
+    paths:
+      - "prototype/yixiang_m56_executable_core.py"
+      - "prototype/run_yixiang_m56_study.py"
+      - "tests/test_yixiang_m56_executable_core.py"
+      - ".github/workflows/m56-executable-core.yml"
+  workflow_dispatch:
+
+jobs:
+  m56-core:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run M56 executable-core tests
+        run: python -m unittest tests.test_yixiang_m56_executable_core -v
+      - name: Run independent-nuisance study
+        run: |
+          mkdir -p artifacts/m56
+          python -m prototype.run_yixiang_m56_study \
+            --count 600 --seed 5601 --nuisance-mode independent \
+            --output-dir artifacts/m56/independent
+      - name: Run train-only spurious-cue stress test
+        run: |
+          python -m prototype.run_yixiang_m56_study \
+            --count 600 --seed 5602 --nuisance-mode train_spurious \
+            --output-dir artifacts/m56/spurious
+      - name: Upload M56 records and audit reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m56-executable-core-${{ github.sha }}
+          path: artifacts/m56/
+          if-no-files-found: warn
+          retention-days: 90
