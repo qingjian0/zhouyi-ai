@@ -1,0 +1,23 @@
+name: M61 general backdoor adjustment
+
+on:
+  pull_request:
+    branches:
+      - research/yixiang-m60-causal-transfer-2026-11-14
+    paths:
+      - "prototype/yixiang_m60_causal_transfer.py"
+      - "tests/test_yixiang_m60_causal_transfer.py"
+      - ".github/workflows/m61-general-adjustment.yml"
+  workflow_dispatch:
+
+jobs:
+  m61-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run M60/M61 causal tests
+        run: python -m unittest tests.test_yixiang_m60_causal_transfer -v
