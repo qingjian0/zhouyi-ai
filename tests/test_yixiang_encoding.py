@@ -37,6 +37,20 @@ class YixiangEncodingTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             trigram_name((0, 1, 2))
 
+    def test_non_integer_and_boolean_lines_are_rejected(self):
+        invalid_values = (0.0, 1.0, 0.5, "0", "1", False, True)
+        for value in invalid_values:
+            with self.subTest(value=value):
+                with self.assertRaises(ValueError):
+                    trigram_name((0, value, 1))
+
+    def test_non_integer_and_boolean_change_indices_are_rejected(self):
+        invalid_indices = (0.0, 1.5, "0", False, True)
+        for index in invalid_indices:
+            with self.subTest(index=index):
+                with self.assertRaises(ValueError):
+                    change_lines((0, 0, 0, 0, 0, 0), [index])
+
 
 if __name__ == "__main__":
     unittest.main()
