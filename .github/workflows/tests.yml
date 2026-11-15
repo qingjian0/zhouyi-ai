@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
-    branches: [main, research/e02e-autonomous-discovery, research/e02f-falsification, research/e02g-multienvironment-stability, research/e02h-boolean-rule-discovery]
+    branches: [main, research/e02e-autonomous-discovery, research/e02f-falsification, research/e02g-multienvironment-stability, research/e02h-boolean-rule-discovery, research/e02i-streaming-drift-lifecycle]
 
 jobs:
   unit-tests:
@@ -44,3 +44,5 @@ jobs:
         run: python -m prototype.e02h_boolean_rules --seeds 30 --start-seed 900
       - name: Run E02-I streaming drift lifecycle
         run: python -m prototype.e02i_streaming_drift --seeds 20 --start-seed 1200
+      - name: Run E03-A parallel multi-relation coordination
+        run: python -m prototype.e03a_parallel_composition --seeds 30 --start-seed 1500
