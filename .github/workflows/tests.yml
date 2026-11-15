@@ -47,4 +47,4 @@ jobs:
       - name: Run E03-A parallel multi-relation coordination
         run: python -m prototype.e03a_parallel_composition --seeds 30 --start-seed 1500
       - name: Run E02-I persistent relation evidence evolution
-        run: python -m prototype.e02i_relation_evolution --seeds 20 --start-seed 1200 --json
+        run: python -m prototype.e02i_relation_evolution --seeds 20 --start-seed 1200
