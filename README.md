@@ -32,6 +32,8 @@
 
 ## 文档导航
 
+- [权限、授权与执行限制记录](docs/ACCESS_AND_EXECUTION_LIMITATIONS.md)
+
 - [研究总纲与问题定义](docs/RESEARCH_CHARTER.md)
 - [数学理论 v0.3](docs/THEORY_v0.3.md)
 - [架构设计](docs/ARCHITECTURE.md)
