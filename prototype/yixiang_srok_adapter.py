@@ -31,6 +31,7 @@ class CompiledYixiangOperator:
     source_argument_positions: tuple[int, ...]
     transform_id: str
     transform_version: str
+    transform_evidence_refs: tuple[str, ...] = ()
     semantic_status: str = "HYPOTHESIS_ONLY"
 
 
@@ -90,6 +91,7 @@ def compile_yixiang_operator(
         source_argument_positions=transform.argument_permutation,
         transform_id=transform.transform_id,
         transform_version=transform.version,
+        transform_evidence_refs=transform.evidence_refs,
     )
 
 
