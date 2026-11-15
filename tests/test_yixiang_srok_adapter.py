@@ -32,6 +32,7 @@ class YixiangSrokAdapterTests(unittest.TestCase):
         compiled = compile_yixiang_operator(self.relation, self.transform, self.nodes)
         self.assertEqual(compiled.operator_spec.relation_type, "effect_of")
         self.assertEqual(compiled.source_argument_positions, (1, 0))
+        self.assertEqual(compiled.transform_evidence_refs, ("evidence:transform-prior",))
         first, second = compiled.operator_spec.roles
         self.assertEqual(first.name, "target_arg_0_from_source_arg_1")
         self.assertEqual(first.allowed_types, frozenset({"state"}))
