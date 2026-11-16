@@ -75,7 +75,7 @@ class TestDegreeBoundedAnfIdentifiability(unittest.TestCase):
         self.assertEqual(report["degree_summaries"][-1]["basis_size"], 8)
         self.assertEqual(report["degree_summaries"][-1]["consistent_rate"], 1.0)
         self.assertEqual(len(report["family_results"]), 5)
-        self.assertEqual(len(report["family_results"][0]["by_degree"]), 4)
+        self.assertEqual(len(report["family_results"][0]["by_degree"]), 4 * corpus["manifest"]["output_dim"])
         self.assertEqual(
             report["family_results"][0]["by_degree"][-1]["basis_size"], 8
         )
