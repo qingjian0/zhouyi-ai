@@ -15,6 +15,7 @@ import resource
 import subprocess
 import sys
 import tempfile
+import time
 from typing import Iterable
 
 from prototype.e12a6_lifecycle_contract import Candidate
@@ -26,16 +27,21 @@ from prototype.e12a6_zpcm_persistence import (
 from prototype.zpcm_memory import ZPCMMemory
 
 
-def _current_rss_bytes() -> int | None:
-    """Return current resident set size from procfs where available."""
+def _proc_status_memory_bytes(field: str) -> int | None:
+    """Read a Linux /proc/self/status memory field, expressed in bytes."""
     try:
         with open("/proc/self/status", encoding="ascii") as stream:
             for line in stream:
-                if line.startswith("VmRSS:"):
+                if line.startswith(f"{field}:"):
                     return int(line.split()[1]) * 1024
     except (OSError, ValueError, IndexError):
         return None
     return None
+
+
+def _current_rss_bytes() -> int | None:
+    """Return current resident set size from procfs where available."""
+    return _proc_status_memory_bytes("VmRSS")
 
 
 def _cgroup_memory_bytes(filename: str) -> int | None:
@@ -51,6 +57,10 @@ def _cgroup_memory_bytes(filename: str) -> int | None:
 
 
 def _peak_rss_bytes() -> int:
+    """Prefer VmHWM so peak and current RSS use the same procfs accounting."""
+    high_water = _proc_status_memory_bytes("VmHWM")
+    if high_water is not None:
+        return high_water
     value = int(resource.getrusage(resource.RUSAGE_SELF).ru_maxrss)
     # Linux/BSD report KiB; macOS reports bytes.
     return value if sys.platform == "darwin" else value * 1024
@@ -98,15 +108,26 @@ def _write_fixture(path: Path, count: int, scope: str, batch_size: int) -> int:
 
 def _restore_report(path: Path, scope: str) -> dict[str, int | None]:
     before = _current_rss_bytes()
+    zpcm_started = time.perf_counter()
     memory = ZPCMMemory(path)
+    zpcm_init_duration = time.perf_counter() - zpcm_started
     after_zpcm = _current_rss_bytes()
+    store = None
     try:
+        restore_started = time.perf_counter()
         store = PersistentLifecycleLedger(memory, scope=scope)
+        restore_duration = time.perf_counter() - restore_started
         after_restore = _current_rss_bytes()
         return {
+            "restore_duration_seconds": round(restore_duration, 6),
+            "restore_events_per_second": (
+                round(store._last_sequence / restore_duration, 2)
+                if restore_duration > 0 else None
+            ),
             "rss_before_zpcm_bytes": before,
             "rss_after_zpcm_bytes": after_zpcm,
             "rss_after_e12a6_restore_bytes": after_restore,
+            "zpcm_init_duration_seconds": round(zpcm_init_duration, 6),
             "peak_rss_bytes": _peak_rss_bytes(),
             "cgroup_memory_current_bytes": _cgroup_memory_bytes("memory.current"),
             "cgroup_memory_peak_bytes": _cgroup_memory_bytes("memory.peak"),
@@ -118,6 +139,8 @@ def _restore_report(path: Path, scope: str) -> dict[str, int | None]:
             ).fetchone()[0]),
         }
     finally:
+        if store is not None:
+            store.close()
         memory.close()
 
 
@@ -178,8 +201,9 @@ def main(argv: Iterable[str] | None = None) -> int:
         "platform": sys.platform,
         "results": results,
         "interpretation": (
-            "Compare restore RSS across history sizes. This is an observational "
-            "benchmark, not a pass/fail memory-bound assertion."
+            "Compare E12-A6 restore RSS and elapsed replay time across history sizes. "
+            "Restore duration excludes fixture generation and ZPCM initialization. "
+            "These are observational measurements, not pass/fail performance guarantees."
         ),
     }, ensure_ascii=False, indent=2, sort_keys=True))
     return 0

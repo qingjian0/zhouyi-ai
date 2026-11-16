@@ -2,6 +2,7 @@ import json
 import tempfile
 import unittest
 from unittest.mock import patch
+import prototype.e12a6_zpcm_persistence as persistence
 from dataclasses import replace
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -108,6 +109,98 @@ class PersistentLifecycleTests(unittest.TestCase):
             self.store.register_evidence(evidence())
             self.store.apply(propose())
         self.assertEqual(self.store.ledger.candidates[("rel:greater-than", 1)].state, CandidateState.PROPOSED)
+
+    def test_runtime_ledger_collections_are_disk_backed_and_snapshot_is_explicit(self):
+        self.assertFalse(self.store._runtime_state.connection.in_transaction)
+        self.assertEqual(type(self.store._ledger.candidates).__name__, "_SQLiteMapping")
+        self.assertEqual(type(self.store._ledger.evidence).__name__, "_SQLiteMapping")
+        self.assertEqual(type(self.store._ledger.actions).__name__, "_SQLiteSequence")
+        self.assertEqual(type(self.store._ledger._action_ids).__name__, "_SQLiteSet")
+        self.store.register_candidate(candidate())
+        self.store.register_evidence(evidence())
+        self.store.apply(propose())
+        snapshot = self.store.ledger
+        self.assertIsInstance(snapshot.candidates, dict)
+        self.assertIsInstance(snapshot.evidence, dict)
+        self.assertIsInstance(snapshot.actions, list)
+        self.assertIsInstance(snapshot._action_ids, set)
+        before = self.store.snapshot()
+        self.memory.close()
+        self.memory = ZPCMMemory(self.path)
+        self.store = PersistentLifecycleLedger(self.memory, scope="project-a")
+        self.assertEqual(self.store.snapshot(), before)
+        self.assertEqual(type(self.store._ledger.candidates).__name__, "_SQLiteMapping")
+
+    def test_close_removes_temporary_replay_database(self):
+        scratch_path = Path(self.store._runtime_state.path)
+        self.assertTrue(scratch_path.exists())
+        self.store.close()
+        self.assertFalse(scratch_path.exists())
+        # Closing twice is deliberately idempotent.
+        self.store.close()
+
+    def test_restore_uses_one_scratch_store_and_cleans_it_on_replay_failure(self):
+        created_states = []
+        original_factory = persistence._new_sqlite_lifecycle_ledger
+
+        def tracked_factory():
+            ledger, state = original_factory()
+            created_states.append(state)
+            return ledger, state
+
+        with patch.object(persistence, "_new_sqlite_lifecycle_ledger", side_effect=tracked_factory):
+            restored = PersistentLifecycleLedger(self.memory, scope="scratch-success")
+        self.assertEqual(len(created_states), 1)
+        restored.close()
+        self.assertFalse(Path(created_states[0].path).exists())
+
+        self.memory.append_lifecycle_event(
+            event_id="e12a6:invalid-kind",
+            scope="scratch-corrupt",
+            payload={"schema_version": EVENT_SCHEMA, "kind": "unknown_kind", "body": {}},
+            expected_sequence=0,
+        )
+        created_states.clear()
+        with patch.object(persistence, "_new_sqlite_lifecycle_ledger", side_effect=tracked_factory):
+            with self.assertRaises(LifecyclePersistenceError):
+                PersistentLifecycleLedger(self.memory, scope="scratch-corrupt")
+
+        self.assertEqual(len(created_states), 1)
+        self.assertFalse(Path(created_states[0].path).exists())
+
+    def test_scratch_mutation_failure_replays_durable_event_atomically(self):
+        original_ledger = self.store._ledger
+        with patch.object(original_ledger, "add_candidate", side_effect=RuntimeError("scratch write failed")):
+            receipt = self.store.register_candidate(candidate())
+        self.assertEqual(receipt.sequence, 1)
+        self.assertEqual(
+            self.store.ledger.candidates[("rel:greater-than", 1)].state,
+            CandidateState.OBSERVED,
+        )
+        self.assertIsNot(self.store._ledger, original_ledger)
+        self.assertEqual(self.store._last_sequence, 1)
+
+    def test_bundle_scratch_mutation_failure_replays_all_durable_events(self):
+        original_ledger = self.store._ledger
+        with patch.object(original_ledger, "add_candidate", side_effect=RuntimeError("scratch write failed")):
+            bundle = self.store.register_candidate_bundle(candidate(), (evidence(),))
+        self.assertFalse(bundle.replayed)
+        self.assertIn("train-1", self.store.ledger.evidence)
+        self.assertIn(("rel:greater-than", 1), self.store.ledger.candidates)
+        self.assertEqual(self.store._last_sequence, 2)
+        self.assertIsNot(self.store._ledger, original_ledger)
+
+    def test_close_is_safe_after_fail_closed_recovery(self):
+        original_ledger = self.store._ledger
+        with patch.object(original_ledger, "add_candidate", side_effect=RuntimeError("scratch write failed")):
+            with patch.object(persistence, "_new_sqlite_lifecycle_ledger", side_effect=RuntimeError("replay state unavailable")):
+                with self.assertRaises(LifecyclePersistenceError):
+                    self.store.register_candidate(candidate())
+        self.assertIsNone(self.store._runtime_state)
+        self.assertIsNone(self.store._ledger)
+        # Fail-closed recovery releases the scratch state; explicit close must remain idempotent.
+        self.store.close()
+        self.store.close()
 
     def test_append_failure_does_not_mutate_in_memory_ledger(self):
         self.store.register_candidate(candidate()); before=self.store.snapshot(); original=self.memory.append_lifecycle_event

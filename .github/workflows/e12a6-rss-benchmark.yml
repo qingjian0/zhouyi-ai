@@ -4,10 +4,12 @@ on:
   push:
     branches:
       - research/e12a6-rss-restore-benchmark-2026-11-12
+      - research/e12a6-sqlite-backed-replay-state-2026-11-13
   pull_request:
     branches:
       - research/e12a6-rss-restore-benchmark-2026-11-12
       - refactor/e12a6-sqlite-backed-receipt-metadata-2026-11-12
+      - research/e12a6-sqlite-backed-replay-state-2026-11-13
   workflow_dispatch:
 
 permissions:
@@ -16,7 +18,7 @@ permissions:
 jobs:
   restore-rss:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -27,7 +29,7 @@ jobs:
       - name: Run isolated restore RSS sweep
         run: |
           mkdir -p benchmark-results
-          python -m prototype.e12a6_rss_benchmark --sizes 1000,10000,50000 --batch-size 128 | tee benchmark-results/e12a6-restore-rss.json
+          python -m prototype.e12a6_rss_benchmark --sizes 1000,10000,50000,100000,500000 --batch-size 128 | tee benchmark-results/e12a6-restore-rss.json
       - name: Upload RSS measurements
         uses: actions/upload-artifact@v4
         with:
