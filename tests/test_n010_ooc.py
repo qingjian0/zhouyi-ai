@@ -207,6 +207,23 @@ class N010OutOfCoreTests(unittest.TestCase):
                 self.locked_test, self.roles, 1, checkpoint, max_expansions=64
             )
 
+    def test_resume_rejects_missing_group_index(self):
+        checkpoint = self.root / "resume-missing-index.json"
+        run_experiment_ooc(
+            self.train_dev, self.roles, 1, checkpoint,
+            epochs=1, max_expansions=64, git_sha="resume-missing-index",
+        )
+        group_index = checkpoint.with_suffix(checkpoint.suffix + ".groups.sqlite3")
+        group_index.unlink()
+        with self.assertRaisesRegex(
+            LearnableSROKError, "resume group index is missing"
+        ):
+            run_experiment_ooc(
+                self.train_dev, self.roles, 1, checkpoint,
+                epochs=2, max_expansions=64, git_sha="resume-missing-index",
+                resume=True,
+            )
+
     def test_resume_rejects_tampered_group_index_before_rebuild(self):
         checkpoint = self.root / "resume-tamper-index.json"
         run_experiment_ooc(

@@ -60,6 +60,17 @@ class Prediction:
     budget_exhausted: bool
     role_pool_sizes: tuple[tuple[str, int], ...]
 
+    @property
+    def expanded_search_states(self) -> int:
+        """Number of expanded search states, including partial beam prefixes.
+
+        expanded_assignments is retained as a compatibility alias. Exact
+        product search expands complete assignments; beam search also expands
+        partial prefixes, so the older field name is not precise for all
+        strategies.
+        """
+        return self.expanded_assignments
+
 
 class LearnableSROKError(ValueError):
     """Invalid learner schema, training example, or inference budget."""
