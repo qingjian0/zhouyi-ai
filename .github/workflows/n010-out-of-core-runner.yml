@@ -1,0 +1,21 @@
+name: n010-out-of-core-runner
+
+on:
+  push:
+    branches:
+      - research/n010-out-of-core-runner-2026-11-12
+  pull_request:
+    branches:
+      - research/n010-reiterable-fullbatch-gradient-2026-11-12
+      - research/n010-out-of-core-runner-2026-11-12
+
+jobs:
+  out-of-core-runner:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run N0.10 streaming runner tests
+        run: python -m unittest tests.test_n010_streaming_runner tests.test_n010_experiment -v
