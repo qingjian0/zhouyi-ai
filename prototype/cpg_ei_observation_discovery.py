@@ -38,6 +38,49 @@ def _infer_support(train_rows: list[dict], input_dim: int) -> tuple[int, ...]:
     return tuple(relevant)
 
 
+def _support_identifiability_audit(train_rows: list[dict], input_dim: int) -> dict:
+    """Report whether each input has observed matched-pair evidence.
+
+    A missing observed influence is not proof of irrelevance: finite samples may
+    omit the counterpart state or the context in which an interaction activates.
+    """
+    observed = {tuple(row["state"]): row["target_value"] for row in train_rows}
+    variables = []
+    for index in range(input_dim):
+        matched_pairs = 0
+        influence_flips = 0
+        for state, target in observed.items():
+            if state[index] != 0:
+                continue
+            counterpart = list(state)
+            counterpart[index] = 1
+            other = tuple(counterpart)
+            if other not in observed:
+                continue
+            matched_pairs += 1
+            influence_flips += int(observed[other] != target)
+        if influence_flips:
+            status = "observed_influence"
+        elif matched_pairs == 0:
+            status = "unobserved_counterpart"
+        else:
+            status = "no_influence_observed_inconclusive"
+        variables.append({
+            "index": index,
+            "matched_pair_count": matched_pairs,
+            "influence_flip_count": influence_flips,
+            "status": status,
+        })
+    return {
+        "variables": variables,
+        "unresolved_variable_indices": [
+            item["index"] for item in variables
+            if item["status"] != "observed_influence"
+        ],
+        "matched_pair_total": sum(item["matched_pair_count"] for item in variables),
+    }
+
+
 def _candidate_rules(relevant: tuple[int, ...], input_dim: int):
     n = len(relevant)
     if n < 2:
@@ -70,6 +113,7 @@ def _score_rule_group(
     locked_rows: list[dict], truth_spec: dict, input_dim: int,
 ) -> dict:
     inferred_support = _infer_support(train_rows, input_dim)
+    support_audit = _support_identifiability_audit(train_rows, input_dim)
     candidates = []
     for rule in _candidate_rules(inferred_support, input_dim) or ():
         train_prediction = _evaluate_candidate(rule, train_rows)
@@ -116,6 +160,7 @@ def _score_rule_group(
     return {
         "support_recovered": set(inferred_support) == truth_relevant,
         "inferred_support": list(inferred_support),
+        "support_identifiability_audit": support_audit,
         "truth_support": sorted(truth_relevant),
         "candidate_count": len(candidates),
         "operator_identified": len(candidate_ops) == 1,
@@ -191,6 +236,14 @@ def run_discovery_baseline(
             "mean_best_locked_accuracy": sum(x["best_locked_accuracy"] for x in items) / count,
             "mean_candidate_count": sum(x["candidate_count"] for x in items) / count,
             "zero_candidate_rate": sum(x["candidate_count"] == 0 for x in items) / count,
+            "mean_unresolved_support_variables": sum(
+                len(x["support_identifiability_audit"]["unresolved_variable_indices"])
+                for x in items
+            ) / count,
+            "any_unresolved_support_rate": sum(
+                bool(x["support_identifiability_audit"]["unresolved_variable_indices"])
+                for x in items
+            ) / count,
         }
 
     return {
