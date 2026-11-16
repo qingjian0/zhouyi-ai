@@ -82,7 +82,6 @@ class PersistentLifecycleLedger:
         if not isinstance(scope,str) or not scope.strip(): raise ValueError("scope required")
         self._memory=memory; self.scope=scope; self._lock=RLock()
         self._ledger=LifecycleLedger(); self._last_sequence=0
-        self._receipts={}; self._consumed_receipts={}
         self._restore()
 
     @property
@@ -96,10 +95,65 @@ class PersistentLifecycleLedger:
         )
         return None if event is None else event["payload"]
 
+    def _get_event_receipt(self, event_id: str) -> LifecycleEventReceipt | None:
+        event = self._memory.get_domain_event(event_type="e12a6_lifecycle", scope=self.scope, event_id=event_id)
+        if event is None:
+            return None
+        return LifecycleEventReceipt(event_id, event["sequence"], event["payload_digest"], True)
+
+    def _get_consumed_authorization(self, receipt_id: str) -> dict[str, Any] | None:
+        with self._memory.lock:
+            row = self._memory.db.execute(
+                "SELECT event_id FROM e12a6_authorization_consumptions WHERE receipt_id=? AND scope=?",
+                (receipt_id, self.scope),
+            ).fetchone()
+        return None if row is None else self._get_consumed_authorization_by_event(row["event_id"])
+
+    def _has_consumed_nonce(self, nonce: str) -> bool:
+        with self._memory.lock:
+            row = self._memory.db.execute(
+                "SELECT 1 FROM e12a6_authorization_consumptions WHERE nonce=? AND scope=? LIMIT 1",
+                (nonce, self.scope),
+            ).fetchone()
+        return row is not None
+
+    def _authorization_projection_matches(self, receipt_id: str, nonce: str, event_id: str) -> bool:
+        with self._memory.lock:
+            row = self._memory.db.execute(
+                "SELECT event_id FROM e12a6_authorization_consumptions WHERE receipt_id=? AND nonce=? AND scope=?",
+                (receipt_id, nonce, self.scope),
+            ).fetchone()
+        return row is not None and row["event_id"] == event_id
+
+    def _find_consumed_authorization_for_candidate(self, candidate_id: str, candidate_version: int) -> list[dict[str, Any]]:
+        with self._memory.lock:
+            rows = self._memory.db.execute(
+                "SELECT event_id FROM memory_events WHERE event_type='e12a6_lifecycle' AND scope=? "
+                "AND json_extract(payload_json,'$.kind')='authorization_consumed' "
+                "AND json_extract(payload_json,'$.body.candidate_id')=? "
+                "AND json_extract(payload_json,'$.body.candidate_version')=? ORDER BY seq",
+                (self.scope, candidate_id, candidate_version),
+            ).fetchall()
+        return [self._get_consumed_authorization_by_event(row["event_id"]) for row in rows]
+
+    def _list_consumed_authorizations(self) -> list[dict[str, Any]]:
+        with self._memory.lock:
+            rows = self._memory.db.execute(
+                "SELECT event_id FROM e12a6_authorization_consumptions WHERE scope=? ORDER BY receipt_id",
+                (self.scope,),
+            ).fetchall()
+        return [self._get_consumed_authorization_by_event(row["event_id"]) for row in rows]
+
+    def _get_consumed_authorization_by_event(self, event_id: str) -> dict[str, Any]:
+        payload = self._get_event_payload(event_id)
+        if payload is None or payload.get("kind") != "authorization_consumed":
+            raise LifecyclePersistenceError("authorization projection points to an invalid event")
+        return payload["body"]
+
     def _restore(self) -> None:
         try:
             events=self._memory.iter_lifecycle_events(scope=self.scope)
-            staged=LifecycleLedger(); previous=0; receipts={}; consumed_receipts={}; consumed_nonces=set()
+            staged=LifecycleLedger(); previous=0
             for event in events:
                 seq=event["sequence"]
                 if isinstance(seq,bool) or not isinstance(seq,int) or seq<=previous:
@@ -132,8 +186,8 @@ class PersistentLifecycleLedger:
                     receipt_id, nonce = body["receipt_id"], body["nonce"]
                     if (not isinstance(receipt_id, str) or not receipt_id.strip()
                             or not isinstance(nonce, str) or not nonce.strip()
-                            or receipt_id in consumed_receipts or nonce in consumed_nonces):
-                        raise LifecyclePersistenceError("authorization receipt or nonce was consumed more than once")
+                            or not self._authorization_projection_matches(receipt_id, nonce, event["event_id"])):
+                        raise LifecyclePersistenceError("authorization receipt/nonce is missing from its SQLite uniqueness projection")
                     if body["scope"] != self.scope:
                         raise LifecyclePersistenceError("authorization consumption scope mismatch")
                     candidate = staged.candidates.get((body["candidate_id"], body["candidate_version"]))
@@ -173,13 +227,8 @@ class PersistentLifecycleLedger:
                         raise LifecyclePersistenceError("authorization consumption does not bind the candidate merge")
                     if event["event_id"] != f"e12a6:authorization-consumed:{receipt_id}":
                         raise LifecyclePersistenceError("authorization consumption event ID mismatch")
-                    consumed_receipts[receipt_id] = body
-                    consumed_nonces.add(nonce)
                 else: raise LifecyclePersistenceError(f"unknown lifecycle event kind: {kind!r}")
-                eid=event["event_id"]
-                receipts[eid]=LifecycleEventReceipt(eid,seq,event["payload_digest"],True)
             self._ledger=staged; self._last_sequence=previous
-            self._receipts=receipts; self._consumed_receipts=consumed_receipts
         except LifecyclePersistenceError: raise
         except Exception as exc: raise LifecyclePersistenceError(f"lifecycle replay failed: {exc}") from exc
 
@@ -193,7 +242,6 @@ class PersistentLifecycleLedger:
             return receipt
         apply_state()
         self._last_sequence=receipt.sequence
-        self._receipts[event_id]=receipt
         return receipt
 
     def register_candidate(self,candidate: Candidate) -> LifecycleEventReceipt:
@@ -203,7 +251,7 @@ class PersistentLifecycleLedger:
             key=(candidate.candidate_id,candidate.version); old=self._ledger.candidates.get(key)
             if old is not None:
                 if old!=candidate or self._get_event_payload(eid)!=payload: raise LifecyclePersistenceError("candidate ID content conflict")
-                r=self._receipts[eid]; return LifecycleEventReceipt(r.event_id,r.sequence,r.payload_digest,True)
+                r=self._get_event_receipt(eid); return r
             self._ledger.validate_candidate(candidate)
             return self._commit(eid,payload,lambda: self._ledger.add_candidate(candidate))
 
@@ -215,7 +263,7 @@ class PersistentLifecycleLedger:
             old=self._ledger.evidence.get(safe_evidence.evidence_id)
             if old is not None:
                 if old!=safe_evidence or self._get_event_payload(eid)!=payload: raise LifecyclePersistenceError("evidence ID content conflict")
-                r=self._receipts[eid]; return LifecycleEventReceipt(r.event_id,r.sequence,r.payload_digest,True)
+                r=self._get_event_receipt(eid); return r
             self._ledger.validate_evidence(safe_evidence)
             return self._commit(eid,payload,lambda: self._ledger.add_evidence(safe_evidence))
 
@@ -325,7 +373,7 @@ class PersistentLifecycleLedger:
                 "submitter_authentication_method": writer_identity["authentication_method"],
                 "submitter_credential_fingerprint": writer_identity["credential_fingerprint"],
             }
-            prior_receipt_use = self._consumed_receipts.get(receipt.receipt_id)
+            prior_receipt_use = self._get_consumed_authorization(receipt.receipt_id)
             if prior_receipt_use is not None:
                 prior_binding = dict(prior_receipt_use)
                 current_binding = dict(authorization_body)
@@ -350,11 +398,8 @@ class PersistentLifecycleLedger:
 
         with self._lock:
             if authorization_receipt is not None:
-                prior_use = self._consumed_receipts.get(authorization_receipt.receipt_id)
-                nonce_used = any(
-                    body.get("nonce") == authorization_receipt.nonce
-                    for body in self._consumed_receipts.values()
-                )
+                prior_use = self._get_consumed_authorization(authorization_receipt.receipt_id)
+                nonce_used = self._has_consumed_nonce(authorization_receipt.nonce)
                 if ((prior_use is not None and prior_use != authorization_body)
                         or (nonce_used and prior_use is None)):
                     raise LifecyclePersistenceError("authorization receipt or nonce was already consumed")
@@ -369,11 +414,9 @@ class PersistentLifecycleLedger:
                     old != item for old, item in zip(old_evidence, safe_evidence)
                 ):
                     raise LifecyclePersistenceError("candidate bundle identity/content conflict")
-                prior_consumptions = [
-                    body for body in self._consumed_receipts.values()
-                    if body.get("candidate_id") == candidate.candidate_id
-                    and body.get("candidate_version") == candidate.version
-                ]
+                prior_consumptions = self._find_consumed_authorization_for_candidate(
+                    candidate.candidate_id, candidate.version,
+                )
                 if prior_consumptions and authorization_receipt is None:
                     raise LifecyclePersistenceError("receipt-backed candidate replay requires the same receipt")
                 expected_payloads = dict(evidence_events + [(candidate_id, candidate_payload)])
@@ -381,20 +424,11 @@ class PersistentLifecycleLedger:
                     expected_payloads[authorization_event[0]] = authorization_event[1]
                 if any(self._get_event_payload(eid) != payload for eid, payload in expected_payloads.items()):
                     raise LifecyclePersistenceError("candidate bundle event history mismatch")
-                evidence_receipts = tuple(
-                    LifecycleEventReceipt(
-                        self._receipts[eid].event_id, self._receipts[eid].sequence,
-                        self._receipts[eid].payload_digest, True,
-                    )
-                    for eid, _ in evidence_events
-                )
-                prior = self._receipts[candidate_id]
+                evidence_receipts = tuple(self._get_event_receipt(eid) for eid, _ in evidence_events)
+                prior = self._get_event_receipt(candidate_id)
                 auth_receipt = None
                 if authorization_event is not None:
-                    auth = self._receipts[authorization_event[0]]
-                    auth_receipt = LifecycleEventReceipt(
-                        auth.event_id, auth.sequence, auth.payload_digest, True,
-                    )
+                    auth_receipt = self._get_event_receipt(authorization_event[0])
                 return LifecycleBundleReceipt(
                     LifecycleEventReceipt(prior.event_id, prior.sequence, prior.payload_digest, True),
                     evidence_receipts, True, auth_receipt,
@@ -420,13 +454,9 @@ class PersistentLifecycleLedger:
                 self._ledger.add_evidence(item)
             self._ledger.add_candidate(candidate)
             self._last_sequence = raw_receipts[-1]["sequence"]
-            for event_id, payload in evidence_events + [(candidate_id, candidate_payload)]:
-                self._receipts[event_id] = receipts[event_id]
             auth_receipt = None
             if authorization_event is not None:
                 auth_event_id, auth_payload = authorization_event
-                self._receipts[auth_event_id] = receipts[auth_event_id]
-                self._consumed_receipts[authorization_receipt.receipt_id] = authorization_body
                 auth_receipt = receipts[auth_event_id]
             return LifecycleBundleReceipt(
                 receipts[candidate_id],
@@ -440,9 +470,9 @@ class PersistentLifecycleLedger:
         payload={"schema_version":EVENT_SCHEMA,"kind":"action_applied","body":{"action":_action_to_dict(action)}}
         with self._lock:
             if action.action_id in self._ledger._action_ids:
-                r=self._receipts.get(eid)
+                r=self._get_event_receipt(eid)
                 if r is None or self._get_event_payload(eid)!=payload: raise LifecyclePersistenceError("action ID content conflict")
-                return LifecycleEventReceipt(r.event_id,r.sequence,r.payload_digest,True)
+                return r
             self._ledger.validate_action(action)
             return self._commit(eid,payload,lambda: self._ledger.apply(action))
 
@@ -460,8 +490,9 @@ class PersistentLifecycleLedger:
                   "body":{"arguments":recorded,"candidate":_candidate_to_dict(existing)}}
                 if self._get_event_payload(eid)!=expected:
                     raise LifecyclePersistenceError("revision identity reused with different content")
-                r=self._receipts[eid]
-                return existing,LifecycleEventReceipt(r.event_id,r.sequence,r.payload_digest,True)
+                r=self._get_event_receipt(eid)
+                if r is None: raise LifecyclePersistenceError("revision event receipt is missing")
+                return existing,r
             made=self._ledger.build_revision(candidate_id,version,**args)
             recorded={"candidate_id":candidate_id,"version":version,**args}
             recorded={k:list(v) if isinstance(v,tuple) else v for k,v in recorded.items()}
@@ -476,4 +507,4 @@ class PersistentLifecycleLedger:
               "candidates":[_candidate_to_dict(v) for _,v in sorted(self._ledger.candidates.items())],
               "evidence":[_evidence_to_dict(v) for _,v in sorted(self._ledger.evidence.items())],
               "actions":[_action_to_dict(v) for v in self._ledger.actions],
-              "consumed_authorizations":[self._consumed_receipts[k] for k in sorted(self._consumed_receipts)]}
+              "consumed_authorizations":self._list_consumed_authorizations()}
