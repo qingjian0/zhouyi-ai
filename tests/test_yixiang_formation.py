@@ -76,7 +76,15 @@ class FormationTests(unittest.TestCase):
         result = assess_formation(trace(selected_features=(feature(selection_rationale=""),)))
         self.assertEqual(result.status, FormationStatus.MISSING_SELECTION_RATIONALE)
 
-    def test_non_string_selection_rationale_is_rejected(self):\n        with self.assertRaises(ValueError):\n            assess_formation(trace(selected_features=(feature(selection_rationale=None),)))\n\n    def test_non_string_category_criterion_is_rejected(self):\n        with self.assertRaises(ValueError):\n            assess_formation(trace(category_assignments=(assignment(criterion=None),)))\n\n    def test_category_requires_explicit_criterion(self):
+    def test_non_string_selection_rationale_is_rejected(self):
+        with self.assertRaises(ValueError):
+            assess_formation(trace(selected_features=(feature(selection_rationale=None),)))
+
+    def test_non_string_category_criterion_is_rejected(self):
+        with self.assertRaises(ValueError):
+            assess_formation(trace(category_assignments=(assignment(criterion=None),)))
+
+    def test_category_requires_explicit_criterion(self):
         result = assess_formation(trace(category_assignments=(assignment(criterion=""),)))
         self.assertEqual(result.status, FormationStatus.MISSING_CATEGORY_CRITERION)
 

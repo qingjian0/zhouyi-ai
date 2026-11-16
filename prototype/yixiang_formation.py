@@ -175,7 +175,7 @@ def assess_formation(trace: FormationTrace) -> FormationAssessment:
                 continue
             _text(getattr(assignment, name), f"assignment.{name}")
         for name in ("feature_refs", "evidence_refs", "counterexample_refs"):
-            _items(getattr(assignment, name), f"assignment.{name}", allow_empty=name == "counterexample_refs")
+            _items(getattr(assignment, name), f"assignment.{name}", allow_empty=name in {"counterexample_refs", "evidence_refs"})
         if not isinstance(assignment.reviewed, bool):
             raise ValueError("assignment.reviewed must be bool")
         if assignment.counterexamples_resolved is not None and not isinstance(assignment.counterexamples_resolved, bool):

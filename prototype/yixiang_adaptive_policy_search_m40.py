@@ -82,7 +82,7 @@ def search_policy(actions, scenarios, horizon=3, max_nodes=5000,
             not all(isfinite(x) and x>=0 for x in (a.cost,a.risk,a.risk_limit))):
             issues.append("invalid_action:"+a.action_id)
         if a.risk>a.risk_limit: issues.append("action_risk_limit:"+a.action_id)
-    eligible=tuple(a for a in actions if a.approved and a.feasible)
+    eligible=tuple(a for a in actions if a.approved and a.feasible and a.cost<=max_total_cost and a.risk<=max_total_risk)
     for s in scenarios:
         hs=[p.hypothesis for p in s.priors]
         if not s.provenance or not s.calibrated or len(hs)<2 or len(set(hs))!=len(hs):
@@ -98,7 +98,10 @@ def search_policy(actions, scenarios, horizon=3, max_nodes=5000,
         return SearchResult(None,(),0.0,0,"blocked",tuple(sorted(set(issues))),())
     if len(eligible)!=len(actions): warnings.append("unapproved_or_infeasible_actions_excluded")
     if not eligible:
-        return SearchResult(None,(),0.0,0,"no_feasible_actions",(),tuple(warnings))
+        stop_values=tuple(_entropy_reward({p.hypothesis:p.probability for p in s.priors}) for s in scenarios)
+        root=PolicyNode(None,(),stop_values,0)
+        return SearchResult(root,tuple((s.scenario_id,v) for s,v in zip(scenarios,stop_values)),
+                            min(stop_values) if stop_values else 0.0,0,"stop_policy",(),tuple(warnings))
     maps=tuple({(l.action,l.hypothesis,l.outcome):l.probability for l in s.likelihoods} for s in scenarios)
     beliefs=tuple({p.hypothesis:p.probability for p in s.priors} for s in scenarios)
     expanded=0; capped=False
