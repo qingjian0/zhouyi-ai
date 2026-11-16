@@ -1,0 +1,39 @@
+name: cpg-ei-adam-optimizer-comparison
+
+on:
+  push:
+    branches:
+      - research/cpg-ei-adam-optimizer-comparison-v2-2026-11-13
+  pull_request:
+    branches:
+      - research/cpg-ei-oracle-optimizer-sweep-2026-11-13
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  optimizer-comparison:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run focused optimizer tests
+        run: |
+          python -m unittest tests.test_cpg_ei_mvp.TestCpgEiMvp.test_adam_optimizer_reduces_training_loss -v
+          python -m unittest tests.test_cpg_ei_mvp.TestCpgEiMvp.test_unknown_optimizer_is_rejected -v
+          python -m unittest tests.test_cpg_ei_adam_optimizer_comparison -v
+      - name: Run five-seed SGD versus Adam sweep
+        run: |
+          mkdir -p benchmark-results
+          python -m prototype.cpg_ei_adam_optimizer_comparison --epochs 800 | tee benchmark-results/cpg-ei-adam-optimizer-comparison.json
+      - name: Upload comparison report
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpg-ei-adam-optimizer-comparison-${{ github.sha }}
+          path: benchmark-results/cpg-ei-adam-optimizer-comparison.json
+          if-no-files-found: error
+          retention-days: 30
