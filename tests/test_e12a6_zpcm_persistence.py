@@ -417,4 +417,38 @@ class PersistentLifecycleTests(unittest.TestCase):
         restored = PersistentLifecycleLedger(self.memory, scope="project-a")
         self.assertIn(("rel:greater-than", 1), restored.ledger.candidates)
 
+
+    def test_sqlite_current_state_projection_matches_authoritative_lifecycle_after_reopen(self):
+        self.store.register_candidate(candidate())
+        self.store.register_evidence(evidence())
+        receipt = self.store.apply(propose())
+        projected = self.memory.get_lifecycle_candidate_projection(
+            scope="project-a", candidate_id="rel:greater-than", candidate_version=1,
+        )
+        self.assertEqual(projected["candidate"]["state"], "proposed")
+        self.assertEqual(projected["source_seq"], receipt.sequence)
+        self.assertEqual(
+            self.memory.get_lifecycle_evidence_projection(
+                scope="project-a", evidence_id="train-1",
+            )["evidence"]["outcome"],
+            "opaque-evidence-ref:train-1",
+        )
+        self.assertEqual(
+            self.memory.get_lifecycle_action_projection(
+                scope="project-a", action_id="propose-1",
+            )["action"]["to_state"],
+            "proposed",
+        )
+        before = self.memory.lifecycle_state_projection_counts(scope="project-a")
+        self.memory.close()
+        self.memory = ZPCMMemory(self.path)
+        self.store = PersistentLifecycleLedger(self.memory, scope="project-a")
+        self.assertEqual(
+            self.memory.get_lifecycle_candidate_projection(
+                scope="project-a", candidate_id="rel:greater-than", candidate_version=1,
+            )["candidate"]["state"],
+            "proposed",
+        )
+        self.assertEqual(self.memory.lifecycle_state_projection_counts(scope="project-a"), before)
+
 if __name__=="__main__": unittest.main()
