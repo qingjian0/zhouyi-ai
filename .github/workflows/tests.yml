@@ -16,6 +16,20 @@ jobs:
           python-version: "3.11"
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
+      - name: Run E12-M2.2 calibration smoke test
+        run: python -m prototype.e12m2_m2_calibration --seeds 3 --permutations 9 --swaps-per-edge 2 --injections 2 --seed-start 17
+      - name: Run E12-M3 trigram-factorized unit tests
+        run: python -m unittest tests.test_e12m3_trigram_factorized_generalization -v
+      - name: Run E12-M3 trigram-factorized benchmark smoke test
+        run: python -m prototype.e12m3_trigram_factorized_generalization --seeds 20 --seed-start 100 --json > /tmp/e12m3-trigram-factorized.json
+      - name: Run E12-M3 100-seed structural benchmark
+        run: |
+          python - <<'PY'
+          import json
+          from prototype.e12m3_trigram_factorized_generalization import run_benchmark
+          report = run_benchmark(seeds=100, seed_start=100)
+          print(json.dumps(report["summary"], sort_keys=True))
+          PY
       - name: Run E01 demonstration
         run: python -m prototype.e01_sparse_composition --json
       - name: Run E01-B five-seed evaluation
