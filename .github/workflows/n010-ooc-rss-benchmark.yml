@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - research/n010-ooc-rss-benchmark-2026-11-12
+      - research/n010-throughput-metrics-2026-11-12
   pull_request:
     branches:
       - research/n010-heldout-group-isolation-2026-11-12
