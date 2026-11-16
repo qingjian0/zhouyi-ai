@@ -42,7 +42,7 @@ class HeldoutFamilyProtocolTests(unittest.TestCase):
 
     def test_query_targets_are_separate_for_heldout_families(self):
         corpus = generate_mixed_corpus(family_count=20, input_dim=4, output_dim=3, seed=886)
-        protocol = build_heldout_family_protocol(corpus, support_size=16, seed=887)
+        protocol = build_heldout_family_protocol(corpus, support_size=8, seed=887)
         learner = protocol["learner_view"]
         self.assertTrue(all("query_targets" not in row for row in learner["validation_episodes"]))
         self.assertTrue(all("query_targets" not in row for row in learner["test_episodes"]))
