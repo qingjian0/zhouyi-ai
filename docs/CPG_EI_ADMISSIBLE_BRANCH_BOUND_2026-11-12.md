@@ -51,13 +51,15 @@ The implementation obtains each product interval by recursively combining the mi
 
 The search is best-first over prefixes ordered by descending \(U(p)\). Once at least \(k\) complete assignments have been found, let \(s_k\) be the current kth-best complete score and \(U_{\max}\) the largest remaining frontier bound.
 
-Search may stop only when:
+Search may stop when the largest frontier score bound is below the kth score:
 
 \[
 U_{\max}<s_k.
 \]
 
-The comparison is deliberately strict. If a remaining branch has a bound equal to \(s_k\), it may contain a tied candidate with a lexicographically earlier role binding, so it must still be explored to preserve deterministic ordering.
+Equal-score branches require a second, lexicographic bound. For a prefix \(p\), define \(L(p)\) as its assigned node IDs followed by the smallest node ID available in each remaining role pool. Every completion's node-ID tuple is lexicographically greater than or equal to \(L(p)\). The frontier is ordered first by descending \(U(p)\), then by ascending \(L(p)\).
+
+Therefore, when \(U_{\max}=s_k\), search may also stop if the smallest \(L(p)\) among frontier branches with that score bound is greater than or equal to the kth complete assignment's node-ID tuple. Such a branch cannot contain a higher-scoring completion, and any tied completion cannot outrank the current kth result. The implementation uses this tie-aware condition to avoid enumerating large equivalence classes of equal-score assignments while preserving exact deterministic top-k ordering.
 
 For the public prediction API, the internal search retains at least two complete candidates even when `result_limit=1`, because the top-two score margin is required for the existing abstention rule.
 
@@ -69,7 +71,7 @@ If the expansion budget is exhausted before the stopping condition is proved, th
 |---|---|---|
 | `product` | None; enumerate the Cartesian product | Exact if the budget completes |
 | `beam` | Heuristic partial-score ranking | Approximate; any pruning causes abstention |
-| `branch_bound` | Admissible score upper bound | Exact top-k if the proof stopping rule completes |
+| `branch_bound` | Admissible score upper bound plus lexicographic tie lower bound | Exact top-k if the proof stopping rule completes |
 
 ## Initial validation
 
@@ -84,3 +86,12 @@ The observed ratio of branch-bound prefix extensions to Exact Product complete a
 - Role-pair and role-triple term counts grow combinatorially with role count.
 - The result is exact only for the supplied finite candidate pools and current scoring function; it does not validate candidate recall, learned-weight quality, or natural-language grounding.
 - A dedicated benchmark must compare wall-clock time, upper-bound evaluations, memory, and exact-ranking agreement under identical candidate pools and a locked seed set.
+
+
+## Tie-aware pruning follow-up
+
+The first timing sweep exposed a pathological case: pure third-order synergy can create thousands of equal-scoring decoy assignments. Preserving deterministic Top-K tie order by enumerating every tie is correct but unnecessarily expensive.
+
+The tie-aware refinement stores a lexicographic lower bound for every partial prefix. When the best remaining score upper bound equals the current kth score, the search can stop if the smallest possible completion tuple is not earlier than the kth tuple. A dedicated all-zero-score test compares the exact Top-5 and abstention reason while requiring fewer than all 512 product assignments to be expanded.
+
+This does not relax the score upper-bound proof or tie ordering. It only proves that remaining tied completions cannot outrank the already selected kth result.

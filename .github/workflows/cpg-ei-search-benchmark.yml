@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - research/cpg-ei-admissible-branch-bound-2026-11-12
+      - research/cpg-ei-tie-aware-branch-bound-2026-11-12
 
 jobs:
   exact-vs-branch-bound:
