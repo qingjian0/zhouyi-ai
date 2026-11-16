@@ -49,6 +49,8 @@ def _support_identifiability_audit(train_rows: list[dict], input_dim: int) -> di
     for index in range(input_dim):
         matched_pairs = 0
         influence_flips = 0
+        observed_contexts = set()
+        influence_contexts = set()
         for state, target in observed.items():
             if state[index] != 0:
                 continue
@@ -57,25 +59,42 @@ def _support_identifiability_audit(train_rows: list[dict], input_dim: int) -> di
             other = tuple(counterpart)
             if other not in observed:
                 continue
+            context = tuple(value for position, value in enumerate(state) if position != index)
+            observed_contexts.add(context)
             matched_pairs += 1
-            influence_flips += int(observed[other] != target)
+            if observed[other] != target:
+                influence_flips += 1
+                influence_contexts.add(context)
         if influence_flips:
             status = "observed_influence"
         elif matched_pairs == 0:
             status = "unobserved_counterpart"
+        elif len(observed_contexts) == 2 ** (input_dim - 1):
+            status = "observed_no_influence_full_context_coverage"
         else:
             status = "no_influence_observed_inconclusive"
         variables.append({
             "index": index,
             "matched_pair_count": matched_pairs,
             "influence_flip_count": influence_flips,
+            "context_space_size": 2 ** (input_dim - 1),
+            "observed_context_count": len(observed_contexts),
+            "influence_context_count": len(influence_contexts),
+            "context_coverage": len(observed_contexts) / (2 ** (input_dim - 1)),
             "status": status,
         })
     return {
         "variables": variables,
         "unresolved_variable_indices": [
             item["index"] for item in variables
-            if item["status"] != "observed_influence"
+            if item["status"] not in (
+                "observed_influence",
+                "observed_no_influence_full_context_coverage",
+            )
+        ],
+        "observed_irrelevant_variable_indices": [
+            item["index"] for item in variables
+            if item["status"] == "observed_no_influence_full_context_coverage"
         ],
         "matched_pair_total": sum(item["matched_pair_count"] for item in variables),
     }
@@ -238,6 +257,22 @@ def run_discovery_baseline(
             "zero_candidate_rate": sum(x["candidate_count"] == 0 for x in items) / count,
             "mean_unresolved_support_variables": sum(
                 len(x["support_identifiability_audit"]["unresolved_variable_indices"])
+                for x in items
+            ) / count,
+            "mean_observed_irrelevant_variables": sum(
+                len(x["support_identifiability_audit"]["observed_irrelevant_variable_indices"])
+                for x in items
+            ) / count,
+            "mean_input_context_coverage": sum(
+                sum(variable["context_coverage"]
+                    for variable in x["support_identifiability_audit"]["variables"])
+                / len(x["support_identifiability_audit"]["variables"])
+                for x in items
+            ) / count,
+            "mean_influence_context_count": sum(
+                sum(variable["influence_context_count"]
+                    for variable in x["support_identifiability_audit"]["variables"])
+                / len(x["support_identifiability_audit"]["variables"])
                 for x in items
             ) / count,
             "any_unresolved_support_rate": sum(
