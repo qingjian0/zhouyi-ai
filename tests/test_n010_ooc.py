@@ -126,6 +126,7 @@ class N010OutOfCoreTests(unittest.TestCase):
         report = run_experiment_ooc(
             self.train_dev, self.roles, 1, ooc_checkpoint,
             epochs=3, max_expansions=64, git_sha="ooc-test",
+            search_strategy="beam", beam_width=1,
         )
         run_experiment(
             self.full_dataset, self.roles, 1, materialized_checkpoint,
@@ -140,6 +141,8 @@ class N010OutOfCoreTests(unittest.TestCase):
             materialized_bundle["model_checkpoint"],
         )
         self.assertEqual(report["training_examples"], 4)
+        self.assertEqual(report["dev"]["search_strategy"], "beam")
+        self.assertEqual(report["dev"]["beam_width"], 1)
         self.assertNotIn("locked_test", report)
         self.assertEqual(
             report["locked_test_policy"], "separate_artifact_and_evaluator_entry_point"
@@ -149,8 +152,12 @@ class N010OutOfCoreTests(unittest.TestCase):
 
         locked = evaluate_locked_test_ooc(
             self.locked_test, self.roles, 1, ooc_checkpoint,
-            max_expansions=64,
+            max_expansions=64, search_strategy="beam", beam_width=1,
         )
+        self.assertEqual(locked["search_strategy"], "beam")
+        self.assertEqual(locked["beam_width"], 1)
+        self.assertEqual(locked["locked_test"]["search_strategy"], "beam")
+        self.assertEqual(locked["locked_test"]["beam_width"], 1)
         self.assertEqual(locked["locked_test"]["examples"], 4)
         self.assertEqual(
             len(Path(locked["locked_test"]["predictions_path"])

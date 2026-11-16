@@ -426,7 +426,8 @@ def run_experiment_ooc(dataset_path: str | Path, roles: Sequence[RoleSpec],
                        epochs: int = 20, learning_rate: float = 0.2,
                        l2: float = 1e-4, max_assignments_per_example: int = 4096,
                        max_expansions: int = 4096, beam_width: int = 64,
-                       git_sha: str = "unknown", resume: bool = False) -> dict:
+                       git_sha: str = "unknown", resume: bool = False,
+                       search_strategy: str = "product") -> dict:
     """Train from train/dev JSONL only; this function has no locked-test path."""
     if isinstance(epochs, bool) or not isinstance(epochs, int) or epochs < 1:
         raise LearnableSROKError("epochs must be a positive integer")
@@ -443,6 +444,7 @@ def run_experiment_ooc(dataset_path: str | Path, roles: Sequence[RoleSpec],
             "max_assignments_per_example": max_assignments_per_example,
             "max_expansions": max_expansions,
             "beam_width": beam_width,
+            "search_strategy": search_strategy,
             "git_sha": git_sha,
         }
         history = []
@@ -490,6 +492,8 @@ def run_experiment_ooc(dataset_path: str | Path, roles: Sequence[RoleSpec],
             model, dataset.iter_split_rows("dev"),
             checkpoint.with_suffix(checkpoint.suffix + ".dev-predictions.jsonl"),
             max_expansions=max_expansions,
+            search_strategy=search_strategy,
+            beam_width=beam_width,
         )
         report = {
             "schema": OOC_RUN_SCHEMA,
@@ -511,7 +515,8 @@ def run_experiment_ooc(dataset_path: str | Path, roles: Sequence[RoleSpec],
 def evaluate_locked_test_ooc(locked_test_path: str | Path, roles: Sequence[RoleSpec],
                              feature_dim: int, checkpoint_path: str | Path, *,
                              max_expansions: int = 4096,
-                             beam_width: int = 64) -> dict:
+                             beam_width: int = 64,
+                             search_strategy: str = "product") -> dict:
     """Separate evaluator entry point; invoke in a separate process after training is frozen."""
     checkpoint = Path(checkpoint_path)
     if not checkpoint.exists():
@@ -532,12 +537,16 @@ def evaluate_locked_test_ooc(locked_test_path: str | Path, roles: Sequence[RoleS
             model, dataset.iter_split_rows("locked_test"),
             checkpoint.with_suffix(checkpoint.suffix + ".locked-test-predictions.jsonl"),
             max_expansions=max_expansions,
+            search_strategy=search_strategy,
+            beam_width=beam_width,
         )
         report = {
             "schema": OOC_RUN_SCHEMA,
             "dataset_manifest": dataset.manifest,
             "checkpoint_dataset_sha256": bundle["dataset_manifest"]["sha256"],
             "checkpoint": str(checkpoint),
+            "search_strategy": search_strategy,
+            "beam_width": beam_width,
             "locked_test": metrics,
             "process_boundary": "separate_evaluator_entry_point",
         }
