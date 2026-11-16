@@ -3,6 +3,7 @@ import unittest
 
 from prototype.cpg_ei_mvp import (
     CpgEiTransitionModel,
+    Example,
     FEATURE_NAMES,
     encode_state,
     evaluate,
@@ -56,6 +57,78 @@ class TestCpgEiMvp(unittest.TestCase):
         self.assertLess(losses[-1], losses[0])
         self.assertGreater(metrics["bit_accuracy"], 0.90)
         self.assertLess(active_groups, 20)
+
+
+    def test_output_weight_gradient_matches_mean_bce_objective(self):
+        examples = [
+            Example((1, 1, 0, 0, 0, 0), (1, 0, 1, 0, 1, 0)),
+            Example((0, 1, 1, 0, 0, 0), (0, 1, 0, 1, 0, 1)),
+        ]
+        model = CpgEiTransitionModel.create(active_relation_indices={7})
+        model.weights[0][7] = 0.3
+        epsilon = 1e-5
+        learning_rate = 1e-6
+
+        def objective():
+            total = 0.0
+            for row in examples:
+                for probability, label in zip(
+                    model.predict_proba(row.state), row.target
+                ):
+                    p = min(max(probability, 1e-12), 1.0 - 1e-12)
+                    total += -(label * math.log(p) + (1 - label) * math.log(1 - p))
+            return total / (len(examples) * 6.0)
+
+        original = model.weights[0][7]
+        model.weights[0][7] = original + epsilon
+        plus = objective()
+        model.weights[0][7] = original - epsilon
+        minus = objective()
+        model.weights[0][7] = original
+        expected_gradient = (plus - minus) / (2.0 * epsilon)
+
+        model.train(
+            examples, epochs=1, learning_rate=learning_rate,
+            l2=0.0, gate_l1=0.0, edge_group_l1=0.0,
+        )
+        observed_gradient = (original - model.weights[0][7]) / learning_rate
+        self.assertAlmostEqual(observed_gradient, expected_gradient, delta=2e-5)
+
+    def test_shared_gate_gradient_matches_mean_bce_objective(self):
+        examples = [
+            Example((1, 1, 0, 0, 0, 0), (1, 0, 1, 0, 1, 0)),
+            Example((0, 1, 1, 0, 0, 0), (0, 1, 0, 1, 0, 1)),
+        ]
+        model = CpgEiTransitionModel.create(active_relation_indices={7})
+        model.gate_logits[0] = -0.4
+        for head in range(6):
+            model.weights[head][7] = 0.15 * (head + 1)
+        epsilon = 1e-5
+        learning_rate = 1e-6
+
+        def objective():
+            total = 0.0
+            for row in examples:
+                for probability, label in zip(
+                    model.predict_proba(row.state), row.target
+                ):
+                    p = min(max(probability, 1e-12), 1.0 - 1e-12)
+                    total += -(label * math.log(p) + (1 - label) * math.log(1 - p))
+            gate_sum = sum(model.relation_gate_probabilities())
+            return total / (len(examples) * 6.0) + 0.03 * gate_sum / 6.0
+
+        original = model.gate_logits[0]
+        model.gate_logits[0] = original + epsilon
+        plus = objective()
+        model.gate_logits[0] = original - epsilon
+        minus = objective()
+        model.gate_logits[0] = original
+        expected_gradient = (plus - minus) / (2.0 * epsilon)
+
+        model.train(examples, epochs=1, learning_rate=learning_rate,
+                    l2=0.0, gate_l1=0.03, edge_group_l1=0.0)
+        observed_gradient = (original - model.gate_logits[0]) / learning_rate
+        self.assertAlmostEqual(observed_gradient, expected_gradient, delta=2e-5)
 
     def test_dataset_is_reproducible(self):
         self.assertEqual(make_dataset(10, seed=11), make_dataset(10, seed=11))

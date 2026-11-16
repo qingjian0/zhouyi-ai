@@ -56,7 +56,7 @@ def grow_relation_graph_joint_motifs(
     *,
     max_motifs: int = 3,
     epochs_per_candidate: int = 50,
-    learning_rate: float = 0.35,
+    learning_rate: float = 2.1,
     gate_l1: float = 0.01,
     edge_group_l1: float = 0.03,
     min_training_improvement: float = 1e-5,
