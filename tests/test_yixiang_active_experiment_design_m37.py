@@ -7,7 +7,9 @@ def candidate(eid="e1",means=(0,4),**kw):
  feasibility=CandidateStatus.FEASIBLE,safety_review=SafetyReview.APPROVED,design_ref="design",
  measurement_ref="measure",source_family="src",selection_split="select",validation_split="holdout",limitation_refs=("lim",))
  d.update(kw); return ExperimentCandidate(**d)
-def rank(*cs,**kw): return rank_experiments(("h1","h2"),cs,max_cost=10,max_risk=1,**kw)
+def rank(*cs,**kw):
+ options={"max_cost":10,"max_risk":1}; options.update(kw)
+ return rank_experiments(("h1","h2"),cs,**options)
 class M37Tests(unittest.TestCase):
  def test_selects_discriminating_candidate(self): self.assertEqual(rank(candidate()).selected_experiment_id,"e1")
  def test_no_separation_has_no_design(self): self.assertEqual(rank(candidate(means=(2,2))).disposition,DesignDisposition.NO_DISCRIMINATING_DESIGN)
@@ -21,7 +23,9 @@ class M37Tests(unittest.TestCase):
  def test_safety_rejected_excluded(self): self.assertFalse(rank(candidate(safety_review=SafetyReview.REJECTED)).ranked)
  def test_infeasible_excluded(self): self.assertFalse(rank(candidate(feasibility=CandidateStatus.BLOCKED)).ranked)
  def test_duplicate_candidate_ids_block(self): self.assertIn("duplicate_experiment_id",rank(candidate("x"),candidate("x")).issues)
- def test_missing_prediction_blocks(self):\n  c=candidate(predictions=(pred("h1",0),))\n  self.assertTrue(any(x.startswith("missing_hypothesis_predictions") for x in rank(c).issues))
+ def test_missing_prediction_blocks(self):
+  c=candidate(predictions=(pred("h1",0),))
+  self.assertTrue(any(x.startswith("missing_hypothesis_predictions") for x in rank(c).issues))
  def test_unknown_prediction_blocks(self):
   c=candidate(predictions=(pred("h1",0),pred("h2",1),pred("h3",2)))
   self.assertTrue(any(x.startswith("unknown_hypothesis_predictions") for x in rank(c).issues))

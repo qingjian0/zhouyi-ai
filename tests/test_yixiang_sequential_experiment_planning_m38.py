@@ -20,7 +20,9 @@ def policy(**kw):
     d.update(kw); return SequentialPolicy(**d)
 
 def audit(p=None,acts=None,scens=None):
-    return audit_policy(p or policy(),acts or (action(),),scens or (scenario(),))
+    return audit_policy(policy() if p is None else p,
+                        (action(),) if acts is None else acts,
+                        (scenario(),) if scens is None else scens)
 
 class M38Tests(unittest.TestCase):
     def test_valid_policy_review(self): self.assertEqual(audit().disposition,Disposition.ROBUST_POLICY_REVIEW)

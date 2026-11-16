@@ -61,6 +61,7 @@ class StudyUnit:
     outcome: float
     outcome_measure: str
     evidence_refs: Tuple[str, ...]
+    assignment_kind: AssignmentKind
 
 
 @dataclass(frozen=True)
@@ -185,7 +186,7 @@ def audit_causal_interventions_m33(interventions, units, evidence, pairs=(), cla
         paired_units.update((control.unit_id, treatment.unit_id))
         if control.intervention_id != pair.intervention_id or treatment.intervention_id != pair.intervention_id:
             issues.append("pair_intervention_mismatch:" + pair.pair_id)
-        if control.condition != intervention.control_condition or treatment.condition != intervention.treatment_condition:
+        if intervention is not None and (control.condition != intervention.control_condition or treatment.condition != intervention.treatment_condition):
             issues.append("pair_condition_mismatch:" + pair.pair_id)
         if control.unit_family != pair.unit_family or treatment.unit_family != pair.unit_family:
             issues.append("pair_unit_family_mismatch:" + pair.pair_id)
