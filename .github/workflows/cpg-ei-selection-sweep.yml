@@ -1,0 +1,32 @@
+name: cpg-ei-selection-sweep
+on:
+  push:
+    branches:
+      - research/cpg-ei-selection-multiseed-2026-11-13
+  pull_request:
+    branches:
+      - research/cpg-ei-selection-split-2026-11-13
+      - research/cpg-ei-selection-multiseed-2026-11-13
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  selection-sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run five-seed, three-family proposal-selection sweep
+        run: |
+          mkdir -p benchmark-results
+          python -m prototype.cpg_ei_selection_sweep --epochs 12,120 --oracle-epochs 500 --json | tee benchmark-results/cpg-ei-selection-sweep.json
+      - name: Upload selection-sweep report
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpg-ei-selection-sweep-${{ github.sha }}
+          path: benchmark-results/cpg-ei-selection-sweep.json
+          if-no-files-found: error
+          retention-days: 30
