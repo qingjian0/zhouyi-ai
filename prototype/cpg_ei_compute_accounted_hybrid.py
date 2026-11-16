@@ -493,6 +493,7 @@ def run_compute_accounted_comparison(
             "gradient_feature_contributions": full_gradient_terms,
             "candidate_output_train_score_evaluations": 0,
         }
+        full_optimizer_backend = full_report["model"]["optimizer_backend"]
         del full_report, full_family_results
         gc.collect()
 
@@ -537,7 +538,7 @@ def run_compute_accounted_comparison(
                 "min_delta": min_delta,
                 "learning_rate": learning_rate,
                 "l2": l2,
-                "optimizer_backend": "numpy-vectorized-float64 when NumPy is installed; scalar fallback otherwise",
+                "optimizer_backend": full_optimizer_backend,
                 "initialization": "all-zero weights",
             },
             "methods": {
