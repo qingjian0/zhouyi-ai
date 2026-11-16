@@ -1,0 +1,35 @@
+name: CPG-EI pre-encoded feature cache benchmark
+
+on:
+  push:
+    branches:
+      - research/cpg-ei-preencoded-feature-cache-v1-2026-11-13
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  cached-feature-validation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run exact-equivalence and leakage regression tests
+        run: |
+          python -m unittest discover -s tests -p 'test_cpg_ei_early_stopping.py' -v
+          python -m unittest discover -s tests -p 'test_cpg_ei_compute_accounted_hybrid.py' -v
+      - name: Run reproducible cached-feature microbenchmark
+        run: |
+          python -m prototype.cpg_ei_preencoded_feature_benchmark             --families 8 --input-dim 8 --output-dim 8             --seed 20261114 --epochs 100             --json artifacts/preencoded-feature-cache.json
+      - name: Upload benchmark evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: zhouyi-cpg-ei-preencoded-feature-cache-v1
+          path: artifacts/preencoded-feature-cache.json
+          if-no-files-found: error
+          retention-days: 30
