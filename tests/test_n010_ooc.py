@@ -1,6 +1,8 @@
 import json
+import sqlite3
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 from prototype.n09_learnable_srok import RoleSpec
@@ -9,6 +11,7 @@ from prototype.n010_ooc import (
     N010StreamingDataset,
     evaluate_locked_test_ooc,
     run_experiment_ooc,
+    _sha256_file,
 )
 from prototype.n09_learnable_srok import LearnableSROKError
 
@@ -110,6 +113,20 @@ class N010OutOfCoreTests(unittest.TestCase):
                 self.train_dev, self.roles, 1, expected_splits=("train", "dev")
             )
 
+    def test_index_build_rejects_dataset_snapshot_change(self):
+        original_digest = _sha256_file(self.train_dev)
+        with patch(
+            "prototype.n010_ooc._sha256_file",
+            side_effect=[original_digest, "0" * 64],
+        ):
+            with self.assertRaisesRegex(
+                LearnableSROKError, "dataset changed after its streaming index was built"
+            ):
+                N010StreamingDataset(
+                    self.train_dev, self.roles, 1,
+                    expected_splits=("train", "dev"),
+                )
+
     def test_stream_fails_closed_if_dataset_changes_after_indexing(self):
         with N010StreamingDataset(
             self.train_dev, self.roles, 1, expected_splits=("train", "dev")
@@ -185,6 +202,48 @@ class N010OutOfCoreTests(unittest.TestCase):
         rows[0]["group_id"] = "tr-source-0"
         self._write(self.locked_test, rows)
         with self.assertRaisesRegex(LearnableSROKError, "overlaps training/dev"):
+            evaluate_locked_test_ooc(
+                self.locked_test, self.roles, 1, checkpoint, max_expansions=64
+            )
+
+    def test_locked_test_evaluator_rejects_tampered_training_group_index(self):
+        checkpoint = self.root / "tamper-index.json"
+        run_experiment_ooc(
+            self.train_dev, self.roles, 1, checkpoint,
+            epochs=1, max_expansions=64, git_sha="index-integrity-test",
+        )
+        group_index = checkpoint.with_suffix(checkpoint.suffix + ".groups.sqlite3")
+        with sqlite3.connect(group_index) as db:
+            db.execute("DELETE FROM groups")
+            db.commit()
+        with self.assertRaisesRegex(
+            LearnableSROKError, "training group index integrity mismatch"
+        ):
+            evaluate_locked_test_ooc(
+                self.locked_test, self.roles, 1, checkpoint, max_expansions=64
+            )
+
+    def test_checkpoint_rejects_implementation_fingerprint_drift(self):
+        checkpoint = self.root / "fingerprint.json"
+        run_experiment_ooc(
+            self.train_dev, self.roles, 1, checkpoint,
+            epochs=1, max_expansions=64, git_sha="fingerprint-test",
+        )
+        bundle = json.loads(checkpoint.read_text(encoding="utf-8"))
+        bundle["implementation_fingerprint"]["n09_learnable_srok_sha256"] = "0" * 64
+        checkpoint.write_text(json.dumps(bundle), encoding="utf-8")
+
+        with self.assertRaisesRegex(
+            LearnableSROKError, "resume implementation fingerprint does not match"
+        ):
+            run_experiment_ooc(
+                self.train_dev, self.roles, 1, checkpoint,
+                epochs=2, max_expansions=64, git_sha="fingerprint-test",
+                resume=True,
+            )
+        with self.assertRaisesRegex(
+            LearnableSROKError, "locked-test evaluator implementation fingerprint does not match"
+        ):
             evaluate_locked_test_ooc(
                 self.locked_test, self.roles, 1, checkpoint, max_expansions=64
             )
