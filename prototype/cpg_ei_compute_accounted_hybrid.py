@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import gc
+import hashlib
 import itertools
 import json
 import platform
@@ -28,6 +29,7 @@ from prototype.cpg_ei_early_stopping import (
     run_early_stopping_baseline,
     fit_with_early_stopping,
 )
+from prototype.cpg_ei_numpy_learner import fit_with_early_stopping_numpy
 from prototype.cpg_ei_generic_learner import (
     RelationalTransitionModel,
     TransitionExample,
@@ -201,7 +203,14 @@ def run_support_constrained_hybrid(
     min_delta: float = 1e-5,
     learning_rate: float = 0.1,
     l2: float = 1e-4,
+    optimizer_backend: str = "python",
 ) -> dict[str, Any]:
+    if optimizer_backend not in ("python", "numpy"):
+        raise ValueError("optimizer_backend must be 'python' or 'numpy'")
+    fit_function = (
+        fit_with_early_stopping_numpy if optimizer_backend == "numpy"
+        else fit_with_early_stopping
+    )
     manifest = corpus["manifest"]
     input_dim = manifest["input_dim"]
     output_dim = manifest["output_dim"]
@@ -246,7 +255,7 @@ def run_support_constrained_hybrid(
                 weights=[[0.0] * (len(supports) + 1)],
             )
             examples = examples_by_output[output_index]
-            fit = fit_with_early_stopping(
+            fit = fit_function(
                 model,
                 examples["train"],
                 examples["development"],
@@ -259,10 +268,18 @@ def run_support_constrained_hybrid(
             columns = len(supports) + 1
             total_feature_columns += columns
             total_coefficients += columns
-            total_feature_encodings += fit["epochs_run"] * len(examples["train"]) * columns
-            total_development_feature_encodings += (
-                (fit["epochs_run"] + 1) * len(examples["development"]) * columns
-            )
+            if optimizer_backend == "numpy":
+                total_feature_encodings += len(examples["train"]) * columns
+                total_development_feature_encodings += (
+                    len(examples["development"]) * columns
+                )
+            else:
+                total_feature_encodings += (
+                    fit["epochs_run"] * len(examples["train"]) * columns
+                )
+                total_development_feature_encodings += (
+                    (fit["epochs_run"] + 1) * len(examples["development"]) * columns
+                )
             total_gradient_terms += fit["epochs_run"] * len(examples["train"]) * columns
             models.append(model)
             fits.append({
@@ -274,8 +291,19 @@ def run_support_constrained_hybrid(
                 **fit,
             })
 
+        prediction_rows = [
+            [
+                model.predict(tuple(row["state"]))[0]
+                for model in models
+            ]
+            for row in sorted(rows, key=lambda item: tuple(item["state"]))
+        ]
+        prediction_digest = hashlib.sha256(
+            json.dumps(prediction_rows, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
         family_results.append({
             "family_id": family["family_id"],
+            "prediction_sha256": prediction_digest,
             "family_split": family["family_split"],
             "training": _split_metrics(models, split_rows["train"]),
             "development": _split_metrics(models, split_rows["development"]),
@@ -311,6 +339,7 @@ def run_support_constrained_hybrid(
         "corpus_sha256": manifest["corpus_sha256"],
         "model": {
             "type": "per-output logistic heads over train-only symbolic-support monomials",
+            "optimizer_backend": optimizer_backend,
             "input_dim": input_dim,
             "output_dim": output_dim,
             "max_epochs": max_epochs,
