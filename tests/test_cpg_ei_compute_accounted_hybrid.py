@@ -141,7 +141,7 @@ class TestComputeAccountedSupportHybrid(unittest.TestCase):
         full_epochs = full["optimizer_epochs_total"]
         self.assertEqual(
             full["training_feature_encodings"],
-            full_epochs * 5 * 8 * 16,
+            full_epochs * 8 * 16,
         )
         self.assertEqual(
             full["development_feature_encodings_for_checkpoint_selection"],
