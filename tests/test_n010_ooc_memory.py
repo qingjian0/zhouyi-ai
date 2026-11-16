@@ -29,6 +29,7 @@ def _write_dataset(path: Path, count: int) -> None:
                 "id": f"row-{index}",
                 "split": "train",
                 "rule_family": "family-A",
+                "group_id": f"source-{index // 2}",
                 "nodes": nodes,
                 "target_ids": targets,
             }, separators=(",", ":")) + "\n")
