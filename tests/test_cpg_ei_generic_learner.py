@@ -3,7 +3,7 @@ import unittest
 
 from prototype.cpg_ei_generic_learner import (
     RelationalTransitionModel, TransitionExample, encode_relations,
-    evaluate, relation_supports,
+    evaluate, examples_from_corpus_rows, relation_supports,
 )
 
 
@@ -37,7 +37,6 @@ class GenericRelationalLearnerTests(unittest.TestCase):
         metrics = evaluate(model, rows)
         self.assertLess(losses[-1], losses[0])
         self.assertEqual(metrics["exact_state_accuracy"], 1.0)
-
 
     def test_corpus_adapter_keeps_state_splits_isolated(self):
         rows = [
