@@ -29,6 +29,7 @@
 - [M65 排除限制敏感性分析](https://github.com/qingjian0/zhouyi-ai/pull/497)
 - [M66 多工具变量有界敏感性](https://github.com/qingjian0/zhouyi-ai/pull/498)
 - [M67《周易》影印扫描来源审计](https://github.com/qingjian0/zhouyi-ai/pull/499)
+- [M68 弱工具变量稳健推断](https://github.com/qingjian0/zhouyi-ai/pull/500)
 
 - 理论版本：CPG-EI v0.3（研究草案，持续修订）。
 - 验证原则：所有架构主张均须通过可复现实验、消融、公平对照和独立数据验证；合成数据通过不等于真实类象能力已被证明。
@@ -59,6 +60,7 @@
 - [M65 排除限制敏感性分析](docs/YIXIANG_M65_INVALID_IV_SENSITIVITY_V0_1.md)
 - [M66 多工具变量有界敏感性分析](docs/YIXIANG_M66_MULTIPLE_IV_BOUNDS_V0_1.md)
 - [M67《周易》扫描来源审计](docs/YIXIANG_M67_SCAN_BACKED_SOURCE_AUDIT_V0_1.md)
+- [M68 Anderson–Rubin 弱工具变量稳健推断](docs/YIXIANG_M68_ANDERSON_RUBIN_WEAK_IV_V0_1.md)
 - [传统类象概念图：系辞、说卦与咸卦分层](docs/YIXIANG_CLASSICAL_CONCEPT_MAP_V0_1.md)
 
 - [研究总纲与问题定义](docs/RESEARCH_CHARTER.md)
