@@ -1,0 +1,38 @@
+name: CPG-EI active-query discovery
+
+on:
+  push:
+    branches:
+      - research/cpg-ei-active-query-discovery-v1-2026-11-13
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  active-query:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run active-query contract tests
+        run: |
+          python -m unittest discover -s tests -p 'test_cpg_ei_active_query_discovery.py' -v
+      - name: Run fixed eight-family active/random query benchmark
+        run: |
+          python -m prototype.cpg_ei_active_query_discovery \
+            --families 8 --input-dim 8 --output-dim 8 \
+            --seed 20261114 --query-seed 20261115 \
+            --query-budgets 8 16 32 64 128 \
+            --json artifacts/active-query-discovery.json
+      - name: Upload machine-readable report
+        uses: actions/upload-artifact@v4
+        with:
+          name: zhouyi-cpg-ei-active-query-discovery-v1
+          path: artifacts/active-query-discovery.json
+          if-no-files-found: error
+          retention-days: 30
