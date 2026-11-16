@@ -5,6 +5,10 @@ from pathlib import Path
 
 from prototype.e12a6_lifecycle_contract import SplitRole
 from prototype.e12a6_zpcm_persistence import PersistentLifecycleLedger
+from prototype.e09_counterexample_learner import Example
+from prototype.e09_incremental_learner import IncrementalConjunctionLearner
+from prototype.e09_prequential import PrequentialRunner
+from prototype.e09_shared_protocol_adapter import E09SharedProtocolAdapter
 from prototype.e09_e12a6_evidence_bridge import (
     E09EvidenceBindingError, register_e09_reveal, resolve_e09_reveal,
     resolve_branch_merge_authorization,
@@ -199,6 +203,53 @@ class E09EvidenceBridgeTests(unittest.TestCase):
                 signature_verifier=lambda *args: True, verifier_id="test-keyring",
                 now=datetime(2026, 11, 13, tzinfo=timezone.utc),
             )
+
+
+    def test_live_adapter_reveal_registers_redacted_e12a6_receipt(self):
+        domains = ((0, 1), (0, 1), (0, 1, 2))
+        learner = IncrementalConjunctionLearner(domains, min_support=2)
+        runner = PrequentialRunner(learner, revision_mode="INCREMENTAL_INDEX")
+        runner.bootstrap([
+            ("seed-1", Example((0, 0, 0), "yes")),
+            ("seed-2", Example((0, 1, 0), "yes")),
+            ("seed-3", Example((1, 0, 0), "no")),
+            ("seed-4", Example((1, 1, 0), "no")),
+        ])
+        adapter = E09SharedProtocolAdapter(
+            runner, self.e09, episode_id="episode-live-adapter",
+            scope=self.scope, split="SUPPORT",
+        )
+
+        commit = adapter.predict_and_commit("obs-live", (0, 0, 2))
+        secret_label = "LIVE_ADAPTER_PRIVATE_LABEL"
+        reveal_ref = adapter.reveal(commit["prediction_id"], secret_label)
+
+        evidence, receipt = register_e09_reveal(
+            PersistentLifecycleLedger(self.zpcm, scope="project-live"),
+            self.e09,
+            episode_id="episode-live-adapter",
+            evidence_ref=reveal_ref,
+            scope=self.scope,
+            learner_track="e09",
+            world_family=self.world,
+        )
+
+        self.assertEqual(evidence.evidence_id, reveal_ref)
+        self.assertEqual(evidence.split_role, SplitRole.TRAIN)
+        self.assertEqual(receipt.event_id, f"e12a6:evidence:{reveal_ref}")
+        self.assertFalse(receipt.replayed)
+        e09_events = self.e09.replay_episode("episode-live-adapter")
+        self.assertEqual(
+            [event["event_type"] for event in e09_events],
+            ["structure_version", "observation", "prediction_commit", "evidence_reveal"],
+        )
+        self.assertEqual(
+            next(event for event in e09_events if event["event_type"] == "evidence_reveal")
+            ["payload"]["target_or_feedback"],
+            secret_label,
+        )
+        lifecycle_events = self.zpcm.replay_lifecycle_events(scope="project-live")
+        self.assertNotIn(secret_label, str(lifecycle_events))
 
 if __name__ == "__main__":
     unittest.main()
