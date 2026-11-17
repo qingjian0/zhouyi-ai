@@ -71,7 +71,12 @@ def search_policy(actions, scenarios, horizon=3, max_nodes=5000,
                   cost_weight=0.01, risk_weight=0.01, max_total_cost=float("inf"),
                   max_total_risk=float("inf")):
     actions=tuple(actions); scenarios=tuple(scenarios); issues=[]; warnings=[]
-    if horizon<0 or max_nodes<1 or any(not isfinite(x) or x<0 for x in (cost_weight,risk_weight)):
+    if (horizon<0 or max_nodes<1 or
+        any(not isfinite(x) or x<0 for x in (cost_weight,risk_weight)) or
+        not isinstance(max_total_cost, (int, float)) or
+        not isinstance(max_total_risk, (int, float)) or
+        max_total_cost < 0 or max_total_risk < 0 or
+        max_total_cost != max_total_cost or max_total_risk != max_total_risk):
         issues.append("invalid_search_limits")
     if not actions: issues.append("no_actions")
     if not scenarios: issues.append("no_scenarios")
