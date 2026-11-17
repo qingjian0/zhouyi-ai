@@ -1,0 +1,221 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/qingjian0/zhouyi-ai/blob/main/schemas/classical-lexical-occurrence.schema.json",
+  "title": "Classical Chinese lexical occurrence and referent annotation",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "occurrence_id",
+    "work_id",
+    "chapter",
+    "period",
+    "layer",
+    "witness_id",
+    "locator",
+    "surface_form",
+    "context",
+    "sense_hypotheses",
+    "referent_hypotheses",
+    "review_status"
+  ],
+  "properties": {
+    "occurrence_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "work_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "chapter": {
+      "type": "string",
+      "minLength": 1
+    },
+    "period": {
+      "enum": [
+        "pre_qin",
+        "qin_han",
+        "wei_jin_northern_southern",
+        "sui_tang",
+        "song_yuan",
+        "ming",
+        "qing_pre_1912",
+        "modern_post_1912",
+        "uncertain"
+      ]
+    },
+    "layer": {
+      "enum": [
+        "base_text",
+        "commentary",
+        "subcommentary",
+        "quotation",
+        "bibliographic_record",
+        "modern_research",
+        "model_proposal"
+      ]
+    },
+    "witness_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "locator": {
+      "type": "string",
+      "minLength": 1
+    },
+    "surface_form": {
+      "type": "string",
+      "minLength": 1
+    },
+    "normalized_form": {
+      "type": "string"
+    },
+    "variant_forms": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "context": {
+      "type": "string",
+      "minLength": 1
+    },
+    "context_before": {
+      "type": "string"
+    },
+    "context_after": {
+      "type": "string"
+    },
+    "speaker_or_narrator": {
+      "type": "string"
+    },
+    "sense_hypotheses": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "sense_id",
+          "gloss",
+          "status"
+        ],
+        "properties": {
+          "sense_id": {
+            "type": "string"
+          },
+          "gloss": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "candidate",
+              "supported",
+              "disputed",
+              "rejected",
+              "unknown"
+            ]
+          },
+          "basis_refs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "notes": {
+            "type": "string"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "referent_hypotheses": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "referent_id",
+          "referent_type",
+          "status"
+        ],
+        "properties": {
+          "referent_id": {
+            "type": "string"
+          },
+          "referent_type": {
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "candidate",
+              "supported",
+              "disputed",
+              "rejected",
+              "unknown"
+            ]
+          },
+          "identification_basis": {
+            "type": "string"
+          },
+          "evidence_refs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "argument_functions": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "observation",
+          "classification",
+          "analogy",
+          "inference",
+          "metaphor",
+          "symbolism",
+          "correspondence",
+          "causal_claim",
+          "normative_claim",
+          "rhetoric",
+          "quotation"
+        ]
+      },
+      "uniqueItems": true
+    },
+    "witness_lineage": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "uniqueItems": true
+    },
+    "transcription_status": {
+      "enum": [
+        "image_verified",
+        "critical_edition_transcribed",
+        "digital_transcription",
+        "secondary_quotation",
+        "ocr_unreviewed",
+        "unknown"
+      ]
+    },
+    "review_status": {
+      "enum": [
+        "candidate",
+        "reviewing",
+        "reviewed",
+        "disputed",
+        "rejected"
+      ]
+    },
+    "review_notes": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}

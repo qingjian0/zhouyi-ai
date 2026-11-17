@@ -1,0 +1,41 @@
+name: M55 statistical study
+
+on:
+  pull_request:
+    branches:
+      - research/yixiang-pc-skeleton-m54-2026-11-14
+    paths:
+      - "prototype/yixiang_*.py"
+      - "tests/test_yixiang_*.py"
+      - ".github/workflows/m55-statistical-study.yml"
+  workflow_dispatch:
+
+jobs:
+  statistical-study:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run M55 unit and smoke tests
+        run: |
+          python -m unittest tests.test_yixiang_stats_m55 tests.test_yixiang_experiments_m55 tests.test_yixiang_m55_study -v
+      - name: Run pre-registered 50-seed M55 study
+        run: |
+          mkdir -p artifacts/m55
+          /usr/bin/time -v -o artifacts/m55/resource_usage.txt \
+            python -m prototype.yixiang_m55_study \
+              --seeds 50 --start-seed 1000 \
+              --sample-sizes 120 240 480 \
+              --bootstrap-repetitions 5000 \
+              --output-dir artifacts/m55 > artifacts/m55/study_stdout.json
+      - name: Upload raw results and statistical report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m55-statistical-study-${{ github.sha }}
+          path: artifacts/m55/
+          if-no-files-found: warn
+          retention-days: 90

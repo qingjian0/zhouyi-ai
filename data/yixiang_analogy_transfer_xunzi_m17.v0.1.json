@@ -1,0 +1,31 @@
+{
+  "schema_version": "0.1",
+  "casebook_id": "xunzi-m17-inference-boundaries",
+  "primary_text": "《荀子·正名》《荀子·非相》",
+  "policy": "战国传世文本数字见证；正名篇提供推类规范表述，非相篇提供反对以外貌直接推断德性的案例。版本和注疏层仍须分离。",
+  "cases": [
+    {
+      "case_id": "classify-without-overextension",
+      "passage": "正名而期，質請而喻，辨異而不過，推類而不悖。",
+      "source_ref": "xunzi-zhengming",
+      "audit_focus": [
+        "classification_boundary",
+        "inference_scope",
+        "non_overextension"
+      ],
+      "note": "推类受辨异与不悖约束；需将‘不过’和‘不悖’转为可审查条件，而非当成无条件推广许可。"
+    },
+    {
+      "case_id": "appearance-not-virtue",
+      "passage": "故相形不如論心，論心不如擇術。形不勝心，心不勝術。術正而心順之，則形相雖惡而心術善，無害為君子也；形相雖善而心術惡，無害為小人也。故長短、小大、善惡、形相，非吉凶也。",
+      "source_ref": "xunzi-feixiang",
+      "audit_focus": [
+        "surface_appearance",
+        "inner_disposition",
+        "practice_or_method",
+        "counterexample"
+      ],
+      "note": "外貌相似或特征不能直接迁移为德性与吉凶判断；须区分外形、内心与所择之术。"
+    }
+  ]
+}
