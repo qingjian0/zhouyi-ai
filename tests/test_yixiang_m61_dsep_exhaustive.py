@@ -137,7 +137,7 @@ class M61IndependentDSeparationTests(unittest.TestCase):
             # found immediately; the test checks the 18/19 cutoff, not the
             # worst-case 2^18 search runtime.
             return {
-                "dag": {"nodes": nodes, "edges": edges},
+                "dag": {"nodes": nodes, "edges": []},
                 "observed_variables": nodes,
                 "query": {"exposure": "X", "outcome": "Y"},
             }
