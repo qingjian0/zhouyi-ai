@@ -55,7 +55,21 @@ class M40Tests(unittest.TestCase):
     def test_cost_budget_blocks_expensive(self):
         a,s=fixture(); expensive=(Action("exp",10,0,20,True,True,"d","m"),)
         r=search_policy(expensive,s,max_total_cost=1)
+        self.assertIsNotNone(r.root)
         self.assertIsNone(r.root.action_id)
+        self.assertEqual(r.disposition, "stop_policy")
+
+    def test_negative_total_cost_budget_is_blocked(self):
+        a,s=fixture()
+        self.assertIn("invalid_search_limits", search_policy(a,s,max_total_cost=-1).issues)
+
+    def test_nan_total_risk_budget_is_blocked(self):
+        a,s=fixture()
+        self.assertIn("invalid_search_limits", search_policy(a,s,max_total_risk=float("nan")).issues)
+
+    def test_infinite_default_budgets_are_allowed(self):
+        a,s=fixture()
+        self.assertNotEqual(search_policy(a,s).disposition, "blocked")
     def test_terminal_values_bounded(self):
         a,s=fixture(); r=search_policy(a,s)
         self.assertTrue(all(0<=v<=1 for _,v in r.scenario_values))
