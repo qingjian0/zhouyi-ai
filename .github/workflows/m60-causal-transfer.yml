@@ -3,7 +3,14 @@ name: M60 causal intervention controls
 on:
   pull_request:
     branches:
-      - research/yixiang-m59-classical-evidence-2026-11-14
+      - main
+    paths:
+      - "prototype/yixiang_m60_causal_transfer.py"
+      - "tests/test_yixiang_m60_causal_transfer.py"
+      - ".github/workflows/m60-causal-transfer.yml"
+  push:
+    branches:
+      - main
     paths:
       - "prototype/yixiang_m60_causal_transfer.py"
       - "tests/test_yixiang_m60_causal_transfer.py"
