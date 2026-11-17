@@ -2,7 +2,7 @@ name: tests
 
 on:
   push:
-    branches: [main]
+    branches: [main, research/yixiang-m60-causal-transfer-2026-11-14]
   pull_request:
     branches: [main, research/yixiang-first-priority, 'research/yixiang-*']
 
