@@ -2,7 +2,15 @@ name: M66 multiple-IV bounded sensitivity
 on:
   pull_request:
     branches:
-      - research/yixiang-m65-invalid-iv-sensitivity-2026-11-14
+      - main
+    paths:
+      - "prototype/yixiang_m66_multiple_iv_bounds.py"
+      - "tests/test_yixiang_m66_multiple_iv_bounds.py"
+      - "docs/YIXIANG_M66_MULTIPLE_IV_BOUNDS_V0_1.md"
+      - ".github/workflows/m66-multiple-iv-bounds.yml"
+  push:
+    branches:
+      - main
     paths:
       - "prototype/yixiang_m66_multiple_iv_bounds.py"
       - "tests/test_yixiang_m66_multiple_iv_bounds.py"
