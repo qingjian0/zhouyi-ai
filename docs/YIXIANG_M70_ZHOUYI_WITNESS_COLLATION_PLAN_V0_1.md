@@ -1,6 +1,6 @@
 # M70 — 《周易注》类象关键段落的版本校勘研究设计 v0.1
 
-Status: literature-led witness map and collation protocol. No manuscript reading, variant collation, transcription adjudication, or Gold admission is claimed.
+Status: literature-led witness map and collation protocol. No full manuscript reading or complete transcription review is claimed; only a two-page visual spot-check of DJVU pages 9–10 was performed. No variant has been adjudicated and no Gold record has been admitted.
 
 ## 1. Research question
 
