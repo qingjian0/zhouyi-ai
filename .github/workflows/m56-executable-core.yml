@@ -3,7 +3,15 @@ name: M56 executable core
 on:
   pull_request:
     branches:
-      - research/yixiang-m56-classification-protocol-2026-11-14
+      - main
+    paths:
+      - "prototype/yixiang_m56_executable_core.py"
+      - "prototype/run_yixiang_m56_study.py"
+      - "tests/test_yixiang_m56_executable_core.py"
+      - ".github/workflows/m56-executable-core.yml"
+  push:
+    branches:
+      - main
     paths:
       - "prototype/yixiang_m56_executable_core.py"
       - "prototype/run_yixiang_m56_study.py"
