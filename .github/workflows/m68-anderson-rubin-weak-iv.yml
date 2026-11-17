@@ -1,0 +1,22 @@
+name: M68 Anderson-Rubin weak IV
+on:
+  pull_request:
+    branches:
+      - research/yixiang-m67-scan-source-audit-2026-11-14
+    paths:
+      - "prototype/yixiang_m68_anderson_rubin_weak_iv.py"
+      - "tests/test_yixiang_m68_anderson_rubin_weak_iv.py"
+      - "docs/YIXIANG_M68_ANDERSON_RUBIN_WEAK_IV_V0_1.md"
+      - ".github/workflows/m68-anderson-rubin-weak-iv.yml"
+  workflow_dispatch:
+jobs:
+  m68-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run M64–M68 causal inference tests
+        run: python -m unittest tests.test_yixiang_m64_instrumental_variable tests.test_yixiang_m65_invalid_iv_sensitivity tests.test_yixiang_m66_multiple_iv_bounds tests.test_yixiang_m68_anderson_rubin_weak_iv -v

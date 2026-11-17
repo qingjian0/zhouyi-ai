@@ -1,0 +1,22 @@
+name: M66 multiple-IV bounded sensitivity
+on:
+  pull_request:
+    branches:
+      - research/yixiang-m65-invalid-iv-sensitivity-2026-11-14
+    paths:
+      - "prototype/yixiang_m66_multiple_iv_bounds.py"
+      - "tests/test_yixiang_m66_multiple_iv_bounds.py"
+      - "docs/YIXIANG_M66_MULTIPLE_IV_BOUNDS_V0_1.md"
+      - ".github/workflows/m66-multiple-iv-bounds.yml"
+  workflow_dispatch:
+jobs:
+  m66-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run M64–M66 IV tests
+        run: python -m unittest tests.test_yixiang_m64_instrumental_variable tests.test_yixiang_m65_invalid_iv_sensitivity tests.test_yixiang_m66_multiple_iv_bounds -v
