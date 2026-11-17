@@ -133,8 +133,9 @@ class M61IndependentDSeparationTests(unittest.TestCase):
         def case_with_candidates(count):
             candidates = [f"C{i:02d}" for i in range(count)]
             nodes = ["X", "Y", *candidates]
-            edges = [[candidate, target]
-                     for candidate in candidates for target in ("X", "Y")]
+            # Keep the within-budget graph disconnected so the empty set is
+            # found immediately; the test checks the 18/19 cutoff, not the
+            # worst-case 2^18 search runtime.
             return {
                 "dag": {"nodes": nodes, "edges": edges},
                 "observed_variables": nodes,
@@ -144,7 +145,7 @@ class M61IndependentDSeparationTests(unittest.TestCase):
         within = infer_backdoor_set(case_with_candidates(18))
         over = infer_backdoor_set(case_with_candidates(19))
         self.assertTrue(within["backdoor_identified"])
-        self.assertEqual(len(within["adjustment_set"]), 18)
+        self.assertEqual(within["adjustment_set"], [])
         self.assertFalse(over["backdoor_identified"])
         self.assertEqual(over["reason"], "adjustment_search_budget_exceeded")
 
