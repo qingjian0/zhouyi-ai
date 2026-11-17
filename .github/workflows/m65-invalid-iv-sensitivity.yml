@@ -2,7 +2,16 @@ name: M65 invalid-IV sensitivity
 on:
   pull_request:
     branches:
-      - research/yixiang-m64-instrumental-variable-2026-11-14
+      - main
+    paths:
+      - "prototype/yixiang_m64_instrumental_variable.py"
+      - "prototype/yixiang_m65_invalid_iv_sensitivity.py"
+      - "tests/test_yixiang_m65_invalid_iv_sensitivity.py"
+      - "docs/YIXIANG_M65_INVALID_IV_SENSITIVITY_V0_1.md"
+      - ".github/workflows/m65-invalid-iv-sensitivity.yml"
+  push:
+    branches:
+      - main
     paths:
       - "prototype/yixiang_m64_instrumental_variable.py"
       - "prototype/yixiang_m65_invalid_iv_sensitivity.py"
