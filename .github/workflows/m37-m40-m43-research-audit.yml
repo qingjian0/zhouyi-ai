@@ -1,0 +1,40 @@
+name: M37 M40 M43 focused research audits
+
+on:
+  push:
+    branches:
+      - research/yixiang-m60-causal-transfer-2026-11-14
+    paths:
+      - "docs/YIXIANG_M37_MULTIAXIS_TRANSFER_AUDIT_V0_1.md"
+      - "prototype/yixiang_multiaxis_transfer_m37.py"
+      - "tests/test_yixiang_multiaxis_transfer_m37.py"
+      - "prototype/yixiang_adaptive_policy_search_m40.py"
+      - "tests/test_yixiang_adaptive_policy_search_m40.py"
+      - "prototype/yixiang_policy_transport_m43.py"
+      - "tests/test_yixiang_policy_transport_m43.py"
+      - ".github/workflows/m37-m40-m43-research-audit.yml"
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "docs/YIXIANG_M37_MULTIAXIS_TRANSFER_AUDIT_V0_1.md"
+      - "prototype/yixiang_multiaxis_transfer_m37.py"
+      - "tests/test_yixiang_multiaxis_transfer_m37.py"
+      - "prototype/yixiang_adaptive_policy_search_m40.py"
+      - "tests/test_yixiang_adaptive_policy_search_m40.py"
+      - "prototype/yixiang_policy_transport_m43.py"
+      - "tests/test_yixiang_policy_transport_m43.py"
+      - ".github/workflows/m37-m40-m43-research-audit.yml"
+  workflow_dispatch:
+
+jobs:
+  focused-research-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run M37, M40, and M43 focused tests
+        run: python -m unittest tests.test_yixiang_multiaxis_transfer_m37 tests.test_yixiang_adaptive_policy_search_m40 tests.test_yixiang_policy_transport_m43 -v
