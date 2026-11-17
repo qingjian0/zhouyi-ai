@@ -3,7 +3,14 @@ name: M57 non-path relational benchmark
 on:
   pull_request:
     branches:
-      - research/yixiang-m56-executable-core-2026-11-14
+      - main
+    paths:
+      - "prototype/yixiang_m57_nonpath_benchmark.py"
+      - "tests/test_yixiang_m57_nonpath_benchmark.py"
+      - ".github/workflows/m57-nonpath-benchmark.yml"
+  push:
+    branches:
+      - main
     paths:
       - "prototype/yixiang_m57_nonpath_benchmark.py"
       - "tests/test_yixiang_m57_nonpath_benchmark.py"
