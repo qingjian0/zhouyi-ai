@@ -3,7 +3,14 @@ name: M55.1 repaired statistical study
 on:
   pull_request:
     branches:
-      - research/yixiang-m55-audit-2026-11-14
+      - main
+    paths:
+      - "prototype/yixiang_m55_1_repaired_study.py"
+      - "tests/test_yixiang_m55_1_repaired_study.py"
+      - ".github/workflows/m55-1-repaired-study.yml"
+  push:
+    branches:
+      - main
     paths:
       - "prototype/yixiang_m55_1_repaired_study.py"
       - "tests/test_yixiang_m55_1_repaired_study.py"
