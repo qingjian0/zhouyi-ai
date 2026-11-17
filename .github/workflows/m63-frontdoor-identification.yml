@@ -2,7 +2,15 @@ name: M63 front-door identification
 on:
   pull_request:
     branches:
-      - research/yixiang-m62-gold-admission-rerun-2026-11-14
+      - main
+    paths:
+      - "prototype/yixiang_m60_causal_transfer.py"
+      - "tests/test_yixiang_m60_causal_transfer.py"
+      - "docs/YIXIANG_M63_FRONTDOOR_IDENTIFICATION_V0_1.md"
+      - ".github/workflows/m63-frontdoor-identification.yml"
+  push:
+    branches:
+      - main
     paths:
       - "prototype/yixiang_m60_causal_transfer.py"
       - "tests/test_yixiang_m60_causal_transfer.py"
