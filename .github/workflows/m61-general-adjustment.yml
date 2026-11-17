@@ -7,6 +7,7 @@ on:
     paths:
       - "prototype/yixiang_m60_causal_transfer.py"
       - "tests/test_yixiang_m60_causal_transfer.py"
+      - "tests/test_yixiang_m61_dsep_exhaustive.py"
       - ".github/workflows/m61-general-adjustment.yml"
   workflow_dispatch:
 
@@ -20,4 +21,4 @@ jobs:
         with:
           python-version: "3.11"
       - name: Run M60/M61 causal tests
-        run: python -m unittest tests.test_yixiang_m60_causal_transfer -v
+        run: python -m unittest tests.test_yixiang_m60_causal_transfer tests.test_yixiang_m61_dsep_exhaustive -v
