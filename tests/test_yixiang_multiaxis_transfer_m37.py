@@ -25,7 +25,8 @@ def fixtures():
     )
     constraint = CrossAxisConstraint(
         "c1", ("m-rel", "m-time"), "cross-axis-rule",
-        ("e-rel-s", "e-time-s"), ConstraintOutcome.SATISFIED, "joint scope", (), ("reviewer",), "checked"
+        ("e-rel-s", "e-rel-t", "e-time-s", "e-time-t"),
+        ConstraintOutcome.SATISFIED, "joint scope", (), ("reviewer",), "checked"
     )
     candidate = TransferCandidate("cand1", "src", "tgt", (Axis.RELATION, Axis.TIME),
                                   mappings, (constraint,), "bounded scope", ("not causal proof",))
