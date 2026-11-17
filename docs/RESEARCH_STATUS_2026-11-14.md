@@ -1,6 +1,6 @@
 # Zhouyi-AI research status — 2026-11-14
 
-This status applies to the stacked research branches and open Draft pull requests. None of M57–M68 has been merged to stable main.
+This status applies to the stacked research branches and related pull requests. Some milestones have been merged into their parent research branches; none of M57–M70 has been merged to stable main.
 
 | Milestone | Scope | Focused validation | Repository-wide validation | PR |
 |---|---|---:|---|---|
