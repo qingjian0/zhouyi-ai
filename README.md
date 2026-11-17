@@ -7,15 +7,15 @@
 
 ## 项目状态
 
-> **当前状态分层：稳定 main 尚未合入本轮研究 PR；以下 M57–M62 是连续 Draft 研究分支，不代表已发布版本。**
+> **当前状态分层：稳定 main 尚未合入本轮研究 PR；以下 M57–M70 是连续 Draft 研究分支，不代表已发布版本。**
 
 - 稳定分支：当前 README 的历史状态记录仍以 M1–M22 为主；本轮研究变更没有合并到 main。
-- 当前研究栈：M57 非路径高阶关系基准、M58 自主实体/角色映射、M59 古籍证据溯源、M60 因果干预基准、M61 DAG 后门准则识别、M62 古籍 Gold 准入与扫描核验门禁。
-- 已通过全仓 CI：M57、M58、M59、M60、M61；M62 合并栈的全仓 CI #43590149812 已全部通过。
-- M57–M62 对应 PR 均保持 Draft，按依赖关系分层提交；没有任何一个已合并到稳定 main。
-- M59/M62 当前尚未建立真实、已扫描核验并双人审定的古籍 Gold 记录。现有《周易》四部丛刊宋本数字转录仍为来源发现候选，OCR 未经扫描逐字校验，不计入 Gold。
-- M60/M61 是有限范围的合成因果诊断；M61 只实现已知 DAG 下的充分后门准则，不等于完整因果识别。
-- 尚未完成：真实古籍扫描校勘与双人标注、文本自主取象与实体发现、前门/工具变量等更广泛因果识别、有限样本因果估计、Transformer/LLM 公平对照、端到端类象认知能力验证。
+- 当前研究栈：M57 非路径高阶关系基准、M58 自主实体/角色映射、M59 古籍证据溯源、M60 因果干预基准、M61 DAG 后门准则识别、M62 Gold 准入门禁、M63 前门识别、M64 图筛选工具变量、M65 排除限制敏感性、M66 多工具变量敏感性、M67《周易》影印扫描来源审计、M68 Anderson–Rubin 弱工具变量稳健推断、M69 异方差稳健 AR 检验、M70 古籍版本校勘方案。
+- 已通过全仓 CI：M57–M66 的相应全仓验证均已通过；M65 全仓运行 #43594100995、M66 全仓运行 #43594859442 均已完成成功。M67 为文献来源审计文档，不声称模型验证。
+- M57–M70 对应研究 PR 均保持 Draft，按依赖关系分层提交；没有任何一个已合并到稳定 main。
+- M59/M62/M67/M70 当前尚未建立真实、已扫描逐字核验并双人审定的古籍 Gold 记录。《周易》四部丛刊影印本的 146 页 DJVU 与第 9、10 页图像已定位并做初步目视抽查；尚未完成逐字校勘和独立裁决，不计入 Gold。
+- M60–M69 是有限范围的因果诊断：M61 后门、M63 单中介前门、M64 单工具变量、M65/M66 IV 敏感性、M68 经典 AR、M69 HC0 异方差稳健 AR；均不等于完整因果识别，且 M69 仅为渐近推断。
+- 尚未完成：古籍逐页影像校勘与双人标注、文本自主取象与实体发现、一般因果识别、弱工具变量稳健置信集、有限样本因果估计、Transformer/LLM 公平对照、端到端类象认知能力验证。
 
 **本轮研究 PR：**
 - [M57 非路径高阶关系基准](https://github.com/qingjian0/zhouyi-ai/pull/488)
@@ -24,6 +24,14 @@
 - [M60 因果干预与迁移](https://github.com/qingjian0/zhouyi-ai/pull/491)
 - [M61 后门调整与 d-separation](https://github.com/qingjian0/zhouyi-ai/pull/492)
 - [M62 Gold 准入与扫描核验](https://github.com/qingjian0/zhouyi-ai/pull/494)
+- [M63 单中介前门识别](https://github.com/qingjian0/zhouyi-ai/pull/495)
+- [M64 图筛选工具变量识别](https://github.com/qingjian0/zhouyi-ai/pull/496)
+- [M65 排除限制敏感性分析](https://github.com/qingjian0/zhouyi-ai/pull/497)
+- [M66 多工具变量有界敏感性](https://github.com/qingjian0/zhouyi-ai/pull/498)
+- [M67《周易》影印扫描来源审计](https://github.com/qingjian0/zhouyi-ai/pull/499)
+- [M68 弱工具变量稳健推断](https://github.com/qingjian0/zhouyi-ai/pull/500)
+- [M69 异方差稳健 AR 检验](https://github.com/qingjian0/zhouyi-ai/pull/501)
+- [M70《周易注》版本校勘研究方案](https://github.com/qingjian0/zhouyi-ai/pull/502)
 
 - 理论版本：CPG-EI v0.3（研究草案，持续修订）。
 - 验证原则：所有架构主张均须通过可复现实验、消融、公平对照和独立数据验证；合成数据通过不等于真实类象能力已被证明。
@@ -51,6 +59,12 @@
 - [M57–M62 研究状态与剩余门禁](docs/RESEARCH_STATUS_2026-11-14.md)
 - [M61 后门准则与 d-separation 规范](docs/YIXIANG_M61_GENERAL_ADJUSTMENT_V0_1.md)
 - [M62 Gold 准入与扫描核验门禁](docs/YIXIANG_M62_GOLD_ADMISSION_GATES_V0_1.md)
+- [M65 排除限制敏感性分析](docs/YIXIANG_M65_INVALID_IV_SENSITIVITY_V0_1.md)
+- [M66 多工具变量有界敏感性分析](docs/YIXIANG_M66_MULTIPLE_IV_BOUNDS_V0_1.md)
+- [M67《周易》扫描来源审计](docs/YIXIANG_M67_SCAN_BACKED_SOURCE_AUDIT_V0_1.md)
+- [M68 Anderson–Rubin 弱工具变量稳健推断](docs/YIXIANG_M68_ANDERSON_RUBIN_WEAK_IV_V0_1.md)
+- [M69 HC0 异方差稳健 AR 检验](docs/YIXIANG_M69_HETEROSKEDASTIC_AR_V0_1.md)
+- [M70《周易注》版本校勘方案](docs/YIXIANG_M70_ZHOUYI_WITNESS_COLLATION_PLAN_V0_1.md)
 - [传统类象概念图：系辞、说卦与咸卦分层](docs/YIXIANG_CLASSICAL_CONCEPT_MAP_V0_1.md)
 
 - [研究总纲与问题定义](docs/RESEARCH_CHARTER.md)
@@ -373,3 +387,18 @@ M49 v0.1 新增运行清单摘要、代码/依赖/数据/协议/配置/种子/�
 | M49 | #474 | `788bfc81d3565702780e284df6c51b21e9c9bcb3` | `43575374017` passed |
 
 这些结果验证了各 PR 对应提交上的仓库测试，不等于真实模型 benchmark、外部复现或因果理论已获证明。
+
+
+### M63 当前实现边界
+
+M63 v0.1 在 M61 后门准则之外增加单个可观测二元中介的前门准则核验与精确分布前门公式。只支持完整给定 DAG；检查所有有向因果路径均经过中介、X 与 M 无开放后门路径、给定 X 后 M 与 Y 的后门路径被阻断。新增有效前门、直接效应绕行、潜在 M–Y 混杂三个受控 SCM 情形，并分别报告后门准则准确率、组合识别策略准确率及其效应 MAE。它不是完整 do-calculus、IV、proximal identification 或有限样本估计；精确头验证待 CI 完成。
+
+
+### M64 当前实现边界
+
+M64 在 M61/M63 的图结构识别之外增加图筛选 IV 候选和二元工具变量/处理变量的精确总体 Wald 比率。检查 Z→X 相关路径、Z→Y 所有有向路径必须经过 X、删除 Z 出边后 Z 与 Y d-分离，以及观测总体一阶段协方差。只有显式声明单调性时才将 Wald 比率标记为 complier LATE；不将其误称为总体 ATE。当前不含有限样本 2SLS、弱工具变量稳健区间、无效 IV 敏感性或部分识别边界。
+
+
+### M65 当前实现边界
+
+M65 为 IV 排除限制加入显式敏感性参数 δ。在线性协方差矩模型 Cov(Z,Y)=βCov(Z,X)+γVar(Z)、|γ|≤δ 下，输出 β 的区间；仍要求图结构支持工具变量外生性且一阶段非零。δ=0 时退化为 Wald 点估计，δ 增大时区间扩张。该区间是线性结构系数的敏感性集合，不自动等于二元结局 ATE 或 LATE；不覆盖外生性违反、有限样本置信区间或一般无效 IV。

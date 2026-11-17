@@ -1,0 +1,22 @@
+name: M69 heteroskedasticity robust AR
+on:
+  pull_request:
+    branches:
+      - research/yixiang-m68-anderson-rubin-weak-iv-2026-11-14
+    paths:
+      - "prototype/yixiang_m69_heteroskedastic_ar.py"
+      - "tests/test_yixiang_m69_heteroskedastic_ar.py"
+      - "docs/YIXIANG_M69_HETEROSKEDASTIC_AR_V0_1.md"
+      - ".github/workflows/m69-heteroskedastic-ar.yml"
+  workflow_dispatch:
+jobs:
+  m69-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run M64–M69 causal inference tests
+        run: python -m unittest tests.test_yixiang_m64_instrumental_variable tests.test_yixiang_m65_invalid_iv_sensitivity tests.test_yixiang_m66_multiple_iv_bounds tests.test_yixiang_m68_anderson_rubin_weak_iv tests.test_yixiang_m69_heteroskedastic_ar -v
