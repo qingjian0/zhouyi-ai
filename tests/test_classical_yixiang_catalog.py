@@ -51,6 +51,13 @@ class ClassicalYixiangCatalogTests(unittest.TestCase):
             if work["edition"] is None:
                 self.assertEqual(work["ingestion_status"], "candidate_not_ingested")
 
+    def test_readme_reports_catalog_count(self):
+        catalog = json.loads(
+            (ROOT / "data" / "classical_yixiang_source_catalog.json").read_text(encoding="utf-8")
+        )
+        readme = (ROOT / "data" / "README.md").read_text(encoding="utf-8")
+        self.assertIn(f"共 {len(catalog['works'])} 个候选作品条目", readme)
+
 
 if __name__ == "__main__":
     unittest.main()
