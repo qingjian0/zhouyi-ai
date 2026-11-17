@@ -2,7 +2,15 @@ name: M69 heteroskedasticity robust AR
 on:
   pull_request:
     branches:
-      - research/yixiang-m68-anderson-rubin-weak-iv-2026-11-14
+      - main
+    paths:
+      - "prototype/yixiang_m69_heteroskedastic_ar.py"
+      - "tests/test_yixiang_m69_heteroskedastic_ar.py"
+      - "docs/YIXIANG_M69_HETEROSKEDASTIC_AR_V0_1.md"
+      - ".github/workflows/m69-heteroskedastic-ar.yml"
+  push:
+    branches:
+      - main
     paths:
       - "prototype/yixiang_m69_heteroskedastic_ar.py"
       - "tests/test_yixiang_m69_heteroskedastic_ar.py"
