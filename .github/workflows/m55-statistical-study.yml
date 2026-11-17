@@ -3,7 +3,14 @@ name: M55 statistical study
 on:
   pull_request:
     branches:
-      - research/yixiang-pc-skeleton-m54-2026-11-14
+      - main
+    paths:
+      - "prototype/yixiang_*.py"
+      - "tests/test_yixiang_*.py"
+      - ".github/workflows/m55-statistical-study.yml"
+  push:
+    branches:
+      - main
     paths:
       - "prototype/yixiang_*.py"
       - "tests/test_yixiang_*.py"
