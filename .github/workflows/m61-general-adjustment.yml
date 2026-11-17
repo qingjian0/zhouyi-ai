@@ -3,7 +3,15 @@ name: M61 general backdoor adjustment
 on:
   pull_request:
     branches:
-      - research/yixiang-m60-causal-transfer-2026-11-14
+      - main
+    paths:
+      - "prototype/yixiang_m60_causal_transfer.py"
+      - "tests/test_yixiang_m60_causal_transfer.py"
+      - "tests/test_yixiang_m61_dsep_exhaustive.py"
+      - ".github/workflows/m61-general-adjustment.yml"
+  push:
+    branches:
+      - main
     paths:
       - "prototype/yixiang_m60_causal_transfer.py"
       - "tests/test_yixiang_m60_causal_transfer.py"
