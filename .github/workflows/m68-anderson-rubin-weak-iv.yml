@@ -2,7 +2,15 @@ name: M68 Anderson-Rubin weak IV
 on:
   pull_request:
     branches:
-      - research/yixiang-m67-scan-source-audit-2026-11-14
+      - main
+    paths:
+      - "prototype/yixiang_m68_anderson_rubin_weak_iv.py"
+      - "tests/test_yixiang_m68_anderson_rubin_weak_iv.py"
+      - "docs/YIXIANG_M68_ANDERSON_RUBIN_WEAK_IV_V0_1.md"
+      - ".github/workflows/m68-anderson-rubin-weak-iv.yml"
+  push:
+    branches:
+      - main
     paths:
       - "prototype/yixiang_m68_anderson_rubin_weak_iv.py"
       - "tests/test_yixiang_m68_anderson_rubin_weak_iv.py"
