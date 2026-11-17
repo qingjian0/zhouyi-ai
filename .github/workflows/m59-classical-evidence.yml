@@ -3,7 +3,14 @@ name: M59 classical evidence provenance
 on:
   pull_request:
     branches:
-      - research/yixiang-m58-autonomous-mapping-2026-11-14
+      - main
+    paths:
+      - "prototype/yixiang_m59_classical_evidence.py"
+      - "tests/test_yixiang_m59_classical_evidence.py"
+      - ".github/workflows/m59-classical-evidence.yml"
+  push:
+    branches:
+      - main
     paths:
       - "prototype/yixiang_m59_classical_evidence.py"
       - "tests/test_yixiang_m59_classical_evidence.py"
