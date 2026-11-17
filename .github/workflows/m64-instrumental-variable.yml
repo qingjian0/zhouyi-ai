@@ -2,7 +2,15 @@ name: M64 instrumental variable diagnostics
 on:
   pull_request:
     branches:
-      - research/yixiang-m63-frontdoor-identification-2026-11-14
+      - main
+    paths:
+      - "prototype/yixiang_m64_instrumental_variable.py"
+      - "tests/test_yixiang_m64_instrumental_variable.py"
+      - "docs/YIXIANG_M64_INSTRUMENTAL_VARIABLE_V0_1.md"
+      - ".github/workflows/m64-instrumental-variable.yml"
+  push:
+    branches:
+      - main
     paths:
       - "prototype/yixiang_m64_instrumental_variable.py"
       - "tests/test_yixiang_m64_instrumental_variable.py"
