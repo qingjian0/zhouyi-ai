@@ -116,51 +116,170 @@ def backdoor_adjusted_effect(case: Mapping[str, Any],
     return effect
 
 
-def infer_backdoor_set(case: Mapping[str, Any]) -> Dict[str, Any]:
-    """Supported exact subset: adjust for observed direct parents of exposure.
+def _graph_parts(case: Mapping[str, Any]):
+    nodes = list(case["dag"]["nodes"])
+    edges = [(source, target) for source, target in case["dag"]["edges"]]
+    if len(set(nodes)) != len(nodes) or any(
+        source not in nodes or target not in nodes for source, target in edges
+    ):
+        raise ValueError("invalid_dag_nodes_or_edges")
+    if len(set(edges)) != len(edges):
+        raise ValueError("duplicate_dag_edge")
+    parents = {node: set() for node in nodes}
+    children = {node: set() for node in nodes}
+    for source, target in edges:
+        parents[target].add(source)
+        children[source].add(target)
+    indegree = {node: len(parents[node]) for node in nodes}
+    ready = [node for node in nodes if indegree[node] == 0]
+    visited = 0
+    while ready:
+        current = ready.pop()
+        visited += 1
+        for child in children[current]:
+            indegree[child] -= 1
+            if indegree[child] == 0:
+                ready.append(child)
+    if visited != len(nodes):
+        raise ValueError("dag_contains_cycle")
+    return nodes, edges, parents, children
 
-    If a direct parent is latent, the effect is not identified by this
-    backdoor route. This deliberately does not claim a complete general
-    do-calculus or generalized adjustment implementation.
-    """
+
+def _descendants(node: str, children: Mapping[str, set[str]]) -> set[str]:
+    found: set[str] = set()
+    pending = list(children[node])
+    while pending:
+        current = pending.pop()
+        if current not in found:
+            found.add(current)
+            pending.extend(children[current])
+    return found
+
+
+def _d_separated(nodes: Sequence[str], edges: Sequence[Tuple[str, str]],
+                 left: str, right: str, conditioned: Sequence[str]) -> bool:
+    """Pearl d-separation via ancestral moralization."""
+    conditioned_set = set(conditioned)
+    if left in conditioned_set or right in conditioned_set:
+        return False
+    parents = {node: set() for node in nodes}
+    children = {node: set() for node in nodes}
+    for source, target in edges:
+        parents[target].add(source)
+        children[source].add(target)
+    relevant = {left, right} | conditioned_set
+    ancestors = set(relevant)
+    pending = list(relevant)
+    while pending:
+        current = pending.pop()
+        for parent in parents[current]:
+            if parent not in ancestors:
+                ancestors.add(parent)
+                pending.append(parent)
+    moral = {node: set() for node in ancestors}
+    for child in ancestors:
+        ancestral_parents = parents[child] & ancestors
+        for parent in ancestral_parents:
+            moral[parent].add(child)
+            moral[child].add(parent)
+        for first in ancestral_parents:
+            for second in ancestral_parents:
+                if first != second:
+                    moral[first].add(second)
+    for node in conditioned_set:
+        moral.pop(node, None)
+    for neighbors in moral.values():
+        neighbors.difference_update(conditioned_set)
+    if left not in moral or right not in moral:
+        return True
+    visited = {left}
+    pending = [left]
+    while pending:
+        current = pending.pop()
+        if current == right:
+            return False
+        for neighbor in moral[current] - visited:
+            visited.add(neighbor)
+            pending.append(neighbor)
+    return True
+
+
+def _valid_backdoor_adjustment(case: Mapping[str, Any],
+                               adjustment: Sequence[str]) -> bool:
+    nodes, edges, parents, children = _graph_parts(case)
     exposure = case["query"]["exposure"]
+    outcome = case["query"]["outcome"]
     observed = set(case["observed_variables"])
-    parents = [
-        source for source, target in case["dag"]["edges"]
-        if target == exposure
-    ]
-    latent_parents = [parent for parent in parents if parent not in observed]
-    if latent_parents:
-        return {"identified": False, "reason": "latent_backdoor_parent",
-                "latent_parents": latent_parents, "adjustment_set": []}
-    return {"identified": True, "reason": "observed_parent_adjustment",
-            "latent_parents": [], "adjustment_set": parents}
+    adjustment_set = set(adjustment)
+    if (len(adjustment_set) != len(adjustment)
+            or not adjustment_set <= observed
+            or exposure in adjustment_set or outcome in adjustment_set):
+        return False
+    # The adjustment set must not contain descendants of the treatment.
+    if adjustment_set & _descendants(exposure, children):
+        return False
+    # Back-door graph G_{̅X}: remove all outgoing edges from treatment.
+    backdoor_edges = [(source, target) for source, target in edges
+                      if source != exposure]
+    return _d_separated(nodes, backdoor_edges, exposure, outcome, adjustment)
+
+
+def infer_backdoor_set(case: Mapping[str, Any]) -> Dict[str, Any]:
+    """Find a minimum observed valid adjustment set using DAG d-separation.
+
+    This implements the sufficient back-door criterion for a fully specified
+    DAG, not general do-calculus or all possible identification strategies.
+    Hidden nodes remain in the graph but cannot be selected for adjustment.
+    """
+    from itertools import combinations
+
+    exposure = case["query"]["exposure"]
+    outcome = case["query"]["outcome"]
+    nodes, edges, parents, children = _graph_parts(case)
+    observed = list(case["observed_variables"])
+    if (len(set(observed)) != len(observed) or not set(observed) <= set(nodes)
+            or exposure not in observed or outcome not in observed
+            or exposure not in nodes):
+        raise ValueError("query_variables_missing_from_dag")
+    candidates = [node for node in observed
+                  if node not in (exposure, outcome)
+                  and node not in _descendants(exposure, children)]
+    if len(candidates) > 18:
+        return {"backdoor_identified": False, "reason": "adjustment_search_budget_exceeded",
+                "latent_parents": [], "adjustment_set": []}
+    for size in range(len(candidates) + 1):
+        for adjustment in combinations(candidates, size):
+            if _valid_backdoor_adjustment(case, adjustment):
+                return {"backdoor_identified": True, "reason": "valid_backdoor_adjustment",
+                        "latent_parents": [], "adjustment_set": list(adjustment)}
+    return {"backdoor_identified": False, "reason": "no_observed_backdoor_adjustment_set",
+            "latent_parents": [], "adjustment_set": []}
 
 
 def predict(case: Mapping[str, Any], method: str = "graph_backdoor") -> Dict[str, Any]:
     if method == "naive_observational":
         estimate = observational_difference(case)
-        return {"case_id": case["case_id"], "status": "identified",
+        return {"case_id": case["case_id"], "status": "estimate_only",
                 "estimate": estimate, "adjustment_set": [], "method": method}
     if method == "all_observed_adjustment":
         adjustment = [v for v in case["observed_variables"]
                       if v not in (case["query"]["exposure"], case["query"]["outcome"])]
         estimate = backdoor_adjusted_effect(case, adjustment)
-        return {"case_id": case["case_id"], "status": "identified",
+        return {"case_id": case["case_id"], "status": "unvalidated_adjustment",
                 "estimate": estimate, "adjustment_set": adjustment, "method": method}
     if method != "graph_backdoor":
         raise ValueError("unknown_causal_baseline")
     result = infer_backdoor_set(case)
-    if not result["identified"]:
-        return {"case_id": case["case_id"], "status": "not_identifiable",
+    if not result["backdoor_identified"]:
+        return {"case_id": case["case_id"], "status": "not_identified_by_backdoor",
                 "estimate": None, "adjustment_set": [], "reason": result["reason"],
                 "method": method}
     estimate = backdoor_adjusted_effect(case, result["adjustment_set"])
     if estimate is None:
-        return {"case_id": case["case_id"], "status": "not_identifiable",
+        return {"case_id": case["case_id"], "status": "backdoor_estimation_failed",
                 "estimate": None, "adjustment_set": result["adjustment_set"],
                 "reason": "positivity_failure", "method": method}
-    return {"case_id": case["case_id"], "status": "identified",
+    return {"case_id": case["case_id"], "status": "identified_by_backdoor",
             "estimate": estimate, "adjustment_set": result["adjustment_set"],
             "method": method}
 
@@ -176,11 +295,7 @@ def _make_case(case_id: str, scm: Mapping[str, Any], exposure: str,
     def p_y_one(distribution: Mapping[str, float]) -> float:
         return sum(prob for key, prob in distribution.items()
                    if _decode(key, order)[outcome] == 1)
-    truth = {"ate": p_y_one(do_one) - p_y_one(do_zero),
-             "identifiable": not any(
-                 source not in observed and target == exposure
-                 for source, target in scm["edges"]
-             )}
+    truth = {"ate": p_y_one(do_one) - p_y_one(do_zero)}
     public = {
         "schema_version": SCHEMA_VERSION,
         "case_id": case_id,
@@ -189,6 +304,7 @@ def _make_case(case_id: str, scm: Mapping[str, Any], exposure: str,
         "query": {"exposure": exposure, "outcome": outcome, "estimand": "total_effect"},
         "observational_joint": joint,
     }
+    truth["backdoor_identifiable"] = infer_backdoor_set(public)["backdoor_identified"]
     return public, truth
 
 
@@ -260,10 +376,12 @@ def evaluate_predictions(cases: Sequence[Mapping[str, Any]],
     for case in cases:
         label = truth[case["case_id"]]
         prediction = by_id[case["case_id"]]
-        predicted_identifiable = prediction["status"] == "identified"
-        if predicted_identifiable == label["identifiable"]:
+        predicted_identifiable = prediction["status"] in {
+            "identified_by_backdoor", "backdoor_estimation_failed"
+        }
+        if predicted_identifiable == label["backdoor_identifiable"]:
             identification_correct += 1
-        if label["identifiable"] and predicted_identifiable and prediction["estimate"] is not None:
+        if label["backdoor_identifiable"] and predicted_identifiable and prediction["estimate"] is not None:
             absolute_errors.append(abs(prediction["estimate"] - label["ate"]))
     mae = (sum(absolute_errors) / len(absolute_errors)
            if absolute_errors else None)
@@ -271,7 +389,7 @@ def evaluate_predictions(cases: Sequence[Mapping[str, Any]],
         mae = 0.0
     return {
         "cases": len(cases),
-        "identification_accuracy": identification_correct / len(cases) if cases else 0.0,
+        "backdoor_criterion_accuracy": identification_correct / len(cases) if cases else 0.0,
         "identified_case_mae": mae,
         "identified_cases_scored": len(absolute_errors),
     }
