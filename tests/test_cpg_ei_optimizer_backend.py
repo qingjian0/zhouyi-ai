@@ -7,14 +7,14 @@ class OptimizerBackendTests(unittest.TestCase):
             Example(state=(0, 0, 0, 0, 0, 0), target=(0, 0, 0, 0, 0, 0)),
             Example(state=(1, 1, 1, 1, 1, 1), target=(1, 1, 1, 1, 1, 1)),
         ]
-        losses = CpgEiTransitionModel().train(examples, epochs=3, learning_rate=0.01, optimizer="adam")
+        losses = CpgEiTransitionModel.create().train(examples, epochs=3, learning_rate=0.01, optimizer="adam")
         self.assertEqual(len(losses), 3)
         self.assertTrue(all(loss >= 0.0 and loss < float("inf") for loss in losses))
 
     def test_unknown_optimizer_is_rejected(self):
         examples = [Example(state=(0, 0, 0, 0, 0, 0), target=(0, 0, 0, 0, 0, 0))]
         with self.assertRaises(ValueError):
-            CpgEiTransitionModel().train(examples, epochs=1, optimizer="not-an-optimizer")
+            CpgEiTransitionModel.create().train(examples, epochs=1, optimizer="not-an-optimizer")
 
 if __name__ == "__main__":
     unittest.main()
