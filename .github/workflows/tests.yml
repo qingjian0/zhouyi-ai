@@ -55,6 +55,7 @@ jobs:
       e02ef: ${{ steps.filter.outputs.e02ef }}
       e02ghi: ${{ steps.filter.outputs.e02ghi }}
       e03: ${{ steps.filter.outputs.e03 }}
+      run_research: ${{ steps.filter.outputs.run_research }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -97,10 +98,15 @@ jobs:
           echo "e02ef=$e02ef" >> "$GITHUB_OUTPUT"
           echo "e02ghi=$e02ghi" >> "$GITHUB_OUTPUT"
           echo "e03=$e03" >> "$GITHUB_OUTPUT"
+          if [[ "$e01" == true || "$e02ab" == true || "$e02d" == true || "$e02ef" == true || "$e02ghi" == true || "$e03" == true ]]; then
+            echo "run_research=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run_research=false" >> "$GITHUB_OUTPUT"
+          fi
 
   research-evaluations:
     needs: [unit-tests, detect-research]
-    if: needs.detect-research.outputs[matrix.filter] == 'true'
+    if: needs.detect-research.outputs.run_research == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -108,35 +114,29 @@ jobs:
       matrix:
         include:
           - name: E01
-            filter: e01
             commands: |
               python -m prototype.e01_sparse_composition --json
               python -m prototype.e01_multiseed --seeds 5 --start-seed 7 --json
               python -m prototype.e01_ood_multiseed --seeds 5 --start-seed 7 --json
           - name: E02-A-B
-            filter: e02ab
             commands: |
               python -m prototype.e02_higher_order --seeds 5 --start-seed 7 --json
               python -m prototype.e02_ternary --examples 900 --seed 7
               python -m prototype.e02_ternary_learners --seeds 5 --start-seed 7 --json
           - name: E02-D
-            filter: e02d
             commands: |
               python -m prototype.e02_rule_ood --seed 17 --support-size 6 --json
               python -m prototype.e02_rule_ood --sweep --seeds 100 --start-seed 100 --json
           - name: E02-E-F
-            filter: e02ef
             commands: |
               python -m prototype.e02e_discovery --seeds 20 --start-seed 7 --json
               python -m prototype.e02f_falsification --seeds 100 --start-seed 100
           - name: E02-G-H-I
-            filter: e02ghi
             commands: |
               python -m prototype.e02g_multienvironment --seeds 50 --start-seed 700 --repeats 5
               python -m prototype.e02h_boolean_rules --seeds 30 --start-seed 900
               python -m prototype.e02i_streaming_drift --seeds 20 --start-seed 1200
           - name: E03-A-and-E02-I-evolution
-            filter: e03
             commands: |
               python -m prototype.e03a_parallel_composition --seeds 30 --start-seed 1500
               python -m prototype.e02i_relation_evolution --seeds 20 --start-seed 1200
