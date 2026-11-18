@@ -23,6 +23,16 @@ jobs:
         run: |
           python -m unittest discover -s tests -p 'test_cpg_ei_mixed_operator_data.py' -v
           python -m unittest discover -s tests -p 'test_cpg_ei_mixed_operator_discovery.py' -v
+          python -m unittest discover -s tests -p 'test_cpg_ei_selection_sweep.py' -v
+          python -m unittest discover -s tests -p 'test_cpg_ei_oracle_optimizer_sweep.py' -v
+          python -m unittest discover -s tests -p 'test_cpg_ei_selection_split_sweep.py' -v
+          python -m unittest discover -s tests -p 'test_cpg_ei_proposal_fit_epoch_sweep.py' -v
+          python -m unittest discover -s tests -p 'test_cpg_ei_proposal_optimizer_comparison.py' -v
+          python -m unittest discover -s tests -p 'test_cpg_ei_proposal_ranking_diagnostics.py' -v
+          python -m unittest discover -s tests -p 'test_cpg_ei_discovery_optimizer_comparison.py' -v
+          python -m unittest discover -s tests -p 'test_cpg_ei_selection_optimizer_sweep.py' -v
+          python -m unittest discover -s tests -p 'test_cpg_ei_proximal_regularization_sweep.py' -v
+          python -m unittest discover -s tests -p 'test_cpg_ei_conditional_motif_proposals.py' -v
       - name: Run full 102,400-row discovery baseline
         run: |
           python -m prototype.cpg_ei_mixed_operator_discovery \
