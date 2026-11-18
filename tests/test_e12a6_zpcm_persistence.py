@@ -151,11 +151,11 @@ import os
 import sys
 from prototype.e12a6_zpcm_persistence import PersistentLifecycleLedger
 from prototype.zpcm_memory import ZPCMMemory
-from tests.test_e12a6_zpcm_persistence import candidate
+from tests.test_e12a6_zpcm_persistence import propose
 memory = ZPCMMemory(sys.argv[1])
 store = PersistentLifecycleLedger(memory, scope="project-a")
 store._apply_durable_state = lambda mutation: os._exit(73)
-store.register_candidate(candidate())
+store.apply(propose())
 os._exit(74)  # The durable append must terminate the process first.
 """
         result = subprocess.run(
