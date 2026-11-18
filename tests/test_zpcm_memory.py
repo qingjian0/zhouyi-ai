@@ -261,4 +261,38 @@ class Tests(unittest.TestCase):
    self.m.iter_lifecycle_candidate_history(
     scope="project",candidate_id="rel:bounded",limit=10)
 
+
+ def test_legacy_action_projection_schema_migrates_nullable_refs(self):
+  self.m.db.execute("DROP TRIGGER IF EXISTS e12a6_action_state_insert")
+  self.m.db.execute("DROP TABLE e12a6_action_state_projection")
+  self.m.db.execute("""
+   CREATE TABLE e12a6_action_state_projection(
+    scope TEXT NOT NULL, action_id TEXT NOT NULL,
+    candidate_id TEXT NOT NULL, candidate_version INTEGER NOT NULL,
+    action_json TEXT NOT NULL, source_seq INTEGER NOT NULL,
+    PRIMARY KEY(scope,action_id))
+  """)
+  self.m.close()
+  self.m=ZPCMMemory(self.path)
+  columns={row["name"]:row for row in self.m.db.execute(
+   "PRAGMA table_info(e12a6_action_state_projection)")}
+  self.assertEqual(columns["candidate_id"]["notnull"],0)
+  self.assertEqual(columns["candidate_version"]["notnull"],0)
+  self.m.append_lifecycle_event(
+   event_id="e12a6:action:unbound-1",scope="scope",
+   payload={"schema_version":"e12a6-lifecycle-event-v1","kind":"action_applied",
+    "body":{"action":{"action_id":"unbound-1","candidate_id":None,
+     "candidate_version":None,"evidence_ids":[],"action_type":"abstain"}}},
+   expected_sequence=0)
+  self.assertEqual(
+   self.m.get_domain_event(event_type="e12a6_lifecycle",scope="scope",
+    event_id="e12a6:action:unbound-1")["event_id"],
+   "e12a6:action:unbound-1")
+  row=self.m.db.execute(
+   "SELECT candidate_id,candidate_version FROM e12a6_action_state_projection "
+   "WHERE scope=? AND action_id=?",("scope","unbound-1")).fetchone()
+  self.assertIsNone(row["candidate_id"])
+  self.assertIsNone(row["candidate_version"])
+
+
 if __name__=="__main__":unittest.main()
