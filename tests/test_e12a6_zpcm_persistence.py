@@ -110,9 +110,14 @@ class PersistentLifecycleTests(unittest.TestCase):
             event_type="e12a6_lifecycle", scope="project-a",
             event_id="e12a6:candidate:rel:greater-than@1",
         )
-        self.assertEqual(restored._event_payload_digest(
-            "e12a6:candidate:rel:greater-than@1"
-        ), event["payload_digest"])
+        self.assertEqual(
+            restored._get_event_payload("e12a6:candidate:rel:greater-than@1"),
+            event["payload"],
+        )
+        self.assertEqual(
+            restored._get_event_receipt("e12a6:candidate:rel:greater-than@1").payload_digest,
+            event["payload_digest"],
+        )
         self.assertFalse(hasattr(restored, "_receipts"))
         self.assertFalse(hasattr(restored, "_event_payload_digests"))
         self.assertFalse(hasattr(restored, "_consumed_receipts"))
