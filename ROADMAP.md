@@ -24,7 +24,7 @@
 | M1 数据摄取 | UTF-8 分块读取、Manifest、Chunk Digest、SQLite 持久化、恢复和有界 chunk 读取 | 跨 Chunk tokenizer 一致性、整篇 reference 对照、大文本吞吐与 RSS exact-head 报告 |
 | M2 Observation | Observation DTO、EvidenceRef、Lazy Store、SQLite 索引、Keyset Paging、来源校验与重启恢复 | 大规模 RSS 实测、Gold 标注、语义提取质量、abstention 与独立标注评估 |
 | N0.10 / SROK | SROK 组合内核、LearnableSROK、JSONL 流式/out-of-core runner、SQLite 元数据、checkpoint 恢复、locked-test 评估与 RSS 工具；`20bd82b` exact-head 整仓测试和百万行专项工作流均成功；1K/10K/100K/1M 每 split 均执行两轮训练，1M 每 split（总计 200 万行）耗时 201.286 秒，峰值 RSS 27,508 KiB（相对基线 +5,348 KiB），loss 1.3863→0.7705，dev 100 万行完成流式读取 | 该结果来自合成数据，不能证明真实任务准确率/泛化；仍需独立验证 group-disjoint split、恢复一致性、materialized oracle 数值一致性，以及更丰富训练预算下的学习效果 |
-| CPG-EI | 有限候选语法、符号搜索、经验贝叶斯 few-shot、混合算子发现、组合 OOD、motif/optimizer 诊断、扩展合成语料 | 神经或非有限语法 meta-learner、强基线预算公平性、更深组合 OOD、跨分布验证；现有结果限于声明的合成任务 |
+| CPG-EI | 有限候选语法、符号搜索、经验贝叶斯 few-shot、混合算子发现、motif/optimizer 诊断、扩展合成语料；`45100bd` exact-head 的三种子组合语法 OOD 基准成功：24 个合成教师族/1,536 条记录，锁定集 bit accuracy：符号 68.95%、全多项式 46.68%、符号支持混合 56.84%；符号方法完整状态准确率 32.29%，优于另两者 | 该协议是 operator-grammar OOD、每个教师族都用自身 train split 适配，不是 held-out-family zero-shot；神经或非有限语法 meta-learner、预算公平强基线、更深组合 OOD 和跨分布验证仍未完成；结果只适用于声明的合成任务 |
 | 易象 / Yixiang | 卦爻编码、状态转移、五行/类象关系工具、结构保持映射与多组合成 OOD 原型 | 真实古籍 Gold 语料、独立标注/仲裁、页码来源追踪、消融、因果/语义层级验证和真实任务评估 |
 | 集成编排 | Orchestrator、实验协议、测试与工作流自动化 | 证据摄取→表征→候选发现→学习→评估→生命周期持久化的完整 clean-checkout E2E 闭环 |
 
@@ -57,11 +57,11 @@
 
 1. 将候选生成、候选评价、结构选择和跨域泛化分开度量。
 2. 从固定候选枚举推进到预算约束的候选提议机制，并保留规范化、去重、可证伪和证据来源。
-3. 实现神经/非有限语法 meta-learner；与符号经验贝叶斯、MLP 等强基线在同数据、同预算下比较。
+3. 实现神经/非有限语法 meta-learner；与符号经验贝叶斯、MLP 等强基线在同数据、同预算下比较。当前三种子组合 OOD 结果中全多项式和符号支持混合均未胜过符号搜索，应先诊断假设空间、训练预算和表示偏差，不以参数规模推断学习能力。
 4. 扩大组合深度和规则族 OOD；固定 train/dev/locked-test 隔离，至少多种子复现。
 5. 对 truth-function、operator、exact-rule 分层报告，处理结构等价别名。
 
-**完成定义：** 不以有限语法符号搜索的高准确率宣称神经跨族学习或开放域关系发现已完成。
+**完成定义：** 不以有限语法符号搜索的高准确率宣称神经跨族学习或开放域关系发现已完成；组合语法 OOD 与 held-out-family zero-shot 必须分开报告。
 
 ### P3 — 易象真实数据验证
 
