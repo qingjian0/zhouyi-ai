@@ -9,10 +9,10 @@
 ## 当前集成基线
 
 - 集成分支：`dev`；稳定分支：`main`。
-- 当前 `dev` HEAD：`9452d6f41384ca5483531a53c09bdbe230c90c5b`；相对 `main` ahead 60、behind 0；`main` 未修改。
+- 当前 `dev` HEAD：`f4f5317d1d9535fcf4e523b3f9f8e07833ff22c0`；相对 `main` ahead 61、behind 0；`main` 未修改。该 HEAD 是路线图状态同步提交，最近一次代码变更为 `9452d6f41384ca5483531a53c09bdbe230c90c5b`。
 - 本轮已合并 PR #537（CPG-EI one-pass evaluation）和 PR #539（E12-A6 hard-process-termination recovery test）。#537 精确 head 的 22 项检查全部成功；#539 精确 head 的 unit-tests 与 detect-research 成功。
 - #539 的强杀测试验证 SQLite 权威事件提交后、scratch-state mutation 前进程退出，再由新进程恢复；它不等同于断电、磁盘故障或完整 checkpoint 验收。
-- 合并后尚未取得 `9452d6f` 对应的完整整仓 CI 运行记录；不得把 PR head 检查写成合并后 HEAD 的全量 CI 通过。
+- `9452d6f` 的整仓 `tests` 工作流 #44390349072 已完成：`unit-tests` 与 `detect-research` 均 success，研究评估矩阵按路径条件 skipped；该结果验证的是代码提交 `9452d6f`，不是后续仅修改路线图的 `f4f5317`。
 - 当前研发重点：E12-A6 安全快速恢复协议；N0.10 百万行真实训练与 RSS；CPG-EI 神经/非有限语法跨族学习；易象真实 Gold 数据校勘与独立标注。
 
 
