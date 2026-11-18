@@ -391,6 +391,55 @@ class PersistentLifecycleTests(unittest.TestCase):
         self.assertEqual(self.store.snapshot(), before)
         self.assertEqual(self.memory.replay_lifecycle_events(scope="project-a"), [])
 
+    def test_authorization_iterators_keyset_page_beyond_first_page(self):
+        total = 205
+        with self.memory.lock:
+            self.memory.db.execute("BEGIN IMMEDIATE")
+            try:
+                for index in range(total):
+                    receipt_id = f"page-receipt-{index:03d}"
+                    body = {
+                        "receipt_id": receipt_id,
+                        "nonce": f"page-nonce-{index:03d}",
+                        "scope": "project-a",
+                        "candidate_id": "rel:paged",
+                        "candidate_version": 1,
+                        "evidence_refs": [],
+                    }
+                    event_id = f"e12a6:authorization-consumed:{receipt_id}"
+                    payload = {
+                        "schema_version": EVENT_SCHEMA,
+                        "kind": "authorization_consumed",
+                        "body": body,
+                    }
+                    sequence, replayed = self.memory._append(
+                        event_id, "e12a6_lifecycle", "project-a", payload,
+                    )
+                    self.assertFalse(replayed)
+                    self.memory.db.execute(
+                        "INSERT INTO e12a6_authorization_consumptions(receipt_id,nonce,event_id,scope) "
+                        "VALUES(?,?,?,?)",
+                        (receipt_id, body["nonce"], event_id, "project-a"),
+                    )
+                    self.memory._index_e12a6_candidate_event(
+                        "project-a", sequence, event_id, payload,
+                    )
+                self.memory.db.execute("COMMIT")
+            except Exception:
+                self.memory.db.execute("ROLLBACK")
+                raise
+
+        all_authorizations = list(self.memory.iter_authorization_consumptions(
+            scope="project-a", page_size=37,
+        ))
+        candidate_authorizations = list(self.memory.iter_candidate_authorization_consumptions(
+            scope="project-a", candidate_id="rel:paged",
+            candidate_version=1, page_size=31,
+        ))
+        expected_receipts = [f"page-receipt-{index:03d}" for index in range(total)]
+        self.assertEqual([item["receipt_id"] for item in all_authorizations], expected_receipts)
+        self.assertEqual([item["receipt_id"] for item in candidate_authorizations], expected_receipts)
+
     def test_replay_rejects_tampered_event_digest(self):
         self.store.register_candidate(candidate())
         self.memory.db.execute("UPDATE memory_events SET payload_json=? WHERE event_id=?",

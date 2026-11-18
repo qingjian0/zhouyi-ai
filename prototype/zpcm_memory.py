@@ -243,33 +243,63 @@ class ZPCMMemory:
             raise ZPCMError("authorization consumption body must be an object")
         return {"event_id": event["event_id"], "sequence": event["sequence"], "body": body}
 
-    def iter_authorization_consumptions(self, *, scope: str) -> Iterator[dict[str, Any]]:
-        """Stream scoped authorization bindings in durable event order."""
+    def iter_authorization_consumptions(
+        self, *, scope: str, page_size: int = 128,
+    ) -> Iterator[dict[str, Any]]:
+        """Keyset-page scoped authorization bindings with a stable high-water mark."""
         if not isinstance(scope, str) or not scope.strip():
             raise ZPCMError("scope must be non-empty")
+        if isinstance(page_size, bool) or not isinstance(page_size, int) or not 1 <= page_size <= 4096:
+            raise ZPCMError("page_size must be an integer in [1, 4096]")
         with self.lock:
-            rows = self.db.execute(
-                "SELECT event_id FROM e12a6_authorization_consumptions WHERE scope=? "
-                "ORDER BY (SELECT seq FROM memory_events WHERE event_id=e12a6_authorization_consumptions.event_id)",
+            high_water = self.db.execute(
+                "SELECT COALESCE(MAX(e.seq),0) FROM e12a6_authorization_consumptions a "
+                "JOIN memory_events e ON e.event_id=a.event_id "
+                "WHERE a.scope=? AND e.event_type='e12a6_lifecycle'",
                 (scope,),
-            ).fetchall()
-        for row in rows:
-            event = self.get_domain_event(
-                event_type="e12a6_lifecycle", scope=scope, event_id=row["event_id"],
-            )
-            if event is None or event["payload"].get("kind") != "authorization_consumed":
-                raise ZPCMError("authorization consumption index is inconsistent")
-            yield event["payload"]["body"]
+            ).fetchone()[0]
+        cursor = 0
+        while cursor < high_water:
+            with self.lock:
+                rows = self.db.execute(
+                    "SELECT e.seq,e.event_id,e.payload_json,e.payload_digest "
+                    "FROM e12a6_authorization_consumptions a "
+                    "JOIN memory_events e ON e.event_id=a.event_id "
+                    "WHERE a.scope=? AND e.event_type='e12a6_lifecycle' "
+                    "AND e.seq>? AND e.seq<=? ORDER BY e.seq LIMIT ?",
+                    (scope, cursor, high_water, page_size),
+                ).fetchall()
+            if not rows:
+                return
+            for row in rows:
+                payload = json.loads(row["payload_json"])
+                if digest(payload) != row["payload_digest"]:
+                    raise ZPCMError(f"authorization event digest mismatch: {row['event_id']}")
+                if payload.get("kind") != "authorization_consumed" or not isinstance(payload.get("body"), dict):
+                    raise ZPCMError("authorization consumption index is inconsistent")
+                cursor = row["seq"]
+                yield payload["body"]
 
     def iter_candidate_authorization_consumptions(
         self, *, scope: str, candidate_id: str, candidate_version: int,
+        page_size: int = 128,
     ) -> Iterator[dict[str, Any]]:
-        """Stream only authorization events indexed for one candidate version."""
-        for event in self.iter_lifecycle_candidate_history(
-            scope=scope, candidate_id=candidate_id, candidate_version=candidate_version,
-        ):
-            if event["payload"].get("kind") == "authorization_consumed":
-                yield event["payload"]["body"]
+        """Keyset-page authorization events for one candidate version."""
+        if isinstance(page_size, bool) or not isinstance(page_size, int) or not 1 <= page_size <= 1000:
+            raise ZPCMError("page_size must be an integer in [1, 1000]")
+        cursor = 0
+        while True:
+            page = self.iter_lifecycle_candidate_history(
+                scope=scope, candidate_id=candidate_id,
+                candidate_version=candidate_version, after_sequence=cursor,
+                limit=page_size,
+            )
+            if not page:
+                return
+            for event in page:
+                if event["payload"].get("kind") == "authorization_consumed":
+                    yield event["payload"]["body"]
+            cursor = page[-1]["sequence"]
 
     def close(self):
         with self.lock:self.db.close()
