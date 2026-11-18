@@ -183,3 +183,65 @@ class Tests(unittest.TestCase):
     ZPCMMemory(Path(self.tmp.name)/"invalid.db",max_event_payload_bytes=event_limit,max_page_bytes=page_limit)
 
 if __name__=="__main__":unittest.main()
+
+
+ def _append_candidate_history_event(self,event_id,payload,expected_sequence):
+  return self.m.append_lifecycle_event(
+   event_id=event_id,scope="project",payload={
+    "schema_version":"e12a6-lifecycle-event-v1",**payload
+   },expected_sequence=expected_sequence)
+
+ def test_candidate_history_projection_indexes_registration_and_actions(self):
+  candidate={"candidate_id":"rel:alpha","version":1,"evidence_ids":["ev-1"]}
+  first=self._append_candidate_history_event(
+   "e12a6:candidate:rel:alpha@1",
+   {"kind":"candidate_registered","body":{"candidate":candidate}},0)
+  second=self._append_candidate_history_event(
+   "e12a6:action:act-1",
+   {"kind":"action_applied","body":{"action":{
+    "action_id":"act-1","candidate_id":"rel:alpha","candidate_version":1,
+    "evidence_ids":["ev-2"]}}},first["sequence"])
+  self._append_candidate_history_event(
+   "e12a6:candidate:rel:beta@1",
+   {"kind":"candidate_registered","body":{"candidate":{
+    "candidate_id":"rel:beta","version":1,"evidence_ids":[]}}},second["sequence"])
+  rows=self.m.iter_lifecycle_candidate_history(
+   scope="project",candidate_id="rel:alpha",candidate_version=1,limit=10)
+  self.assertEqual([row["event_id"] for row in rows],[
+   "e12a6:candidate:rel:alpha@1","e12a6:action:act-1"])
+  self.assertEqual(rows[1]["payload"]["body"]["action"]["action_id"],"act-1")
+  plan=self.m.db.execute(
+   "EXPLAIN QUERY PLAN SELECT event_id FROM e12a6_lifecycle_candidate_history "
+   "WHERE scope=? AND candidate_id=? AND candidate_version=? AND sequence>? ORDER BY sequence LIMIT ?",
+   ("project","rel:alpha",1,0,10)).fetchall()
+  self.assertIn("e12a6_candidate_history_lookup"," ".join(str(row[3]) for row in plan))
+
+ def test_candidate_history_projection_rebuilds_when_metadata_is_missing(self):
+  self._append_candidate_history_event(
+   "e12a6:candidate:rel:rebuild@1",
+   {"kind":"candidate_registered","body":{"candidate":{
+    "candidate_id":"rel:rebuild","version":1,"evidence_ids":[]}}},0)
+  self.m.db.execute(
+   "DELETE FROM e12a6_lifecycle_candidate_history_meta WHERE scope=?",
+   ("project",))
+  self.m.close()
+  self.m=ZPCMMemory(self.path)
+  rows=self.m.iter_lifecycle_candidate_history(
+   scope="project",candidate_id="rel:rebuild",limit=10)
+  self.assertEqual(len(rows),1)
+  self.assertEqual(rows[0]["event_id"],"e12a6:candidate:rel:rebuild@1")
+
+ def test_candidate_history_page_is_bounded_and_verifies_event_digest(self):
+  self._append_candidate_history_event(
+   "e12a6:candidate:rel:bounded@1",
+   {"kind":"candidate_registered","body":{"candidate":{
+    "candidate_id":"rel:bounded","version":1,"evidence_ids":[]}}},0)
+  with self.assertRaisesRegex(ZPCMError,"max_page_bytes"):
+   self.m.iter_lifecycle_candidate_history(
+    scope="project",candidate_id="rel:bounded",max_page_bytes=1)
+  self.m.db.execute(
+   "UPDATE memory_events SET payload_json=? WHERE event_id=?",
+   ('{"kind":"tampered"}',"e12a6:candidate:rel:bounded@1"))
+  with self.assertRaisesRegex(ZPCMError,"digest mismatch"):
+   self.m.iter_lifecycle_candidate_history(
+    scope="project",candidate_id="rel:bounded",limit=10)
