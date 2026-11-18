@@ -166,16 +166,23 @@ class CpgEiTransitionModel:
         l2: float = 1e-4,
         gate_l1: float = 1e-4,
         edge_group_l1: float = 0.0,
+        optimizer: str = "sgd",
     ) -> list[float]:
         if not examples:
             raise ValueError("training data must not be empty")
         if (epochs < 1 or learning_rate <= 0.0 or l2 < 0.0
-                or gate_l1 < 0.0 or edge_group_l1 < 0.0):
+                or gate_l1 < 0.0 or edge_group_l1 < 0.0
+                or optimizer not in {"sgd", "adam"}):
             raise ValueError("invalid optimizer configuration")
+        beta1, beta2, epsilon = 0.9, 0.999, 1e-8
+        weight_m = [[0.0] * len(FEATURE_NAMES) for _ in range(6)]
+        weight_v = [[0.0] * len(FEATURE_NAMES) for _ in range(6)]
+        gate_m = [0.0] * len(self.gate_logits)
+        gate_v = [0.0] * len(self.gate_logits)
         rows = [(encode_state(row.state), row.target) for row in examples]
         losses = []
         n = float(len(rows))
-        for _ in range(epochs):
+        for step in range(1, epochs + 1):
             weight_gradients = [[0.0] * len(FEATURE_NAMES) for _ in range(6)]
             gate_gradients = [0.0] * len(self.gate_logits)
             gates = self.relation_gate_probabilities()
@@ -211,14 +218,28 @@ class CpgEiTransitionModel:
                 grad = weight_gradients[head_index]
                 for j in range(len(head)):
                     grad[j] = grad[j] / n + l2 * head[j]
-                    head[j] -= learning_rate * grad[j]
+                    if optimizer == "sgd":
+                        head[j] -= learning_rate * grad[j]
+                    else:
+                        weight_m[head_index][j] = beta1 * weight_m[head_index][j] + (1.0 - beta1) * grad[j]
+                        weight_v[head_index][j] = beta2 * weight_v[head_index][j] + (1.0 - beta2) * grad[j] ** 2
+                        m_hat = weight_m[head_index][j] / (1.0 - beta1 ** step)
+                        v_hat = weight_v[head_index][j] / (1.0 - beta2 ** step)
+                        head[j] -= learning_rate * m_hat / (math.sqrt(v_hat) + epsilon)
             for gate_index in range(len(self.gate_logits)):
                 gate = gates[gate_index]
                 gate_gradients[gate_index] = (
                     gate_gradients[gate_index] / n
                     + gate_l1 * gate_derivatives[gate_index]
                 )
-                self.gate_logits[gate_index] -= learning_rate * gate_gradients[gate_index]
+                if optimizer == "sgd":
+                    self.gate_logits[gate_index] -= learning_rate * gate_gradients[gate_index]
+                else:
+                    gate_m[gate_index] = beta1 * gate_m[gate_index] + (1.0 - beta1) * gate_gradients[gate_index]
+                    gate_v[gate_index] = beta2 * gate_v[gate_index] + (1.0 - beta2) * gate_gradients[gate_index] ** 2
+                    m_hat = gate_m[gate_index] / (1.0 - beta1 ** step)
+                    v_hat = gate_v[gate_index] / (1.0 - beta2 ** step)
+                    self.gate_logits[gate_index] -= learning_rate * m_hat / (math.sqrt(v_hat) + epsilon)
 
             # Proximal group-L1 over each relation's six output weights. This
             # removes whole candidate edges rather than sparsifying each head
