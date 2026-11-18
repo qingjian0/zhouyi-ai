@@ -56,9 +56,12 @@ class TestEarlyStoppingBaseline(unittest.TestCase):
                 if item["family_id"] == row["family_id"]
                 and item["state_split"] == "train"
             )
+            expected_encodings = training_examples * (2 ** 4)
+            if row["optimizer_backend"] != "numpy-vectorized-float64":
+                expected_encodings *= row["epochs_run"]
             self.assertEqual(
                 row["training_feature_encodings"],
-                row["epochs_run"] * training_examples * (2 ** 4),
+                expected_encodings,
             )
             self.assertTrue(0.0 <= row["locked"]["bit_accuracy"] <= 1.0)
 
