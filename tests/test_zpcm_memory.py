@@ -62,6 +62,8 @@ class Tests(unittest.TestCase):
  def test_domain_replay_verifies_payload_digest(self):
   self.m.append_domain_event(event_type="m2_cognition",event_id="m2:obs:1",
       scope="project",payload={"kind":"observation"},expected_sequence=0)
+  # Simulate offline database corruption, bypassing in-process guards.
+  self.m.db.execute("DROP TRIGGER memory_events_reject_update")
   self.m.db.execute("UPDATE memory_events SET payload_json=? WHERE event_id=?",
       ('{"kind":"tampered"}',"m2:obs:1"))
   with self.assertRaises(ZPCMError):
@@ -152,6 +154,8 @@ class Tests(unittest.TestCase):
       scope="project",payload={"n":1},expected_sequence=0)
   self.m.append_domain_event(event_type="m2_cognition",event_id="m2:2",
       scope="project",payload={"n":2},expected_sequence=1)
+  # Simulate offline database corruption, bypassing in-process guards.
+  self.m.db.execute("DROP TRIGGER memory_events_reject_update")
   self.m.db.execute("UPDATE memory_events SET payload_json=? WHERE event_id=?",
       ('{"n":999}',"m2:2"))
   iterator=self.m.iter_domain_events(event_type="m2_cognition",scope="project",page_size=1)
@@ -270,6 +274,8 @@ class Tests(unittest.TestCase):
   with self.assertRaisesRegex(ZPCMError,"max_page_bytes"):
    self.m.iter_lifecycle_candidate_history(
     scope="project",candidate_id="rel:bounded",max_page_bytes=1)
+  # Simulate offline database corruption, bypassing in-process guards.
+  self.m.db.execute("DROP TRIGGER memory_events_reject_update")
   self.m.db.execute(
    "UPDATE memory_events SET payload_json=? WHERE event_id=?",
    ('{"kind":"tampered"}',"e12a6:candidate:rel:bounded@1"))
