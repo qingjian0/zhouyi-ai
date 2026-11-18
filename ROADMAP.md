@@ -9,8 +9,8 @@
 ## 当前集成基线
 
 - 集成分支：`dev`；稳定分支：`main`。
-- 当前研发代码基线：`21aec045a00e9e3abd716536d1d27d8f765a8520`。
-- `dev` 相对 `main`：ahead 28、behind 0（本次核对）。
+- 当前研发代码基线：`67e5bd84867f49b3a013744033eeb25d2ac3c91b`。
+- `dev` 相对 `main`：ahead 40、behind 0（本次核对）。
 - 最近已确认成功的基线 CI：Run [44299206115](https://github.com/qingjian0/zhouyi-ai/actions/runs/44299206115)，对应此前 SHA `a846daf3` 的 7/7 jobs；本轮新提交尚未取得 exact-head CI 结果。
 - 当前研发重点：E12-A6 生命周期状态投影；M1/M2 有界恢复和实测；N0.10 规模/分组隔离验证；CPG-EI 神经/非有限语法跨族学习；易象真实 Gold 数据验证。
 
@@ -18,7 +18,7 @@
 
 | 工作流 | 已落地 | 尚未通过的关键验收 |
 |---|---|---|
-| ZPCM / E12-A6 | 追加式权威事件日志、SQLite 持久化、事件摘要校验、授权 receipt/nonce 唯一索引、候选历史索引、授权历史 keyset 分页；`PersistentLifecycleLedger` 已改为将候选/证据/动作/动作 ID 放入临时 SQLite scratch state，按有界页流式重放；普通写入不再 deepcopy 全账本，`ledger`/`snapshot()` 是显式全量物化边界 | 启动仍需 O(N) 重放全部权威事件；scratch state 是进程级临时库，不是跨进程持久 checkpoint；尚无 candidate/evidence/action durable current-state projection、checkpoint 校验/快速恢复；写入压力、磁盘故障、进程强杀、并发 adapter、清理失败和当前 exact-head RSS 尚待验收 |
+| ZPCM / E12-A6 | 追加式权威事件日志、SQLite 持久化、事件摘要校验、授权 receipt/nonce 唯一索引、候选历史索引和授权历史 keyset 分页；候选/证据/动作当前状态已有 SQLite 投影表，事件插入触发器在同一 SQLite 事务内更新投影与 high-water/count 元数据；提供投影按需读取、keyset 遍历、digest 校验、原子重建；`PersistentLifecycleLedger` 已将候选/证据/动作/动作 ID 放入临时 SQLite scratch state，普通写入不再 deepcopy 全账本，`ledger`/`snapshot()` 是显式全量物化边界 | 启动仍需 O(N) 重放全部权威事件并进行语义校验，当前投影尚未用于跳过重放；checkpoint 目前只有 schema/high-water/count，缺少事件链 digest/generation 和可信快速恢复协议；scratch state 是进程级临时库；写入压力、磁盘故障、进程强杀、并发 adapter、清理失败和当前 exact-head RSS 尚待验收 |
 | M1 数据摄取 | UTF-8 分块读取、Manifest、Chunk Digest、SQLite 持久化、恢复和有界 chunk 读取 | 跨 Chunk tokenizer 一致性、整篇 reference 对照、大文本吞吐与 RSS exact-head 报告 |
 | M2 Observation | Observation DTO、EvidenceRef、Lazy Store、SQLite 索引、Keyset Paging、来源校验与重启恢复 | 大规模 RSS 实测、Gold 标注、语义提取质量、abstention 与独立标注评估 |
 | N0.10 / SROK | SROK 组合内核、LearnableSROK、JSONL 流式/out-of-core runner、SQLite 元数据、checkpoint 恢复、locked-test 评估与 RSS 工具 | 百万行真实运行、峰值 RSS、恢复一致性、group-disjoint split、与 materialized oracle 数值一致性；工具存在不等于规模验收完成 |
@@ -31,10 +31,10 @@
 ### P0 — 工程持久化与可恢复性
 
 1. 将 `memory_events` 保持为唯一权威事件源；SQLite current-state projection 只能是可重建投影。
-2. 建立独立的 candidate、evidence、action、candidate-evidence、action-evidence 索引；action_id 与 candidate_id 必须分列。
-3. 投影元数据记录 schema、high-water sequence、事件链摘要和 generation。
-4. 启动优先验证投影 checkpoint；有效时不全量物化 Python ledger。缺失/损坏时按有界 keyset page 从权威事件重建，失败时 fail closed。
-5. append、领域状态校验、投影更新和 checkpoint 发布必须具备明确事务/崩溃语义；保留 E09 receipt/nonce、split、状态迁移、幂等和 digest 约束。
+2. candidate、evidence、action 当前状态投影已落地；补齐候选-证据、动作-证据关系的高效查询索引（按实际查询负载选择规范化表/索引），action_id 与 candidate_id 必须保持独立字段。
+3. 当前投影元数据已记录 schema、lifecycle high-water sequence 和 event count；下一步增加可验证的事件链 digest、projection generation 和版本迁移门禁。
+4. 当前启动仍对权威事件做 O(N) 语义重放到临时 SQLite scratch state。下一步设计经过 digest/generation 验证的持久 checkpoint；只有 checkpoint 完整匹配权威事件链时才允许快速恢复，缺失/损坏时按有界 keyset page 重建并保留语义校验，失败时 fail closed。
+5. append 与 candidate/evidence/action 投影已通过 SQLite 触发器置于同一事务；scratch state 写入失败会从权威事件流重建。仍需完成 checkpoint 发布、磁盘故障和崩溃注入的完整事务语义；保留 E09 receipt/nonce、split、状态迁移、幂等和 digest 约束。
 6. 保留 `ledger`/`snapshot()` 作为显式 O(total state) 兼容导出接口，普通启动和按需读取不得隐式调用。
 7. 验收：投影删除/损坏重建、事件篡改拒绝、并发写入、崩溃注入、snapshot 与 replay oracle 一致；在 1K/10K/50K/100K/500K 事件规模报告 RSS、Python allocation、SQLite cache/page、恢复耗时。
 
