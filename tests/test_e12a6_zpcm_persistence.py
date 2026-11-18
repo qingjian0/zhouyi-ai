@@ -608,4 +608,15 @@ class PersistentLifecycleTests(unittest.TestCase):
         self.assertTrue(self.memory.verify_e12a6_current_state_projection(scope="project-a")["ok"])
 
 
+
+    def test_current_state_projection_rebuild_fails_closed_on_event_digest_mismatch(self):
+        self.store.register_candidate(candidate())
+        self.memory.db.execute(
+            "UPDATE memory_events SET payload_json=? WHERE event_id=?",
+            ('{"tampered":true}', "e12a6:candidate:rel:greater-than@1"),
+        )
+        with self.assertRaises(ZPCMError):
+            self.memory.rebuild_e12a6_current_state_projection()
+
+
 if __name__=="__main__": unittest.main()
