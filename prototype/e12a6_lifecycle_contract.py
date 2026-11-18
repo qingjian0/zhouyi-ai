@@ -189,7 +189,7 @@ def _nonnegative(value: float, name: str, *, allow_zero: bool = True) -> None:
 
 
 class LifecycleLedger:
-    """In-memory append-only ledger with explicit, versioned candidate identity."""
+    """In-memory lifecycle state with validate-before-commit mutation primitives."""
 
     def __init__(self) -> None:
         self.candidates: dict[tuple[str, int], Candidate] = {}
@@ -197,25 +197,33 @@ class LifecycleLedger:
         self.actions: list[Action] = []
         self._action_ids: set[str] = set()
 
-    def add_candidate(self, candidate: Candidate) -> None:
+    def validate_candidate(self, candidate: Candidate) -> None:
         key = (candidate.candidate_id, candidate.version)
         if key in self.candidates:
             raise ValueError(f"duplicate candidate version: {key}")
         if candidate.state is not CandidateState.OBSERVED:
             raise ValueError("new candidates must enter the ledger as OBSERVED")
-        self.candidates[key] = candidate
 
-    def add_evidence(self, evidence: Evidence) -> None:
+    def add_candidate(self, candidate: Candidate) -> None:
+        self.validate_candidate(candidate)
+        self.candidates[(candidate.candidate_id, candidate.version)] = candidate
+
+    def validate_evidence(self, evidence: Evidence) -> None:
         if evidence.evidence_id in self.evidence:
             raise ValueError(f"duplicate evidence_id: {evidence.evidence_id}")
+
+    def add_evidence(self, evidence: Evidence) -> None:
+        self.validate_evidence(evidence)
         self.evidence[evidence.evidence_id] = evidence
 
-    def apply(self, action: Action) -> None:
+    def validate_action(self, action: Action) -> tuple[tuple[str, int] | None, Candidate | None]:
         if action.action_id in self._action_ids:
             raise ValueError(f"duplicate action_id: {action.action_id}")
         missing = set(action.evidence_ids) - self.evidence.keys()
         if missing:
             raise ValueError(f"unknown evidence IDs: {sorted(missing)}")
+        key = None
+        updated = None
         if action.candidate_id is not None:
             key = (action.candidate_id, action.candidate_version)
             if key not in self.candidates:
@@ -228,25 +236,29 @@ class LifecycleLedger:
                 if current.state is not action.from_state:
                     raise ValueError("stale or invalid candidate state transition")
                 roles = {self.evidence[item].split_role for item in action.evidence_ids}
-                if action.to_state is CandidateState.TRAIN_SUPPORTED:
-                    if SplitRole.TRAIN not in roles:
-                        raise ValueError("TRAIN evidence is required for support")
-                if action.to_state is CandidateState.GATE_VALIDATED:
-                    if SplitRole.GATE_FINAL not in roles:
-                        raise ValueError("GATE_FINAL evidence is required for validation")
-                if action.to_state is CandidateState.CHALLENGED:
-                    roles = {self.evidence[item].split_role for item in action.evidence_ids}
-                    if not roles.intersection({SplitRole.LOCKED_TEST, SplitRole.POST_DEPLOY}):
-                        raise ValueError("challenge requires LOCKED_TEST or POST_DEPLOY evidence")
-                self.candidates[key] = replace(current, state=action.to_state)
+                if action.to_state is CandidateState.TRAIN_SUPPORTED and SplitRole.TRAIN not in roles:
+                    raise ValueError("TRAIN evidence is required for support")
+                if action.to_state is CandidateState.GATE_VALIDATED and SplitRole.GATE_FINAL not in roles:
+                    raise ValueError("GATE_FINAL evidence is required for validation")
+                if action.to_state is CandidateState.CHALLENGED and not roles.intersection(
+                    {SplitRole.LOCKED_TEST, SplitRole.POST_DEPLOY}
+                ):
+                    raise ValueError("challenge requires LOCKED_TEST or POST_DEPLOY evidence")
+                updated = replace(current, state=action.to_state)
             elif action.action_type in _TRANSITIONS:
                 raise ValueError("lifecycle action requires an explicit state transition")
         elif action.from_state is not None:
             raise ValueError("state transitions require a candidate reference")
+        return key, updated
+
+    def apply(self, action: Action) -> None:
+        key, updated = self.validate_action(action)
+        if key is not None and updated is not None:
+            self.candidates[key] = updated
         self.actions.append(action)
         self._action_ids.add(action.action_id)
 
-    def create_revision(
+    def build_revision(
         self,
         candidate_id: str,
         version: int,
@@ -261,7 +273,7 @@ class LifecycleLedger:
         proposal_cost: float,
         evidence_ids: tuple[str, ...] = (),
     ) -> Candidate:
-        """Create a new semantic version; never overwrite the challenged version."""
+        """Validate and construct a revision without mutating ledger state."""
         parent_key = (candidate_id, version)
         parent = self.candidates.get(parent_key)
         if parent is None or parent.state is not CandidateState.REVISED:
@@ -287,5 +299,42 @@ class LifecycleLedger:
         key = (revision.candidate_id, revision.version)
         if key in self.candidates:
             raise ValueError(f"duplicate candidate version: {key}")
+        return revision
+
+    def add_revision(self, revision: Candidate) -> None:
+        key = (revision.candidate_id, revision.version)
+        if key in self.candidates:
+            raise ValueError(f"duplicate candidate version: {key}")
+        if revision.state is not CandidateState.REVALIDATION_PENDING:
+            raise ValueError("revision must enter as REVALIDATION_PENDING")
         self.candidates[key] = revision
+
+    def create_revision(
+        self,
+        candidate_id: str,
+        version: int,
+        *,
+        canonical_expression: str,
+        operator: str,
+        conditions: tuple[str, ...],
+        proposer_family: str,
+        supporting_families: tuple[str, ...],
+        input_types: tuple[str, ...],
+        complexity: int,
+        proposal_cost: float,
+        evidence_ids: tuple[str, ...] = (),
+    ) -> Candidate:
+        revision = self.build_revision(
+            candidate_id, version,
+            canonical_expression=canonical_expression,
+            operator=operator,
+            conditions=conditions,
+            proposer_family=proposer_family,
+            supporting_families=supporting_families,
+            input_types=input_types,
+            complexity=complexity,
+            proposal_cost=proposal_cost,
+            evidence_ids=evidence_ids,
+        )
+        self.add_revision(revision)
         return revision
