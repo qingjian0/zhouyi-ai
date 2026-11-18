@@ -58,6 +58,16 @@ class ZPCMMemory:
             high_water_seq INTEGER NOT NULL,
             event_count INTEGER NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS e12a6_lifecycle_checkpoints (
+            scope TEXT PRIMARY KEY,
+            checkpoint_schema TEXT NOT NULL,
+            checkpoint_sequence INTEGER NOT NULL,
+            event_count INTEGER NOT NULL,
+            prefix_digest TEXT NOT NULL,
+            snapshot_json TEXT NOT NULL,
+            snapshot_digest TEXT NOT NULL,
+            created_at TEXT NOT NULL
+        );
         """)
         # The event log is authoritative for every rebuildable projection.
         # Reject accidental mutation through the shared SQLite connection.
@@ -1233,6 +1243,106 @@ class ZPCMMemory:
         return list(self.iter_domain_events(
             event_type=event_type, scope=scope, after_sequence=after_sequence,
         ))
+
+    def e12a6_lifecycle_prefix_digest(self, *, scope: str, through_sequence: int) -> tuple[int, str]:
+        """Verify and hash a lifecycle event prefix using bounded, digest-checked pages."""
+        if not isinstance(scope, str) or not scope.strip():
+            raise ZPCMError("scope must be non-empty")
+        if isinstance(through_sequence, bool) or not isinstance(through_sequence, int) or through_sequence < 0:
+            raise ZPCMError("through_sequence must be a non-negative integer")
+        prefix = hashlib.sha256()
+        count = 0
+        last_sequence = 0
+        for event in self.iter_domain_events(event_type="e12a6_lifecycle", scope=scope):
+            if event["sequence"] > through_sequence:
+                break
+            prefix.update(
+                f'{event["sequence"]}\\0{event["event_id"]}\\0{event["payload_digest"]}\\n'.encode("utf-8")
+            )
+            count += 1
+            last_sequence = event["sequence"]
+        if last_sequence != through_sequence:
+            if through_sequence != 0:
+                raise ZPCMError("checkpoint sequence is not a lifecycle event boundary")
+        return count, prefix.hexdigest()
+
+    def save_e12a6_lifecycle_checkpoint(
+        self, *, scope: str, checkpoint_schema: str, checkpoint_sequence: int,
+        event_count: int, prefix_digest: str, snapshot: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Atomically publish a checkpoint only if its event high-water mark is current."""
+        if not isinstance(scope, str) or not scope.strip():
+            raise ZPCMError("scope must be non-empty")
+        if not isinstance(checkpoint_schema, str) or not checkpoint_schema.strip():
+            raise ZPCMError("checkpoint_schema must be non-empty")
+        if (isinstance(checkpoint_sequence, bool) or not isinstance(checkpoint_sequence, int)
+                or checkpoint_sequence < 0 or isinstance(event_count, bool)
+                or not isinstance(event_count, int) or event_count < 0):
+            raise ZPCMError("invalid checkpoint sequence or event count")
+        if not isinstance(prefix_digest, str) or len(prefix_digest) != 64:
+            raise ZPCMError("invalid checkpoint prefix digest")
+        if not isinstance(snapshot, dict):
+            raise ZPCMError("checkpoint snapshot must be an object")
+        snapshot_json = canonical(snapshot)
+        snapshot_digest = hashlib.sha256(snapshot_json.encode("utf-8")).hexdigest()
+        with self.lock:
+            self.db.execute("BEGIN IMMEDIATE")
+            try:
+                row = self.db.execute(
+                    "SELECT COALESCE(MAX(seq),0),COUNT(*) FROM memory_events "
+                    "WHERE event_type='e12a6_lifecycle' AND scope=?",
+                    (scope,),
+                ).fetchone()
+                if int(row[0]) != checkpoint_sequence or int(row[1]) != event_count:
+                    raise ZPCMError("lifecycle stream changed while checkpoint was being published")
+                created_at = datetime.now(timezone.utc).isoformat()
+                self.db.execute(
+                    "INSERT INTO e12a6_lifecycle_checkpoints("
+                    "scope,checkpoint_schema,checkpoint_sequence,event_count,prefix_digest,"
+                    "snapshot_json,snapshot_digest,created_at) VALUES(?,?,?,?,?,?,?,?) "
+                    "ON CONFLICT(scope) DO UPDATE SET checkpoint_schema=excluded.checkpoint_schema,"
+                    "checkpoint_sequence=excluded.checkpoint_sequence,event_count=excluded.event_count,"
+                    "prefix_digest=excluded.prefix_digest,snapshot_json=excluded.snapshot_json,"
+                    "snapshot_digest=excluded.snapshot_digest,created_at=excluded.created_at",
+                    (scope, checkpoint_schema, checkpoint_sequence, event_count, prefix_digest,
+                     snapshot_json, snapshot_digest, created_at),
+                )
+                self.db.execute("COMMIT")
+                return {
+                    "scope": scope, "checkpoint_schema": checkpoint_schema,
+                    "checkpoint_sequence": checkpoint_sequence, "event_count": event_count,
+                    "prefix_digest": prefix_digest, "snapshot_digest": snapshot_digest,
+                    "created_at": created_at,
+                }
+            except Exception:
+                self.db.execute("ROLLBACK")
+                raise
+
+    def load_e12a6_lifecycle_checkpoint(self, *, scope: str) -> dict[str, Any] | None:
+        """Load a checkpoint only after verifying its canonical snapshot digest."""
+        with self.lock:
+            row = self.db.execute(
+                "SELECT checkpoint_schema,checkpoint_sequence,event_count,prefix_digest,"
+                "snapshot_json,snapshot_digest,created_at FROM e12a6_lifecycle_checkpoints WHERE scope=?",
+                (scope,),
+            ).fetchone()
+        if row is None:
+            return None
+        try:
+            snapshot = json.loads(row["snapshot_json"])
+            if (not isinstance(snapshot, dict)
+                    or hashlib.sha256(canonical(snapshot).encode("utf-8")).hexdigest()
+                    != row["snapshot_digest"]):
+                raise ZPCMError("checkpoint snapshot digest mismatch")
+            return {
+                "scope": scope, "checkpoint_schema": row["checkpoint_schema"],
+                "checkpoint_sequence": int(row["checkpoint_sequence"]),
+                "event_count": int(row["event_count"]), "prefix_digest": row["prefix_digest"],
+                "snapshot": snapshot, "snapshot_digest": row["snapshot_digest"],
+                "created_at": row["created_at"],
+            }
+        except (TypeError, ValueError, KeyError, json.JSONDecodeError) as exc:
+            raise ZPCMError("checkpoint snapshot is malformed") from exc
 
     def append_lifecycle_event(self, *, event_id: str, scope: str, payload: dict[str, Any],
                                expected_sequence: int) -> dict[str, Any]:
