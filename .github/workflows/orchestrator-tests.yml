@@ -1,9 +1,22 @@
 name: Orchestrator tests
 on:
   push:
-    branches: [main, dev, "feature/**"]
+    branches: [main, "feature/**"]
+    paths:
+      - 'orchestrator/**'
+      - 'tests/test_orchestrator*.py'
+      - 'tests/test_*orchestrator*.py'
+      - '.github/workflows/orchestrator-tests.yml'
   pull_request:
     branches: [main]
+    paths:
+      - 'orchestrator/**'
+      - 'tests/test_orchestrator*.py'
+      - 'tests/test_*orchestrator*.py'
+      - '.github/workflows/orchestrator-tests.yml'
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
   unit-tests:
     runs-on: ubuntu-latest
