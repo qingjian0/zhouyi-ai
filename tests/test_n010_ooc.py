@@ -1,3 +1,4 @@
+import io
 import json
 import sqlite3
 import tempfile
@@ -10,11 +11,27 @@ from prototype.n010_ooc import (
     N010StreamingDataset,
     evaluate_locked_test_ooc,
     run_experiment_ooc,
+    _iter_bounded_lines,
 )
 from prototype.n09_learnable_srok import LearnableSROKError
 
 
 class N010OutOfCoreTests(unittest.TestCase):
+    def test_jsonl_reader_bounds_read_size_before_allocating_oversized_record(self):
+        class TrackingReader(io.BytesIO):
+            def __init__(self, payload):
+                super().__init__(payload)
+                self.requested_sizes = []
+
+            def readline(self, size=-1):
+                self.requested_sizes.append(size)
+                return super().readline(size)
+
+        reader = TrackingReader(b'{"payload":"' + b'x' * 10000 + b'"}\\n')
+        with self.assertRaisesRegex(LearnableSROKError, "row 1 exceeds max_record_bytes=32"):
+            list(_iter_bounded_lines(reader, 32))
+        self.assertEqual(reader.requested_sizes, [33])
+
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
         self.root = Path(self.tmp.name)
