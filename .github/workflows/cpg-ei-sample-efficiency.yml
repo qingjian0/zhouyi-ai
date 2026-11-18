@@ -1,0 +1,37 @@
+name: CPG-EI sample-efficiency comparison
+
+on:
+  push:
+    branches:
+      - research/cpg-ei-sample-efficiency-v1-2026-11-13
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  sample-efficiency:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run sample-efficiency contract tests
+        run: |
+          python -m unittest discover -s tests -p 'test_cpg_ei_sample_efficiency.py' -v
+      - name: Run 8-family matched support-size curves
+        run: |
+          python -m prototype.cpg_ei_sample_efficiency \
+            --families 8 --input-dim 8 --output-dim 8 \
+            --seed 20261114 --support-sizes 16 32 64 128 \
+            --epochs 120 --learning-rate 0.1 --l2 0.0001 \
+            --json artifacts/sample-efficiency.json
+      - name: Upload sample-efficiency report
+        uses: actions/upload-artifact@v4
+        with:
+          name: zhouyi-cpg-ei-sample-efficiency-v1
+          path: artifacts/sample-efficiency.json
+          if-no-files-found: error
