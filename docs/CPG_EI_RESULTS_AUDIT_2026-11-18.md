@@ -98,9 +98,10 @@ Locked test 汇总（均值 ± 跨 family-seed 样本标准差）：
 截至 2026-11-18 09:04 UTC：
 
 - **已合并到 dev**：#519（N0.10 out-of-core）、#520（扩展语料 v2）、#521（历史审计标记）、#523（M1 Manifest / bounded reads）、#524（M2 lazy store / paging）、#526（CPG-EI workflow path filters）、#527（本结果审计）、#528（经验贝叶斯 few-shot 基线）。以上均采用 squash merge；main 未改动。
-- **#517 待验收**：专项 CPG-EI 工作流已通过；首次 full-validation 暴露出研究分支工作流缺少 NumPy 依赖及缓存计数断言过期。已在 PR 分支补入 NumPy，并将断言改为按实际训练样本数与 epochs 计算。修复后的 full-validation Run [44271708689](https://github.com/qingjian0/zhouyi-ai/actions/runs/44271708689) 正在执行；未合并。
+- **#517 待验收**：专项 CPG-EI 工作流已通过。首轮 full-validation 发现研究分支工作流缺少 NumPy；补入后，第二轮又确认向量化与标量回退路径的特征编码计数口径不同（128 对 1536）。测试现已按实际后端分别核验，最新 full-validation Run [44272993658](https://github.com/qingjian0/zhouyi-ai/actions/runs/44272993658) 正在执行；未合并。
 - **#518 待依赖重整**：类象关系保持 OOD 专项工作流成功，但其分支基于 #517 的旧提交；旧提交的 full-validation 同样受到上述依赖/断言问题影响。需在 #517 通过后将 #518 与最新基线重新衔接，再做完整验证。
 - #519、#520、#523、#524 的精确提交均有完整测试与相关专项工作流成功记录；#526 的精确提交通过通用 tests 与 Orchestrator tests（2 项）。
+- dev 集成后的整仓验证已通过 push 触发：tests Run [44273325406](https://github.com/qingjian0/zhouyi-ai/actions/runs/44273325406) 与 Orchestrator tests Run [44273325588](https://github.com/qingjian0/zhouyi-ai/actions/runs/44273325588) 当前排队执行。
 
 工作流成功仅代表对应自动化检查通过。合成基准不等同真实古籍 Gold 数据或现实任务效能；Draft/未验收 PR 不视为已发布功能。
 
