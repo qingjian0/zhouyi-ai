@@ -105,12 +105,34 @@ class PersistentLifecycleTests(unittest.TestCase):
         self.memory.close()
 
         self.memory = ZPCMMemory(self.path)
+        original_iter = self.memory.iter_domain_events
+        requested_cursors = []
+
+        def record_cursor(**kwargs):
+            requested_cursors.append(kwargs.get("after_sequence", 0))
+            yield from original_iter(**kwargs)
+
+        self.memory.iter_domain_events = record_cursor
         self.store = PersistentLifecycleLedger(self.memory, scope="project-a")
+        self.memory.iter_domain_events = original_iter
+        self.assertIn(checkpoint["checkpoint_sequence"], requested_cursors)
         self.assertEqual(
             self.store.ledger.candidates[("rel:greater-than", 1)].state,
             CandidateState.PROPOSED,
         )
         self.assertEqual(self.store._last_sequence, 2)
+
+    def test_checkpoint_refuses_to_publish_stale_runtime_state(self):
+        self.store.register_candidate(candidate())
+        self.memory.append_lifecycle_event(
+            event_id="external-after-checkpoint",
+            scope="project-a",
+            payload={"schema_version": "external-v1", "kind": "external", "body": {}},
+            expected_sequence=1,
+        )
+        with self.assertRaises(LifecyclePersistenceError):
+            self.store.checkpoint()
+        self.assertIsNone(self.memory.load_e12a6_lifecycle_checkpoint(scope="project-a"))
 
     def test_corrupt_checkpoint_prefix_metadata_falls_back_to_full_replay(self):
         self.store.register_candidate(candidate())
