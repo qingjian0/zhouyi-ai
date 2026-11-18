@@ -434,6 +434,15 @@ class ZPCMMemory:
                     and meta["initialized_event_count"] == current["event_count"]
                     and meta["initialized_through_seq"] == current["high_water"]):
                 return
+            # Validate authoritative event digests before rebuilding derived rows.
+            scopes = [row["scope"] for row in self.db.execute(
+                "SELECT DISTINCT scope FROM memory_events WHERE event_type='e12a6_lifecycle'"
+            )]
+            for scope in scopes:
+                for _event in self.iter_domain_events(
+                    event_type="e12a6_lifecycle", scope=scope, page_size=64,
+                ):
+                    pass
             if meta is not None:
                 self.db.execute("DELETE FROM e12a6_candidate_state_projection")
                 self.db.execute("DELETE FROM e12a6_evidence_state_projection")
@@ -531,6 +540,14 @@ class ZPCMMemory:
     def rebuild_e12a6_current_state_projection(self) -> None:
         """Explicitly rebuild derived lifecycle state rows from the event log."""
         with self.lock:
+            scopes = [row["scope"] for row in self.db.execute(
+                "SELECT DISTINCT scope FROM memory_events WHERE event_type='e12a6_lifecycle'"
+            )]
+            for scope in scopes:
+                for _event in self.iter_domain_events(
+                    event_type="e12a6_lifecycle", scope=scope, page_size=64,
+                ):
+                    pass
             self.db.execute("DELETE FROM e12a6_candidate_state_projection")
             self.db.execute("DELETE FROM e12a6_evidence_state_projection")
             self.db.execute("DELETE FROM e12a6_action_state_projection")
