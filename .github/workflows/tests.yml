@@ -13,7 +13,7 @@ on:
       - 'pyproject.toml'
       - '.github/workflows/**'
   pull_request:
-    branches: [main, integration/m23-m70-on-main-2026-11-17, integration/m1-m2-e09-runtime-on-main-2026-11-17-batch1, research/e02e-autonomous-discovery, research/e02f-falsification, research/e02g-multienvironment-stability, research/e02h-boolean-rule-discovery, research/e02i-streaming-drift-lifecycle]
+    branches: [main, dev, integration/m23-m70-on-main-2026-11-17, integration/m1-m2-e09-runtime-on-main-2026-11-17-batch1, research/e02e-autonomous-discovery, research/e02f-falsification, research/e02g-multienvironment-stability, research/e02h-boolean-rule-discovery, research/e02i-streaming-drift-lifecycle]
     paths:
       - 'prototype/**'
       - 'tests/**'
@@ -42,35 +42,50 @@ jobs:
         run: python -m unittest discover -s tests -v
       - name: Run orchestrator CLI plan
         run: python -m orchestrator.cli orchestrator/examples/quickstart.json --plan
-      - name: Run E01 demonstration
-        run: python -m prototype.e01_sparse_composition --json
-      - name: Run E01-B five-seed evaluation
-        run: python -m prototype.e01_multiseed --seeds 5 --start-seed 7 --json
-      - name: Run E01-C compositional OOD evaluation
-        run: python -m prototype.e01_ood_multiseed --seeds 5 --start-seed 7 --json
-      - name: Run E02-A higher-order synergy evaluation
-        run: python -m prototype.e02_higher_order --seeds 5 --start-seed 7 --json
-      - name: Run E02-B ternary relation generator audit
-        run: python -m prototype.e02_ternary --examples 900 --seed 7
-      - name: Run E02-B pairwise vs third-order learners
-        run: python -m prototype.e02_ternary_learners --seeds 5 --start-seed 7 --json
-      - name: Run E02-C hyperedge lifecycle tests
-        run: python -m unittest tests.test_e02_edge_lifecycle -v
-      - name: Run E02-D held-out rule-family induction
-        run: python -m prototype.e02_rule_ood --seed 17 --support-size 6 --json
-      - name: Run E02-D multi-seed support identifiability sweep
-        run: python -m prototype.e02_rule_ood --sweep --seeds 100 --start-seed 100 --json
-      - name: Run E02-E multi-seed autonomous relation discovery
-        run: python -m prototype.e02e_discovery --seeds 20 --start-seed 7 --json
-      - name: Run E02-F train-only nuisance falsification
-        run: python -m prototype.e02f_falsification --seeds 100 --start-seed 100
-      - name: Run E02-G multi-environment stability classification
-        run: python -m prototype.e02g_multienvironment --seeds 50 --start-seed 700 --repeats 5
-      - name: Run E02-H unknown Boolean rule discovery
-        run: python -m prototype.e02h_boolean_rules --seeds 30 --start-seed 900
-      - name: Run E02-I streaming drift lifecycle
-        run: python -m prototype.e02i_streaming_drift --seeds 20 --start-seed 1200
-      - name: Run E03-A parallel multi-relation coordination
-        run: python -m prototype.e03a_parallel_composition --seeds 30 --start-seed 1500
-      - name: Run E02-I persistent relation evidence evolution
-        run: python -m prototype.e02i_relation_evolution --seeds 20 --start-seed 1200
+
+  research-evaluations:
+    needs: unit-tests
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix:
+        include:
+          - name: E01
+            commands: |
+              python -m prototype.e01_sparse_composition --json
+              python -m prototype.e01_multiseed --seeds 5 --start-seed 7 --json
+              python -m prototype.e01_ood_multiseed --seeds 5 --start-seed 7 --json
+          - name: E02-A-B
+            commands: |
+              python -m prototype.e02_higher_order --seeds 5 --start-seed 7 --json
+              python -m prototype.e02_ternary --examples 900 --seed 7
+              python -m prototype.e02_ternary_learners --seeds 5 --start-seed 7 --json
+          - name: E02-D
+            commands: |
+              python -m prototype.e02_rule_ood --seed 17 --support-size 6 --json
+              python -m prototype.e02_rule_ood --sweep --seeds 100 --start-seed 100 --json
+          - name: E02-E-F
+            commands: |
+              python -m prototype.e02e_discovery --seeds 20 --start-seed 7 --json
+              python -m prototype.e02f_falsification --seeds 100 --start-seed 100
+          - name: E02-G-H-I
+            commands: |
+              python -m prototype.e02g_multienvironment --seeds 50 --start-seed 700 --repeats 5
+              python -m prototype.e02h_boolean_rules --seeds 30 --start-seed 900
+              python -m prototype.e02i_streaming_drift --seeds 20 --start-seed 1200
+          - name: E03-A-and-E02-I-evolution
+            commands: |
+              python -m prototype.e03a_parallel_composition --seeds 30 --start-seed 1500
+              python -m prototype.e02i_relation_evolution --seeds 20 --start-seed 1200
+    name: research-evaluations (${{ matrix.name }})
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install research dependencies
+        run: python -m pip install "cryptography>=42,<47" "numpy>=1.26,<3"
+      - name: Run evaluation group
+        run: |
+          ${{ matrix.commands }}
