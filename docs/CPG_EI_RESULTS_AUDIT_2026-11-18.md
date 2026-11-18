@@ -95,15 +95,16 @@ Locked test 汇总（均值 ± 跨 family-seed 样本标准差）：
 
 ## 2. 本轮工程验证状态
 
-截至 2026-11-18 09:04 UTC：
+截至 2026-11-18 09:20 UTC：
 
-- **已合并到 dev**：#519（N0.10 out-of-core）、#520（扩展语料 v2）、#521（历史审计标记）、#523（M1 Manifest / bounded reads）、#524（M2 lazy store / paging）、#526（CPG-EI workflow path filters）、#527（本结果审计）、#528（经验贝叶斯 few-shot 基线）。以上均采用 squash merge；main 未改动。
-- **#517 待验收**：专项 CPG-EI 工作流已通过。首轮 full-validation 发现研究分支工作流缺少 NumPy；补入后，第二轮又确认向量化与标量回退路径的特征编码计数口径不同（128 对 1536）。测试现已按实际后端分别核验，最新 full-validation Run [44272993658](https://github.com/qingjian0/zhouyi-ai/actions/runs/44272993658) 正在执行；未合并。
-- **#518 待依赖重整**：类象关系保持 OOD 专项工作流成功，但其分支基于 #517 的旧提交；旧提交的 full-validation 同样受到上述依赖/断言问题影响。需在 #517 通过后将 #518 与最新基线重新衔接，再做完整验证。
-- #519、#520、#523、#524 的精确提交均有完整测试与相关专项工作流成功记录；#526 的精确提交通过通用 tests 与 Orchestrator tests（2 项）。
-- dev 集成后的整仓验证已通过 push 触发：tests Run [44273325406](https://github.com/qingjian0/zhouyi-ai/actions/runs/44273325406) 与 Orchestrator tests Run [44273325588](https://github.com/qingjian0/zhouyi-ai/actions/runs/44273325588) 当前排队执行。
+- **已合并到 dev**：#517（CPG-EI 优化器与 motif 诊断，精确 head 15/15 工作流成功）、#519（N0.10 out-of-core）、#520（扩展语料 v2）、#521（历史审计标记）、#523（M1 Manifest / bounded reads）、#524（M2 lazy store / paging）、#526（workflow path filters）、#527（本结果审计）、#528（经验贝叶斯 few-shot）、#529（类象关系保持 OOD 基准，2/2 专项工作流成功）、#530（编码状态转移与 M21 输入校验）。main 未改动。
+- **#530 验证口径**：代码与测试提交 9e4b67d 的专项扩展语料检查 Run [44274482813](https://github.com/qingjian0/zhouyi-ai/actions/runs/44274482813) 成功；后续提交 85b6d11 只收窄 CI 路径过滤，不改动代码/测试。该工作流此前因无路径过滤而被无关 PR 触发，现已限制到扩展语料自身源码与测试。
+- **易象研究链盘点**：M22–M26 的文档、原型和测试已存在于 dev。PR #445、#447、#448、#449 对应文件已在 dev；M23 的 dev 实现/测试比旧分支更新。PR #446 是重复的 M23 版本，故 #445–#449 已关闭为过时/重复候选。旧聚合 PR #433 的 245 个树文件全部已存在于 dev；差异只涉及 README、ROADMAP、工作流快照及少数旧版实现/测试。已选择性移植其有效增量，未覆盖 dev 中更严格的类型校验或新数据目录。PR #438 的 analogy 基准文件与 dev 完全一致，已关闭。
+- **依赖整理**：原 #518 依赖已 squash 合并的 #517 旧分支，已关闭；仅将其 4 个新增基准文件在最新 dev 基线上重建为 #529，避免重复携带 #517 的 28 个文件。
+- **CI 收敛**：tests.yml 现在按代码/测试/数据/Schema/工作流路径触发，并启用同分支并发取消；全量测试内包含 Orchestrator CLI plan。Orchestrator 专项 workflow 不再随每次 dev push 重复执行，只对主分支/feature 分支及 Orchestrator 相关路径触发。大型 CPG-EI 扩展语料 workflow 已加精确路径过滤。
+- **最新整仓验证**：dev 当前提交 bd73a70 的全量 tests Run [44275076315](https://github.com/qingjian0/zhouyi-ai/actions/runs/44275076315) 已排队；之前提交 2359c26 的 tests 与 Orchestrator tests 均成功。不能把旧提交的通过结果当作最新提交已通过。
 
-工作流成功仅代表对应自动化检查通过。合成基准不等同真实古籍 Gold 数据或现实任务效能；Draft/未验收 PR 不视为已发布功能。
+工作流成功仅代表对应自动化检查通过。合成基准不等同真实古籍 Gold 数据或现实任务效能；已合并的研究原型也不代表理论或认知能力已经获得实证证明。
 
 ## 3. 下一轮实验门禁
 
