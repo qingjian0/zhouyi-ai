@@ -182,7 +182,7 @@ class Tests(unittest.TestCase):
    with self.subTest(event_limit=event_limit,page_limit=page_limit),self.assertRaises(ZPCMError):
     ZPCMMemory(Path(self.tmp.name)/"invalid.db",max_event_payload_bytes=event_limit,max_page_bytes=page_limit)
 
-if __name__=="__main__":unittest.main()
+
 
 
  def _append_candidate_history_event(self,event_id,payload,expected_sequence):
@@ -245,3 +245,5 @@ if __name__=="__main__":unittest.main()
   with self.assertRaisesRegex(ZPCMError,"digest mismatch"):
    self.m.iter_lifecycle_candidate_history(
     scope="project",candidate_id="rel:bounded",limit=10)
+
+if __name__=="__main__":unittest.main()
