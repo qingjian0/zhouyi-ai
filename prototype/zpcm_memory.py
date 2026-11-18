@@ -509,11 +509,83 @@ class ZPCMMemory:
                 "SELECT COUNT(*) AS event_count,COALESCE(MAX(seq),0) AS high_water "
                 "FROM memory_events WHERE event_type='e12a6_lifecycle'"
             ).fetchone()
+
+            # High-water metadata alone cannot detect deleted/replaced projection
+            # rows when the event count is unchanged. Compare the identity keysets
+            # against the authoritative log before accepting the projection.
+            candidate_keys_match = self.db.execute("""
+                WITH expected AS (
+                    SELECT scope,
+                        json_extract(payload_json,'$.body.candidate.candidate_id') AS candidate_id,
+                        json_extract(payload_json,'$.body.candidate.version') AS candidate_version
+                    FROM memory_events
+                    WHERE event_type='e12a6_lifecycle'
+                      AND json_extract(payload_json,'$.kind') IN ('candidate_registered','revision_created')
+                      AND json_extract(payload_json,'$.body.candidate.candidate_id') IS NOT NULL
+                    GROUP BY scope,candidate_id,candidate_version
+                )
+                SELECT
+                    EXISTS(
+                        SELECT scope,candidate_id,candidate_version FROM expected
+                        EXCEPT
+                        SELECT scope,candidate_id,candidate_version FROM e12a6_candidate_state_projection
+                    ) OR EXISTS(
+                        SELECT scope,candidate_id,candidate_version FROM e12a6_candidate_state_projection
+                        EXCEPT
+                        SELECT scope,candidate_id,candidate_version FROM expected
+                    )
+            """).fetchone()[0] == 0
+            evidence_keys_match = self.db.execute("""
+                WITH expected AS (
+                    SELECT scope,
+                        json_extract(payload_json,'$.body.evidence.evidence_id') AS evidence_id
+                    FROM memory_events
+                    WHERE event_type='e12a6_lifecycle'
+                      AND json_extract(payload_json,'$.kind')='evidence_registered'
+                      AND json_extract(payload_json,'$.body.evidence.evidence_id') IS NOT NULL
+                    GROUP BY scope,evidence_id
+                )
+                SELECT
+                    EXISTS(
+                        SELECT scope,evidence_id FROM expected
+                        EXCEPT
+                        SELECT scope,evidence_id FROM e12a6_evidence_state_projection
+                    ) OR EXISTS(
+                        SELECT scope,evidence_id FROM e12a6_evidence_state_projection
+                        EXCEPT
+                        SELECT scope,evidence_id FROM expected
+                    )
+            """).fetchone()[0] == 0
+            action_keys_match = self.db.execute("""
+                WITH expected AS (
+                    SELECT scope,
+                        json_extract(payload_json,'$.body.action.action_id') AS action_id
+                    FROM memory_events
+                    WHERE event_type='e12a6_lifecycle'
+                      AND json_extract(payload_json,'$.kind')='action_applied'
+                      AND json_extract(payload_json,'$.body.action.action_id') IS NOT NULL
+                    GROUP BY scope,action_id
+                )
+                SELECT
+                    EXISTS(
+                        SELECT scope,action_id FROM expected
+                        EXCEPT
+                        SELECT scope,action_id FROM e12a6_action_state_projection
+                    ) OR EXISTS(
+                        SELECT scope,action_id FROM e12a6_action_state_projection
+                        EXCEPT
+                        SELECT scope,action_id FROM expected
+                    )
+            """).fetchone()[0] == 0
+
             if (not action_projection_migrated
                     and meta is not None
                     and meta["schema_version"] == "e12a6-current-state-v1"
                     and meta["initialized_event_count"] == current["event_count"]
-                    and meta["initialized_through_seq"] == current["high_water"]):
+                    and meta["initialized_through_seq"] == current["high_water"]
+                    and candidate_keys_match
+                    and evidence_keys_match
+                    and action_keys_match):
                 return
             self.rebuild_e12a6_current_state_projection()
 
