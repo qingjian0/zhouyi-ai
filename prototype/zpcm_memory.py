@@ -1257,7 +1257,9 @@ class ZPCMMemory:
             if event["sequence"] > through_sequence:
                 break
             prefix.update(
-                f'{event["sequence"]}\\0{event["event_id"]}\\0{event["payload_digest"]}\\n'.encode("utf-8")
+                str(event["sequence"]).encode("ascii") + b"\0"
+                + event["event_id"].encode("utf-8") + b"\0"
+                + event["payload_digest"].encode("ascii") + b"\n"
             )
             count += 1
             last_sequence = event["sequence"]
