@@ -1,0 +1,41 @@
+name: e12a6-rss-benchmark
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - 'prototype/e12a6_rss_benchmark.py'
+      - 'prototype/e12a6_zpcm_persistence.py'
+      - 'prototype/zpcm_memory.py'
+      - '.github/workflows/e12a6-rss-benchmark.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e12a6-rss-benchmark-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  restore-rss:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install runtime dependencies
+        run: python -m pip install "cryptography>=42,<47" "numpy>=1.26,<3"
+      - name: Run isolated 1K–500K restore RSS sweep
+        run: |
+          mkdir -p benchmark-results
+          python -m prototype.e12a6_rss_benchmark --sizes 1000,10000,50000,100000,500000 --batch-size 128 | tee benchmark-results/e12a6-restore-rss.json
+      - name: Upload RSS measurements
+        uses: actions/upload-artifact@v4
+        with:
+          name: e12a6-restore-rss-${{ github.sha }}
+          path: benchmark-results/e12a6-restore-rss.json
+          if-no-files-found: error
+          retention-days: 30
