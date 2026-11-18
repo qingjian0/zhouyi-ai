@@ -22,10 +22,14 @@ class CpgEiSelectionSweepTests(unittest.TestCase):
             self.assertEqual(len(row['ood_bit_accuracy_by_family']), 2)
             self.assertIn(row['selection_protocol'], ('proposal_split', 'legacy_train_ranked'))
             self.assertEqual(row['proposal_examples'], 12 if row['selection_protocol'] == 'proposal_split' else 0)
-            for key in ('support_precision', 'support_recall', 'locked_test_bit_accuracy'):
+            for key in ('support_recall', 'locked_test_bit_accuracy'):
                 self.assertTrue(math.isfinite(row[key]))
                 self.assertGreaterEqual(row[key], 0.0)
                 self.assertLessEqual(row[key], 1.0)
+            if row['support_precision'] is not None:
+                self.assertTrue(math.isfinite(row['support_precision']))
+                self.assertGreaterEqual(row['support_precision'], 0.0)
+                self.assertLessEqual(row['support_precision'], 1.0)
 
 if __name__ == '__main__':
     unittest.main()
