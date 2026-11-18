@@ -1,0 +1,58 @@
+{
+  "schema_version": "0.1",
+  "casebook_id": "mozi-xiaoqu-analogy-transfer-m17",
+  "primary_text": "《墨子·小取》",
+  "policy": "古典原文、校注与现代解释分层；数字文本是见证，不自动等同于定本。",
+  "cases": [
+    {
+      "case_id": "white-horse",
+      "passage": "白馬，馬也；乘白馬，乘馬也。驪馬，馬也；乘驪馬，乘馬也。",
+      "source_ref": "mozi-xiaoqu",
+      "audit_focus": [
+        "category_membership",
+        "predicate_preservation"
+      ],
+      "note": "只登记原文示例，不据此推断任意属性可由下位类迁移到上位类。"
+    },
+    {
+      "case_id": "vehicle-wood",
+      "passage": "車，木也；乘車，非乘木也。",
+      "source_ref": "mozi-xiaoqu",
+      "audit_focus": [
+        "material_composition",
+        "action_object_relation"
+      ],
+      "note": "构成材料关系不能替代动作宾语关系。"
+    },
+    {
+      "case_id": "thief-person",
+      "passage": "盜人，人也；多盜，非多人也。",
+      "source_ref": "mozi-xiaoqu",
+      "audit_focus": [
+        "category_membership",
+        "quantity_predicate"
+      ],
+      "note": "类别归属不能任意迁移为数量谓词。"
+    },
+    {
+      "case_id": "same-result-different-cause",
+      "passage": "其然也同，其所以然不必同。",
+      "source_ref": "mozi-xiaoqu",
+      "audit_focus": [
+        "observed_result",
+        "explanatory_warrant"
+      ],
+      "note": "同一表现不证明形成根据相同。"
+    },
+    {
+      "case_id": "same-example-different-selection-basis",
+      "passage": "其取之也同，其所以取之不必同。",
+      "source_ref": "mozi-xiaoqu",
+      "audit_focus": [
+        "selected_example",
+        "selection_warrant"
+      ],
+      "note": "举例相同不证明选例根据相同。"
+    }
+  ]
+}

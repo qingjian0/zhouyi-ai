@@ -1,0 +1,556 @@
+[
+  {
+    "claim_kind": "argumentative_analogy",
+    "case_id": "m20:relation-direction:direction-preserved",
+    "source_lineage": [
+      "fixture:m20:relation-direction"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Synthetic contrastive analogy case direction-preserved: 源/目标关系方向、主体角色与对象角色均保持；该迁移仅限已声明的关系结构。",
+    "relation_families": [
+      "structural"
+    ],
+    "shared_basis": [
+      "same directed relation topology"
+    ],
+    "non_shared_basis": [],
+    "scope_conditions": [],
+    "required_invariants": [
+      "source-target edge direction preserved"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:m20:relation-direction:direction-preserved"
+    ],
+    "independence_group": "fixture-group:m20:relation-direction",
+    "gold_decision": "accept",
+    "gold_rationale": "SYNTHETIC FIXTURE ONLY. 源/目标关系方向、主体角色与对象角色均保持；该迁移仅限已声明的关系结构。",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "train"
+  },
+  {
+    "claim_kind": "argumentative_analogy",
+    "case_id": "m20:relation-direction:direction-reversed",
+    "source_lineage": [
+      "fixture:m20:relation-direction"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Synthetic contrastive analogy case direction-reversed: 目标案例反转了关键关系方向；节点相似不能弥补关系方向不一致。",
+    "relation_families": [
+      "structural"
+    ],
+    "shared_basis": [
+      "same node labels"
+    ],
+    "non_shared_basis": [
+      "edge direction reversed"
+    ],
+    "scope_conditions": [],
+    "required_invariants": [
+      "edge direction preserved"
+    ],
+    "known_counterexamples": [
+      "fixture-counterexample:critical-difference"
+    ],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:m20:relation-direction:direction-reversed"
+    ],
+    "independence_group": "fixture-group:m20:relation-direction",
+    "gold_decision": "reject",
+    "gold_rationale": "SYNTHETIC FIXTURE ONLY. 目标案例反转了关键关系方向；节点相似不能弥补关系方向不一致。",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "train"
+  },
+  {
+    "claim_kind": "argumentative_analogy",
+    "case_id": "m20:material-origin:material-to-property",
+    "source_lineage": [
+      "fixture:m20:material-origin"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Synthetic contrastive analogy case material-to-property: 由材料或过程生成不推出成品继承材料的全部性质；来源关系不是属性继承关系。",
+    "relation_families": [
+      "process_mechanism",
+      "functional"
+    ],
+    "shared_basis": [
+      "known origin relation"
+    ],
+    "non_shared_basis": [
+      "property inheritance not established"
+    ],
+    "scope_conditions": [],
+    "required_invariants": [
+      "origin-property bridge required"
+    ],
+    "known_counterexamples": [
+      "fixture-counterexample:critical-difference"
+    ],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:m20:material-origin:material-to-property"
+    ],
+    "independence_group": "fixture-group:m20:material-origin",
+    "gold_decision": "reject",
+    "gold_rationale": "SYNTHETIC FIXTURE ONLY. 由材料或过程生成不推出成品继承材料的全部性质；来源关系不是属性继承关系。",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "train"
+  },
+  {
+    "claim_kind": "argumentative_analogy",
+    "case_id": "m20:material-origin:unverified-property-bridge",
+    "source_lineage": [
+      "fixture:m20:material-origin"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Synthetic contrastive analogy case unverified-property-bridge: 材料来源与目标性质之间缺少可核验桥接证据，现有信息不足以判定是否可迁移。",
+    "relation_families": [
+      "process_mechanism",
+      "functional"
+    ],
+    "shared_basis": [
+      "shared material descriptor"
+    ],
+    "non_shared_basis": [
+      "missing bridge evidence"
+    ],
+    "scope_conditions": [],
+    "required_invariants": [
+      "independent property evidence required"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:m20:material-origin:unverified-property-bridge"
+    ],
+    "independence_group": "fixture-group:m20:material-origin",
+    "gold_decision": "abstain",
+    "gold_rationale": "SYNTHETIC FIXTURE ONLY. 材料来源与目标性质之间缺少可核验桥接证据，现有信息不足以判定是否可迁移。",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "train"
+  },
+  {
+    "claim_kind": "correlative_causation",
+    "case_id": "m20:same-result-mechanism:same-result-unseen-mechanism",
+    "source_lineage": [
+      "fixture:m20:same-result-mechanism"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Synthetic contrastive analogy case same-result-unseen-mechanism: 两个案例结果相同，但形成机制未核验；不能从结果一致推断所以然一致。",
+    "relation_families": [
+      "empirical_correlation",
+      "causal_analogy"
+    ],
+    "shared_basis": [
+      "same observed outcome"
+    ],
+    "non_shared_basis": [
+      "mechanism unknown"
+    ],
+    "scope_conditions": [],
+    "required_invariants": [
+      "mechanism evidence required"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:m20:same-result-mechanism:same-result-unseen-mechanism"
+    ],
+    "independence_group": "fixture-group:m20:same-result-mechanism",
+    "gold_decision": "abstain",
+    "gold_rationale": "SYNTHETIC FIXTURE ONLY. 两个案例结果相同，但形成机制未核验；不能从结果一致推断所以然一致。",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "train"
+  },
+  {
+    "claim_kind": "correlative_causation",
+    "case_id": "m20:same-result-mechanism:mechanism-bounded-transfer",
+    "source_lineage": [
+      "fixture:m20:same-result-mechanism"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Synthetic contrastive analogy case mechanism-bounded-transfer: 只在已独立验证的机制、边界条件和干预范围内迁移该局部结论。",
+    "relation_families": [
+      "empirical_correlation",
+      "causal_analogy"
+    ],
+    "shared_basis": [
+      "same verified intermediate mechanism"
+    ],
+    "non_shared_basis": [
+      "different broader context"
+    ],
+    "scope_conditions": [
+      "仅在上述主体/机制/环境边界成立时"
+    ],
+    "required_invariants": [
+      "mechanism and intervention boundary held"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "mechanistic_hypothesis",
+    "evidence_refs": [
+      "fixture:m20:same-result-mechanism:mechanism-bounded-transfer"
+    ],
+    "independence_group": "fixture-group:m20:same-result-mechanism",
+    "gold_decision": "conditional",
+    "gold_rationale": "SYNTHETIC FIXTURE ONLY. 只在已独立验证的机制、边界条件和干预范围内迁移该局部结论。",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "train"
+  },
+  {
+    "claim_kind": "practical_utility",
+    "case_id": "m20:agent-goal-affordance:goal-aligned-use",
+    "source_lineage": [
+      "fixture:m20:agent-goal-affordance"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Synthetic contrastive analogy case goal-aligned-use: 同一对象在主体目标、能力和环境约束一致时可作有限用途类比。",
+    "relation_families": [
+      "functional",
+      "situated"
+    ],
+    "shared_basis": [
+      "same object affordance"
+    ],
+    "non_shared_basis": [
+      "goal and capability remain scope-limited"
+    ],
+    "scope_conditions": [
+      "仅在上述主体/机制/环境边界成立时"
+    ],
+    "required_invariants": [
+      "agent goal and environment held"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:m20:agent-goal-affordance:goal-aligned-use"
+    ],
+    "independence_group": "fixture-group:m20:agent-goal-affordance",
+    "gold_decision": "conditional",
+    "gold_rationale": "SYNTHETIC FIXTURE ONLY. 同一对象在主体目标、能力和环境约束一致时可作有限用途类比。",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "dev"
+  },
+  {
+    "claim_kind": "practical_utility",
+    "case_id": "m20:agent-goal-affordance:goal-mismatch-use",
+    "source_lineage": [
+      "fixture:m20:agent-goal-affordance"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Synthetic contrastive analogy case goal-mismatch-use: 对象相同但主体目标不同，不能把一个主体的用途判断直接迁移给另一个主体。",
+    "relation_families": [
+      "functional",
+      "situated"
+    ],
+    "shared_basis": [
+      "same object"
+    ],
+    "non_shared_basis": [
+      "different agent goal"
+    ],
+    "scope_conditions": [],
+    "required_invariants": [
+      "agent goal must match"
+    ],
+    "known_counterexamples": [
+      "fixture-counterexample:critical-difference"
+    ],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:m20:agent-goal-affordance:goal-mismatch-use"
+    ],
+    "independence_group": "fixture-group:m20:agent-goal-affordance",
+    "gold_decision": "reject",
+    "gold_rationale": "SYNTHETIC FIXTURE ONLY. 对象相同但主体目标不同，不能把一个主体的用途判断直接迁移给另一个主体。",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "dev"
+  },
+  {
+    "claim_kind": "action_outcome",
+    "case_id": "m20:posture-task-geometry:posture-held",
+    "source_lineage": [
+      "fixture:m20:posture-task-geometry"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Synthetic contrastive analogy case posture-held: 材料、姿态、几何约束和任务目标均保持，允许迁移这一合成任务的局部难度关系。",
+    "relation_families": [
+      "situated",
+      "structural"
+    ],
+    "shared_basis": [
+      "same task geometry and posture"
+    ],
+    "non_shared_basis": [],
+    "scope_conditions": [],
+    "required_invariants": [
+      "posture and geometry invariant"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:m20:posture-task-geometry:posture-held"
+    ],
+    "independence_group": "fixture-group:m20:posture-task-geometry",
+    "gold_decision": "accept",
+    "gold_rationale": "SYNTHETIC FIXTURE ONLY. 材料、姿态、几何约束和任务目标均保持，允许迁移这一合成任务的局部难度关系。",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "dev"
+  },
+  {
+    "claim_kind": "action_outcome",
+    "case_id": "m20:posture-task-geometry:posture-shifted",
+    "source_lineage": [
+      "fixture:m20:posture-task-geometry"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Synthetic contrastive analogy case posture-shifted: 姿态改变了可用力学条件；仅凭材料与任务名称相同不能迁移难度判断。",
+    "relation_families": [
+      "situated",
+      "structural"
+    ],
+    "shared_basis": [
+      "same material and task label"
+    ],
+    "non_shared_basis": [
+      "posture changes force geometry"
+    ],
+    "scope_conditions": [],
+    "required_invariants": [
+      "posture invariant"
+    ],
+    "known_counterexamples": [
+      "fixture-counterexample:critical-difference"
+    ],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:m20:posture-task-geometry:posture-shifted"
+    ],
+    "independence_group": "fixture-group:m20:posture-task-geometry",
+    "gold_decision": "reject",
+    "gold_rationale": "SYNTHETIC FIXTURE ONLY. 姿态改变了可用力学条件；仅凭材料与任务名称相同不能迁移难度判断。",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "dev"
+  },
+  {
+    "claim_kind": "action_outcome",
+    "case_id": "m20:species-context:same-species-bounded",
+    "source_lineage": [
+      "fixture:m20:species-context"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Synthetic contrastive analogy case same-species-bounded: 该作用关系只在指定物种、剂量、环境和测量条件下作为有限假设保留。",
+    "relation_families": [
+      "situated",
+      "functional"
+    ],
+    "shared_basis": [
+      "same species class"
+    ],
+    "non_shared_basis": [
+      "dose and environment remain explicit"
+    ],
+    "scope_conditions": [
+      "仅在上述主体/机制/环境边界成立时"
+    ],
+    "required_invariants": [
+      "species dose environment invariant"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "mechanistic_hypothesis",
+    "evidence_refs": [
+      "fixture:m20:species-context:same-species-bounded"
+    ],
+    "independence_group": "fixture-group:m20:species-context",
+    "gold_decision": "conditional",
+    "gold_rationale": "SYNTHETIC FIXTURE ONLY. 该作用关系只在指定物种、剂量、环境和测量条件下作为有限假设保留。",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "holdout"
+  },
+  {
+    "claim_kind": "action_outcome",
+    "case_id": "m20:species-context:cross-species-transfer",
+    "source_lineage": [
+      "fixture:m20:species-context"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Synthetic contrastive analogy case cross-species-transfer: 跨物种生理差异可能改变作用方向；未经独立验证，不得将作用关系直接外推。",
+    "relation_families": [
+      "situated",
+      "functional"
+    ],
+    "shared_basis": [
+      "same substance label"
+    ],
+    "non_shared_basis": [
+      "different species physiology"
+    ],
+    "scope_conditions": [],
+    "required_invariants": [
+      "species-specific response verified"
+    ],
+    "known_counterexamples": [
+      "fixture-counterexample:critical-difference"
+    ],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:m20:species-context:cross-species-transfer"
+    ],
+    "independence_group": "fixture-group:m20:species-context",
+    "gold_decision": "reject",
+    "gold_rationale": "SYNTHETIC FIXTURE ONLY. 跨物种生理差异可能改变作用方向；未经独立验证，不得将作用关系直接外推。",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "holdout"
+  },
+  {
+    "claim_kind": "taxonomic_similarity",
+    "case_id": "m20:appearance-proxy:appearance-only",
+    "source_lineage": [
+      "fixture:m20:appearance-proxy"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Synthetic contrastive analogy case appearance-only: 外观特征与目标内在属性之间没有独立桥接证据，现有信息不足以接受或否定具体个体判断。",
+    "relation_families": [
+      "morphological",
+      "symbolic_normative"
+    ],
+    "shared_basis": [
+      "shared visible appearance"
+    ],
+    "non_shared_basis": [
+      "target property unobserved"
+    ],
+    "scope_conditions": [],
+    "required_invariants": [
+      "proxy validity evidence required"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:m20:appearance-proxy:appearance-only"
+    ],
+    "independence_group": "fixture-group:m20:appearance-proxy",
+    "gold_decision": "abstain",
+    "gold_rationale": "SYNTHETIC FIXTURE ONLY. 外观特征与目标内在属性之间没有独立桥接证据，现有信息不足以接受或否定具体个体判断。",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "holdout"
+  },
+  {
+    "claim_kind": "taxonomic_similarity",
+    "case_id": "m20:appearance-proxy:appearance-counterexample",
+    "source_lineage": [
+      "fixture:m20:appearance-proxy"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Synthetic contrastive analogy case appearance-counterexample: 合成反例明确给出外观相同而目标属性相反的情况，表面代理不足以支持迁移。",
+    "relation_families": [
+      "morphological",
+      "symbolic_normative"
+    ],
+    "shared_basis": [
+      "same visible appearance"
+    ],
+    "non_shared_basis": [
+      "target property differs"
+    ],
+    "scope_conditions": [],
+    "required_invariants": [
+      "proxy must predict target property"
+    ],
+    "known_counterexamples": [
+      "fixture-counterexample:critical-difference"
+    ],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:m20:appearance-proxy:appearance-counterexample"
+    ],
+    "independence_group": "fixture-group:m20:appearance-proxy",
+    "gold_decision": "reject",
+    "gold_rationale": "SYNTHETIC FIXTURE ONLY. 合成反例明确给出外观相同而目标属性相反的情况，表面代理不足以支持迁移。",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "holdout"
+  },
+  {
+    "claim_kind": "taxonomic_similarity",
+    "case_id": "m20:class-vs-quantity:class-membership",
+    "source_lineage": [
+      "fixture:m20:class-vs-quantity"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Synthetic contrastive analogy case class-membership: 个体类别归属关系在目标谓词上保持，迁移仅限该类别谓词。",
+    "relation_families": [
+      "structural"
+    ],
+    "shared_basis": [
+      "subclass is member of superclass"
+    ],
+    "non_shared_basis": [],
+    "scope_conditions": [],
+    "required_invariants": [
+      "predicate applies to class membership"
+    ],
+    "known_counterexamples": [],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:m20:class-vs-quantity:class-membership"
+    ],
+    "independence_group": "fixture-group:m20:class-vs-quantity",
+    "gold_decision": "accept",
+    "gold_rationale": "SYNTHETIC FIXTURE ONLY. 个体类别归属关系在目标谓词上保持，迁移仅限该类别谓词。",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "holdout"
+  },
+  {
+    "claim_kind": "taxonomic_similarity",
+    "case_id": "m20:class-vs-quantity:quantity-predicate",
+    "source_lineage": [
+      "fixture:m20:class-vs-quantity"
+    ],
+    "source_status": "synthetic_fixture",
+    "target_claim": "Synthetic contrastive analogy case quantity-predicate: 类属包含关系不自动传递到数量谓词；对行为类别的计数不等于对上位实体类别计数。",
+    "relation_families": [
+      "structural"
+    ],
+    "shared_basis": [
+      "subclass membership"
+    ],
+    "non_shared_basis": [
+      "quantity predicate changes semantic type"
+    ],
+    "scope_conditions": [],
+    "required_invariants": [
+      "predicate type must be preserved"
+    ],
+    "known_counterexamples": [
+      "fixture-counterexample:critical-difference"
+    ],
+    "causal_status": "unknown",
+    "evidence_refs": [
+      "fixture:m20:class-vs-quantity:quantity-predicate"
+    ],
+    "independence_group": "fixture-group:m20:class-vs-quantity",
+    "gold_decision": "reject",
+    "gold_rationale": "SYNTHETIC FIXTURE ONLY. 类属包含关系不自动传递到数量谓词；对行为类别的计数不等于对上位实体类别计数。",
+    "label_status": "fixture_expected",
+    "reviewers": [],
+    "split_group": "holdout"
+  }
+]

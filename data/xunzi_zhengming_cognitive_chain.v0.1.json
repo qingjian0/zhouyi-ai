@@ -1,0 +1,171 @@
+{
+  "schema_version": "0.1",
+  "graph_id": "zhouyi-ai.xunzi-zhengming-cognitive-chain",
+  "source_ref": {
+    "case_id": "xy_012",
+    "source_id": "src_xunzi",
+    "work": "荀子",
+    "chapter": "正名",
+    "evidence_status": "digital_transcription_candidate",
+    "review_status": "unreviewed"
+  },
+  "stages": [
+    {
+      "stage_id": "S1_SENSORY_DISCRIMINATION",
+      "order": 1,
+      "source_term": "天官",
+      "textual_anchor": "形体、色理以目异；声音清浊以耳异；甘苦咸淡以口异",
+      "function": "按感知通道取得对象属性差异",
+      "required_evidence": [
+        "observation_ref",
+        "sensory_or_measurement_channel",
+        "property_dimension",
+        "observation_conditions"
+      ],
+      "failure_modes": [
+        "channel_mismatch",
+        "unobserved_property_treated_as_absent",
+        "measurement_context_shift"
+      ]
+    },
+    {
+      "stage_id": "S2_EVIDENCE_GROUNDED_RECOGNITION",
+      "order": 2,
+      "source_term": "征知",
+      "textual_anchor": "征知必将待天官之当簿其类，然后可也",
+      "function": "判断须受相应观察记录约束",
+      "required_evidence": [
+        "observation_ref",
+        "classification_warrant"
+      ],
+      "failure_modes": [
+        "inference_without_observation",
+        "unknown_treated_as_known",
+        "cross_channel_substitution"
+      ]
+    },
+    {
+      "stage_id": "S3_DIMENSIONAL_SAME_DIFFERENT",
+      "order": 3,
+      "source_term": "同异",
+      "textual_anchor": "然后随而命之，同则同之，异则异之",
+      "function": "按明确属性或关系维度判定同异",
+      "required_evidence": [
+        "comparison_dimension",
+        "shared_basis",
+        "non_shared_basis"
+      ],
+      "failure_modes": [
+        "global_same_from_local_match",
+        "global_different_from_local_difference",
+        "dimension_unspecified"
+      ]
+    },
+    {
+      "stage_id": "S4_CLASS_AND_NAMING",
+      "order": 4,
+      "source_term": "共名/别名/约定",
+      "textual_anchor": "物也者，大共名也；鸟兽也者，大别名也；约定俗成谓之宜",
+      "function": "建立可调整粒度的分类与共同体命名",
+      "required_evidence": [
+        "class_definition",
+        "naming_convention_scope",
+        "referent_evidence"
+      ],
+      "failure_modes": [
+        "same_name_different_referent",
+        "different_name_same_referent",
+        "category_granularity_error"
+      ]
+    },
+    {
+      "stage_id": "S5_OBJECT_CONTINUITY",
+      "order": 5,
+      "source_term": "状/所/实/化",
+      "textual_anchor": "同状而异所者…谓之二实；状变而实无别…谓之化",
+      "function": "区分外观、个体化条件与对象连续性",
+      "required_evidence": [
+        "temporal_evidence",
+        "continuity_basis",
+        "identity_scope"
+      ],
+      "failure_modes": [
+        "same_appearance_assumed_same_entity",
+        "appearance_change_assumed_new_entity",
+        "same_location_assumed_same_entity"
+      ]
+    }
+  ],
+  "transfer_gates": [
+    "observation_comparability",
+    "dimension_explicitness",
+    "classification_basis",
+    "name_referent_alignment",
+    "identity_continuity_when_required",
+    "critical_difference_review",
+    "counterexample_search",
+    "conclusion_scope"
+  ],
+  "adversarial_cases": [
+    {
+      "case_id": "XZ_AC1",
+      "scenario": "两个物体颜色与轮廓相同，但处于不同位置且可分别计数",
+      "expected": "DISTINCT_ENTITIES_WITH_LOCAL_ATTRIBUTE_MATCH",
+      "targets": [
+        "S3_DIMENSIONAL_SAME_DIFFERENT",
+        "S5_OBJECT_CONTINUITY"
+      ]
+    },
+    {
+      "case_id": "XZ_AC2",
+      "scenario": "同一物体经加热、折叠或形变后外观改变，但时序与因果连续性保持",
+      "expected": "DO_NOT_INFER_NEW_ENTITY_FROM_APPEARANCE_ALONE",
+      "targets": [
+        "S5_OBJECT_CONTINUITY"
+      ]
+    },
+    {
+      "case_id": "XZ_AC3",
+      "scenario": "两个不同对象在不同地区使用同一个名称",
+      "expected": "ABSTAIN_ON_REFERENT_IDENTITY",
+      "targets": [
+        "S4_CLASS_AND_NAMING"
+      ]
+    },
+    {
+      "case_id": "XZ_AC4",
+      "scenario": "两个对象在功能上相同，但实现机制不同",
+      "expected": "FUNCTIONAL_MATCH_ONLY_NO_MECHANISM_TRANSFER",
+      "targets": [
+        "S3_DIMENSIONAL_SAME_DIFFERENT",
+        "S4_CLASS_AND_NAMING"
+      ]
+    },
+    {
+      "case_id": "XZ_AC5",
+      "scenario": "系统仅有视觉观察，却断言对象声音、气味或内部结构相同",
+      "expected": "ABSTAIN_DUE_TO_CHANNEL_MISMATCH",
+      "targets": [
+        "S1_SENSORY_DISCRIMINATION",
+        "S2_EVIDENCE_GROUNDED_RECOGNITION"
+      ]
+    }
+  ],
+  "engineering_mapping": {
+    "m2": "将五阶段建模为有序但可分支的认知证据链。",
+    "m3": "竞争解释必须声明其同异维度、感知通道和名实对齐证据。",
+    "m4": "干预通道、位置、外观、时间及约定，检查判断是否稳健。",
+    "m5": "选择能区分竞争假设的观测通道与属性。",
+    "m8": "覆盖通道错配、同名异物、形变连续性及局部同异误判。"
+  },
+  "inference_policy": {
+    "unknown_is_not_false": true,
+    "local_match_does_not_imply_global_identity": true,
+    "name_match_does_not_imply_referent_identity": true,
+    "appearance_change_does_not_imply_entity_change": true,
+    "required_failure_output": [
+      "ABSTAIN",
+      "UNRESOLVED"
+    ]
+  }
+}
