@@ -2,13 +2,19 @@
 from __future__ import annotations
 from copy import deepcopy
 import json
+import os
+import pickle
+import sqlite3
+import tempfile
+import weakref
+from collections.abc import MutableMapping, MutableSet, MutableSequence
 from datetime import datetime
 from dataclasses import dataclass, replace
 from threading import RLock
-from typing import Any, Mapping
+from typing import Any, Callable, Mapping
 from prototype.e12a6_lifecycle_contract import Action, ActionType, Candidate, CandidateState, Evidence, LifecycleLedger, SplitRole
 from prototype.e09_verification_receipt import VerifiedE09VerificationReceipt
-from prototype.zpcm_memory import ZPCMMemory, digest
+from prototype.zpcm_memory import ZPCMMemory
 
 EVENT_SCHEMA = "e12a6-lifecycle-event-v1"
 
@@ -75,24 +81,304 @@ def _safe_evidence(evidence: Evidence) -> Evidence:
         provenance=f"opaque-provenance-ref:{evidence.evidence_id}",
     )
 
+class _SQLiteRuntimeState:
+    """Disk-backed scratch state for semantic replay; Python retains only bounded pages."""
+    def __init__(self) -> None:
+        fd, self.path = tempfile.mkstemp(prefix="zhouyi-e12a6-replay-", suffix=".sqlite3")
+        os.close(fd)
+        self.connection = sqlite3.connect(self.path, isolation_level=None, check_same_thread=False)
+        self.connection.execute("PRAGMA journal_mode=DELETE")
+        self.connection.execute("PRAGMA synchronous=OFF")
+        self.connection.execute("PRAGMA temp_store=FILE")
+        self.connection.execute("PRAGMA cache_size=-2048")
+        self.connection.execute("PRAGMA mmap_size=0")
+        self.connection.executescript("""
+            CREATE TABLE mapping_values(name TEXT NOT NULL, key BLOB NOT NULL, value BLOB NOT NULL,
+                PRIMARY KEY(name,key));
+            CREATE TABLE set_values(name TEXT NOT NULL, value BLOB NOT NULL, PRIMARY KEY(name,value));
+            CREATE TABLE sequence_values(name TEXT NOT NULL, position INTEGER PRIMARY KEY AUTOINCREMENT,
+                value BLOB NOT NULL);
+        """)
+        self._finalizer = weakref.finalize(self, self._cleanup, self.connection, self.path)
+
+    @staticmethod
+    def _cleanup(connection, path: str) -> None:
+        try:
+            connection.close()
+        except Exception:
+            pass
+        try:
+            os.unlink(path)
+        except FileNotFoundError:
+            pass
+
+    def close(self) -> None:
+        """Close and remove the scratch database immediately; safe to call repeatedly."""
+        self._finalizer()
+
+    def begin(self) -> None:
+        self.connection.execute("BEGIN IMMEDIATE")
+
+    def commit(self) -> None:
+        self.connection.execute("COMMIT")
+
+    def rollback(self) -> None:
+        if self.connection.in_transaction:
+            self.connection.execute("ROLLBACK")
+
+
+def _dump_state(value: Any) -> sqlite3.Binary:
+    return sqlite3.Binary(pickle.dumps(value, protocol=5))
+
+
+class _SQLiteMapping(MutableMapping):
+    def __init__(self, state: _SQLiteRuntimeState, name: str) -> None:
+        self.state, self.name = state, name
+
+    def __getitem__(self, key):
+        row = self.state.connection.execute(
+            "SELECT value FROM mapping_values WHERE name=? AND key=?",
+            (self.name, _dump_state(key)),
+        ).fetchone()
+        if row is None:
+            raise KeyError(key)
+        return pickle.loads(row[0])
+
+    def __setitem__(self, key, value) -> None:
+        self.state.connection.execute(
+            "INSERT OR REPLACE INTO mapping_values(name,key,value) VALUES(?,?,?)",
+            (self.name, _dump_state(key), _dump_state(value)),
+        )
+
+    def __delitem__(self, key) -> None:
+        cursor = self.state.connection.execute(
+            "DELETE FROM mapping_values WHERE name=? AND key=?",
+            (self.name, _dump_state(key)),
+        )
+        if cursor.rowcount == 0:
+            raise KeyError(key)
+
+    def __iter__(self):
+        cursor = self.state.connection.execute(
+            "SELECT key FROM mapping_values WHERE name=? ORDER BY rowid", (self.name,)
+        )
+        while True:
+            rows = cursor.fetchmany(128)
+            if not rows:
+                return
+            for row in rows:
+                yield pickle.loads(row[0])
+
+    def __len__(self) -> int:
+        return int(self.state.connection.execute(
+            "SELECT COUNT(*) FROM mapping_values WHERE name=?", (self.name,)
+        ).fetchone()[0])
+
+
+class _SQLiteSet(MutableSet):
+    def __init__(self, state: _SQLiteRuntimeState, name: str) -> None:
+        self.state, self.name = state, name
+
+    def __contains__(self, value) -> bool:
+        return self.state.connection.execute(
+            "SELECT 1 FROM set_values WHERE name=? AND value=?",
+            (self.name, _dump_state(value)),
+        ).fetchone() is not None
+
+    def __iter__(self):
+        cursor = self.state.connection.execute(
+            "SELECT value FROM set_values WHERE name=? ORDER BY rowid", (self.name,)
+        )
+        while True:
+            rows = cursor.fetchmany(128)
+            if not rows:
+                return
+            for row in rows:
+                yield pickle.loads(row[0])
+
+    def __len__(self) -> int:
+        return int(self.state.connection.execute(
+            "SELECT COUNT(*) FROM set_values WHERE name=?", (self.name,)
+        ).fetchone()[0])
+
+    def add(self, value) -> None:
+        self.state.connection.execute(
+            "INSERT OR IGNORE INTO set_values(name,value) VALUES(?,?)",
+            (self.name, _dump_state(value)),
+        )
+
+    def discard(self, value) -> None:
+        self.state.connection.execute(
+            "DELETE FROM set_values WHERE name=? AND value=?",
+            (self.name, _dump_state(value)),
+        )
+
+
+class _SQLiteSequence(MutableSequence):
+    def __init__(self, state: _SQLiteRuntimeState, name: str) -> None:
+        self.state, self.name = state, name
+
+    def __len__(self) -> int:
+        return int(self.state.connection.execute(
+            "SELECT COUNT(*) FROM sequence_values WHERE name=?", (self.name,)
+        ).fetchone()[0])
+
+    def __getitem__(self, index):
+        if isinstance(index, slice):
+            return list(self)[index]
+        if index < 0:
+            index += len(self)
+        row = self.state.connection.execute(
+            "SELECT value FROM sequence_values WHERE name=? ORDER BY position LIMIT 1 OFFSET ?",
+            (self.name, index),
+        ).fetchone()
+        if row is None:
+            raise IndexError(index)
+        return pickle.loads(row[0])
+
+    def __setitem__(self, index, value) -> None:
+        raise TypeError("SQLite lifecycle action history is append-only")
+
+    def __delitem__(self, index) -> None:
+        raise TypeError("SQLite lifecycle action history is append-only")
+
+    def insert(self, index, value) -> None:
+        if index != len(self):
+            raise TypeError("SQLite lifecycle action history is append-only")
+        self.append(value)
+
+    def append(self, value) -> None:
+        self.state.connection.execute(
+            "INSERT INTO sequence_values(name,value) VALUES(?,?)",
+            (self.name, _dump_state(value)),
+        )
+
+    def __iter__(self):
+        cursor = self.state.connection.execute(
+            "SELECT value FROM sequence_values WHERE name=? ORDER BY position", (self.name,)
+        )
+        while True:
+            rows = cursor.fetchmany(128)
+            if not rows:
+                return
+            for row in rows:
+                yield pickle.loads(row[0])
+
+
+def _new_sqlite_lifecycle_ledger() -> tuple[LifecycleLedger, _SQLiteRuntimeState]:
+    state = _SQLiteRuntimeState()
+    ledger = LifecycleLedger()
+    ledger.candidates = _SQLiteMapping(state, "candidates")
+    ledger.evidence = _SQLiteMapping(state, "evidence")
+    ledger.actions = _SQLiteSequence(state, "actions")
+    ledger._action_ids = _SQLiteSet(state, "action_ids")
+    return ledger, state
+
+
 class PersistentLifecycleLedger:
     """E12 validates; ZPCM persists immutable events; replay revalidates transitions."""
     def __init__(self, memory: ZPCMMemory, *, scope: str) -> None:
         if not isinstance(memory,ZPCMMemory): raise TypeError("memory must be ZPCMMemory")
         if not isinstance(scope,str) or not scope.strip(): raise ValueError("scope required")
         self._memory=memory; self.scope=scope; self._lock=RLock()
-        self._ledger=LifecycleLedger(); self._last_sequence=0
-        # Event receipts and authorization bindings are queried from SQLite on demand.
+        self._ledger = None
+        self._runtime_state = None
+        self._last_sequence=0
         self._restore()
 
     @property
     def ledger(self) -> LifecycleLedger:
-        with self._lock: return deepcopy(self._ledger)
+        """Explicitly materialize an ordinary in-memory snapshot of the current ledger."""
+        with self._lock:
+            snapshot = LifecycleLedger()
+            snapshot.candidates = dict(self._ledger.candidates.items())
+            snapshot.evidence = dict(self._ledger.evidence.items())
+            snapshot.actions = list(self._ledger.actions)
+            snapshot._action_ids = set(self._ledger._action_ids)
+            return snapshot
+
+    def close(self) -> None:
+        """Release disk-backed replay state; safe after normal close or fail-closed recovery."""
+        with self._lock:
+            state = self._runtime_state
+            if state is not None:
+                state.close()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.close()
+        return False
+
+    def _get_event_payload(self, event_id: str) -> dict[str, Any] | None:
+        """Read one immutable payload from the authoritative ZPCM event log."""
+        event = self._memory.get_domain_event(
+            event_type="e12a6_lifecycle", scope=self.scope, event_id=event_id,
+        )
+        return None if event is None else event["payload"]
+
+    def _get_event_receipt(self, event_id: str) -> LifecycleEventReceipt | None:
+        event = self._memory.get_domain_event(event_type="e12a6_lifecycle", scope=self.scope, event_id=event_id)
+        if event is None:
+            return None
+        return LifecycleEventReceipt(event_id, event["sequence"], event["payload_digest"], True)
+
+    def _get_consumed_authorization(self, receipt_id: str) -> dict[str, Any] | None:
+        with self._memory.lock:
+            row = self._memory.db.execute(
+                "SELECT event_id FROM e12a6_authorization_consumptions WHERE receipt_id=? AND scope=?",
+                (receipt_id, self.scope),
+            ).fetchone()
+        return None if row is None else self._get_consumed_authorization_by_event(row["event_id"])
+
+    def _has_consumed_nonce(self, nonce: str) -> bool:
+        with self._memory.lock:
+            row = self._memory.db.execute(
+                "SELECT 1 FROM e12a6_authorization_consumptions WHERE nonce=? AND scope=? LIMIT 1",
+                (nonce, self.scope),
+            ).fetchone()
+        return row is not None
+
+    def _authorization_projection_matches(self, receipt_id: str, nonce: str, event_id: str) -> bool:
+        with self._memory.lock:
+            row = self._memory.db.execute(
+                "SELECT event_id FROM e12a6_authorization_consumptions WHERE receipt_id=? AND nonce=? AND scope=?",
+                (receipt_id, nonce, self.scope),
+            ).fetchone()
+        return row is not None and row["event_id"] == event_id
+
+    def _find_consumed_authorization_for_candidate(self, candidate_id: str, candidate_version: int) -> list[dict[str, Any]]:
+        with self._memory.lock:
+            rows = self._memory.db.execute(
+                "SELECT event_id FROM memory_events WHERE event_type='e12a6_lifecycle' AND scope=? "
+                "AND json_extract(payload_json,'$.kind')='authorization_consumed' "
+                "AND json_extract(payload_json,'$.body.candidate_id')=? "
+                "AND json_extract(payload_json,'$.body.candidate_version')=? ORDER BY seq",
+                (self.scope, candidate_id, candidate_version),
+            ).fetchall()
+        return [self._get_consumed_authorization_by_event(row["event_id"]) for row in rows]
+
+    def _list_consumed_authorizations(self) -> list[dict[str, Any]]:
+        with self._memory.lock:
+            rows = self._memory.db.execute(
+                "SELECT event_id FROM e12a6_authorization_consumptions WHERE scope=? ORDER BY receipt_id",
+                (self.scope,),
+            ).fetchall()
+        return [self._get_consumed_authorization_by_event(row["event_id"]) for row in rows]
+
+    def _get_consumed_authorization_by_event(self, event_id: str) -> dict[str, Any]:
+        payload = self._get_event_payload(event_id)
+        if payload is None or payload.get("kind") != "authorization_consumed":
+            raise LifecyclePersistenceError("authorization projection points to an invalid event")
+        return payload["body"]
 
     def _restore(self) -> None:
+        staged_state = None
         try:
             events=self._memory.iter_domain_events(event_type="e12a6_lifecycle", scope=self.scope)
-            staged=LifecycleLedger(); previous=0
+            staged, staged_state = _new_sqlite_lifecycle_ledger(); previous=0
+            staged_state.begin()
             for event in events:
                 seq=event["sequence"]
                 if isinstance(seq,bool) or not isinstance(seq,int) or seq<=previous:
@@ -124,8 +410,9 @@ class PersistentLifecycleLedger:
                         raise LifecyclePersistenceError("authorization consumption has an invalid schema")
                     receipt_id, nonce = body["receipt_id"], body["nonce"]
                     if (not isinstance(receipt_id, str) or not receipt_id.strip()
-                            or not isinstance(nonce, str) or not nonce.strip()):
-                        raise LifecyclePersistenceError("authorization receipt or nonce was consumed more than once")
+                            or not isinstance(nonce, str) or not nonce.strip()
+                            or not self._authorization_projection_matches(receipt_id, nonce, event["event_id"])):
+                        raise LifecyclePersistenceError("authorization receipt/nonce is missing from its SQLite uniqueness projection")
                     if body["scope"] != self.scope:
                         raise LifecyclePersistenceError("authorization consumption scope mismatch")
                     candidate = staged.candidates.get((body["candidate_id"], body["candidate_version"]))
@@ -165,50 +452,59 @@ class PersistentLifecycleLedger:
                         raise LifecyclePersistenceError("authorization consumption does not bind the candidate merge")
                     if event["event_id"] != f"e12a6:authorization-consumed:{receipt_id}":
                         raise LifecyclePersistenceError("authorization consumption event ID mismatch")
-                    indexed = self._memory.get_authorization_consumption(receipt_id=receipt_id)
-                    nonce_indexed = self._memory.get_authorization_consumption(nonce=nonce)
-                    if (indexed is None or nonce_indexed is None
-                            or indexed["event_id"] != event["event_id"]
-                            or nonce_indexed["event_id"] != event["event_id"]
-                            or indexed["body"] != body):
-                        raise LifecyclePersistenceError("authorization consumption index mismatch")
                 else: raise LifecyclePersistenceError(f"unknown lifecycle event kind: {kind!r}")
-            self._ledger=staged; self._last_sequence=previous
-        except LifecyclePersistenceError: raise
-        except Exception as exc: raise LifecyclePersistenceError(f"lifecycle replay failed: {exc}") from exc
+            staged_state.commit()
+            previous_state = self._runtime_state
+            self._ledger=staged; self._runtime_state=staged_state; self._last_sequence=previous
+            if previous_state is not None and previous_state is not staged_state:
+                previous_state.close()
+        except LifecyclePersistenceError:
+            if staged_state is not None:
+                staged_state.rollback()
+                staged_state.close()
+            raise
+        except Exception as exc:
+            if staged_state is not None:
+                staged_state.rollback()
+                staged_state.close()
+            raise LifecyclePersistenceError(f"lifecycle replay failed: {exc}") from exc
 
-    def _event_receipt(self, event_id: str, *, replayed: bool = False) -> LifecycleEventReceipt:
-        event = self._memory.get_domain_event(
-            event_type="e12a6_lifecycle", scope=self.scope, event_id=event_id,
-        )
-        if event is None:
-            raise LifecyclePersistenceError(f"lifecycle event is missing: {event_id}")
-        return LifecycleEventReceipt(event_id, event["sequence"], event["payload_digest"], replayed)
+    def _apply_durable_state(self, mutation: Callable[[], None]) -> None:
+        """Apply scratch mutations atomically; rebuild from authoritative events on failure."""
+        state = self._runtime_state
+        try:
+            state.begin()
+            mutation()
+            state.commit()
+        except Exception as mutation_error:
+            try:
+                state.rollback()
+            except Exception:
+                pass
+            try:
+                self._restore()
+            except Exception as restore_error:
+                if self._runtime_state is state:
+                    state.close()
+                    self._runtime_state = None
+                    self._ledger = None
+                    self._last_sequence = 0
+                raise LifecyclePersistenceError(
+                    "durable lifecycle event committed but runtime state recovery failed; adapter is fail-closed"
+                ) from restore_error
+            # The authoritative event is durable and replay has reconstructed its state.
+            return
 
-    def _event_payload_digest(self, event_id: str) -> str | None:
-        event = self._memory.get_domain_event(
-            event_type="e12a6_lifecycle", scope=self.scope, event_id=event_id,
-        )
-        return event["payload_digest"] if event is not None else None
-
-    def _authorization_consumption(self, receipt_id: str) -> dict[str, Any] | None:
-        result = self._memory.get_authorization_consumption(receipt_id=receipt_id)
-        return result["body"] if result is not None else None
-
-    def _candidate_authorizations(self, candidate_id: str, version: int):
-        return self._memory.iter_candidate_authorization_consumptions(
-            scope=self.scope, candidate_id=candidate_id, candidate_version=version,
-        )
-
-    def _commit(self,event_id: str,payload: dict[str,Any],staged: LifecycleLedger) -> LifecycleEventReceipt:
+    def _commit(self,event_id: str,payload: dict[str,Any],apply_state: Callable[[], None]) -> LifecycleEventReceipt:
         raw=self._memory.append_lifecycle_event(event_id=event_id,scope=self.scope,
           payload=payload,expected_sequence=self._last_sequence)
         receipt=LifecycleEventReceipt(event_id,raw["sequence"],raw["payload_digest"],raw["replayed"])
         if receipt.replayed:
-            if self._event_payload_digest(event_id)!=digest(payload):
+            if self._get_event_payload(event_id)!=payload:
                 raise LifecyclePersistenceError("replayed event differs from local history")
             return receipt
-        self._ledger=staged; self._last_sequence=receipt.sequence
+        self._apply_durable_state(apply_state)
+        self._last_sequence=receipt.sequence
         return receipt
 
     def register_candidate(self,candidate: Candidate) -> LifecycleEventReceipt:
@@ -217,10 +513,10 @@ class PersistentLifecycleLedger:
         with self._lock:
             key=(candidate.candidate_id,candidate.version); old=self._ledger.candidates.get(key)
             if old is not None:
-                if old!=candidate or self._event_payload_digest(eid)!=digest(payload): raise LifecyclePersistenceError("candidate ID content conflict")
-                r=self._event_receipt(eid, replayed=True); return r
-            staged=deepcopy(self._ledger); staged.add_candidate(candidate)
-            return self._commit(eid,payload,staged)
+                if old!=candidate or self._get_event_payload(eid)!=payload: raise LifecyclePersistenceError("candidate ID content conflict")
+                r=self._get_event_receipt(eid); return r
+            self._ledger.validate_candidate(candidate)
+            return self._commit(eid,payload,lambda: self._ledger.add_candidate(candidate))
 
     def register_evidence(self,evidence: Evidence) -> LifecycleEventReceipt:
         safe_evidence = _safe_evidence(evidence)
@@ -229,10 +525,10 @@ class PersistentLifecycleLedger:
         with self._lock:
             old=self._ledger.evidence.get(safe_evidence.evidence_id)
             if old is not None:
-                if old!=safe_evidence or self._event_payload_digest(eid)!=digest(payload): raise LifecyclePersistenceError("evidence ID content conflict")
-                r=self._event_receipt(eid, replayed=True); return r
-            staged=deepcopy(self._ledger); staged.add_evidence(safe_evidence)
-            return self._commit(eid,payload,staged)
+                if old!=safe_evidence or self._get_event_payload(eid)!=payload: raise LifecyclePersistenceError("evidence ID content conflict")
+                r=self._get_event_receipt(eid); return r
+            self._ledger.validate_evidence(safe_evidence)
+            return self._commit(eid,payload,lambda: self._ledger.add_evidence(safe_evidence))
 
 
     def register_candidate_bundle(
@@ -340,7 +636,7 @@ class PersistentLifecycleLedger:
                 "submitter_authentication_method": writer_identity["authentication_method"],
                 "submitter_credential_fingerprint": writer_identity["credential_fingerprint"],
             }
-            prior_receipt_use = self._authorization_consumption(receipt.receipt_id)
+            prior_receipt_use = self._get_consumed_authorization(receipt.receipt_id)
             if prior_receipt_use is not None:
                 prior_binding = dict(prior_receipt_use)
                 current_binding = dict(authorization_body)
@@ -365,8 +661,8 @@ class PersistentLifecycleLedger:
 
         with self._lock:
             if authorization_receipt is not None:
-                prior_use = self._authorization_consumption(authorization_receipt.receipt_id)
-                nonce_used = self._memory.get_authorization_consumption(nonce=authorization_receipt.nonce) is not None
+                prior_use = self._get_consumed_authorization(authorization_receipt.receipt_id)
+                nonce_used = self._has_consumed_nonce(authorization_receipt.nonce)
                 if ((prior_use is not None and prior_use != authorization_body)
                         or (nonce_used and prior_use is None)):
                     raise LifecyclePersistenceError("authorization receipt or nonce was already consumed")
@@ -381,28 +677,29 @@ class PersistentLifecycleLedger:
                     old != item for old, item in zip(old_evidence, safe_evidence)
                 ):
                     raise LifecyclePersistenceError("candidate bundle identity/content conflict")
-                prior_consumptions = list(self._candidate_authorizations(candidate.candidate_id, candidate.version))
+                prior_consumptions = self._find_consumed_authorization_for_candidate(
+                    candidate.candidate_id, candidate.version,
+                )
                 if prior_consumptions and authorization_receipt is None:
                     raise LifecyclePersistenceError("receipt-backed candidate replay requires the same receipt")
                 expected_payloads = dict(evidence_events + [(candidate_id, candidate_payload)])
                 if authorization_event is not None:
                     expected_payloads[authorization_event[0]] = authorization_event[1]
-                if any(self._event_payload_digest(eid) != digest(payload) for eid, payload in expected_payloads.items()):
+                if any(self._get_event_payload(eid) != payload for eid, payload in expected_payloads.items()):
                     raise LifecyclePersistenceError("candidate bundle event history mismatch")
-                evidence_receipts = tuple(self._event_receipt(eid, replayed=True) for eid, _ in evidence_events)
-                prior = self._event_receipt(candidate_id, replayed=True)
+                evidence_receipts = tuple(self._get_event_receipt(eid) for eid, _ in evidence_events)
+                prior = self._get_event_receipt(candidate_id)
                 auth_receipt = None
                 if authorization_event is not None:
-                    auth_receipt = self._event_receipt(authorization_event[0], replayed=True)
+                    auth_receipt = self._get_event_receipt(authorization_event[0])
                 return LifecycleBundleReceipt(
                     LifecycleEventReceipt(prior.event_id, prior.sequence, prior.payload_digest, True),
                     evidence_receipts, True, auth_receipt,
                 )
 
-            staged = deepcopy(self._ledger)
             for item in safe_evidence:
-                staged.add_evidence(item)
-            staged.add_candidate(candidate)
+                self._ledger.validate_evidence(item)
+            self._ledger.validate_candidate(candidate)
             raw_receipts = self._memory.append_lifecycle_events(
                 events=events, scope=self.scope, expected_sequence=self._last_sequence,
             )
@@ -416,11 +713,16 @@ class PersistentLifecycleLedger:
                 raise LifecyclePersistenceError(
                     "bundle already exists in ZPCM outside this adapter; reconstruct ledger before retry"
                 )
-            self._ledger = staged
+            def apply_bundle_state() -> None:
+                for item in safe_evidence:
+                    self._ledger.add_evidence(item)
+                self._ledger.add_candidate(candidate)
+
+            self._apply_durable_state(apply_bundle_state)
             self._last_sequence = raw_receipts[-1]["sequence"]
             auth_receipt = None
             if authorization_event is not None:
-                auth_event_id, _ = authorization_event
+                auth_event_id, auth_payload = authorization_event
                 auth_receipt = receipts[auth_event_id]
             return LifecycleBundleReceipt(
                 receipts[candidate_id],
@@ -434,10 +736,11 @@ class PersistentLifecycleLedger:
         payload={"schema_version":EVENT_SCHEMA,"kind":"action_applied","body":{"action":_action_to_dict(action)}}
         with self._lock:
             if action.action_id in self._ledger._action_ids:
-                if self._event_payload_digest(eid)!=digest(payload): raise LifecyclePersistenceError("action ID content conflict")
-                return self._event_receipt(eid, replayed=True)
-            staged=deepcopy(self._ledger); staged.apply(action)
-            return self._commit(eid,payload,staged)
+                r=self._get_event_receipt(eid)
+                if r is None or self._get_event_payload(eid)!=payload: raise LifecyclePersistenceError("action ID content conflict")
+                return r
+            self._ledger.validate_action(action)
+            return self._commit(eid,payload,lambda: self._ledger.apply(action))
 
     def create_revision(self,candidate_id: str,version: int,**kwargs: Any):
         args=dict(kwargs)
@@ -451,15 +754,17 @@ class PersistentLifecycleLedger:
                 recorded={k:list(v) if isinstance(v,tuple) else v for k,v in recorded.items()}
                 expected={"schema_version":EVENT_SCHEMA,"kind":"revision_created",
                   "body":{"arguments":recorded,"candidate":_candidate_to_dict(existing)}}
-                if self._event_payload_digest(eid)!=digest(expected):
+                if self._get_event_payload(eid)!=expected:
                     raise LifecyclePersistenceError("revision identity reused with different content")
-                return existing,self._event_receipt(eid, replayed=True)
-            staged=deepcopy(self._ledger); made=staged.create_revision(candidate_id,version,**args)
+                r=self._get_event_receipt(eid)
+                if r is None: raise LifecyclePersistenceError("revision event receipt is missing")
+                return existing,r
+            made=self._ledger.build_revision(candidate_id,version,**args)
             recorded={"candidate_id":candidate_id,"version":version,**args}
             recorded={k:list(v) if isinstance(v,tuple) else v for k,v in recorded.items()}
             payload={"schema_version":EVENT_SCHEMA,"kind":"revision_created",
               "body":{"arguments":recorded,"candidate":_candidate_to_dict(made)}}
-            receipt=self._commit(eid,payload,staged)
+            receipt=self._commit(eid,payload,lambda: self._ledger.add_revision(made))
             return made,receipt
 
     def snapshot(self) -> dict[str,Any]:
@@ -468,4 +773,4 @@ class PersistentLifecycleLedger:
               "candidates":[_candidate_to_dict(v) for _,v in sorted(self._ledger.candidates.items())],
               "evidence":[_evidence_to_dict(v) for _,v in sorted(self._ledger.evidence.items())],
               "actions":[_action_to_dict(v) for v in self._ledger.actions],
-              "consumed_authorizations":list(self._memory.iter_authorization_consumptions(scope=self.scope))}
+              "consumed_authorizations":self._list_consumed_authorizations()}
