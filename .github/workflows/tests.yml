@@ -24,6 +24,9 @@ on:
       - 'pyproject.toml'
       - '.github/workflows/**'
 
+permissions:
+  contents: read
+
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -43,8 +46,61 @@ jobs:
       - name: Run orchestrator CLI plan
         run: python -m orchestrator.cli orchestrator/examples/quickstart.json --plan
 
+  detect-research:
+    runs-on: ubuntu-latest
+    outputs:
+      e01: ${{ steps.filter.outputs.e01 }}
+      e02ab: ${{ steps.filter.outputs.e02ab }}
+      e02d: ${{ steps.filter.outputs.e02d }}
+      e02ef: ${{ steps.filter.outputs.e02ef }}
+      e02ghi: ${{ steps.filter.outputs.e02ghi }}
+      e03: ${{ steps.filter.outputs.e03 }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: filter
+        shell: bash
+        run: |
+          set -euo pipefail
+          base=""
+          if [[ "$GITHUB_EVENT_NAME" == "pull_request" ]]; then
+            base="${{ github.event.pull_request.base.sha }}"
+          else
+            base="${{ github.event.before }}"
+          fi
+          if [[ -z "$base" || "$base" =~ ^0+$ ]]; then
+            files=""
+            all=true
+          else
+            files="$(git diff --name-only "$base" "$GITHUB_SHA")"
+            all=false
+          fi
+          e01=false; e02ab=false; e02d=false; e02ef=false; e02ghi=false; e03=false
+          while IFS= read -r path; do
+            [[ -z "$path" ]] && continue
+            if [[ "$path" =~ ^(prototype|tests)/.*(e01_|test_e01_) ]]; then e01=true; fi
+            if [[ "$path" =~ ^(prototype|tests)/.*(e02_higher_order|e02_ternary) ]]; then e02ab=true; fi
+            if [[ "$path" =~ ^(prototype|tests)/.*e02_rule_ood ]]; then e02d=true; fi
+            if [[ "$path" =~ ^(prototype|tests)/.*(e02e_discovery|e02f_falsification) ]]; then e02ef=true; fi
+            if [[ "$path" =~ ^(prototype|tests)/.*(e02g_multienvironment|e02h_boolean_rules|e02i_streaming_drift) ]]; then e02ghi=true; fi
+            if [[ "$path" =~ ^(prototype|tests)/.*(e03a_parallel_composition|e02i_relation_evolution) ]]; then e03=true; fi
+            if [[ "$path" =~ ^(prototype|tests)/.*(cpg_ei_|test_cpg_ei_) ]]; then all=true; fi
+            if [[ "$path" =~ ^(schemas|data)/ ]] || [[ "$path" =~ ^prototype/(symbolic_|composition_) ]]; then all=true; fi
+          done <<< "$files"
+          if [[ "$all" == true ]]; then
+            e01=true; e02ab=true; e02d=true; e02ef=true; e02ghi=true; e03=true
+          fi
+          echo "e01=$e01" >> "$GITHUB_OUTPUT"
+          echo "e02ab=$e02ab" >> "$GITHUB_OUTPUT"
+          echo "e02d=$e02d" >> "$GITHUB_OUTPUT"
+          echo "e02ef=$e02ef" >> "$GITHUB_OUTPUT"
+          echo "e02ghi=$e02ghi" >> "$GITHUB_OUTPUT"
+          echo "e03=$e03" >> "$GITHUB_OUTPUT"
+
   research-evaluations:
-    needs: unit-tests
+    needs: [unit-tests, detect-research]
+    if: needs.detect-research.outputs[matrix.filter] == 'true'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -52,29 +108,35 @@ jobs:
       matrix:
         include:
           - name: E01
+            filter: e01
             commands: |
               python -m prototype.e01_sparse_composition --json
               python -m prototype.e01_multiseed --seeds 5 --start-seed 7 --json
               python -m prototype.e01_ood_multiseed --seeds 5 --start-seed 7 --json
           - name: E02-A-B
+            filter: e02ab
             commands: |
               python -m prototype.e02_higher_order --seeds 5 --start-seed 7 --json
               python -m prototype.e02_ternary --examples 900 --seed 7
               python -m prototype.e02_ternary_learners --seeds 5 --start-seed 7 --json
           - name: E02-D
+            filter: e02d
             commands: |
               python -m prototype.e02_rule_ood --seed 17 --support-size 6 --json
               python -m prototype.e02_rule_ood --sweep --seeds 100 --start-seed 100 --json
           - name: E02-E-F
+            filter: e02ef
             commands: |
               python -m prototype.e02e_discovery --seeds 20 --start-seed 7 --json
               python -m prototype.e02f_falsification --seeds 100 --start-seed 100
           - name: E02-G-H-I
+            filter: e02ghi
             commands: |
               python -m prototype.e02g_multienvironment --seeds 50 --start-seed 700 --repeats 5
               python -m prototype.e02h_boolean_rules --seeds 30 --start-seed 900
               python -m prototype.e02i_streaming_drift --seeds 20 --start-seed 1200
           - name: E03-A-and-E02-I-evolution
+            filter: e03
             commands: |
               python -m prototype.e03a_parallel_composition --seeds 30 --start-seed 1500
               python -m prototype.e02i_relation_evolution --seeds 20 --start-seed 1200
