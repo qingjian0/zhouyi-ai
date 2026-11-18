@@ -86,7 +86,7 @@ def _truth_mask(rule: RelationRule, input_dim: int) -> int:
 
 def _discover_one(
     rows: list[dict], output_index: int, candidates: tuple[tuple[RelationRule, int], ...],
-    input_dim: int, teacher_rule: dict,
+    input_dim: int, teacher_rule: dict, equivalence_sizes: dict[int, int],
 ) -> dict[str, Any]:
     train_mask = _mask_for_rows(rows, "train")
     dev_mask = _mask_for_rows(rows, "development")
@@ -122,9 +122,7 @@ def _discover_one(
     locked_errors = ((selected_mask ^ target_mask) & locked_mask).bit_count()
     full_errors = (selected_mask ^ target_mask).bit_count()
     selected_spec = rule_manifest(selected_rule, input_dim)
-    selected_equivalence_size = sum(
-        prediction_mask == selected_mask for _, prediction_mask in candidates
-    )
+    selected_equivalence_size = equivalence_sizes[selected_mask]
     teacher_object = RelationRule(
         teacher_rule["operator"], tuple(teacher_rule["support"]),
         threshold=teacher_rule["threshold"],
@@ -133,9 +131,7 @@ def _discover_one(
                        if teacher_rule["context_value"] is not None else 1),
     )
     teacher_mask = _truth_mask(teacher_object, input_dim)
-    teacher_equivalence_size = sum(
-        prediction_mask == teacher_mask for _, prediction_mask in candidates
-    )
+    teacher_equivalence_size = equivalence_sizes[teacher_mask]
     return {
         "train_errors": train_error,
         "development_errors": best_dev,
@@ -143,6 +139,7 @@ def _discover_one(
             1.0 - locked_errors / locked_total if locked_total else None
         ),
         "full_truth_table_exact": full_errors == 0,
+        "semantic_function_recovered": full_errors == 0,
         "operator_recovered": selected_rule.operator == teacher_rule["operator"],
         "exact_rule_recovered": selected_spec == teacher_rule,
         "train_minimizer_count": len(scored),
@@ -162,6 +159,9 @@ def run_discovery_benchmark(corpus: dict) -> dict[str, Any]:
         (rule, _truth_mask(rule, input_dim))
         for rule in enumerate_rule_hypotheses(input_dim)
     )
+    equivalence_sizes: dict[int, int] = defaultdict(int)
+    for _, prediction_mask in candidates:
+        equivalence_sizes[prediction_mask] += 1
     rows_by_family: dict[str, list[dict]] = defaultdict(list)
     for row in corpus["rows"]:
         rows_by_family[row["family_id"]].append(row)
@@ -174,7 +174,7 @@ def run_discovery_benchmark(corpus: dict) -> dict[str, Any]:
         output_results = [
             _discover_one(
                 family_rows, output_index, candidates, input_dim,
-                teacher["rules"][output_index],
+                teacher["rules"][output_index], equivalence_sizes,
             )
             for output_index in range(manifest["output_dim"])
         ]
@@ -189,6 +189,7 @@ def run_discovery_benchmark(corpus: dict) -> dict[str, Any]:
         if not outputs:
             return {"families": 0, "outputs": 0}
         count = len(outputs)
+        identifiable = [item for item in outputs if item["teacher_function_structurally_identifiable"]]
         return {
             "families": len(selected),
             "outputs": count,
@@ -199,6 +200,7 @@ def run_discovery_benchmark(corpus: dict) -> dict[str, Any]:
             "full_truth_table_exact_rate": sum(
                 item["full_truth_table_exact"] for item in outputs
             ) / count,
+            "semantic_function_recovery_rate": sum(item["semantic_function_recovered"] for item in outputs) / count,
             "operator_recovery_rate": sum(
                 item["operator_recovered"] for item in outputs
             ) / count,
@@ -211,9 +213,11 @@ def run_discovery_benchmark(corpus: dict) -> dict[str, Any]:
             "mean_development_tie_count": sum(
                 item["development_tie_count"] for item in outputs
             ) / count,
-            "teacher_function_identifiability_rate": sum(
-                item["teacher_function_structurally_identifiable"] for item in outputs
-            ) / count,
+            "teacher_function_identifiability_rate": len(identifiable) / count,
+            "operator_recovery_on_identifiable_rate": (
+                sum(item["operator_recovered"] for item in identifiable) / len(identifiable)
+                if identifiable else None
+            ),
             "mean_teacher_function_equivalence_class_size": sum(
                 item["teacher_function_equivalence_class_size"] for item in outputs
             ) / count,
@@ -244,6 +248,10 @@ def run_discovery_benchmark(corpus: dict) -> dict[str, Any]:
         "candidate_truth_function_count": len({mask for _, mask in candidates}),
         "candidate_structural_alias_count": (
             len(candidates) - len({mask for _, mask in candidates})
+        ),
+        "identifiability_protocol": (
+            "rules with identical complete truth tables share a semantic "
+            "equivalence class; structural recovery is scored separately"
         ),
         "family_split_results": by_split,
         "family_results": family_results,
