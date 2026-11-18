@@ -9,6 +9,12 @@ on:
     branches:
       - research/cpg-ei-learnable-gates-v3-2026-11-12
       - research/cpg-ei-multiseed-diagnostics-rebased-2026-11-12
+    paths:
+      - 'prototype/cpg_ei_*.py'
+      - 'tests/test_cpg_ei_*.py'
+      - 'docs/CPG_EI_*.md'
+      - 'benchmarks/cpg_ei_*.py'
+      - 'data/cpg_ei/**'
 
 jobs:
   multiseed-diagnostic:

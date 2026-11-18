@@ -8,6 +8,12 @@ on:
     branches:
       - research/cpg-ei-conditional-motif-e2e-2026-11-13
   workflow_dispatch:
+    paths:
+      - 'prototype/cpg_ei_*.py'
+      - 'tests/test_cpg_ei_*.py'
+      - 'docs/CPG_EI_*.md'
+      - 'benchmarks/cpg_ei_*.py'
+      - 'data/cpg_ei/**'
 
 permissions:
   contents: read

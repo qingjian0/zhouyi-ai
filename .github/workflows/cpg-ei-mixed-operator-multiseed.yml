@@ -3,6 +3,12 @@ name: CPG-EI mixed-operator independent-seed replication
 on:
   pull_request:
     types: [opened, synchronize, reopened]
+    paths:
+      - 'prototype/cpg_ei_*.py'
+      - 'tests/test_cpg_ei_*.py'
+      - 'docs/CPG_EI_*.md'
+      - 'benchmarks/cpg_ei_*.py'
+      - 'data/cpg_ei/**'
 
 permissions:
   contents: read
