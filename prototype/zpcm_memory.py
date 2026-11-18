@@ -409,6 +409,17 @@ class ZPCMMemory:
                   AND candidate_version=json_extract(NEW.payload_json,'$.body.action.candidate_version')
                   AND json_extract(NEW.payload_json,'$.body.action.to_state') IS NOT NULL;
             END;
+            CREATE TRIGGER IF NOT EXISTS e12a6_current_state_meta_insert
+            AFTER INSERT ON memory_events
+            WHEN NEW.event_type='e12a6_lifecycle'
+            BEGIN
+                INSERT INTO e12a6_current_state_projection_meta(
+                    singleton,schema_version,initialized_through_seq,initialized_event_count
+                ) VALUES(1,'e12a6-current-state-v1',NEW.seq,1)
+                ON CONFLICT(singleton) DO UPDATE SET
+                    initialized_through_seq=MAX(initialized_through_seq,NEW.seq),
+                    initialized_event_count=initialized_event_count+1;
+            END;
             """)
             meta = self.db.execute(
                 "SELECT schema_version FROM e12a6_current_state_projection_meta WHERE singleton=1"
@@ -498,7 +509,7 @@ class ZPCMMemory:
                       AND json_extract(e.payload_json,'$.body.action.to_state') IS NOT NULL
                 )
             """)
-            max_seq = int(self.db.execute("SELECT COALESCE(MAX(seq),0) FROM memory_events").fetchone()[0])
+            max_seq = int(self.db.execute("SELECT COALESCE(MAX(seq),0) FROM memory_events WHERE event_type='e12a6_lifecycle'").fetchone()[0])
             event_count = int(self.db.execute(
                 "SELECT COUNT(*) FROM memory_events WHERE event_type='e12a6_lifecycle'"
             ).fetchone()[0])
