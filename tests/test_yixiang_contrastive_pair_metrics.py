@@ -88,4 +88,21 @@ class M21Tests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.score(self.cases(),self.gold_predictions(),pairs)
 
+
+    def test_malformed_pair_id_raises_value_error(self):
+        pairs = self.pairs()
+        pairs[0]["pair_id"] = []
+        with self.assertRaises(ValueError):
+            self.score(self.cases(), self.gold_predictions(), pairs)
+
+    def test_unhashable_case_id_raises_value_error(self):
+        pairs = self.pairs()
+        pairs[0]["case_ids"][0] = []
+        with self.assertRaises(ValueError):
+            self.score(self.cases(), self.gold_predictions(), pairs)
+
+    def test_empty_pair_manifest_rejected(self):
+        with self.assertRaises(ValueError):
+            self.score(self.cases(), self.gold_predictions(), [])
+
 if __name__=="__main__": unittest.main()

@@ -4,6 +4,7 @@ from prototype.yixiang_encoding import (
     all_hexagram_states,
     change_lines,
     encode_hexagram,
+    transition_hexagram,
     trigram_name,
 )
 
@@ -50,6 +51,22 @@ class YixiangEncodingTests(unittest.TestCase):
             with self.subTest(index=index):
                 with self.assertRaises(ValueError):
                     change_lines((0, 0, 0, 0, 0, 0), [index])
+
+    
+    def test_rejects_duplicate_changing_line_indices(self):
+        with self.assertRaises(ValueError):
+            change_lines((0, 0, 0, 0, 0, 0), [2, 2])
+
+    def test_transition_retains_before_after_and_moving_line_positions(self):
+        transition = transition_hexagram((0, 0, 0, 0, 0, 0), [0, 5])
+        self.assertEqual(transition.before.lines_bottom_to_top, (0, 0, 0, 0, 0, 0))
+        self.assertEqual(transition.after.lines_bottom_to_top, (1, 0, 0, 0, 0, 1))
+        self.assertEqual(transition.changing_indices_bottom_to_top, (0, 5))
+        self.assertEqual(transition.before.binary_id ^ transition.after.binary_id, 33)
+
+    def test_empty_moving_lines_is_identity_transition(self):
+        transition = transition_hexagram((1, 0, 1, 0, 1, 0), [])
+        self.assertEqual(transition.before, transition.after)
 
 
 if __name__ == "__main__":
