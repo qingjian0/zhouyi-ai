@@ -55,6 +55,7 @@ def run_trainable_baseline(
             "family_id": family_id,
             "family_split": rows[0]["family_split"],
             "train_examples": len(examples["train"]),
+            "training": evaluate(model, examples["train"]),
             "development": evaluate(model, examples["development"]),
             "locked": evaluate(model, examples["locked"]),
             "initial_train_loss": losses[0],
