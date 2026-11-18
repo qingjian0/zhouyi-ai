@@ -620,6 +620,41 @@ class PersistentLifecycleTests(unittest.TestCase):
         self.assertEqual(projected["candidate"]["state"], "observed")
         self.assertTrue(self.memory.verify_e12a6_current_state_projection(scope="project-a")["ok"])
 
+    def test_current_state_projection_missing_evidence_is_rebuilt_on_reopen(self):
+        self.store.register_evidence(evidence())
+        self.memory.db.execute(
+            "DELETE FROM e12a6_evidence_state_projection WHERE scope=? AND evidence_id=?",
+            ("project-a", "train-1"),
+        )
+        self.store.close()
+        self.memory.close()
+
+        self.memory = ZPCMMemory(self.path)
+        self.store = PersistentLifecycleLedger(self.memory, scope="project-a")
+        projected = self.memory.get_lifecycle_evidence_projection(
+            scope="project-a", evidence_id="train-1",
+        )
+        self.assertIsNotNone(projected)
+        self.assertTrue(self.memory.verify_e12a6_current_state_projection(scope="project-a")["ok"])
+
+    def test_current_state_projection_missing_action_is_rebuilt_on_reopen(self):
+        self.store.register_candidate(candidate())
+        self.store.apply(propose())
+        self.memory.db.execute(
+            "DELETE FROM e12a6_action_state_projection WHERE scope=? AND action_id=?",
+            ("project-a", "propose-1"),
+        )
+        self.store.close()
+        self.memory.close()
+
+        self.memory = ZPCMMemory(self.path)
+        self.store = PersistentLifecycleLedger(self.memory, scope="project-a")
+        projected = self.memory.get_lifecycle_action_projection(
+            scope="project-a", action_id="propose-1",
+        )
+        self.assertIsNotNone(projected)
+        self.assertTrue(self.memory.verify_e12a6_current_state_projection(scope="project-a")["ok"])
+
     def test_current_state_projection_supports_unbound_actions(self):
         action = Action(action_id="abstain-1", action_type=ActionType.ABSTAIN)
         self.store.apply(action)
