@@ -602,6 +602,24 @@ class PersistentLifecycleTests(unittest.TestCase):
         repaired = self.memory.verify_e12a6_current_state_projection(scope="project-a")
         self.assertTrue(repaired["ok"])
 
+    def test_current_state_projection_missing_rows_are_rebuilt_on_reopen(self):
+        self.store.register_candidate(candidate())
+        self.memory.db.execute(
+            "DELETE FROM e12a6_candidate_state_projection WHERE scope=? AND candidate_id=?",
+            ("project-a", "rel:greater-than"),
+        )
+        self.store.close()
+        self.memory.close()
+
+        self.memory = ZPCMMemory(self.path)
+        self.store = PersistentLifecycleLedger(self.memory, scope="project-a")
+        projected = self.memory.get_lifecycle_candidate_projection(
+            scope="project-a", candidate_id="rel:greater-than", candidate_version=1,
+        )
+        self.assertIsNotNone(projected)
+        self.assertEqual(projected["candidate"]["state"], "observed")
+        self.assertTrue(self.memory.verify_e12a6_current_state_projection(scope="project-a")["ok"])
+
     def test_current_state_projection_supports_unbound_actions(self):
         action = Action(action_id="abstain-1", action_type=ActionType.ABSTAIN)
         self.store.apply(action)
