@@ -339,8 +339,8 @@ class ZPCMMemory:
             CREATE TABLE IF NOT EXISTS e12a6_action_state_projection(
                 scope TEXT NOT NULL,
                 action_id TEXT NOT NULL,
-                candidate_id TEXT NOT NULL,
-                candidate_version INTEGER NOT NULL,
+                candidate_id TEXT,
+                candidate_version INTEGER,
                 action_json TEXT NOT NULL,
                 source_seq INTEGER NOT NULL,
                 PRIMARY KEY(scope,action_id)
