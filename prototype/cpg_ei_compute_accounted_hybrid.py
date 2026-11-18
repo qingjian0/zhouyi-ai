@@ -28,6 +28,7 @@ from prototype.cpg_ei_early_stopping import (
     run_early_stopping_baseline,
     fit_with_early_stopping,
 )
+from prototype.cpg_ei_numpy_learner import fit_with_early_stopping_numpy
 from prototype.cpg_ei_generic_learner import (
     RelationalTransitionModel,
     TransitionExample,
@@ -201,7 +202,11 @@ def run_support_constrained_hybrid(
     min_delta: float = 1e-5,
     learning_rate: float = 0.1,
     l2: float = 1e-4,
+    optimizer_backend: str = "python",
 ) -> dict[str, Any]:
+    if optimizer_backend not in ("python", "numpy"):
+        raise ValueError("optimizer_backend must be 'python' or 'numpy'")
+    fit_function = fit_with_early_stopping_numpy if optimizer_backend == "numpy" else fit_with_early_stopping
     manifest = corpus["manifest"]
     input_dim = manifest["input_dim"]
     output_dim = manifest["output_dim"]
@@ -246,7 +251,7 @@ def run_support_constrained_hybrid(
                 weights=[[0.0] * (len(supports) + 1)],
             )
             examples = examples_by_output[output_index]
-            fit = fit_with_early_stopping(
+            fit = fit_function(
                 model,
                 examples["train"],
                 examples["development"],
