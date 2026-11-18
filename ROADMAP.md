@@ -9,9 +9,10 @@
 ## 当前集成基线
 
 - 集成分支：`dev`；稳定分支：`main`。
-- 当前研发代码基线：`598893c00cd11be5dbfe046d59c960e0c32bf9e7`。
-- `dev` 相对 `main`：ahead 44、behind 0（本次核对）。
-- 最近已确认成功的基线 CI：Run [44299206115](https://github.com/qingjian0/zhouyi-ai/actions/runs/44299206115)，对应此前 SHA `a846daf3` 的 7/7 jobs；本轮新提交尚未取得 exact-head CI 结果。
+- 当前 exact-head 验证代码基线：`dc75ffd7481207a7708b3f7bf5ef08a34a66465a`。
+- 本次核对时 `dev` 相对 `main`：ahead 48、behind 0；`main` 未修改。
+- 当前 exact-head CI：Run [44307670722](https://github.com/qingjian0/zhouyi-ai/actions/runs/44307670722) — **success**；单元测试通过，研究矩阵按变更检测跳过（本次改动未触及相关研究模块）。
+- 本次 CI 通过只验证该提交对应的仓库单元测试与 orchestrator CLI plan；不代表 P0–P4 所有规模、性能、跨进程故障及真实数据验收均已完成。
 - 当前研发重点：E12-A6 生命周期状态投影；M1/M2 有界恢复和实测；N0.10 规模/分组隔离验证；CPG-EI 神经/非有限语法跨族学习；易象真实 Gold 数据验证。
 
 ## 能力状态
