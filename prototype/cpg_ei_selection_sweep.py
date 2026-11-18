@@ -208,7 +208,7 @@ def run_sweep(*, seeds: Sequence[int] = DEFAULT_SEEDS, epochs: int | Sequence[in
         "seeds": list(seeds), "rule_families": list(RULE_FAMILIES),
         "split_sizes": {"train": 40, "proposal_selection": 12, "locked_test": 12},
         "optimizer": {"epochs_per_candidate": list(epoch_budgets), "oracle_epochs": oracle_epochs, "max_motifs": max_motifs},
-        "aggregate_by_protocol_and_budget": by_protocol_and_budget,
+        "aggregate_by_protocol": {\n            protocol: summarize([row for row in records if row["selection_protocol"] == protocol])\n            for protocol in ("proposal_split", "legacy_train_ranked")\n        },\n        "aggregate_by_protocol_and_budget": by_protocol_and_budget,
         "claim_boundary": "Synthetic finite six-bit rule families only; not open-ended relation induction or natural-language reasoning.",
         "records": records,
     }
