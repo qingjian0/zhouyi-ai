@@ -57,6 +57,26 @@ class TestCpgEiMvp(unittest.TestCase):
         self.assertGreater(metrics["bit_accuracy"], 0.90)
         self.assertLess(active_groups, 20)
 
+    def test_evaluation_consumes_one_shot_iterable_without_materializing(self):
+        rows = make_dataset(12, seed=23)
+        consumed = []
+
+        def one_shot():
+            for row in rows:
+                consumed.append(row)
+                yield row
+
+        model = CpgEiTransitionModel.create()
+        expected = evaluate(model, iter(rows))
+        metrics = evaluate(model, one_shot())
+        self.assertEqual(metrics, expected)
+        self.assertEqual(metrics["examples"], 12.0)
+        self.assertEqual(len(consumed), 12)
+
+    def test_evaluation_rejects_empty_iterable(self):
+        with self.assertRaisesRegex(ValueError, "must not be empty"):
+            evaluate(CpgEiTransitionModel.create(), iter(()))
+
     def test_dataset_is_reproducible(self):
         self.assertEqual(make_dataset(10, seed=11), make_dataset(10, seed=11))
 

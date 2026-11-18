@@ -267,20 +267,21 @@ class CpgEiTransitionModel:
 
 
 def evaluate(model: CpgEiTransitionModel, examples: Iterable[Example]) -> dict[str, float]:
-    rows = list(examples)
-    if not rows:
-        raise ValueError("evaluation data must not be empty")
+    """Evaluate a one-pass iterable without materializing the full dataset."""
     correct_bits = 0
     correct_states = 0
-    total_bits = len(rows) * 6
-    for row in rows:
+    example_count = 0
+    for row in examples:
         predicted = model.predict(row.state)
         correct_bits += sum(int(a == b) for a, b in zip(predicted, row.target))
         correct_states += int(predicted == row.target)
+        example_count += 1
+    if example_count == 0:
+        raise ValueError("evaluation data must not be empty")
     return {
-        "bit_accuracy": correct_bits / total_bits,
-        "exact_state_accuracy": correct_states / len(rows),
-        "examples": float(len(rows)),
+        "bit_accuracy": correct_bits / (example_count * 6),
+        "exact_state_accuracy": correct_states / example_count,
+        "examples": float(example_count),
     }
 
 
