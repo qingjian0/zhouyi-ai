@@ -1,0 +1,37 @@
+name: cpg-ei-proximal-regularization-calibration
+
+on:
+  push:
+    branches:
+      - research/cpg-ei-proximal-regularization-calibration-2026-11-13
+  pull_request:
+    branches:
+      - research/cpg-ei-oracle-optimizer-sweep-2026-11-13
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  proximal-calibration:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run focused calibration tests
+        run: python -m unittest tests.test_cpg_ei_proximal_regularization_sweep -v
+      - name: Run five-seed proximal group-L1 calibration
+        run: |
+          set -o pipefail
+          mkdir -p benchmark-results
+          python -m prototype.cpg_ei_proximal_regularization_sweep | tee benchmark-results/cpg-ei-proximal-regularization-calibration.json
+      - name: Upload calibration report
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpg-ei-proximal-regularization-calibration-${{ github.sha }}
+          path: benchmark-results/cpg-ei-proximal-regularization-calibration.json
+          if-no-files-found: error
+          retention-days: 30
