@@ -1545,7 +1545,7 @@ class ZPCMMemory:
                 "SELECT page_kind,page_index,page_json,page_digest "
                 "FROM e12a6_lifecycle_checkpoint_pages "
                 "WHERE scope=? AND checkpoint_sequence=? "
-                "ORDER BY page_kind,page_index",
+                "ORDER BY CASE page_kind WHEN 'candidates' THEN 0 WHEN 'evidence' THEN 1 WHEN 'actions' THEN 2 ELSE 3 END,page_index",
                 (scope, checkpoint_sequence),
             )
             while True:
