@@ -1295,6 +1295,14 @@ class ZPCMMemory:
                 ).fetchone()
                 if int(row[0]) != checkpoint_sequence or int(row[1]) != event_count:
                     raise ZPCMError("lifecycle stream changed while checkpoint was being published")
+                actual_count, actual_prefix_digest = self.e12a6_lifecycle_prefix_digest(
+                    scope=scope, through_sequence=checkpoint_sequence,
+                )
+                if actual_count != event_count or actual_prefix_digest != prefix_digest:
+                    raise ZPCMError("checkpoint prefix digest does not match the authoritative event log")
+                if (snapshot.get("scope") != scope
+                        or snapshot.get("last_sequence") != checkpoint_sequence):
+                    raise ZPCMError("checkpoint snapshot scope or sequence mismatch")
                 created_at = datetime.now(timezone.utc).isoformat()
                 self.db.execute(
                     "INSERT INTO e12a6_lifecycle_checkpoints("
