@@ -428,6 +428,7 @@ class PersistentLifecycleLedger:
 
     def _restore(self) -> None:
         staged_state = None
+        self._memory.lock.acquire()
         try:
             checkpoint = None
             try:
@@ -446,14 +447,21 @@ class PersistentLifecycleLedger:
                 # A stale, incompatible, or corrupt checkpoint is disposable; the event log is authoritative.
                 checkpoint = None
 
+            staged = None
+            if checkpoint is not None:
+                try:
+                    staged, staged_state = self._hydrate_checkpoint_snapshot(
+                        checkpoint["snapshot"], checkpoint["checkpoint_sequence"],
+                    )
+                    previous = checkpoint["checkpoint_sequence"]
+                except Exception:
+                    # The snapshot is only an acceleration artifact; replay remains authoritative.
+                    checkpoint = None
+                    staged = None
+                    staged_state = None
             if checkpoint is None:
                 staged, staged_state = _new_sqlite_lifecycle_ledger()
                 previous = 0
-            else:
-                staged, staged_state = self._hydrate_checkpoint_snapshot(
-                    checkpoint["snapshot"], checkpoint["checkpoint_sequence"],
-                )
-                previous = checkpoint["checkpoint_sequence"]
             events = self._memory.iter_domain_events(
                 event_type="e12a6_lifecycle", scope=self.scope, after_sequence=previous,
             )
@@ -548,6 +556,8 @@ class PersistentLifecycleLedger:
                 staged_state.rollback()
                 staged_state.close()
             raise LifecyclePersistenceError(f"lifecycle replay failed: {exc}") from exc
+        finally:
+            self._memory.lock.release()
 
     def _apply_durable_state(self, mutation: Callable[[], None]) -> None:
         """Apply scratch mutations atomically; rebuild from authoritative events on failure."""
