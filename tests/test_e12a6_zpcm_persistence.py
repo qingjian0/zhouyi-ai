@@ -1,4 +1,5 @@
 import json
+import sqlite3
 import subprocess
 import sys
 import tempfile
@@ -484,10 +485,22 @@ os._exit(74)  # The durable append must terminate the process first.
 
     def test_replay_rejects_tampered_event_digest(self):
         self.store.register_candidate(candidate())
+        # Simulate offline database corruption, bypassing in-process guards.
+        self.memory.db.execute("DROP TRIGGER memory_events_reject_update")
         self.memory.db.execute("UPDATE memory_events SET payload_json=? WHERE event_id=?",
           ('{"tampered":true}',"e12a6:candidate:rel:greater-than@1"))
         with self.assertRaises(LifecyclePersistenceError): PersistentLifecycleLedger(self.memory,scope="project-a")
 
+    def test_authoritative_event_log_rejects_update_and_delete(self):
+        self.store.register_candidate(candidate())
+        event_id = "e12a6:candidate:rel:greater-than@1"
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.memory.db.execute("UPDATE memory_events SET payload_json='{}' WHERE event_id=?", (event_id,))
+        with self.assertRaises(sqlite3.IntegrityError):
+            self.memory.db.execute("DELETE FROM memory_events WHERE event_id=?", (event_id,))
+        restored = PersistentLifecycleLedger(self.memory, scope="project-a")
+        self.assertIn(("rel:greater-than", 1), restored.ledger.candidates)
+        restored.close()
 
     def test_normal_writes_do_not_deepcopy_the_full_ledger(self):
         with patch("prototype.e12a6_zpcm_persistence.deepcopy", side_effect=AssertionError("write path copied full ledger")):
