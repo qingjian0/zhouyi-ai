@@ -102,13 +102,13 @@ class ZPCMMemory:
         )
 
     def _rebuild_e12a6_candidate_history_scope(self, scope: str) -> None:
-        rows = self.db.execute(
-            "SELECT seq,event_id,payload_json,payload_digest FROM memory_events "
-            "WHERE event_type='e12a6_lifecycle' AND scope=? ORDER BY seq",
-            (scope,),
-        )
         self.db.execute("BEGIN IMMEDIATE")
         try:
+            rows = self.db.execute(
+                "SELECT seq,event_id,payload_json,payload_digest FROM memory_events "
+                "WHERE event_type='e12a6_lifecycle' AND scope=? ORDER BY seq",
+                (scope,),
+            )
             self.db.execute("DELETE FROM e12a6_lifecycle_candidate_history WHERE scope=?", (scope,))
             high_water = 0
             count = 0
