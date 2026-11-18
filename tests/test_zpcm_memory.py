@@ -131,6 +131,22 @@ class Tests(unittest.TestCase):
       scope="project",payload={"n":2},expected_sequence=first["sequence"])
   self.assertEqual(list(iterator),[])
 
+ def test_keyset_reader_decodes_payload_from_bounded_page_without_per_event_rereads(self):
+  for i in range(3):
+   self.m.append_domain_event(event_type="m2_cognition",event_id=f"m2:{i+1}",
+       scope="project",payload={"n":i+1},expected_sequence=i)
+  statements=[]
+  self.m.db.set_trace_callback(statements.append)
+  try:
+   events=list(self.m.iter_domain_events(event_type="m2_cognition",scope="project",page_size=3))
+  finally:
+   self.m.db.set_trace_callback(None)
+  self.assertEqual([event["payload"] for event in events],[{"n":1},{"n":2},{"n":3}])
+  page_reads=[sql for sql in statements if "FROM memory_events" in sql and "ORDER BY seq LIMIT 3" in sql]
+  payload_rereads=[sql for sql in statements if "SELECT payload_json FROM memory_events WHERE seq=" in sql]
+  self.assertEqual(len(page_reads),1)
+  self.assertEqual(payload_rereads,[])
+
  def test_keyset_reader_verifies_each_page_digest(self):
   self.m.append_domain_event(event_type="m2_cognition",event_id="m2:1",
       scope="project",payload={"n":1},expected_sequence=0)
