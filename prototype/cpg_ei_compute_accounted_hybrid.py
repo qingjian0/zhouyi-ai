@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import gc
+import hashlib
 import itertools
 import json
 import platform
@@ -206,7 +207,10 @@ def run_support_constrained_hybrid(
 ) -> dict[str, Any]:
     if optimizer_backend not in ("python", "numpy"):
         raise ValueError("optimizer_backend must be 'python' or 'numpy'")
-    fit_function = fit_with_early_stopping_numpy if optimizer_backend == "numpy" else fit_with_early_stopping
+    fit_function = (
+        fit_with_early_stopping_numpy if optimizer_backend == "numpy"
+        else fit_with_early_stopping
+    )
     manifest = corpus["manifest"]
     input_dim = manifest["input_dim"]
     output_dim = manifest["output_dim"]
@@ -264,8 +268,18 @@ def run_support_constrained_hybrid(
             columns = len(supports) + 1
             total_feature_columns += columns
             total_coefficients += columns
-            total_feature_encodings += fit["training_feature_encodings"]
-            total_development_feature_encodings += fit["development_feature_encodings"]
+            if optimizer_backend == "numpy":
+                total_feature_encodings += len(examples["train"]) * columns
+                total_development_feature_encodings += (
+                    len(examples["development"]) * columns
+                )
+            else:
+                total_feature_encodings += (
+                    fit["epochs_run"] * len(examples["train"]) * columns
+                )
+                total_development_feature_encodings += (
+                    (fit["epochs_run"] + 1) * len(examples["development"]) * columns
+                )
             total_gradient_terms += fit["epochs_run"] * len(examples["train"]) * columns
             models.append(model)
             fits.append({
@@ -277,8 +291,19 @@ def run_support_constrained_hybrid(
                 **fit,
             })
 
+        prediction_rows = [
+            [
+                model.predict(tuple(row["state"]))[0]
+                for model in models
+            ]
+            for row in sorted(rows, key=lambda item: tuple(item["state"]))
+        ]
+        prediction_digest = hashlib.sha256(
+            json.dumps(prediction_rows, separators=(",", ":")).encode("utf-8")
+        ).hexdigest()
         family_results.append({
             "family_id": family["family_id"],
+            "prediction_sha256": prediction_digest,
             "family_split": family["family_split"],
             "training": _split_metrics(models, split_rows["train"]),
             "development": _split_metrics(models, split_rows["development"]),
@@ -314,6 +339,7 @@ def run_support_constrained_hybrid(
         "corpus_sha256": manifest["corpus_sha256"],
         "model": {
             "type": "per-output logistic heads over train-only symbolic-support monomials",
+            "optimizer_backend": optimizer_backend,
             "input_dim": input_dim,
             "output_dim": output_dim,
             "max_epochs": max_epochs,
@@ -478,15 +504,11 @@ def run_compute_accounted_comparison(
         full_columns = (2 ** manifest["input_dim"])
         full_train_count = manifest["state_split_per_family"]["train"]
         full_epochs_total = sum(row["epochs_run"] for row in full_family_results)
-        full_feature_encodings = sum(
-            row["training_feature_encodings"] for row in full_family_results
-        )
-        full_development_feature_encodings = sum(
-            row["development_feature_encodings"] for row in full_family_results
+        full_feature_encodings = (
+            full_epochs_total * full_train_count * full_columns
         )
         full_gradient_terms = (
-            full_epochs_total * full_train_count * full_columns
-            * manifest["output_dim"]
+            full_feature_encodings * manifest["output_dim"]
         )
         full_accounting = {
             "feature_count_excluding_bias_per_output": full_columns - 1,
@@ -494,11 +516,9 @@ def run_compute_accounted_comparison(
             "model_coefficients_per_family": full_columns * manifest["output_dim"],
             "optimizer_epochs_total": full_epochs_total,
             "training_feature_encodings": full_feature_encodings,
-            "development_feature_encodings_for_checkpoint_selection": full_development_feature_encodings,
             "gradient_feature_contributions": full_gradient_terms,
             "candidate_output_train_score_evaluations": 0,
         }
-        full_optimizer_backend = full_report["model"]["optimizer_backend"]
         del full_report, full_family_results
         gc.collect()
 
@@ -543,7 +563,6 @@ def run_compute_accounted_comparison(
                 "min_delta": min_delta,
                 "learning_rate": learning_rate,
                 "l2": l2,
-                "optimizer_backend": full_optimizer_backend,
                 "initialization": "all-zero weights",
             },
             "methods": {
