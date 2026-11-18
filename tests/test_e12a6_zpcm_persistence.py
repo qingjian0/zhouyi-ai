@@ -102,15 +102,16 @@ class PersistentLifecycleTests(unittest.TestCase):
         finally:
             self.memory.replay_lifecycle_events = original
         self.assertEqual(restored.snapshot(), expected)
-        self.assertEqual(
-            restored._event_payload_digests[
-                "e12a6:candidate:rel:greater-than@1"
-            ],
-            self.memory.get_domain_event(
-                event_type="e12a6_lifecycle", scope="project-a",
-                event_id="e12a6:candidate:rel:greater-than@1",
-            )["payload_digest"],
+        event = self.memory.get_domain_event(
+            event_type="e12a6_lifecycle", scope="project-a",
+            event_id="e12a6:candidate:rel:greater-than@1",
         )
+        self.assertEqual(restored._event_payload_digest(
+            "e12a6:candidate:rel:greater-than@1"
+        ), event["payload_digest"])
+        self.assertFalse(hasattr(restored, "_receipts"))
+        self.assertFalse(hasattr(restored, "_event_payload_digests"))
+        self.assertFalse(hasattr(restored, "_consumed_receipts"))
 
     def test_same_action_is_idempotent_but_content_reuse_is_rejected(self):
         self.store.register_candidate(candidate()); first=self.store.apply(propose()); second=self.store.apply(propose())
@@ -196,6 +197,17 @@ class PersistentLifecycleTests(unittest.TestCase):
         )
         self.assertIsNotNone(bundle.authorization)
         self.assertFalse(bundle.authorization.replayed)
+        by_receipt = self.memory.get_authorization_consumption(receipt_id="receipt-1")
+        by_nonce = self.memory.get_authorization_consumption(nonce="nonce-1")
+        self.assertEqual(by_receipt["event_id"], by_nonce["event_id"])
+        self.assertEqual(by_receipt["body"]["candidate_id"], candidate_item.candidate_id)
+        self.assertEqual(
+            list(self.memory.iter_candidate_authorization_consumptions(
+                scope="project-a", candidate_id=candidate_item.candidate_id,
+                candidate_version=candidate_item.version,
+            )),
+            [by_receipt["body"]],
+        )
         self.assertEqual(
             [event["payload"]["kind"] for event in self.memory.replay_lifecycle_events(scope="project-a")],
             ["evidence_registered", "candidate_registered", "authorization_consumed"],
