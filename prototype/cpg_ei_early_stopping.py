@@ -21,6 +21,40 @@ from prototype.cpg_ei_generic_learner import (
 from prototype.cpg_ei_mixed_operator_data import generate_mixed_corpus
 
 
+def _train_preencoded_one_epoch(
+    model: RelationalTransitionModel,
+    encoded: list[tuple[tuple[float, ...], tuple[int, ...]]],
+    *,
+    learning_rate: float,
+    l2: float,
+) -> float:
+    """Perform one reference-order SGD epoch over cached feature rows."""
+    if not encoded:
+        raise ValueError("training examples must not be empty")
+    output_dim = model.output_dim
+    feature_count = len(model.supports) + 1
+    gradients = [[0.0] * feature_count for _ in range(output_dim)]
+    total_loss = 0.0
+    for features, target in encoded:
+        for out, head in enumerate(model.weights):
+            logit = sum(weight * feature for weight, feature in zip(head, features))
+            probability = model._sigmoid(logit)
+            label = target[out]
+            total_loss += (
+                max(logit, 0.0) - logit * label
+                + math.log1p(math.exp(-abs(logit)))
+            )
+            error = probability - label
+            for index, feature in enumerate(features):
+                gradients[out][index] += error * feature
+    count = float(len(encoded))
+    for out, head in enumerate(model.weights):
+        for index in range(len(head)):
+            penalty = 0.0 if index == 0 else l2 * head[index]
+            head[index] -= learning_rate * (gradients[out][index] / count + penalty)
+    return total_loss / (count * output_dim)
+
+
 def _binary_cross_entropy(
     model: RelationalTransitionModel,
     examples: list[TransitionExample],
