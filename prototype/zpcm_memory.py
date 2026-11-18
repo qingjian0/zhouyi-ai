@@ -152,7 +152,7 @@ class ZPCMMemory:
         self, *, scope: str, candidate_id: str, candidate_version: int | None = None,
         after_sequence: int = 0, limit: int = 100, max_page_bytes: int = 4 * 1024 * 1024,
     ) -> list[dict[str, Any]]:
-        """Read a deterministic, digest-verified candidate history page from SQLite."""
+        """Read one deterministic candidate-history page within count and byte bounds."""
         if not isinstance(scope, str) or not scope.strip():
             raise ZPCMError("scope must be non-empty")
         if not isinstance(candidate_id, str) or not candidate_id.strip():
@@ -169,8 +169,11 @@ class ZPCMMemory:
         if isinstance(max_page_bytes, bool) or not isinstance(max_page_bytes, int) or max_page_bytes < 1:
             raise ZPCMError("max_page_bytes must be positive")
         query = (
-            "SELECT e.seq,e.event_id,e.event_type,e.scope,e.payload_json,e.payload_digest,e.recorded_at "
-            "FROM e12a6_lifecycle_candidate_history h JOIN memory_events e ON e.event_id=h.event_id "
+            "SELECT e.seq,e.event_id,e.event_type,e.scope,"
+            "length(CAST(e.payload_json AS BLOB)) AS payload_bytes,"
+            "e.payload_digest,e.recorded_at "
+            "FROM e12a6_lifecycle_candidate_history h "
+            "JOIN memory_events e ON e.event_id=h.event_id "
             "WHERE h.scope=? AND h.candidate_id=? AND h.sequence>? "
         )
         args: list[Any] = [scope, candidate_id, after_sequence]
@@ -181,13 +184,28 @@ class ZPCMMemory:
         args.append(limit)
         with self.lock:
             rows = self.db.execute(query, tuple(args)).fetchall()
-        results = []
+        selected = []
         used_bytes = 0
         for row in rows:
-            used_bytes += len(row["payload_json"].encode("utf-8"))
-            if used_bytes > max_page_bytes:
-                raise ZPCMError("candidate history page exceeds max_page_bytes")
-            payload = json.loads(row["payload_json"])
+            size = int(row["payload_bytes"])
+            if size > self.max_event_payload_bytes:
+                raise ZPCMError(f"persisted event payload exceeds max_event_payload_bytes: {row['event_id']}")
+            if used_bytes + size > max_page_bytes:
+                if not selected:
+                    raise ZPCMError("candidate history page cannot make progress within max_page_bytes")
+                break
+            selected.append(row)
+            used_bytes += size
+        results = []
+        for row in selected:
+            with self.lock:
+                raw = self.db.execute(
+                    "SELECT payload_json FROM memory_events WHERE seq=? AND event_id=?",
+                    (row["seq"], row["event_id"]),
+                ).fetchone()
+            if raw is None:
+                raise ZPCMError("candidate history event disappeared during page read")
+            payload = json.loads(raw["payload_json"])
             if digest(payload) != row["payload_digest"]:
                 raise ZPCMError(f"lifecycle event digest mismatch: {row['event_id']}")
             results.append({
