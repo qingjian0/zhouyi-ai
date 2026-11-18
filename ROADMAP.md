@@ -9,16 +9,16 @@
 ## 当前集成基线
 
 - 集成分支：`dev`；稳定分支：`main`。
-- 本路线图更新基线：`a846daf3bd0ace0fa3fd4227add38ca2d45901ae`。
-- `dev` 相对 `main`：ahead 24、behind 0（本次核对）。
-- 基线 CI：Run [44299206115](https://github.com/qingjian0/zhouyi-ai/actions/runs/44299206115)，7/7 jobs 成功；该结果只证明该 SHA 的相应自动化检查通过。
+- 当前研发代码基线：`21aec045a00e9e3abd716536d1d27d8f765a8520`。
+- `dev` 相对 `main`：ahead 28、behind 0（本次核对）。
+- 最近已确认成功的基线 CI：Run [44299206115](https://github.com/qingjian0/zhouyi-ai/actions/runs/44299206115)，对应此前 SHA `a846daf3` 的 7/7 jobs；本轮新提交尚未取得 exact-head CI 结果。
 - 当前研发重点：E12-A6 生命周期状态投影；M1/M2 有界恢复和实测；N0.10 规模/分组隔离验证；CPG-EI 神经/非有限语法跨族学习；易象真实 Gold 数据验证。
 
 ## 能力状态
 
 | 工作流 | 已落地 | 尚未通过的关键验收 |
 |---|---|---|
-| ZPCM / E12-A6 | 追加式事件日志、SQLite 持久化、事件摘要校验、授权 receipt/nonce 唯一索引、候选历史索引、授权历史 keyset 分页、幂等和重放验证 | `PersistentLifecycleLedger` 启动仍全量 replay 到 Python `LifecycleLedger`；缺少规范化 current-state projection、事务内 append+projection+checkpoint、损坏重建和大规模 RSS 验收 |
+| ZPCM / E12-A6 | 追加式权威事件日志、SQLite 持久化、事件摘要校验、授权 receipt/nonce 唯一索引、候选历史索引、授权历史 keyset 分页；`PersistentLifecycleLedger` 已改为将候选/证据/动作/动作 ID 放入临时 SQLite scratch state，按有界页流式重放；普通写入不再 deepcopy 全账本，`ledger`/`snapshot()` 是显式全量物化边界 | 启动仍需 O(N) 重放全部权威事件；scratch state 是进程级临时库，不是跨进程持久 checkpoint；尚无 candidate/evidence/action durable current-state projection、checkpoint 校验/快速恢复；写入压力、磁盘故障、进程强杀、并发 adapter、清理失败和当前 exact-head RSS 尚待验收 |
 | M1 数据摄取 | UTF-8 分块读取、Manifest、Chunk Digest、SQLite 持久化、恢复和有界 chunk 读取 | 跨 Chunk tokenizer 一致性、整篇 reference 对照、大文本吞吐与 RSS exact-head 报告 |
 | M2 Observation | Observation DTO、EvidenceRef、Lazy Store、SQLite 索引、Keyset Paging、来源校验与重启恢复 | 大规模 RSS 实测、Gold 标注、语义提取质量、abstention 与独立标注评估 |
 | N0.10 / SROK | SROK 组合内核、LearnableSROK、JSONL 流式/out-of-core runner、SQLite 元数据、checkpoint 恢复、locked-test 评估与 RSS 工具 | 百万行真实运行、峰值 RSS、恢复一致性、group-disjoint split、与 materialized oracle 数值一致性；工具存在不等于规模验收完成 |
@@ -88,4 +88,4 @@
 
 ## 当前未完成声明
 
-截至本路线图基线，项目仍处于多条研究原型并行推进阶段，尚未达到 P0–P4 全部验收条件。尤其 E12-A6 仍有全量 Python replay 路径；N0.10 百万级训练、M1/M2 大规模资源曲线、CPG-EI 神经跨族学习和易象真实 Gold 验证均未完成。任何项目完成度表述必须保留这些边界。
+截至本路线图基线，项目仍处于多条研究原型并行推进阶段，尚未达到 P0–P4 全部验收条件。E12-A6 已将重放状态移出 Python 全量集合，但启动仍为 O(N) 全事件重放，且尚无可验证的持久化状态 checkpoint；N0.10 百万级训练、M1/M2 大规模资源曲线、CPG-EI 神经跨族学习和易象真实 Gold 验证均未完成。任何项目完成度表述必须保留这些边界。
