@@ -1,0 +1,39 @@
+name: research-branch-validation
+
+on:
+  push:
+    branches:
+      - "research/**"
+      - "security/**"
+      - "integration/**"
+
+jobs:
+  full-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install Ed25519 verification dependency
+        run: python -m pip install "cryptography>=42,<47"
+      - name: Run unit tests
+        run: python -m unittest discover -s tests -v
+      - name: Run E01 demonstration
+        run: python -m prototype.e01_sparse_composition --json
+      - name: Run E01-B five-seed evaluation
+        run: python -m prototype.e01_multiseed --seeds 5 --start-seed 7 --json
+      - name: Run E01-C compositional OOD evaluation
+        run: python -m prototype.e01_ood_multiseed --seeds 5 --start-seed 7 --json
+      - name: Run E02-A higher-order synergy evaluation
+        run: python -m prototype.e02_higher_order --seeds 5 --start-seed 7 --json
+      - name: Run E02-B ternary relation generator audit
+        run: python -m prototype.e02_ternary --examples 900 --seed 7
+      - name: Run E02-B pairwise vs third-order learners
+        run: python -m prototype.e02_ternary_learners --seeds 5 --start-seed 7 --json
+      - name: Run E02-C hyperedge lifecycle tests
+        run: python -m unittest tests.test_e02_edge_lifecycle -v
+      - name: Run E02-D held-out rule-family induction
+        run: python -m prototype.e02_rule_ood --seed 17 --support-size 6 --json
+      - name: Run E02-D multi-seed support identifiability sweep
+        run: python -m prototype.e02_rule_ood --sweep --seeds 100 --start-seed 100 --json

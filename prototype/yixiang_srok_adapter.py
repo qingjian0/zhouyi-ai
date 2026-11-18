@@ -41,6 +41,7 @@ class YixiangCompositionResult:
     compiled_operator: CompiledYixiangOperator
     search: SearchReport
     semantic_status: str = "HYPOTHESIS_ONLY"
+    source_relation_evidence_refs: tuple[str, ...] = ()
 
 
 def compile_yixiang_operator(
@@ -104,6 +105,7 @@ def propose_yixiang_compositions(
     limit: int = 16,
     max_candidates_per_role: int = 32,
     max_expansions: int = 10_000,
+    source_relation_evidence_refs: Iterable[str] = (),
 ) -> YixiangCompositionResult:
     """Apply XSL's explicit transform, then search bounded SROK role bindings."""
     rows = tuple(workspace_nodes)
@@ -116,6 +118,9 @@ def propose_yixiang_compositions(
     )
     application = apply_role_transform(relation, transform)
 
+    relation_refs = tuple(sorted(set(source_relation_evidence_refs)))
+    if any(not isinstance(ref, str) or not ref.strip() for ref in relation_refs):
+        raise ValueError("source_relation_evidence_refs must contain non-empty event refs")
     scores = node_scores or {}
     unknown_scores = set(scores) - {node.node_id for node in rows}
     if unknown_scores:
@@ -138,4 +143,5 @@ def propose_yixiang_compositions(
         application=application,
         compiled_operator=compiled,
         search=search,
+        source_relation_evidence_refs=relation_refs,
     )
