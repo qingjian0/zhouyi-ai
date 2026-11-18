@@ -88,6 +88,30 @@ class PersistentLifecycleTests(unittest.TestCase):
         self.store=PersistentLifecycleLedger(self.memory,scope="project-a")
         self.assertEqual(self.store.snapshot(),before)
         self.assertEqual(self.store.ledger.candidates[("rel:greater-than",1)].state,CandidateState.PROPOSED)
+    def test_restore_streams_events_without_materializing_full_history(self):
+        self.store.register_candidate(candidate())
+        self.store.register_evidence(evidence())
+        self.store.apply(propose())
+        expected = self.store.snapshot()
+        original = self.memory.replay_lifecycle_events
+        self.memory.replay_lifecycle_events = lambda **kwargs: (_ for _ in ()).throw(
+            AssertionError("restore must use bounded domain-event iteration")
+        )
+        try:
+            restored = PersistentLifecycleLedger(self.memory, scope="project-a")
+        finally:
+            self.memory.replay_lifecycle_events = original
+        self.assertEqual(restored.snapshot(), expected)
+        self.assertEqual(
+            restored._event_payload_digests[
+                "e12a6:candidate:rel:greater-than@1"
+            ],
+            self.memory.get_domain_event(
+                event_type="e12a6_lifecycle", scope="project-a",
+                event_id="e12a6:candidate:rel:greater-than@1",
+            )["payload_digest"],
+        )
+
     def test_same_action_is_idempotent_but_content_reuse_is_rejected(self):
         self.store.register_candidate(candidate()); first=self.store.apply(propose()); second=self.store.apply(propose())
         self.assertTrue(second.replayed); self.assertEqual(first.sequence,second.sequence)
