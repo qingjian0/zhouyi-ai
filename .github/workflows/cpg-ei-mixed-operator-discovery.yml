@@ -23,6 +23,7 @@ jobs:
         run: |
           python -m unittest discover -s tests -p 'test_cpg_ei_mixed_operator_data.py' -v
           python -m unittest discover -s tests -p 'test_cpg_ei_mixed_operator_discovery.py' -v
+          python -m unittest discover -s tests -p 'test_cpg_ei_optimizer_backend.py' -v
           python -m unittest discover -s tests -p 'test_cpg_ei_selection_sweep.py' -v
           python -m unittest discover -s tests -p 'test_cpg_ei_oracle_optimizer_sweep.py' -v
           python -m unittest discover -s tests -p 'test_cpg_ei_selection_split_sweep.py' -v
