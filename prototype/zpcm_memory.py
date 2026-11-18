@@ -609,8 +609,9 @@ class ZPCMMemory:
                 actual_side + " EXCEPT " + expected_side if reverse
                 else expected_side + " EXCEPT " + actual_side
             ) + ")"
-        candidate_missing = int(self.db.execute(candidate_diff(False),(scope,scope,scope)).fetchone()[0])
-        candidate_unexpected = int(self.db.execute(candidate_diff(True),(scope,scope,scope)).fetchone()[0])
+        with self.lock:
+            candidate_missing = int(self.db.execute(candidate_diff(False),(scope,scope,scope)).fetchone()[0])
+            candidate_unexpected = int(self.db.execute(candidate_diff(True),(scope,scope,scope)).fetchone()[0])
 
         evidence_cte = """
         WITH ranked AS (
@@ -636,8 +637,9 @@ class ZPCMMemory:
                 actual_side + " EXCEPT " + expected_side if reverse
                 else expected_side + " EXCEPT " + actual_side
             ) + ")"
-        evidence_missing = int(self.db.execute(evidence_diff(False),(scope,scope)).fetchone()[0])
-        evidence_unexpected = int(self.db.execute(evidence_diff(True),(scope,scope)).fetchone()[0])
+        with self.lock:
+            evidence_missing = int(self.db.execute(evidence_diff(False),(scope,scope)).fetchone()[0])
+            evidence_unexpected = int(self.db.execute(evidence_diff(True),(scope,scope)).fetchone()[0])
 
         action_cte = """
         WITH ranked AS (
@@ -666,8 +668,9 @@ class ZPCMMemory:
                 actual_side + " EXCEPT " + expected_side if reverse
                 else expected_side + " EXCEPT " + actual_side
             ) + ")"
-        action_missing = int(self.db.execute(action_diff(False),(scope,scope)).fetchone()[0])
-        action_unexpected = int(self.db.execute(action_diff(True),(scope,scope)).fetchone()[0])
+        with self.lock:
+            action_missing = int(self.db.execute(action_diff(False),(scope,scope)).fetchone()[0])
+            action_unexpected = int(self.db.execute(action_diff(True),(scope,scope)).fetchone()[0])
 
         counts = {
             "candidate_missing": candidate_missing,
@@ -723,14 +726,15 @@ class ZPCMMemory:
 
     def lifecycle_state_projection_counts(self, *, scope: str) -> dict[str, int]:
         counts={}
-        for kind,table in (
-            ("candidates","e12a6_candidate_state_projection"),
-            ("evidence","e12a6_evidence_state_projection"),
-            ("actions","e12a6_action_state_projection"),
-        ):
-            counts[kind]=int(self.db.execute(
-                f"SELECT COUNT(*) FROM {table} WHERE scope=?",(scope,)
-            ).fetchone()[0])
+        with self.lock:
+            for kind,table in (
+                ("candidates","e12a6_candidate_state_projection"),
+                ("evidence","e12a6_evidence_state_projection"),
+                ("actions","e12a6_action_state_projection"),
+            ):
+                counts[kind]=int(self.db.execute(
+                    f"SELECT COUNT(*) FROM {table} WHERE scope=?",(scope,)
+                ).fetchone()[0])
         return counts
 
     def _iter_e12a6_projection_rows(
