@@ -6,6 +6,9 @@ on:
       - research/cpg-ei-expanded-mixed-corpus-v2-2026-11-13
   pull_request:
     types: [opened, synchronize, reopened]
+    paths:
+      - 'prototype/cpg_ei_expanded_mixed_corpus.py'
+      - 'tests/test_cpg_ei_expanded_mixed_corpus.py'
 
 permissions:
   contents: read

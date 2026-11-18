@@ -66,9 +66,13 @@ def change_lines(
     lines = list(validate_lines(lines_bottom_to_top))
     if len(lines) != 6:
         raise ValueError("line changes require a six-line hexagram")
-    for index in changing_indices:
-        if isinstance(index, bool) or not isinstance(index, Integral):
-            raise ValueError("line index must be an integer in [0, 5]")
+    indices = tuple(changing_indices)
+    if any(isinstance(index, bool) or not isinstance(index, Integral) for index in indices):
+        raise ValueError("line index must be an integer in [0, 5]")
+    normalized_indices = tuple(int(index) for index in indices)
+    if len(set(normalized_indices)) != len(normalized_indices):
+        raise ValueError("changing line indices must be unique")
+    for index in normalized_indices:
         if not 0 <= index < 6:
             raise ValueError("line index must be in [0, 5], bottom line is index 0")
         lines[index] = 1 - lines[index]
@@ -80,3 +84,30 @@ def all_hexagram_states() -> list[HexagramState]:
         encode_hexagram(tuple((value >> bit) & 1 for bit in range(6)))
         for value in range(64)
     ]
+
+
+@dataclass(frozen=True)
+class HexagramTransition:
+    """A structural line-change transition; no divinatory meaning is inferred."""
+    before: HexagramState
+    after: HexagramState
+    changing_indices_bottom_to_top: tuple[int, ...]
+
+
+def transition_hexagram(
+    lines_bottom_to_top: Sequence[int],
+    changing_indices: Sequence[int],
+) -> HexagramTransition:
+    """Apply distinct moving-line indices and retain both six-line states.
+
+    Indices are zero-based from the bottom. Binary identifiers remain
+    computational indices, not King Wen or another traditional sequence.
+    """
+    before = encode_hexagram(lines_bottom_to_top)
+    indices = tuple(changing_indices)
+    after = encode_hexagram(change_lines(before.lines_bottom_to_top, indices))
+    return HexagramTransition(
+        before=before,
+        after=after,
+        changing_indices_bottom_to_top=tuple(int(index) for index in indices),
+    )
