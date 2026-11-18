@@ -715,6 +715,8 @@ os._exit(74)  # The durable append must terminate the process first.
 
     def test_current_state_projection_rebuild_fails_closed_on_event_digest_mismatch(self):
         self.store.register_candidate(candidate())
+        # Simulate offline database corruption, bypassing in-process guards.
+        self.memory.db.execute("DROP TRIGGER memory_events_reject_update")
         self.memory.db.execute(
             "UPDATE memory_events SET payload_json=? WHERE event_id=?",
             ('{"tampered":true}', "e12a6:candidate:rel:greater-than@1"),
