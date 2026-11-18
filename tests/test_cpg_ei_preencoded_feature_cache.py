@@ -51,9 +51,17 @@ class TestEarlyStoppingBaseline(unittest.TestCase):
             self.assertLessEqual(row["best_epoch"], row["epochs_run"])
             self.assertLessEqual(row["epochs_run"], 12)
             self.assertEqual(len(row["selected_weights_sha256"]), 64)
+            training_examples = sum(
+                1 for item in corpus["rows"]
+                if item["family_id"] == row["family_id"]
+                and item["state_split"] == "train"
+            )
+            expected_encodings = training_examples * (2 ** 4)
+            if row["optimizer_backend"] != "numpy-vectorized-float64":
+                expected_encodings *= row["epochs_run"]
             self.assertEqual(
                 row["training_feature_encodings"],
-                8 * (2 ** 4),
+                expected_encodings,
             )
             self.assertTrue(0.0 <= row["locked"]["bit_accuracy"] <= 1.0)
 
