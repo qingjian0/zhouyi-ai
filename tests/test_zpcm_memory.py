@@ -19,6 +19,21 @@ class Tests(unittest.TestCase):
    with self.subTest(query=query_name):
     self.assertIn("memory_events_type_scope_seq",detail)
 
+ def test_authorization_index_rebuild_streams_scoped_events(self):
+  self.m.append_lifecycle_event(
+   event_id="e12a6:candidate:rel:streamed@1",scope="project",
+   payload={"schema_version":"e12a6-lifecycle-event-v1","kind":"candidate_registered",
+    "body":{"candidate":{"candidate_id":"rel:streamed","version":1,"evidence_ids":[]}}},
+   expected_sequence=0)
+  original=self.m.iter_domain_events
+  calls=[]
+  def tracked(**kwargs):
+   calls.append(kwargs)
+   return original(**kwargs)
+  self.m.iter_domain_events=tracked
+  self.m._rebuild_authorization_consumption_index()
+  self.assertEqual(calls,[{"event_type":"e12a6_lifecycle","scope":"project"}])
+
  def test_generic_domain_events_share_the_authoritative_event_log(self):
   first=self.m.append_domain_event(event_type="m2_cognition",event_id="m2:obs:1",
       scope="project",payload={"kind":"observation","record_id":"obs-1"},expected_sequence=0)
