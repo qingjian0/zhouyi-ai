@@ -1,0 +1,29 @@
+name: CPG-EI relation operator contracts
+
+on:
+  push:
+    branches:
+      - research/cpg-ei-operator-kernel-v1-2026-11-13
+    paths:
+      - "prototype/cpg_ei_relation_operators.py"
+      - "tests/test_cpg_ei_relation_operators.py"
+      - ".github/workflows/cpg-ei-relation-operators.yml"
+  pull_request:
+    paths:
+      - "prototype/cpg_ei_relation_operators.py"
+      - "tests/test_cpg_ei_relation_operators.py"
+      - ".github/workflows/cpg-ei-relation-operators.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  relation-operator-contracts:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Run deterministic relation semantics tests
+        run: python -m unittest tests.test_cpg_ei_relation_operators -v

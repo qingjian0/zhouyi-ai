@@ -1,0 +1,36 @@
+name: CPG-EI trainable polynomial baseline
+
+on:
+  push:
+    branches:
+      - research/cpg-ei-trainable-polynomial-baseline-v1-2026-11-13
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  trainable-polynomial-baseline:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run trainable baseline contract tests
+        run: |
+          python -m unittest discover -s tests -p 'test_cpg_ei_mixed_operator_trainable_baseline.py' -v
+      - name: Run reproducible 8-family training experiment
+        run: |
+          python -m prototype.cpg_ei_mixed_operator_trainable_baseline \
+            --families 8 --input-dim 8 --output-dim 8 \
+            --seed 20261114 --epochs 120 --learning-rate 0.1 \
+            --l2 0.0001 --json artifacts/trainable-polynomial-baseline.json
+      - name: Upload machine-readable training report
+        uses: actions/upload-artifact@v4
+        with:
+          name: zhouyi-cpg-ei-trainable-polynomial-baseline-v1
+          path: artifacts/trainable-polynomial-baseline.json
+          if-no-files-found: error
