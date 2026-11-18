@@ -59,6 +59,20 @@ class ZPCMMemory:
             event_count INTEGER NOT NULL
         );
         """)
+        # The event log is authoritative for every rebuildable projection.
+        # Reject accidental mutation through the shared SQLite connection.
+        self.db.executescript("""
+        CREATE TRIGGER IF NOT EXISTS memory_events_reject_update
+        BEFORE UPDATE ON memory_events
+        BEGIN
+            SELECT RAISE(ABORT, 'memory_events is append-only');
+        END;
+        CREATE TRIGGER IF NOT EXISTS memory_events_reject_delete
+        BEFORE DELETE ON memory_events
+        BEGIN
+            SELECT RAISE(ABORT, 'memory_events is append-only');
+        END;
+        """)
         self._rebuild_authorization_consumption_index()
         self._ensure_e12a6_candidate_history_projection()
         self._ensure_e12a6_current_state_projection()
