@@ -30,6 +30,21 @@ OOC_DATASET_SCHEMA = "zhouyi-ai.n010-ooc-dataset-v1"
 DEFAULT_MAX_RECORD_BYTES = 8 * 1024 * 1024
 
 
+def _iter_bounded_lines(source, max_record_bytes: int) -> Iterator[tuple[int, bytes]]:
+    """Read JSONL records with a hard allocation bound before parsing."""
+    line_number = 0
+    while True:
+        raw = source.readline(max_record_bytes + 1)
+        if not raw:
+            return
+        line_number += 1
+        if len(raw) > max_record_bytes:
+            raise LearnableSROKError(
+                f"dataset row {line_number} exceeds max_record_bytes={max_record_bytes}"
+            )
+        yield line_number, raw
+
+
 def _sha256_file(path: Path, *, chunk_bytes: int = 1024 * 1024) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as source:
@@ -183,11 +198,7 @@ class N010StreamingDataset:
         counts = {split: 0 for split in self.expected_splits}
         try:
             with self.path.open("rb") as source:
-                for line_number, raw in enumerate(source, 1):
-                    if len(raw) > self.max_record_bytes:
-                        raise LearnableSROKError(
-                            f"dataset row {line_number} exceeds max_record_bytes={self.max_record_bytes}"
-                        )
+                for line_number, raw in _iter_bounded_lines(source, self.max_record_bytes):
                     if not raw.strip():
                         continue
                     row = _parse_record(
@@ -378,11 +389,7 @@ class N010StreamingDataset:
         self._assert_unchanged()
         try:
             with self.path.open("rb") as source:
-                for line_number, raw in enumerate(source, 1):
-                    if len(raw) > self.max_record_bytes:
-                        raise LearnableSROKError(
-                            f"dataset row {line_number} exceeds max_record_bytes={self.max_record_bytes}"
-                        )
+                for line_number, raw in _iter_bounded_lines(source, self.max_record_bytes):
                     if not raw.strip():
                         continue
                     # Parse only rows belonging to the requested split after a
