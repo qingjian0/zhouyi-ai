@@ -65,7 +65,9 @@ def _candidate(index: int) -> Candidate:
     )
 
 
-def _write_fixture(path: Path, count: int, scope: str, batch_size: int) -> int:
+def _write_fixture(
+    path: Path, count: int, scope: str, batch_size: int, *, checkpoint: bool = False,
+) -> int:
     memory = ZPCMMemory(path)
     sequence = 0
     try:
@@ -85,6 +87,12 @@ def _write_fixture(path: Path, count: int, scope: str, batch_size: int) -> int:
                 events=events, scope=scope, expected_sequence=sequence,
             )
             sequence = receipts[-1]["sequence"]
+        if checkpoint:
+            store = PersistentLifecycleLedger(memory, scope=scope)
+            try:
+                store.checkpoint()
+            finally:
+                store.close()
     finally:
         memory.close()
     return sequence
@@ -96,6 +104,7 @@ def _restore_report(path: Path, scope: str) -> dict[str, int | float | None]:
     memory = ZPCMMemory(path)
     zpcm_init_seconds = time.perf_counter() - memory_started
     after_zpcm = _proc_status_memory_bytes("VmRSS")
+    checkpoint = memory.load_e12a6_lifecycle_checkpoint(scope=scope)
     store = None
     try:
         restore_started = time.perf_counter()
@@ -114,6 +123,7 @@ def _restore_report(path: Path, scope: str) -> dict[str, int | float | None]:
             "cgroup_memory_current_bytes": _cgroup_memory_bytes("memory.current"),
             "cgroup_memory_peak_bytes": _cgroup_memory_bytes("memory.peak"),
             "last_sequence": store._last_sequence,
+            "checkpoint_sequence": checkpoint["checkpoint_sequence"] if checkpoint else None,
             "restored_candidate_count": len(store._ledger.candidates),
             "candidate_projection_count": counts["candidates"],
             "evidence_projection_count": counts["evidence"],
@@ -147,6 +157,8 @@ def main(argv: Iterable[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--sizes", type=_parse_sizes, default=_parse_sizes("1000,10000,50000"))
     parser.add_argument("--batch-size", type=int, default=128)
+    parser.add_argument("--checkpoint", action="store_true",
+                        help="publish a verified checkpoint before measuring restore")
     parser.add_argument("--scope", default="e12a6-rss-benchmark")
     parser.add_argument("--restore", type=Path, help=argparse.SUPPRESS)
     args = parser.parse_args(argv)
@@ -161,18 +173,25 @@ def main(argv: Iterable[str] | None = None) -> int:
         root = Path(temporary)
         for count in args.sizes:
             path = root / f"lifecycle-{count}.sqlite"
-            event_count = _write_fixture(path, count, args.scope, args.batch_size)
+            event_count = _write_fixture(
+                path, count, args.scope, args.batch_size, checkpoint=args.checkpoint,
+            )
             report = _run_child(path, args.scope)
             results.append({"history_events": event_count, "fixture_bytes": path.stat().st_size, **report})
     print(json.dumps({
-        "benchmark": "e12a6-restore-rss-v2",
+        "benchmark": (
+            "e12a6-checkpoint-restore-rss-v1" if args.checkpoint
+            else "e12a6-restore-rss-v2"
+        ),
         "python": sys.version.split()[0],
         "platform": sys.platform,
         "results": results,
         "interpretation": (
             "Fresh-process RSS and restore latency for synthetic candidate-registration histories. "
             "Fixture generation and ZPCM initialization are excluded from restore duration. "
-            "This does not measure production event mixes or impose a hardware-independent memory guarantee."
+            + ("A verified checkpoint is loaded; its event prefix is still digest-checked, while semantic "
+               "replay is limited to the suffix. This is not O(1) restore. " if args.checkpoint else "")
+            + "This does not measure production event mixes or impose a hardware-independent memory guarantee."
         ),
     }, ensure_ascii=False, indent=2, sort_keys=True))
     return 0
