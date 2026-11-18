@@ -546,4 +546,61 @@ class PersistentLifecycleTests(unittest.TestCase):
         self.store.close()
 
 
+
+    def test_sqlite_current_state_projection_matches_authoritative_lifecycle_after_reopen(self):
+        self.store.register_candidate(candidate())
+        self.store.register_evidence(evidence())
+        receipt = self.store.apply(propose())
+        projected = self.memory.get_lifecycle_candidate_projection(
+            scope="project-a", candidate_id="rel:greater-than", candidate_version=1,
+        )
+        self.assertEqual(projected["candidate"]["state"], "proposed")
+        self.assertEqual(projected["source_seq"], receipt.sequence)
+        evidence_projection = self.memory.get_lifecycle_evidence_projection(
+            scope="project-a", evidence_id="train-1",
+        )
+        self.assertEqual(evidence_projection["evidence"]["outcome"], "opaque-evidence-ref:train-1")
+        action_projection = self.memory.get_lifecycle_action_projection(
+            scope="project-a", action_id="propose-1",
+        )
+        self.assertEqual(action_projection["action"]["to_state"], "proposed")
+        self.assertTrue(self.memory.verify_e12a6_current_state_projection(scope="project-a")["ok"])
+        before = self.memory.lifecycle_state_projection_counts(scope="project-a")
+        self.store.close()
+        self.memory.close()
+        self.memory = ZPCMMemory(self.path)
+        self.store = PersistentLifecycleLedger(self.memory, scope="project-a")
+        self.assertEqual(
+            self.memory.get_lifecycle_candidate_projection(
+                scope="project-a", candidate_id="rel:greater-than", candidate_version=1,
+            )["candidate"]["state"],
+            "proposed",
+        )
+        self.assertEqual(self.memory.lifecycle_state_projection_counts(scope="project-a"), before)
+        self.assertTrue(self.memory.verify_e12a6_current_state_projection(scope="project-a")["ok"])
+
+    def test_current_state_projection_detects_missing_rows_and_rebuilds(self):
+        self.store.register_candidate(candidate())
+        self.memory.db.execute(
+            "DELETE FROM e12a6_candidate_state_projection WHERE scope=? AND candidate_id=?",
+            ("project-a", "rel:greater-than"),
+        )
+        report = self.memory.verify_e12a6_current_state_projection(scope="project-a")
+        self.assertFalse(report["ok"])
+        self.assertEqual(report["candidate_missing"], 1)
+        self.memory.rebuild_e12a6_current_state_projection()
+        repaired = self.memory.verify_e12a6_current_state_projection(scope="project-a")
+        self.assertTrue(repaired["ok"])
+
+    def test_current_state_projection_supports_unbound_actions(self):
+        action = Action(action_id="abstain-1", action_type=ActionType.ABSTAIN)
+        self.store.apply(action)
+        projected = self.memory.get_lifecycle_action_projection(
+            scope="project-a", action_id="abstain-1",
+        )
+        self.assertIsNone(projected["action"]["candidate_id"])
+        self.assertIsNone(projected["action"]["candidate_version"])
+        self.assertTrue(self.memory.verify_e12a6_current_state_projection(scope="project-a")["ok"])
+
+
 if __name__=="__main__": unittest.main()
