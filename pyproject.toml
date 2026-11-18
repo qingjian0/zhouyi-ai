@@ -1,0 +1,10 @@
+[project]
+name = "zhouyi-ai-cpg-ei"
+version = "0.1.0"
+description = "Research prototypes for Combinatorial Parallel Generation & Epistemic Intelligence"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+dependencies = []
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

@@ -1,0 +1,8 @@
+{
+  "concurrency": 3,
+  "tasks": [
+    {"task_id": "theory_scan", "handler": "record", "payload": {"topic": "dynamic composition"}},
+    {"task_id": "baseline_design", "handler": "record", "payload": {"topic": "E01 baseline"}},
+    {"task_id": "experiment_plan", "handler": "record", "depends_on": ["theory_scan", "baseline_design"], "payload": {"topic": "OOD evaluation"}}
+  ]
+}

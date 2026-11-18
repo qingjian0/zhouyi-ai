@@ -1,0 +1,182 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:zhouyi-ai:schema:source-grounded-yixiang-profile:v0.1",
+  "title": "Source-grounded Yixiang Profile Set",
+  "description": "Versioned trigram claims with explicit textual provenance. The schema does not supply or infer trigram meanings.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "profile_set_id",
+    "sources",
+    "profiles"
+  ],
+  "properties": {
+    "profile_set_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "sources": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "source_id",
+          "work",
+          "edition",
+          "locator",
+          "source_type"
+        ],
+        "properties": {
+          "source_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "work": {
+            "type": "string",
+            "minLength": 1
+          },
+          "edition": {
+            "type": "string",
+            "minLength": 1
+          },
+          "locator": {
+            "type": "string",
+            "minLength": 1
+          },
+          "source_type": {
+            "enum": [
+              "classical_text",
+              "historical_commentary",
+              "modern_scholarship",
+              "field_observation",
+              "research_hypothesis",
+              "synthetic_fixture",
+              "model_generated"
+            ]
+          }
+        }
+      }
+    },
+    "profiles": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "profile_id",
+          "tradition",
+          "version",
+          "trigram",
+          "lines_bottom_to_top",
+          "claims"
+        ],
+        "properties": {
+          "profile_id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "tradition": {
+            "type": "string",
+            "minLength": 1
+          },
+          "version": {
+            "type": "string",
+            "minLength": 1
+          },
+          "trigram": {
+            "enum": [
+              "乾",
+              "兑",
+              "离",
+              "震",
+              "巽",
+              "坎",
+              "艮",
+              "坤"
+            ]
+          },
+          "lines_bottom_to_top": {
+            "type": "array",
+            "minItems": 3,
+            "maxItems": 3,
+            "items": {
+              "type": "integer",
+              "enum": [
+                0,
+                1
+              ]
+            }
+          },
+          "claims": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "claim_id",
+                "subject",
+                "predicate",
+                "object",
+                "source_id",
+                "scope",
+                "locator",
+                "claim_kind",
+                "review_status"
+              ],
+              "properties": {
+                "claim_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "subject": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "predicate": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "object": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "source_id": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "scope": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "locator": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "claim_kind": {
+                  "enum": [
+                    "traditional_textual_claim",
+                    "commentarial_claim",
+                    "modern_interpretation",
+                    "project_operational_definition",
+                    "research_hypothesis",
+                    "observational_claim",
+                    "synthetic_fixture"
+                  ]
+                },
+                "review_status": {
+                  "enum": [
+                    "unreviewed",
+                    "reviewed",
+                    "disputed",
+                    "rejected"
+                  ]
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

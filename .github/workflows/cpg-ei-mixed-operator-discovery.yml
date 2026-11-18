@@ -1,0 +1,53 @@
+name: CPG-EI mixed-operator discovery baseline
+
+on:
+  push:
+    branches:
+      - research/cpg-ei-mixed-operator-discovery-v1-2026-11-13
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'prototype/cpg_ei_*.py'
+      - 'tests/test_cpg_ei_*.py'
+      - 'docs/CPG_EI_*.md'
+      - 'benchmarks/cpg_ei_*.py'
+      - 'data/cpg_ei/**'
+
+permissions:
+  contents: read
+
+jobs:
+  mixed-operator-discovery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run focused discovery contract tests
+        run: |
+          python -m unittest discover -s tests -p 'test_cpg_ei_mixed_operator_data.py' -v
+          python -m unittest discover -s tests -p 'test_cpg_ei_mixed_operator_discovery.py' -v
+          python -m unittest discover -s tests -p 'test_cpg_ei_optimizer_backend.py' -v
+          python -m unittest discover -s tests -p 'test_cpg_ei_selection_sweep.py' -v
+          python -m unittest discover -s tests -p 'test_cpg_ei_oracle_optimizer_sweep.py' -v
+          python -m unittest discover -s tests -p 'test_cpg_ei_selection_split_sweep.py' -v
+          python -m unittest discover -s tests -p 'test_cpg_ei_proposal_fit_epoch_sweep.py' -v
+          python -m unittest discover -s tests -p 'test_cpg_ei_proposal_optimizer_comparison.py' -v
+          python -m unittest discover -s tests -p 'test_cpg_ei_proposal_ranking_diagnostics.py' -v
+          python -m unittest discover -s tests -p 'test_cpg_ei_discovery_optimizer_comparison.py' -v
+          python -m unittest discover -s tests -p 'test_cpg_ei_selection_optimizer_sweep.py' -v
+          python -m unittest discover -s tests -p 'test_cpg_ei_proximal_regularization_sweep.py' -v
+          python -m unittest discover -s tests -p 'test_cpg_ei_conditional_motif_proposals.py' -v
+      - name: Run full 102,400-row discovery baseline
+        run: |
+          python -m prototype.cpg_ei_mixed_operator_discovery \
+            --families 400 --input-dim 8 --output-dim 8 \
+            --seed 20261114 --json artifacts/mixed-operator-discovery.json
+      - name: Upload reproducible report
+        uses: actions/upload-artifact@v4
+        with:
+          name: zhouyi-cpg-ei-mixed-operator-discovery-v1
+          path: artifacts/mixed-operator-discovery.json
+          if-no-files-found: error

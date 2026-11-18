@@ -1,0 +1,244 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:zhouyi-ai:schema:dynamic-analogy-candidate:v0.1",
+  "title": "Dynamic Analogy Candidate",
+  "description": "Finite state-transition analogy with explicit entity mapping and order-preserving state alignment. Not causal equivalence.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "candidate_id",
+    "source",
+    "target",
+    "entity_mapping",
+    "state_alignment",
+    "validity_scope"
+  ],
+  "properties": {
+    "candidate_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "validity_scope": {
+      "type": "string",
+      "minLength": 1
+    },
+    "entity_mapping": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/pair"
+      },
+      "minItems": 1
+    },
+    "state_alignment": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/pair"
+      },
+      "minItems": 2
+    },
+    "source": {
+      "$ref": "#/$defs/system"
+    },
+    "target": {
+      "$ref": "#/$defs/system"
+    },
+    "context_value_mapping": {
+      "type": "array",
+      "description": "Explicit per-dimension source-to-target value mappings; unmapped values require exact identity.",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "dimension",
+          "source_value",
+          "target_value"
+        ],
+        "properties": {
+          "dimension": {
+            "enum": [
+              "time",
+              "position",
+              "potential",
+              "environment",
+              "phase"
+            ]
+          },
+          "source_value": {
+            "type": "string",
+            "minLength": 1
+          },
+          "target_value": {
+            "type": "string",
+            "minLength": 1
+          }
+        }
+      },
+      "uniqueItems": true
+    }
+  },
+  "$defs": {
+    "pair": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "target"
+      ],
+      "properties": {
+        "source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "relation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source",
+        "target",
+        "kind"
+      ],
+      "properties": {
+        "source": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target": {
+          "type": "string",
+          "minLength": 1
+        },
+        "kind": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "state_id",
+        "step",
+        "relations"
+      ],
+      "properties": {
+        "state_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "step": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "relations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/relation"
+          },
+          "uniqueItems": true
+        },
+        "context": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/contextAtom"
+          },
+          "uniqueItems": true,
+          "description": "Optional state context facts. If supplied on either aligned side, context preservation is evaluated."
+        }
+      }
+    },
+    "transition": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "source_state",
+        "target_state",
+        "event_kind"
+      ],
+      "properties": {
+        "source_state": {
+          "type": "string",
+          "minLength": 1
+        },
+        "target_state": {
+          "type": "string",
+          "minLength": 1
+        },
+        "event_kind": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "system": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "domain",
+        "entities",
+        "snapshots",
+        "transitions"
+      ],
+      "properties": {
+        "domain": {
+          "type": "string",
+          "minLength": 1
+        },
+        "entities": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "uniqueItems": true
+        },
+        "snapshots": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/snapshot"
+          },
+          "minItems": 2
+        },
+        "transitions": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/transition"
+          }
+        }
+      }
+    },
+    "contextAtom": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "subject",
+        "dimension",
+        "value"
+      ],
+      "properties": {
+        "subject": {
+          "type": "string",
+          "description": "Mapped entity id, or empty string for system-level context."
+        },
+        "dimension": {
+          "enum": [
+            "time",
+            "position",
+            "potential",
+            "environment",
+            "phase"
+          ]
+        },
+        "value": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    }
+  }
+}

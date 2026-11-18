@@ -1,0 +1,33 @@
+name: N0.10 out-of-core streaming
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  unit-and-memory-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run N0.10 streaming, split-isolation and RSS tests
+        run: |
+          python -m unittest tests.test_n010_experiment tests.test_n010_ooc tests.test_n010_ooc_memory tests.test_n010_ooc_rss_benchmark -v
+
+  million-row-benchmark:
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run opt-in one-million-row-per-split RSS and training benchmark
+        run: python benchmarks/benchmark_n010_ooc_rss.py --sizes 1000 10000 100000 1000000 --epochs 2
