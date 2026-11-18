@@ -1,6 +1,7 @@
 """Durable E12-A6 lifecycle ledger backed by ZPCM's append-only event log."""
 from __future__ import annotations
 from copy import deepcopy
+import hashlib
 import json
 import os
 import pickle
@@ -17,6 +18,7 @@ from prototype.e09_verification_receipt import VerifiedE09VerificationReceipt
 from prototype.zpcm_memory import ZPCMMemory
 
 EVENT_SCHEMA = "e12a6-lifecycle-event-v1"
+CHECKPOINT_SCHEMA = "e12a6-lifecycle-checkpoint-v1"
 
 class LifecyclePersistenceError(RuntimeError):
     """A persisted lifecycle stream cannot be safely reconstructed."""
@@ -359,12 +361,20 @@ class PersistentLifecycleLedger:
             ).fetchall()
         return [self._get_consumed_authorization_by_event(row["event_id"]) for row in rows]
 
-    def _list_consumed_authorizations(self) -> list[dict[str, Any]]:
+    def _list_consumed_authorizations(self, *, through_sequence: int | None = None) -> list[dict[str, Any]]:
         with self._memory.lock:
-            rows = self._memory.db.execute(
-                "SELECT event_id FROM e12a6_authorization_consumptions WHERE scope=? ORDER BY receipt_id",
-                (self.scope,),
-            ).fetchall()
+            if through_sequence is None:
+                rows = self._memory.db.execute(
+                    "SELECT event_id FROM e12a6_authorization_consumptions WHERE scope=? ORDER BY receipt_id",
+                    (self.scope,),
+                ).fetchall()
+            else:
+                rows = self._memory.db.execute(
+                    "SELECT c.event_id FROM e12a6_authorization_consumptions c "
+                    "JOIN memory_events e ON e.event_id=c.event_id "
+                    "WHERE c.scope=? AND e.seq<=? ORDER BY c.receipt_id",
+                    (self.scope, through_sequence),
+                ).fetchall()
         return [self._get_consumed_authorization_by_event(row["event_id"]) for row in rows]
 
     def _get_consumed_authorization_by_event(self, event_id: str) -> dict[str, Any]:
@@ -373,12 +383,82 @@ class PersistentLifecycleLedger:
             raise LifecyclePersistenceError("authorization projection points to an invalid event")
         return payload["body"]
 
+    def _hydrate_checkpoint_snapshot(self, snapshot: dict[str, Any], checkpoint_sequence: int):
+        required = {
+            "schema_version", "scope", "last_sequence", "candidates", "evidence",
+            "actions", "consumed_authorizations",
+        }
+        if (set(snapshot) != required or snapshot.get("schema_version") != EVENT_SCHEMA
+                or snapshot.get("scope") != self.scope
+                or snapshot.get("last_sequence") != checkpoint_sequence):
+            raise LifecyclePersistenceError("checkpoint snapshot metadata mismatch")
+        for name in ("candidates", "evidence", "actions", "consumed_authorizations"):
+            if not isinstance(snapshot[name], list):
+                raise LifecyclePersistenceError(f"checkpoint {name} must be a list")
+        staged, state = _new_sqlite_lifecycle_ledger()
+        try:
+            state.begin()
+            for raw in snapshot["candidates"]:
+                candidate = _candidate_from_dict(raw)
+                key = (candidate.candidate_id, candidate.version)
+                if key in staged.candidates:
+                    raise LifecyclePersistenceError("checkpoint contains duplicate candidates")
+                staged.candidates[key] = candidate
+            for raw in snapshot["evidence"]:
+                evidence = _evidence_from_dict(raw)
+                if evidence.evidence_id in staged.evidence:
+                    raise LifecyclePersistenceError("checkpoint contains duplicate evidence")
+                staged.evidence[evidence.evidence_id] = evidence
+            for raw in snapshot["actions"]:
+                action = _action_from_dict(raw)
+                if action.action_id in staged._action_ids:
+                    raise LifecyclePersistenceError("checkpoint contains duplicate action IDs")
+                staged.actions.append(action)
+                staged._action_ids.add(action.action_id)
+            expected_authorizations = self._list_consumed_authorizations(
+                through_sequence=checkpoint_sequence,
+            )
+            if snapshot["consumed_authorizations"] != expected_authorizations:
+                raise LifecyclePersistenceError("checkpoint authorization projection mismatch")
+            return staged, state
+        except Exception:
+            state.rollback()
+            state.close()
+            raise
+
     def _restore(self) -> None:
         staged_state = None
         try:
-            events=self._memory.iter_domain_events(event_type="e12a6_lifecycle", scope=self.scope)
-            staged, staged_state = _new_sqlite_lifecycle_ledger(); previous=0
-            staged_state.begin()
+            checkpoint = None
+            try:
+                candidate_checkpoint = self._memory.load_e12a6_lifecycle_checkpoint(scope=self.scope)
+                if (candidate_checkpoint is not None
+                        and candidate_checkpoint["checkpoint_schema"] == CHECKPOINT_SCHEMA
+                        and candidate_checkpoint["scope"] == self.scope):
+                    checkpoint_sequence = candidate_checkpoint["checkpoint_sequence"]
+                    prefix_count, prefix_digest = self._memory.e12a6_lifecycle_prefix_digest(
+                        scope=self.scope, through_sequence=checkpoint_sequence,
+                    )
+                    if (prefix_count == candidate_checkpoint["event_count"]
+                            and prefix_digest == candidate_checkpoint["prefix_digest"]):
+                        checkpoint = candidate_checkpoint
+            except Exception:
+                # A stale, incompatible, or corrupt checkpoint is disposable; the event log is authoritative.
+                checkpoint = None
+
+            if checkpoint is None:
+                staged, staged_state = _new_sqlite_lifecycle_ledger()
+                previous = 0
+            else:
+                staged, staged_state = self._hydrate_checkpoint_snapshot(
+                    checkpoint["snapshot"], checkpoint["checkpoint_sequence"],
+                )
+                previous = checkpoint["checkpoint_sequence"]
+            events = self._memory.iter_domain_events(
+                event_type="e12a6_lifecycle", scope=self.scope, after_sequence=previous,
+            )
+            if not staged_state.connection.in_transaction:
+                staged_state.begin()
             for event in events:
                 seq=event["sequence"]
                 if isinstance(seq,bool) or not isinstance(seq,int) or seq<=previous:
@@ -774,3 +854,23 @@ class PersistentLifecycleLedger:
               "evidence":[_evidence_to_dict(v) for _,v in sorted(self._ledger.evidence.items())],
               "actions":[_action_to_dict(v) for v in self._ledger.actions],
               "consumed_authorizations":self._list_consumed_authorizations()}
+
+    def checkpoint(self) -> dict[str, Any]:
+        """Publish a verified state snapshot atomically at the current event high-water mark."""
+        with self._lock:
+            with self._memory.lock:
+                snapshot = self.snapshot()
+                sequence = self._last_sequence
+                event_count, prefix_digest = self._memory.e12a6_lifecycle_prefix_digest(
+                    scope=self.scope, through_sequence=sequence,
+                )
+                if snapshot["last_sequence"] != sequence:
+                    raise LifecyclePersistenceError("checkpoint snapshot sequence changed")
+                try:
+                    return self._memory.save_e12a6_lifecycle_checkpoint(
+                        scope=self.scope, checkpoint_schema=CHECKPOINT_SCHEMA,
+                        checkpoint_sequence=sequence, event_count=event_count,
+                        prefix_digest=prefix_digest, snapshot=snapshot,
+                    )
+                except Exception as exc:
+                    raise LifecyclePersistenceError(f"checkpoint publication failed: {exc}") from exc
