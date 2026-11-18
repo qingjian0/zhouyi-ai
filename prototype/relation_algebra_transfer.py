@@ -95,6 +95,9 @@ def assess_relation_transfer_with_algebra(
     Ontology errors abstain; a valid but incomplete relation match rejects.
     """
     base = assess_relation_transfer(contract)
+    # A partial role map is an abstention gate, not evidence of a bad relation.
+    if "ROLE_MAPPING_INCOMPLETE" in base.reason_codes:
+        return AlgebraicTransferAssessment(base, None)
     if not isinstance(ontology, RelationOntology):
         failed = _add_reason(base, "RELATION_ONTOLOGY_EVALUATION_FAILED")
         return AlgebraicTransferAssessment(failed, None)
