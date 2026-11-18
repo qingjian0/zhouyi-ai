@@ -1,4 +1,6 @@
 import json
+import subprocess
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -140,6 +142,37 @@ class PersistentLifecycleTests(unittest.TestCase):
         self.memory.append_lifecycle_event=lambda **kwargs: (_ for _ in ()).throw(ZPCMError("disk failure"))
         with self.assertRaises(ZPCMError): self.store.apply(propose())
         self.memory.append_lifecycle_event=original; self.assertEqual(self.store.snapshot(),before)
+    def test_hard_process_exit_after_durable_append_recovers_by_replay(self):
+        self.store.register_candidate(candidate())
+        self.store.close()
+        self.memory.close()
+        script = """
+import os
+import sys
+from prototype.e12a6_zpcm_persistence import PersistentLifecycleLedger
+from prototype.zpcm_memory import ZPCMMemory
+from tests.test_e12a6_zpcm_persistence import propose
+memory = ZPCMMemory(sys.argv[1])
+store = PersistentLifecycleLedger(memory, scope="project-a")
+store._apply_durable_state = lambda mutation: os._exit(73)
+store.apply(propose())
+os._exit(74)  # The durable append must terminate the process first.
+"""
+        result = subprocess.run(
+            [sys.executable, "-c", script, str(self.path)],
+            cwd=str(Path(__file__).resolve().parents[1]),
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 73, result.stderr)
+        self.memory = ZPCMMemory(self.path)
+        self.store = PersistentLifecycleLedger(self.memory, scope="project-a")
+        self.assertEqual(
+            self.store.ledger.candidates[("rel:greater-than", 1)].state,
+            CandidateState.PROPOSED,
+        )
+
     def test_crash_after_durable_append_recovers_by_replay(self):
         self.store.register_candidate(candidate()); original=self.memory.append_lifecycle_event
         def commit_then_crash(**kwargs):
