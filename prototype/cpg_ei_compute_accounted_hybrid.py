@@ -504,11 +504,15 @@ def run_compute_accounted_comparison(
         full_columns = (2 ** manifest["input_dim"])
         full_train_count = manifest["state_split_per_family"]["train"]
         full_epochs_total = sum(row["epochs_run"] for row in full_family_results)
-        full_feature_encodings = (
-            full_epochs_total * full_train_count * full_columns
+        full_feature_encodings = sum(
+            row["training_feature_encodings"] for row in full_family_results
+        )
+        full_development_feature_encodings = sum(
+            row["development_feature_encodings"] for row in full_family_results
         )
         full_gradient_terms = (
-            full_feature_encodings * manifest["output_dim"]
+            full_epochs_total * full_train_count * full_columns
+            * manifest["output_dim"]
         )
         full_accounting = {
             "feature_count_excluding_bias_per_output": full_columns - 1,
@@ -516,9 +520,11 @@ def run_compute_accounted_comparison(
             "model_coefficients_per_family": full_columns * manifest["output_dim"],
             "optimizer_epochs_total": full_epochs_total,
             "training_feature_encodings": full_feature_encodings,
+            "development_feature_encodings_for_checkpoint_selection": full_development_feature_encodings,
             "gradient_feature_contributions": full_gradient_terms,
             "candidate_output_train_score_evaluations": 0,
         }
+        full_optimizer_backend = full_report["model"]["optimizer_backend"]
         del full_report, full_family_results
         gc.collect()
 
@@ -563,6 +569,7 @@ def run_compute_accounted_comparison(
                 "min_delta": min_delta,
                 "learning_rate": learning_rate,
                 "l2": l2,
+                "optimizer_backend": full_optimizer_backend,
                 "initialization": "all-zero weights",
             },
             "methods": {
