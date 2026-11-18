@@ -565,6 +565,11 @@ class PersistentLifecycleTests(unittest.TestCase):
         )
         self.assertEqual(action_projection["action"]["to_state"], "proposed")
         self.assertTrue(self.memory.verify_e12a6_current_state_projection(scope="project-a")["ok"])
+        checkpoint = self.memory.db.execute(
+            "SELECT initialized_through_seq,initialized_event_count FROM e12a6_current_state_projection_meta WHERE singleton=1"
+        ).fetchone()
+        self.assertEqual(checkpoint["initialized_through_seq"], 3)
+        self.assertEqual(checkpoint["initialized_event_count"], 3)
         before = self.memory.lifecycle_state_projection_counts(scope="project-a")
         self.store.close()
         self.memory.close()
