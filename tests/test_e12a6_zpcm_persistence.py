@@ -95,6 +95,52 @@ class PersistentLifecycleTests(unittest.TestCase):
         self.store=PersistentLifecycleLedger(self.memory,scope="project-a")
         self.assertEqual(self.store.snapshot(),before)
         self.assertEqual(self.store.ledger.candidates[("rel:greater-than",1)].state,CandidateState.PROPOSED)
+    def test_checkpoint_restores_prefix_and_replays_only_suffix(self):
+        self.store.register_candidate(candidate())
+        checkpoint = self.store.checkpoint()
+        self.assertEqual(checkpoint["checkpoint_sequence"], self.store._last_sequence)
+        self.assertEqual(checkpoint["event_count"], 1)
+        self.store.apply(propose())
+        self.store.close()
+        self.memory.close()
+
+        self.memory = ZPCMMemory(self.path)
+        self.store = PersistentLifecycleLedger(self.memory, scope="project-a")
+        self.assertEqual(
+            self.store.ledger.candidates[("rel:greater-than", 1)].state,
+            CandidateState.PROPOSED,
+        )
+        self.assertEqual(self.store._last_sequence, 2)
+
+    def test_corrupt_checkpoint_prefix_metadata_falls_back_to_full_replay(self):
+        self.store.register_candidate(candidate())
+        self.store.checkpoint()
+        self.memory.db.execute(
+            "UPDATE e12a6_lifecycle_checkpoints SET prefix_digest=? WHERE scope=?",
+            ("0" * 64, "project-a"),
+        )
+        self.store.close()
+        self.memory.close()
+
+        self.memory = ZPCMMemory(self.path)
+        self.store = PersistentLifecycleLedger(self.memory, scope="project-a")
+        self.assertIn(("rel:greater-than", 1), self.store.ledger.candidates)
+        self.assertEqual(self.store._last_sequence, 1)
+
+    def test_corrupt_checkpoint_snapshot_digest_falls_back_to_full_replay(self):
+        self.store.register_candidate(candidate())
+        self.store.checkpoint()
+        self.memory.db.execute(
+            "UPDATE e12a6_lifecycle_checkpoints SET snapshot_json=? WHERE scope=?",
+            ("{}", "project-a"),
+        )
+        self.store.close()
+        self.memory.close()
+
+        self.memory = ZPCMMemory(self.path)
+        self.store = PersistentLifecycleLedger(self.memory, scope="project-a")
+        self.assertIn(("rel:greater-than", 1), self.store.ledger.candidates)
+
     def test_restore_streams_events_without_materializing_full_history(self):
         self.store.register_candidate(candidate())
         self.store.register_evidence(evidence())
@@ -255,6 +301,7 @@ os._exit(74)  # The durable append must terminate the process first.
             [event["payload"]["kind"] for event in self.memory.replay_lifecycle_events(scope="project-a")],
             ["evidence_registered", "candidate_registered", "authorization_consumed"],
         )
+        self.store.checkpoint()
         before = self.store.snapshot()
         self.memory.close()
         self.memory = ZPCMMemory(self.path)
