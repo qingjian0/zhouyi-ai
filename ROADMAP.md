@@ -23,7 +23,7 @@
 | ZPCM / E12-A6 | 追加式权威事件日志、SQLite 持久化、事件摘要校验、授权 receipt/nonce 唯一索引、候选历史索引和授权历史 keyset 分页；候选/证据/动作投影与 high-water/count 元数据由同事务触发器维护；`PersistentLifecycleLedger` 使用临时 SQLite scratch state，普通写入不再 deepcopy 全账本；新增持久 checkpoint v2：事件前缀 digest、授权投影 digest、snapshot header digest、分类型有界 page、page digest/manifest digest；checkpoint 发布在 `BEGIN IMMEDIATE` 事务内原子完成；恢复校验通过后从 checkpoint 高水位只做 suffix 语义重放，损坏时回退权威日志全量重放 | checkpoint 的事件前缀完整性校验仍扫描 O(N) 权威事件，故不是 O(1) 启动；scratch state 仍是进程级临时库；50 万条合成候选历史中 checkpoint 恢复约 21.58 秒、全量重放约 26.27 秒，峰值 RSS 均约 31 MiB，ZPCM 初始化另约 12.6 秒；当前分页 checkpoint exact-head 完整测试、发布中断/磁盘故障、并发 adapter、清理失败及生产事件混合负载仍待验收 |
 | M1 数据摄取 | UTF-8 分块读取、Manifest、Chunk Digest、SQLite 持久化、恢复和有界 chunk 读取 | 跨 Chunk tokenizer 一致性、整篇 reference 对照、大文本吞吐与 RSS exact-head 报告 |
 | M2 Observation | Observation DTO、EvidenceRef、Lazy Store、SQLite 索引、Keyset Paging、来源校验与重启恢复 | 大规模 RSS 实测、Gold 标注、语义提取质量、abstention 与独立标注评估 |
-| N0.10 / SROK | SROK 组合内核、LearnableSROK、JSONL 流式/out-of-core runner、SQLite 元数据、checkpoint 恢复、locked-test 评估与 RSS 工具；1K/10K/100K/1M 每 split 的两轮训练与 RSS 基准工作流已提交，专项单测步骤已通过 | 截至 `20bd82b`，整仓 unit-tests 与百万行实际训练/RSS 测量仍在运行，尚无最终 1M 结果；仍需核对 group-disjoint split、恢复一致性和 materialized oracle 数值一致性 |
+| N0.10 / SROK | SROK 组合内核、LearnableSROK、JSONL 流式/out-of-core runner、SQLite 元数据、checkpoint 恢复、locked-test 评估与 RSS 工具；`20bd82b` exact-head 整仓测试和百万行专项工作流均成功；1K/10K/100K/1M 每 split 均执行两轮训练，1M 每 split（总计 200 万行）耗时 201.286 秒，峰值 RSS 27,508 KiB（相对基线 +5,348 KiB），loss 1.3863→0.7705，dev 100 万行完成流式读取 | 该结果来自合成数据，不能证明真实任务准确率/泛化；仍需独立验证 group-disjoint split、恢复一致性、materialized oracle 数值一致性，以及更丰富训练预算下的学习效果 |
 | CPG-EI | 有限候选语法、符号搜索、经验贝叶斯 few-shot、混合算子发现、组合 OOD、motif/optimizer 诊断、扩展合成语料 | 神经或非有限语法 meta-learner、强基线预算公平性、更深组合 OOD、跨分布验证；现有结果限于声明的合成任务 |
 | 易象 / Yixiang | 卦爻编码、状态转移、五行/类象关系工具、结构保持映射与多组合成 OOD 原型 | 真实古籍 Gold 语料、独立标注/仲裁、页码来源追踪、消融、因果/语义层级验证和真实任务评估 |
 | 集成编排 | Orchestrator、实验协议、测试与工作流自动化 | 证据摄取→表征→候选发现→学习→评估→生命周期持久化的完整 clean-checkout E2E 闭环 |
@@ -90,4 +90,4 @@
 
 ## 当前未完成声明
 
-截至 2026-11-19，项目仍处于多条研究原型并行推进阶段，尚未达到 P0–P4 全部验收条件。E12-A6 已有持久 checkpoint v2、分页流式恢复及 1K–500K 合成历史对照结果，但前缀完整性扫描仍为 O(N)，且分页 checkpoint exact-head 测试和发布故障注入仍需持续验收；N0.10 百万行真实训练/RSS 工作流正在 `20bd82b` 上运行，尚未取得最终结果；CPG-EI 经验贝叶斯结果仍是有限语法符号方法，神经跨族学习未完成；易象案例库当前 26 条案例均为 unreviewed，不能计作 Gold。M1/M2 大规模资源曲线也未全部验收。任何项目完成度表述必须保留这些边界。
+截至 2026-11-19，项目仍处于多条研究原型并行推进阶段，尚未达到 P0–P4 全部验收条件。E12-A6 已有持久 checkpoint v2、分页流式恢复及 1K–500K 合成历史对照结果，但前缀完整性扫描仍为 O(N)，且分页 checkpoint 发布故障注入仍需持续验收；N0.10 已完成 1M/每 split、总计 2M 行的合成训练/RSS 基准，峰值 RSS 约 26.9 MiB，但真实任务语料和泛化验收仍未完成；CPG-EI 经验贝叶斯结果仍是有限语法符号方法，神经跨族学习未完成；易象案例库当前 26 条案例均为 unreviewed，不能计作 Gold。M1/M2 大规模资源曲线也未全部验收。任何项目完成度表述必须保留这些边界。
