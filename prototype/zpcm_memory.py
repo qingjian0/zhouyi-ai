@@ -422,9 +422,17 @@ class ZPCMMemory:
             END;
             """)
             meta = self.db.execute(
-                "SELECT schema_version FROM e12a6_current_state_projection_meta WHERE singleton=1"
+                "SELECT schema_version,initialized_through_seq,initialized_event_count "
+                "FROM e12a6_current_state_projection_meta WHERE singleton=1"
             ).fetchone()
-            if meta is not None and meta["schema_version"] == "e12a6-current-state-v1":
+            current = self.db.execute(
+                "SELECT COUNT(*) AS event_count,COALESCE(MAX(seq),0) AS high_water "
+                "FROM memory_events WHERE event_type='e12a6_lifecycle'"
+            ).fetchone()
+            if (meta is not None
+                    and meta["schema_version"] == "e12a6-current-state-v1"
+                    and meta["initialized_event_count"] == current["event_count"]
+                    and meta["initialized_through_seq"] == current["high_water"]):
                 return
             if meta is not None:
                 self.db.execute("DELETE FROM e12a6_candidate_state_projection")
@@ -673,11 +681,12 @@ class ZPCMMemory:
     def get_lifecycle_candidate_projection(
         self, *, scope: str, candidate_id: str, candidate_version: int,
     ) -> dict[str, Any] | None:
-        row = self.db.execute(
-            "SELECT candidate_json,source_seq FROM e12a6_candidate_state_projection "
-            "WHERE scope=? AND candidate_id=? AND candidate_version=?",
-            (scope,candidate_id,candidate_version),
-        ).fetchone()
+        with self.lock:
+            row = self.db.execute(
+                "SELECT candidate_json,source_seq FROM e12a6_candidate_state_projection "
+                "WHERE scope=? AND candidate_id=? AND candidate_version=?",
+                (scope,candidate_id,candidate_version),
+            ).fetchone()
         if row is None:
             return None
         return {"candidate":json.loads(row["candidate_json"]),"source_seq":int(row["source_seq"])}
@@ -685,10 +694,11 @@ class ZPCMMemory:
     def get_lifecycle_evidence_projection(
         self, *, scope: str, evidence_id: str,
     ) -> dict[str, Any] | None:
-        row = self.db.execute(
-            "SELECT evidence_json,source_seq FROM e12a6_evidence_state_projection "
-            "WHERE scope=? AND evidence_id=?",(scope,evidence_id),
-        ).fetchone()
+        with self.lock:
+            row = self.db.execute(
+                "SELECT evidence_json,source_seq FROM e12a6_evidence_state_projection "
+                "WHERE scope=? AND evidence_id=?",(scope,evidence_id),
+            ).fetchone()
         if row is None:
             return None
         return {"evidence":json.loads(row["evidence_json"]),"source_seq":int(row["source_seq"])}
@@ -696,10 +706,11 @@ class ZPCMMemory:
     def get_lifecycle_action_projection(
         self, *, scope: str, action_id: str,
     ) -> dict[str, Any] | None:
-        row = self.db.execute(
-            "SELECT action_json,source_seq FROM e12a6_action_state_projection "
-            "WHERE scope=? AND action_id=?",(scope,action_id),
-        ).fetchone()
+        with self.lock:
+            row = self.db.execute(
+                "SELECT action_json,source_seq FROM e12a6_action_state_projection "
+                "WHERE scope=? AND action_id=?",(scope,action_id),
+            ).fetchone()
         if row is None:
             return None
         return {"action":json.loads(row["action_json"]),"source_seq":int(row["source_seq"])}
