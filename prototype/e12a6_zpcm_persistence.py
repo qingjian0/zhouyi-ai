@@ -1,7 +1,6 @@
 """Durable E12-A6 lifecycle ledger backed by ZPCM's append-only event log."""
 from __future__ import annotations
 from copy import deepcopy
-import hashlib
 import json
 import os
 import pickle
