@@ -9,7 +9,7 @@
 ## 当前集成基线
 
 - 集成分支：`dev`；稳定分支：`main`。
-- 最近一次代码集成基线：`9452d6f41384ca5483531a53c09bdbe230c90c5b`；其后的 `f4f5317` 与本次 `c728c27` 均为路线图状态同步提交。代码基线相对 `main` ahead 60、behind 0；`main` 未修改。
+- 当前 `dev` HEAD：`20bd82b37ca053d915d6fc8132c08ba8b56e9adc`，相对 `main` ahead 79、behind 0；`main` 未修改。近期已提交 E12-A6 checkpoint 持久化、校验、分页流式恢复和基准工作流；N0.10 百万行基准工作流正在该 HEAD 上运行。
 - 本轮已合并 PR #537（CPG-EI one-pass evaluation）和 PR #539（E12-A6 hard-process-termination recovery test）。#537 精确 head 的 22 项检查全部成功；#539 精确 head 的 unit-tests 与 detect-research 成功。
 - #539 的强杀测试验证 SQLite 权威事件提交后、scratch-state mutation 前进程退出，再由新进程恢复；它不等同于断电、磁盘故障或完整 checkpoint 验收。
 - `9452d6f` 的整仓 `tests` 工作流 #44390349072 已完成：`unit-tests` 与 `detect-research` 均 success，研究评估矩阵按路径条件 skipped；该结果验证的是代码提交 `9452d6f`，不是后续仅修改路线图的 `f4f5317`。
@@ -20,10 +20,10 @@
 
 | 工作流 | 已落地 | 尚未通过的关键验收 |
 |---|---|---|
-| ZPCM / E12-A6 | 追加式权威事件日志、SQLite 持久化、事件摘要校验、授权 receipt/nonce 唯一索引、候选历史索引和授权历史 keyset 分页；候选/证据/动作当前状态已有 SQLite 投影表，事件插入触发器在同一 SQLite 事务内更新投影与 high-water/count 元数据；提供投影按需读取、keyset 遍历、digest 校验、原子重建；`PersistentLifecycleLedger` 已将候选/证据/动作/动作 ID 放入临时 SQLite scratch state，普通写入不再 deepcopy 全账本，`ledger`/`snapshot()` 是显式全量物化边界 | 启动仍需 O(N) 重放全部权威事件并进行语义校验，当前投影尚未用于跳过重放；checkpoint 目前只有 schema/high-water/count，缺少事件链 digest/generation 和可信快速恢复协议；scratch state 是进程级临时库；写入压力、磁盘故障、进程强杀、并发 adapter、清理失败和当前 exact-head RSS 尚待验收 |
+| ZPCM / E12-A6 | 追加式权威事件日志、SQLite 持久化、事件摘要校验、授权 receipt/nonce 唯一索引、候选历史索引和授权历史 keyset 分页；候选/证据/动作投影与 high-water/count 元数据由同事务触发器维护；`PersistentLifecycleLedger` 使用临时 SQLite scratch state，普通写入不再 deepcopy 全账本；新增持久 checkpoint v2：事件前缀 digest、授权投影 digest、snapshot header digest、分类型有界 page、page digest/manifest digest；checkpoint 发布在 `BEGIN IMMEDIATE` 事务内原子完成；恢复校验通过后从 checkpoint 高水位只做 suffix 语义重放，损坏时回退权威日志全量重放 | checkpoint 的事件前缀完整性校验仍扫描 O(N) 权威事件，故不是 O(1) 启动；scratch state 仍是进程级临时库；50 万条合成候选历史中 checkpoint 恢复约 21.58 秒、全量重放约 26.27 秒，峰值 RSS 均约 31 MiB，ZPCM 初始化另约 12.6 秒；当前分页 checkpoint exact-head 完整测试、发布中断/磁盘故障、并发 adapter、清理失败及生产事件混合负载仍待验收 |
 | M1 数据摄取 | UTF-8 分块读取、Manifest、Chunk Digest、SQLite 持久化、恢复和有界 chunk 读取 | 跨 Chunk tokenizer 一致性、整篇 reference 对照、大文本吞吐与 RSS exact-head 报告 |
 | M2 Observation | Observation DTO、EvidenceRef、Lazy Store、SQLite 索引、Keyset Paging、来源校验与重启恢复 | 大规模 RSS 实测、Gold 标注、语义提取质量、abstention 与独立标注评估 |
-| N0.10 / SROK | SROK 组合内核、LearnableSROK、JSONL 流式/out-of-core runner、SQLite 元数据、checkpoint 恢复、locked-test 评估与 RSS 工具 | 百万行真实运行、峰值 RSS、恢复一致性、group-disjoint split、与 materialized oracle 数值一致性；工具存在不等于规模验收完成 |
+| N0.10 / SROK | SROK 组合内核、LearnableSROK、JSONL 流式/out-of-core runner、SQLite 元数据、checkpoint 恢复、locked-test 评估与 RSS 工具；1K/10K/100K/1M 每 split 的两轮训练与 RSS 基准工作流已提交，专项单测步骤已通过 | 截至 `20bd82b`，整仓 unit-tests 与百万行实际训练/RSS 测量仍在运行，尚无最终 1M 结果；仍需核对 group-disjoint split、恢复一致性和 materialized oracle 数值一致性 |
 | CPG-EI | 有限候选语法、符号搜索、经验贝叶斯 few-shot、混合算子发现、组合 OOD、motif/optimizer 诊断、扩展合成语料 | 神经或非有限语法 meta-learner、强基线预算公平性、更深组合 OOD、跨分布验证；现有结果限于声明的合成任务 |
 | 易象 / Yixiang | 卦爻编码、状态转移、五行/类象关系工具、结构保持映射与多组合成 OOD 原型 | 真实古籍 Gold 语料、独立标注/仲裁、页码来源追踪、消融、因果/语义层级验证和真实任务评估 |
 | 集成编排 | Orchestrator、实验协议、测试与工作流自动化 | 证据摄取→表征→候选发现→学习→评估→生命周期持久化的完整 clean-checkout E2E 闭环 |
@@ -34,9 +34,9 @@
 
 1. 将 `memory_events` 保持为唯一权威事件源；SQLite current-state projection 只能是可重建投影。
 2. candidate、evidence、action 当前状态投影已落地；补齐候选-证据、动作-证据关系的高效查询索引（按实际查询负载选择规范化表/索引），action_id 与 candidate_id 必须保持独立字段。
-3. 当前投影元数据已记录 schema、lifecycle high-water sequence 和 event count；下一步增加可验证的事件链 digest、projection generation 和版本迁移门禁。
-4. 当前启动仍对权威事件做 O(N) 语义重放到临时 SQLite scratch state。下一步设计经过 digest/generation 验证的持久 checkpoint；只有 checkpoint 完整匹配权威事件链时才允许快速恢复，缺失/损坏时按有界 keyset page 重建并保留语义校验，失败时 fail closed。
-5. append 与 candidate/evidence/action 投影已通过 SQLite 触发器置于同一事务；scratch state 写入失败会从权威事件流重建。仍需完成 checkpoint 发布、磁盘故障和崩溃注入的完整事务语义；保留 E09 receipt/nonce、split、状态迁移、幂等和 digest 约束。
+3. 当前投影元数据已记录 schema、lifecycle high-water sequence 和 event count；checkpoint v2 已增加权威事件前缀 digest、授权投影 digest、页面 digest manifest；projection generation 和完整版本迁移门禁仍需补齐。
+4. 持久 checkpoint v2 已实现：先验证权威事件前缀和页面摘要，再将 checkpoint 状态流式 hydrate 到临时 SQLite scratch state，仅对 checkpoint 之后的 suffix 做语义重放；checkpoint 缺失/损坏时回退全量权威事件重放。当前前缀 digest 仍需 O(N) 扫描，因此只减少语义重放，不构成 O(1) 启动；下一步应评估可验证的分段事件链摘要/持久投影 generation，不能牺牲篡改检测。
+5. append 与 candidate/evidence/action 投影已通过 SQLite 触发器置于同一事务；checkpoint 页面与 manifest 元数据也在单个 `BEGIN IMMEDIATE` 事务内发布。仍需针对 checkpoint 发布中断、磁盘故障和并发恢复增加故障注入；保留 E09 receipt/nonce、split、状态迁移、幂等和 digest 约束。
 6. 保留 `ledger`/`snapshot()` 作为显式 O(total state) 兼容导出接口，普通启动和按需读取不得隐式调用。
 7. 验收：投影删除/损坏重建、事件篡改拒绝、并发写入、崩溃注入、snapshot 与 replay oracle 一致；在 1K/10K/50K/100K/500K 事件规模报告 RSS、Python allocation、SQLite cache/page、恢复耗时。
 
@@ -90,4 +90,4 @@
 
 ## 当前未完成声明
 
-截至 2026-11-19，项目仍处于多条研究原型并行推进阶段，尚未达到 P0–P4 全部验收条件。E12-A6 已增加真实子进程强制退出恢复测试，但启动仍为 O(N) 全事件重放，且尚无可验证的持久化状态 checkpoint；N0.10 百万行基准脚本已具备，但百万行真实训练结果尚未取得；CPG-EI 经验贝叶斯结果仍是有限语法符号方法，神经跨族学习未完成；易象案例库当前 26 条案例均为 unreviewed，不能计作 Gold。M1/M2 大规模资源曲线也未全部验收。任何项目完成度表述必须保留这些边界。
+截至 2026-11-19，项目仍处于多条研究原型并行推进阶段，尚未达到 P0–P4 全部验收条件。E12-A6 已有持久 checkpoint v2、分页流式恢复及 1K–500K 合成历史对照结果，但前缀完整性扫描仍为 O(N)，且分页 checkpoint exact-head 测试和发布故障注入仍需持续验收；N0.10 百万行真实训练/RSS 工作流正在 `20bd82b` 上运行，尚未取得最终结果；CPG-EI 经验贝叶斯结果仍是有限语法符号方法，神经跨族学习未完成；易象案例库当前 26 条案例均为 unreviewed，不能计作 Gold。M1/M2 大规模资源曲线也未全部验收。任何项目完成度表述必须保留这些边界。
