@@ -1,0 +1,44 @@
+name: n010-ooc-rss-benchmark
+
+on:
+  push:
+    branches: [dev]
+    paths:
+      - 'prototype/n010_ooc.py'
+      - 'prototype/n09_learnable_srok.py'
+      - 'benchmarks/benchmark_n010_ooc_rss.py'
+      - '.github/workflows/n010-ooc-rss-benchmark.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: n010-ooc-rss-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ooc-rss:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Verify N0.10 streaming and RSS tests
+        run: |
+          python -m unittest tests.test_n010_ooc tests.test_n010_ooc_memory tests.test_n010_ooc_rss_benchmark -v
+      - name: Measure 1K–1M records per split with a verified training update
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p benchmark-results
+          python benchmarks/benchmark_n010_ooc_rss.py --sizes 1000 10000 100000 1000000 --epochs 2 | tee benchmark-results/n010-ooc-rss.json
+      - name: Upload N0.10 RSS measurements
+        uses: actions/upload-artifact@v4
+        with:
+          name: n010-ooc-rss-${{ github.sha }}
+          path: benchmark-results/n010-ooc-rss.json
+          if-no-files-found: error
+          retention-days: 30
