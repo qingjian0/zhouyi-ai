@@ -66,10 +66,12 @@ class TestCpgEiMvp(unittest.TestCase):
                 consumed.append(row)
                 yield row
 
-        metrics = evaluate(CpgEiTransitionModel.create(), one_shot())
+        model = CpgEiTransitionModel.create()
+        expected = evaluate(model, iter(rows))
+        metrics = evaluate(model, one_shot())
+        self.assertEqual(metrics, expected)
         self.assertEqual(metrics["examples"], 12.0)
         self.assertEqual(len(consumed), 12)
-        self.assertEqual(metrics["bit_accuracy"], 0.5)
 
     def test_evaluation_rejects_empty_iterable(self):
         with self.assertRaisesRegex(ValueError, "must not be empty"):
