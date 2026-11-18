@@ -1,7 +1,7 @@
 name: Orchestrator tests
 on:
   push:
-    branches: [main, "feature/**"]
+    branches: [main, dev, "feature/**"]
   pull_request:
     branches: [main]
 jobs:

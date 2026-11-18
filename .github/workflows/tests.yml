@@ -2,7 +2,7 @@ name: tests
 
 on:
   push:
-    branches: [main, integration/m1-m2-e09-runtime-on-main-2026-11-17-batch1]
+    branches: [main, dev, integration/m1-m2-e09-runtime-on-main-2026-11-17-batch1]
   pull_request:
     branches: [main, integration/m23-m70-on-main-2026-11-17, integration/m1-m2-e09-runtime-on-main-2026-11-17-batch1, research/e02e-autonomous-discovery, research/e02f-falsification, research/e02g-multienvironment-stability, research/e02h-boolean-rule-discovery, research/e02i-streaming-drift-lifecycle]
 
