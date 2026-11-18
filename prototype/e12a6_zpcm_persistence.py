@@ -17,7 +17,7 @@ from prototype.e09_verification_receipt import VerifiedE09VerificationReceipt
 from prototype.zpcm_memory import ZPCMMemory
 
 EVENT_SCHEMA = "e12a6-lifecycle-event-v1"
-CHECKPOINT_SCHEMA = "e12a6-lifecycle-checkpoint-v1"
+CHECKPOINT_SCHEMA = "e12a6-lifecycle-checkpoint-v2"
 
 class LifecyclePersistenceError(RuntimeError):
     """A persisted lifecycle stream cannot be safely reconstructed."""
@@ -174,6 +174,18 @@ class _SQLiteMapping(MutableMapping):
         return int(self.state.connection.execute(
             "SELECT COUNT(*) FROM mapping_values WHERE name=?", (self.name,)
         ).fetchone()[0])
+
+    def iter_items(self):
+        """Stream key/value pairs from the scratch database without building a Python list."""
+        cursor = self.state.connection.execute(
+            "SELECT key,value FROM mapping_values WHERE name=? ORDER BY rowid", (self.name,)
+        )
+        while True:
+            rows = cursor.fetchmany(128)
+            if not rows:
+                return
+            for row in rows:
+                yield pickle.loads(row[0]), pickle.loads(row[1])
 
 
 class _SQLiteSet(MutableSet):
@@ -425,6 +437,70 @@ class PersistentLifecycleLedger:
             state.close()
             raise
 
+    def _hydrate_checkpoint_pages(self, checkpoint: dict[str, Any]):
+        header = checkpoint["snapshot"]
+        required = {
+            "schema_version", "scope", "last_sequence", "candidate_count",
+            "evidence_count", "action_count", "authorization_count", "authorization_digest",
+        }
+        if (not isinstance(header, dict) or set(header) != required
+                or header.get("schema_version") != EVENT_SCHEMA
+                or header.get("scope") != self.scope
+                or header.get("last_sequence") != checkpoint["checkpoint_sequence"]):
+            raise LifecyclePersistenceError("checkpoint page header metadata mismatch")
+        staged, state = _new_sqlite_lifecycle_ledger()
+        counts = {"candidates": 0, "evidence": 0, "actions": 0}
+        try:
+            state.begin()
+            for page in self._memory.iter_e12a6_lifecycle_checkpoint_pages(
+                scope=self.scope,
+                checkpoint_sequence=checkpoint["checkpoint_sequence"],
+                expected_pages_digest=checkpoint["pages_digest"],
+            ):
+                if page["kind"] == "candidates":
+                    for raw in page["items"]:
+                        candidate = _candidate_from_dict(raw)
+                        key = (candidate.candidate_id, candidate.version)
+                        if key in staged.candidates:
+                            raise LifecyclePersistenceError("checkpoint contains duplicate candidates")
+                        staged.candidates[key] = candidate
+                        counts["candidates"] += 1
+                elif page["kind"] == "evidence":
+                    for raw in page["items"]:
+                        evidence = _evidence_from_dict(raw)
+                        if evidence.evidence_id in staged.evidence:
+                            raise LifecyclePersistenceError("checkpoint contains duplicate evidence")
+                        staged.evidence[evidence.evidence_id] = evidence
+                        counts["evidence"] += 1
+                elif page["kind"] == "actions":
+                    for raw in page["items"]:
+                        action = _action_from_dict(raw)
+                        if action.action_id in staged._action_ids:
+                            raise LifecyclePersistenceError("checkpoint contains duplicate action IDs")
+                        staged.actions.append(action)
+                        staged._action_ids.add(action.action_id)
+                        counts["actions"] += 1
+                else:
+                    raise LifecyclePersistenceError("checkpoint contains an unknown page kind")
+            expected_counts = {
+                "candidates": header["candidate_count"],
+                "evidence": header["evidence_count"],
+                "actions": header["action_count"],
+            }
+            if counts != expected_counts:
+                raise LifecyclePersistenceError("checkpoint page row counts do not match its header")
+            auth_count, auth_digest = self._memory.e12a6_authorization_projection_digest(
+                scope=self.scope, through_sequence=checkpoint["checkpoint_sequence"],
+            )
+            if (auth_count != header["authorization_count"]
+                    or auth_digest != header["authorization_digest"]):
+                raise LifecyclePersistenceError("checkpoint authorization projection mismatch")
+            return staged, state
+        except Exception:
+            state.rollback()
+            state.close()
+            raise
+
     def _restore(self) -> None:
         staged_state = None
         self._memory.lock.acquire()
@@ -449,9 +525,7 @@ class PersistentLifecycleLedger:
             staged = None
             if checkpoint is not None:
                 try:
-                    staged, staged_state = self._hydrate_checkpoint_snapshot(
-                        checkpoint["snapshot"], checkpoint["checkpoint_sequence"],
-                    )
+                    staged, staged_state = self._hydrate_checkpoint_pages(checkpoint)
                     previous = checkpoint["checkpoint_sequence"]
                 except Exception:
                     # The snapshot is only an acceleration artifact; replay remains authoritative.
@@ -864,22 +938,61 @@ class PersistentLifecycleLedger:
               "actions":[_action_to_dict(v) for v in self._ledger.actions],
               "consumed_authorizations":self._list_consumed_authorizations()}
 
+    def _iter_checkpoint_pages(self, *, page_size: int = 128):
+        """Yield bounded JSON pages from the disk-backed runtime state."""
+        def emit(kind: str, values, convert):
+            page_index = 0
+            page = []
+            for value in values:
+                page.append(convert(value))
+                if len(page) >= page_size:
+                    yield kind, page_index, page
+                    page_index += 1
+                    page = []
+            if page:
+                yield kind, page_index, page
+
+        yield from emit(
+            "candidates",
+            (value for _key, value in self._ledger.candidates.iter_items()),
+            _candidate_to_dict,
+        )
+        yield from emit(
+            "evidence",
+            (value for _key, value in self._ledger.evidence.iter_items()),
+            _evidence_to_dict,
+        )
+        yield from emit("actions", iter(self._ledger.actions), _action_to_dict)
+
     def checkpoint(self) -> dict[str, Any]:
-        """Publish a verified state snapshot atomically at the current event high-water mark."""
+        """Publish a bounded-page checkpoint without materializing the full ledger in Python."""
         with self._lock:
             with self._memory.lock:
-                snapshot = self.snapshot()
                 sequence = self._last_sequence
                 event_count, prefix_digest = self._memory.e12a6_lifecycle_prefix_digest(
                     scope=self.scope, through_sequence=sequence,
                 )
-                if snapshot["last_sequence"] != sequence:
-                    raise LifecyclePersistenceError("checkpoint snapshot sequence changed")
+                authorization_count, authorization_digest = (
+                    self._memory.e12a6_authorization_projection_digest(
+                        scope=self.scope, through_sequence=sequence,
+                    )
+                )
+                header = {
+                    "schema_version": EVENT_SCHEMA,
+                    "scope": self.scope,
+                    "last_sequence": sequence,
+                    "candidate_count": len(self._ledger.candidates),
+                    "evidence_count": len(self._ledger.evidence),
+                    "action_count": len(self._ledger.actions),
+                    "authorization_count": authorization_count,
+                    "authorization_digest": authorization_digest,
+                }
                 try:
-                    return self._memory.save_e12a6_lifecycle_checkpoint(
+                    return self._memory.save_e12a6_lifecycle_checkpoint_pages(
                         scope=self.scope, checkpoint_schema=CHECKPOINT_SCHEMA,
                         checkpoint_sequence=sequence, event_count=event_count,
-                        prefix_digest=prefix_digest, snapshot=snapshot,
+                        prefix_digest=prefix_digest, snapshot_header=header,
+                        pages=self._iter_checkpoint_pages(),
                     )
                 except Exception as exc:
                     raise LifecyclePersistenceError(f"checkpoint publication failed: {exc}") from exc

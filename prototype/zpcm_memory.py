@@ -66,9 +66,24 @@ class ZPCMMemory:
             prefix_digest TEXT NOT NULL,
             snapshot_json TEXT NOT NULL,
             snapshot_digest TEXT NOT NULL,
-            created_at TEXT NOT NULL
+            created_at TEXT NOT NULL,
+            pages_digest TEXT
+        );
+        CREATE TABLE IF NOT EXISTS e12a6_lifecycle_checkpoint_pages (
+            scope TEXT NOT NULL,
+            checkpoint_sequence INTEGER NOT NULL,
+            page_kind TEXT NOT NULL,
+            page_index INTEGER NOT NULL,
+            page_json TEXT NOT NULL,
+            page_digest TEXT NOT NULL,
+            PRIMARY KEY(scope,checkpoint_sequence,page_kind,page_index)
         );
         """)
+        checkpoint_columns = {
+            row["name"] for row in self.db.execute("PRAGMA table_info(e12a6_lifecycle_checkpoints)")
+        }
+        if "pages_digest" not in checkpoint_columns:
+            self.db.execute("ALTER TABLE e12a6_lifecycle_checkpoints ADD COLUMN pages_digest TEXT")
         # The event log is authoritative for every rebuildable projection.
         # Reject accidental mutation through the shared SQLite connection.
         self.db.executescript("""
@@ -1333,7 +1348,7 @@ class ZPCMMemory:
         with self.lock:
             row = self.db.execute(
                 "SELECT checkpoint_schema,checkpoint_sequence,event_count,prefix_digest,"
-                "snapshot_json,snapshot_digest,created_at FROM e12a6_lifecycle_checkpoints WHERE scope=?",
+                "snapshot_json,snapshot_digest,created_at,pages_digest FROM e12a6_lifecycle_checkpoints WHERE scope=?",
                 (scope,),
             ).fetchone()
         if row is None:
@@ -1349,10 +1364,217 @@ class ZPCMMemory:
                 "checkpoint_sequence": int(row["checkpoint_sequence"]),
                 "event_count": int(row["event_count"]), "prefix_digest": row["prefix_digest"],
                 "snapshot": snapshot, "snapshot_digest": row["snapshot_digest"],
+                "pages_digest": row["pages_digest"],
                 "created_at": row["created_at"],
             }
         except (TypeError, ValueError, KeyError, json.JSONDecodeError) as exc:
             raise ZPCMError("checkpoint snapshot is malformed") from exc
+
+
+    def e12a6_authorization_projection_digest(
+        self, *, scope: str, through_sequence: int,
+    ) -> tuple[int, str]:
+        """Digest the scoped receipt projection in stable receipt-ID order without materializing it."""
+        if not isinstance(scope, str) or not scope.strip():
+            raise ZPCMError("scope must be non-empty")
+        if isinstance(through_sequence, bool) or not isinstance(through_sequence, int) or through_sequence < 0:
+            raise ZPCMError("through_sequence must be a non-negative integer")
+        digest_state = hashlib.sha256()
+        count = 0
+        with self.lock:
+            cursor = self.db.execute(
+                "SELECT c.receipt_id,e.event_id,e.payload_json,e.payload_digest "
+                "FROM e12a6_authorization_consumptions c "
+                "JOIN memory_events e ON e.event_id=c.event_id "
+                "WHERE c.scope=? AND e.seq<=? ORDER BY c.receipt_id",
+                (scope, through_sequence),
+            )
+            while True:
+                rows = cursor.fetchmany(128)
+                if not rows:
+                    break
+                for row in rows:
+                    payload = json.loads(row["payload_json"])
+                    if digest(payload) != row["payload_digest"]:
+                        raise ZPCMError(f"authorization event digest mismatch: {row['event_id']}")
+                    if payload.get("kind") != "authorization_consumed" or not isinstance(payload.get("body"), dict):
+                        raise ZPCMError("authorization projection points to an invalid lifecycle event")
+                    digest_state.update(
+                        row["receipt_id"].encode("utf-8") + b"\\0"
+                        + canonical(payload["body"]).encode("utf-8") + b"\\n"
+                    )
+                    count += 1
+        return count, digest_state.hexdigest()
+
+    def save_e12a6_lifecycle_checkpoint_pages(
+        self, *, scope: str, checkpoint_schema: str, checkpoint_sequence: int,
+        event_count: int, prefix_digest: str, snapshot_header: dict[str, Any],
+        pages: Iterable[tuple[str, int, list[dict[str, Any]]]],
+    ) -> dict[str, Any]:
+        """Atomically publish a bounded-page checkpoint tied to a verified event prefix."""
+        if not isinstance(scope, str) or not scope.strip():
+            raise ZPCMError("scope must be non-empty")
+        if not isinstance(checkpoint_schema, str) or not checkpoint_schema.strip():
+            raise ZPCMError("checkpoint_schema must be non-empty")
+        if (isinstance(checkpoint_sequence, bool) or not isinstance(checkpoint_sequence, int)
+                or checkpoint_sequence < 0 or isinstance(event_count, bool)
+                or not isinstance(event_count, int) or event_count < 0):
+            raise ZPCMError("invalid checkpoint sequence or event count")
+        if not isinstance(prefix_digest, str) or len(prefix_digest) != 64:
+            raise ZPCMError("invalid checkpoint prefix digest")
+        required_header = {
+            "schema_version", "scope", "last_sequence", "candidate_count",
+            "evidence_count", "action_count", "authorization_count", "authorization_digest",
+        }
+        if (not isinstance(snapshot_header, dict) or set(snapshot_header) != required_header
+                or snapshot_header.get("schema_version") != "e12a6-lifecycle-event-v1"
+                or snapshot_header.get("scope") != scope
+                or snapshot_header.get("last_sequence") != checkpoint_sequence):
+            raise ZPCMError("checkpoint header metadata mismatch")
+        header_json = canonical(snapshot_header)
+        header_digest = hashlib.sha256(header_json.encode("utf-8")).hexdigest()
+        expected_counts = {
+            "candidates": snapshot_header["candidate_count"],
+            "evidence": snapshot_header["evidence_count"],
+            "actions": snapshot_header["action_count"],
+        }
+        if any(isinstance(v, bool) or not isinstance(v, int) or v < 0 for v in expected_counts.values()):
+            raise ZPCMError("checkpoint header row counts are invalid")
+        if (isinstance(snapshot_header["authorization_count"], bool)
+                or not isinstance(snapshot_header["authorization_count"], int)
+                or snapshot_header["authorization_count"] < 0
+                or not isinstance(snapshot_header["authorization_digest"], str)
+                or len(snapshot_header["authorization_digest"]) != 64):
+            raise ZPCMError("checkpoint authorization digest metadata is invalid")
+        with self.lock:
+            self.db.execute("BEGIN IMMEDIATE")
+            try:
+                row = self.db.execute(
+                    "SELECT COALESCE(MAX(seq),0),COUNT(*) FROM memory_events "
+                    "WHERE event_type='e12a6_lifecycle' AND scope=?",
+                    (scope,),
+                ).fetchone()
+                if int(row[0]) != checkpoint_sequence or int(row[1]) != event_count:
+                    raise ZPCMError("lifecycle stream changed while checkpoint was being published")
+                actual_count, actual_prefix_digest = self.e12a6_lifecycle_prefix_digest(
+                    scope=scope, through_sequence=checkpoint_sequence,
+                )
+                if actual_count != event_count or actual_prefix_digest != prefix_digest:
+                    raise ZPCMError("checkpoint prefix digest does not match the authoritative event log")
+                auth_count, auth_digest = self.e12a6_authorization_projection_digest(
+                    scope=scope, through_sequence=checkpoint_sequence,
+                )
+                if (auth_count != snapshot_header["authorization_count"]
+                        or auth_digest != snapshot_header["authorization_digest"]):
+                    raise ZPCMError("checkpoint authorization projection changed during publication")
+                self.db.execute(
+                    "DELETE FROM e12a6_lifecycle_checkpoint_pages WHERE scope=?",
+                    (scope,),
+                )
+                page_state = hashlib.sha256()
+                page_counts = {"candidates": 0, "evidence": 0, "actions": 0}
+                next_indices = {"candidates": 0, "evidence": 0, "actions": 0}
+                for page_kind, page_index, items in pages:
+                    if page_kind not in page_counts:
+                        raise ZPCMError("checkpoint page kind is invalid")
+                    if (isinstance(page_index, bool) or not isinstance(page_index, int)
+                            or page_index != next_indices[page_kind]):
+                        raise ZPCMError("checkpoint page index is not contiguous")
+                    if not isinstance(items, list) or not items:
+                        raise ZPCMError("checkpoint pages must contain a non-empty list")
+                    page_json = canonical(items)
+                    page_bytes = page_json.encode("utf-8")
+                    if len(page_bytes) > self.max_page_bytes:
+                        raise ZPCMError("checkpoint page exceeds max_page_bytes")
+                    page_digest = hashlib.sha256(page_bytes).hexdigest()
+                    page_state.update(
+                        page_kind.encode("ascii") + b"\\0"
+                        + str(page_index).encode("ascii") + b"\\0"
+                        + page_digest.encode("ascii") + b"\\n"
+                    )
+                    self.db.execute(
+                        "INSERT INTO e12a6_lifecycle_checkpoint_pages("
+                        "scope,checkpoint_sequence,page_kind,page_index,page_json,page_digest"
+                        ") VALUES(?,?,?,?,?,?)",
+                        (scope, checkpoint_sequence, page_kind, page_index, page_json, page_digest),
+                    )
+                    page_counts[page_kind] += len(items)
+                    next_indices[page_kind] += 1
+                if page_counts != expected_counts:
+                    raise ZPCMError("checkpoint page row counts do not match the runtime state")
+                pages_digest = page_state.hexdigest()
+                created_at = datetime.now(timezone.utc).isoformat()
+                self.db.execute(
+                    "INSERT INTO e12a6_lifecycle_checkpoints("
+                    "scope,checkpoint_schema,checkpoint_sequence,event_count,prefix_digest,"
+                    "snapshot_json,snapshot_digest,created_at,pages_digest"
+                    ") VALUES(?,?,?,?,?,?,?,?,?) ON CONFLICT(scope) DO UPDATE SET "
+                    "checkpoint_schema=excluded.checkpoint_schema,"
+                    "checkpoint_sequence=excluded.checkpoint_sequence,"
+                    "event_count=excluded.event_count,prefix_digest=excluded.prefix_digest,"
+                    "snapshot_json=excluded.snapshot_json,snapshot_digest=excluded.snapshot_digest,"
+                    "created_at=excluded.created_at,pages_digest=excluded.pages_digest",
+                    (scope, checkpoint_schema, checkpoint_sequence, event_count, prefix_digest,
+                     header_json, header_digest, created_at, pages_digest),
+                )
+                self.db.execute("COMMIT")
+                return {
+                    "scope": scope, "checkpoint_schema": checkpoint_schema,
+                    "checkpoint_sequence": checkpoint_sequence, "event_count": event_count,
+                    "prefix_digest": prefix_digest, "snapshot_digest": header_digest,
+                    "pages_digest": pages_digest, "created_at": created_at,
+                }
+            except Exception:
+                self.db.execute("ROLLBACK")
+                raise
+
+    def iter_e12a6_lifecycle_checkpoint_pages(
+        self, *, scope: str, checkpoint_sequence: int, expected_pages_digest: str,
+    ) -> Iterator[dict[str, Any]]:
+        """Stream and verify checkpoint pages with bounded SQLite fetches."""
+        if not isinstance(scope, str) or not scope.strip():
+            raise ZPCMError("scope must be non-empty")
+        if isinstance(checkpoint_sequence, bool) or not isinstance(checkpoint_sequence, int) or checkpoint_sequence < 0:
+            raise ZPCMError("checkpoint_sequence must be non-negative")
+        if not isinstance(expected_pages_digest, str) or len(expected_pages_digest) != 64:
+            raise ZPCMError("checkpoint pages digest is invalid")
+        page_state = hashlib.sha256()
+        next_indices = {"candidates": 0, "evidence": 0, "actions": 0}
+        with self.lock:
+            cursor = self.db.execute(
+                "SELECT page_kind,page_index,page_json,page_digest "
+                "FROM e12a6_lifecycle_checkpoint_pages "
+                "WHERE scope=? AND checkpoint_sequence=? "
+                "ORDER BY page_kind,page_index",
+                (scope, checkpoint_sequence),
+            )
+            while True:
+                rows = cursor.fetchmany(16)
+                if not rows:
+                    break
+                for row in rows:
+                    kind = row["page_kind"]
+                    index = int(row["page_index"])
+                    if kind not in next_indices or index != next_indices[kind]:
+                        raise ZPCMError("checkpoint page sequence is incomplete")
+                    page_bytes = row["page_json"].encode("utf-8")
+                    if len(page_bytes) > self.max_page_bytes:
+                        raise ZPCMError("persisted checkpoint page exceeds max_page_bytes")
+                    actual_digest = hashlib.sha256(page_bytes).hexdigest()
+                    if actual_digest != row["page_digest"]:
+                        raise ZPCMError("checkpoint page digest mismatch")
+                    items = json.loads(row["page_json"])
+                    if not isinstance(items, list) or not items:
+                        raise ZPCMError("checkpoint page payload is malformed")
+                    page_state.update(
+                        kind.encode("ascii") + b"\\0"
+                        + str(index).encode("ascii") + b"\\0"
+                        + actual_digest.encode("ascii") + b"\\n"
+                    )
+                    next_indices[kind] += 1
+                    yield {"kind": kind, "page_index": index, "items": items}
+        if page_state.hexdigest() != expected_pages_digest:
+            raise ZPCMError("checkpoint page manifest digest mismatch")
 
     def append_lifecycle_event(self, *, event_id: str, scope: str, payload: dict[str, Any],
                                expected_sequence: int) -> dict[str, Any]:

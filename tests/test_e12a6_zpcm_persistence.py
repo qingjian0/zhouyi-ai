@@ -122,6 +122,37 @@ class PersistentLifecycleTests(unittest.TestCase):
         )
         self.assertEqual(self.store._last_sequence, 2)
 
+    def test_checkpoint_streams_pages_without_materializing_snapshot(self):
+        self.store.register_candidate(candidate())
+        self.store.register_evidence(evidence())
+        with patch.object(self.store, "snapshot", side_effect=AssertionError("checkpoint must not materialize snapshot")):
+            checkpoint = self.store.checkpoint()
+        self.assertEqual(checkpoint["checkpoint_schema"], persistence.CHECKPOINT_SCHEMA)
+        pages = self.memory.db.execute(
+            "SELECT page_kind,page_index FROM e12a6_lifecycle_checkpoint_pages "
+            "WHERE scope=? ORDER BY page_kind,page_index",
+            ("project-a",),
+        ).fetchall()
+        self.assertEqual({row["page_kind"] for row in pages}, {"candidates", "evidence"})
+        self.assertEqual([row["page_index"] for row in pages if row["page_kind"] == "candidates"], [0])
+        self.assertEqual([row["page_index"] for row in pages if row["page_kind"] == "evidence"], [0])
+
+    def test_corrupt_checkpoint_page_falls_back_to_full_replay(self):
+        self.store.register_candidate(candidate())
+        self.store.checkpoint()
+        self.memory.db.execute(
+            "UPDATE e12a6_lifecycle_checkpoint_pages SET page_digest=? "
+            "WHERE scope=? AND page_kind='candidates' AND page_index=0",
+            ("0" * 64, "project-a"),
+        )
+        self.store.close()
+        self.memory.close()
+
+        self.memory = ZPCMMemory(self.path)
+        self.store = PersistentLifecycleLedger(self.memory, scope="project-a")
+        self.assertIn(("rel:greater-than", 1), self.store.ledger.candidates)
+        self.assertEqual(self.store._last_sequence, 1)
+
     def test_checkpoint_refuses_to_publish_stale_runtime_state(self):
         self.store.register_candidate(candidate())
         self.memory.append_lifecycle_event(
