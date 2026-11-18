@@ -122,6 +122,30 @@ class PersistentLifecycleTests(unittest.TestCase):
         )
         self.assertEqual(self.store._last_sequence, 2)
 
+    def test_checkpoint_with_actions_restores_manifest_in_canonical_page_order(self):
+        self.store.register_candidate(candidate())
+        self.store.register_evidence(evidence())
+        self.store.apply(propose())
+        expected = self.store.snapshot()
+        checkpoint = self.store.checkpoint()
+        self.assertEqual(checkpoint["checkpoint_sequence"], 3)
+        self.store.close()
+        self.memory.close()
+
+        self.memory = ZPCMMemory(self.path)
+        original_iter = self.memory.iter_domain_events
+        requested_cursors = []
+
+        def record_cursor(**kwargs):
+            requested_cursors.append(kwargs.get("after_sequence", 0))
+            yield from original_iter(**kwargs)
+
+        self.memory.iter_domain_events = record_cursor
+        self.store = PersistentLifecycleLedger(self.memory, scope="project-a")
+        self.memory.iter_domain_events = original_iter
+        self.assertIn(3, requested_cursors)
+        self.assertEqual(self.store.snapshot(), expected)
+
     def test_checkpoint_streams_pages_without_materializing_snapshot(self):
         self.store.register_candidate(candidate())
         self.store.register_evidence(evidence())
