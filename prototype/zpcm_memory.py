@@ -421,6 +421,86 @@ class ZPCMMemory:
                     initialized_event_count=initialized_event_count+1;
             END;
             """)
+            action_projection_migrated = False
+            action_columns = {
+                row["name"]: row for row in self.db.execute(
+                    "PRAGMA table_info(e12a6_action_state_projection)"
+                )
+            }
+            if (action_columns.get("candidate_id") is not None
+                    and action_columns["candidate_id"]["notnull"]
+                    or action_columns.get("candidate_version") is not None
+                    and action_columns["candidate_version"]["notnull"]):
+                self.db.execute("BEGIN IMMEDIATE")
+                try:
+                    self.db.execute("DROP TRIGGER IF EXISTS e12a6_action_state_insert")
+                    self.db.execute(
+                        "ALTER TABLE e12a6_action_state_projection "
+                        "RENAME TO e12a6_action_state_projection_legacy"
+                    )
+                    self.db.execute("""
+                        CREATE TABLE e12a6_action_state_projection(
+                            scope TEXT NOT NULL,
+                            action_id TEXT NOT NULL,
+                            candidate_id TEXT,
+                            candidate_version INTEGER,
+                            action_json TEXT NOT NULL,
+                            source_seq INTEGER NOT NULL,
+                            PRIMARY KEY(scope,action_id)
+                        )
+                    """)
+                    self.db.execute("""
+                        INSERT INTO e12a6_action_state_projection(
+                            scope,action_id,candidate_id,candidate_version,action_json,source_seq
+                        )
+                        SELECT scope,action_id,candidate_id,candidate_version,action_json,source_seq
+                        FROM e12a6_action_state_projection_legacy
+                    """)
+                    self.db.execute("DROP TABLE e12a6_action_state_projection_legacy")
+                    self.db.execute(
+                        "CREATE INDEX e12a6_action_state_by_candidate "
+                        "ON e12a6_action_state_projection(scope,candidate_id,candidate_version,source_seq)"
+                    )
+                    self.db.execute(
+                        "CREATE INDEX e12a6_action_state_by_scope_seq "
+                        "ON e12a6_action_state_projection(scope,source_seq)"
+                    )
+                    self.db.execute("""
+                        CREATE TRIGGER e12a6_action_state_insert
+                        AFTER INSERT ON memory_events
+                        WHEN NEW.event_type='e12a6_lifecycle'
+                         AND json_extract(NEW.payload_json,'$.kind')='action_applied'
+                        BEGIN
+                            INSERT INTO e12a6_action_state_projection(
+                                scope,action_id,candidate_id,candidate_version,action_json,source_seq
+                            )
+                            SELECT NEW.scope,
+                                json_extract(NEW.payload_json,'$.body.action.action_id'),
+                                json_extract(NEW.payload_json,'$.body.action.candidate_id'),
+                                json_extract(NEW.payload_json,'$.body.action.candidate_version'),
+                                json_extract(NEW.payload_json,'$.body.action'),NEW.seq
+                            WHERE json_extract(NEW.payload_json,'$.body.action.action_id') IS NOT NULL
+                            ON CONFLICT(scope,action_id) DO UPDATE SET
+                                candidate_id=excluded.candidate_id,
+                                candidate_version=excluded.candidate_version,
+                                action_json=excluded.action_json,source_seq=excluded.source_seq;
+                            UPDATE e12a6_candidate_state_projection
+                            SET candidate_json=json_set(
+                                    candidate_json,'$.state',
+                                    json_extract(NEW.payload_json,'$.body.action.to_state')
+                                ),
+                                source_seq=NEW.seq
+                            WHERE scope=NEW.scope
+                              AND candidate_id=json_extract(NEW.payload_json,'$.body.action.candidate_id')
+                              AND candidate_version=json_extract(NEW.payload_json,'$.body.action.candidate_version')
+                              AND json_extract(NEW.payload_json,'$.body.action.to_state') IS NOT NULL;
+                        END
+                    """)
+                    self.db.execute("COMMIT")
+                    action_projection_migrated = True
+                except Exception:
+                    self.db.execute("ROLLBACK")
+                    raise
             meta = self.db.execute(
                 "SELECT schema_version,initialized_through_seq,initialized_event_count "
                 "FROM e12a6_current_state_projection_meta WHERE singleton=1"
@@ -429,7 +509,8 @@ class ZPCMMemory:
                 "SELECT COUNT(*) AS event_count,COALESCE(MAX(seq),0) AS high_water "
                 "FROM memory_events WHERE event_type='e12a6_lifecycle'"
             ).fetchone()
-            if (meta is not None
+            if (not action_projection_migrated
+                    and meta is not None
                     and meta["schema_version"] == "e12a6-current-state-v1"
                     and meta["initialized_event_count"] == current["event_count"]
                     and meta["initialized_through_seq"] == current["high_water"]):
