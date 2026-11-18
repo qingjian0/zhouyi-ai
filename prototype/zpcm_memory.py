@@ -216,6 +216,61 @@ class ZPCMMemory:
             })
         return results
 
+    def get_authorization_consumption(
+        self, *, receipt_id: str | None = None, nonce: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Look up one receipt/nonce binding through the SQLite uniqueness index."""
+        if (receipt_id is None) == (nonce is None):
+            raise ZPCMError("provide exactly one of receipt_id or nonce")
+        value = receipt_id if receipt_id is not None else nonce
+        if not isinstance(value, str) or not value.strip():
+            raise ZPCMError("receipt_id or nonce must be non-empty")
+        column = "receipt_id" if receipt_id is not None else "nonce"
+        with self.lock:
+            row = self.db.execute(
+                f"SELECT event_id,scope FROM e12a6_authorization_consumptions WHERE {column}=?",
+                (value,),
+            ).fetchone()
+        if row is None:
+            return None
+        event = self.get_domain_event(
+            event_type="e12a6_lifecycle", scope=row["scope"], event_id=row["event_id"],
+        )
+        if event is None or event["payload"].get("kind") != "authorization_consumed":
+            raise ZPCMError("authorization consumption index points to a missing or invalid event")
+        body = event["payload"].get("body")
+        if not isinstance(body, dict):
+            raise ZPCMError("authorization consumption body must be an object")
+        return {"event_id": event["event_id"], "sequence": event["sequence"], "body": body}
+
+    def iter_authorization_consumptions(self, *, scope: str) -> Iterator[dict[str, Any]]:
+        """Stream scoped authorization bindings in durable event order."""
+        if not isinstance(scope, str) or not scope.strip():
+            raise ZPCMError("scope must be non-empty")
+        with self.lock:
+            rows = self.db.execute(
+                "SELECT event_id FROM e12a6_authorization_consumptions WHERE scope=? "
+                "ORDER BY (SELECT seq FROM memory_events WHERE event_id=e12a6_authorization_consumptions.event_id)",
+                (scope,),
+            ).fetchall()
+        for row in rows:
+            event = self.get_domain_event(
+                event_type="e12a6_lifecycle", scope=scope, event_id=row["event_id"],
+            )
+            if event is None or event["payload"].get("kind") != "authorization_consumed":
+                raise ZPCMError("authorization consumption index is inconsistent")
+            yield event["payload"]["body"]
+
+    def iter_candidate_authorization_consumptions(
+        self, *, scope: str, candidate_id: str, candidate_version: int,
+    ) -> Iterator[dict[str, Any]]:
+        """Stream only authorization events indexed for one candidate version."""
+        for event in self.iter_lifecycle_candidate_history(
+            scope=scope, candidate_id=candidate_id, candidate_version=candidate_version,
+        ):
+            if event["payload"].get("kind") == "authorization_consumed":
+                yield event["payload"]["body"]
+
     def close(self):
         with self.lock:self.db.close()
     def _rebuild_authorization_consumption_index(self):
