@@ -1,3 +1,5 @@
+> Historical audit snapshot dated 2026-11-12. This document records the repository state and evidence available on that date; it is not a current readiness status report. Later integrations and CI results must be checked independently.
+
 # Zhouyi-AI training readiness audit and convergence gates
 
 Date: 2026-11-12
