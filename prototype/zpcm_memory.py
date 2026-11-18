@@ -37,8 +37,167 @@ class ZPCMMemory:
             scope TEXT NOT NULL,
             FOREIGN KEY(event_id) REFERENCES memory_events(event_id)
         );
+        CREATE TABLE IF NOT EXISTS e12a6_lifecycle_candidate_history (
+            scope TEXT NOT NULL,
+            candidate_id TEXT NOT NULL,
+            candidate_version INTEGER NOT NULL,
+            sequence INTEGER NOT NULL,
+            event_id TEXT NOT NULL UNIQUE,
+            event_kind TEXT NOT NULL,
+            action_id TEXT,
+            evidence_ids_json TEXT NOT NULL,
+            PRIMARY KEY(scope,event_id),
+            FOREIGN KEY(event_id) REFERENCES memory_events(event_id)
+        );
+        CREATE INDEX IF NOT EXISTS e12a6_candidate_history_lookup
+            ON e12a6_lifecycle_candidate_history(scope,candidate_id,candidate_version,sequence);
+        CREATE INDEX IF NOT EXISTS e12a6_candidate_history_action
+            ON e12a6_lifecycle_candidate_history(scope,action_id);
+        CREATE TABLE IF NOT EXISTS e12a6_lifecycle_candidate_history_meta (
+            scope TEXT PRIMARY KEY,
+            high_water_seq INTEGER NOT NULL,
+            event_count INTEGER NOT NULL
+        );
         """)
         self._rebuild_authorization_consumption_index()
+        self._ensure_e12a6_candidate_history_projection()
+
+    def _index_e12a6_candidate_event(self, scope: str, sequence: int,
+                                     event_id: str, payload: dict[str, Any]) -> None:
+        kind = payload.get("kind")
+        body = payload.get("body")
+        if not isinstance(body, dict):
+            raise ZPCMError("lifecycle event body must be an object")
+        candidate = None
+        action_id = None
+        evidence_ids = []
+        if kind in {"candidate_registered", "revision_created"}:
+            candidate = body.get("candidate")
+            if isinstance(candidate, dict):
+                evidence_ids = candidate.get("evidence_ids", [])
+        elif kind == "action_applied":
+            candidate = body.get("action")
+            if isinstance(candidate, dict):
+                action_id = candidate.get("action_id")
+                evidence_ids = candidate.get("evidence_ids", [])
+        elif kind == "authorization_consumed":
+            candidate = body
+            evidence_ids = body.get("evidence_refs", [])
+        if not isinstance(candidate, dict):
+            return
+        candidate_id = candidate.get("candidate_id")
+        candidate_version = candidate.get("version", candidate.get("candidate_version"))
+        if (not isinstance(candidate_id, str) or not candidate_id.strip()
+                or isinstance(candidate_version, bool) or not isinstance(candidate_version, int)
+                or candidate_version < 1):
+            return
+        if not isinstance(evidence_ids, list) or any(not isinstance(item, str) for item in evidence_ids):
+            raise ZPCMError("lifecycle candidate evidence references are malformed")
+        self.db.execute(
+            "INSERT INTO e12a6_lifecycle_candidate_history "
+            "(scope,candidate_id,candidate_version,sequence,event_id,event_kind,action_id,evidence_ids_json) "
+            "VALUES(?,?,?,?,?,?,?,?)",
+            (scope, candidate_id, candidate_version, sequence, event_id, kind,
+             action_id, canonical(evidence_ids)),
+        )
+
+    def _rebuild_e12a6_candidate_history_scope(self, scope: str) -> None:
+        rows = self.db.execute(
+            "SELECT seq,event_id,payload_json,payload_digest FROM memory_events "
+            "WHERE event_type='e12a6_lifecycle' AND scope=? ORDER BY seq",
+            (scope,),
+        )
+        self.db.execute("BEGIN IMMEDIATE")
+        try:
+            self.db.execute("DELETE FROM e12a6_lifecycle_candidate_history WHERE scope=?", (scope,))
+            high_water = 0
+            count = 0
+            for row in rows:
+                payload = json.loads(row["payload_json"])
+                if digest(payload) != row["payload_digest"]:
+                    raise ZPCMError(f"lifecycle event digest mismatch: {row['event_id']}")
+                high_water = row["seq"]
+                count += 1
+                self._index_e12a6_candidate_event(scope, row["seq"], row["event_id"], payload)
+            self.db.execute(
+                "INSERT INTO e12a6_lifecycle_candidate_history_meta(scope,high_water_seq,event_count) "
+                "VALUES(?,?,?) ON CONFLICT(scope) DO UPDATE SET "
+                "high_water_seq=excluded.high_water_seq,event_count=excluded.event_count",
+                (scope, high_water, count),
+            )
+            self.db.execute("COMMIT")
+        except Exception:
+            self.db.execute("ROLLBACK")
+            raise
+
+    def _ensure_e12a6_candidate_history_projection(self) -> None:
+        scopes = [row["scope"] for row in self.db.execute(
+            "SELECT DISTINCT scope FROM memory_events WHERE event_type='e12a6_lifecycle'"
+        )]
+        for scope in scopes:
+            current = self.db.execute(
+                "SELECT COUNT(*) AS n,COALESCE(MAX(seq),0) AS high_water FROM memory_events "
+                "WHERE event_type='e12a6_lifecycle' AND scope=?",
+                (scope,),
+            ).fetchone()
+            meta = self.db.execute(
+                "SELECT high_water_seq,event_count FROM e12a6_lifecycle_candidate_history_meta WHERE scope=?",
+                (scope,),
+            ).fetchone()
+            if (meta is None or meta["event_count"] != current["n"]
+                    or meta["high_water_seq"] != current["high_water"]):
+                self._rebuild_e12a6_candidate_history_scope(scope)
+
+    def iter_lifecycle_candidate_history(
+        self, *, scope: str, candidate_id: str, candidate_version: int | None = None,
+        after_sequence: int = 0, limit: int = 100, max_page_bytes: int = 4 * 1024 * 1024,
+    ) -> list[dict[str, Any]]:
+        """Read a deterministic, digest-verified candidate history page from SQLite."""
+        if not isinstance(scope, str) or not scope.strip():
+            raise ZPCMError("scope must be non-empty")
+        if not isinstance(candidate_id, str) or not candidate_id.strip():
+            raise ZPCMError("candidate_id must be non-empty")
+        if candidate_version is not None and (
+            isinstance(candidate_version, bool) or not isinstance(candidate_version, int)
+            or candidate_version < 1
+        ):
+            raise ZPCMError("candidate_version must be a positive integer")
+        if isinstance(after_sequence, bool) or not isinstance(after_sequence, int) or after_sequence < 0:
+            raise ZPCMError("after_sequence must be a non-negative integer")
+        if isinstance(limit, bool) or not isinstance(limit, int) or not 1 <= limit <= 1000:
+            raise ZPCMError("limit must be between 1 and 1000")
+        if isinstance(max_page_bytes, bool) or not isinstance(max_page_bytes, int) or max_page_bytes < 1:
+            raise ZPCMError("max_page_bytes must be positive")
+        query = (
+            "SELECT e.seq,e.event_id,e.event_type,e.scope,e.payload_json,e.payload_digest,e.recorded_at "
+            "FROM e12a6_lifecycle_candidate_history h JOIN memory_events e ON e.event_id=h.event_id "
+            "WHERE h.scope=? AND h.candidate_id=? AND h.sequence>? "
+        )
+        args: list[Any] = [scope, candidate_id, after_sequence]
+        if candidate_version is not None:
+            query += "AND h.candidate_version=? "
+            args.append(candidate_version)
+        query += "ORDER BY h.sequence LIMIT ?"
+        args.append(limit)
+        with self.lock:
+            rows = self.db.execute(query, tuple(args)).fetchall()
+        results = []
+        used_bytes = 0
+        for row in rows:
+            used_bytes += len(row["payload_json"].encode("utf-8"))
+            if used_bytes > max_page_bytes:
+                raise ZPCMError("candidate history page exceeds max_page_bytes")
+            payload = json.loads(row["payload_json"])
+            if digest(payload) != row["payload_digest"]:
+                raise ZPCMError(f"lifecycle event digest mismatch: {row['event_id']}")
+            results.append({
+                "sequence": row["seq"], "event_id": row["event_id"],
+                "event_type": row["event_type"], "scope": row["scope"],
+                "payload": payload, "payload_digest": row["payload_digest"],
+                "recorded_at": row["recorded_at"],
+            })
+        return results
+
     def close(self):
         with self.lock:self.db.close()
     def _rebuild_authorization_consumption_index(self):
@@ -337,6 +496,14 @@ class ZPCMMemory:
                 if current != expected_sequence:
                     raise ZPCMError(f"stale lifecycle sequence: expected {expected_sequence}, current {current}")
                 seq, replay = self._append(event_id, "e12a6_lifecycle", scope, payload)
+                if not replay:
+                    self._index_e12a6_candidate_event(scope, seq, event_id, payload)
+                    self.db.execute(
+                        "INSERT INTO e12a6_lifecycle_candidate_history_meta(scope,high_water_seq,event_count) "
+                        "VALUES(?,?,1) ON CONFLICT(scope) DO UPDATE SET "
+                        "high_water_seq=MAX(high_water_seq,excluded.high_water_seq),event_count=event_count+1",
+                        (scope, seq),
+                    )
                 self.db.execute("COMMIT")
                 return {"sequence":seq,"payload_digest":digest(payload),"replayed":replay}
             except sqlite3.IntegrityError as exc:
@@ -521,6 +688,14 @@ class ZPCMMemory:
                 receipts = []
                 for event_id, payload in normalized:
                     seq, replay = self._append(event_id, "e12a6_lifecycle", scope, payload)
+                    if not replay:
+                        self._index_e12a6_candidate_event(scope, seq, event_id, payload)
+                        self.db.execute(
+                            "INSERT INTO e12a6_lifecycle_candidate_history_meta(scope,high_water_seq,event_count) "
+                            "VALUES(?,?,1) ON CONFLICT(scope) DO UPDATE SET "
+                            "high_water_seq=MAX(high_water_seq,excluded.high_water_seq),event_count=event_count+1",
+                            (scope, seq),
+                        )
                     if payload.get("kind") == "authorization_consumed" and not replay:
                         body = payload["body"]
                         self.db.execute(
