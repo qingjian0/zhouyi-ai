@@ -96,6 +96,16 @@ class IndexedSemanticUnitReadTests(unittest.TestCase):
         with self.assertRaises(EvidenceResolutionError):
             self.store.get_candidate(candidate.envelope.record_id)
 
+    def test_event_log_rejects_normal_update_attempts(self):
+        candidate = self.candidate()
+        self.store.record_candidate(candidate)
+        with self.assertRaisesRegex(Exception, "append-only"):
+            with self.memory.db:
+                self.memory.db.execute(
+                    "UPDATE memory_events SET payload_json = payload_json WHERE event_id = ?",
+                    (f"m2:semantic-unit:{candidate.envelope.record_id}",),
+                )
+
     def test_indexed_read_rejects_event_identity_or_body_tampering(self):
         candidate = self.candidate()
         self.store.record_candidate(candidate)
@@ -119,6 +129,13 @@ class IndexedSemanticUnitReadTests(unittest.TestCase):
                     event["event_id"],
                 ),
             )
+            db.execute("""
+                CREATE TRIGGER memory_events_reject_update
+                BEFORE UPDATE ON memory_events
+                BEGIN
+                    SELECT RAISE(ABORT, 'memory_events is append-only');
+                END
+            """)
         with self.assertRaisesRegex(SemanticUnitStoreError, "digest mismatch"):
             self.store.get_candidate(candidate.envelope.record_id)
 
