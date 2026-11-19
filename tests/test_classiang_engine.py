@@ -2,8 +2,8 @@ import unittest
 
 from prototype.classiang_engine import (
     ClassExample, FeatureAtom, FeatureCandidate, InductionStatus,
-    MembershipDecision, Observation, assess_membership, induce_class,
-    select_aspects,
+    MembershipDecision, Observation, RevisionStatus, assess_membership, induce_class,
+    revise_class_with_counterexample, select_aspects,
 )
 
 
@@ -33,6 +33,85 @@ def example(name, atoms, *, domain="domain-a"):
 
 
 class ClassiangEngineTests(unittest.TestCase):
+    def test_counterexample_narrows_required_features_and_increments_version(self):
+        feature_a = FeatureAtom("function", "moves-load")
+        feature_b = FeatureAtom("attribute", "metal")
+        feature_c = FeatureAtom("process", "cyclic")
+        positives = (
+            example("p1", (feature_a, feature_b, feature_c)),
+            example("p2", (feature_a, feature_b, feature_c)),
+        )
+        negatives = (example("n1", (feature_b,)),)
+        initial = induce_class(
+            class_id="mechanism", purpose="recognition",
+            positive_examples=positives, negative_examples=negatives,
+            validity_scope="fixture-only",
+        ).hypothesis
+        self.assertEqual(set(initial.required_features), {feature_a, feature_c})
+
+        result = revise_class_with_counterexample(
+            hypothesis=initial,
+            positive_examples=positives,
+            negative_examples=negatives,
+            counterexample=example("counterexample-1", (feature_a, feature_b)),
+        )
+        self.assertEqual(result.status, RevisionStatus.REVISED)
+        self.assertEqual(result.active_hypothesis.version, 2)
+        self.assertEqual(result.removed_required_features, (feature_a,))
+        self.assertEqual(result.active_hypothesis.required_features, (feature_c,))
+        self.assertIn("counterexample-1", result.active_hypothesis.negative_example_ids)
+        self.assertEqual(result.counterexample_id, "counterexample-1")
+
+    def test_underdetermined_counterexample_proposal_keeps_old_hypothesis_active(self):
+        feature_a = FeatureAtom("function", "moves-load")
+        feature_b = FeatureAtom("attribute", "metal")
+        feature_c = FeatureAtom("process", "cyclic")
+        positives = (
+            example("p1", (feature_a, feature_b, feature_c)),
+            example("p2", (feature_a, feature_b, feature_c)),
+        )
+        negatives = (example("n1", (feature_b,)),)
+        initial = induce_class(
+            class_id="mechanism", purpose="recognition",
+            positive_examples=positives, negative_examples=negatives,
+            validity_scope="fixture-only",
+        ).hypothesis
+
+        result = revise_class_with_counterexample(
+            hypothesis=initial,
+            positive_examples=positives,
+            negative_examples=negatives,
+            counterexample=example("counterexample-all", (feature_a, feature_b, feature_c)),
+        )
+        self.assertEqual(result.status, RevisionStatus.RETAINED_UNDERDETERMINED)
+        self.assertIs(result.active_hypothesis, initial)
+        self.assertIsNone(result.candidate_hypothesis)
+        self.assertEqual(initial.version, 1)
+
+    def test_revision_rejects_unmatched_provenance_or_duplicate_counterexample(self):
+        feature = FeatureAtom("function", "moves-load")
+        positives = (example("p1", (feature,)), example("p2", (feature,)))
+        negatives = (example("n1", (FeatureAtom("attribute", "metal"),)),)
+        initial = induce_class(
+            class_id="mechanism", purpose="recognition",
+            positive_examples=positives, negative_examples=negatives,
+            validity_scope="fixture-only",
+        ).hypothesis
+        with self.assertRaisesRegex(ValueError, "provenance"):
+            revise_class_with_counterexample(
+                hypothesis=initial,
+                positive_examples=(example("wrong-1", (feature,)), positives[1]),
+                negative_examples=negatives,
+                counterexample=example("new-ce", (feature,)),
+            )
+        with self.assertRaisesRegex(ValueError, "already"):
+            revise_class_with_counterexample(
+                hypothesis=initial,
+                positive_examples=positives,
+                negative_examples=negatives,
+                counterexample=positives[0],
+            )
+
     def test_task_conditioned_aspect_selection_is_auditable(self):
         item = observation("a", (
             FeatureAtom("morphology", "ring"),
