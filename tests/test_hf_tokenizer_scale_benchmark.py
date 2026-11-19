@@ -56,7 +56,7 @@ class HuggingFaceScaleBenchmarkTests(unittest.TestCase):
             root = Path(temp)
             asset = self._fixture(root)
             source = root / "source.txt"
-            source.write_bytes(b"\\xff")
+            source.write_bytes(b"\xff")
             with self.assertRaises(TokenizerBenchmarkError):
                 benchmark_whole_document(source, asset, tokenizer_id="fixture@v1")
             source.write_text("hello", encoding="utf-8")
