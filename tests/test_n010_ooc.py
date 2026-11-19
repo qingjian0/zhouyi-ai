@@ -118,7 +118,7 @@ class N010OutOfCoreTests(unittest.TestCase):
         with sqlite3.connect(output) as db:
             self.assertEqual(db.execute("PRAGMA integrity_check").fetchone()[0], "ok")
             self.assertEqual(
-                db.execute("SELECT COUNT(*) FROM groups").fetchone()[0], 4
+                db.execute("SELECT COUNT(*) FROM groups").fetchone()[0], 8
             )
         self.assertEqual(list(self.root.glob("shared.groups.sqlite3.*.tmp")), [])
 
