@@ -1035,42 +1035,45 @@ class ZPCMMemory:
                         or cursor < 0 or cursor > high_water):
                     raise ZPCMError("authorization consumption checkpoint is invalid or ahead of event history")
                 last_sequence = cursor
-                for event in self.iter_domain_events(
-                    event_type="e12a6_lifecycle", scope=scope,
-                    after_sequence=cursor,
-                ):
-                    payload = event["payload"]
-                    if payload.get("kind") == "authorization_consumed":
-                        body = payload.get("body")
-                        if not isinstance(body, dict):
-                            raise ZPCMError("authorization consumption body must be an object")
-                        receipt_id, nonce = body.get("receipt_id"), body.get("nonce")
-                        if (not isinstance(receipt_id, str) or not receipt_id.strip()
-                                or not isinstance(nonce, str) or not nonce.strip()
-                                or body.get("scope") != scope
-                                or event["event_id"] != f"e12a6:authorization-consumed:{receipt_id}"):
-                            raise ZPCMError("authorization consumption index data is malformed")
-                        existing = self.db.execute(
-                            "SELECT receipt_id,nonce,event_id,scope FROM e12a6_authorization_consumptions "
-                            "WHERE receipt_id=? OR nonce=? OR event_id=?",
-                            (receipt_id, nonce, event["event_id"]),
-                        ).fetchone()
-                        expected = (receipt_id, nonce, event["event_id"], scope)
-                        if existing is not None:
-                            actual = (
-                                existing["receipt_id"], existing["nonce"],
-                                existing["event_id"], existing["scope"],
-                            )
-                            if actual != expected:
-                                raise ZPCMError("duplicate receipt ID or nonce in persisted lifecycle history")
-                        else:
-                            self.db.execute(
-                                "INSERT INTO e12a6_authorization_consumptions(receipt_id,nonce,event_id,scope) "
-                                "VALUES(?,?,?,?)", expected,
-                            )
-                    last_sequence = event["sequence"]
-                if last_sequence != high_water:
-                    raise ZPCMError("authorization consumption checkpoint replay did not reach event high-water mark")
+                # Avoid even opening an empty keyset reader when the durable
+                # checkpoint already equals the scoped event high-water mark.
+                if cursor < high_water:
+                        for event in self.iter_domain_events(
+                            event_type="e12a6_lifecycle", scope=scope,
+                            after_sequence=cursor,
+                        ):
+                            payload = event["payload"]
+                        if payload.get("kind") == "authorization_consumed":
+                            body = payload.get("body")
+                            if not isinstance(body, dict):
+                                raise ZPCMError("authorization consumption body must be an object")
+                            receipt_id, nonce = body.get("receipt_id"), body.get("nonce")
+                            if (not isinstance(receipt_id, str) or not receipt_id.strip()
+                                    or not isinstance(nonce, str) or not nonce.strip()
+                                    or body.get("scope") != scope
+                                    or event["event_id"] != f"e12a6:authorization-consumed:{receipt_id}"):
+                                raise ZPCMError("authorization consumption index data is malformed")
+                            existing = self.db.execute(
+                                "SELECT receipt_id,nonce,event_id,scope FROM e12a6_authorization_consumptions "
+                                "WHERE receipt_id=? OR nonce=? OR event_id=?",
+                                (receipt_id, nonce, event["event_id"]),
+                            ).fetchone()
+                            expected = (receipt_id, nonce, event["event_id"], scope)
+                            if existing is not None:
+                                actual = (
+                                    existing["receipt_id"], existing["nonce"],
+                                    existing["event_id"], existing["scope"],
+                                )
+                                if actual != expected:
+                                    raise ZPCMError("duplicate receipt ID or nonce in persisted lifecycle history")
+                            else:
+                                self.db.execute(
+                                    "INSERT INTO e12a6_authorization_consumptions(receipt_id,nonce,event_id,scope) "
+                                    "VALUES(?,?,?,?)", expected,
+                                )
+                        last_sequence = event["sequence"]
+                    if last_sequence != high_water:
+                        raise ZPCMError("authorization consumption checkpoint replay did not reach event high-water mark")
                 self.db.execute(
                     "INSERT INTO e12a6_authorization_consumption_checkpoints(scope,checkpoint_sequence) "
                     "VALUES(?,?) ON CONFLICT(scope) DO UPDATE SET "
