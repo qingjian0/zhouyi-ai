@@ -17,6 +17,7 @@ from prototype.e09_authority_services import (
 )
 from prototype.e09_ed25519_keyring import E09Ed25519IssuerKeyring
 from prototype.e09_verification_receipt import verify_e09_verification_receipt
+from prototype.e09_observation_receipt import E09ObservationReceiptVerifier
 from prototype.e09_domain_registry import E09DomainBinding, StaticE09DomainRegistry
 from prototype.shared_evidence_protocol import STRICT_PROTOCOL_VERSION, SQLiteEvidenceStore
 
@@ -248,6 +249,51 @@ class E09AuthorityServiceTests(unittest.TestCase):
         self.assertEqual(verified.evidence[0].domain_registry_version, "v1")
         self.assertEqual(receipt["schema_version"], "e09_verification_receipt@2")
         self.assertNotIn("target_or_feedback", receipt["evidence"][0])
+
+    def test_verifier_issues_candidate_bound_yixiang_observation_receipt(self):
+        reveal_ref = self._prior_prediction()
+        verifier_private = Ed25519PrivateKey.generate()
+        verifier_public = verifier_private.public_key().public_bytes(
+            encoding=serialization.Encoding.Raw,
+            format=serialization.PublicFormat.Raw,
+        )
+        verifier = E09VerifierService(
+            self.store, signature_verifier=self.keyring.verify,
+            verifier_id=self.keyring.verifier_id,
+            clock=_FixedClock(datetime(2026, 11, 12, 0, 30, tzinfo=timezone.utc)),
+            receipt_signer=_NamedSigner(verifier_private, self.keyring.verifier_id),
+            domain_registry=self.domain_registry,
+        )
+        candidate_digest = hashlib.sha256(b"candidate body").hexdigest()
+        receipt = verifier.issue_yixiang_observation_receipt(
+            episode_id=self.episode,
+            evidence_refs=[reveal_ref],
+            scope=self.scope,
+            learner_track=self.track,
+            candidate_record_id="m2:candidate:1",
+            candidate_record_digest=candidate_digest,
+        )
+        receipt_keyring = E09Ed25519IssuerKeyring({
+            self.keyring.verifier_id: verifier_public,
+        })
+        trusted_verifier = E09ObservationReceiptVerifier(
+            signature_verifier=receipt_keyring.verify,
+            trusted_verifier_id=self.keyring.verifier_id,
+            domain_registry=self.domain_registry,
+            clock=lambda: datetime(2026, 11, 12, 0, 30, 30, tzinfo=timezone.utc),
+        )
+        verified = trusted_verifier.verify(
+            receipt,
+            candidate_record_id="m2:candidate:1",
+            candidate_record_digest=candidate_digest,
+            expected_scope=self.scope,
+        )
+        self.assertEqual(verified.event_ids, (reveal_ref,))
+        self.assertEqual(verified.observation_ids, ("obs-1",))
+        self.assertEqual(verified.domain_id, "domain:authority")
+        self.assertEqual(verified.domain_registry_version, "v1")
+        self.assertEqual(verified.candidate_record_digest, candidate_digest)
+        self.assertEqual(receipt["audience"], "zhouyi-m2-yixiang-adapter")
 
     def test_verifier_rejects_caller_supplied_world_family_override(self):
         reveal_ref = self._prior_prediction()
