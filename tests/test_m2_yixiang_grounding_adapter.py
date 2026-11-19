@@ -304,13 +304,35 @@ class M2YixiangGroundingAdapterTests(unittest.TestCase):
         refs = dict(self.e09)
         refs.pop("state:b")
         with self.assertRaisesRegex(GroundedYixiangInputError, "cover exactly"):
-            self.compose(e09_event_refs_by_record=refs)
+            self.compose(e09_observation_receipts_by_record=refs)
+
+    def test_arbitrary_event_id_string_is_rejected(self):
+        receipts = dict(self.e09)
+        receipts["actor:a"] = {"event_id": "e09:observation:actor-a"}
+        with self.assertRaisesRegex(GroundedYixiangInputError, "invalid E09 observation receipt"):
+            self.compose(e09_observation_receipts_by_record=receipts)
+
+    def test_receipt_copied_from_another_candidate_is_rejected(self):
+        receipts = dict(self.e09)
+        receipts["actor:a"] = dict(self.e09["actor:b"])
+        with self.assertRaisesRegex(GroundedYixiangInputError, "candidate record ID mismatch"):
+            self.compose(e09_observation_receipts_by_record=receipts)
+
+    def test_receipt_tampering_is_rejected(self):
+        receipts = dict(self.e09)
+        receipts["actor:a"] = dict(self.e09["actor:a"])
+        receipts["actor:a"]["observations"] = [{
+            **receipts["actor:a"]["observations"][0],
+            "event_id": "e09:observation:forged",
+        }]
+        with self.assertRaisesRegex(GroundedYixiangInputError, "signature is invalid"):
+            self.compose(e09_observation_receipts_by_record=receipts)
 
     def test_missing_role_target_is_rejected(self):
         rows = tuple(item for item in self.workspace if item.envelope.record_id != "state:a")
         refs = {key: value for key, value in self.e09.items() if key != "state:a"}
         with self.assertRaisesRegex(GroundedYixiangInputError, "missing workspace"):
-            self.compose(workspace_candidates=rows, e09_event_refs_by_record=refs)
+            self.compose(workspace_candidates=rows, e09_observation_receipts_by_record=refs)
 
     def test_relation_role_order_is_not_sorted_or_lost(self):
         grounded = self.compose()
