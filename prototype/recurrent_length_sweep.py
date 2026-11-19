@@ -105,7 +105,7 @@ def main(argv=None) -> int:
         print(rendered)
     else:
         with open(args.output, "w", encoding="utf-8") as handle:
-            handle.write(rendered + "\\n")
+            handle.write(rendered + "\n")
     return 0
 
 
