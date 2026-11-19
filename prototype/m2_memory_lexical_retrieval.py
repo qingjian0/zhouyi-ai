@@ -26,9 +26,9 @@ class LexicalRetrievalError(ValueError):
 def _terms(text: str) -> frozenset[str]:
     terms: set[str] = set()
     # Keep CJK runs separate: bigrams must not cross whitespace or punctuation.
-    for match in re.finditer(r"[a-z0-9]+|[\\u3400-\\u9fff]+", text.casefold()):
+    for match in re.finditer(r"[a-z0-9]+|[\u3400-\u9fff]+", text.casefold()):
         piece = match.group(0)
-        if piece[0] >= "\\u3400":
+        if piece[0] >= "\u3400":
             terms.update(piece)
             terms.update(piece[index:index + 2] for index in range(len(piece) - 1))
         else:
