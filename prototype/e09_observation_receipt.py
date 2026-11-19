@@ -6,10 +6,11 @@ not assert that the candidate is semantically true or advance E12-A6.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import datetime, timezone
+import secrets
 from typing import Any, Callable
 
-from prototype.e09_domain_registry import E09DomainRegistry
+from prototype.e09_domain_registry import E09DomainBinding, E09DomainRegistry
 from prototype.shared_evidence_protocol import canonical_json
 
 
@@ -157,6 +158,8 @@ class E09ObservationReceiptVerifier:
             "domain_registry_id": binding.registry_id,
             "domain_registry_version": binding.registry_version,
         }
+        if not isinstance(binding, E09DomainBinding):
+            raise E09ObservationReceiptError("trusted domain registry returned an invalid binding")
         if not binding.active or any(receipt[key] != value for key, value in expected_domain.items()):
             raise E09ObservationReceiptError("receipt domain binding is stale, revoked or mismatched")
         observations = receipt["observations"]
@@ -226,8 +229,8 @@ def build_observation_receipt(
         raise TypeError("signer must implement sign")
     receipt = {
         "schema_version": OBSERVATION_RECEIPT_SCHEMA,
-        "receipt_id": __import__("secrets").token_hex(16),
-        "nonce": __import__("secrets").token_urlsafe(32),
+        "receipt_id": secrets.token_hex(16),
+        "nonce": secrets.token_urlsafe(32),
         "audience": OBSERVATION_RECEIPT_AUDIENCE,
         "verifier_id": verifier_id,
         "episode_id": episode_id,
