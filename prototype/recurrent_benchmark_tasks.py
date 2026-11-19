@@ -40,7 +40,7 @@ def periodic_next_symbol(
         pattern[-1] ^= 1
     return [
         SequenceExample(
-            tuple(pattern[(i - 5) % period] for i in range(6)),
+            tuple(pattern[(i - 5 + offset) % period] for offset in range(5)),
             pattern[i % period],
             "periodic",
             (("phase", i % period), ("period", period)),
