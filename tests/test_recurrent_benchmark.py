@@ -13,10 +13,11 @@ class RecurrentBenchmarkRunnerTests(unittest.TestCase):
             seeds=(23,),
         )
         self.assertEqual(report["scope"], "synthetic_binary_recurrent_mechanism_benchmark")
-        self.assertEqual(len(report["results"]), 2)
+        self.assertEqual(len(report["results"]), 3)
         by_model = {row["model"]: row for row in report["results"]}
         self.assertEqual(by_model["gated_rnn"]["parameter_count"], 29)
         self.assertEqual(by_model["linear_rnn"]["parameter_count"], 29)
+        self.assertEqual(by_model["selective_diagonal_ssm"]["parameter_count"], 29)
         for row in report["results"]:
             self.assertTrue(row["chunk_state_parity"])
             self.assertGreaterEqual(row["accuracy"], 0.0)
