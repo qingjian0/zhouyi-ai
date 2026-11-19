@@ -65,77 +65,121 @@ class SQLiteEvidenceRefResolver:
         db.execute("PRAGMA busy_timeout = 30000")
         return db
 
+    @staticmethod
+    def _verified_document_version(db: sqlite3.Connection, document_id: str) -> str:
+        """Verify the complete immutable manifest inside the caller's read snapshot."""
+        state = db.execute(
+            """SELECT next_byte_offset,next_ordinal,complete,manifest_digest,
+                      manifest_chunks,manifest_bytes,chunk_generation,manifest_generation
+               FROM ingest_documents WHERE document_id=?""",
+            (document_id,),
+        ).fetchone()
+        if state is None:
+            raise EvidenceResolutionError("unknown M1 document")
+        if not bool(state[2]):
+            raise EvidenceResolutionError("cannot version an incomplete M1 document")
+        if (
+            not isinstance(state[3], str) or not state[3].startswith("manifest-sha256:")
+            or state[4] is None or state[5] is None or state[7] is None
+        ):
+            raise EvidenceResolutionError("durable document manifest is missing, stale, or invalid")
+        try:
+            actual_digest, actual_chunks, actual_bytes = _manifest_digest(
+                document_id,
+                db.execute(
+                    """SELECT ordinal,byte_start,byte_end,chunk_id,content_sha256,text_utf8
+                       FROM evidence_chunks WHERE document_id=? ORDER BY ordinal""",
+                    (document_id,),
+                ),
+            )
+            expected = (
+                int(state[0]), int(state[1]), int(state[4]), int(state[5]),
+                int(state[6]), int(state[7]),
+            )
+        except (TypeError, ValueError, OverflowError) as exc:
+            raise EvidenceResolutionError(
+                "durable document manifest contains invalid metadata"
+            ) from exc
+        if (
+            actual_digest != state[3]
+            or actual_chunks != expected[1]
+            or actual_chunks != expected[2]
+            or actual_bytes != expected[0]
+            or actual_bytes != expected[3]
+            or expected[4] != expected[5]
+            or expected[4] != expected[1]
+        ):
+            raise EvidenceResolutionError(
+                "durable document manifest does not match its complete chunk sequence"
+            )
+        return str(state[3])
+
     def document_version(self, document_id: str) -> str:
         if not isinstance(document_id, str) or not document_id.strip():
             raise EvidenceResolutionError("document_id must be non-empty")
         with self._connect() as db:
-            state = db.execute(
-                """SELECT next_byte_offset,next_ordinal,complete,manifest_digest,
-                          manifest_chunks,manifest_bytes,chunk_generation,manifest_generation
-                   FROM ingest_documents WHERE document_id=?""",
-                (document_id,),
-            ).fetchone()
-            if state is None:
-                raise EvidenceResolutionError("unknown M1 document")
-            if not bool(state[2]):
-                raise EvidenceResolutionError("cannot version an incomplete M1 document")
-            if (
-                not isinstance(state[3], str) or not state[3].startswith("manifest-sha256:")
-                or state[4] is None or state[5] is None or state[7] is None
-                or int(state[4]) != int(state[1])
-                or int(state[5]) != int(state[0])
-                or int(state[6]) != int(state[7])
-            ):
-                raise EvidenceResolutionError("durable document manifest is missing, stale, or invalid")
-            return str(state[3])
+            db.execute("BEGIN")
+            return self._verified_document_version(db, document_id)
 
     def make_reference(self, document_id: str, chunk_id: str) -> EvidenceRef:
-        version = self.document_version(document_id)
+        if not isinstance(document_id, str) or not document_id.strip():
+            raise EvidenceResolutionError("document_id must be non-empty")
+        if not isinstance(chunk_id, str) or not chunk_id.strip():
+            raise EvidenceResolutionError("chunk_id must be non-empty")
         with self._connect() as db:
+            db.execute("BEGIN")
+            version = self._verified_document_version(db, document_id)
             row = db.execute(
                 """SELECT byte_start, byte_end, content_sha256
                    FROM evidence_chunks WHERE document_id = ? AND chunk_id = ?""",
                 (document_id, chunk_id),
             ).fetchone()
-        if row is None:
-            raise EvidenceResolutionError("chunk does not belong to the requested document")
-        return EvidenceRef(
-            document_id=document_id,
-            chunk_id=chunk_id,
-            content_sha256=str(row[2]),
-            byte_start=int(row[0]),
-            byte_end=int(row[1]),
-            source_version=version,
-        )
+            if row is None:
+                raise EvidenceResolutionError("chunk does not belong to the requested document")
+            return EvidenceRef(
+                document_id=document_id,
+                chunk_id=chunk_id,
+                content_sha256=str(row[2]),
+                byte_start=int(row[0]),
+                byte_end=int(row[1]),
+                source_version=version,
+            )
 
     def resolve(self, reference: EvidenceRef) -> ResolvedEvidence:
         if not isinstance(reference, EvidenceRef):
             raise EvidenceResolutionError("reference must be an EvidenceRef")
-        current_version = self.document_version(reference.document_id)
-        if current_version != reference.source_version:
-            raise EvidenceResolutionError("EvidenceRef source version is stale or does not match M1")
         with self._connect() as db:
+            # The manifest proof and target chunk must come from one SQLite
+            # snapshot; separate connections leave a TOCTOU window.
+            db.execute("BEGIN")
+            current_version = self._verified_document_version(
+                db, reference.document_id
+            )
+            if current_version != reference.source_version:
+                raise EvidenceResolutionError(
+                    "EvidenceRef source version is stale or does not match M1"
+                )
             row = db.execute(
                 """SELECT ordinal, byte_start, byte_end, text_utf8, content_sha256
                    FROM evidence_chunks
                    WHERE document_id = ? AND chunk_id = ?""",
                 (reference.document_id, reference.chunk_id),
             ).fetchone()
-        if row is None:
-            raise EvidenceResolutionError("EvidenceRef chunk was not found")
-        ordinal, start, end, raw_blob, stored_digest = row
-        raw = bytes(raw_blob)
-        if len(raw) > self.MAX_CHUNK_BYTES:
-            raise EvidenceResolutionError("stored evidence chunk exceeds hard chunk byte limit")
-        actual_digest = hashlib.sha256(raw).hexdigest()
-        if (int(start), int(end)) != (reference.byte_start, reference.byte_end):
-            raise EvidenceResolutionError("EvidenceRef byte span does not match the stored chunk")
-        if stored_digest != reference.content_sha256 or actual_digest != stored_digest:
-            raise EvidenceResolutionError("EvidenceRef content hash does not match stored source bytes")
-        if len(raw) != int(end) - int(start):
-            raise EvidenceResolutionError("stored chunk byte length does not match its span")
-        try:
-            text = raw.decode("utf-8", errors="strict")
-        except UnicodeDecodeError as exc:
-            raise EvidenceResolutionError("stored evidence chunk is not valid UTF-8") from exc
-        return ResolvedEvidence(reference=reference, text=text, ordinal=int(ordinal))
+            if row is None:
+                raise EvidenceResolutionError("EvidenceRef chunk was not found")
+            ordinal, start, end, raw_blob, stored_digest = row
+            raw = bytes(raw_blob)
+            if len(raw) > self.MAX_CHUNK_BYTES:
+                raise EvidenceResolutionError("stored evidence chunk exceeds hard chunk byte limit")
+            actual_digest = hashlib.sha256(raw).hexdigest()
+            if (int(start), int(end)) != (reference.byte_start, reference.byte_end):
+                raise EvidenceResolutionError("EvidenceRef byte span does not match the stored chunk")
+            if stored_digest != reference.content_sha256 or actual_digest != stored_digest:
+                raise EvidenceResolutionError("EvidenceRef content hash does not match stored source bytes")
+            if len(raw) != int(end) - int(start):
+                raise EvidenceResolutionError("stored chunk byte length does not match its span")
+            try:
+                decoded = raw.decode("utf-8", errors="strict")
+            except UnicodeDecodeError as exc:
+                raise EvidenceResolutionError("stored evidence chunk is not valid UTF-8") from exc
+            return ResolvedEvidence(reference=reference, text=decoded, ordinal=int(ordinal))
