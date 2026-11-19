@@ -36,10 +36,12 @@ class PairMergeTokenizer:
             self.pending = ""
             self.closed = True
             return self._encode_complete(combined)
-        # Keep one trailing character because it may merge with the next chunk.
-        if not combined:
-            return []
-        stable, self.pending = combined[:-1], combined[-1]
+        # In this toy vocabulary only a trailing "a" can begin a cross-boundary
+        # merge. Retain that suffix; all other suffixes are stable.
+        if combined.endswith("a"):
+            stable, self.pending = combined[:-1], "a"
+        else:
+            stable, self.pending = combined, ""
         return self._encode_complete(stable)
 
 
