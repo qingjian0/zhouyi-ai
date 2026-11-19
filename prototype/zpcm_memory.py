@@ -1116,7 +1116,7 @@ class ZPCMMemory:
         while cursor < high_water:
             with self.lock:
                 rows = self.db.execute(
-                    "SELECT seq,event_id,event_type,scope,payload_json,length(CAST(payload_json AS BLOB)) AS payload_bytes,payload_digest,recorded_at "
+                    "SELECT seq,event_id,event_type,scope,length(CAST(payload_json AS BLOB)) AS payload_bytes,payload_digest,recorded_at "
                     "FROM memory_events WHERE event_type=? AND scope=? AND seq>? AND seq<=? "
                     "ORDER BY seq LIMIT ?",
                     (event_type, scope, cursor, high_water, page_size),
@@ -1136,7 +1136,16 @@ class ZPCMMemory:
             if not selected:
                 raise ZPCMError("event page cannot make progress within max_page_bytes")
             for row in selected:
-                payload = json.loads(row["payload_json"])
+                # Fetch payload bytes only after metadata has passed the
+                # aggregate page budget. Never fetchall() a page of JSON blobs.
+                with self.lock:
+                    raw = self.db.execute(
+                        "SELECT payload_json FROM memory_events WHERE seq=? AND event_id=?",
+                        (row["seq"], row["event_id"]),
+                    ).fetchone()
+                if raw is None:
+                    raise ZPCMError("event disappeared during forward keyset iteration")
+                payload = json.loads(raw["payload_json"])
                 if digest(payload) != row["payload_digest"]:
                     raise ZPCMError(f"domain event digest mismatch: {row['event_id']}")
                 cursor = row["seq"]
