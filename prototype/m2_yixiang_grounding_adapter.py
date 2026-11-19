@@ -10,6 +10,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Mapping, Sequence
 
+from prototype.e09_observation_receipt import E09ObservationReceiptVerifier, E09ObservationReceiptError
+
 from prototype.trlw_working_set import MemoryPacket, PacketStatus
 from prototype.observation_contract import (
     EvidenceRef,
@@ -55,17 +57,33 @@ class TRLWYixiangComposition:
     search_exhaustive: bool
 
 
-def _e09_refs(record_id: str, refs_by_record: Mapping[str, Sequence[str]]) -> tuple[str, ...]:
-    refs = refs_by_record.get(record_id)
-    if not isinstance(refs, (tuple, list)) or not refs:
+def _verified_e09_refs(
+    candidate: SemanticUnitCandidate,
+    receipts_by_record: Mapping[str, dict],
+    verifier: E09ObservationReceiptVerifier,
+) -> tuple[str, ...]:
+    record_id = candidate.envelope.record_id
+    receipt = receipts_by_record.get(record_id)
+    if not isinstance(receipt, dict):
         raise GroundedYixiangInputError(
-            f"record {record_id!r} has no E09 observation-event references"
+            f"record {record_id!r} requires a verifier-issued E09 observation receipt"
         )
-    if any(not isinstance(ref, str) or not ref.strip() for ref in refs):
-        raise GroundedYixiangInputError("E09 event refs must be non-empty strings")
-    if len(refs) != len(set(refs)):
-        raise GroundedYixiangInputError("E09 event refs must be unique per record")
-    return tuple(sorted(refs))
+    if not isinstance(verifier, E09ObservationReceiptVerifier):
+        raise GroundedYixiangInputError("receipt_verifier must be a trusted E09ObservationReceiptVerifier")
+    try:
+        verified = verifier.verify(
+            receipt,
+            candidate_record_id=record_id,
+            candidate_record_digest=record_digest(candidate),
+            expected_scope=candidate.envelope.scope,
+        )
+    except E09ObservationReceiptError as exc:
+        raise GroundedYixiangInputError(
+            f"record {record_id!r} has an invalid E09 observation receipt: {exc}"
+        ) from exc
+    if not verified.event_ids:
+        raise GroundedYixiangInputError("verified E09 receipt contains no observation event IDs")
+    return verified.event_ids
 
 
 def compose_grounded_yixiang_hypotheses(
@@ -73,7 +91,8 @@ def compose_grounded_yixiang_hypotheses(
     *,
     relation_type: str,
     workspace_candidates: Sequence[SemanticUnitCandidate],
-    e09_event_refs_by_record: Mapping[str, Sequence[str]],
+    e09_observation_receipts_by_record: Mapping[str, dict],
+    receipt_verifier: E09ObservationReceiptVerifier,
     transform: RoleTransform,
     limit: int = 16,
     max_candidates_per_role: int = 32,
@@ -98,8 +117,10 @@ def compose_grounded_yixiang_hypotheses(
         raise GroundedYixiangInputError("transform must be a RoleTransform")
     if not isinstance(workspace_candidates, (tuple, list)) or not workspace_candidates:
         raise GroundedYixiangInputError("workspace_candidates must be a non-empty sequence")
-    if not isinstance(e09_event_refs_by_record, Mapping):
-        raise GroundedYixiangInputError("e09_event_refs_by_record must be a mapping")
+    if not isinstance(e09_observation_receipts_by_record, Mapping):
+        raise GroundedYixiangInputError("e09_observation_receipts_by_record must be a mapping")
+    if not isinstance(receipt_verifier, E09ObservationReceiptVerifier):
+        raise GroundedYixiangInputError("receipt_verifier must be a trusted E09ObservationReceiptVerifier")
 
     relation_roles = relation_candidate.role_bindings
     if len(relation_roles) < 2:
@@ -140,9 +161,9 @@ def compose_grounded_yixiang_hypotheses(
         raise GroundedYixiangInputError("XSL transform arity does not match grounded relation roles")
 
     expected_record_ids = {relation_candidate.envelope.record_id, *by_id.keys()}
-    if set(e09_event_refs_by_record) != expected_record_ids:
+    if set(e09_observation_receipts_by_record) != expected_record_ids:
         raise GroundedYixiangInputError(
-            "E09 event-ref mapping must cover exactly the relation and workspace records"
+            "E09 observation-receipt mapping must cover exactly the relation and workspace records"
         )
 
     srok_nodes = []
@@ -150,7 +171,7 @@ def compose_grounded_yixiang_hypotheses(
     all_e09_refs = set()
     for item in rows:
         record_id = item.envelope.record_id
-        event_refs = _e09_refs(record_id, e09_event_refs_by_record)
+        event_refs = _verified_e09_refs(item, e09_observation_receipts_by_record, receipt_verifier)
         all_e09_refs.update(event_refs)
         source_ref_digests.update(record_digest(ref) for ref in item.envelope.source_refs)
         tags = frozenset(attribute.name for attribute in item.typed_attributes)
@@ -163,7 +184,7 @@ def compose_grounded_yixiang_hypotheses(
         ))
 
     relation_record_id = relation_candidate.envelope.record_id
-    relation_event_refs = _e09_refs(relation_record_id, e09_event_refs_by_record)
+    relation_event_refs = _verified_e09_refs(relation_candidate, e09_observation_receipts_by_record, receipt_verifier)
     all_e09_refs.update(relation_event_refs)
     source_ref_digests.update(
         record_digest(ref) for ref in relation_candidate.envelope.source_refs
@@ -196,7 +217,8 @@ def compose_trlw_grounded_yixiang_hypotheses(
     *,
     relation_record_id: str,
     relation_type: str,
-    e09_event_refs_by_record: Mapping[str, Sequence[str]],
+    e09_observation_receipts_by_record: Mapping[str, dict],
+    receipt_verifier: E09ObservationReceiptVerifier,
     transform: RoleTransform,
     limit: int = 16,
     max_candidates_per_role: int = 32,
@@ -229,7 +251,8 @@ def compose_trlw_grounded_yixiang_hypotheses(
         relation_candidate,
         relation_type=relation_type,
         workspace_candidates=records,
-        e09_event_refs_by_record=e09_event_refs_by_record,
+        e09_observation_receipts_by_record=e09_observation_receipts_by_record,
+        receipt_verifier=receipt_verifier,
         transform=transform,
         limit=limit,
         max_candidates_per_role=max_candidates_per_role,
@@ -272,7 +295,8 @@ def coordinate_trlw_grounded_yixiang_csg_gcr(
     *,
     relation_record_id: str,
     relation_type: str,
-    e09_event_refs_by_record: Mapping[str, Sequence[str]],
+    e09_observation_receipts_by_record: Mapping[str, dict],
+    receipt_verifier: E09ObservationReceiptVerifier,
     transform: RoleTransform,
     parent_state_ref: str,
     branch_id: str,
@@ -289,7 +313,8 @@ def coordinate_trlw_grounded_yixiang_csg_gcr(
         packet,
         relation_record_id=relation_record_id,
         relation_type=relation_type,
-        e09_event_refs_by_record=e09_event_refs_by_record,
+        e09_observation_receipts_by_record=e09_observation_receipts_by_record,
+        receipt_verifier=receipt_verifier,
         transform=transform,
         limit=limit,
         max_candidates_per_role=max_candidates_per_role,
