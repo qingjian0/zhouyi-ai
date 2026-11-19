@@ -151,7 +151,7 @@ def main(argv=None) -> int:
     if args.output == "-":
         print(rendered)
     else:
-        Path(args.output).write_text(rendered + "\\n", encoding="utf-8")
+        Path(args.output).write_text(rendered + "\n", encoding="utf-8")
     return 0 if report["expected_token_count_match"] is not False else 3
 
 
