@@ -24,6 +24,11 @@ class RecurrentBenchmarkRunnerTests(unittest.TestCase):
             self.assertLessEqual(row["accuracy"], 1.0)
             self.assertGreater(row["binary_cross_entropy"], 0.0)
             self.assertGreater(row["peak_traced_python_bytes"], 0)
+            self.assertIn(row["train_rss_measurement_source"],
+                          ("sampled_process_rss", "unavailable"))
+            if row["train_rss_measurement_source"] == "sampled_process_rss":
+                self.assertGreater(row["train_sampled_peak_rss_bytes"], 0)
+                self.assertGreaterEqual(row["train_rss_peak_increment_bytes"], 0)
 
     def test_runner_supports_held_out_evaluation_gap_length(self):
         report = run_benchmark(
@@ -35,7 +40,7 @@ class RecurrentBenchmarkRunnerTests(unittest.TestCase):
             seeds=(29,),
         )
         for row in report["results"]:
-            self.assertEqual(row["train_context_symbols"], 4 * 15)
+            self.assertEqual(row["train_context_symbols_per_epoch"], 4 * 15)
             self.assertEqual(row["evaluation_context_symbols"], 3 * 23)
 
     def test_runner_rejects_non_positive_evaluation_gap_length(self):
