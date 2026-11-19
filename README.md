@@ -43,6 +43,7 @@
 - [数学理论 v0.3](docs/THEORY_v0.3.md)
 - [架构设计](docs/ARCHITECTURE.md)
 - [百万输入 / 百万连续输出架构与训练协议](docs/ONE_MILLION_SEQUENCE_TRAINING.md)
+- [P5-A 流式精确 Token 计量](docs/P5A_STREAMING_TOKEN_COUNT.md)
 - [易象模块：可检验化设计](docs/YIXIANG_MODULE.md)
 - [相关工作与文献](docs/RELATED_WORK.md)
 - [2026-11-10 研究增量报告](docs/RESEARCH_FINDINGS_2026-11-10.md)
