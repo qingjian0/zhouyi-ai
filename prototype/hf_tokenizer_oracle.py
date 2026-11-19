@@ -6,7 +6,7 @@ not a bounded-memory incremental implementation.
 """
 from __future__ import annotations
 
-from collections.abc import Iterable, Sequence
+from collections.abc import Iterable
 from dataclasses import dataclass
 
 from prototype.tokenizer_adapters import BufferedTokenizerOracle
@@ -54,7 +54,9 @@ def verify_chunk_boundary_parity(
         raise ValueError("chunk sizes must sum to the text length")
 
     canonical = tuple(encode(text))
-    oracle = BufferedTokenizerOracle(tokenizer_id, encode)
+    # Reuse the canonical result: parity checking should not tokenize the same
+    # full document twice, which is material for large correctness corpora.
+    oracle = BufferedTokenizerOracle(tokenizer_id, lambda _: canonical)
     emitted: list[int] = []
     offset = 0
     for size in sizes:
