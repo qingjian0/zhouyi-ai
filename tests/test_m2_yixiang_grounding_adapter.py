@@ -1,4 +1,5 @@
 import base64
+import base64
 import hashlib
 import unittest
 from datetime import datetime, timedelta, timezone
@@ -309,7 +310,7 @@ class M2YixiangGroundingAdapterTests(unittest.TestCase):
     def test_arbitrary_event_id_string_is_rejected(self):
         receipts = dict(self.e09)
         receipts["actor:a"] = {"event_id": "e09:observation:actor-a"}
-        with self.assertRaisesRegex(GroundedYixiangInputError, "invalid E09 observation receipt"):
+        with self.assertRaisesRegex(GroundedYixiangInputError, "requires a verifier-issued E09 observation receipt"):
             self.compose(e09_observation_receipts_by_record=receipts)
 
     def test_receipt_copied_from_another_candidate_is_rejected(self):
