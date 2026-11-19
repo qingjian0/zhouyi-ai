@@ -114,8 +114,7 @@ class PersistentM2ObservationStore:
         if observation.envelope.scope != self.scope:
             raise ObservationStoreError("observation scope does not match the store scope")
         refs = observation.envelope.source_refs
-        for reference in refs:
-            self._resolver.resolve(reference)
+        self._resolver.resolve_many(list(refs))
         if len(refs) == 1:
             reference = refs[0]
             if observation.source_locator.payload_version != reference.source_version:
