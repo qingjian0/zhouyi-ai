@@ -31,8 +31,37 @@ class Tests(unittest.TestCase):
    calls.append(kwargs)
    return original(**kwargs)
   self.m.iter_domain_events=tracked
+  # Normal reopen/reconciliation is checkpoint-only after an atomic append.
   self.m._rebuild_authorization_consumption_index()
+  self.assertEqual(calls,[])
+  # Explicit repair still performs a bounded full replay from sequence zero.
+  self.m._rebuild_authorization_consumption_index(force=True)
   self.assertEqual(calls,[{"event_type":"e12a6_lifecycle","scope":"project"}])
+
+
+ def test_authorization_checkpoint_advances_with_each_lifecycle_append(self):
+  receipt=self.m.append_lifecycle_event(
+   event_id="e12a6:candidate:rel:checkpoint@1",scope="project",
+   payload={"schema_version":"e12a6-lifecycle-event-v1","kind":"candidate_registered",
+    "body":{"candidate":{"candidate_id":"rel:checkpoint","version":1,"evidence_ids":[]}}},
+   expected_sequence=0)
+  row=self.m.db.execute(
+   "SELECT checkpoint_sequence FROM e12a6_authorization_consumption_checkpoints WHERE scope=?",
+   ("project",)).fetchone()
+  self.assertEqual(row["checkpoint_sequence"],receipt["sequence"])
+
+ def test_authorization_checkpoint_ahead_of_history_fails_closed(self):
+  receipt=self.m.append_lifecycle_event(
+   event_id="e12a6:candidate:rel:checkpoint-ahead@1",scope="project",
+   payload={"schema_version":"e12a6-lifecycle-event-v1","kind":"candidate_registered",
+    "body":{"candidate":{"candidate_id":"rel:checkpoint-ahead","version":1,"evidence_ids":[]}}},
+   expected_sequence=0)
+  self.m.db.execute(
+   "UPDATE e12a6_authorization_consumption_checkpoints SET checkpoint_sequence=? WHERE scope=?",
+   (receipt["sequence"]+1,"project"))
+  with self.assertRaisesRegex(ZPCMError,"checkpoint is invalid or ahead"):
+   self.m._rebuild_authorization_consumption_index()
+
 
  def test_generic_domain_events_share_the_authoritative_event_log(self):
   first=self.m.append_domain_event(event_type="m2_cognition",event_id="m2:obs:1",
