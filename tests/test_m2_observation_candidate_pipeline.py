@@ -1,6 +1,9 @@
 from __future__ import annotations
 
+import io
+import tempfile
 import unittest
+from pathlib import Path
 from dataclasses import replace
 from unittest.mock import Mock
 
@@ -8,7 +11,14 @@ from prototype.m2_observation_candidate_pipeline import (
     ObservationCandidatePipeline,
     SemanticExtractionError,
 )
-from prototype.m2_observation_store import ObservationReceipt
+from prototype.m2_observation_store import (
+    ObservationReceipt,
+    PersistentM2ObservationStore,
+)
+from prototype.m2_semantic_unit_store import PersistentSemanticUnitCandidateStore
+from prototype.evidence_ref_resolver import SQLiteEvidenceRefResolver
+from prototype.streaming_evidence_ingest import SQLiteEvidenceIngestor
+from prototype.zpcm_memory import ZPCMMemory
 from prototype.observation_contract import (
     EpistemicStatus,
     EvidenceRef,
@@ -129,7 +139,7 @@ class ObservationCandidatePipelineTests(unittest.TestCase):
         forged = replace(self.receipt, payload_digest="c" * 64)
         with self.assertRaisesRegex(SemanticExtractionError, "persisted receipt"):
             self.run_pipeline(receipt=forged)
-        self.extractor.calls == 0
+        self.assertEqual(self.extractor.calls, 0)
         self.candidate_store.record_candidate.assert_not_called()
 
     def test_rejects_observation_that_is_not_persisted(self):
@@ -224,6 +234,56 @@ class ObservationCandidatePipelineTests(unittest.TestCase):
         )
         result = self.run_pipeline(pipeline, observation, receipt)
         self.assertTrue(result.partial_observation)
+
+
+    def test_real_zpcm_pipeline_persists_only_authoritatively_stored_observation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            evidence_db = root / "evidence.sqlite3"
+            memory_db = root / "memory.sqlite3"
+            source = "泵通过压力输送液体".encode("utf-8")
+            ingestor = SQLiteEvidenceIngestor(evidence_db)
+            ingest_result = ingestor.ingest(
+                "doc-1", "fixture.txt", io.BytesIO(source), chunk_bytes=128,
+            )
+            self.assertTrue(ingest_result.complete)
+            chunk = ingestor.get_chunks("doc-1")[0]
+            resolver = SQLiteEvidenceRefResolver(evidence_db)
+            reference = resolver.make_reference("doc-1", chunk.chunk_id)
+            memory = ZPCMMemory(memory_db)
+            self.addCleanup(memory.close)
+            observation_store = PersistentM2ObservationStore(
+                memory, resolver, scope="test-scope",
+            )
+            candidate_store = PersistentSemanticUnitCandidateStore(
+                memory, resolver, scope="test-scope",
+            )
+            observation = Observation(
+                envelope=RecordEnvelope(
+                    schema_version="m2-record-v1", record_id="real-obs-1",
+                    record_kind="Observation", producer="fixture-parser",
+                    producer_version="1", recorded_at="2026-11-19T00:00:00Z",
+                    scope="test-scope", source_refs=(reference,),
+                ),
+                modality=Modality.TEXT,
+                source_locator=SourceLocator(
+                    modality=Modality.TEXT, payload_version=reference.source_version,
+                    byte_start=reference.byte_start, byte_end=reference.byte_end,
+                ),
+                extractor_id="fixture-parser", extractor_version="1",
+                extraction_method=ExtractionMethod.RULE, parse_status=ParseStatus.PARSED,
+            )
+            receipt = observation_store.record_observation(observation)
+            candidate = make_candidate(observation, record_id="real-candidate-1")
+            pipeline = ObservationCandidatePipeline(
+                Extractor([candidate]), observation_store, candidate_store,
+            )
+            result = pipeline.extract_and_persist(
+                observation, observation_receipt=receipt,
+            )
+            self.assertEqual(result.candidate_count, 1)
+            restored = list(candidate_store.iter_candidates(page_size=1))
+            self.assertEqual(restored, [candidate])
 
 
 if __name__ == "__main__":
