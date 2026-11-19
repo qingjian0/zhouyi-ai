@@ -150,6 +150,25 @@ class Tests(unittest.TestCase):
   self.assertNotIn("SELECT payload_json",page_reads[0])
   self.assertEqual(len(payload_reads),3)
 
+
+ def test_reverse_keyset_reader_defers_payload_reads_until_after_byte_budget(self):
+  for i in range(3):
+   self.m.append_domain_event(event_type="m2_cognition",event_id=f"reverse:{i+1}",
+       scope="project",payload={"n":i+1},expected_sequence=i)
+  statements=[]
+  self.m.db.set_trace_callback(statements.append)
+  try:
+   events=list(self.m.iter_domain_events_reverse(
+       event_type="m2_cognition",scope="project",page_size=3))
+  finally:
+   self.m.db.set_trace_callback(None)
+  self.assertEqual([event["payload"] for event in events],[{"n":3},{"n":2},{"n":1}])
+  page_reads=[sql for sql in statements if "FROM memory_events" in sql and "ORDER BY seq DESC LIMIT 3" in sql]
+  payload_reads=[sql for sql in statements if "SELECT payload_json FROM memory_events WHERE seq=" in sql]
+  self.assertEqual(len(page_reads),1)
+  self.assertNotIn("SELECT payload_json",page_reads[0])
+  self.assertEqual(len(payload_reads),3)
+
  def test_keyset_reader_verifies_each_page_digest(self):
   self.m.append_domain_event(event_type="m2_cognition",event_id="m2:1",
       scope="project",payload={"n":1},expected_sequence=0)
