@@ -99,7 +99,7 @@ class MemoryPacketTests(unittest.TestCase):
             def iter_candidates(self, *, page_size):
                 self.page_size = page_size
                 yield candidate("first")
-                yield MemoryPacketTests().candidate("second")
+                yield candidate("second")
 
         reader = Reader()
         packet = build_memory_packet_from_store(
@@ -121,7 +121,7 @@ class MemoryPacketTests(unittest.TestCase):
 
             def iter_candidates(self, *, page_size):
                 for index in range(4):
-                    yield MemoryPacketTests().candidate(f"candidate-{index}")
+                    yield candidate(f"candidate-{index}")
 
         packet = build_memory_packet_from_store(
             Reader(),
