@@ -2,6 +2,7 @@ import unittest
 
 from prototype.m2_memory_packet import (
     MemoryPacketError, MemoryQuery, PacketCompleteness, build_memory_packet,
+    build_memory_packet_from_store,
 )
 from prototype.observation_contract import (
     EvidenceRef, GroundingStatus, RecordEnvelope, RoleBinding,
@@ -90,12 +91,14 @@ class MemoryPacketTests(unittest.TestCase):
 
 
     def test_store_adapter_uses_verified_append_stream_and_explicit_order(self):
+        candidate = self.candidate
+
         class Reader:
             scope = "s1"
 
             def iter_candidates(self, *, page_size):
                 self.page_size = page_size
-                yield MemoryPacketTests().candidate("first")
+                yield candidate("first")
                 yield MemoryPacketTests().candidate("second")
 
         reader = Reader()
@@ -111,6 +114,8 @@ class MemoryPacketTests(unittest.TestCase):
             )
 
     def test_store_adapter_reports_scan_budget_exhaustion(self):
+        candidate = self.candidate
+
         class Reader:
             scope = "s1"
 
