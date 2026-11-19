@@ -33,13 +33,16 @@ class BenchmarkConfig:
     seed: int = 101
     payload_length: int = 5
     gap_length: int = 16
-    eval_gap_length: int | None = None
     pair_count: int = 4
     key_bits: int = 3
     learning_rate: float = 0.03
+    eval_gap_length: int | None = None
 
 
-def _dataset(task: str, count: int, seed: int, config: BenchmarkConfig, *, gap_length: int | None = None):
+def _dataset(
+    task: str, count: int, seed: int, config: BenchmarkConfig, *,
+    gap_length: int | None = None,
+):
     effective_gap = config.gap_length if gap_length is None else gap_length
     if task == "periodic":
         return periodic_next_symbol(count=count, period=7, seed=seed)
@@ -146,7 +149,9 @@ def _run_one(model_name: str, config: BenchmarkConfig, train, evaluation, seed: 
 def run_benchmark(config: BenchmarkConfig, seeds: tuple[int, ...] | None = None):
     if config.train_examples < 1 or config.eval_examples < 1 or config.epochs < 1:
         raise ValueError("example counts and epochs must be positive")
-    if config.gap_length < 1 or (config.eval_gap_length is not None and config.eval_gap_length < 1):
+    if config.gap_length < 1 or (
+        config.eval_gap_length is not None and config.eval_gap_length < 1
+    ):
         raise ValueError("training and evaluation gap lengths must be positive")
     seeds = seeds or (config.seed, config.seed + 1, config.seed + 2)
     results = []
