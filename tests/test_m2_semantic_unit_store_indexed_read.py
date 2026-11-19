@@ -14,7 +14,7 @@ from prototype.observation_contract import (
     SemanticUnitCandidate, TruthStatus, UnitKind,
 )
 from prototype.streaming_evidence_ingest import SQLiteEvidenceIngestor
-from prototype.zpcm_memory import ZPCMMemory
+from prototype.zpcm_memory import ZPCMMemory, digest
 
 
 class IndexedSemanticUnitReadTests(unittest.TestCase):
@@ -108,9 +108,10 @@ class IndexedSemanticUnitReadTests(unittest.TestCase):
         payload["body_digest"] = "0" * 64
         with self.memory._connect() as db:
             db.execute(
-                "UPDATE memory_events SET payload_json = ? WHERE event_id = ?",
+                "UPDATE memory_events SET payload_json = ?, payload_digest = ? WHERE event_id = ?",
                 (
-                    json.dumps(payload, sort_keys=True, separators=(",", ":")),
+                    json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":")),
+                    digest(payload),
                     event["event_id"],
                 ),
             )
