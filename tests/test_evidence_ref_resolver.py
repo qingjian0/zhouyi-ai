@@ -153,6 +153,42 @@ class SQLiteEvidenceRefResolverTests(unittest.TestCase):
         with self.assertRaises(EvidenceResolutionError):
             self.resolver.resolve(ref)
 
+    def test_resolve_many_verifies_each_document_manifest_once(self):
+        chunks = self.ingest_complete()
+        refs = [
+            self.resolver.make_reference("doc-resolve", chunk.chunk_id)
+            for chunk in chunks
+        ]
+        original = self.resolver._verified_document_version
+        calls = []
+
+        def counted(db, document_id):
+            calls.append(document_id)
+            return original(db, document_id)
+
+        self.resolver._verified_document_version = counted
+        try:
+            resolved = self.resolver.resolve_many([refs[0], refs[1], refs[0]])
+        finally:
+            self.resolver._verified_document_version = original
+        self.assertEqual([item.reference for item in resolved], [refs[0], refs[1], refs[0]])
+        self.assertEqual([item.text for item in resolved], [chunks[0].text, chunks[1].text, chunks[0].text])
+        self.assertEqual(calls, ["doc-resolve"])
+
+    def test_resolve_many_rejects_a_stale_reference_without_partial_results(self):
+        chunks = self.ingest_complete()
+        refs = [
+            self.resolver.make_reference("doc-resolve", chunk.chunk_id)
+            for chunk in chunks
+        ]
+        forged = type(refs[1])(
+            document_id=refs[1].document_id, chunk_id=refs[1].chunk_id,
+            content_sha256=refs[1].content_sha256, byte_start=refs[1].byte_start,
+            byte_end=refs[1].byte_end, source_version="manifest-sha256:" + "0" * 64,
+        )
+        with self.assertRaises(EvidenceResolutionError):
+            self.resolver.resolve_many([refs[0], forged])
+
 
 if __name__ == "__main__":
     unittest.main()
