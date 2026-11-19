@@ -8,7 +8,7 @@ from __future__ import annotations
 from typing import Mapping
 
 from prototype.classiang_engine import (
-    FeatureCandidate, Observation as ClassiangObservation,
+    FeatureAtom, FeatureCandidate, Observation as ClassiangObservation,
 )
 from prototype.yixiang_formation import (
     FormationStatus, FormationTrace, assess_formation,
@@ -59,9 +59,7 @@ def adapt_formation_trace(
         if observation.subject_id == subject_id
     }
     evidence_refs = tuple(sorted({
-        ref
-        for feature in features
-        for ref in feature.evidence_refs
+        ref for feature in features for ref in feature.evidence_refs
     }))
     context = tuple(sorted({
         f"{item.context_id}@{item.context_version}"
@@ -70,9 +68,7 @@ def adapt_formation_trace(
     candidates = tuple(
         FeatureCandidate(
             feature_id=item.feature_id,
-            atom=__import__(
-                "prototype.classiang_engine", fromlist=["FeatureAtom"]
-            ).FeatureAtom(
+            atom=FeatureAtom(
                 dimension=dimensions[item.feature_id],
                 value=f"{item.label}: {item.operational_description}",
             ),
