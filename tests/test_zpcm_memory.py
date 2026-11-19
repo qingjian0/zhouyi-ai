@@ -208,10 +208,20 @@ class Tests(unittest.TestCase):
    raw='{"text":"'+"x"*100+'"}'
    m.db.execute("INSERT INTO memory_events(event_id,event_type,scope,payload_json,payload_digest,recorded_at) VALUES(?,?,?,?,?,?)",
        ("legacy-large","x","s",raw,"invalid","now"))
-   with self.assertRaises(ZPCMError):
-    list(m.iter_domain_events(event_type="x",scope="s"))
-   with self.assertRaises(ZPCMError):
-    m.get_domain_event(event_type="x",scope="s",event_id="legacy-large")
+   statements=[]
+   m.db.set_trace_callback(statements.append)
+   try:
+    with self.assertRaises(ZPCMError):
+     list(m.iter_domain_events(event_type="x",scope="s"))
+    with self.assertRaises(ZPCMError):
+     m.get_domain_event(event_type="x",scope="s",event_id="legacy-large")
+   finally:
+    m.db.set_trace_callback(None)
+   payload_reads=[sql for sql in statements if "SELECT payload_json FROM memory_events" in sql]
+   self.assertEqual(payload_reads,[])
+   metadata_reads=[sql for sql in statements if "FROM memory_events" in sql]
+   self.assertTrue(metadata_reads)
+   self.assertTrue(all("payload_json" not in sql for sql in metadata_reads))
   finally:m.close()
  def test_invalid_byte_budgets_are_rejected(self):
   for event_limit,page_limit in ((0,1),(True,128),(128,64),(128,True)):
