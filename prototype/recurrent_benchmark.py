@@ -13,6 +13,7 @@ import tracemalloc
 from dataclasses import asdict, dataclass
 from typing import Callable
 
+from prototype.memory_budget import MemoryMeasurementUnavailable, ProcessMemoryMeasurement
 from prototype.diagonal_gated_rnn import DiagonalGatedRNN
 from prototype.diagonal_linear_rnn import DiagonalLinearRNN
 from prototype.selective_diagonal_ssm import SelectiveDiagonalSSM
@@ -122,11 +123,25 @@ def _run_one(model_name: str, config: BenchmarkConfig, train, evaluation, seed: 
     tracemalloc.start()
     started = time.perf_counter()
     train_losses = []
-    for _ in range(config.epochs):
-        for example in train:
-            train_losses.append(model.train_final_target(
-                example.context, example.target, learning_rate=config.learning_rate
-            ))
+    rss_report = None
+    try:
+        with ProcessMemoryMeasurement() as memory_measurement:
+            for _ in range(config.epochs):
+                for example in train:
+                    train_losses.append(model.train_final_target(
+                        example.context, example.target,
+                        learning_rate=config.learning_rate
+                    ))
+        rss_report = memory_measurement.report
+    except MemoryMeasurementUnavailable:
+        # Keep the benchmark usable on platforms without an RSS provider.
+        # Missing process RSS is explicit; tracemalloc remains a separate metric.
+        for _ in range(config.epochs):
+            for example in train:
+                train_losses.append(model.train_final_target(
+                    example.context, example.target,
+                    learning_rate=config.learning_rate
+                ))
     train_seconds = max(time.perf_counter() - started, 1e-12)
     train_context_symbols = sum(len(example.context) for example in train)
     _, peak_bytes = tracemalloc.get_traced_memory()
@@ -139,13 +154,29 @@ def _run_one(model_name: str, config: BenchmarkConfig, train, evaluation, seed: 
         "parameter_count": _parameter_count(model),
         "seed": seed,
         "train_examples": len(train),
-        "train_context_symbols": train_context_symbols,
+        "train_context_symbols_per_epoch": train_context_symbols,
+        "train_symbol_exposures": train_context_symbols * config.epochs,
         "epochs": config.epochs,
         "train_updates": len(train) * config.epochs,
         "train_mean_sequence_loss": sum(train_losses) / max(len(train_losses), 1),
         "train_seconds": train_seconds,
         "train_examples_per_second": len(train) * config.epochs / train_seconds,
         "peak_traced_python_bytes": peak_bytes,
+        "train_sampled_peak_rss_bytes": (
+            rss_report.sampled_peak_rss_bytes if rss_report is not None else None
+        ),
+        "train_rss_peak_increment_bytes": (
+            rss_report.peak_increment_bytes if rss_report is not None else None
+        ),
+        "train_rss_final_increment_bytes": (
+            rss_report.final_increment_bytes if rss_report is not None else None
+        ),
+        "train_rss_sample_count": (
+            rss_report.sample_count if rss_report is not None else 0
+        ),
+        "train_rss_measurement_source": (
+            "sampled_process_rss" if rss_report is not None else "unavailable"
+        ),
         "chunk_state_parity": parity,
         **score,
     }
