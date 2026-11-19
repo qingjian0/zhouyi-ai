@@ -155,6 +155,64 @@ class DiagonalGatedRNN:
         self.d -= learning_rate * factor * grad_d
         return loss / len(tape)
 
+    def train_final_target(
+        self, context: Sequence[int], target: int, *,
+        learning_rate: float = 0.03, clip_norm: float = 1.0,
+    ) -> float:
+        """Train one target after a context; only the final prediction is supervised."""
+        if not context or any(x not in (0, 1) for x in context) or target not in (0, 1):
+            raise ValueError("context must be non-empty binary data and target must be binary")
+        if not math.isfinite(learning_rate) or learning_rate <= 0:
+            raise ValueError("learning_rate must be positive and finite")
+        if not math.isfinite(clip_norm) or clip_norm <= 0:
+            raise ValueError("clip_norm must be positive and finite")
+
+        old = [0.0] * self.hidden_size
+        tape = []
+        for symbol in context:
+            x = float(symbol)
+            hidden, candidate, gate, _ = self._step(x, old)
+            tape.append((old, hidden, candidate, gate, x))
+            old = hidden
+        final_hidden = tape[-1][1]
+        probability = _sigmoid(self.d + sum(a * b for a, b in zip(self.v, final_hidden)))
+        y = float(target)
+        p = min(max(probability, 1e-12), 1.0 - 1e-12)
+        loss = -y * math.log(p) - (1.0 - y) * math.log(1.0 - p)
+
+        grads = {name: [0.0] * self.hidden_size for name in
+                 ("wx", "wh", "b", "ux", "uh", "c", "v")}
+        dy = probability - y
+        grad_d = dy
+        for i in range(self.hidden_size):
+            grads["v"][i] += dy * final_hidden[i]
+        future = [0.0] * self.hidden_size
+        for t in range(len(tape) - 1, -1, -1):
+            previous, hidden, candidate, gate, x = tape[t]
+            for i in range(self.hidden_size):
+                dh = (dy * self.v[i] if t == len(tape) - 1 else 0.0) + future[i]
+                dz = dh * (candidate[i] - previous[i])
+                dcandidate = dh * gate[i]
+                da = dcandidate * (1.0 - candidate[i] * candidate[i])
+                dq = dz * gate[i] * (1.0 - gate[i])
+                grads["wx"][i] += da * x
+                grads["wh"][i] += da * previous[i]
+                grads["b"][i] += da
+                grads["ux"][i] += dq * x
+                grads["uh"][i] += dq * previous[i]
+                grads["c"][i] += dq
+                future[i] = dh * (1.0 - gate[i]) + da * self.wh[i] + dq * self.uh[i]
+
+        all_grads = [g for values in grads.values() for g in values] + [grad_d]
+        norm = math.sqrt(sum(g * g for g in all_grads))
+        factor = min(1.0, clip_norm / max(norm, 1e-12))
+        for name, values in grads.items():
+            params = getattr(self, name)
+            for i, grad in enumerate(values):
+                params[i] -= learning_rate * factor * grad
+        self.d -= learning_rate * factor * grad_d
+        return loss
+
     def fit(
         self, sequences: Iterable[Sequence[int]], *, epochs: int = 1,
         learning_rate: float = 0.03,

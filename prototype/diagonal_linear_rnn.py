@@ -133,6 +133,61 @@ class DiagonalLinearRNN:
         self.output_bias -= learning_rate * factor * grad_output_bias
         return loss / len(tape)
 
+    def train_final_target(
+        self, context: Sequence[int], target: int, *,
+        learning_rate: float = 0.03, clip_norm: float = 1.0,
+    ) -> float:
+        """Train one target after a context; only the final prediction is supervised."""
+        if not context or any(x not in (0, 1) for x in context) or target not in (0, 1):
+            raise ValueError("context must be non-empty binary data and target must be binary")
+        if not math.isfinite(learning_rate) or learning_rate <= 0:
+            raise ValueError("learning_rate must be positive and finite")
+        if not math.isfinite(clip_norm) or clip_norm <= 0:
+            raise ValueError("clip_norm must be positive and finite")
+
+        old = [0.0] * self.hidden_size
+        tape = []
+        for symbol in context:
+            x = float(symbol)
+            hidden, recurrence, _ = self._step(x, old)
+            tape.append((old, hidden, recurrence, x))
+            old = hidden
+        final_hidden = tape[-1][1]
+        probability = _sigmoid(
+            self.output_bias + sum(a * b for a, b in zip(self.output_weight, final_hidden))
+        )
+        y = float(target)
+        p = min(max(probability, 1e-12), 1.0 - 1e-12)
+        loss = -y * math.log(p) - (1.0 - y) * math.log(1.0 - p)
+
+        names = ("raw_recurrence", "input_weight", "bias", "output_weight")
+        grads = {name: [0.0] * self.hidden_size for name in names}
+        dy = probability - y
+        grad_output_bias = dy
+        for i in range(self.hidden_size):
+            grads["output_weight"][i] += dy * final_hidden[i]
+        future = [0.0] * self.hidden_size
+        for t in range(len(tape) - 1, -1, -1):
+            previous, hidden, recurrence, x = tape[t]
+            for i in range(self.hidden_size):
+                dh = (dy * self.output_weight[i] if t == len(tape) - 1 else 0.0) + future[i]
+                grads["raw_recurrence"][i] += (
+                    dh * previous[i] * (1.0 - recurrence[i] ** 2)
+                )
+                grads["input_weight"][i] += dh * x
+                grads["bias"][i] += dh
+                future[i] = dh * recurrence[i]
+
+        all_grads = [g for values in grads.values() for g in values] + [grad_output_bias]
+        norm = math.sqrt(sum(g * g for g in all_grads))
+        factor = min(1.0, clip_norm / max(norm, 1e-12))
+        for name, values in grads.items():
+            params = getattr(self, name)
+            for i, grad in enumerate(values):
+                params[i] -= learning_rate * factor * grad
+        self.output_bias -= learning_rate * factor * grad_output_bias
+        return loss
+
     def fit(
         self, sequences: Iterable[Sequence[int]], *, epochs: int = 1,
         learning_rate: float = 0.03,
