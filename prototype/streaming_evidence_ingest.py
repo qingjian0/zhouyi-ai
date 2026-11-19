@@ -481,7 +481,7 @@ class SQLiteEvidenceIngestor:
                 raise IngestContractError(
                     "persisted evidence chunk generation does not match the document cursor"
                 )
-            elif (
+            if not complete and (
                 manifest_digest is not None or manifest_chunks is not None
                 or manifest_bytes is not None or manifest_generation is not None
             ):
