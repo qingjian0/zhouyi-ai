@@ -1,8 +1,14 @@
+import io
+import tempfile
 import unittest
+from pathlib import Path
+
+from prototype.streaming_evidence_ingest import SQLiteEvidenceIngestor
 
 from prototype.streaming_token_count import (
     TokenStreamContractError,
     count_token_stream,
+    count_evidence_document,
 )
 
 
@@ -85,6 +91,28 @@ class StreamingTokenCountTests(unittest.TestCase):
         with self.assertRaisesRegex(TokenStreamContractError, "tokenizer_id"):
             count_token_stream(["x"], NoIdentity())
 
+
+    def test_count_evidence_document_preserves_state_across_sqlite_pages(self):
+        source = "zabcaabab"
+        with tempfile.TemporaryDirectory() as temp:
+            store = SQLiteEvidenceIngestor(
+                Path(temp) / "evidence.sqlite3", max_chunk_bytes=4, max_page_bytes=4,
+            )
+            store.ingest(
+                "doc", "source.txt", io.BytesIO(source.encode("utf-8")),
+                chunk_bytes=4, tokenizer=lambda chunk: len(chunk),
+            )
+            result = count_evidence_document(store, "doc", PairMergeTokenizer(), page_size=100)
+        self.assertEqual(result.token_count, len(PairMergeTokenizer._encode_complete(source)))
+        self.assertEqual(result.chunks, 3)
+        self.assertEqual(result.characters, len(source))
+
+    def test_count_evidence_document_rejects_incomplete_source(self):
+        with tempfile.TemporaryDirectory() as temp:
+            store = SQLiteEvidenceIngestor(Path(temp) / "partial.sqlite3")
+            store.ingest("partial", "source.txt", io.BytesIO(b"abcdefgh"), chunk_bytes=4, max_chunks=1)
+            with self.assertRaisesRegex(TokenStreamContractError, "must be complete"):
+                count_evidence_document(store, "partial", PairMergeTokenizer())
 
 if __name__ == "__main__":
     unittest.main()
