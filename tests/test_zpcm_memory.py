@@ -201,6 +201,27 @@ class Tests(unittest.TestCase):
    self.assertGreater(payload_sizes[0]+payload_sizes[1],130)
    self.assertEqual(m.get_domain_event(event_type="x",scope="s",event_id="e1")["event_id"],"e1")
   finally:m.close()
+ def test_forward_page_selects_metadata_before_loading_payload_json(self):
+  statements=[]
+  self.m.db.set_trace_callback(statements.append)
+  for i in range(3):
+   self.m.append_domain_event(event_type="x",event_id=f"bounded:{i}",scope="s",
+       payload={"text":"x"*80,"i":i},expected_sequence=i)
+  events=list(self.m.iter_domain_events(event_type="x",scope="s",page_size=3))
+  self.m.db.set_trace_callback(None)
+  self.assertEqual(len(events),3)
+  page_queries=[
+   sql for sql in statements
+   if sql.startswith("SELECT seq,event_id,event_type,scope,length(CAST(payload_json AS BLOB))")
+  ]
+  payload_reads=[
+   sql for sql in statements
+   if sql.startswith("SELECT payload_json FROM memory_events WHERE seq=")
+  ]
+  self.assertTrue(page_queries)
+  self.assertTrue(all("scope,payload_json," not in sql.split("FROM",1)[0] for sql in page_queries))
+  self.assertEqual(len(payload_reads),3)
+
  def test_persisted_oversized_event_fails_closed_before_decode(self):
   m=ZPCMMemory(Path(self.tmp.name)/"corrupt.db",max_event_payload_bytes=64,max_page_bytes=128)
   try:
