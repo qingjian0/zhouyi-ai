@@ -331,32 +331,41 @@ class N010StreamingDataset:
         return manifest
 
     def write_group_index(self, output_path: str | Path) -> Path:
-        """Persist exact hashed group membership for later isolated evaluation."""
+        """Persist exact hashed group membership with a unique atomic staging file."""
         self._assert_unchanged()
         output = Path(output_path)
         output.parent.mkdir(parents=True, exist_ok=True)
-        temporary = output.with_suffix(output.suffix + ".tmp")
-        if temporary.exists():
-            temporary.unlink()
-        target = sqlite3.connect(str(temporary))
+        descriptor, temporary_name = tempfile.mkstemp(
+            prefix=output.name + ".", suffix=".tmp", dir=str(output.parent)
+        )
+        os.close(descriptor)
+        temporary = Path(temporary_name)
         try:
-            target.execute("""
-                CREATE TABLE groups (
-                    field TEXT NOT NULL,
-                    fingerprint TEXT NOT NULL,
-                    PRIMARY KEY(field, fingerprint)
+            target = sqlite3.connect(str(temporary))
+            try:
+                target.execute("""
+                    CREATE TABLE groups (
+                        field TEXT NOT NULL,
+                        fingerprint TEXT NOT NULL,
+                        PRIMARY KEY(field, fingerprint)
+                    )
+                """)
+                cursor = self._db.execute(
+                    "SELECT field, fingerprint FROM group_fingerprints ORDER BY field, fingerprint"
                 )
-            """)
-            cursor = self._db.execute(
-                "SELECT field, fingerprint FROM group_fingerprints ORDER BY field, fingerprint"
-            )
-            while rows := cursor.fetchmany(2048):
-                target.executemany("INSERT INTO groups VALUES (?, ?)", rows)
-            target.commit()
+                while rows := cursor.fetchmany(2048):
+                    target.executemany("INSERT INTO groups VALUES (?, ?)", rows)
+                target.commit()
+            finally:
+                target.close()
+            with temporary.open("rb") as staged:
+                os.fsync(staged.fileno())
+            os.replace(temporary, output)
+            _fsync_parent_directory(output)
+            return output
         finally:
-            target.close()
-        os.replace(temporary, output)
-        return output
+            if temporary.exists():
+                temporary.unlink()
 
     def assert_no_group_overlap(self, training_group_index: str | Path) -> None:
         """Reject held-out rows sharing any declared source group with training."""
@@ -420,6 +429,18 @@ class N010StreamingDataset:
             )
 
 
+def _fsync_parent_directory(path: Path) -> None:
+    """Persist a replaced directory entry where POSIX directory fsync is supported."""
+    if os.name != "posix":
+        return
+    flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+    descriptor = os.open(str(path.parent), flags)
+    try:
+        os.fsync(descriptor)
+    finally:
+        os.close(descriptor)
+
+
 def _atomic_write_json(path: Path, value: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = json.dumps(value, sort_keys=True, indent=2, ensure_ascii=False,
@@ -435,6 +456,7 @@ def _atomic_write_json(path: Path, value: dict) -> None:
             target.flush()
             os.fsync(target.fileno())
         os.replace(temporary_path, path)
+        _fsync_parent_directory(path)
     finally:
         if temporary_path is not None and temporary_path.exists():
             temporary_path.unlink()
@@ -481,6 +503,7 @@ def evaluate_to_jsonl(model: LearnableSROK, rows: Iterable[dict],
         if total == 0:
             raise LearnableSROKError("evaluation stream must not be empty")
         os.replace(temporary_path, output)
+        _fsync_parent_directory(output)
         temporary_path = None
     finally:
         if temporary_path is not None and temporary_path.exists():

@@ -1,9 +1,12 @@
 import io
 import json
+import os
 import sqlite3
 import tempfile
 import unittest
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from unittest.mock import patch
 
 from prototype.n09_learnable_srok import RoleSpec
 from prototype.n010_experiment import run_experiment
@@ -12,6 +15,7 @@ from prototype.n010_ooc import (
     evaluate_locked_test_ooc,
     run_experiment_ooc,
     _iter_bounded_lines,
+    _atomic_write_json,
 )
 from prototype.n09_learnable_srok import LearnableSROKError
 
@@ -96,6 +100,50 @@ class N010OutOfCoreTests(unittest.TestCase):
             "".join(json.dumps(row, sort_keys=True) + "\n" for row in rows),
             encoding="utf-8",
         )
+
+    def test_group_index_concurrent_writers_use_independent_staging_files(self):
+        output = self.root / "shared.groups.sqlite3"
+        barrier = __import__("threading").Barrier(2)
+
+        def write_index():
+            with N010StreamingDataset(
+                self.train_dev, self.roles, 1, expected_splits=("train", "dev")
+            ) as dataset:
+                barrier.wait(timeout=5)
+                return dataset.write_group_index(output)
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            results = list(pool.map(lambda _: write_index(), range(2)))
+        self.assertEqual(results, [output, output])
+        with sqlite3.connect(output) as db:
+            self.assertEqual(db.execute("PRAGMA integrity_check").fetchone()[0], "ok")
+            self.assertEqual(
+                db.execute("SELECT COUNT(*) FROM groups").fetchone()[0], 4
+            )
+        self.assertEqual(list(self.root.glob("shared.groups.sqlite3.*.tmp")), [])
+
+    def test_group_index_replace_failure_preserves_previous_file_and_cleans_temp(self):
+        output = self.root / "preserved.groups.sqlite3"
+        original = b"previous-complete-index"
+        output.write_bytes(original)
+        with N010StreamingDataset(
+            self.train_dev, self.roles, 1, expected_splits=("train", "dev")
+        ) as dataset:
+            with patch("prototype.n010_ooc.os.replace", side_effect=OSError("replace failed")):
+                with self.assertRaisesRegex(OSError, "replace failed"):
+                    dataset.write_group_index(output)
+        self.assertEqual(output.read_bytes(), original)
+        self.assertEqual(list(self.root.glob("preserved.groups.sqlite3.*.tmp")), [])
+
+    def test_atomic_json_replace_failure_preserves_previous_file_and_cleans_temp(self):
+        output = self.root / "preserved.json"
+        original = b'{"previous": true}\\n'
+        output.write_bytes(original)
+        with patch("prototype.n010_ooc.os.replace", side_effect=OSError("replace failed")):
+            with self.assertRaisesRegex(OSError, "replace failed"):
+                _atomic_write_json(output, {"new": True})
+        self.assertEqual(output.read_bytes(), original)
+        self.assertEqual(list(self.root.glob("preserved.json.*.tmp")), [])
 
     def test_sqlite_index_and_split_iterators_are_repeatable(self):
         with N010StreamingDataset(
