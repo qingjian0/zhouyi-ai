@@ -2,8 +2,8 @@
 
 This adapter consumes already-extracted M2 candidates. It does not parse raw
 text, adjudicate truth, or grant evidence authority. Each source record must
-be paired with E09 observation-event references; M1 byte-span references stay
-as source provenance and are never impersonated as E09 evidence events.
+be paired with signed, candidate-bound E09 observation receipts. M1 byte-span
+references stay as source provenance and are never impersonated as E09 events.
 """
 from __future__ import annotations
 
@@ -306,8 +306,9 @@ def coordinate_trlw_grounded_yixiang_csg_gcr(
 ) -> TRLWYixiangCsgGcrResult:
     """Run bounded TRLW → grounded XSL/Yixiang → SROK → typed CSG-GCR.
 
-    This function proposes and coordinates hypotheses only. It deliberately
-    does not consume an E09 verification receipt or advance E12-A6 lifecycle.
+    This function proposes and coordinates hypotheses only. It verifies E09
+    observation receipts but does not consume E12-A6 authorization receipts or
+    advance the E12-A6 lifecycle.
     """
     working_set = compose_trlw_grounded_yixiang_hypotheses(
         packet,
