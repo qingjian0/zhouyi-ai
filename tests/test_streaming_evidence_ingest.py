@@ -1,6 +1,7 @@
 import hashlib
 import io
 import subprocess
+import sqlite3
 import sys
 import tempfile
 import unittest
@@ -72,6 +73,30 @@ class SQLiteEvidenceIngestorTests(unittest.TestCase):
         with self.assertRaises(IngestContractError):
             self.ingestor.ingest(
                 "doc-idem", "same.txt", io.BytesIO(b"changed!"), chunk_bytes=4
+            )
+
+    def test_persisted_chunk_tampering_fails_closed_on_read_and_resume(self):
+        source = b"abcdefgh"
+        self.ingestor.ingest(
+            "doc-tamper", "tamper.txt", io.BytesIO(source), chunk_bytes=4
+        )
+        with sqlite3.connect(self.db_path) as db:
+            db.execute(
+                "UPDATE evidence_chunks SET text_utf8=? WHERE document_id=? AND ordinal=0",
+                (b"WXYZ", "doc-tamper"),
+            )
+            db.commit()
+
+        with self.assertRaisesRegex(
+            IngestContractError, "failed content digest verification"
+        ):
+            self.ingestor.get_chunks("doc-tamper", limit=10)
+
+        with self.assertRaisesRegex(
+            IngestContractError, "failed content digest verification"
+        ):
+            self.ingestor.ingest(
+                "doc-tamper", "tamper.txt", io.BytesIO(source), chunk_bytes=4
             )
 
     def test_hard_process_exit_recovers_only_committed_chunks(self):
