@@ -6,5 +6,8 @@ requires-python = ">=3.10"
 license = { text = "MIT" }
 dependencies = []
 
+[project.optional-dependencies]
+tokenizers = ["tokenizers>=0.20,<1"]
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
