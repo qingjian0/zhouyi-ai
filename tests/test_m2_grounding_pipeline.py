@@ -177,7 +177,7 @@ class SemanticUnitGroundingPipelineTests(unittest.TestCase):
         self.assertEqual(written.epistemic_status, EpistemicStatus.UNKNOWN)
 
     def test_rejects_unpersisted_or_modified_candidates_before_resolver(self):
-        self.store.get_candidate.return_value = None
+        self.store.get_candidate.side_effect = lambda record_id: None
         pipeline = SemanticUnitGroundingPipeline(
             Resolver({self.candidate.envelope.record_id: decision_for(self.candidate)}),
             self.store,
