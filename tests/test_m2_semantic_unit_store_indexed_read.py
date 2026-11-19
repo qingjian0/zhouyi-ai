@@ -108,6 +108,9 @@ class IndexedSemanticUnitReadTests(unittest.TestCase):
         payload["body_digest"] = "0" * 64
         with self.memory.db:
             db = self.memory.db
+            # Simulate out-of-band disk corruption while keeping the production
+            # append-only trigger enabled in normal operation.
+            db.execute("DROP TRIGGER memory_events_reject_update")
             db.execute(
                 "UPDATE memory_events SET payload_json = ?, payload_digest = ? WHERE event_id = ?",
                 (
