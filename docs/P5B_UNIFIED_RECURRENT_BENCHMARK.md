@@ -22,10 +22,9 @@ memory, and chunk-state parity.
   (gated hidden size 4; linear hidden size 7).
 - Both receive the same train/evaluation examples for a seed and the same
   number of sequence updates and epochs.
-- Training currently uses next-symbol loss across the complete context plus
-  target sequence. Evaluation scores only the final target after consuming the
-  context. This distinction is explicit: the runner is a controlled baseline,
-  not a target-only supervised protocol.
+- Training and evaluation both supervise only the final target after consuming
+  the complete context. Manual BPTT propagates that final loss through every
+  recurrent step in the context.
 - Initializers are architecture-specific; identical integer seeds do not imply
   identical parameter distributions.
 - `tracemalloc` measures Python-tracked allocations, not process RSS or device
