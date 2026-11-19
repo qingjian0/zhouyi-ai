@@ -69,7 +69,7 @@ class TokenCountManifestTests(unittest.TestCase):
         self.assertEqual(manifest.tokenizer_id, TinyExactTokenizer.tokenizer_id)
         self.assertEqual(manifest.token_count, len("alpha~beta🙂"))
         self.assertEqual(manifest.characters, len("alpha~beta🙂"))
-        self.assertEqual(manifest.chunks, len(self.store.get_chunks("doc", limit=100)))
+        self.assertEqual(manifest.chunks, self.store.document_state("doc")[1])
         self.assertEqual(
             get_token_count_manifest(self.store, "doc", TinyExactTokenizer.tokenizer_id),
             manifest,
