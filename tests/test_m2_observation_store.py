@@ -1,6 +1,8 @@
 import io
 import tempfile
 import unittest
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from prototype.evidence_ref_resolver import EvidenceResolutionError, SQLiteEvidenceRefResolver
@@ -166,6 +168,89 @@ class PersistentM2ObservationStoreTests(unittest.TestCase):
         # when the affected indexed record is actually read.
         with self.assertRaises(EvidenceResolutionError):
             restored.get_observation("obs-1")
+
+
+    def _make_two_instance_race(self):
+        memory2 = ZPCMMemory(self.memory_db)
+        self.addCleanup(memory2.close)
+        resolver2 = SQLiteEvidenceRefResolver(self.evidence_db)
+        store2 = PersistentM2ObservationStore(memory2, resolver2, scope="project-a")
+        barrier = threading.Barrier(2)
+        for resolver in (self.resolver, resolver2):
+            original = resolver.resolve
+            first_call = [True]
+
+            def synchronized(reference, _original=original, _first=first_call):
+                if _first[0]:
+                    _first[0] = False
+                    barrier.wait(timeout=10)
+                return _original(reference)
+
+            resolver.resolve = synchronized
+        return store2
+
+    @staticmethod
+    def _record_without_raising(store, observation):
+        try:
+            return store.record_observation(observation)
+        except Exception as exc:
+            return exc
+
+    def test_two_instances_same_id_different_payload_has_one_winner(self):
+        store2 = self._make_two_instance_race()
+        observations = (
+            self.make_observation(record_id="race-conflict", extractor_version="1.0"),
+            self.make_observation(record_id="race-conflict", extractor_version="2.0"),
+        )
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            futures = (
+                pool.submit(self._record_without_raising, self.store, observations[0]),
+                pool.submit(self._record_without_raising, store2, observations[1]),
+            )
+            results = [future.result(timeout=30) for future in futures]
+        receipts = [item for item in results if not isinstance(item, Exception)]
+        errors = [item for item in results if isinstance(item, Exception)]
+        self.assertEqual(len(receipts), 1)
+        self.assertEqual(len(errors), 1)
+        self.assertIsInstance(errors[0], ObservationStoreError)
+        persisted = self.store.get_observation("race-conflict")
+        self.assertIn(persisted, observations)
+
+    def test_two_instances_same_id_same_payload_replay_one_event(self):
+        store2 = self._make_two_instance_race()
+        observation = self.make_observation(record_id="race-replay")
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            futures = (
+                pool.submit(self.store.record_observation, observation),
+                pool.submit(store2.record_observation, observation),
+            )
+            receipts = [future.result(timeout=30) for future in futures]
+        self.assertEqual(receipts[0].event_id, receipts[1].event_id)
+        self.assertEqual(receipts[0].sequence, receipts[1].sequence)
+        self.assertEqual(sorted(item.replayed for item in receipts), [False, True])
+        events = self.memory.replay_domain_events(event_type="m2_observation", scope="project-a")
+        self.assertEqual(len(events), 1)
+
+    def test_two_instances_distinct_ids_retry_stale_sequence_and_remain_ordered(self):
+        store2 = self._make_two_instance_race()
+        observations = (
+            self.make_observation(record_id="race-a"),
+            self.make_observation(record_id="race-b"),
+        )
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            futures = (
+                pool.submit(self.store.record_observation, observations[0]),
+                pool.submit(store2.record_observation, observations[1]),
+            )
+            receipts = [future.result(timeout=30) for future in futures]
+        self.assertEqual(len({item.sequence for item in receipts}), 2)
+        persisted = list(self.store.iter_observations(page_size=1))
+        sequences = [receipt.sequence for _, receipt in persisted]
+        self.assertEqual(sequences, sorted(sequences))
+        self.assertEqual(
+            {item.envelope.record_id for item, _ in persisted},
+            {"race-a", "race-b"},
+        )
 
 
 if __name__ == "__main__":
