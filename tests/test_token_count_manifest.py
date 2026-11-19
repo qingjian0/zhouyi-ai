@@ -32,6 +32,23 @@ class TinyExactTokenizer:
         return tuple(ord(char) for char in stable)
 
 
+class MutatingTokenizer(TinyExactTokenizer):
+    def __init__(self, database):
+        super().__init__()
+        self.database = database
+        self.mutated = False
+
+    def feed(self, text, *, final=False):
+        if not self.mutated:
+            with sqlite3.connect(self.database) as db:
+                db.execute(
+                    "UPDATE ingest_documents SET manifest_digest=? WHERE document_id=?",
+                    ("manifest-sha256:concurrent-source-change", "doc"),
+                )
+            self.mutated = True
+        return super().feed(text, final=final)
+
+
 class TokenCountManifestTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -77,6 +94,15 @@ class TokenCountManifestTests(unittest.TestCase):
             )
         self.assertIsNone(
             get_token_count_manifest(self.store, "doc", TinyExactTokenizer.tokenizer_id)
+        )
+
+    def test_source_change_during_count_prevents_persistence(self):
+        with self.assertRaisesRegex(TokenCountManifestError, "changed while token counting"):
+            count_and_persist_evidence_document(
+                self.store, "doc", MutatingTokenizer(self.db_path), page_size=1
+            )
+        self.assertIsNone(
+            get_token_count_manifest(self.store, "doc", "fixture-exact-v1")
         )
 
     def test_incomplete_document_is_rejected(self):
