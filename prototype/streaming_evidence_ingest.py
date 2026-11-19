@@ -515,6 +515,10 @@ class SQLiteEvidenceIngestor:
                 if hashlib.sha256(raw).hexdigest() != row[5]:
                     raise IngestContractError("persisted evidence chunk failed content digest verification")
                 if row[2] < 0 or row[4] - row[3] != payload_bytes:
+                    if completed_manifest_invalid:
+                        raise IngestContractError(
+                            "completed evidence manifest is stale or inconsistent"
+                        )
                     raise IngestContractError("persisted evidence chunk byte span is inconsistent")
                 if row[0] != self._chunk_id(row[1], row[2], row[5]):
                     raise IngestContractError("persisted evidence chunk ID is inconsistent")
