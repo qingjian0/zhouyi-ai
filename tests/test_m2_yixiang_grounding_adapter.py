@@ -1,5 +1,14 @@
+import base64
 import hashlib
 import unittest
+from datetime import datetime, timedelta, timezone
+
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+
+from prototype.e09_domain_registry import E09DomainBinding, StaticE09DomainRegistry
+from prototype.e09_ed25519_keyring import E09Ed25519IssuerKeyring
+from prototype.e09_observation_receipt import E09ObservationReceiptVerifier, build_observation_receipt
 
 from prototype.m2_yixiang_grounding_adapter import (
     GroundedYixiangInputError,
@@ -16,6 +25,7 @@ from prototype.observation_contract import (
     SemanticUnitCandidate,
     TruthStatus,
     UnitKind,
+    record_digest,
 )
 from prototype.trlw_working_set import TRLWQuery, build_trlw_working_set
 from prototype.yixiang_role_transform import RoleTransform
@@ -68,16 +78,60 @@ class M2YixiangGroundingAdapterTests(unittest.TestCase):
             candidate("state:a", UnitKind.STATE),
             candidate("state:b", UnitKind.STATE),
         )
-        self.e09 = {
-            "relation:causes:1": ("e09:observation:relation-1",),
-            "actor:a": ("e09:observation:actor-a",),
-            "actor:b": ("e09:observation:actor-b",),
-            "state:a": ("e09:observation:state-a",),
-            "state:b": ("e09:observation:state-b",),
-        }
         self.transform = RoleTransform(
             "cause-effect-role-view", "1.0.0", "causes", "effect_of", (1, 0),
             evidence_refs=("xsl-prior:causal-role-view",),
+        )
+        self.now = datetime(2026, 11, 20, 0, 0, tzinfo=timezone.utc)
+        self.private_key = Ed25519PrivateKey.generate()
+        public_key = self.private_key.public_key().public_bytes(
+            encoding=serialization.Encoding.Raw,
+            format=serialization.PublicFormat.Raw,
+        )
+        self.verifier_id = "test-e09-verifier"
+        self.keyring = E09Ed25519IssuerKeyring({self.verifier_id: public_key})
+        self.registry = StaticE09DomainRegistry({
+            "world:test": E09DomainBinding(
+                domain_id="domain:test",
+                world_family="family:test",
+                registry_id="registry:test",
+                registry_version="v1",
+            )
+        })
+        self.receipt_verifier = E09ObservationReceiptVerifier(
+            signature_verifier=self.keyring.verify,
+            trusted_verifier_id=self.verifier_id,
+            domain_registry=self.registry,
+            clock=lambda: self.now,
+        )
+        self.e09 = {
+            item.envelope.record_id: self._make_receipt(
+                item, "e09:observation:" + item.envelope.record_id
+            )
+            for item in (self.relation, *self.workspace)
+        }
+
+    def _make_receipt(self, item, event_id):
+        return build_observation_receipt(
+            signer=_TestReceiptSigner(self.private_key),
+            verifier_id=self.verifier_id,
+            episode_id="episode:test",
+            scope=item.envelope.scope,
+            learner_track="learner:test",
+            candidate_record_id=item.envelope.record_id,
+            candidate_record_digest=record_digest(item),
+            domain_id="domain:test",
+            world_family="family:test",
+            domain_registry_id="registry:test",
+            domain_registry_version="v1",
+            observations=[{
+                "event_id": event_id,
+                "event_digest": hashlib.sha256(event_id.encode()).hexdigest(),
+                "observation_id": "observation:" + item.envelope.record_id,
+                "episode_id": "episode:test",
+            }],
+            issued_at=self.now,
+            expires_at=self.now + timedelta(minutes=1),
         )
 
     def compose(self, **changes):
@@ -85,7 +139,8 @@ class M2YixiangGroundingAdapterTests(unittest.TestCase):
             relation_candidate=self.relation,
             relation_type="causes",
             workspace_candidates=self.workspace,
-            e09_event_refs_by_record=self.e09,
+            e09_observation_receipts_by_record=self.e09,
+            receipt_verifier=self.receipt_verifier,
             transform=self.transform,
             limit=16,
         )
@@ -130,7 +185,8 @@ class M2YixiangGroundingAdapterTests(unittest.TestCase):
             packet,
             relation_record_id="relation:causes:1",
             relation_type="causes",
-            e09_event_refs_by_record=self.e09,
+            e09_observation_receipts_by_record=self.e09,
+            receipt_verifier=self.receipt_verifier,
             transform=self.transform,
         )
         self.assertTrue(result.search_exhaustive)
@@ -156,7 +212,8 @@ class M2YixiangGroundingAdapterTests(unittest.TestCase):
             packet,
             relation_record_id="relation:causes:1",
             relation_type="causes",
-            e09_event_refs_by_record=self.e09,
+            e09_observation_receipts_by_record=self.e09,
+            receipt_verifier=self.receipt_verifier,
             transform=self.transform,
             parent_state_ref="state:root",
             branch_id="branch:yixiang-test",
@@ -190,7 +247,8 @@ class M2YixiangGroundingAdapterTests(unittest.TestCase):
             packet,
             relation_record_id="relation:causes:1",
             relation_type="causes",
-            e09_event_refs_by_record=self.e09,
+            e09_observation_receipts_by_record=self.e09,
+            receipt_verifier=self.receipt_verifier,
             transform=self.transform,
             parent_state_ref="state:root",
             branch_id="branch:yixiang-test",
@@ -216,7 +274,8 @@ class M2YixiangGroundingAdapterTests(unittest.TestCase):
             packet,
             relation_record_id="relation:causes:1",
             relation_type="causes",
-            e09_event_refs_by_record=self.e09,
+            e09_observation_receipts_by_record=self.e09,
+            receipt_verifier=self.receipt_verifier,
             transform=self.transform,
         )
         self.assertFalse(result.search_exhaustive)
@@ -270,10 +329,25 @@ class M2YixiangGroundingAdapterTests(unittest.TestCase):
             roles=(("cause", "actor:a"), ("effect", "state:a")),
             truth=TruthStatus.CONFLICTED,
         )
-        grounded = self.compose(relation_candidate=relation)
+        receipts = dict(self.e09)
+        receipts[relation.envelope.record_id] = self._make_receipt(
+            relation, "e09:observation:" + relation.envelope.record_id
+        )
+        grounded = self.compose(
+            relation_candidate=relation,
+            e09_observation_receipts_by_record=receipts,
+        )
         self.assertEqual(relation.truth_status, TruthStatus.CONFLICTED)
         self.assertEqual(grounded.semantic_status, "HYPOTHESIS_ONLY")
 
 
 if __name__ == "__main__":
     unittest.main()
+
+class _TestReceiptSigner:
+    def __init__(self, private_key):
+        self.private_key = private_key
+
+    def sign(self, verifier_id, message):
+        return base64.b64encode(self.private_key.sign(message)).decode("ascii")
+
