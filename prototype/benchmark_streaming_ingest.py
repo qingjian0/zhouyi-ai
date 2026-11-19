@@ -4,7 +4,7 @@ Example:
   python -m prototype.benchmark_streaming_ingest input.txt evidence.sqlite3 \
       --document-id corpus-v1 --chunk-bytes 8192 --json
   python -m prototype.benchmark_streaming_ingest input.txt evidence.sqlite3 \
-      --document-id corpus-v1 --tokenizer my_tokenizer:count_tokens --json
+      --document-id corpus-v1 --stream-tokenizer my_tokenizer:factory --json
 
 The database path must not already exist. --chunk-tokenizer/--tokenizer is
 legacy chunk-local diagnostic counting only. --stream-tokenizer must expose a
