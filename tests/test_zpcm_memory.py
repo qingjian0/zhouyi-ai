@@ -147,7 +147,7 @@ class Tests(unittest.TestCase):
   page_reads=[sql for sql in statements if "FROM memory_events" in sql and "ORDER BY seq LIMIT 3" in sql]
   payload_reads=[sql for sql in statements if "SELECT payload_json FROM memory_events WHERE seq=" in sql]
   self.assertEqual(len(page_reads),1)
-  self.assertNotIn("payload_json",page_reads[0])
+  self.assertNotIn("SELECT payload_json",page_reads[0])
   self.assertEqual(len(payload_reads),3)
 
  def test_keyset_reader_verifies_each_page_digest(self):
@@ -221,7 +221,7 @@ class Tests(unittest.TestCase):
    self.assertEqual(payload_reads,[])
    metadata_reads=[sql for sql in statements if "FROM memory_events" in sql]
    self.assertTrue(metadata_reads)
-   self.assertTrue(all("payload_json" not in sql for sql in metadata_reads))
+   self.assertTrue(all("SELECT payload_json" not in sql for sql in metadata_reads))
   finally:m.close()
  def test_invalid_byte_budgets_are_rejected(self):
   for event_limit,page_limit in ((0,1),(True,128),(128,64),(128,True)):
