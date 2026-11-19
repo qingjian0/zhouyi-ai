@@ -68,6 +68,53 @@ class RecurrentBPTTGradientTests(unittest.TestCase):
             [0, 1, 1, 0, 1, 0],
         )
 
+    def _check_final_target(self, factory, parameter_names, context, target):
+        learning_rate = 1e-7
+        epsilon = 1e-6
+        baseline = factory()
+        original = {
+            name: list(getattr(baseline, name)) if isinstance(getattr(baseline, name), list)
+            else getattr(baseline, name)
+            for name in parameter_names
+        }
+        baseline.train_final_target(context, target, learning_rate=learning_rate, clip_norm=1e12)
+        for name in parameter_names:
+            values = original[name]
+            indices = range(len(values)) if isinstance(values, list) else (None,)
+            for index in indices:
+                plus, minus = factory(), factory()
+                if index is None:
+                    setattr(plus, name, original[name] + epsilon)
+                    setattr(minus, name, original[name] - epsilon)
+                else:
+                    getattr(plus, name)[index] = original[name][index] + epsilon
+                    getattr(minus, name)[index] = original[name][index] - epsilon
+                def loss(model):
+                    probabilities, _ = model.predict_chunk(context)
+                    p = min(max(probabilities[-1], 1e-12), 1.0 - 1e-12)
+                    return -target * math.log(p) - (1 - target) * math.log(1 - p)
+                numeric = (loss(plus) - loss(minus)) / (2 * epsilon)
+                updated = getattr(baseline, name)
+                updated_value = updated if index is None else updated[index]
+                original_value = original[name] if index is None else original[name][index]
+                analytic = (original_value - updated_value) / learning_rate
+                self.assertAlmostEqual(analytic, numeric, delta=2e-5,
+                                       msg=f"final-target {name}[{index}] gradient mismatch")
+
+    def test_gated_final_target_bptt_matches_finite_differences(self):
+        self._check_final_target(
+            lambda: DiagonalGatedRNN(hidden_size=2, seed=41),
+            ("wx", "wh", "b", "ux", "uh", "c", "v", "d"),
+            [1, 0, 1, 1, 0], 1,
+        )
+
+    def test_linear_final_target_bptt_matches_finite_differences(self):
+        self._check_final_target(
+            lambda: DiagonalLinearRNN(hidden_size=2, seed=43),
+            ("raw_recurrence", "input_weight", "bias", "output_weight", "output_bias"),
+            [1, 0, 1, 1, 0], 1,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
