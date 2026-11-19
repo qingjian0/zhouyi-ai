@@ -155,7 +155,7 @@ class M2YixiangGroundingAdapterTests(unittest.TestCase):
         self.assertEqual(len(grounded.m1_source_ref_digests), 5)
         self.assertEqual(
             grounded.composition.source_relation_evidence_refs,
-            ("e09:observation:relation-1",),
+            ("e09:observation:relation:causes:1",),
         )
         proposals = compile_yixiang_typed_proposals(
             grounded.composition, parent_state_ref="state:0", branch_id="branch:yx",
@@ -163,7 +163,7 @@ class M2YixiangGroundingAdapterTests(unittest.TestCase):
         self.assertTrue(proposals)
         for proposal in proposals:
             self.assertEqual(proposal.semantic_status, "HYPOTHESIS_ONLY")
-            self.assertIn("e09:observation:relation-1", proposal.proposal.evidence_refs)
+            self.assertIn("e09:observation:relation:causes:1", proposal.proposal.evidence_refs)
             self.assertTrue(set(proposal.proposal.evidence_refs).issubset(
                 set(grounded.e09_observation_event_refs)
             ))
@@ -224,7 +224,7 @@ class M2YixiangGroundingAdapterTests(unittest.TestCase):
         for proposal in result.csg_gcr.proposals:
             self.assertEqual(proposal.semantic_status, "HYPOTHESIS_ONLY")
             self.assertIn(
-                "e09:observation:relation-1",
+                "e09:observation:relation:causes:1",
                 proposal.proposal.evidence_refs,
             )
             self.assertNotIn(
