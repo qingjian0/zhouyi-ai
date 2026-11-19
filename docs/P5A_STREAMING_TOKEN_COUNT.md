@@ -29,3 +29,10 @@ BPE、Unigram 等 tokenizer 的分词结果可能跨越任意输入块边界。�
 ```bash
 python -m unittest tests.test_streaming_token_count tests.test_streaming_evidence_ingest -v
 ```
+
+
+## 整篇编码参考适配器
+
+`prototype/tokenizer_adapters.py` 新增 `BufferedTokenizerOracle`，将任意规范的整篇文本编码函数适配到增量接口。它会保留输入文本，直到 `final=True` 时只调用一次 canonical encode。这提供了可执行的整篇编码参照，可用于检查生产增量 adapter 的 token ID 序列和边界一致性。
+
+**重要限制：**该 oracle 的内存占用随完整输入文本增长，不是有界内存流式实现，也不能作为普通手机 1M 长序列验收结果。它的用途是正确性参照和兼容桥接。生产 adapter 只有在对照 oracle 与 tokenizer 官方整篇编码 API 通过边界测试后，才能替换此基线；不得仅凭 token 数相同认定 token 序列一致。
