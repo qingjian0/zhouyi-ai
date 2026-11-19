@@ -274,11 +274,11 @@ class SQLiteEvidenceIngestor:
         cursor = 0
         ordinal = 0
         rows = db.execute(
-            """SELECT ordinal, byte_start, byte_end, content_sha256
+            """SELECT ordinal, byte_start, byte_end, content_sha256, text_utf8
                FROM evidence_chunks WHERE document_id = ? ORDER BY ordinal""",
             (document_id,),
         )
-        for stored_ordinal, start, end, expected_digest in rows:
+        for stored_ordinal, start, end, expected_digest, stored_payload in rows:
             if (
                 stored_ordinal != ordinal
                 or start != cursor
@@ -286,11 +286,17 @@ class SQLiteEvidenceIngestor:
                 or end - start > chunk_bytes
             ):
                 raise IngestContractError("persisted evidence spans are not contiguous")
+            stored_raw = bytes(stored_payload)
+            if (
+                len(stored_raw) != end - start
+                or hashlib.sha256(stored_raw).hexdigest() != expected_digest
+            ):
+                raise IngestContractError("persisted evidence chunk failed content digest verification")
             stream.seek(start)
             raw = stream.read(end - start)
             if len(raw) != end - start:
                 raise IngestContractError("source is shorter than the committed evidence prefix")
-            if hashlib.sha256(raw).hexdigest() != expected_digest:
+            if raw != stored_raw or hashlib.sha256(raw).hexdigest() != expected_digest:
                 raise IngestContractError("source bytes differ from the committed evidence prefix")
             cursor = end
             ordinal += 1
@@ -456,6 +462,12 @@ class SQLiteEvidenceIngestor:
                 raw = bytes(payload[0])
                 if len(raw) != payload_bytes:
                     raise IngestContractError("evidence chunk byte length changed during page read")
+                if hashlib.sha256(raw).hexdigest() != row[5]:
+                    raise IngestContractError("persisted evidence chunk failed content digest verification")
+                if row[2] < 0 or row[4] - row[3] != payload_bytes:
+                    raise IngestContractError("persisted evidence chunk byte span is inconsistent")
+                if row[0] != self._chunk_id(row[1], row[2], row[5]):
+                    raise IngestContractError("persisted evidence chunk ID is inconsistent")
                 try:
                     decoded = raw.decode("utf-8", errors="strict")
                 except UnicodeDecodeError as exc:
