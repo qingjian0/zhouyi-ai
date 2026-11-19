@@ -536,6 +536,7 @@ class E09VerifierService:
             raise E09AuthenticationError("verifier clock must return a timezone-aware datetime")
         current = current.astimezone(timezone.utc)
         resolved = []
+        domains = set()
         for ref in sorted(evidence_refs):
             try:
                 item = resolve_e09_reveal(
@@ -552,6 +553,10 @@ class E09VerifierService:
                 ) from exc
             if not item.domain_id or not item.domain_registry_id or not item.domain_registry_version:
                 raise E09AuthorizationError("legacy or unbound E09 evidence cannot issue observation receipts")
+            domains.add((
+                item.domain_id, item.world_family,
+                item.domain_registry_id, item.domain_registry_version,
+            ))
             prefix = "opaque-e09-event-digest:"
             if not item.provenance.startswith(prefix):
                 raise E09AuthenticationError("E09 evidence provenance digest is missing")
@@ -564,17 +569,6 @@ class E09VerifierService:
                 "observation_id": item.observation_id,
                 "episode_id": item.episode_id,
             })
-        domains = {
-            (item.domain_id, item.world_family, item.domain_registry_id, item.domain_registry_version)
-            for item in (
-                resolve_e09_reveal(
-                    self._store, episode_id=episode_id, evidence_ref=ref,
-                    scope=scope, learner_track=learner_track,
-                    domain_registry=self._domain_registry,
-                )
-                for ref in sorted(evidence_refs)
-            )
-        }
         if len(domains) != 1:
             raise E09AuthorizationError("candidate observations must share one trusted domain binding")
         domain_id, world_family, registry_id, registry_version = next(iter(domains))
