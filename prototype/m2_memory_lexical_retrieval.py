@@ -6,8 +6,8 @@ only top-k candidates in memory and reports scan truncation conservatively.
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
+from itertools import islice
 import re
-from typing import Iterable
 
 from prototype.m2_memory_packet import (
     MemoryPacket,
@@ -24,11 +24,15 @@ class LexicalRetrievalError(ValueError):
 
 
 def _terms(text: str) -> frozenset[str]:
-    pieces = re.findall(r"[a-z0-9]+|[\u3400-\u9fff]", text.casefold())
-    terms = set(pieces)
-    for left, right in zip(pieces, pieces[1:]):
-        if len(left) == len(right) == 1 and "\u3400" <= left <= "\u9fff" and "\u3400" <= right <= "\u9fff":
-            terms.add(left + right)
+    terms: set[str] = set()
+    # Keep CJK runs separate: bigrams must not cross whitespace or punctuation.
+    for match in re.finditer(r"[a-z0-9]+|[\\u3400-\\u9fff]+", text.casefold()):
+        piece = match.group(0)
+        if piece[0] >= "\\u3400":
+            terms.update(piece)
+            terms.update(piece[index:index + 2] for index in range(len(piece) - 1))
+        else:
+            terms.add(piece)
     return frozenset(terms)
 
 
@@ -63,9 +67,11 @@ def retrieve_lexical_memory(
 
     Query matching uses CJK unigrams/bigrams and case-folded Latin/digit terms.
     Score is unique query-term coverage, so it is deterministic and bounded in
-    [0, 1]. Ties break by immutable record_id. The source order is not treated
-    as relevance. Scan-budget exhaustion is conservative when the exact cap is
-    reached because the iterator is not advanced beyond the configured budget.
+    [0, 1]. Ties break by immutable record_id. The append-only M2 store enforces
+    immutable event IDs derived from record_id, so duplicate record IDs cannot
+    be appended with distinct content. Scan-budget exhaustion is conservative
+    when the exact cap is reached because the iterator is not advanced beyond
+    the configured budget.
     """
     if not isinstance(query, MemoryQuery):
         raise TypeError("query must be MemoryQuery")
@@ -80,11 +86,9 @@ def retrieve_lexical_memory(
         raise LexicalRetrievalError("reader must expose iter_candidates(page_size=...)")
 
     ranked: list[tuple[float, str, SemanticUnitCandidate]] = []
-    seen_ids: set[str] = set()
     scanned = matched = 0
-    for candidate in iterator(page_size=128):
-        if scanned >= query.max_scan_events:
-            break
+    candidates = iterator(page_size=128)
+    for candidate in islice(candidates, query.max_scan_events):
         scanned += 1
         if not isinstance(candidate, SemanticUnitCandidate):
             raise LexicalRetrievalError("candidate stream contains a non-candidate record")
@@ -92,9 +96,6 @@ def retrieve_lexical_memory(
             continue
         matched += 1
         record_id = candidate.envelope.record_id
-        if record_id in seen_ids:
-            continue
-        seen_ids.add(record_id)
         candidate_terms = _terms(_candidate_text(candidate))
         score = len(query_terms & candidate_terms) / len(query_terms)
         ranked.append((score, record_id, candidate))
@@ -102,18 +103,20 @@ def retrieve_lexical_memory(
         if len(ranked) > query.max_records:
             ranked.pop()
 
+    # Conservative by design: an exact-cap scan may have more rows remaining.
     scan_exhausted = scanned >= query.max_scan_events
     ordered = [entry[2] for entry in ranked]
-    # Canonical size is measured by the packet builder; this preflight is only
-    # to ensure candidate payloads remain serializable before ranking output.
     for candidate in ordered:
         canonical_json(candidate)
     packet = build_memory_packet(ordered, replace(query, ranking_policy="lexical-overlap-v1"))
-    if scan_exhausted:
-        packet = replace(packet, completeness=PacketCompleteness.BUDGET_EXHAUSTED,
-                         records_scanned=scanned)
-    else:
-        packet = replace(packet, records_scanned=scanned)
+    packet = replace(
+        packet,
+        completeness=(
+            PacketCompleteness.BUDGET_EXHAUSTED
+            if scan_exhausted else packet.completeness
+        ),
+        records_scanned=scanned,
+    )
     return LexicalRetrievalReport(
         packet=packet,
         candidates_scanned=scanned,
