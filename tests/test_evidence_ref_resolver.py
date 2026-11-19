@@ -109,6 +109,27 @@ class SQLiteEvidenceRefResolverTests(unittest.TestCase):
         with self.assertRaises(EvidenceResolutionError):
             self.resolver.resolve(ref)
 
+    def test_manifest_recomputation_rejects_metadata_tampering_even_if_generation_is_forged(self):
+        chunks = self.ingest_complete()
+        with sqlite3.connect(self.database) as db:
+            db.execute(
+                "UPDATE evidence_chunks SET byte_start = byte_start + 1 WHERE chunk_id = ?",
+                (chunks[0].chunk_id,),
+            )
+            # Simulate an out-of-band writer that also forges the generation
+            # counters to conceal the trigger-observed metadata update.
+            db.execute(
+                """UPDATE ingest_documents
+                   SET chunk_generation = next_ordinal,
+                       manifest_generation = next_ordinal
+                   WHERE document_id = ?""",
+                ("doc-resolve",),
+            )
+        with self.assertRaisesRegex(
+            EvidenceResolutionError, "complete chunk sequence"
+        ):
+            self.resolver.document_version("doc-resolve")
+
     def test_in_place_blob_tampering_is_detected(self):
         chunks = self.ingest_complete()
         ref = self.resolver.make_reference("doc-resolve", chunks[0].chunk_id)
