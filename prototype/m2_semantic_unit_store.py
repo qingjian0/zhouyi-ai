@@ -167,6 +167,66 @@ class PersistentSemanticUnitCandidateStore:
                 replayed=receipt["replayed"],
             )
 
+    def _decode_event(self, event: dict[str, Any]) -> tuple[SemanticUnitCandidate, SemanticUnitReceipt]:
+        """Decode one indexed event and verify its immutable body and evidence."""
+        try:
+            payload = event["payload"]
+            if (payload.get("schema_version") != EVENT_SCHEMA
+                    or payload.get("kind") != "semantic_unit_candidate_recorded"):
+                raise SemanticUnitStoreError("unsupported semantic candidate event schema/kind")
+            body = payload.get("body")
+            if not isinstance(body, dict):
+                raise SemanticUnitStoreError("semantic candidate event body must be an object")
+            candidate = _candidate_from_dict(body)
+            self._verify_evidence(candidate)
+            body_digest = record_digest(candidate)
+            if body_digest != payload.get("body_digest"):
+                raise SemanticUnitStoreError("semantic candidate record digest mismatch")
+            event_id = f"m2:semantic-unit:{candidate.envelope.record_id}"
+            if event.get("event_id") != event_id:
+                raise SemanticUnitStoreError("semantic candidate event identity mismatch")
+            sequence = event.get("sequence")
+            if isinstance(sequence, bool) or not isinstance(sequence, int) or sequence < 1:
+                raise SemanticUnitStoreError("semantic candidate event sequence is invalid")
+            payload_digest = event.get("payload_digest")
+            if not isinstance(payload_digest, str) or not payload_digest:
+                raise SemanticUnitStoreError("semantic candidate payload digest is missing")
+            return candidate, SemanticUnitReceipt(
+                event_id=event_id,
+                sequence=sequence,
+                payload_digest=payload_digest,
+                record_digest=body_digest,
+                replayed=False,
+            )
+        except (ZPCMError, ContractError, SemanticUnitStoreError):
+            raise
+        except Exception as exc:
+            raise SemanticUnitStoreError(f"semantic candidate event is malformed: {exc}") from exc
+
+    def _get_verified_event(self, record_id: str):
+        if not isinstance(record_id, str) or not record_id.strip():
+            raise ValueError("record_id must be non-empty")
+        event_id = f"m2:semantic-unit:{record_id}"
+        event = self._memory.get_domain_event(
+            event_type=EVENT_TYPE, scope=self.scope, event_id=event_id,
+        )
+        if event is None:
+            return None
+        candidate, receipt = self._decode_event(event)
+        if candidate.envelope.record_id != record_id:
+            raise SemanticUnitStoreError("indexed semantic candidate record ID mismatch")
+        return candidate, receipt
+
+    def get_candidate(self, record_id: str) -> SemanticUnitCandidate | None:
+        """Read one evidence-verified candidate through the indexed event ID."""
+        result = self._get_verified_event(record_id)
+        return None if result is None else result[0]
+
+    def get_receipt(self, record_id: str) -> SemanticUnitReceipt | None:
+        """Read the immutable receipt for one verified candidate event."""
+        result = self._get_verified_event(record_id)
+        return None if result is None else result[1]
+
     def iter_candidates(
         self, *, after_sequence: int = 0, page_size: int = 128,
     ) -> Iterator[SemanticUnitCandidate]:
@@ -179,21 +239,7 @@ class PersistentSemanticUnitCandidateStore:
                 page_size=page_size,
             )
             for event in events:
-                payload = event["payload"]
-                if (payload.get("schema_version") != EVENT_SCHEMA
-                        or payload.get("kind") != "semantic_unit_candidate_recorded"):
-                    raise SemanticUnitStoreError("unsupported semantic candidate event schema/kind")
-                body = payload.get("body")
-                if not isinstance(body, dict):
-                    raise SemanticUnitStoreError("semantic candidate event body must be an object")
-                candidate = _candidate_from_dict(body)
-                self._verify_evidence(candidate)
-                body_digest = record_digest(candidate)
-                if body_digest != payload.get("body_digest"):
-                    raise SemanticUnitStoreError("semantic candidate record digest mismatch")
-                expected_id = f"m2:semantic-unit:{candidate.envelope.record_id}"
-                if event["event_id"] != expected_id:
-                    raise SemanticUnitStoreError("semantic candidate event identity mismatch")
+                candidate, _ = self._decode_event(event)
                 yield candidate
         except (ZPCMError, ContractError, SemanticUnitStoreError):
             raise
