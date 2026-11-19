@@ -6,6 +6,9 @@ on:
     paths:
       - 'prototype/n010_ooc.py'
       - 'prototype/n09_learnable_srok.py'
+      - 'tests/test_n010_ooc.py'
+      - 'tests/test_n010_ooc_memory.py'
+      - 'tests/test_n010_ooc_rss_benchmark.py'
       - 'benchmarks/benchmark_n010_ooc_rss.py'
       - '.github/workflows/n010-ooc-rss-benchmark.yml'
   workflow_dispatch:

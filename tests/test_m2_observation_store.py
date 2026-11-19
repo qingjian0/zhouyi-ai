@@ -4,6 +4,7 @@ import unittest
 import threading
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from unittest.mock import patch
 
 from prototype.evidence_ref_resolver import EvidenceResolutionError, SQLiteEvidenceRefResolver
 from prototype.m2_observation_store import (
@@ -125,6 +126,14 @@ class PersistentM2ObservationStoreTests(unittest.TestCase):
         self.assertFalse(hasattr(lazy, "_observations"))
         self.assertFalse(hasattr(lazy, "_receipts"))
         self.assertEqual(lazy.get_observation("obs-1").envelope.record_id, "obs-1")
+
+    def test_evidence_verification_resolves_all_references_in_one_batch(self):
+        observation = self.make_observation()
+        with patch.object(
+            self.resolver, "resolve_many", wraps=self.resolver.resolve_many
+        ) as resolve_many:
+            self.store._verify_evidence(observation)
+        resolve_many.assert_called_once_with([self.reference])
 
     def test_rejects_wrong_scope_before_durable_append(self):
         with self.assertRaises(ObservationStoreError):
