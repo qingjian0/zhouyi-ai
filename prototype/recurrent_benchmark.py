@@ -33,23 +33,25 @@ class BenchmarkConfig:
     seed: int = 101
     payload_length: int = 5
     gap_length: int = 16
+    eval_gap_length: int | None = None
     pair_count: int = 4
     key_bits: int = 3
     learning_rate: float = 0.03
 
 
-def _dataset(task: str, count: int, seed: int, config: BenchmarkConfig):
+def _dataset(task: str, count: int, seed: int, config: BenchmarkConfig, *, gap_length: int | None = None):
+    effective_gap = config.gap_length if gap_length is None else gap_length
     if task == "periodic":
         return periodic_next_symbol(count=count, period=7, seed=seed)
     if task == "delayed_copy":
         return delayed_copy(count=count, payload_length=config.payload_length,
-                            distractor_length=config.gap_length, seed=seed)
+                            distractor_length=effective_gap, seed=seed)
     if task == "associative_recall":
         return associative_recall(count=count, pair_count=config.pair_count,
                                   key_bits=config.key_bits, seed=seed)
     if task == "distractor_recall":
         return distractor_recall(count=count, payload_length=config.payload_length,
-                                 distractor_length=config.gap_length, seed=seed)
+                                 distractor_length=effective_gap, seed=seed)
     raise ValueError(f"unsupported task: {task}")
 
 
@@ -118,6 +120,7 @@ def _run_one(model_name: str, config: BenchmarkConfig, train, evaluation, seed: 
                 example.context, example.target, learning_rate=config.learning_rate
             ))
     train_seconds = max(time.perf_counter() - started, 1e-12)
+    train_context_symbols = sum(len(example.context) for example in train)
     _, peak_bytes = tracemalloc.get_traced_memory()
     tracemalloc.stop()
 
@@ -128,6 +131,7 @@ def _run_one(model_name: str, config: BenchmarkConfig, train, evaluation, seed: 
         "parameter_count": _parameter_count(model),
         "seed": seed,
         "train_examples": len(train),
+        "train_context_symbols": train_context_symbols,
         "epochs": config.epochs,
         "train_updates": len(train) * config.epochs,
         "train_mean_sequence_loss": sum(train_losses) / max(len(train_losses), 1),
@@ -142,11 +146,16 @@ def _run_one(model_name: str, config: BenchmarkConfig, train, evaluation, seed: 
 def run_benchmark(config: BenchmarkConfig, seeds: tuple[int, ...] | None = None):
     if config.train_examples < 1 or config.eval_examples < 1 or config.epochs < 1:
         raise ValueError("example counts and epochs must be positive")
+    if config.gap_length < 1 or (config.eval_gap_length is not None and config.eval_gap_length < 1):
+        raise ValueError("training and evaluation gap lengths must be positive")
     seeds = seeds or (config.seed, config.seed + 1, config.seed + 2)
     results = []
     for seed in seeds:
         train = _dataset(config.task, config.train_examples, seed * 17 + 1, config)
-        evaluation = _dataset(config.task, config.eval_examples, seed * 17 + 2, config)
+        evaluation = _dataset(
+            config.task, config.eval_examples, seed * 17 + 2, config,
+            gap_length=config.eval_gap_length,
+        )
         for model_name in ("gated_rnn", "linear_rnn"):
             results.append(_run_one(model_name, config, train, evaluation, seed))
     return {
@@ -171,7 +180,10 @@ def main(argv=None):
     parser.add_argument("--epochs", type=int, default=5)
     parser.add_argument("--seed", type=int, default=101)
     parser.add_argument("--payload-length", type=int, default=5)
-    parser.add_argument("--gap-length", type=int, default=16)
+    parser.add_argument("--gap-length", type=int, default=16,
+                        help="training distractor gap length")
+    parser.add_argument("--eval-gap-length", type=int, default=None,
+                        help="held-out evaluation gap length; defaults to --gap-length")
     parser.add_argument("--pair-count", type=int, default=4)
     parser.add_argument("--key-bits", type=int, default=3)
     parser.add_argument("--learning-rate", type=float, default=0.03)
@@ -181,6 +193,7 @@ def main(argv=None):
         task=args.task, train_examples=args.train_examples,
         eval_examples=args.eval_examples, epochs=args.epochs, seed=args.seed,
         payload_length=args.payload_length, gap_length=args.gap_length,
+        eval_gap_length=args.eval_gap_length,
         pair_count=args.pair_count, key_bits=args.key_bits,
         learning_rate=args.learning_rate,
     )
