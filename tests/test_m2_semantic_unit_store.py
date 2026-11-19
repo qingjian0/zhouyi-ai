@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 
 from prototype.evidence_ref_resolver import EvidenceResolutionError, SQLiteEvidenceRefResolver
+from prototype.m2_memory_packet import MemoryQuery, build_memory_packet_from_store
 from prototype.m2_semantic_unit_store import (
     PersistentSemanticUnitCandidateStore,
     SemanticUnitStoreError,
@@ -172,6 +173,25 @@ class PersistentSemanticUnitCandidateStoreTests(unittest.TestCase):
             {entry.record.envelope.record_id for entry in packet.entries},
             {"candidate-0", "candidate-1"},
         )
+
+    def test_persistent_candidate_store_feeds_bounded_memory_packet(self):
+        for index in range(3):
+            self.store.record_candidate(self.make_candidate(record_id=f"packet-{index}"))
+        query = MemoryQuery(
+            query_goal="retrieve grounded entities",
+            scope="project-a",
+            required_types=(UnitKind.ENTITY,),
+            max_records=2,
+            byte_budget=8192,
+            ranking_policy="append-sequence-asc-v1",
+        )
+        packet = build_memory_packet_from_store(self.store, query)
+        self.assertEqual(
+            [item.record_id for item in packet.items],
+            ["packet-0", "packet-1"],
+        )
+        self.assertEqual(packet.completeness.value, "BUDGET_EXHAUSTED")
+        self.assertLessEqual(packet.serialized_bytes, query.byte_budget)
 
     def test_replay_fails_closed_when_source_evidence_changes(self):
         self.store.record_candidate(self.make_candidate())

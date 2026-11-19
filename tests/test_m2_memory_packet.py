@@ -2,6 +2,7 @@ import unittest
 
 from prototype.m2_memory_packet import (
     MemoryPacketError, MemoryQuery, PacketCompleteness, build_memory_packet,
+    build_memory_packet_from_store,
 )
 from prototype.observation_contract import (
     EvidenceRef, GroundingStatus, RecordEnvelope, RoleBinding,
@@ -87,6 +88,51 @@ class MemoryPacketTests(unittest.TestCase):
         with self.assertRaises(MemoryPacketError):
             self.query(valid_time_start="2026-06-01T00:00:00Z",
                        valid_time_end="2026-06-02")
+
+
+    def test_store_adapter_uses_verified_append_stream_and_explicit_order(self):
+        candidate = self.candidate
+
+        class Reader:
+            scope = "s1"
+
+            def iter_candidates(self, *, page_size):
+                self.page_size = page_size
+                yield candidate("first")
+                yield candidate("second")
+
+        reader = Reader()
+        packet = build_memory_packet_from_store(
+            reader,
+            self.query(ranking_policy="append-sequence-asc-v1"),
+        )
+        self.assertEqual([item.record_id for item in packet.items], ["first", "second"])
+        self.assertEqual(reader.page_size, 128)
+        with self.assertRaises(MemoryPacketError):
+            build_memory_packet_from_store(
+                reader, self.query(ranking_policy="latest-lifecycle-event-desc-v1"),
+            )
+
+    def test_store_adapter_reports_scan_budget_exhaustion(self):
+        candidate = self.candidate
+
+        class Reader:
+            scope = "s1"
+
+            def iter_candidates(self, *, page_size):
+                for index in range(4):
+                    yield candidate(f"candidate-{index}")
+
+        packet = build_memory_packet_from_store(
+            Reader(),
+            self.query(
+                ranking_policy="append-sequence-asc-v1",
+                max_scan_events=2,
+            ),
+        )
+        self.assertEqual([item.record_id for item in packet.items], ["candidate-0", "candidate-1"])
+        self.assertEqual(packet.records_scanned, 2)
+        self.assertEqual(packet.completeness, PacketCompleteness.BUDGET_EXHAUSTED)
 
     def test_malformed_candidate_temporal_interval_fails_closed(self):
         candidate = self.candidate("bad-time", start="2026-12-31", end="2026-01-01")
