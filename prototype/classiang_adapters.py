@@ -77,7 +77,7 @@ def adapt_formation_trace(
         )
         for item in features
     )
-    return ClassiangObservation(
+    adapted = ClassiangObservation(
         observation_id=f"formation:{trace.trace_id}:{subject_id}",
         subject_id=subject_id,
         domain=domain,
@@ -85,3 +85,5 @@ def adapt_formation_trace(
         features=candidates,
         context=context,
     )
+    adapted.validate()
+    return adapted
