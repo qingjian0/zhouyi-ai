@@ -109,7 +109,7 @@ def count_evidence_document(
             for chunk in page:
                 yield chunk.text
             offset += len(page)
-            if len(page) < page_size:
-                break
+            # get_chunks may return a short page because its byte budget was
+            # reached before its row limit. Continue until the source is empty.
 
     return count_token_stream(text_pages(), tokenizer)
