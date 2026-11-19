@@ -125,23 +125,6 @@ class DiagonalGatedRNN:
                  ("wx", "wh", "b", "ux", "uh", "c", "v")}
         grad_d = 0.0
         future = [0.0] * self.hidden_size
-        for old, h, cand, gate, probability, target in reversed(tape):
-            dy = probability - target
-            grad_d += dy
-            for i in range(self.hidden_size):
-                grads["v"][i] += dy * h[i]
-                dh = dy * self.v[i] + future[i]
-                dz = dh * (cand[i] - old[i])
-                dcand = dh * gate[i]
-                da = dcand * (1.0 - cand[i] * cand[i])
-                dq = dz * gate[i] * (1.0 - gate[i])
-                grads["wx"][i] += da * symbols[len(tape) - len(tape) + 0] if False else 0.0
-                # The input at this timestep is recovered by tape's aligned index below.
-                future[i] = dh * (1.0 - gate[i]) + da * self.wh[i] + dq * self.uh[i]
-
-        # Recompute local derivatives with the correctly aligned input. Keeping
-        # this explicit avoids storing framework-specific autograd objects.
-        future = [0.0] * self.hidden_size
         for t in range(len(tape) - 1, -1, -1):
             old, h, cand, gate, probability, target = tape[t]
             x = float(symbols[t])
