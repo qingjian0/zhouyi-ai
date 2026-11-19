@@ -467,21 +467,17 @@ class SQLiteEvidenceIngestor:
                 raise IngestContractError(
                     "persisted evidence document cursor is invalid"
                 )
-            if complete:
-                if (
+            completed_manifest_invalid = bool(
+                complete and (
                     not isinstance(manifest_digest, str)
                     or not manifest_digest.startswith("manifest-sha256:")
                     or manifest_chunks != next_ordinal
                     or manifest_bytes != next_offset
                     or chunk_generation != next_ordinal
                     or manifest_generation != chunk_generation
-                ):
-                    raise IngestContractError(
-                        "completed evidence manifest is stale or inconsistent"
-                    )
-            elif (
-                chunk_generation != next_ordinal
-            ):
+                )
+            )
+            if not complete and chunk_generation != next_ordinal:
                 raise IngestContractError(
                     "persisted evidence chunk generation does not match the document cursor"
                 )
@@ -532,6 +528,12 @@ class SQLiteEvidenceIngestor:
                     content_sha256=row[5], token_count=row[6],
                 ))
                 consumed += payload_bytes
+            # Prefer the specific chunk-digest failure when payload corruption
+            # also makes the finalized manifest inconsistent.
+            if completed_manifest_invalid:
+                raise IngestContractError(
+                    "completed evidence manifest is stale or inconsistent"
+                )
         return result
 
     def document_state(self, document_id: str) -> tuple[int, int, bool] | None:
