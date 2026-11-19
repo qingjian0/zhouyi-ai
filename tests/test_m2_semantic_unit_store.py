@@ -207,7 +207,7 @@ class PersistentSemanticUnitCandidateStoreTests(unittest.TestCase):
     def test_end_to_end_store_packet_and_source_evidence_hydration(self):
         from prototype.m2_memory_hydration import hydrate_memory_packet
 
-        source = "甲使用工具处理乙；证据必须能从持久记忆恢复。"
+        source = "甲使用工具处理乙"
         self.store.record_candidate(self.make_candidate(record_id="e2e-candidate"))
         query = MemoryQuery(
             query_goal="恢复实体候选的原始证据",
