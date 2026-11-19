@@ -1,4 +1,5 @@
 import unittest
+from dataclasses import replace
 
 from prototype.classiang_engine import (
     ClassExample, FeatureAtom, FeatureCandidate, InductionStatus,
@@ -110,6 +111,17 @@ class ClassiangEngineTests(unittest.TestCase):
                 positive_examples=positives,
                 negative_examples=negatives,
                 counterexample=positives[0],
+            )
+        altered = replace(
+            initial,
+            required_features=(FeatureAtom("attribute", "metal"),),
+        )
+        with self.assertRaisesRegex(ValueError, "reproduce"):
+            revise_class_with_counterexample(
+                hypothesis=altered,
+                positive_examples=positives,
+                negative_examples=negatives,
+                counterexample=example("new-ce", (feature,)),
             )
 
     def test_task_conditioned_aspect_selection_is_auditable(self):
