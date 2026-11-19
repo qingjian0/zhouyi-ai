@@ -72,8 +72,8 @@ class TokenCountManifestTests(unittest.TestCase):
         )
         with sqlite3.connect(self.db_path) as db:
             db.execute(
-                "UPDATE evidence_chunks SET text_utf8=text_utf8 "
-                "WHERE document_id=? AND ordinal=0", ("doc",)
+                "UPDATE ingest_documents SET manifest_digest=? WHERE document_id=?",
+                ("manifest-sha256:changed-source-generation", "doc"),
             )
         self.assertIsNone(
             get_token_count_manifest(self.store, "doc", TinyExactTokenizer.tokenizer_id)
