@@ -24,7 +24,7 @@ Zhouyi-AI 以**类象认知**为第一研究主线：从观测中取象、按任
 
 | 工作流 | 已落地 | 尚未通过的关键验收 |
 |---|---|---|
-| **类象认知主线** | `prototype/classiang_engine.py` 首个统一符号 MVP：任务条件取象、正/负例差异立类、证据绑定、跨领域正例、暂定接受/拒绝/弃权；14 项专项单测；并复用 `analogy.py`、`dynamic_analogy.py`、`yixiang_formation.py`、M56/M58 | 尚未接入原始文本/多模态观测解析、可学习特征提议、类别拆分/合并与反例驱动修订；需要真实多域 Gold 标注、强基线和端到端迁移评估。MVP 仍是符号规则，不等于已学习的类象能力 |
+| **类象认知主线** | `prototype/classiang_engine.py` 任务条件取象、正/负例差异立类、证据绑定、跨领域正例、暂定接受/拒绝/弃权；`prototype/classiang_discovery.py` 有界 Apriori 无标签候选发现与来源追踪；22 项类象专项单测；并复用 `analogy.py`、`dynamic_analogy.py`、`yixiang_formation.py`、M56/M58 | 尚未接入原始文本/多模态观测解析、可学习特征提议、类别拆分/合并与反例驱动修订；需要真实多域 Gold 标注、强基线和端到端迁移评估。MVP 仍是符号规则，不等于已学习的类象能力 |
 | ZPCM / E12-A6 | 追加式权威事件日志、SQLite 持久化、事件摘要校验、授权 receipt/nonce 唯一索引、候选历史索引和授权历史 keyset 分页；候选/证据/动作投影与 high-water/count 元数据由同事务触发器维护；`PersistentLifecycleLedger` 使用临时 SQLite scratch state，普通写入不再 deepcopy 全账本；新增持久 checkpoint v2：事件前缀 digest、授权投影 digest、snapshot header digest、分类型有界 page、page digest/manifest digest；checkpoint 发布在 `BEGIN IMMEDIATE` 事务内原子完成；恢复校验通过后从 checkpoint 高水位只做 suffix 语义重放，损坏时回退权威日志全量重放 | checkpoint 的事件前缀完整性校验仍扫描 O(N) 权威事件，故不是 O(1) 启动；scratch state 仍是进程级临时库；50 万条合成候选历史中 checkpoint 恢复约 21.58 秒、全量重放约 26.27 秒，峰值 RSS 均约 31 MiB，ZPCM 初始化另约 12.6 秒；当前分页 checkpoint exact-head 完整测试、发布中断/磁盘故障、并发 adapter、清理失败及生产事件混合负载仍待验收 |
 | M1 数据摄取 | UTF-8 分块读取、Manifest、Chunk Digest、SQLite 持久化、恢复和有界 chunk 读取 | 跨 Chunk tokenizer 一致性、整篇 reference 对照、大文本吞吐与 RSS exact-head 报告 |
 | M2 Observation | Observation DTO、EvidenceRef、Lazy Store、SQLite 索引、Keyset Paging、来源校验与重启恢复 | 大规模 RSS 实测、Gold 标注、语义提取质量、abstention 与独立标注评估 |
@@ -41,7 +41,7 @@ Zhouyi-AI 以**类象认知**为第一研究主线：从观测中取象、按任
 2. 将八类类象维度统一为可扩展、多标签的特征视图；明确维度标签不是类别结论，表面相似不能代替关系/机制保持。
 3. 新增 `prototype/classiang_engine.py` 作为统一符号 MVP：任务条件取象、正负例差异立类和证据门控；将 `analogy.py`、`dynamic_analogy.py`、`yixiang_formation.py`、M56/M58 原型逐步纳入统一接口，保留旧 API 兼容适配。
 4. 形成可审查的类象候选与类别版本：对象/域、任务目的、特征选择理由、关系映射、适用条件、证据谱系、反例、未知/拒绝状态及修订历史。
-5. 首个符号 MVP 已实现任务条件特征筛选、正例交集/负例差异立类和三态成员判断；下一步补齐反例驱动的类别修订、跨域关系映射和可学习提议器。不得把规则基线或生成器内自洽结果宣称为学习成果。
+5. 首批符号 MVP 已实现任务条件特征筛选、正例/负例差异立类、无标签频繁特征组合提议和三态成员判断；下一步补齐反例驱动的类别修订、跨域关系映射和可学习提议器。不得把规则基线或生成器内自洽结果宣称为学习成果。
 6. 验收至少覆盖：高表面相似但结构不兼容、低表面相似但关系保持、任务/上下文变化、关系反转、开放集新类、类别边界、反例导致的局部修订、跨域与组合 OOD。
 7. 建立无类象机制、表面相似、特征匹配、关系图匹配、机制/过程匹配及可学习模型的同输入、同数据拆分、预算匹配基线；报告拒绝质量、校准、迁移收益和成本。
 
