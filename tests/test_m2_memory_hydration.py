@@ -111,7 +111,7 @@ class MemoryHydrationTests(unittest.TestCase):
             resolver,
             max_evidence_bytes=5,
         )
-        self.assertEqual(resolver.calls, [[]])
+        self.assertEqual(resolver.calls, [])
         self.assertEqual(result.evidence, ())
         self.assertEqual(result.completeness, PacketCompleteness.BUDGET_EXHAUSTED)
 
