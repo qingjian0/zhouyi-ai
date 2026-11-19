@@ -129,7 +129,9 @@ class DiagonalGatedRNN:
             old, h, cand, gate, probability, target = tape[t]
             x = float(symbols[t])
             dy = probability - target
+            grad_d += dy
             for i in range(self.hidden_size):
+                grads["v"][i] += dy * h[i]
                 dh = dy * self.v[i] + future[i]
                 dz = dh * (cand[i] - old[i])
                 dcand = dh * gate[i]
