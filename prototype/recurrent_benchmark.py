@@ -114,8 +114,8 @@ def _run_one(model_name: str, config: BenchmarkConfig, train, evaluation, seed: 
     train_losses = []
     for _ in range(config.epochs):
         for example in train:
-            train_losses.append(model.train_sequence(
-                example.training_sequence(), learning_rate=config.learning_rate
+            train_losses.append(model.train_final_target(
+                example.context, example.target, learning_rate=config.learning_rate
             ))
     train_seconds = max(time.perf_counter() - started, 1e-12)
     _, peak_bytes = tracemalloc.get_traced_memory()
