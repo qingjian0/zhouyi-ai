@@ -304,6 +304,120 @@ def induce_class(
     return InductionResult(status, hypothesis, reasons)
 
 
+class RevisionStatus(str, Enum):
+    REVISED = "revised"
+    EVIDENCE_UPDATED = "evidence_updated"
+    RETAINED_UNDERDETERMINED = "retained_underdetermined"
+
+
+@dataclass(frozen=True)
+class ClassRevisionResult:
+    status: RevisionStatus
+    active_hypothesis: ClassHypothesis
+    candidate_hypothesis: ClassHypothesis | None
+    counterexample_id: str
+    removed_required_features: tuple[FeatureAtom, ...]
+    added_required_features: tuple[FeatureAtom, ...]
+    reason_codes: tuple[str, ...]
+
+
+def revise_class_with_counterexample(
+    *,
+    hypothesis: ClassHypothesis,
+    positive_examples: Sequence[ClassExample],
+    negative_examples: Sequence[ClassExample],
+    counterexample: ClassExample,
+) -> ClassRevisionResult:
+    """Propose a versioned local class revision from one grounded counterexample.
+
+    Callers must provide the complete positive/negative example sets that
+    produced the current hypothesis. The function verifies their observation
+    IDs against the hypothesis before adding the new negative example. If the
+    expanded evidence cannot support a discriminative rule, the existing
+    hypothesis remains active and the failed proposal is returned separately.
+    This is a deterministic symbolic revision primitive, not autonomous
+    semantic concept learning or persistence.
+    """
+    if not isinstance(hypothesis, ClassHypothesis):
+        raise ValueError("hypothesis must be ClassHypothesis")
+    if hypothesis.status == InductionStatus.UNDERDETERMINED:
+        raise ValueError("cannot revise an underdetermined hypothesis")
+    if isinstance(hypothesis.version, bool) or not isinstance(hypothesis.version, int) or hypothesis.version < 1:
+        raise ValueError("hypothesis version must be a positive integer")
+    if not isinstance(positive_examples, Sequence) or not isinstance(negative_examples, Sequence):
+        raise ValueError("positive_examples and negative_examples must be sequences")
+    positives, negatives = tuple(positive_examples), tuple(negative_examples)
+    if not positives:
+        raise ValueError("positive_examples must not be empty")
+    for item in positives + negatives:
+        if not isinstance(item, ClassExample):
+            raise ValueError("examples must be ClassExample")
+        item.validate()
+    if tuple(sorted(item.observation.observation_id for item in positives)) != hypothesis.positive_example_ids:
+        raise ValueError("positive examples do not match the hypothesis provenance")
+    if tuple(sorted(item.observation.observation_id for item in negatives)) != hypothesis.negative_example_ids:
+        raise ValueError("negative examples do not match the hypothesis provenance")
+    if not isinstance(counterexample, ClassExample):
+        raise ValueError("counterexample must be ClassExample")
+    counterexample.validate()
+    if counterexample.purpose != hypothesis.purpose:
+        raise ValueError("counterexample purpose does not match the hypothesis")
+    used_ids = {
+        item.observation.observation_id for item in positives + negatives
+    }
+    counterexample_id = counterexample.observation.observation_id
+    if counterexample_id in used_ids:
+        raise ValueError("counterexample observation ID is already in the hypothesis")
+    baseline_result = induce_class(
+        class_id=hypothesis.class_id,
+        purpose=hypothesis.purpose,
+        positive_examples=positives,
+        negative_examples=negatives,
+        validity_scope=hypothesis.validity_scope,
+        version=hypothesis.version,
+    )
+    if baseline_result.hypothesis != hypothesis:
+        raise ValueError("examples do not reproduce the current hypothesis")
+
+    candidate_result = induce_class(
+        class_id=hypothesis.class_id,
+        purpose=hypothesis.purpose,
+        positive_examples=positives,
+        negative_examples=negatives + (counterexample,),
+        validity_scope=hypothesis.validity_scope,
+        version=hypothesis.version + 1,
+    )
+    if candidate_result.hypothesis is None:
+        return ClassRevisionResult(
+            status=RevisionStatus.RETAINED_UNDERDETERMINED,
+            active_hypothesis=hypothesis,
+            candidate_hypothesis=None,
+            counterexample_id=counterexample_id,
+            removed_required_features=(),
+            added_required_features=(),
+            reason_codes=("COUNTEREXAMPLE_MAKES_BOUNDARY_UNDERDETERMINED",
+                          *candidate_result.reason_codes),
+        )
+    candidate = candidate_result.hypothesis
+    old_features = set(hypothesis.required_features)
+    new_features = set(candidate.required_features)
+    removed = tuple(sorted(old_features - new_features))
+    added = tuple(sorted(new_features - old_features))
+    status = (
+        RevisionStatus.REVISED if removed or added
+        else RevisionStatus.EVIDENCE_UPDATED
+    )
+    return ClassRevisionResult(
+        status=status,
+        active_hypothesis=candidate,
+        candidate_hypothesis=candidate,
+        counterexample_id=counterexample_id,
+        removed_required_features=removed,
+        added_required_features=added,
+        reason_codes=("COUNTEREXAMPLE_ADDED_TO_NEGATIVE_BOUNDARY",),
+    )
+
+
 def assess_membership(
     observation: Observation, hypothesis: ClassHypothesis
 ) -> MembershipAssessment:

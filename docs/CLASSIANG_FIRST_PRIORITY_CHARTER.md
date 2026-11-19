@@ -125,3 +125,27 @@
 - 不删除失败案例；不以跳过测试或放宽门槛制造绿色 CI。
 - 所有结论绑定数据版本、协议、随机种子和精确 commit SHA。
 - `dev` 是唯一集成目标；`main` 保持稳定，未经发布决策不修改。
+
+
+## 10. Counterexample-driven local class revision (symbolic MVP)
+
+`revise_class_with_counterexample` adds a deterministic revision primitive.
+The caller supplies the complete positive and negative `ClassExample` sets
+that produced the current hypothesis, plus one new evidence-grounded negative
+example. The function verifies that supplied example IDs match the hypothesis
+provenance, increments the version, and re-induces the discriminative feature
+conjunction.
+
+- If the new counterexample invalidates some required features but leaves a
+  discriminative remainder, a new hypothesis version is returned with removed
+  and added required features recorded.
+- If the expanded evidence makes the rule underdetermined, the previous
+  hypothesis remains active; the failed candidate is not silently installed.
+- If the example provenance, purpose, or identity does not match, the update
+  fails closed.
+
+This is a pure symbolic proposal function. It does not persist revisions,
+automatically discover semantic counterexamples, split/merge ontological
+classes, or establish that upstream feature annotations are correct. Callers
+must retain the complete evidence examples and persist accepted versions
+through the project's lifecycle store if they need durable history.
