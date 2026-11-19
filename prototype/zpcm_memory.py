@@ -1038,11 +1038,11 @@ class ZPCMMemory:
                 # Avoid even opening an empty keyset reader when the durable
                 # checkpoint already equals the scoped event high-water mark.
                 if cursor < high_water:
-                        for event in self.iter_domain_events(
-                            event_type="e12a6_lifecycle", scope=scope,
-                            after_sequence=cursor,
-                        ):
-                            payload = event["payload"]
+                    for event in self.iter_domain_events(
+                        event_type="e12a6_lifecycle", scope=scope,
+                        after_sequence=cursor,
+                    ):
+                        payload = event["payload"]
                         if payload.get("kind") == "authorization_consumed":
                             body = payload.get("body")
                             if not isinstance(body, dict):
@@ -1072,8 +1072,8 @@ class ZPCMMemory:
                                     "VALUES(?,?,?,?)", expected,
                                 )
                         last_sequence = event["sequence"]
-                    if last_sequence != high_water:
-                        raise ZPCMError("authorization consumption checkpoint replay did not reach event high-water mark")
+                if last_sequence != high_water:
+                    raise ZPCMError("authorization consumption checkpoint replay did not reach event high-water mark")
                 self.db.execute(
                     "INSERT INTO e12a6_authorization_consumption_checkpoints(scope,checkpoint_sequence) "
                     "VALUES(?,?) ON CONFLICT(scope) DO UPDATE SET "
