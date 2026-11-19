@@ -1,9 +1,9 @@
 import unittest
-from types import SimpleNamespace
 
 from prototype.m2_memory_packet import MemoryQuery, PacketCompleteness
 from prototype.m2_memory_lexical_retrieval import (
     LexicalRetrievalError,
+    _terms,
     retrieve_lexical_memory,
 )
 from prototype.observation_contract import (
@@ -22,10 +22,13 @@ class Reader:
     def __init__(self, rows):
         self.rows = rows
         self.page_sizes = []
+        self.yielded = 0
 
     def iter_candidates(self, *, page_size):
         self.page_sizes.append(page_size)
-        yield from self.rows
+        for row in self.rows:
+            self.yielded += 1
+            yield row
 
 
 def candidate(record_id, surface, *, scope="scope-a", kind=UnitKind.CONCEPT):
@@ -73,6 +76,12 @@ class LexicalRetrievalTests(unittest.TestCase):
         self.assertEqual(report.candidates_matched, 4)
         self.assertEqual(reader.page_sizes, [128])
 
+    def test_cjk_bigrams_do_not_cross_whitespace_or_punctuation(self):
+        self.assertIn("关系", _terms("关系 推理"))
+        self.assertNotIn("系推", _terms("关系 推理"))
+        self.assertNotIn("系，推", _terms("关系，推理"))
+        self.assertIn("推理", _terms("关系，推理"))
+
     def test_filters_scope_and_type_before_top_k(self):
         rows = [
             candidate("wrong-scope", "关系 推理", scope="scope-b"),
@@ -83,12 +92,14 @@ class LexicalRetrievalTests(unittest.TestCase):
         self.assertEqual([x.record_id for x in report.packet.items], ["right"])
         self.assertEqual(report.candidates_matched, 1)
 
-    def test_scan_budget_is_hard_and_reported_as_partial(self):
+    def test_scan_budget_does_not_pull_an_extra_candidate(self):
         rows = [candidate(f"r{i}", "关系 推理") for i in range(5)]
+        reader = Reader(rows)
         report = retrieve_lexical_memory(
-            Reader(rows), query(max_scan_events=2, max_records=2),
+            reader, query(max_scan_events=2, max_records=2),
         )
         self.assertEqual(report.candidates_scanned, 2)
+        self.assertEqual(reader.yielded, 2)
         self.assertTrue(report.scan_budget_exhausted)
         self.assertEqual(report.packet.completeness, PacketCompleteness.BUDGET_EXHAUSTED)
 
