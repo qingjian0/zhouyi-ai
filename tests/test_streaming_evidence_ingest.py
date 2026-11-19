@@ -99,6 +99,42 @@ class SQLiteEvidenceIngestorTests(unittest.TestCase):
                 "doc-tamper", "tamper.txt", io.BytesIO(source), chunk_bytes=4
             )
 
+    def test_chunk_metadata_tampering_invalidates_completed_manifest(self):
+        source = b"abcdefgh"
+        for column, replacement in (("byte_start", 1), ("byte_end", 5)):
+            with self.subTest(column=column):
+                document_id = f"doc-metadata-{column}"
+                self.ingestor.ingest(
+                    document_id, "metadata.txt", io.BytesIO(source), chunk_bytes=4
+                )
+                with sqlite3.connect(self.db_path) as db:
+                    db.execute(
+                        f"UPDATE evidence_chunks SET {column}=? "
+                        "WHERE document_id=? AND ordinal=0",
+                        (replacement, document_id),
+                    )
+                with self.assertRaisesRegex(
+                    IngestContractError, "manifest is stale or inconsistent"
+                ):
+                    self.ingestor.get_chunks(document_id, limit=10)
+
+    def test_chunk_metadata_tampering_invalidates_incomplete_resume(self):
+        source = b"abcdefgh"
+        self.ingestor.ingest(
+            "doc-incomplete-metadata", "metadata.txt", io.BytesIO(source),
+            chunk_bytes=4, max_chunks=1,
+        )
+        with sqlite3.connect(self.db_path) as db:
+            db.execute(
+                "UPDATE evidence_chunks SET byte_start=1 "
+                "WHERE document_id=? AND ordinal=0",
+                ("doc-incomplete-metadata",),
+            )
+        with self.assertRaisesRegex(
+            IngestContractError, "generation does not match the document cursor"
+        ):
+            self.ingestor.get_chunks("doc-incomplete-metadata", limit=10)
+
     def test_hard_process_exit_recovers_only_committed_chunks(self):
         source_path = Path(self.temp.name) / "crash-source.txt"
         source = b"01234567" * 30
