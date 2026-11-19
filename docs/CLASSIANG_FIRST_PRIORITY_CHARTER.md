@@ -68,7 +68,8 @@
 
 | 现有资产 | 在主线中的职责 | 不能夸大的能力 |
 |---|---|---|
-| `prototype/classiang_engine.py` | 任务条件取象、正负例差异立类、证据门控、暂定接受/拒绝/弃权 | 符号 MVP；上游 relevance 分数不是校准概率，类别规则不是语义真理 |\n| `prototype/analogy.py` | 显式关系保持评估、证据门控、有限图映射搜索 | 不是从原始观测自动取象或学习映射 |
+| `prototype/classiang_engine.py` | 任务条件取象、正负例差异立类、证据门控、暂定接受/拒绝/弃权 | 符号 MVP；上游 relevance 分数不是校准概率，类别规则不是语义真理 |
+| `prototype/analogy.py` | 显式关系保持评估、证据门控、有限图映射搜索 | 不是从原始观测自动取象或学习映射 |
 | `prototype/dynamic_analogy.py` | 状态事实、上下文和转移保持 | 不是因果发现或通用动态学习 |
 | `prototype/yixiang_formation.py` | 观测→特征→类别声明的证据链完整性审计 | 不负责自动抽取特征或判断类别真伪 |
 | `prototype/yixiang_m56_executable_core.py` | 类别形成/迁移/反例修正的隔离评测协议 | 合成生成器不等于被测认知模型 |
