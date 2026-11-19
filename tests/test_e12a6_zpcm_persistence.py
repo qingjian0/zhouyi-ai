@@ -177,6 +177,36 @@ class PersistentLifecycleTests(unittest.TestCase):
         self.assertIn(("rel:greater-than", 1), self.store.ledger.candidates)
         self.assertEqual(self.store._last_sequence, 1)
 
+    def test_interrupted_checkpoint_publication_preserves_previous_checkpoint(self):
+        self.store.register_candidate(candidate())
+        previous = self.store.checkpoint()
+        self.store.register_evidence(evidence())
+
+        original_pages = self.store._iter_checkpoint_pages
+
+        def interrupted_pages():
+            iterator = original_pages()
+            yield next(iterator)
+            raise RuntimeError("simulated checkpoint writer interruption")
+
+        with patch.object(self.store, "_iter_checkpoint_pages", side_effect=interrupted_pages):
+            with self.assertRaises(LifecyclePersistenceError):
+                self.store.checkpoint()
+
+        retained = self.memory.load_e12a6_lifecycle_checkpoint(scope="project-a")
+        self.assertEqual(retained["checkpoint_sequence"], previous["checkpoint_sequence"])
+        self.assertEqual(retained["pages_digest"], previous["pages_digest"])
+
+        self.store.close()
+        self.memory.close()
+        self.memory = ZPCMMemory(self.path)
+        self.store = PersistentLifecycleLedger(self.memory, scope="project-a")
+        self.assertEqual(
+            self.store.snapshot()["evidence"],
+            [ _evidence_to_dict(_safe_evidence(evidence())) ],
+        )
+        self.assertEqual(self.store._last_sequence, 2)
+
     def test_checkpoint_refuses_to_publish_stale_runtime_state(self):
         self.store.register_candidate(candidate())
         self.memory.append_lifecycle_event(
