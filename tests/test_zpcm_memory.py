@@ -31,12 +31,12 @@ class Tests(unittest.TestCase):
    calls.append(kwargs)
    return original(**kwargs)
   self.m.iter_domain_events=tracked
-  # Normal reopen/reconciliation is checkpoint-only after an atomic append.
+  # Normal reopen/reconciliation skips history already covered by the checkpoint.
   self.m._rebuild_authorization_consumption_index()
   self.assertEqual(calls,[])
   # Explicit repair still performs a bounded full replay from sequence zero.
   self.m._rebuild_authorization_consumption_index(force=True)
-  self.assertEqual(calls,[{"event_type":"e12a6_lifecycle","scope":"project"}])
+  self.assertEqual(calls,[{"event_type":"e12a6_lifecycle","scope":"project","after_sequence":0}])
 
 
  def test_authorization_checkpoint_advances_with_each_lifecycle_append(self):
