@@ -224,12 +224,29 @@ def build_memory_packet(candidates: Iterable[SemanticUnitCandidate],
     )
 
 def build_memory_packet_from_store(reader, query: MemoryQuery) -> MemoryPacket:
-    """Build a packet directly from a bounded semantic-unit event reader."""
+    """Build a bounded packet from the persistent append-only M2 candidate stream.
+
+    PersistentSemanticUnitCandidateStore exposes verified, ascending sequence
+    iteration; it does not expose a lifecycle-resolved "current candidates"
+    view. The ranking policy therefore names that exact ordering rather than
+    claiming lifecycle semantics that this store does not implement.
+    """
     if not isinstance(query, MemoryQuery):
         raise TypeError("query must be MemoryQuery")
     if getattr(reader, "scope", None) != query.scope:
         raise MemoryPacketError("semantic-unit reader scope does not match query scope")
-    if query.ranking_policy != "latest-lifecycle-event-desc-v1":
-        raise MemoryPacketError("store reader requires latest-lifecycle-event-desc-v1 ranking")
-    stream = reader.iter_current_candidates(max_events=query.max_scan_events)
-    return build_memory_packet(stream, query)
+    if query.ranking_policy != "append-sequence-asc-v1":
+        raise MemoryPacketError("store reader requires append-sequence-asc-v1 ranking")
+    iterator = getattr(reader, "iter_candidates", None)
+    if not callable(iterator):
+        raise MemoryPacketError("reader must expose verified iter_candidates(page_size=...)")
+
+    def bounded_candidates():
+        scanned = 0
+        for candidate in iterator(page_size=128):
+            if scanned >= query.max_scan_events:
+                raise ScanBudgetExceeded(scanned)
+            scanned += 1
+            yield candidate
+
+    return build_memory_packet(bounded_candidates(), query)
