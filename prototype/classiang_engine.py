@@ -344,9 +344,15 @@ def revise_class_with_counterexample(
         raise ValueError("cannot revise an underdetermined hypothesis")
     if isinstance(hypothesis.version, bool) or not isinstance(hypothesis.version, int) or hypothesis.version < 1:
         raise ValueError("hypothesis version must be a positive integer")
+    if not isinstance(positive_examples, Sequence) or not isinstance(negative_examples, Sequence):
+        raise ValueError("positive_examples and negative_examples must be sequences")
     positives, negatives = tuple(positive_examples), tuple(negative_examples)
     if not positives:
         raise ValueError("positive_examples must not be empty")
+    for item in positives + negatives:
+        if not isinstance(item, ClassExample):
+            raise ValueError("examples must be ClassExample")
+        item.validate()
     if tuple(sorted(item.observation.observation_id for item in positives)) != hypothesis.positive_example_ids:
         raise ValueError("positive examples do not match the hypothesis provenance")
     if tuple(sorted(item.observation.observation_id for item in negatives)) != hypothesis.negative_example_ids:
