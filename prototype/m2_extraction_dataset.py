@@ -4,6 +4,7 @@ from __future__ import annotations
 from collections import Counter, defaultdict
 from dataclasses import dataclass
 from enum import Enum
+import re
 
 from prototype.m2_extraction_evaluation import ExtractionGoldCase
 from prototype.observation_contract import EvidenceRef, canonical_json, record_digest
@@ -22,12 +23,40 @@ class AnnotationStatus(str, Enum):
 
 
 @dataclass(frozen=True)
+class GoldUnitEvidenceSpan:
+    """Byte-exact source anchor for one ordered gold unit in an M1 chunk."""
+
+    unit_index: int
+    evidence_ref: EvidenceRef
+    byte_start: int
+    byte_end: int
+    span_sha256: str
+
+    def __post_init__(self) -> None:
+        if isinstance(self.unit_index, bool) or not isinstance(self.unit_index, int) or self.unit_index < 0:
+            raise ValueError("unit_index must be a non-negative integer")
+        if not isinstance(self.evidence_ref, EvidenceRef):
+            raise TypeError("evidence_ref must be EvidenceRef")
+        if (
+            isinstance(self.byte_start, bool) or not isinstance(self.byte_start, int)
+            or isinstance(self.byte_end, bool) or not isinstance(self.byte_end, int)
+            or self.byte_start < self.evidence_ref.byte_start
+            or self.byte_end <= self.byte_start
+            or self.byte_end > self.evidence_ref.byte_end
+        ):
+            raise ValueError("gold span must be a non-empty byte range inside its EvidenceRef")
+        if not isinstance(self.span_sha256, str) or not re.fullmatch(r"[0-9a-f]{64}", self.span_sha256):
+            raise ValueError("span_sha256 must be lowercase SHA-256 hex")
+
+
+@dataclass(frozen=True)
 class AnnotatedExtractionRecord:
     case: ExtractionGoldCase
     split: DatasetSplit
     source_lineage_ids: tuple[str, ...]
     evidence_refs: tuple[EvidenceRef, ...]
     annotation_status: AnnotationStatus
+    gold_evidence_spans: tuple[GoldUnitEvidenceSpan, ...] = ()
 
     def __post_init__(self) -> None:
         if not isinstance(self.case, ExtractionGoldCase):
@@ -48,6 +77,21 @@ class AnnotatedExtractionRecord:
             raise ValueError("evidence_refs must contain EvidenceRef values")
         if len(self.evidence_refs) != len(set(self.evidence_refs)):
             raise ValueError("evidence_refs must be unique within a record")
+        if not isinstance(self.gold_evidence_spans, tuple):
+            raise TypeError("gold_evidence_spans must be a tuple")
+        if any(not isinstance(item, GoldUnitEvidenceSpan) for item in self.gold_evidence_spans):
+            raise TypeError("gold_evidence_spans must contain GoldUnitEvidenceSpan values")
+        covered_units: set[int] = set()
+        for span in self.gold_evidence_spans:
+            if span.unit_index >= len(self.case.expected_units):
+                raise ValueError("gold evidence span unit_index is outside expected_units")
+            if span.evidence_ref not in self.evidence_refs:
+                raise ValueError("gold evidence span references an EvidenceRef outside the record")
+            covered_units.add(span.unit_index)
+        expected_unit_indexes = set(range(len(self.case.expected_units)))
+        if covered_units != expected_unit_indexes:
+            missing = sorted(expected_unit_indexes - covered_units)
+            raise ValueError(f"every gold unit requires at least one source evidence span; missing={missing}")
         if self.split in (DatasetSplit.VALIDATION, DatasetSplit.TEST, DatasetSplit.OOD_TEST):
             if self.annotation_status is not AnnotationStatus.ADJUDICATED:
                 raise ValueError("validation/test annotations must be adjudicated")
@@ -110,14 +154,20 @@ class ExtractionDatasetManifest:
         split_counts = Counter(item.split.value for item in self.records)
         domain_counts: dict[str, Counter] = defaultdict(Counter)
         source_counts: dict[str, set[str]] = defaultdict(set)
+        annotated_units = 0
+        evidence_span_count = 0
         for item in self.records:
             domain_counts[item.split.value][item.case.domain] += 1
+            annotated_units += len(item.case.expected_units)
+            evidence_span_count += len(item.gold_evidence_spans)
             source_counts[item.split.value].update(item.source_lineage_ids)
         return {
             "dataset_id": self.dataset_id,
             "dataset_version": self.dataset_version,
             "annotation_schema_version": self.annotation_schema_version,
             "case_count": len(self.records),
+            "annotated_unit_count": annotated_units,
+            "gold_evidence_span_count": evidence_span_count,
             "split_case_counts": {
                 split.value: split_counts[split.value] for split in DatasetSplit
             },

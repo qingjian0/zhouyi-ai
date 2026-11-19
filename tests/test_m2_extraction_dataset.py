@@ -1,10 +1,11 @@
 from __future__ import annotations
 
+import hashlib
 import unittest
 
 from prototype.m2_extraction_dataset import (
     AnnotationStatus, AnnotatedExtractionRecord, DatasetSplit,
-    ExtractionDatasetManifest,
+    ExtractionDatasetManifest, GoldUnitEvidenceSpan,
 )
 from prototype.m2_extraction_evaluation import ExtractionGoldCase, GoldSemanticUnit
 from prototype.observation_contract import EvidenceRef, UnitKind
@@ -19,17 +20,22 @@ def ref(document_id, chunk_id="chunk"):
 
 def record(case_id, split, *, domain="general", document_id=None,
            lineage=None, status=None):
+    reference = ref(document_id or f"doc:{case_id}")
     return AnnotatedExtractionRecord(
         case=ExtractionGoldCase(
             case_id, domain, (GoldSemanticUnit(UnitKind.CONCEPT, f"concept:{case_id}"),),
         ),
         split=split,
         source_lineage_ids=(lineage or f"lineage:{case_id}",),
-        evidence_refs=(ref(document_id or f"doc:{case_id}"),),
+        evidence_refs=(reference,),
         annotation_status=status or (
             AnnotationStatus.REVIEWED if split is DatasetSplit.TRAIN
             else AnnotationStatus.ADJUDICATED
         ),
+        gold_evidence_spans=(GoldUnitEvidenceSpan(
+            unit_index=0, evidence_ref=reference, byte_start=0, byte_end=5,
+            span_sha256=hashlib.sha256(b"alpha").hexdigest(),
+        ),),
     )
 
 
@@ -48,6 +54,8 @@ class ExtractionDatasetManifestTests(unittest.TestCase):
         ])
         summary = manifest.split_summary()
         self.assertEqual(summary["case_count"], 3)
+        self.assertEqual(summary["annotated_unit_count"], 3)
+        self.assertEqual(summary["gold_evidence_span_count"], 3)
         self.assertEqual(summary["split_case_counts"]["train"], 1)
         self.assertEqual(summary["split_case_counts"]["validation"], 1)
         self.assertEqual(summary["split_case_counts"]["test"], 1)
