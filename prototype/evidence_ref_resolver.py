@@ -145,41 +145,61 @@ class SQLiteEvidenceRefResolver:
                 source_version=version,
             )
 
+    def resolve_many(self, references: list[EvidenceRef]) -> list[ResolvedEvidence]:
+        """Resolve references with one manifest proof per document and one read snapshot.
+
+        Results preserve input order. Repeated references are independently returned,
+        while each distinct document manifest is fully verified only once.
+        """
+        if not isinstance(references, list):
+            raise EvidenceResolutionError("references must be a list")
+        if any(not isinstance(reference, EvidenceRef) for reference in references):
+            raise EvidenceResolutionError("every reference must be an EvidenceRef")
+        if not references:
+            return []
+        with self._connect() as db:
+            db.execute("BEGIN")
+            versions: dict[str, str] = {}
+            resolved: list[ResolvedEvidence] = []
+            for reference in references:
+                current_version = versions.get(reference.document_id)
+                if current_version is None:
+                    current_version = self._verified_document_version(
+                        db, reference.document_id
+                    )
+                    versions[reference.document_id] = current_version
+                if current_version != reference.source_version:
+                    raise EvidenceResolutionError(
+                        "EvidenceRef source version is stale or does not match M1"
+                    )
+                row = db.execute(
+                    """SELECT ordinal, byte_start, byte_end, text_utf8, content_sha256
+                       FROM evidence_chunks
+                       WHERE document_id = ? AND chunk_id = ?""",
+                    (reference.document_id, reference.chunk_id),
+                ).fetchone()
+                if row is None:
+                    raise EvidenceResolutionError("EvidenceRef chunk was not found")
+                ordinal, start, end, raw_blob, stored_digest = row
+                raw = bytes(raw_blob)
+                if len(raw) > self.MAX_CHUNK_BYTES:
+                    raise EvidenceResolutionError("stored evidence chunk exceeds hard chunk byte limit")
+                actual_digest = hashlib.sha256(raw).hexdigest()
+                if (int(start), int(end)) != (reference.byte_start, reference.byte_end):
+                    raise EvidenceResolutionError("EvidenceRef byte span does not match the stored chunk")
+                if stored_digest != reference.content_sha256 or actual_digest != stored_digest:
+                    raise EvidenceResolutionError("EvidenceRef content hash does not match stored source bytes")
+                if len(raw) != int(end) - int(start):
+                    raise EvidenceResolutionError("stored chunk byte length does not match its span")
+                try:
+                    decoded = raw.decode("utf-8", errors="strict")
+                except UnicodeDecodeError as exc:
+                    raise EvidenceResolutionError("stored evidence chunk is not valid UTF-8") from exc
+                resolved.append(ResolvedEvidence(reference=reference, text=decoded, ordinal=int(ordinal)))
+            return resolved
+
     def resolve(self, reference: EvidenceRef) -> ResolvedEvidence:
         if not isinstance(reference, EvidenceRef):
             raise EvidenceResolutionError("reference must be an EvidenceRef")
-        with self._connect() as db:
-            # The manifest proof and target chunk must come from one SQLite
-            # snapshot; separate connections leave a TOCTOU window.
-            db.execute("BEGIN")
-            current_version = self._verified_document_version(
-                db, reference.document_id
-            )
-            if current_version != reference.source_version:
-                raise EvidenceResolutionError(
-                    "EvidenceRef source version is stale or does not match M1"
-                )
-            row = db.execute(
-                """SELECT ordinal, byte_start, byte_end, text_utf8, content_sha256
-                   FROM evidence_chunks
-                   WHERE document_id = ? AND chunk_id = ?""",
-                (reference.document_id, reference.chunk_id),
-            ).fetchone()
-            if row is None:
-                raise EvidenceResolutionError("EvidenceRef chunk was not found")
-            ordinal, start, end, raw_blob, stored_digest = row
-            raw = bytes(raw_blob)
-            if len(raw) > self.MAX_CHUNK_BYTES:
-                raise EvidenceResolutionError("stored evidence chunk exceeds hard chunk byte limit")
-            actual_digest = hashlib.sha256(raw).hexdigest()
-            if (int(start), int(end)) != (reference.byte_start, reference.byte_end):
-                raise EvidenceResolutionError("EvidenceRef byte span does not match the stored chunk")
-            if stored_digest != reference.content_sha256 or actual_digest != stored_digest:
-                raise EvidenceResolutionError("EvidenceRef content hash does not match stored source bytes")
-            if len(raw) != int(end) - int(start):
-                raise EvidenceResolutionError("stored chunk byte length does not match its span")
-            try:
-                decoded = raw.decode("utf-8", errors="strict")
-            except UnicodeDecodeError as exc:
-                raise EvidenceResolutionError("stored evidence chunk is not valid UTF-8") from exc
-            return ResolvedEvidence(reference=reference, text=decoded, ordinal=int(ordinal))
+        return self.resolve_many([reference])[0]
+
