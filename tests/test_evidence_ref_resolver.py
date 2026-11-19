@@ -1,3 +1,4 @@
+import hashlib
 import io
 import sqlite3
 import tempfile
@@ -109,15 +110,23 @@ class SQLiteEvidenceRefResolverTests(unittest.TestCase):
         with self.assertRaises(EvidenceResolutionError):
             self.resolver.resolve(ref)
 
-    def test_manifest_recomputation_rejects_metadata_tampering_even_if_generation_is_forged(self):
+    def test_manifest_recomputation_rejects_chunk_tampering_even_if_generation_is_forged(self):
         chunks = self.ingest_complete()
+        original = chunks[0].text.encode("utf-8")
+        replacement = b"Z" * len(original)
+        replacement_digest = hashlib.sha256(replacement).hexdigest()
+        replacement_id = hashlib.sha256(
+            f"zhouyi-evidence-chunk-v1\\0doc-resolve\\00\\0{replacement_digest}".encode()
+        ).hexdigest()
         with sqlite3.connect(self.database) as db:
             db.execute(
-                "UPDATE evidence_chunks SET byte_start = byte_start + 1 WHERE chunk_id = ?",
-                (chunks[0].chunk_id,),
+                """UPDATE evidence_chunks
+                   SET chunk_id=?,text_utf8=?,content_sha256=?
+                   WHERE document_id=? AND ordinal=0""",
+                (replacement_id, replacement, replacement_digest, "doc-resolve"),
             )
             # Simulate an out-of-band writer that also forges the generation
-            # counters to conceal the trigger-observed metadata update.
+            # counters to conceal the trigger-observed content update.
             db.execute(
                 """UPDATE ingest_documents
                    SET chunk_generation = next_ordinal,
