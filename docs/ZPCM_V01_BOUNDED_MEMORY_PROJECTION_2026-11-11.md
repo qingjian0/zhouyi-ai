@@ -14,3 +14,14 @@ E09 remains authoritative for protocol events and evidence visibility. ZPCM stor
 
 ## Limits
 No vector/embedding retrieval, temporal interval reasoning, process ACL isolation, automatic consolidation or crash-safe E09 learner restore. Raw observations are not copied; source payload references remain authoritative. ZPCM is a rebuildable derived view in this slice.
+
+
+## M2 bounded memory-packet adapter integration
+
+The persistent semantic-unit candidate store exposes verified
+`iter_candidates(page_size=...)` in append-sequence order. The memory-packet
+adapter consumes that interface with a fixed page size and enforces the query's
+`max_scan_events` limit. Its ranking policy is explicitly
+`append-sequence-asc-v1`; it does not claim lifecycle-resolved "current"
+candidate semantics. Scan exhaustion is surfaced as
+`BUDGET_EXHAUSTED`, never as a complete result.
