@@ -1,4 +1,5 @@
 import io
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -92,7 +93,7 @@ class IndexedSemanticUnitReadTests(unittest.TestCase):
                 "UPDATE evidence_chunks SET text_utf8 = ? WHERE chunk_id = ?",
                 (b"tampered", self.reference.chunk_id),
             )
-        with self.assertRaises(EvidenceResolutionError):
+        with self.assertRaises(SemanticUnitStoreError):
             self.store.get_candidate(candidate.envelope.record_id)
 
     def test_indexed_read_rejects_event_identity_or_body_tampering(self):
@@ -109,7 +110,7 @@ class IndexedSemanticUnitReadTests(unittest.TestCase):
             db.execute(
                 "UPDATE memory_events SET payload_json = ? WHERE event_id = ?",
                 (
-                    __import__("json").dumps(payload, sort_keys=True, separators=(",", ":")),
+                    json.dumps(payload, sort_keys=True, separators=(",", ":")),
                     event["event_id"],
                 ),
             )
