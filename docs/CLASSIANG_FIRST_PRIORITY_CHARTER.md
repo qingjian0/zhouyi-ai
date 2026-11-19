@@ -68,7 +68,9 @@
 
 | 现有资产 | 在主线中的职责 | 不能夸大的能力 |
 |---|---|---|
-| `prototype/classiang_engine.py` | 任务条件取象、正负例差异立类、证据门控、暂定接受/拒绝/弃权 | 符号 MVP；上游 relevance 分数不是校准概率，类别规则不是语义真理 |\n| `prototype/classiang_adapters.py` | 将通过 `assess_formation` 审计的观象→特征→类别轨迹转为类象 Observation，保留证据和上下文 | 只接入已审阅且完整的轨迹；维度和任务分数必须由调用方明确提供，不自动推断 |\n| `prototype/classiang_discovery.py` | 有界 Apriori 无标签特征组合提议、支持度、成员及证据谱系 | 频繁共现基线，不是开放世界概念学习；搜索截断时不宣称完整 |
+| `prototype/classiang_engine.py` | 任务条件取象、正负例差异立类、证据门控、暂定接受/拒绝/弃权 | 符号 MVP；上游 relevance 分数不是校准概率，类别规则不是语义真理 |
+| `prototype/classiang_adapters.py` | 将通过 `assess_formation` 审计的观象→特征→类别轨迹转为类象 Observation，保留证据和上下文 | 只接入已审阅且完整的轨迹；维度和任务分数必须由调用方明确提供，不自动推断 |
+| `prototype/classiang_discovery.py` | 有界 Apriori 无标签特征组合提议、支持度、成员及证据谱系 | 频繁共现基线，不是开放世界概念学习；搜索截断时不宣称完整 |
 | `prototype/analogy.py` | 显式关系保持评估、证据门控、有限图映射搜索 | 不是从原始观测自动取象或学习映射 |
 | `prototype/dynamic_analogy.py` | 状态事实、上下文和转移保持 | 不是因果发现或通用动态学习 |
 | `prototype/yixiang_formation.py` | 观测→特征→类别声明的证据链完整性审计 | 不负责自动抽取特征或判断类别真伪 |
