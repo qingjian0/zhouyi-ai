@@ -204,6 +204,47 @@ class PersistentSemanticUnitCandidateStoreTests(unittest.TestCase):
         with self.assertRaises(EvidenceResolutionError):
             list(self.store.iter_candidates(page_size=1))
 
+    def test_end_to_end_lexical_retrieval_and_source_hydration(self):
+        from prototype.m2_memory_hydration import hydrate_memory_packet
+        from prototype.m2_memory_lexical_retrieval import retrieve_lexical_memory
+
+        source = "甲使用工具处理乙"
+        self.store.record_candidate(self.make_candidate(
+            record_id="lexical-relevant", surface="甲 使用 工具",
+        ))
+        self.store.record_candidate(self.make_candidate(
+            record_id="lexical-distractor", surface="天气 新闻",
+        ))
+        query = MemoryQuery(
+            query_goal="甲 使用 工具",
+            scope="project-a",
+            required_types=(UnitKind.ENTITY,),
+            max_records=8,
+            byte_budget=8192,
+            ranking_policy="lexical-overlap-v1",
+            max_scan_events=20,
+        )
+        report = retrieve_lexical_memory(self.store, query)
+        self.assertEqual(
+            [item.record_id for item in report.packet.items],
+            ["lexical-relevant", "lexical-distractor"],
+        )
+        self.assertEqual(report.packet.completeness.value, "COMPLETE")
+
+        hydrated = hydrate_memory_packet(
+            report.packet, self.resolver,
+            max_evidence_refs=8, max_evidence_bytes=4096,
+        )
+        self.assertEqual(hydrated.completeness.value, "COMPLETE")
+        self.assertEqual(hydrated.resolved_references, 1)
+        self.assertEqual(
+            [(item.record_id, item.text) for item in hydrated.evidence],
+            [
+                ("lexical-relevant", source),
+                ("lexical-distractor", source),
+            ],
+        )
+
     def test_end_to_end_store_packet_and_source_evidence_hydration(self):
         from prototype.m2_memory_hydration import hydrate_memory_packet
 
