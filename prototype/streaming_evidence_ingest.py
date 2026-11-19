@@ -463,12 +463,9 @@ class SQLiteEvidenceIngestor:
             if document is None:
                 return result
             complete, next_offset, next_ordinal, manifest_digest, manifest_chunks, manifest_bytes, chunk_generation, manifest_generation = document
-            if (
-                next_offset < 0 or next_ordinal < 0
-                or chunk_generation != next_ordinal
-            ):
+            if next_offset < 0 or next_ordinal < 0:
                 raise IngestContractError(
-                    "persisted evidence chunk generation does not match the document cursor"
+                    "persisted evidence document cursor is invalid"
                 )
             if complete:
                 if (
@@ -476,11 +473,18 @@ class SQLiteEvidenceIngestor:
                     or not manifest_digest.startswith("manifest-sha256:")
                     or manifest_chunks != next_ordinal
                     or manifest_bytes != next_offset
+                    or chunk_generation != next_ordinal
                     or manifest_generation != chunk_generation
                 ):
                     raise IngestContractError(
                         "completed evidence manifest is stale or inconsistent"
                     )
+            elif (
+                chunk_generation != next_ordinal
+            ):
+                raise IngestContractError(
+                    "persisted evidence chunk generation does not match the document cursor"
+                )
             elif (
                 manifest_digest is not None or manifest_chunks is not None
                 or manifest_bytes is not None or manifest_generation is not None
