@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Mapping, Sequence
 
-from prototype.e09_observation_receipt import E09ObservationReceiptVerifier, E09ObservationReceiptError
+from prototype.e09_observation_receipt import E09ObservationReceiptVerifier, E09ObservationReceiptError, OBSERVATION_RECEIPT_FIELDS
 
 from prototype.trlw_working_set import MemoryPacket, PacketStatus
 from prototype.observation_contract import (
@@ -64,9 +64,9 @@ def _verified_e09_refs(
 ) -> tuple[str, ...]:
     record_id = candidate.envelope.record_id
     receipt = receipts_by_record.get(record_id)
-    if not isinstance(receipt, dict):
+    if not isinstance(receipt, dict) or set(receipt) != OBSERVATION_RECEIPT_FIELDS:
         raise GroundedYixiangInputError(
-            f"record {record_id!r} requires a verifier-issued E09 observation receipt"
+            f"record {record_id!r} requires a complete verifier-issued E09 observation receipt"
         )
     if not isinstance(verifier, E09ObservationReceiptVerifier):
         raise GroundedYixiangInputError("receipt_verifier must be a trusted E09ObservationReceiptVerifier")
