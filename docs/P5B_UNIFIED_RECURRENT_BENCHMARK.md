@@ -11,7 +11,9 @@ python -m prototype.recurrent_benchmark --task delayed_copy \
 ```
 
 Tasks: `periodic`, `delayed_copy`, `associative_recall`, and
-`distractor_recall`. The default run uses three deterministic seeds. JSON
+`distractor_recall`. `--gap-length` controls the training gap; optional
+`--eval-gap-length` independently controls the evaluation gap for delayed-copy
+and distractor-recall, enabling explicit held-out length generalization tests. The default run uses three deterministic seeds. JSON
 output records model, seed, exact parameter count, training updates/loss/time,
 evaluation binary cross-entropy, accuracy, throughput, traced Python peak
 memory, and chunk-state parity.
