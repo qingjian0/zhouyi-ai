@@ -16,7 +16,9 @@ Tasks: `periodic`, `delayed_copy`, `associative_recall`, and
 and distractor-recall, enabling explicit held-out length generalization tests. The default run uses three deterministic seeds. JSON
 output records model, seed, exact parameter count, training updates/loss/time,
 evaluation binary cross-entropy, accuracy, throughput, traced Python peak
-memory, and chunk-state parity.
+memory, sampled process RSS peak/increments when the host exposes RSS, and
+chunk-state parity. The report distinguishes per-epoch context symbols from
+total symbol exposures across all epochs.
 
 ## Fairness controls and limitations
 
@@ -30,7 +32,10 @@ memory, and chunk-state parity.
 - Initializers are architecture-specific; identical integer seeds do not imply
   identical parameter distributions.
 - `tracemalloc` measures Python-tracked allocations, not process RSS or device
-  memory. Hardware memory profiling remains a separate gate.
+  memory. The runner separately samples process RSS during training using the
+  existing cross-platform memory sampler. Sampled RSS can miss short-lived
+  peaks; an unavailable provider is reported as null, never guessed. Device
+  memory profiling remains a separate gate.
 - The default three seeds are a smoke/reproducibility baseline, not enough for
   a strong statistical claim. Increase seeds and publish raw JSON for research.
 
