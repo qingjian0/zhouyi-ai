@@ -176,17 +176,21 @@ class PersistentM2ObservationStoreTests(unittest.TestCase):
         resolver2 = SQLiteEvidenceRefResolver(self.evidence_db)
         store2 = PersistentM2ObservationStore(memory2, resolver2, scope="project-a")
         barrier = threading.Barrier(2)
-        for resolver in (self.resolver, resolver2):
-            original = resolver.resolve
-            first_call = [True]
+        call_counts = []
+        for memory in (self.memory, memory2):
+            original = memory.latest_domain_sequence
+            calls = [0]
+            call_counts.append(calls)
 
-            def synchronized(reference, _original=original, _first=first_call):
-                if _first[0]:
-                    _first[0] = False
+            def synchronized_latest(*, event_type, scope, _original=original, _calls=calls):
+                value = _original(event_type=event_type, scope=scope)
+                _calls[0] += 1
+                if _calls[0] == 1:
                     barrier.wait(timeout=10)
-                return _original(reference)
+                return value
 
-            resolver.resolve = synchronized
+            memory.latest_domain_sequence = synchronized_latest
+        self._race_latest_call_counts = call_counts
         return store2
 
     @staticmethod
@@ -244,6 +248,7 @@ class PersistentM2ObservationStoreTests(unittest.TestCase):
             )
             receipts = [future.result(timeout=30) for future in futures]
         self.assertEqual(len({item.sequence for item in receipts}), 2)
+        self.assertGreaterEqual(sum(item[0] for item in self._race_latest_call_counts), 3)
         persisted = list(self.store.iter_observations(page_size=1))
         sequences = [receipt.sequence for _, receipt in persisted]
         self.assertEqual(sequences, sorted(sequences))
