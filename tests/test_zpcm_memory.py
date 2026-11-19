@@ -145,9 +145,29 @@ class Tests(unittest.TestCase):
    self.m.db.set_trace_callback(None)
   self.assertEqual([event["payload"] for event in events],[{"n":1},{"n":2},{"n":3}])
   page_reads=[sql for sql in statements if "FROM memory_events" in sql and "ORDER BY seq LIMIT 3" in sql]
-  payload_rereads=[sql for sql in statements if "SELECT payload_json FROM memory_events WHERE seq=" in sql]
+  payload_reads=[sql for sql in statements if "SELECT payload_json FROM memory_events WHERE seq=" in sql]
   self.assertEqual(len(page_reads),1)
-  self.assertEqual(payload_rereads,[])
+  self.assertNotIn("SELECT payload_json",page_reads[0])
+  self.assertEqual(len(payload_reads),3)
+
+
+ def test_reverse_keyset_reader_defers_payload_reads_until_after_byte_budget(self):
+  for i in range(3):
+   self.m.append_domain_event(event_type="m2_cognition",event_id=f"reverse:{i+1}",
+       scope="project",payload={"n":i+1},expected_sequence=i)
+  statements=[]
+  self.m.db.set_trace_callback(statements.append)
+  try:
+   events=list(self.m.iter_domain_events_reverse(
+       event_type="m2_cognition",scope="project",page_size=3))
+  finally:
+   self.m.db.set_trace_callback(None)
+  self.assertEqual([event["payload"] for event in events],[{"n":3},{"n":2},{"n":1}])
+  page_reads=[sql for sql in statements if "FROM memory_events" in sql and "ORDER BY seq DESC LIMIT 3" in sql]
+  payload_reads=[sql for sql in statements if "SELECT payload_json FROM memory_events WHERE seq=" in sql]
+  self.assertEqual(len(page_reads),1)
+  self.assertNotIn("SELECT payload_json",page_reads[0])
+  self.assertEqual(len(payload_reads),3)
 
  def test_keyset_reader_verifies_each_page_digest(self):
   self.m.append_domain_event(event_type="m2_cognition",event_id="m2:1",
@@ -207,10 +227,20 @@ class Tests(unittest.TestCase):
    raw='{"text":"'+"x"*100+'"}'
    m.db.execute("INSERT INTO memory_events(event_id,event_type,scope,payload_json,payload_digest,recorded_at) VALUES(?,?,?,?,?,?)",
        ("legacy-large","x","s",raw,"invalid","now"))
-   with self.assertRaises(ZPCMError):
-    list(m.iter_domain_events(event_type="x",scope="s"))
-   with self.assertRaises(ZPCMError):
-    m.get_domain_event(event_type="x",scope="s",event_id="legacy-large")
+   statements=[]
+   m.db.set_trace_callback(statements.append)
+   try:
+    with self.assertRaises(ZPCMError):
+     list(m.iter_domain_events(event_type="x",scope="s"))
+    with self.assertRaises(ZPCMError):
+     m.get_domain_event(event_type="x",scope="s",event_id="legacy-large")
+   finally:
+    m.db.set_trace_callback(None)
+   payload_reads=[sql for sql in statements if "SELECT payload_json FROM memory_events" in sql]
+   self.assertEqual(payload_reads,[])
+   metadata_reads=[sql for sql in statements if "FROM memory_events" in sql]
+   self.assertTrue(metadata_reads)
+   self.assertTrue(all("SELECT payload_json" not in sql for sql in metadata_reads))
   finally:m.close()
  def test_invalid_byte_budgets_are_rejected(self):
   for event_limit,page_limit in ((0,1),(True,128),(128,64),(128,True)):
