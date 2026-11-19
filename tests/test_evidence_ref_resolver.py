@@ -115,9 +115,10 @@ class SQLiteEvidenceRefResolverTests(unittest.TestCase):
         original = chunks[0].text.encode("utf-8")
         replacement = b"Z" * len(original)
         replacement_digest = hashlib.sha256(replacement).hexdigest()
-        replacement_id = hashlib.sha256(
-            f"zhouyi-evidence-chunk-v1\\0doc-resolve\\00\\0{replacement_digest}".encode()
-        ).hexdigest()
+        material = (
+            "zhouyi-evidence-chunk-v1\\0doc-resolve\\0" + "0" + "\\0" + replacement_digest
+        )
+        replacement_id = hashlib.sha256(material.encode()).hexdigest()
         with sqlite3.connect(self.database) as db:
             db.execute(
                 """UPDATE evidence_chunks
