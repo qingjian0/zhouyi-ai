@@ -204,6 +204,37 @@ class PersistentSemanticUnitCandidateStoreTests(unittest.TestCase):
         with self.assertRaises(EvidenceResolutionError):
             list(self.store.iter_candidates(page_size=1))
 
+    def test_end_to_end_store_packet_and_source_evidence_hydration(self):
+        from prototype.m2_memory_hydration import hydrate_memory_packet
+
+        source = "甲使用工具处理乙；证据必须能从持久记忆恢复。"
+        self.store.record_candidate(self.make_candidate(record_id="e2e-candidate"))
+        query = MemoryQuery(
+            query_goal="恢复实体候选的原始证据",
+            scope="project-a",
+            required_types=(UnitKind.ENTITY,),
+            max_records=8,
+            byte_budget=8192,
+            ranking_policy="append-sequence-asc-v1",
+        )
+        packet = build_memory_packet_from_store(self.store, query)
+        self.assertEqual([item.record_id for item in packet.items], ["e2e-candidate"])
+        self.assertEqual(packet.items[0].source_refs, (self.reference,))
+
+        hydrated = hydrate_memory_packet(
+            packet,
+            self.resolver,
+            max_evidence_refs=8,
+            max_evidence_bytes=4096,
+        )
+        self.assertEqual(hydrated.completeness.value, "COMPLETE")
+        self.assertEqual(hydrated.resolved_references, 1)
+        self.assertEqual(len(hydrated.evidence), 1)
+        self.assertEqual(hydrated.evidence[0].record_id, "e2e-candidate")
+        self.assertEqual(hydrated.evidence[0].reference, self.reference)
+        self.assertEqual(hydrated.evidence[0].text, source)
+        self.assertEqual(hydrated.evidence_bytes, len(source.encode("utf-8")))
+
 
 if __name__ == "__main__":
     unittest.main()
