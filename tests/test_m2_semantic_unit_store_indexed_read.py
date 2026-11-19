@@ -93,7 +93,7 @@ class IndexedSemanticUnitReadTests(unittest.TestCase):
                 "UPDATE evidence_chunks SET text_utf8 = ? WHERE chunk_id = ?",
                 (b"tampered", self.reference.chunk_id),
             )
-        with self.assertRaises(SemanticUnitStoreError):
+        with self.assertRaises(EvidenceResolutionError):
             self.store.get_candidate(candidate.envelope.record_id)
 
     def test_indexed_read_rejects_event_identity_or_body_tampering(self):
@@ -106,7 +106,8 @@ class IndexedSemanticUnitReadTests(unittest.TestCase):
         )
         payload = dict(event["payload"])
         payload["body_digest"] = "0" * 64
-        with self.memory._connect() as db:
+        with self.memory.db:
+            db = self.memory.db
             db.execute(
                 "UPDATE memory_events SET payload_json = ?, payload_digest = ? WHERE event_id = ?",
                 (
