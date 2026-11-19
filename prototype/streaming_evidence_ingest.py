@@ -159,11 +159,24 @@ class SQLiteEvidenceIngestor:
                 "chunk_generation": "INTEGER NOT NULL DEFAULT 0",
                 "manifest_generation": "INTEGER",
             }
+            legacy_generation_column = "chunk_generation" not in document_columns
             for name, declaration in migrations.items():
                 if name not in document_columns:
                     db.execute(
                         f"ALTER TABLE ingest_documents ADD COLUMN {name} {declaration}"
                     )
+            # Older databases predate generation tracking. Seed the counter
+            # from their committed rows exactly once, before installing the
+            # manifest backfill below.
+            if legacy_generation_column:
+                db.execute(
+                    """UPDATE ingest_documents
+                       SET chunk_generation=(
+                           SELECT COUNT(*) FROM evidence_chunks
+                           WHERE evidence_chunks.document_id=ingest_documents.document_id
+                       )
+                       WHERE next_ordinal > 0"""
+                )
             db.executescript("""
             CREATE TRIGGER IF NOT EXISTS evidence_chunk_generation_insert
             AFTER INSERT ON evidence_chunks
@@ -438,6 +451,43 @@ class SQLiteEvidenceIngestor:
         result: list[EvidenceChunk] = []
         consumed = 0
         with self._connect() as db:
+            # Pin a single WAL snapshot so the document generation check and
+            # every payload read observe the same committed database state.
+            db.execute("BEGIN")
+            document = db.execute(
+                """SELECT complete,next_byte_offset,next_ordinal,manifest_digest,
+                          manifest_chunks,manifest_bytes,chunk_generation,manifest_generation
+                   FROM ingest_documents WHERE document_id=?""",
+                (document_id,),
+            ).fetchone()
+            if document is None:
+                return result
+            complete, next_offset, next_ordinal, manifest_digest, manifest_chunks, manifest_bytes, chunk_generation, manifest_generation = document
+            if (
+                next_offset < 0 or next_ordinal < 0
+                or chunk_generation != next_ordinal
+            ):
+                raise IngestContractError(
+                    "persisted evidence chunk generation does not match the document cursor"
+                )
+            if complete:
+                if (
+                    not isinstance(manifest_digest, str)
+                    or not manifest_digest.startswith("manifest-sha256:")
+                    or manifest_chunks != next_ordinal
+                    or manifest_bytes != next_offset
+                    or manifest_generation != chunk_generation
+                ):
+                    raise IngestContractError(
+                        "completed evidence manifest is stale or inconsistent"
+                    )
+            elif (
+                manifest_digest is not None or manifest_chunks is not None
+                or manifest_bytes is not None or manifest_generation is not None
+            ):
+                raise IngestContractError(
+                    "incomplete evidence document unexpectedly has a finalized manifest"
+                )
             metadata = db.execute(
                 """SELECT chunk_id,document_id,ordinal,byte_start,byte_end,
                           content_sha256,token_count,length(text_utf8)
