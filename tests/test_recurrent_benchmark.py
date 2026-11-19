@@ -34,8 +34,8 @@ class RecurrentBenchmarkRunnerTests(unittest.TestCase):
             seeds=(29,),
         )
         for row in report["results"]:
-            self.assertEqual(row["train_context_symbols"], 4 * 14)
-            self.assertEqual(row["evaluation_context_symbols"], 3 * 22)
+            self.assertEqual(row["train_context_symbols"], 4 * 15)
+            self.assertEqual(row["evaluation_context_symbols"], 3 * 23)
 
     def test_runner_rejects_non_positive_evaluation_gap_length(self):
         with self.assertRaises(ValueError):
