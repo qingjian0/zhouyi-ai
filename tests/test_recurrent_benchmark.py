@@ -24,6 +24,26 @@ class RecurrentBenchmarkRunnerTests(unittest.TestCase):
             self.assertGreater(row["binary_cross_entropy"], 0.0)
             self.assertGreater(row["peak_traced_python_bytes"], 0)
 
+    def test_runner_supports_held_out_evaluation_gap_length(self):
+        report = run_benchmark(
+            BenchmarkConfig(
+                task="delayed_copy", train_examples=4, eval_examples=3,
+                epochs=1, seed=29, payload_length=2, gap_length=4,
+                eval_gap_length=12,
+            ),
+            seeds=(29,),
+        )
+        for row in report["results"]:
+            self.assertEqual(row["train_context_symbols"], 4 * 14)
+            self.assertEqual(row["evaluation_context_symbols"], 3 * 22)
+
+    def test_runner_rejects_non_positive_evaluation_gap_length(self):
+        with self.assertRaises(ValueError):
+            run_benchmark(
+                BenchmarkConfig(eval_gap_length=0),
+                seeds=(1,),
+            )
+
     def test_runner_rejects_empty_dataset(self):
         with self.assertRaises(ValueError):
             run_benchmark(BenchmarkConfig(train_examples=0), seeds=(1,))
