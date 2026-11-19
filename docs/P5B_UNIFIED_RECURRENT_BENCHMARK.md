@@ -37,3 +37,18 @@ memory, and chunk-state parity.
 Passing this benchmark does not establish natural-language capability,
 million-token input/output, or mobile feasibility. Those remain separate
 P5-A/P5-C/P5-D/P5-E/P5-F acceptance gates.
+
+
+## Input-selective diagonal SSM competitor
+
+The benchmark runner also includes `SelectiveDiagonalSSM`, a minimal diagonal state-space mechanism with input-conditioned discretization:
+
+```
+delta_t = softplus(delta_bias + x_t)
+decay_t = exp(-softplus(a_log) * delta_t)
+h_t = decay_t * h_(t-1) + input_weight * x_t
+```
+
+At hidden size 7 it has 29 trainable parameters, matching the existing 29-parameter gated and linear recurrent baselines. It uses the same generated episodes, seeds, training examples, epochs, learning rate, final-target supervision, and evaluation protocol. This is a small input-selective diagonal recurrence, not a reproduction of Mamba or a production Selective SSM implementation.
+
+The new comparison still uses synthetic binary tasks and Python-level execution. Its traced Python allocation metric is not process RSS, and no language-model, long-context, accelerator, or mobile result is implied.

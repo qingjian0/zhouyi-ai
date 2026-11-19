@@ -15,6 +15,7 @@ from typing import Callable
 
 from prototype.diagonal_gated_rnn import DiagonalGatedRNN
 from prototype.diagonal_linear_rnn import DiagonalLinearRNN
+from prototype.selective_diagonal_ssm import SelectiveDiagonalSSM
 from prototype.recurrent_benchmark_tasks import (
     SequenceExample,
     associative_recall,
@@ -63,6 +64,8 @@ def _parameter_count(model) -> int:
         return 7 * model.hidden_size + 1
     if isinstance(model, DiagonalLinearRNN):
         return 4 * model.hidden_size + 1
+    if isinstance(model, SelectiveDiagonalSSM):
+        return model.parameter_count
     raise TypeError(f"unsupported model type: {type(model).__name__}")
 
 
@@ -111,6 +114,8 @@ def _run_one(model_name: str, config: BenchmarkConfig, train, evaluation, seed: 
         model = DiagonalGatedRNN(hidden_size=4, seed=seed)
     elif model_name == "linear_rnn":
         model = DiagonalLinearRNN(hidden_size=7, seed=seed)
+    elif model_name == "selective_diagonal_ssm":
+        model = SelectiveDiagonalSSM(hidden_size=7, seed=seed)
     else:
         raise ValueError(f"unsupported model: {model_name}")
 
@@ -161,7 +166,7 @@ def run_benchmark(config: BenchmarkConfig, seeds: tuple[int, ...] | None = None)
             config.task, config.eval_examples, seed * 17 + 2, config,
             gap_length=config.eval_gap_length,
         )
-        for model_name in ("gated_rnn", "linear_rnn"):
+        for model_name in ("gated_rnn", "linear_rnn", "selective_diagonal_ssm"):
             results.append(_run_one(model_name, config, train, evaluation, seed))
     return {
         "schema_version": 1,
