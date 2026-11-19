@@ -114,5 +114,17 @@ class StreamingTokenCountTests(unittest.TestCase):
             with self.assertRaisesRegex(TokenStreamContractError, "must be complete"):
                 count_evidence_document(store, "partial", PairMergeTokenizer())
 
+    def test_stream_is_flushed_exactly_once_after_all_chunks(self):
+        class TrackingTokenizer(PairMergeTokenizer):
+            def __init__(self):
+                super().__init__()
+                self.calls = []
+            def feed(self, text, *, final=False):
+                self.calls.append((text, final))
+                return super().feed(text, final=final)
+        tokenizer = TrackingTokenizer()
+        count_token_stream(["a", "b", "c"], tokenizer)
+        self.assertEqual(tokenizer.calls, [("a", False), ("b", False), ("c", False), ("", True)])
+
 if __name__ == "__main__":
     unittest.main()

@@ -4,10 +4,11 @@ Example:
   python -m prototype.benchmark_streaming_ingest input.txt evidence.sqlite3 \
       --document-id corpus-v1 --chunk-bytes 8192 --json
   python -m prototype.benchmark_streaming_ingest input.txt evidence.sqlite3 \
-      --document-id corpus-v1 --tokenizer my_tokenizer:count_tokens --json
+      --document-id corpus-v1 --stream-tokenizer my_tokenizer:factory --json
 
-The database path must not already exist. Tokenizer plugins must expose a
-callable accepting one text chunk and returning its exact token count.
+The database path must not already exist. --chunk-tokenizer/--tokenizer is
+legacy chunk-local diagnostic counting only. --stream-tokenizer must expose a
+factory returning a stateful IncrementalTokenizer for exact document counts.
 """
 from __future__ import annotations
 
@@ -20,6 +21,7 @@ import time
 
 from prototype.memory_budget import ProcessMemoryMeasurement, sample_process_memory
 from prototype.streaming_evidence_ingest import SQLiteEvidenceIngestor
+from prototype.streaming_token_count import count_evidence_document
 
 
 def _load_tokenizer(spec: str):
@@ -41,7 +43,14 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("database", type=Path)
     parser.add_argument("--document-id", required=True)
     parser.add_argument("--chunk-bytes", type=int, default=8192)
-    parser.add_argument("--tokenizer", help="exact tokenizer as module:callable")
+    parser.add_argument(
+        "--chunk-tokenizer", "--tokenizer", dest="chunk_tokenizer",
+        help="legacy per-chunk diagnostic counter as module:callable; NOT an exact document count",
+    )
+    parser.add_argument(
+        "--stream-tokenizer",
+        help="factory module:callable returning an IncrementalTokenizer for exact document counting",
+    )
     parser.add_argument("--sample-interval", type=float, default=0.01)
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args(argv)
@@ -59,11 +68,16 @@ def main(argv: list[str] | None = None) -> int:
     # directories. Make the requested output location usable before opening it.
     database_path.parent.mkdir(parents=True, exist_ok=True)
 
-    tokenizer = _load_tokenizer(args.tokenizer) if args.tokenizer else None
+    chunk_tokenizer = _load_tokenizer(args.chunk_tokenizer) if args.chunk_tokenizer else None
+    stream_tokenizer_factory = (
+        _load_tokenizer(args.stream_tokenizer) if args.stream_tokenizer else None
+    )
     before = source_path.stat()
     baseline = sample_process_memory()
     started = time.perf_counter()
     store = SQLiteEvidenceIngestor(database_path)
+    exact_token_count = None
+    exact_tokenizer_id = None
     with ProcessMemoryMeasurement(args.sample_interval) as measurement:
         with source_path.open("rb") as stream:
             result = store.ingest(
@@ -71,8 +85,14 @@ def main(argv: list[str] | None = None) -> int:
                 str(source_path),
                 stream,
                 chunk_bytes=args.chunk_bytes,
-                tokenizer=tokenizer,
+                tokenizer=chunk_tokenizer,
             )
+        if stream_tokenizer_factory is not None:
+            exact_result = count_evidence_document(
+                store, args.document_id, stream_tokenizer_factory()
+            )
+            exact_token_count = exact_result.token_count
+            exact_tokenizer_id = exact_result.tokenizer_id
     elapsed = time.perf_counter() - started
     after = source_path.stat()
     if (before.st_size, before.st_mtime_ns) != (after.st_size, after.st_mtime_ns):
@@ -89,8 +109,11 @@ def main(argv: list[str] | None = None) -> int:
         "chunks_committed": result.chunks_committed,
         "source_bytes": result.next_byte_offset,
         "chunk_bytes": args.chunk_bytes,
-        "tokenizer_configured": tokenizer is not None,
-        "all_persisted_token_counts_known": result.token_count_known,
+        "tokenizer_configured": stream_tokenizer_factory is not None,
+        "exact_document_token_count": exact_token_count,
+        "exact_document_tokenizer_id": exact_tokenizer_id,
+        "chunk_tokenizer_configured": chunk_tokenizer is not None,
+        "all_persisted_chunk_token_counts_known": result.token_count_known,
         "elapsed_seconds": elapsed,
         "throughput_mib_per_second": (
             result.next_byte_offset / (1024 * 1024) / elapsed if elapsed else None
