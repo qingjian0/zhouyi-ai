@@ -368,6 +368,17 @@ def revise_class_with_counterexample(
     counterexample_id = counterexample.observation.observation_id
     if counterexample_id in used_ids:
         raise ValueError("counterexample observation ID is already in the hypothesis")
+    baseline_result = induce_class(
+        class_id=hypothesis.class_id,
+        purpose=hypothesis.purpose,
+        positive_examples=positives,
+        negative_examples=negatives,
+        validity_scope=hypothesis.validity_scope,
+        version=hypothesis.version,
+    )
+    if baseline_result.hypothesis != hypothesis:
+        raise ValueError("examples do not reproduce the current hypothesis")
+
     candidate_result = induce_class(
         class_id=hypothesis.class_id,
         purpose=hypothesis.purpose,
