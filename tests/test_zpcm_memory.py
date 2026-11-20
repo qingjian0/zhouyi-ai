@@ -1,4 +1,4 @@
-import tempfile,unittest
+import json,tempfile,unittest
 from pathlib import Path
 from prototype.zpcm_memory import ZPCMError,ZPCMMemory,canonical
 from prototype.shared_evidence_protocol import SQLiteEvidenceStore
