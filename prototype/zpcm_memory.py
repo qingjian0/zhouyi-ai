@@ -179,6 +179,10 @@ class ZPCMMemory:
             "SELECT 1 FROM sqlite_master WHERE type='table' "
             "AND name='e12a6_candidate_history_projection_guard'"
         ).fetchone() is not None
+        meta_trigger_existed = self.db.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='trigger' "
+            "AND name='e12a6_current_state_meta_insert_v2'"
+        ).fetchone() is not None
         expected_triggers = {
             "e12a6_candidate_history_guard_insert",
             "e12a6_candidate_history_guard_update",
@@ -220,7 +224,8 @@ class ZPCMMemory:
             "SELECT generation,validated_generation "
             "FROM e12a6_candidate_history_projection_guard WHERE singleton=1"
         ).fetchone()
-        if (guard_existed and triggers_complete and guard is not None
+        if (guard_existed and triggers_complete and meta_trigger_existed
+                and guard is not None
                 and guard["generation"] == guard["validated_generation"]):
             return
         self.rebuild_e12a6_candidate_history_projection()
@@ -425,7 +430,7 @@ class ZPCMMemory:
                 "SELECT 1 FROM sqlite_master WHERE type='table' AND name='e12a6_current_state_projection_guard'"
             ).fetchone() is not None
             meta_trigger_existed = self.db.execute(
-                "SELECT 1 FROM sqlite_master WHERE type='trigger' AND name='e12a6_current_state_meta_insert'"
+                "SELECT 1 FROM sqlite_master WHERE type='trigger' AND name='e12a6_current_state_meta_insert_v2'"
             ).fetchone() is not None
             self.db.executescript("""
             CREATE TABLE IF NOT EXISTS e12a6_current_state_projection_meta(
@@ -534,10 +539,13 @@ class ZPCMMemory:
                   AND candidate_version=json_extract(NEW.payload_json,'$.body.action.candidate_version')
                   AND json_extract(NEW.payload_json,'$.body.action.to_state') IS NOT NULL;
             END;
-            CREATE TRIGGER IF NOT EXISTS e12a6_current_state_meta_insert
+            DROP TRIGGER IF EXISTS e12a6_current_state_meta_insert;
+            CREATE TRIGGER IF NOT EXISTS e12a6_current_state_meta_insert_v2
             AFTER INSERT ON memory_events
             WHEN NEW.event_type='e12a6_lifecycle'
             BEGIN
+                UPDATE e12a6_candidate_history_projection_guard
+                SET generation=generation+1 WHERE singleton=1;
                 INSERT INTO e12a6_current_state_projection_meta(
                     singleton,schema_version,initialized_through_seq,initialized_event_count
                 ) VALUES(1,'e12a6-current-state-v1',NEW.seq,1)
