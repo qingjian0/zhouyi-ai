@@ -112,5 +112,45 @@ class E12A6WriterRuntimeTests(unittest.TestCase):
             self.assertEqual(target.stat().st_size, 0)
 
 
+
+    def test_different_os_user_cannot_read_writer_database(self):
+        import shutil
+
+        sudo = shutil.which("sudo")
+        if sudo is None:
+            self.skipTest("sudo is unavailable; cross-UID denial is exercised on Linux CI")
+        with tempfile.TemporaryDirectory() as directory:
+            os.chmod(directory, 0o700)
+            database = Path(directory) / "writer.sqlite"
+            runtime = E12A6WriterRuntime(
+                database,
+                authenticator=_Authenticator(),
+                receipt_signature_verifier=lambda *_: False,
+                trusted_verifier_id="trusted-verifier",
+                scope="world/runtime-test",
+            )
+            runtime.close()
+            self.assertEqual(stat.S_IMODE(Path(directory).stat().st_mode), 0o700)
+            self.assertEqual(stat.S_IMODE(database.stat().st_mode), 0o600)
+            probe = (
+                "from pathlib import Path; import sys\n"
+                "try:\n"
+                " Path(sys.argv[1]).read_bytes()\n"
+                "except PermissionError:\n"
+                " raise SystemExit(0)\n"
+                "raise SystemExit(17)\n"
+            )
+            result = subprocess.run(
+                [sudo, "-n", "-u", "nobody", "--", sys.executable,
+                 "-c", probe, str(database)],
+                cwd=Path(__file__).resolve().parents[1],
+                capture_output=True, text=True, check=False,
+            )
+            if result.returncode not in (0, 17):
+                self.skipTest(f"unprivileged nobody account unavailable: {result.stderr.strip()}")
+            self.assertEqual(result.returncode, 0,
+                             "a different OS user unexpectedly read the writer database")
+
+
 if __name__ == "__main__":
     unittest.main()
