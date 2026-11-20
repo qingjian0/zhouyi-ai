@@ -95,21 +95,39 @@ class PersistentSemanticUnitCandidateStoreTests(unittest.TestCase):
         with self.assertRaises(SemanticUnitStoreError):
             self.store.record_candidate(self.make_candidate(surface="甲（修订）"))
 
-    def test_concurrent_store_writer_gets_retryable_sequence_conflict(self):
+    def test_stale_writer_reconciles_across_independent_sqlite_connections(self):
+        second_memory = ZPCMMemory(self.memory_db)
+        self.addCleanup(second_memory.close)
         second_store = PersistentSemanticUnitCandidateStore(
-            self.memory, self.resolver, scope="project-a",
+            second_memory, self.resolver, scope="project-a",
         )
-        self.store.record_candidate(self.make_candidate(record_id="candidate-1"))
-        with self.assertRaisesRegex(SemanticUnitStoreError, "concurrent candidate append"):
-            second_store.record_candidate(self.make_candidate(record_id="candidate-2"))
-        refreshed = PersistentSemanticUnitCandidateStore(
-            self.memory, self.resolver, scope="project-a",
-        )
-        receipt = refreshed.record_candidate(self.make_candidate(record_id="candidate-2"))
-        self.assertFalse(receipt.replayed)
+        first = self.store.record_candidate(self.make_candidate(record_id="candidate-1"))
+        second = second_store.record_candidate(self.make_candidate(record_id="candidate-2"))
+        self.assertFalse(first.replayed)
+        self.assertFalse(second.replayed)
+        self.assertGreater(second.sequence, first.sequence)
         self.assertEqual(
-            [item.envelope.record_id for item in refreshed.iter_candidates(page_size=1)],
+            [item.envelope.record_id for item in second_store.iter_candidates(page_size=1)],
             ["candidate-1", "candidate-2"],
+        )
+
+    def test_identical_retry_from_stale_writer_remains_idempotent(self):
+        second_memory = ZPCMMemory(self.memory_db)
+        self.addCleanup(second_memory.close)
+        second_store = PersistentSemanticUnitCandidateStore(
+            second_memory, self.resolver, scope="project-a",
+        )
+        candidate = self.make_candidate(record_id="same-candidate")
+        first = self.store.record_candidate(candidate)
+        replay = second_store.record_candidate(candidate)
+        self.assertFalse(first.replayed)
+        self.assertTrue(replay.replayed)
+        self.assertEqual(first.sequence, replay.sequence)
+        self.assertEqual(
+            self.memory.latest_domain_sequence(
+                event_type="m2_semantic_unit_candidate", scope="project-a",
+            ),
+            first.sequence,
         )
 
     def test_rejects_wrong_scope_and_invalid_source_evidence(self):
