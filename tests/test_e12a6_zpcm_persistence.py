@@ -102,6 +102,25 @@ def _writer_bundle_commit_then_block(path, candidate_item, evidence_item, receip
         memory.close()
 
 
+def _writer_kill_after_first_projection_update(path, events, sender):
+    memory = ZPCMMemory(path)
+    try:
+        advance = memory._advance_authorization_consumption_checkpoint
+
+        def advance_then_block(scope, sequence):
+            result = advance(scope, sequence)
+            if sequence == 1:
+                sender.send({"sequence": sequence, "inside_transaction": True})
+                time.sleep(60)
+            return result
+
+        memory._advance_authorization_consumption_checkpoint = advance_then_block
+        memory.append_lifecycle_events(events=events, scope="project-a", expected_sequence=0)
+    finally:
+        memory.close()
+        sender.close()
+
+
 class PersistentLifecycleTests(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory(); self.path=Path(self.tmp.name)/"zpcm.db"
@@ -444,6 +463,66 @@ os._exit(74)  # The durable append must terminate the process first.
         )
         self.assertTrue(replay.replayed)
         self.assertTrue(replay.authorization.replayed)
+
+    def test_real_process_kill_mid_bundle_rolls_back_event_and_projection(self):
+        if not hasattr(os, "fork"):
+            self.skipTest("fork-based crash test requires Linux")
+        context = multiprocessing.get_context("fork")
+        candidate_a = candidate()
+        candidate_b = replace(candidate(), candidate_id="rel:second-candidate")
+        events = [
+            {
+                "event_id": f"e12a6:candidate:{item.candidate_id}@{item.version}",
+                "payload": {
+                    "schema_version": EVENT_SCHEMA,
+                    "kind": "candidate_registered",
+                    "body": {"candidate": _candidate_to_dict(item)},
+                },
+            }
+            for item in (candidate_a, candidate_b)
+        ]
+        self.store.close()
+        self.memory.close()
+        self.store = None
+        receiver, sender = context.Pipe(duplex=False)
+        child = context.Process(
+            target=_writer_kill_after_first_projection_update,
+            args=(str(self.path), events, sender),
+        )
+        child.start()
+        sender.close()
+        try:
+            self.assertTrue(receiver.poll(10), "writer did not reach the in-transaction projection boundary")
+            self.assertEqual(receiver.recv(), {"sequence": 1, "inside_transaction": True})
+            child.kill()
+            child.join(timeout=5)
+            self.assertFalse(child.is_alive())
+            self.assertNotEqual(child.exitcode, 0)
+
+            self.memory = ZPCMMemory(self.path)
+            self.store = PersistentLifecycleLedger(self.memory, scope="project-a")
+            self.assertEqual(self.memory.replay_lifecycle_events(scope="project-a"), [])
+            self.assertEqual(
+                self.memory.db.execute(
+                    "SELECT COUNT(*) FROM memory_events WHERE event_type='e12a6_lifecycle' AND scope=?",
+                    ("project-a",),
+                ).fetchone()[0],
+                0,
+            )
+            counts = self.memory.lifecycle_state_projection_counts(scope="project-a")
+            self.assertEqual(counts, {"candidates": 0, "evidence": 0, "actions": 0})
+            self.assertEqual(
+                self.memory.db.execute(
+                    "SELECT COUNT(*) FROM e12a6_lifecycle_candidate_history WHERE scope=?",
+                    ("project-a",),
+                ).fetchone()[0],
+                0,
+            )
+        finally:
+            if child.is_alive():
+                child.kill()
+                child.join(timeout=5)
+            receiver.close()
 
     def test_real_process_kill_after_atomic_bundle_commit_recovers_and_replays(self):
         if not hasattr(os, "fork"):
