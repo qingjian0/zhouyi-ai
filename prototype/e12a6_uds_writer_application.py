@@ -93,7 +93,11 @@ def _json_value(value: Any, field: str, *, budget: list[int] | None = None, dept
     budget[0] -= 1
     if budget[0] < 0 or depth > _MAX_DEPTH:
         raise E12A6UDSProtocolError(f"{field} exceeds JSON complexity limits")
-    if value is None or type(value) in (bool, int):
+    if value is None or type(value) is bool:
+        return value
+    if type(value) is int:
+        if value.bit_length() > 256:
+            raise E12A6UDSProtocolError(f"{field} contains an oversized integer")
         return value
     if type(value) is float:
         if not math.isfinite(value):
@@ -175,8 +179,10 @@ def _typed_proposal(raw: Any) -> TypedCandidateProposal:
             raise E12A6UDSProtocolError("proposal.bindings entries must be pairs")
         bindings.append((_text(pair[0], "binding key"), _text(pair[1], "binding value")))
     score = p.get("score", 0.0)
-    if type(score) not in (int, float) or not math.isfinite(score):
-        raise E12A6UDSProtocolError("proposal.score must be finite")
+    if (type(score) not in (int, float)
+            or (type(score) is int and score.bit_length() > 256)
+            or (type(score) is float and not math.isfinite(score))):
+        raise E12A6UDSProtocolError("proposal.score must be a bounded finite number")
     proposal = CandidateProposal(
         _text(p["proposal_id"], "proposal_id"),
         _text(p["parent_state_ref"], "parent_state_ref"),
@@ -198,6 +204,12 @@ def _typed_proposal(raw: Any) -> TypedCandidateProposal:
                                  _text(row["member_id"], "member_id"),
                                  _text(row["member_type"], "member_type")))
     variables = tuple(_variable_spec(item) for item in _sequence(obj["variables"], "variables"))
+    variable_refs = tuple(item.ref for item in variables)
+    if len(variable_refs) != len(set(variable_refs)):
+        raise E12A6UDSProtocolError("variables must not contain duplicate refs")
+    role_names = tuple(item.role for item in roles)
+    if len(role_names) != len(set(role_names)):
+        raise E12A6UDSProtocolError("hyperedge roles must not contain duplicates")
     semantic = _text(obj.get("semantic_status", "CANDIDATE"), "semantic_status")
     return TypedCandidateProposal(
         proposal,
@@ -282,7 +294,16 @@ def decode_submit_request(request: dict[str, Any]) -> dict[str, Any]:
     if _text(obj["operation"], "operation") != SUBMIT_OPERATION:
         raise E12A6UDSProtocolError("unsupported operation")
     proposals = tuple(_typed_proposal(item) for item in _sequence(obj["proposals"], "proposals"))
+    proposal_ids = tuple(item.proposal.proposal_id for item in proposals)
+    if len(proposal_ids) != len(set(proposal_ids)):
+        raise E12A6UDSProtocolError("proposal IDs must be globally unique")
     snapshots = tuple(_branch_snapshot(item) for item in _sequence(obj["branch_snapshots"], "branch_snapshots"))
+    snapshot_ids = tuple(item.branch_id for item in snapshots)
+    if len(snapshot_ids) != len(set(snapshot_ids)):
+        raise E12A6UDSProtocolError("branch snapshot IDs must be globally unique")
+    delta_ids = tuple(delta.event_id for item in snapshots for delta in item.delta_events)
+    if len(delta_ids) != len(set(delta_ids)):
+        raise E12A6UDSProtocolError("branch delta event IDs must be globally unique")
     base = _json_value(obj["base_state"], "base_state")
     if not isinstance(base, dict):
         raise E12A6UDSProtocolError("base_state must be an object")
