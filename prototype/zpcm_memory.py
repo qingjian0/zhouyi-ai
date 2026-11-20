@@ -175,22 +175,90 @@ class ZPCMMemory:
             raise
 
     def _ensure_e12a6_candidate_history_projection(self) -> None:
-        scopes = [row["scope"] for row in self.db.execute(
-            "SELECT DISTINCT scope FROM memory_events WHERE event_type='e12a6_lifecycle'"
-        )]
-        for scope in scopes:
-            current = self.db.execute(
-                "SELECT COUNT(*) AS n,COALESCE(MAX(seq),0) AS high_water FROM memory_events "
-                "WHERE event_type='e12a6_lifecycle' AND scope=?",
-                (scope,),
-            ).fetchone()
-            meta = self.db.execute(
-                "SELECT high_water_seq,event_count FROM e12a6_lifecycle_candidate_history_meta WHERE scope=?",
-                (scope,),
-            ).fetchone()
-            if (meta is None or meta["event_count"] != current["n"]
-                    or meta["high_water_seq"] != current["high_water"]):
-                self._rebuild_e12a6_candidate_history_scope(scope)
+        guard_existed = self.db.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' "
+            "AND name='e12a6_candidate_history_projection_guard'"
+        ).fetchone() is not None
+        expected_triggers = {
+            "e12a6_candidate_history_guard_insert",
+            "e12a6_candidate_history_guard_update",
+            "e12a6_candidate_history_guard_delete",
+        }
+        existing_triggers = {
+            row["name"] for row in self.db.execute(
+                "SELECT name FROM sqlite_master WHERE type='trigger' "
+                "AND name LIKE 'e12a6_candidate_history_guard_%'"
+            )
+        }
+        triggers_complete = expected_triggers.issubset(existing_triggers)
+        self.db.executescript("""
+        CREATE TABLE IF NOT EXISTS e12a6_candidate_history_projection_guard(
+            singleton INTEGER PRIMARY KEY CHECK(singleton=1),
+            generation INTEGER NOT NULL CHECK(generation>=0),
+            validated_generation INTEGER NOT NULL CHECK(validated_generation>=0)
+        );
+        INSERT OR IGNORE INTO e12a6_candidate_history_projection_guard(
+            singleton,generation,validated_generation
+        ) VALUES(1,0,0);
+        CREATE TRIGGER IF NOT EXISTS e12a6_candidate_history_guard_insert
+        AFTER INSERT ON e12a6_lifecycle_candidate_history BEGIN
+            UPDATE e12a6_candidate_history_projection_guard
+            SET generation=generation+1 WHERE singleton=1;
+        END;
+        CREATE TRIGGER IF NOT EXISTS e12a6_candidate_history_guard_update
+        AFTER UPDATE ON e12a6_lifecycle_candidate_history BEGIN
+            UPDATE e12a6_candidate_history_projection_guard
+            SET generation=generation+1 WHERE singleton=1;
+        END;
+        CREATE TRIGGER IF NOT EXISTS e12a6_candidate_history_guard_delete
+        AFTER DELETE ON e12a6_lifecycle_candidate_history BEGIN
+            UPDATE e12a6_candidate_history_projection_guard
+            SET generation=generation+1 WHERE singleton=1;
+        END;
+        """)
+        guard = self.db.execute(
+            "SELECT generation,validated_generation "
+            "FROM e12a6_candidate_history_projection_guard WHERE singleton=1"
+        ).fetchone()
+        if (guard_existed and triggers_complete and guard is not None
+                and guard["generation"] == guard["validated_generation"]):
+            return
+        self.rebuild_e12a6_candidate_history_projection()
+
+    def rebuild_e12a6_candidate_history_projection(self) -> None:
+        """Digest-verify and atomically rebuild the candidate-history index."""
+        with self.lock:
+            self.db.execute("BEGIN IMMEDIATE")
+            try:
+                scopes = [row["scope"] for row in self.db.execute(
+                    "SELECT DISTINCT scope FROM memory_events WHERE event_type='e12a6_lifecycle'"
+                )]
+                self.db.execute("DELETE FROM e12a6_lifecycle_candidate_history")
+                self.db.execute("DELETE FROM e12a6_lifecycle_candidate_history_meta")
+                for scope in scopes:
+                    high_water = 0
+                    event_count = 0
+                    for event in self.iter_domain_events(
+                        event_type="e12a6_lifecycle", scope=scope, page_size=64,
+                    ):
+                        self._index_e12a6_candidate_event(
+                            scope, event["sequence"], event["event_id"], event["payload"],
+                        )
+                        high_water = event["sequence"]
+                        event_count += 1
+                    self.db.execute(
+                        "INSERT INTO e12a6_lifecycle_candidate_history_meta("
+                        "scope,high_water_seq,event_count) VALUES(?,?,?)",
+                        (scope, high_water, event_count),
+                    )
+                self.db.execute(
+                    "UPDATE e12a6_candidate_history_projection_guard "
+                    "SET validated_generation=generation WHERE singleton=1"
+                )
+                self.db.execute("COMMIT")
+            except Exception:
+                self.db.execute("ROLLBACK")
+                raise
 
     def iter_lifecycle_candidate_history(
         self, *, scope: str, candidate_id: str, candidate_version: int | None = None,
@@ -833,6 +901,10 @@ class ZPCMMemory:
                     "singleton,schema_version,initialized_through_seq,initialized_event_count) "
                     "VALUES(1,'e12a6-current-state-v1',?,?)",
                     (high_water,event_count),
+                )
+                self.db.execute(
+                    "UPDATE e12a6_candidate_history_projection_guard "
+                    "SET validated_generation=generation WHERE singleton=1"
                 )
                 self.db.execute(
                     "UPDATE e12a6_current_state_projection_guard SET validated_generation=generation WHERE singleton=1"
@@ -1777,6 +1849,10 @@ class ZPCMMemory:
                         (scope, seq),
                     )
                 self._advance_authorization_consumption_checkpoint(scope, seq)
+                self.db.execute(
+                    "UPDATE e12a6_candidate_history_projection_guard "
+                    "SET validated_generation=generation WHERE singleton=1"
+                )
                 self.db.execute(
                     "UPDATE e12a6_current_state_projection_guard SET validated_generation=generation WHERE singleton=1"
                 )
