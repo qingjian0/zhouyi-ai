@@ -2068,13 +2068,15 @@ class ZPCMMemory:
                         "event_id": event_id, "sequence": seq,
                         "payload_digest": digest(payload), "replayed": replay,
                     })
-                self.db.execute(
-                    "UPDATE e12a6_candidate_history_projection_guard "
-                    "SET validated_generation=generation WHERE singleton=1"
-                )
-                self.db.execute(
-                    "UPDATE e12a6_current_state_projection_guard SET validated_generation=generation WHERE singleton=1"
-                )
+                if existing_count == 0:
+                    self.db.execute(
+                        "UPDATE e12a6_candidate_history_projection_guard "
+                        "SET validated_generation=generation WHERE singleton=1"
+                    )
+                    self.db.execute(
+                        "UPDATE e12a6_current_state_projection_guard "
+                        "SET validated_generation=generation WHERE singleton=1"
+                    )
                 self.db.execute("COMMIT")
                 return receipts
             except sqlite3.IntegrityError as exc:
