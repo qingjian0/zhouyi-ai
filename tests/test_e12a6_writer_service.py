@@ -1,5 +1,8 @@
 import base64
 import hashlib
+import json
+import os
+import socket
 import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
@@ -17,6 +20,9 @@ from prototype.e09_ed25519_keyring import E09Ed25519IssuerKeyring
 from prototype.e09_verification_receipt import verification_receipt_signing_bytes
 from prototype.e09_domain_registry import E09DomainBinding, StaticE09DomainRegistry
 from prototype.e12a6_lifecycle_contract import CandidateState
+from prototype.e12a6_uds_writer_application import (
+    E12A6PeerWorkloadBinding, E12A6UDSWriterApplication,
+)
 from prototype.e12a6_writer_service import (
     E12A6AuthenticatedWorkload, E12A6AuthorizationError, E12A6WriterService,
 )
@@ -365,6 +371,122 @@ class E12A6WriterServiceTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self._submit(receipt=altered)
         self.assertEqual(self.memory.replay_lifecycle_events(scope=self.scope), [])
+
+
+    def test_real_uds_submit_receipt_consumption_and_restart_replay(self):
+        database_path = Path(self.tmp.name) / "uds-runtime.db"
+        socket_path = Path(self.tmp.name) / "uds-runtime.sock"
+
+        def wire_request():
+            proposal_rows = []
+            for item in self.proposals:
+                p, edge = item.proposal, item.hyperedge
+                proposal_rows.append({
+                    "proposal": {
+                        "proposal_id": p.proposal_id, "parent_state_ref": p.parent_state_ref,
+                        "branch_id": p.branch_id, "bindings": [list(pair) for pair in p.bindings],
+                        "evidence_refs": list(p.evidence_refs), "requires": list(p.requires),
+                        "excludes": list(p.excludes), "score": p.score, "cost": p.cost,
+                        "candidate_kind": p.candidate_kind,
+                    },
+                    "hyperedge": {
+                        "edge_id": edge.edge_id, "parent_state_ref": edge.parent_state_ref,
+                        "branch_id": edge.branch_id, "relation_type": edge.relation_type,
+                        "roles": [{
+                            "role": role.role,
+                            "variable": {"namespace": role.variable.namespace, "name": role.variable.name},
+                            "member_id": role.member_id, "member_type": role.member_type,
+                        } for role in edge.roles],
+                        "evidence_refs": list(edge.evidence_refs),
+                        "active_from": edge.active_from, "active_until": edge.active_until,
+                    },
+                    "variables": [{
+                        "ref": {"namespace": spec.ref.namespace, "name": spec.ref.name},
+                        "value_type": spec.value_type, "required": spec.required,
+                    } for spec in item.variables],
+                    "constraints": {"equal": [], "not_equal": [], "role_requirements": [], "subtype_of": []},
+                    "semantic_status": item.semantic_status,
+                })
+            snapshot_rows = []
+            for snapshot in self.snapshots:
+                snapshot_rows.append({
+                    "parent_state_ref": snapshot.parent_state_ref,
+                    "parent_state_hash": snapshot.parent_state_hash,
+                    "branch_id": snapshot.branch_id, "base_version": snapshot.base_version,
+                    "delta_events": [{
+                        "event_id": delta.event_id, "operation": delta.operation.value,
+                        "target_ref": delta.target_ref, "before_hash": delta.before_hash,
+                        "after_value": delta.after_value, "evidence_refs": list(delta.evidence_refs),
+                        "causal_parent": delta.causal_parent, "version": delta.version,
+                    } for delta in snapshot.delta_events],
+                    "read_set": list(snapshot.read_set), "write_set": list(snapshot.write_set),
+                    "evidence_refs": list(snapshot.evidence_refs), "lineage": list(snapshot.lineage),
+                })
+            return {
+                "version": 1, "operation": "submit_authorized_merge_candidate",
+                "scope": self.scope, "grammar_version": "csg-gcr-writer-v1",
+                "proposals": proposal_rows, "base_state": self.base_state,
+                "branch_snapshots": snapshot_rows, "receipt": self.receipt,
+                "selected_proposal_ids": ["edge-left", "edge-right"],
+            }
+
+        def submit(payload):
+            with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
+                client.settimeout(5)
+                client.connect(str(socket_path))
+                client.sendall(json.dumps(payload, separators=(",", ":")).encode() + b"\n")
+                data = bytearray()
+                while b"\n" not in data:
+                    chunk = client.recv(4096)
+                    if not chunk:
+                        break
+                    data.extend(chunk)
+            return json.loads(bytes(data).split(b"\n", 1)[0])
+
+        def new_application():
+            uid, gid = os.getuid(), os.getgid()
+            return E12A6UDSWriterApplication(
+                database_path, socket_path, scope=self.scope,
+                peer_bindings=(E12A6PeerWorkloadBinding(uid, gid, "submitter-cert"),),
+                authenticator=self.writer._authenticator,
+                receipt_signature_verifier=self.writer._receipt_signature_verifier,
+                trusted_verifier_id=self.verifier_id, allowed_uids={uid},
+                clock=self.writer_clock,
+            )
+
+        payload = wire_request()
+        app = new_application().start()
+        try:
+            forged = dict(payload)
+            forged["workload_id"] = "spiffe://attacker/admin"
+            rejected = submit(forged)
+            self.assertFalse(rejected["ok"])
+            self.assertEqual(app._runtime.ledger._memory.replay_lifecycle_events(scope=self.scope), [])
+            first = submit(payload)
+            self.assertTrue(first["ok"])
+            self.assertFalse(first["result"]["replayed"])
+            self.assertEqual(first["result"]["submitter_workload_id"],
+                             "spiffe://zhouyi/candidate-submitter")
+        finally:
+            app.close()
+
+        restarted = new_application().start()
+        try:
+            second = submit(payload)
+            self.assertTrue(second["ok"])
+            self.assertTrue(second["result"]["replayed"])
+            self.assertEqual(second["result"]["authorization_receipt_id"], self.receipt["receipt_id"])
+        finally:
+            restarted.close()
+
+        reopened = ZPCMMemory(database_path)
+        try:
+            events = reopened.replay_lifecycle_events(scope=self.scope)
+            self.assertEqual(len(events), 7)
+            self.assertEqual(events[-1]["payload"]["kind"], "authorization_consumed")
+            self.assertNotIn("PRIVATE-proposal-left", str(events))
+        finally:
+            reopened.close()
 
 
 if __name__ == "__main__":

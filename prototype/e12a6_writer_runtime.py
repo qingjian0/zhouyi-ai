@@ -136,20 +136,30 @@ class E12A6WriterRuntime:
                 clock=clock,
             )
         except Exception:
-            if self._memory is not None:
-                self._memory.close()
-            self._lock.release()
+            try:
+                if self.ledger is not None:
+                    self.ledger.close()
+            finally:
+                try:
+                    if self._memory is not None:
+                        self._memory.close()
+                finally:
+                    self._lock.release()
             raise
 
     def close(self) -> None:
         memory, self._memory = self._memory, None
+        ledger, self.ledger = self.ledger, None
         self.service = None
-        self.ledger = None
         try:
-            if memory is not None:
-                memory.close()
+            if ledger is not None:
+                ledger.close()
         finally:
-            self._lock.release()
+            try:
+                if memory is not None:
+                    memory.close()
+            finally:
+                self._lock.release()
 
     def __enter__(self) -> "E12A6WriterRuntime":
         return self
