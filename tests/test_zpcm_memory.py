@@ -579,4 +579,29 @@ class Tests(unittest.TestCase):
   self.assertEqual(rows[0]["event_id"],"e12a6:candidate:rel:direct@1")
 
 
+ def test_replay_only_lifecycle_batch_does_not_accept_corrupt_projection(self):
+  payload={
+   "schema_version":"e12a6-lifecycle-event-v1",
+   "kind":"candidate_registered",
+   "body":{"candidate":{"candidate_id":"batch-replay","version":1,"evidence_ids":[]}},
+  }
+  event_id="e12a6:candidate:batch-replay@1"
+  self.m.append_lifecycle_event(
+   event_id=event_id,scope="project",payload=payload,expected_sequence=0)
+  self.m.db.execute(
+   "UPDATE e12a6_lifecycle_candidate_history SET candidate_id=? WHERE event_id=?",
+   ("tampered",event_id))
+  before=self.m.db.execute(
+   "SELECT generation,validated_generation FROM e12a6_candidate_history_projection_guard "
+   "WHERE singleton=1").fetchone()
+  self.assertNotEqual(before["generation"],before["validated_generation"])
+  replay=self.m.append_lifecycle_events(
+   events=[{"event_id":event_id,"payload":payload}],scope="project",expected_sequence=1)
+  self.assertTrue(replay[0]["replayed"])
+  after=self.m.db.execute(
+   "SELECT generation,validated_generation FROM e12a6_candidate_history_projection_guard "
+   "WHERE singleton=1").fetchone()
+  self.assertNotEqual(after["generation"],after["validated_generation"])
+
+
 if __name__=="__main__":unittest.main()
