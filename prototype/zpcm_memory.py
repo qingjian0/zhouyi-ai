@@ -648,11 +648,6 @@ class ZPCMMemory:
                 "SELECT schema_version,initialized_through_seq,initialized_event_count "
                 "FROM e12a6_current_state_projection_meta WHERE singleton=1"
             ).fetchone()
-            current = self.db.execute(
-                "SELECT COUNT(*) AS event_count,COALESCE(MAX(seq),0) AS high_water "
-                "FROM memory_events WHERE event_type='e12a6_lifecycle'"
-            ).fetchone()
-
             expected_guard_triggers = {
                 "e12a6_candidate_projection_guard_insert",
                 "e12a6_candidate_projection_guard_update",
@@ -720,7 +715,6 @@ class ZPCMMemory:
                     and guard["generation"] == guard["validated_generation"]
                     and meta is not None
                     and meta["schema_version"] == "e12a6-current-state-v1"
-                    and meta["initialized_event_count"] == current["event_count"]
                     and guard_triggers_complete
                     and meta_trigger_existed
                     and not action_projection_migrated):
