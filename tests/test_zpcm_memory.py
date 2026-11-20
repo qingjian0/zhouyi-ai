@@ -604,4 +604,41 @@ class Tests(unittest.TestCase):
   self.assertNotEqual(after["generation"],after["validated_generation"])
 
 
+ def test_candidate_history_projection_rebuilds_if_guard_row_is_missing(self):
+  self._append_candidate_history_event(
+   "e12a6:candidate:rel:guard-row@1",
+   {"kind":"candidate_registered","body":{"candidate":{
+    "candidate_id":"rel:guard-row","version":1,"evidence_ids":[]}}},0)
+  self.m.db.execute(
+   "DELETE FROM e12a6_candidate_history_projection_guard WHERE singleton=1")
+  self.m.db.execute(
+   "UPDATE e12a6_lifecycle_candidate_history SET candidate_id=? WHERE event_id=?",
+   ("tampered","e12a6:candidate:rel:guard-row@1"))
+  self.m.close()
+  self.m=ZPCMMemory(self.path)
+  row=self.m.db.execute(
+   "SELECT candidate_id FROM e12a6_lifecycle_candidate_history WHERE event_id=?",
+   ("e12a6:candidate:rel:guard-row@1",)).fetchone()
+  self.assertEqual(row["candidate_id"],"rel:guard-row")
+
+ def test_current_state_projection_rebuilds_if_guard_row_is_missing(self):
+  self._append_candidate_history_event(
+   "e12a6:candidate:rel:current-guard-row@1",
+   {"kind":"candidate_registered","body":{"candidate":{
+    "candidate_id":"rel:current-guard-row","version":1,"evidence_ids":[]}}},0)
+  self.m.db.execute(
+   "DELETE FROM e12a6_current_state_projection_guard WHERE singleton=1")
+  self.m.db.execute(
+   "UPDATE e12a6_candidate_state_projection SET candidate_json=? "
+   "WHERE scope=? AND candidate_id=?",
+   ("{}","project","rel:current-guard-row"))
+  self.m.close()
+  self.m=ZPCMMemory(self.path)
+  row=self.m.db.execute(
+   "SELECT candidate_json FROM e12a6_candidate_state_projection "
+   "WHERE scope=? AND candidate_id=?",
+   ("project","rel:current-guard-row")).fetchone()
+  self.assertEqual(json.loads(row["candidate_json"])["candidate_id"],"rel:current-guard-row")
+
+
 if __name__=="__main__":unittest.main()
