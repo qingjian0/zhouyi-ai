@@ -1,8 +1,8 @@
-"""Read-only resolver from M2 EvidenceRef to the immutable M1 SQLite chunks.
+"""Read-only resolver from M2 EvidenceRef to immutable M1 SQLite chunks.
 
-The document version is a deterministic manifest hash over the complete ordered
-chunk sequence. Resolution verifies every stored chunk byte-for-byte and keeps
-working memory bounded by one chunk.
+Normal resolution checks the finalized manifest generation in bounded metadata
+and hashes only the referenced chunk. Full-document byte verification remains
+available as an explicit audit operation.
 """
 from __future__ import annotations
 
@@ -67,7 +67,12 @@ class SQLiteEvidenceRefResolver:
 
     @staticmethod
     def _verified_document_version(db: sqlite3.Connection, document_id: str) -> str:
-        """Verify the complete immutable manifest inside the caller's read snapshot."""
+        """Validate finalized manifest metadata without scanning the document corpus.
+
+        The ingestor's chunk-generation triggers invalidate the manifest whenever
+        a chunk row is inserted, updated or deleted. The resolver is read-only;
+        its normal trust boundary assumes only the ingestor can mutate this DB.
+        """
         state = db.execute(
             """SELECT next_byte_offset,next_ordinal,complete,manifest_digest,
                       manifest_chunks,manifest_bytes,chunk_generation,manifest_generation
@@ -79,40 +84,71 @@ class SQLiteEvidenceRefResolver:
         if not bool(state[2]):
             raise EvidenceResolutionError("cannot version an incomplete M1 document")
         if (
-            not isinstance(state[3], str) or not state[3].startswith("manifest-sha256:")
+            not isinstance(state[3], str)
+            or not state[3].startswith("manifest-sha256:")
+            or len(state[3]) != len("manifest-sha256:") + 64
+            or any(char not in "0123456789abcdef" for char in state[3][len("manifest-sha256:"):])
             or state[4] is None or state[5] is None or state[7] is None
         ):
             raise EvidenceResolutionError("durable document manifest is missing, stale, or invalid")
         try:
-            actual_digest, actual_chunks, actual_bytes = _manifest_digest(
-                document_id,
-                db.execute(
-                    """SELECT ordinal,byte_start,byte_end,chunk_id,content_sha256,text_utf8
-                       FROM evidence_chunks WHERE document_id=? ORDER BY ordinal""",
-                    (document_id,),
-                ),
-            )
-            expected = (
-                int(state[0]), int(state[1]), int(state[4]), int(state[5]),
-                int(state[6]), int(state[7]),
-            )
+            next_bytes, next_chunks = int(state[0]), int(state[1])
+            manifest_chunks, manifest_bytes = int(state[4]), int(state[5])
+            chunk_generation, manifest_generation = int(state[6]), int(state[7])
         except (TypeError, ValueError, OverflowError) as exc:
             raise EvidenceResolutionError(
                 "durable document manifest contains invalid metadata"
             ) from exc
         if (
-            actual_digest != state[3]
-            or actual_chunks != expected[1]
-            or actual_chunks != expected[2]
-            or actual_bytes != expected[0]
-            or actual_bytes != expected[3]
-            or expected[4] != expected[5]
-            or expected[4] != expected[1]
+            next_bytes < 1 or next_chunks < 1
+            or manifest_chunks != next_chunks
+            or manifest_bytes != next_bytes
+            or chunk_generation != next_chunks
+            or manifest_generation != chunk_generation
+        ):
+            raise EvidenceResolutionError(
+                "durable document manifest generation or cursor is stale"
+            )
+        return str(state[3])
+
+    @staticmethod
+    def _verify_complete_document_manifest(
+        db: sqlite3.Connection, document_id: str,
+    ) -> str:
+        """Re-hash every committed chunk for explicit integrity audits and repair."""
+        version = SQLiteEvidenceRefResolver._verified_document_version(db, document_id)
+        state = db.execute(
+            """SELECT next_byte_offset,next_ordinal,manifest_chunks,manifest_bytes
+               FROM ingest_documents WHERE document_id=?""",
+            (document_id,),
+        ).fetchone()
+        actual_digest, actual_chunks, actual_bytes = _manifest_digest(
+            document_id,
+            db.execute(
+                """SELECT ordinal,byte_start,byte_end,chunk_id,content_sha256,text_utf8
+                   FROM evidence_chunks WHERE document_id=? ORDER BY ordinal""",
+                (document_id,),
+            ),
+        )
+        if (
+            actual_digest != version
+            or actual_chunks != int(state[1])
+            or actual_chunks != int(state[2])
+            or actual_bytes != int(state[0])
+            or actual_bytes != int(state[3])
         ):
             raise EvidenceResolutionError(
                 "durable document manifest does not match its complete chunk sequence"
             )
-        return str(state[3])
+        return version
+
+    def verify_document_manifest(self, document_id: str) -> str:
+        """Perform an explicit full-document integrity audit (O(document bytes))."""
+        if not isinstance(document_id, str) or not document_id.strip():
+            raise EvidenceResolutionError("document_id must be non-empty")
+        with self._connect() as db:
+            db.execute("BEGIN")
+            return self._verify_complete_document_manifest(db, document_id)
 
     def document_version(self, document_id: str) -> str:
         if not isinstance(document_id, str) or not document_id.strip():
@@ -146,10 +182,11 @@ class SQLiteEvidenceRefResolver:
             )
 
     def resolve_many(self, references: list[EvidenceRef]) -> list[ResolvedEvidence]:
-        """Resolve references with one manifest proof per document and one read snapshot.
+        """Resolve references with one bounded manifest-metadata check per document.
 
         Results preserve input order. Repeated references are independently returned,
-        while each distinct document manifest is fully verified only once.
+        while each distinct document's generation metadata is checked only once.
+        Each requested chunk is still independently length/hash/UTF-8 verified.
         """
         if not isinstance(references, list):
             raise EvidenceResolutionError("references must be a list")

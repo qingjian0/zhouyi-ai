@@ -5,6 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
+import prototype.evidence_ref_resolver as resolver_module
 from prototype.evidence_ref_resolver import (
     EvidenceResolutionError,
     SQLiteEvidenceRefResolver,
@@ -37,6 +38,10 @@ class SQLiteEvidenceRefResolverTests(unittest.TestCase):
         self.assertEqual(resolved.ordinal, chunk.ordinal)
         self.assertEqual(ref.content_sha256, chunk.content_sha256)
         self.assertTrue(ref.source_version.startswith("manifest-sha256:"))
+        self.assertEqual(
+            self.resolver.verify_document_manifest("doc-resolve"),
+            ref.source_version,
+        )
 
     def test_durable_cursor_must_match_manifest(self):
         self.ingest_complete()
@@ -140,7 +145,7 @@ class SQLiteEvidenceRefResolverTests(unittest.TestCase):
         with self.assertRaisesRegex(
             EvidenceResolutionError, "complete chunk sequence"
         ):
-            self.resolver.document_version("doc-resolve")
+            self.resolver.verify_document_manifest("doc-resolve")
 
     def test_in_place_blob_tampering_is_detected(self):
         chunks = self.ingest_complete()
@@ -153,7 +158,22 @@ class SQLiteEvidenceRefResolverTests(unittest.TestCase):
         with self.assertRaises(EvidenceResolutionError):
             self.resolver.resolve(ref)
 
-    def test_resolve_many_verifies_each_document_manifest_once(self):
+    def test_normal_resolution_does_not_rehash_unreferenced_document_chunks(self):
+        chunks = self.ingest_complete()
+        ref = self.resolver.make_reference("doc-resolve", chunks[-1].chunk_id)
+        original = resolver_module._manifest_digest
+
+        def forbidden_full_scan(*args, **kwargs):
+            raise AssertionError("normal reference resolution must not rehash the full document")
+
+        resolver_module._manifest_digest = forbidden_full_scan
+        try:
+            resolved = self.resolver.resolve(ref)
+        finally:
+            resolver_module._manifest_digest = original
+        self.assertEqual(resolved.text, chunks[-1].text)
+
+    def test_resolve_many_checks_each_document_manifest_metadata_once(self):
         chunks = self.ingest_complete()
         refs = [
             self.resolver.make_reference("doc-resolve", chunk.chunk_id)
