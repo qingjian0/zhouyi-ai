@@ -471,7 +471,7 @@ class Tests(unittest.TestCase):
 
 
  def test_current_state_projection_rebuilds_if_meta_trigger_was_removed(self):
-  self.m.db.execute("DROP TRIGGER e12a6_current_state_meta_insert")
+  self.m.db.execute("DROP TRIGGER e12a6_current_state_meta_insert_v2")
   self._append_candidate_history_event(
    "e12a6:candidate:rel:meta-trigger@1",
    {"kind":"candidate_registered","body":{"candidate":{
@@ -488,7 +488,7 @@ class Tests(unittest.TestCase):
   self.assertEqual(meta["initialized_event_count"],1)
   triggers={row["name"] for row in self.m.db.execute(
    "SELECT name FROM sqlite_master WHERE type='trigger'")}
-  self.assertIn("e12a6_current_state_meta_insert",triggers)
+  self.assertIn("e12a6_current_state_meta_insert_v2",triggers)
 
 
  def test_candidate_history_projection_generation_detects_equal_count_replacement(self):
@@ -557,6 +557,26 @@ class Tests(unittest.TestCase):
    "SELECT generation,validated_generation FROM e12a6_candidate_history_projection_guard "
    "WHERE singleton=1").fetchone()
   self.assertEqual(guard["generation"],guard["validated_generation"])
+
+
+ def test_direct_lifecycle_log_insert_invalidates_candidate_history_index(self):
+  payload={
+   "schema_version":"e12a6-lifecycle-event-v1",
+   "kind":"candidate_registered",
+   "body":{"candidate":{"candidate_id":"rel:direct","version":1,"evidence_ids":[]}},
+  }
+  self.m._append(
+   "e12a6:candidate:rel:direct@1","e12a6_lifecycle","project",payload)
+  guard=self.m.db.execute(
+   "SELECT generation,validated_generation FROM e12a6_candidate_history_projection_guard "
+   "WHERE singleton=1").fetchone()
+  self.assertNotEqual(guard["generation"],guard["validated_generation"])
+  self.m.close()
+  self.m=ZPCMMemory(self.path)
+  rows=self.m.iter_lifecycle_candidate_history(
+   scope="project",candidate_id="rel:direct",limit=10)
+  self.assertEqual(len(rows),1)
+  self.assertEqual(rows[0]["event_id"],"e12a6:candidate:rel:direct@1")
 
 
 if __name__=="__main__":unittest.main()
