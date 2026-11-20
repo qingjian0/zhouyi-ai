@@ -17,7 +17,6 @@ import tempfile
 import time
 from typing import Iterable
 
-from dataclasses import replace
 
 from prototype.e12a6_lifecycle_contract import Action, ActionType, Candidate, CandidateState, Evidence, SplitRole
 from prototype.e12a6_zpcm_persistence import (
@@ -73,13 +72,13 @@ def _candidate(index: int, evidence_id: str | None = None) -> Candidate:
 
 def _evidence(index: int) -> Evidence:
     return _safe_evidence(Evidence(
-        evidence_id=f\"benchmark:evidence:{index}\",
-        episode_id=f\"benchmark:episode:{index}\",
-        world_family=\"rss-benchmark-world\",
+        evidence_id=f"benchmark:evidence:{index}",
+        episode_id=f"benchmark:episode:{index}",
+        world_family="rss-benchmark-world",
         split_role=SplitRole.TRAIN,
-        observation_id=f\"benchmark:observation:{index}\",
-        outcome=f\"opaque-evidence-ref:{index}\",
-        model_version=\"rss-benchmark-model\",
+        observation_id=f"benchmark:observation:{index}",
+        outcome=f"opaque-evidence-ref:{index}",
+        model_version="rss-benchmark-model",
         prediction_commit_step=1,
         label_visibility_step=2,
     ))
@@ -87,7 +86,7 @@ def _evidence(index: int) -> Evidence:
 
 def _action(index: int, candidate_id: str) -> Action:
     return Action(
-        action_id=f\"benchmark:propose:{index}\",
+        action_id=f"benchmark:propose:{index}",
         action_type=ActionType.PROPOSE,
         candidate_id=candidate_id,
         candidate_version=1,
