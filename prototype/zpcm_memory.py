@@ -356,6 +356,9 @@ class ZPCMMemory:
             guard_existed = self.db.execute(
                 "SELECT 1 FROM sqlite_master WHERE type='table' AND name='e12a6_current_state_projection_guard'"
             ).fetchone() is not None
+            meta_trigger_existed = self.db.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='trigger' AND name='e12a6_current_state_meta_insert'"
+            ).fetchone() is not None
             self.db.executescript("""
             CREATE TABLE IF NOT EXISTS e12a6_current_state_projection_meta(
                 singleton INTEGER PRIMARY KEY CHECK(singleton=1),
@@ -624,10 +627,6 @@ class ZPCMMemory:
                 "SELECT schema_version,initialized_through_seq,initialized_event_count "
                 "FROM e12a6_current_state_projection_meta WHERE singleton=1"
             ).fetchone()
-            current = self.db.execute(
-                "SELECT COUNT(*) AS event_count,COALESCE(MAX(seq),0) AS high_water "
-                "FROM memory_events WHERE event_type='e12a6_lifecycle'"
-            ).fetchone()
             guard = self.db.execute(
                 "SELECT generation,validated_generation FROM e12a6_current_state_projection_guard WHERE singleton=1"
             ).fetchone()
@@ -636,13 +635,18 @@ class ZPCMMemory:
                     and meta is not None
                     and meta["schema_version"] == "e12a6-current-state-v1"
                     and meta["initialized_event_count"] == current["event_count"]
-                    and meta["initialized_through_seq"] == current["high_water"]
                     and guard_triggers_complete
+                    and meta_trigger_existed
                     and not action_projection_migrated):
                 return
             if guard_existed:
                 self.rebuild_e12a6_current_state_projection()
                 return
+
+            current = self.db.execute(
+                "SELECT COUNT(*) AS event_count,COALESCE(MAX(seq),0) AS high_water "
+                "FROM memory_events WHERE event_type='e12a6_lifecycle'"
+            ).fetchone()
 
             # Legacy databases receive one full keyset audit before switching to
             # generation-guarded O(1) validation on subsequent opens.
