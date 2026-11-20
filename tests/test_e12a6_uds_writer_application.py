@@ -82,7 +82,7 @@ class E12A6UDSWriterApplicationTests(unittest.TestCase):
 
     def test_enforces_aggregate_json_complexity_budget(self):
         request = _valid_request()
-        request["base_state"] = {"bulk": [0] * 50_100}
+        request["base_state"] = {f"bulk-{index}": [0] * 4_096 for index in range(13)}
         with self.assertRaises(E12A6UDSProtocolError):
             decode_submit_request(request)
 
