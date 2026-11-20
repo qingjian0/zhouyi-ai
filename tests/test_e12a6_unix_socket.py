@@ -2,6 +2,7 @@ import json
 import os
 import socket
 import subprocess
+import threading
 import sys
 import tempfile
 import unittest
@@ -128,6 +129,39 @@ class TestE12A6UnixSocketServer(unittest.TestCase):
         server = E12A6UnixSocketServer(path, lambda peer, req: {}, allowed_uids={os.getuid()})
         with self.assertRaises(E12A6IPCError):
             server.start()
+
+    def test_shutdown_fails_closed_until_active_dispatcher_drains(self):
+        entered = threading.Event()
+        release = threading.Event()
+        response = []
+
+        def dispatch(peer, request):
+            entered.set()
+            if not release.wait(timeout=5):
+                raise TimeoutError("test dispatcher was not released")
+            return {"accepted": True}
+
+        server = E12A6UnixSocketServer(
+            self.path, dispatch, allowed_uids={os.getuid()}, client_timeout=0.05,
+        ).start()
+        client = threading.Thread(
+            target=lambda: response.append(self.request({"operation": "submit"})),
+            daemon=True,
+        )
+        client.start()
+        try:
+            self.assertTrue(entered.wait(timeout=3), "dispatcher did not start")
+            with self.assertRaises(E12A6IPCError):
+                server.close()
+            self.assertTrue(self.path.exists(), "socket inode must remain owned while handler is active")
+            self.assertIn("server_thread_did_not_stop", server.errors)
+        finally:
+            release.set()
+            client.join(timeout=5)
+            server.close()
+        self.assertFalse(client.is_alive())
+        self.assertEqual(response, [{"ok": True, "result": {"accepted": True}}])
+        self.assertFalse(self.path.exists())
 
     def test_response_must_be_json_object(self):
         with E12A6UnixSocketServer(self.path, lambda peer, req: "not-an-object",
