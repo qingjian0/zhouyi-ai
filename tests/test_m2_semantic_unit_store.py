@@ -1,6 +1,8 @@
 import io
 import tempfile
 import unittest
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from prototype.evidence_ref_resolver import EvidenceResolutionError, SQLiteEvidenceRefResolver
@@ -110,6 +112,122 @@ class PersistentSemanticUnitCandidateStoreTests(unittest.TestCase):
             [item.envelope.record_id for item in second_store.iter_candidates(page_size=1)],
             ["candidate-1", "candidate-2"],
         )
+
+    def _synchronize_first_append(self, second_memory):
+        barrier = threading.Barrier(2)
+        for memory in (self.memory, second_memory):
+            original = memory.append_domain_event
+            calls = [0]
+
+            def synchronized_append(*, event_type, event_id, scope, payload,
+                                    expected_sequence, _original=original, _calls=calls):
+                if _calls[0] == 0:
+                    _calls[0] += 1
+                    barrier.wait(timeout=10)
+                return _original(
+                    event_type=event_type,
+                    event_id=event_id,
+                    scope=scope,
+                    payload=payload,
+                    expected_sequence=expected_sequence,
+                )
+
+            memory.append_domain_event = synchronized_append
+
+    @staticmethod
+    def _record_without_raising(store, candidate):
+        try:
+            return store.record_candidate(candidate)
+        except Exception as exc:
+            return exc
+
+    def test_simultaneous_distinct_writers_reconcile_stale_sequence(self):
+        second_memory = ZPCMMemory(self.memory_db)
+        self.addCleanup(second_memory.close)
+        second_store = PersistentSemanticUnitCandidateStore(
+            second_memory, self.resolver, scope="project-a",
+        )
+        self._synchronize_first_append(second_memory)
+
+        candidates = (
+            self.make_candidate(record_id="simultaneous-a"),
+            self.make_candidate(record_id="simultaneous-b"),
+        )
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            futures = (
+                pool.submit(self.store.record_candidate, candidates[0]),
+                pool.submit(second_store.record_candidate, candidates[1]),
+            )
+            receipts = [future.result(timeout=30) for future in futures]
+
+        self.assertEqual(len({receipt.sequence for receipt in receipts}), 2)
+        self.assertEqual(sorted(receipt.replayed for receipt in receipts), [False, False])
+        persisted = list(self.store.iter_candidates(page_size=1))
+        self.assertEqual(
+            {item.envelope.record_id for item in persisted},
+            {"simultaneous-a", "simultaneous-b"},
+        )
+        self.assertEqual(
+            [item.envelope.record_id for item in persisted],
+            [item.envelope.record_id for item in sorted(
+                persisted, key=lambda item: item.envelope.record_id
+            )],
+        )
+
+    def test_simultaneous_identical_idempotent_writers_commit_one_event(self):
+        second_memory = ZPCMMemory(self.memory_db)
+        self.addCleanup(second_memory.close)
+        second_store = PersistentSemanticUnitCandidateStore(
+            second_memory, self.resolver, scope="project-a",
+        )
+        self._synchronize_first_append(second_memory)
+        candidate = self.make_candidate(record_id="simultaneous-replay")
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            futures = (
+                pool.submit(self.store.record_candidate, candidate),
+                pool.submit(second_store.record_candidate, candidate),
+            )
+            receipts = [future.result(timeout=30) for future in futures]
+
+        self.assertEqual(receipts[0].event_id, receipts[1].event_id)
+        self.assertEqual(receipts[0].sequence, receipts[1].sequence)
+        self.assertEqual(sorted(receipt.replayed for receipt in receipts), [False, True])
+        events = list(self.memory.iter_domain_events(
+            event_type="m2_semantic_unit_candidate", scope="project-a",
+        ))
+        self.assertEqual(len(events), 1)
+
+    def test_simultaneous_conflicting_same_id_writers_fail_closed(self):
+        second_memory = ZPCMMemory(self.memory_db)
+        self.addCleanup(second_memory.close)
+        second_store = PersistentSemanticUnitCandidateStore(
+            second_memory, self.resolver, scope="project-a",
+        )
+        self._synchronize_first_append(second_memory)
+        candidates = (
+            self.make_candidate(record_id="simultaneous-conflict", surface="甲"),
+            self.make_candidate(record_id="simultaneous-conflict", surface="乙"),
+        )
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            futures = (
+                pool.submit(self._record_without_raising, self.store, candidates[0]),
+                pool.submit(self._record_without_raising, second_store, candidates[1]),
+            )
+            results = [future.result(timeout=30) for future in futures]
+
+        receipts = [item for item in results if not isinstance(item, Exception)]
+        errors = [item for item in results if isinstance(item, Exception)]
+        self.assertEqual(len(receipts), 1)
+        self.assertEqual(len(errors), 1)
+        self.assertIsInstance(errors[0], SemanticUnitStoreError)
+        persisted = self.store.get_candidate("simultaneous-conflict")
+        self.assertIn(persisted, candidates)
+        events = list(self.memory.iter_domain_events(
+            event_type="m2_semantic_unit_candidate", scope="project-a",
+        ))
+        self.assertEqual(len(events), 1)
 
     def test_identical_retry_from_stale_writer_remains_idempotent(self):
         second_memory = ZPCMMemory(self.memory_db)
