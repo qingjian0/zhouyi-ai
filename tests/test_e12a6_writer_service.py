@@ -1,5 +1,8 @@
 import base64
 import hashlib
+import json
+import os
+import socket
 import tempfile
 import unittest
 from datetime import datetime, timedelta, timezone
@@ -17,6 +20,9 @@ from prototype.e09_ed25519_keyring import E09Ed25519IssuerKeyring
 from prototype.e09_verification_receipt import verification_receipt_signing_bytes
 from prototype.e09_domain_registry import E09DomainBinding, StaticE09DomainRegistry
 from prototype.e12a6_lifecycle_contract import CandidateState
+from prototype.e12a6_uds_writer_application import (
+    E12A6PeerWorkloadBinding, E12A6UDSWriterApplication,
+)
 from prototype.e12a6_writer_service import (
     E12A6AuthenticatedWorkload, E12A6AuthorizationError, E12A6WriterService,
 )
