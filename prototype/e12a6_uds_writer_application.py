@@ -273,7 +273,8 @@ def _global_constraints(raw: Any) -> GlobalConstraints:
 
 def decode_submit_request(request: dict[str, Any]) -> dict[str, Any]:
     """Decode the only supported operation; reject every unknown schema field."""
-    obj = _object(request, {"version", "operation", "scope", "grammar_version",
+    bounded = _json_value(request, "request")
+    obj = _object(bounded, {"version", "operation", "scope", "grammar_version",
                             "proposals", "base_state", "branch_snapshots", "receipt"},
                   {"selected_proposal_ids", "constraints"}, "request")
     if _int(obj["version"], "version", minimum=1, maximum=PROTOCOL_VERSION) != PROTOCOL_VERSION:
@@ -340,8 +341,8 @@ class E12A6UDSWriterApplication:
         self._scope = scope
         self._mapping = mapping
         self._allowed_uids = frozenset(allowed_uids)
-        if any(uid not in self._allowed_uids for uid, _ in mapping):
-            raise ValueError("every peer binding UID must also be in allowed_uids")
+        if frozenset(uid for uid, _ in mapping) != self._allowed_uids:
+            raise ValueError("allowed_uids must exactly match the configured peer-binding UIDs")
         self._database_path = Path(database_path)
         self._socket_path = Path(socket_path)
         self._runtime: E12A6WriterRuntime | None = None
