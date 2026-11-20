@@ -114,11 +114,16 @@ class E12A6WriterRuntimeTests(unittest.TestCase):
 
 
     def test_different_os_user_cannot_read_writer_database(self):
+        import pwd
         import shutil
 
         sudo = shutil.which("sudo")
         if sudo is None:
             self.skipTest("sudo is unavailable; cross-UID denial is exercised on Linux CI")
+        try:
+            pwd.getpwnam("nobody")
+        except KeyError:
+            self.skipTest("the unprivileged nobody account is unavailable")
         with tempfile.TemporaryDirectory() as directory:
             os.chmod(directory, 0o700)
             database = Path(directory) / "writer.sqlite"
@@ -146,8 +151,6 @@ class E12A6WriterRuntimeTests(unittest.TestCase):
                 cwd=Path(__file__).resolve().parents[1],
                 capture_output=True, text=True, check=False,
             )
-            if result.returncode not in (0, 17):
-                self.skipTest(f"unprivileged nobody account unavailable: {result.stderr.strip()}")
             self.assertEqual(result.returncode, 0,
                              "a different OS user unexpectedly read the writer database")
 
