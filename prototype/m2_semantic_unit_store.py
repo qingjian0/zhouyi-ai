@@ -139,26 +139,42 @@ class PersistentSemanticUnitCandidateStore:
             payload, body_digest = self._event_payload(candidate)
             if body_digest != record_digest(candidate):
                 raise SemanticUnitStoreError("canonical candidate digest changed during serialization")
-            try:
-                receipt = self._memory.append_domain_event(
-                    event_type=EVENT_TYPE,
-                    event_id=event_id,
-                    scope=self.scope,
-                    payload=payload,
-                    expected_sequence=self._last_sequence,
-                )
-            except ZPCMError as exc:
-                if "event ID content conflict" in str(exc):
-                    raise SemanticUnitStoreError(
-                        "candidate record_id is immutable; use a new revision ID for changed content"
-                    ) from exc
-                if "stale domain sequence" in str(exc):
-                    raise SemanticUnitStoreError(
-                        "concurrent candidate append detected; refresh the store and retry"
-                    ) from exc
-                raise SemanticUnitStoreError(f"ZPCM candidate append failed: {exc}") from exc
-            if not receipt["replayed"]:
-                self._last_sequence = receipt["sequence"]
+            # Another store instance/process may have appended since this
+            # instance captured its high-water mark. Reconcile from the
+            # authoritative stream and retry boundedly; event-ID idempotency
+            # is checked by ZPCM before its sequence guard.
+            receipt = None
+            for attempt in range(4):
+                try:
+                    receipt = self._memory.append_domain_event(
+                        event_type=EVENT_TYPE,
+                        event_id=event_id,
+                        scope=self.scope,
+                        payload=payload,
+                        expected_sequence=self._last_sequence,
+                    )
+                    break
+                except ZPCMError as exc:
+                    if "event ID content conflict" in str(exc):
+                        raise SemanticUnitStoreError(
+                            "candidate record_id is immutable; use a new revision ID for changed content"
+                        ) from exc
+                    if "stale domain sequence" in str(exc):
+                        self._last_sequence = self._memory.latest_domain_sequence(
+                            event_type=EVENT_TYPE, scope=self.scope,
+                        )
+                        if attempt < 3:
+                            continue
+                        raise SemanticUnitStoreError(
+                            "concurrent candidate append contention; retry the operation"
+                        ) from exc
+                    raise SemanticUnitStoreError(f"ZPCM candidate append failed: {exc}") from exc
+            if receipt is None:
+                raise SemanticUnitStoreError("candidate append did not produce a receipt")
+            self._last_sequence = (
+                self._memory.latest_domain_sequence(event_type=EVENT_TYPE, scope=self.scope)
+                if receipt["replayed"] else receipt["sequence"]
+            )
             return SemanticUnitReceipt(
                 event_id=event_id,
                 sequence=receipt["sequence"],
