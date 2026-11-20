@@ -14,7 +14,7 @@ This receipt binds:
 
 ## Issuance boundary
 
-`E09VerifierService.issue_yixiang_observation_receipt` resolves every requested reveal through `resolve_e09_reveal`. The caller cannot supply event digests, observation IDs, world-family metadata or registry metadata. All evidence refs must resolve in the requested episode, scope and learner track and share one active trusted domain binding.
+`E09VerifierService.issue_yixiang_observation_receipt` requires a trusted application-configured M2 candidate store implementing `get_candidate(record_id)`. The verifier loads the immutable candidate from that store, recomputes its canonical digest, and checks its ID and scope before issuing any receipt. Caller-provided candidate IDs/digests are comparison values only; they are never accepted as proof that a candidate exists. The service then resolves every requested reveal through `resolve_e09_reveal`. The caller cannot supply event digests, observation IDs, world-family metadata or registry metadata. All evidence refs must resolve in the requested episode, scope and learner track and share one active trusted domain binding.
 
 The service signs the closed `e09_observation_receipt@1` schema with the configured verifier signer. The verifier key is configured out-of-band; private signing material must not be present in learner or adapter processes.
 
