@@ -1,4 +1,4 @@
-import tempfile,unittest
+import json,tempfile,unittest
 from pathlib import Path
 from prototype.zpcm_memory import ZPCMError,ZPCMMemory,canonical
 from prototype.shared_evidence_protocol import SQLiteEvidenceStore
@@ -374,6 +374,271 @@ class Tests(unittest.TestCase):
    "WHERE scope=? AND action_id=?",("scope","unbound-1")).fetchone()
   self.assertIsNone(row["candidate_id"])
   self.assertIsNone(row["candidate_version"])
+
+
+ def test_current_state_projection_generation_fast_path_skips_history_keysets(self):
+  self._append_candidate_history_event(
+   "e12a6:candidate:rel:fast@1",
+   {"kind":"candidate_registered","body":{"candidate":{
+    "candidate_id":"rel:fast","version":1,"evidence_ids":[]}}},0)
+  guard=self.m.db.execute(
+   "SELECT generation,validated_generation FROM e12a6_current_state_projection_guard "
+   "WHERE singleton=1").fetchone()
+  self.assertEqual(guard["generation"],guard["validated_generation"])
+  statements=[]
+  self.m.db.set_trace_callback(statements.append)
+  try:
+   self.m._ensure_e12a6_candidate_history_projection()
+   self.m._ensure_e12a6_current_state_projection()
+  finally:
+   self.m.db.set_trace_callback(None)
+  upper_sql=[sql.upper() for sql in statements]
+  self.assertFalse(any(" EXCEPT " in sql for sql in upper_sql))
+  self.assertFalse(any(
+   "FROM MEMORY_EVENTS WHERE EVENT_TYPE='E12A6_LIFECYCLE'" in sql
+   and ("COUNT(" in sql or "MAX(SEQ)" in sql)
+   for sql in upper_sql))
+
+ def test_current_state_projection_generation_detects_equal_count_row_replacement(self):
+  first=self._append_candidate_history_event(
+   "e12a6:candidate:rel:first@1",
+   {"kind":"candidate_registered","body":{"candidate":{
+    "candidate_id":"rel:first","version":1,"evidence_ids":[]}}},0)
+  self._append_candidate_history_event(
+   "e12a6:candidate:rel:second@1",
+   {"kind":"candidate_registered","body":{"candidate":{
+    "candidate_id":"rel:second","version":1,"evidence_ids":[]}}},first["sequence"])
+  before=self.m.db.execute(
+   "SELECT COUNT(*) FROM e12a6_candidate_state_projection").fetchone()[0]
+  self.m.db.execute(
+   "DELETE FROM e12a6_candidate_state_projection WHERE scope=? AND candidate_id=?",
+   ("project","rel:first"))
+  self.m.db.execute(
+   "INSERT INTO e12a6_candidate_state_projection("
+   "scope,candidate_id,candidate_version,candidate_json,source_seq) VALUES(?,?,?,?,?)",
+   ("project","rel:rogue",1,canonical({"candidate_id":"rel:rogue","version":1}),first["sequence"]))
+  after=self.m.db.execute(
+   "SELECT COUNT(*) FROM e12a6_candidate_state_projection").fetchone()[0]
+  self.assertEqual(before,after)
+  guard=self.m.db.execute(
+   "SELECT generation,validated_generation FROM e12a6_current_state_projection_guard "
+   "WHERE singleton=1").fetchone()
+  self.assertNotEqual(guard["generation"],guard["validated_generation"])
+  self.m.close()
+  self.m=ZPCMMemory(self.path)
+  ids={row["candidate_id"] for row in self.m.db.execute(
+   "SELECT candidate_id FROM e12a6_candidate_state_projection")}
+  self.assertEqual(ids,{"rel:first","rel:second"})
+
+ def test_current_state_projection_generation_detects_value_tampering(self):
+  self._append_candidate_history_event(
+   "e12a6:candidate:rel:tamper@1",
+   {"kind":"candidate_registered","body":{"candidate":{
+    "candidate_id":"rel:tamper","version":1,"evidence_ids":[]}}},0)
+  self.m.db.execute(
+   "UPDATE e12a6_candidate_state_projection SET candidate_json=? "
+   "WHERE scope=? AND candidate_id=?",
+   ("{}","project","rel:tamper"))
+  self.m.close()
+  self.m=ZPCMMemory(self.path)
+  row=self.m.db.execute(
+   "SELECT candidate_json FROM e12a6_candidate_state_projection "
+   "WHERE scope=? AND candidate_id=?",
+   ("project","rel:tamper")).fetchone()
+  self.assertEqual(json.loads(row["candidate_json"])["candidate_id"],"rel:tamper")
+
+
+ def test_current_state_projection_rebuilds_if_guard_trigger_was_removed(self):
+  self._append_candidate_history_event(
+   "e12a6:candidate:rel:trigger@1",
+   {"kind":"candidate_registered","body":{"candidate":{
+    "candidate_id":"rel:trigger","version":1,"evidence_ids":[]}}},0)
+  self.m.db.execute("DROP TRIGGER e12a6_candidate_projection_guard_update")
+  self.m.db.execute(
+   "UPDATE e12a6_candidate_state_projection SET candidate_json=? "
+   "WHERE scope=? AND candidate_id=?",
+   ("{}","project","rel:trigger"))
+  self.m.close()
+  self.m=ZPCMMemory(self.path)
+  row=self.m.db.execute(
+   "SELECT candidate_json FROM e12a6_candidate_state_projection "
+   "WHERE scope=? AND candidate_id=?",
+   ("project","rel:trigger")).fetchone()
+  self.assertEqual(json.loads(row["candidate_json"])["candidate_id"],"rel:trigger")
+  triggers={row["name"] for row in self.m.db.execute(
+   "SELECT name FROM sqlite_master WHERE type='trigger'")}
+  self.assertIn("e12a6_candidate_projection_guard_update",triggers)
+
+
+ def test_current_state_projection_rebuilds_if_meta_trigger_was_removed(self):
+  self.m.db.execute("DROP TRIGGER e12a6_current_state_meta_insert_v2")
+  self._append_candidate_history_event(
+   "e12a6:candidate:rel:meta-trigger@1",
+   {"kind":"candidate_registered","body":{"candidate":{
+    "candidate_id":"rel:meta-trigger","version":1,"evidence_ids":[]}}},0)
+  meta=self.m.db.execute(
+   "SELECT initialized_event_count FROM e12a6_current_state_projection_meta "
+   "WHERE singleton=1").fetchone()
+  self.assertEqual(meta["initialized_event_count"],0)
+  self.m.close()
+  self.m=ZPCMMemory(self.path)
+  meta=self.m.db.execute(
+   "SELECT initialized_event_count FROM e12a6_current_state_projection_meta "
+   "WHERE singleton=1").fetchone()
+  self.assertEqual(meta["initialized_event_count"],1)
+  triggers={row["name"] for row in self.m.db.execute(
+   "SELECT name FROM sqlite_master WHERE type='trigger'")}
+  self.assertIn("e12a6_current_state_meta_insert_v2",triggers)
+
+
+ def test_candidate_history_projection_generation_detects_equal_count_replacement(self):
+  first=self._append_candidate_history_event(
+   "e12a6:candidate:rel:history-a@1",
+   {"kind":"candidate_registered","body":{"candidate":{
+    "candidate_id":"rel:history-a","version":1,"evidence_ids":[]}}},0)
+  self._append_candidate_history_event(
+   "e12a6:candidate:rel:history-b@1",
+   {"kind":"candidate_registered","body":{"candidate":{
+    "candidate_id":"rel:history-b","version":1,"evidence_ids":[]}}},first["sequence"])
+  before=self.m.db.execute(
+   "SELECT COUNT(*) FROM e12a6_lifecycle_candidate_history").fetchone()[0]
+  self.m.db.execute(
+   "DELETE FROM e12a6_lifecycle_candidate_history WHERE event_id=?",
+   ("e12a6:candidate:rel:history-a@1",))
+  self.m.db.execute(
+   "INSERT INTO e12a6_lifecycle_candidate_history("
+   "scope,candidate_id,candidate_version,sequence,event_id,event_kind,action_id,evidence_ids_json) "
+   "VALUES(?,?,?,?,?,?,?,?)",
+   ("project","rel:rogue",1,first["sequence"],
+    "e12a6:candidate:rel:history-a@1","candidate_registered",None,"[]"))
+  after=self.m.db.execute(
+   "SELECT COUNT(*) FROM e12a6_lifecycle_candidate_history").fetchone()[0]
+  self.assertEqual(before,after)
+  guard=self.m.db.execute(
+   "SELECT generation,validated_generation FROM e12a6_candidate_history_projection_guard "
+   "WHERE singleton=1").fetchone()
+  self.assertNotEqual(guard["generation"],guard["validated_generation"])
+  self.m.close()
+  self.m=ZPCMMemory(self.path)
+  rows=self.m.db.execute(
+   "SELECT candidate_id FROM e12a6_lifecycle_candidate_history ORDER BY sequence").fetchall()
+  self.assertEqual({row["candidate_id"] for row in rows},{"rel:history-a","rel:history-b"})
+
+ def test_candidate_history_projection_rebuilds_if_guard_trigger_is_missing(self):
+  self._append_candidate_history_event(
+   "e12a6:candidate:rel:history-trigger@1",
+   {"kind":"candidate_registered","body":{"candidate":{
+    "candidate_id":"rel:history-trigger","version":1,"evidence_ids":[]}}},0)
+  self.m.db.execute("DROP TRIGGER e12a6_candidate_history_guard_update")
+  self.m.db.execute(
+   "UPDATE e12a6_lifecycle_candidate_history SET candidate_id=? WHERE event_id=?",
+   ("rel:tampered","e12a6:candidate:rel:history-trigger@1"))
+  self.m.close()
+  self.m=ZPCMMemory(self.path)
+  row=self.m.db.execute(
+   "SELECT candidate_id FROM e12a6_lifecycle_candidate_history WHERE event_id=?",
+   ("e12a6:candidate:rel:history-trigger@1",)).fetchone()
+  self.assertEqual(row["candidate_id"],"rel:history-trigger")
+  triggers={row["name"] for row in self.m.db.execute(
+   "SELECT name FROM sqlite_master WHERE type='trigger'")}
+  self.assertIn("e12a6_candidate_history_guard_update",triggers)
+
+ def test_candidate_history_batch_append_advances_projection_checkpoint(self):
+  events=[
+   {"event_id":"e12a6:candidate:batch-a@1","payload":{
+    "schema_version":"e12a6-lifecycle-event-v1","kind":"candidate_registered",
+    "body":{"candidate":{"candidate_id":"batch-a","version":1,"evidence_ids":[]}}}},
+   {"event_id":"e12a6:candidate:batch-b@1","payload":{
+    "schema_version":"e12a6-lifecycle-event-v1","kind":"candidate_registered",
+    "body":{"candidate":{"candidate_id":"batch-b","version":1,"evidence_ids":[]}}}},
+  ]
+  self.m.append_lifecycle_events(events=events,scope="project",expected_sequence=0)
+  guard=self.m.db.execute(
+   "SELECT generation,validated_generation FROM e12a6_candidate_history_projection_guard "
+   "WHERE singleton=1").fetchone()
+  self.assertEqual(guard["generation"],guard["validated_generation"])
+
+
+ def test_direct_lifecycle_log_insert_invalidates_candidate_history_index(self):
+  payload={
+   "schema_version":"e12a6-lifecycle-event-v1",
+   "kind":"candidate_registered",
+   "body":{"candidate":{"candidate_id":"rel:direct","version":1,"evidence_ids":[]}},
+  }
+  self.m._append(
+   "e12a6:candidate:rel:direct@1","e12a6_lifecycle","project",payload)
+  guard=self.m.db.execute(
+   "SELECT generation,validated_generation FROM e12a6_candidate_history_projection_guard "
+   "WHERE singleton=1").fetchone()
+  self.assertNotEqual(guard["generation"],guard["validated_generation"])
+  self.m.close()
+  self.m=ZPCMMemory(self.path)
+  rows=self.m.iter_lifecycle_candidate_history(
+   scope="project",candidate_id="rel:direct",limit=10)
+  self.assertEqual(len(rows),1)
+  self.assertEqual(rows[0]["event_id"],"e12a6:candidate:rel:direct@1")
+
+
+ def test_replay_only_lifecycle_batch_does_not_accept_corrupt_projection(self):
+  payload={
+   "schema_version":"e12a6-lifecycle-event-v1",
+   "kind":"candidate_registered",
+   "body":{"candidate":{"candidate_id":"batch-replay","version":1,"evidence_ids":[]}},
+  }
+  event_id="e12a6:candidate:batch-replay@1"
+  self.m.append_lifecycle_event(
+   event_id=event_id,scope="project",payload=payload,expected_sequence=0)
+  self.m.db.execute(
+   "UPDATE e12a6_lifecycle_candidate_history SET candidate_id=? WHERE event_id=?",
+   ("tampered",event_id))
+  before=self.m.db.execute(
+   "SELECT generation,validated_generation FROM e12a6_candidate_history_projection_guard "
+   "WHERE singleton=1").fetchone()
+  self.assertNotEqual(before["generation"],before["validated_generation"])
+  replay=self.m.append_lifecycle_events(
+   events=[{"event_id":event_id,"payload":payload}],scope="project",expected_sequence=1)
+  self.assertTrue(replay[0]["replayed"])
+  after=self.m.db.execute(
+   "SELECT generation,validated_generation FROM e12a6_candidate_history_projection_guard "
+   "WHERE singleton=1").fetchone()
+  self.assertNotEqual(after["generation"],after["validated_generation"])
+
+
+ def test_candidate_history_projection_rebuilds_if_guard_row_is_missing(self):
+  self._append_candidate_history_event(
+   "e12a6:candidate:rel:guard-row@1",
+   {"kind":"candidate_registered","body":{"candidate":{
+    "candidate_id":"rel:guard-row","version":1,"evidence_ids":[]}}},0)
+  self.m.db.execute(
+   "DELETE FROM e12a6_candidate_history_projection_guard WHERE singleton=1")
+  self.m.db.execute(
+   "UPDATE e12a6_lifecycle_candidate_history SET candidate_id=? WHERE event_id=?",
+   ("tampered","e12a6:candidate:rel:guard-row@1"))
+  self.m.close()
+  self.m=ZPCMMemory(self.path)
+  row=self.m.db.execute(
+   "SELECT candidate_id FROM e12a6_lifecycle_candidate_history WHERE event_id=?",
+   ("e12a6:candidate:rel:guard-row@1",)).fetchone()
+  self.assertEqual(row["candidate_id"],"rel:guard-row")
+
+ def test_current_state_projection_rebuilds_if_guard_row_is_missing(self):
+  self._append_candidate_history_event(
+   "e12a6:candidate:rel:current-guard-row@1",
+   {"kind":"candidate_registered","body":{"candidate":{
+    "candidate_id":"rel:current-guard-row","version":1,"evidence_ids":[]}}},0)
+  self.m.db.execute(
+   "DELETE FROM e12a6_current_state_projection_guard WHERE singleton=1")
+  self.m.db.execute(
+   "UPDATE e12a6_candidate_state_projection SET candidate_json=? "
+   "WHERE scope=? AND candidate_id=?",
+   ("{}","project","rel:current-guard-row"))
+  self.m.close()
+  self.m=ZPCMMemory(self.path)
+  row=self.m.db.execute(
+   "SELECT candidate_json FROM e12a6_candidate_state_projection "
+   "WHERE scope=? AND candidate_id=?",
+   ("project","rel:current-guard-row")).fetchone()
+  self.assertEqual(json.loads(row["candidate_json"])["candidate_id"],"rel:current-guard-row")
 
 
 if __name__=="__main__":unittest.main()
