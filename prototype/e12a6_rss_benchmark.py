@@ -17,8 +17,13 @@ import tempfile
 import time
 from typing import Iterable
 
-from prototype.e12a6_lifecycle_contract import Candidate
-from prototype.e12a6_zpcm_persistence import EVENT_SCHEMA, PersistentLifecycleLedger, _candidate_to_dict
+from dataclasses import replace
+
+from prototype.e12a6_lifecycle_contract import Action, ActionType, Candidate, CandidateState, Evidence, SplitRole
+from prototype.e12a6_zpcm_persistence import (
+    EVENT_SCHEMA, PersistentLifecycleLedger, _action_to_dict, _candidate_to_dict,
+    _evidence_to_dict, _safe_evidence,
+)
 from prototype.zpcm_memory import ZPCMMemory
 
 
@@ -52,7 +57,7 @@ def _peak_rss_bytes() -> int:
     return value if sys.platform == "darwin" else value * 1024
 
 
-def _candidate(index: int) -> Candidate:
+def _candidate(index: int, evidence_id: str | None = None) -> Candidate:
     return Candidate(
         candidate_id=f"benchmark:rule:{index}",
         version=1,
@@ -62,20 +67,78 @@ def _candidate(index: int) -> Candidate:
         input_types=("number",),
         operator="THRESHOLD_GT",
         complexity=1,
+        evidence_ids=(evidence_id,) if evidence_id is not None else (),
+    )
+
+
+def _evidence(index: int) -> Evidence:
+    return _safe_evidence(Evidence(
+        evidence_id=f\"benchmark:evidence:{index}\",
+        episode_id=f\"benchmark:episode:{index}\",
+        world_family=\"rss-benchmark-world\",
+        split_role=SplitRole.TRAIN,
+        observation_id=f\"benchmark:observation:{index}\",
+        outcome=f\"opaque-evidence-ref:{index}\",
+        model_version=\"rss-benchmark-model\",
+        prediction_commit_step=1,
+        label_visibility_step=2,
+    ))
+
+
+def _action(index: int, candidate_id: str) -> Action:
+    return Action(
+        action_id=f\"benchmark:propose:{index}\",
+        action_type=ActionType.PROPOSE,
+        candidate_id=candidate_id,
+        candidate_version=1,
+        from_state=CandidateState.OBSERVED,
+        to_state=CandidateState.PROPOSED,
     )
 
 
 def _write_fixture(
-    path: Path, count: int, scope: str, batch_size: int, *, checkpoint: bool = False,
+    path: Path, count: int, scope: str, batch_size: int, *,
+    checkpoint: bool = False, event_mix: str = "candidate-only",
 ) -> int:
+    if event_mix not in {"candidate-only", "mixed"}:
+        raise ValueError("event_mix must be candidate-only or mixed")
     memory = ZPCMMemory(path)
     sequence = 0
     try:
-        for start in range(0, count, batch_size):
-            events = []
-            for index in range(start, min(start + batch_size, count)):
-                candidate = _candidate(index)
-                events.append({
+        pending = []
+        for index in range(count):
+            candidate = _candidate(index, f"benchmark:evidence:{index}" if event_mix == "mixed" else None)
+            if event_mix == "mixed":
+                evidence = _evidence(index)
+                action = _action(index, candidate.candidate_id)
+                pending.extend([
+                    {
+                        "event_id": f"e12a6:evidence:{evidence.evidence_id}",
+                        "payload": {
+                            "schema_version": EVENT_SCHEMA,
+                            "kind": "evidence_registered",
+                            "body": {"evidence": _evidence_to_dict(evidence)},
+                        },
+                    },
+                    {
+                        "event_id": f"e12a6:candidate:{candidate.candidate_id}@1",
+                        "payload": {
+                            "schema_version": EVENT_SCHEMA,
+                            "kind": "candidate_registered",
+                            "body": {"candidate": _candidate_to_dict(candidate)},
+                        },
+                    },
+                    {
+                        "event_id": f"e12a6:action:{action.action_id}",
+                        "payload": {
+                            "schema_version": EVENT_SCHEMA,
+                            "kind": "action_applied",
+                            "body": {"action": _action_to_dict(action)},
+                        },
+                    },
+                ])
+            else:
+                pending.append({
                     "event_id": f"e12a6:candidate:{candidate.candidate_id}@1",
                     "payload": {
                         "schema_version": EVENT_SCHEMA,
@@ -83,8 +146,15 @@ def _write_fixture(
                         "body": {"candidate": _candidate_to_dict(candidate)},
                     },
                 })
+            while len(pending) >= batch_size:
+                batch, pending = pending[:batch_size], pending[batch_size:]
+                receipts = memory.append_lifecycle_events(
+                    events=batch, scope=scope, expected_sequence=sequence,
+                )
+                sequence = receipts[-1]["sequence"]
+        if pending:
             receipts = memory.append_lifecycle_events(
-                events=events, scope=scope, expected_sequence=sequence,
+                events=pending, scope=scope, expected_sequence=sequence,
             )
             sequence = receipts[-1]["sequence"]
         if checkpoint:
@@ -157,6 +227,7 @@ def main(argv: Iterable[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--sizes", type=_parse_sizes, default=_parse_sizes("1000,10000,50000"))
     parser.add_argument("--batch-size", type=int, default=128)
+    parser.add_argument("--event-mix", choices=("candidate-only", "mixed"), default="candidate-only")
     parser.add_argument("--checkpoint", action="store_true",
                         help="publish a verified checkpoint before measuring restore")
     parser.add_argument("--scope", default="e12a6-rss-benchmark")
@@ -174,15 +245,16 @@ def main(argv: Iterable[str] | None = None) -> int:
         for count in args.sizes:
             path = root / f"lifecycle-{count}.sqlite"
             event_count = _write_fixture(
-                path, count, args.scope, args.batch_size, checkpoint=args.checkpoint,
+                path, count, args.scope, args.batch_size, checkpoint=args.checkpoint, event_mix=args.event_mix,
             )
             report = _run_child(path, args.scope)
-            results.append({"history_events": event_count, "fixture_bytes": path.stat().st_size, **report})
+            results.append({"fixture_records": count, "history_events": event_count, "event_mix": args.event_mix, "fixture_bytes": path.stat().st_size, **report})
     print(json.dumps({
         "benchmark": (
             "e12a6-checkpoint-restore-rss-v1" if args.checkpoint
             else "e12a6-restore-rss-v2"
         ),
+        "event_mix": args.event_mix,
         "python": sys.version.split()[0],
         "platform": sys.platform,
         "results": results,
