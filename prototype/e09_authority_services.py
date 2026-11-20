@@ -126,7 +126,6 @@ class E09AuthorityService:
         clock: E09Clock | None = None,
         max_grant_ttl: timedelta = timedelta(minutes=5),
         domain_registry: E09DomainRegistry | None = None,
-        candidate_store: Any | None = None,
     ) -> None:
         if not isinstance(store, SQLiteEvidenceStore):
             raise TypeError("store must be SQLiteEvidenceStore")
@@ -459,6 +458,7 @@ class E09VerifierService:
         receipt_signer: E09GrantSigner | None = None,
         receipt_ttl: timedelta = timedelta(minutes=1),
         domain_registry: E09DomainRegistry | None = None,
+        candidate_store: Any | None = None,
     ) -> None:
         if not isinstance(store, SQLiteEvidenceStore):
             raise TypeError("store must be SQLiteEvidenceStore")
