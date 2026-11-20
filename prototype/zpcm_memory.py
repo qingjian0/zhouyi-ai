@@ -2061,6 +2061,10 @@ class ZPCMMemory:
                         "payload_digest": digest(payload), "replayed": replay,
                     })
                 self.db.execute(
+                    "UPDATE e12a6_candidate_history_projection_guard "
+                    "SET validated_generation=generation WHERE singleton=1"
+                )
+                self.db.execute(
                     "UPDATE e12a6_current_state_projection_guard SET validated_generation=generation WHERE singleton=1"
                 )
                 self.db.execute("COMMIT")
