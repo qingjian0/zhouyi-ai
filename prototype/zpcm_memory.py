@@ -564,6 +564,24 @@ class ZPCMMemory:
                 "FROM memory_events WHERE event_type='e12a6_lifecycle'"
             ).fetchone()
 
+            expected_guard_triggers = {
+                "e12a6_candidate_projection_guard_insert",
+                "e12a6_candidate_projection_guard_update",
+                "e12a6_candidate_projection_guard_delete",
+                "e12a6_evidence_projection_guard_insert",
+                "e12a6_evidence_projection_guard_update",
+                "e12a6_evidence_projection_guard_delete",
+                "e12a6_action_projection_guard_insert",
+                "e12a6_action_projection_guard_update",
+                "e12a6_action_projection_guard_delete",
+            }
+            existing_guard_triggers = {
+                row["name"] for row in self.db.execute(
+                    "SELECT name FROM sqlite_master WHERE type='trigger' "
+                    "AND name LIKE 'e12a6_%_projection_guard_%'"
+                )
+            }
+            guard_triggers_complete = expected_guard_triggers.issubset(existing_guard_triggers)
             self.db.executescript("""
             CREATE TRIGGER IF NOT EXISTS e12a6_candidate_projection_guard_insert
             AFTER INSERT ON e12a6_candidate_state_projection BEGIN
@@ -619,6 +637,7 @@ class ZPCMMemory:
                     and meta["schema_version"] == "e12a6-current-state-v1"
                     and meta["initialized_event_count"] == current["event_count"]
                     and meta["initialized_through_seq"] == current["high_water"]
+                    and guard_triggers_complete
                     and not action_projection_migrated):
                 return
             if guard_existed:
