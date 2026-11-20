@@ -19,6 +19,7 @@ from prototype.shared_evidence_protocol import (
     EventReceipt,
     SQLiteEvidenceStore,
 )
+from prototype.observation_contract import record_digest
 from prototype.e09_domain_registry import (
     E09DomainBinding, E09DomainRegistry, E09DomainRegistryError,
 )
@@ -125,6 +126,7 @@ class E09AuthorityService:
         clock: E09Clock | None = None,
         max_grant_ttl: timedelta = timedelta(minutes=5),
         domain_registry: E09DomainRegistry | None = None,
+        candidate_store: Any | None = None,
     ) -> None:
         if not isinstance(store, SQLiteEvidenceStore):
             raise TypeError("store must be SQLiteEvidenceStore")
@@ -477,6 +479,9 @@ class E09VerifierService:
         if domain_registry is not None and not callable(getattr(domain_registry, "resolve", None)):
             raise TypeError("domain_registry must implement resolve")
         self._domain_registry = domain_registry
+        if candidate_store is not None and not callable(getattr(candidate_store, "get_candidate", None)):
+            raise TypeError("candidate_store must implement get_candidate")
+        self._candidate_store = candidate_store
 
     def verify_branch_merge_authorization(self, **request: Any):
         """Verify with the service clock; caller-supplied now is rejected."""
@@ -526,6 +531,25 @@ class E09VerifierService:
         if (len(candidate_record_digest) != 64
                 or any(char not in "0123456789abcdef" for char in candidate_record_digest)):
             raise E09AuthorizationError("candidate_record_digest must be lowercase SHA-256")
+        if self._candidate_store is None:
+            raise E09AuthorizationError("authoritative M2 candidate store is required to issue observation receipts")
+        try:
+            candidate = self._candidate_store.get_candidate(candidate_record_id)
+        except Exception as exc:
+            raise E09AuthenticationError("authoritative M2 candidate lookup failed") from exc
+        if candidate is None:
+            raise E09AuthorizationError("candidate record does not exist in the authoritative M2 store")
+        try:
+            stored_record_id = candidate.envelope.record_id
+            stored_scope = candidate.envelope.scope
+            stored_digest = record_digest(candidate)
+        except Exception as exc:
+            raise E09AuthenticationError("authoritative M2 candidate record is malformed") from exc
+        if (stored_record_id != candidate_record_id or stored_scope != scope
+                or stored_digest != candidate_record_digest):
+            raise E09AuthorizationError(
+                "candidate ID, scope or digest does not match the authoritative M2 candidate"
+            )
         if (not isinstance(evidence_refs, (tuple, list)) or not evidence_refs
                 or any(not isinstance(ref, str) or not ref.strip() for ref in evidence_refs)
                 or len(evidence_refs) != len(set(evidence_refs))):
