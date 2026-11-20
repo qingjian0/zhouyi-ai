@@ -179,6 +179,11 @@ class ZPCMMemory:
             "SELECT 1 FROM sqlite_master WHERE type='table' "
             "AND name='e12a6_candidate_history_projection_guard'"
         ).fetchone() is not None
+        guard_row_existed = (
+            guard_existed and self.db.execute(
+                "SELECT 1 FROM e12a6_candidate_history_projection_guard WHERE singleton=1"
+            ).fetchone() is not None
+        )
         meta_trigger_existed = self.db.execute(
             "SELECT 1 FROM sqlite_master WHERE type='trigger' "
             "AND name='e12a6_current_state_meta_insert_v2'"
@@ -224,7 +229,7 @@ class ZPCMMemory:
             "SELECT generation,validated_generation "
             "FROM e12a6_candidate_history_projection_guard WHERE singleton=1"
         ).fetchone()
-        if (guard_existed and triggers_complete and meta_trigger_existed
+        if (guard_existed and guard_row_existed and triggers_complete and meta_trigger_existed
                 and guard is not None
                 and guard["generation"] == guard["validated_generation"]):
             return
@@ -429,6 +434,11 @@ class ZPCMMemory:
             guard_existed = self.db.execute(
                 "SELECT 1 FROM sqlite_master WHERE type='table' AND name='e12a6_current_state_projection_guard'"
             ).fetchone() is not None
+            guard_row_existed = (
+                guard_existed and self.db.execute(
+                    "SELECT 1 FROM e12a6_current_state_projection_guard WHERE singleton=1"
+                ).fetchone() is not None
+            )
             meta_trigger_existed = self.db.execute(
                 "SELECT 1 FROM sqlite_master WHERE type='trigger' AND name='e12a6_current_state_meta_insert_v2'"
             ).fetchone() is not None
@@ -706,7 +716,7 @@ class ZPCMMemory:
             guard = self.db.execute(
                 "SELECT generation,validated_generation FROM e12a6_current_state_projection_guard WHERE singleton=1"
             ).fetchone()
-            if (guard_existed and guard is not None
+            if (guard_existed and guard_row_existed and guard is not None
                     and guard["generation"] == guard["validated_generation"]
                     and meta is not None
                     and meta["schema_version"] == "e12a6-current-state-v1"
