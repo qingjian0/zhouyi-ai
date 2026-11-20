@@ -442,4 +442,26 @@ class Tests(unittest.TestCase):
   self.assertEqual(json.loads(row["candidate_json"])["candidate_id"],"rel:tamper")
 
 
+ def test_current_state_projection_rebuilds_if_guard_trigger_was_removed(self):
+  self._append_candidate_history_event(
+   "e12a6:candidate:rel:trigger@1",
+   {"kind":"candidate_registered","body":{"candidate":{
+    "candidate_id":"rel:trigger","version":1,"evidence_ids":[]}}},0)
+  self.m.db.execute("DROP TRIGGER e12a6_candidate_projection_guard_update")
+  self.m.db.execute(
+   "UPDATE e12a6_candidate_state_projection SET candidate_json=? "
+   "WHERE scope=? AND candidate_id=?",
+   ("{}","project","rel:trigger"))
+  self.m.close()
+  self.m=ZPCMMemory(self.path)
+  row=self.m.db.execute(
+   "SELECT candidate_json FROM e12a6_candidate_state_projection "
+   "WHERE scope=? AND candidate_id=?",
+   ("project","rel:trigger")).fetchone()
+  self.assertEqual(json.loads(row["candidate_json"])["candidate_id"],"rel:trigger")
+  triggers={row["name"] for row in self.m.db.execute(
+   "SELECT name FROM sqlite_master WHERE type='trigger'")}
+  self.assertIn("e12a6_candidate_projection_guard_update",triggers)
+
+
 if __name__=="__main__":unittest.main()
