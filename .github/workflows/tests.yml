@@ -41,9 +41,9 @@ jobs:
           python-version: "3.11"
       - name: Install E09 verification dependency
         run: python -m pip install "cryptography>=42,<47" "numpy>=1.26,<3"
-      - name: Run E12-A6 mid-transaction process crash rollback test
+      - name: Run UDS active-dispatcher shutdown drain test
         timeout-minutes: 1
-        run: python -m unittest tests.test_e12a6_zpcm_persistence.PersistentLifecycleTests.test_real_process_kill_mid_bundle_rolls_back_event_and_projection -v
+        run: python -m unittest tests.test_e12a6_unix_socket.TestE12A6UnixSocketServer.test_shutdown_fails_closed_until_active_dispatcher_drains -v
       - name: Run E12-A6 real-process crash recovery test
         timeout-minutes: 1
         run: python -m unittest tests.test_e12a6_zpcm_persistence.PersistentLifecycleTests.test_real_process_kill_after_atomic_bundle_commit_recovers_and_replays -v

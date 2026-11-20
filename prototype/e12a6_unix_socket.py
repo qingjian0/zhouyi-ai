@@ -230,15 +230,31 @@ class E12A6UnixSocketServer:
             self._inode = None
 
     def close(self) -> None:
+        """Stop accepting requests and drain the active dispatcher before unlinking.
+
+        If a dispatcher does not finish within the shutdown bound, fail closed:
+        retain the thread reference and socket inode so the owner can retry
+        shutdown later. The caller must not close the writer runtime/database
+        while this method raises.
+        """
         self._stop.set()
         server, self._socket = self._socket, None
         if server is not None:
             server.close()
-        thread, self._thread = self._thread, None
-        if thread is not None and thread is not threading.current_thread():
+        thread = self._thread
+        if thread is not None:
+            if thread is threading.current_thread():
+                self._errors.append("shutdown_requested_from_dispatcher_thread")
+                raise E12A6IPCError(
+                    "cannot complete IPC shutdown from the active dispatcher thread"
+                )
             thread.join(timeout=self._client_timeout + 1.0)
             if thread.is_alive():
                 self._errors.append("server_thread_did_not_stop")
+                raise E12A6IPCError(
+                    "active IPC dispatcher did not drain; keep the writer runtime open and retry shutdown"
+                )
+            self._thread = None
         self._remove_owned_socket()
 
     def __enter__(self) -> "E12A6UnixSocketServer":
