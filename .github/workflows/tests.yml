@@ -44,6 +44,9 @@ jobs:
       - name: Run E12-A6 real-process crash recovery test
         timeout-minutes: 1
         run: python -m unittest tests.test_e12a6_zpcm_persistence.PersistentLifecycleTests.test_real_process_kill_after_atomic_bundle_commit_recovers_and_replays -v
+      - name: Run M2 cross-process writer race tests
+        timeout-minutes: 2
+        run: python -m unittest tests.test_m2_semantic_unit_store.PersistentSemanticUnitCandidateStoreTests.test_real_process_distinct_writers_reconcile_stale_sequence tests.test_m2_semantic_unit_store.PersistentSemanticUnitCandidateStoreTests.test_real_process_identical_writers_commit_one_event tests.test_m2_semantic_unit_store.PersistentSemanticUnitCandidateStoreTests.test_real_process_conflicting_same_id_writer_fails_closed -v
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
       - name: Run orchestrator CLI plan

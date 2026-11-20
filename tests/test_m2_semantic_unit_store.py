@@ -1,4 +1,5 @@
 import io
+import multiprocessing
 import tempfile
 import unittest
 import threading
@@ -22,6 +23,49 @@ from prototype.observation_contract import (
 from prototype.streaming_evidence_ingest import SQLiteEvidenceIngestor
 from prototype.zpcm_memory import ZPCMMemory
 from prototype.trlw_working_set import PacketStatus, TRLWQuery, build_trlw_working_set
+
+
+def _multiprocess_record_candidate(memory_db, evidence_db, reference, record_id, surface, start_event, sender):
+    memory = None
+    try:
+        resolver = SQLiteEvidenceRefResolver(evidence_db)
+        memory = ZPCMMemory(memory_db)
+        store = PersistentSemanticUnitCandidateStore(memory, resolver, scope="project-a")
+        candidate = SemanticUnitCandidate(
+            envelope=RecordEnvelope(
+                schema_version="m2-record-v1",
+                record_id=record_id,
+                record_kind="SemanticUnitCandidate",
+                producer="multiprocess-writer",
+                producer_version="1.0",
+                recorded_at="2026-11-20T00:00:00Z",
+                scope="project-a",
+                source_refs=(reference,),
+            ),
+            kind=UnitKind.ENTITY,
+            surface_forms=(surface,),
+            grounding_status=GroundingStatus.GROUNDED,
+            epistemic_status=EpistemicStatus.ASSERTED,
+            truth_status=TruthStatus.UNKNOWN,
+        )
+        if not start_event.wait(timeout=15):
+            raise TimeoutError("parent did not release concurrent writers")
+        receipt = store.record_candidate(candidate)
+        sender.send({
+            "ok": True,
+            "event_id": receipt.event_id,
+            "sequence": receipt.sequence,
+            "replayed": receipt.replayed,
+        })
+    except Exception as exc:
+        try:
+            sender.send({"ok": False, "error_type": type(exc).__name__, "error": str(exc)})
+        except Exception:
+            pass
+    finally:
+        if memory is not None:
+            memory.close()
+        sender.close()
 
 
 class PersistentSemanticUnitCandidateStoreTests(unittest.TestCase):
@@ -241,6 +285,91 @@ class PersistentSemanticUnitCandidateStoreTests(unittest.TestCase):
             ),
             first.sequence,
         )
+
+    def _run_multiprocess_race(self, *, record_ids, surfaces):
+        if "fork" not in multiprocessing.get_all_start_methods():
+            self.skipTest("fork-based SQLite multi-process test requires Linux")
+        context = multiprocessing.get_context("fork")
+        start_event = context.Event()
+        processes = []
+        receivers = []
+        for record_id, surface in zip(record_ids, surfaces):
+            receiver, sender = context.Pipe(duplex=False)
+            process = context.Process(
+                target=_multiprocess_record_candidate,
+                args=(
+                    str(self.memory_db), str(self.evidence_db), self.reference,
+                    record_id, surface, start_event, sender,
+                ),
+            )
+            process.start()
+            sender.close()
+            processes.append(process)
+            receivers.append(receiver)
+        try:
+            start_event.set()
+            results = []
+            for receiver in receivers:
+                self.assertTrue(receiver.poll(20), "writer process did not return a result")
+                results.append(receiver.recv())
+            for process in processes:
+                process.join(timeout=5)
+                self.assertFalse(process.is_alive(), "writer process failed to exit")
+                self.assertEqual(process.exitcode, 0)
+            return results
+        finally:
+            for process in processes:
+                if process.is_alive():
+                    process.kill()
+                    process.join(timeout=5)
+            for receiver in receivers:
+                receiver.close()
+
+    def test_real_process_distinct_writers_reconcile_stale_sequence(self):
+        results = self._run_multiprocess_race(
+            record_ids=("process-a", "process-b"),
+            surfaces=("甲", "乙"),
+        )
+        self.assertTrue(all(item["ok"] for item in results), results)
+        self.assertEqual(sorted(item["replayed"] for item in results), [False, False])
+        self.assertEqual(len({item["sequence"] for item in results}), 2)
+        persisted = list(self.store.iter_candidates(page_size=1))
+        self.assertEqual(
+            {item.envelope.record_id for item in persisted},
+            {"process-a", "process-b"},
+        )
+
+    def test_real_process_identical_writers_commit_one_event(self):
+        results = self._run_multiprocess_race(
+            record_ids=("process-replay", "process-replay"),
+            surfaces=("同一内容", "同一内容"),
+        )
+        self.assertTrue(all(item["ok"] for item in results), results)
+        self.assertEqual(sorted(item["replayed"] for item in results), [False, True])
+        self.assertEqual(len({item["sequence"] for item in results}), 1)
+        events = list(self.memory.iter_domain_events(
+            event_type="m2_semantic_unit_candidate", scope="project-a",
+        ))
+        self.assertEqual([item["event_id"] for item in events], [
+            "m2:semantic-unit:process-replay",
+        ])
+
+    def test_real_process_conflicting_same_id_writer_fails_closed(self):
+        results = self._run_multiprocess_race(
+            record_ids=("process-conflict", "process-conflict"),
+            surfaces=("甲", "乙"),
+        )
+        successes = [item for item in results if item["ok"]]
+        failures = [item for item in results if not item["ok"]]
+        self.assertEqual(len(successes), 1, results)
+        self.assertEqual(len(failures), 1, results)
+        self.assertEqual(failures[0]["error_type"], "SemanticUnitStoreError")
+        persisted = self.store.get_candidate("process-conflict")
+        self.assertIn(persisted.surface_forms[0], {"甲", "乙"})
+        events = list(self.memory.iter_domain_events(
+            event_type="m2_semantic_unit_candidate", scope="project-a",
+        ))
+        self.assertEqual(len(events), 1)
 
     def test_rejects_wrong_scope_and_invalid_source_evidence(self):
         wrong_scope = self.make_candidate()
