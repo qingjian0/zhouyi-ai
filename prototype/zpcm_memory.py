@@ -353,6 +353,9 @@ class ZPCMMemory:
         transaction as each lifecycle event append.
         """
         with self.lock:
+            guard_existed = self.db.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='e12a6_current_state_projection_guard'"
+            ).fetchone() is not None
             self.db.executescript("""
             CREATE TABLE IF NOT EXISTS e12a6_current_state_projection_meta(
                 singleton INTEGER PRIMARY KEY CHECK(singleton=1),
@@ -360,6 +363,14 @@ class ZPCMMemory:
                 initialized_through_seq INTEGER NOT NULL,
                 initialized_event_count INTEGER NOT NULL
             );
+            CREATE TABLE IF NOT EXISTS e12a6_current_state_projection_guard(
+                singleton INTEGER PRIMARY KEY CHECK(singleton=1),
+                generation INTEGER NOT NULL CHECK(generation>=0),
+                validated_generation INTEGER NOT NULL CHECK(validated_generation>=0)
+            );
+            INSERT OR IGNORE INTO e12a6_current_state_projection_guard(
+                singleton,generation,validated_generation
+            ) VALUES(1,0,0);
             CREATE TABLE IF NOT EXISTS e12a6_candidate_state_projection(
                 scope TEXT NOT NULL,
                 candidate_id TEXT NOT NULL,
@@ -553,6 +564,69 @@ class ZPCMMemory:
                 "FROM memory_events WHERE event_type='e12a6_lifecycle'"
             ).fetchone()
 
+            self.db.executescript("""
+            CREATE TRIGGER IF NOT EXISTS e12a6_candidate_projection_guard_insert
+            AFTER INSERT ON e12a6_candidate_state_projection BEGIN
+                UPDATE e12a6_current_state_projection_guard SET generation=generation+1 WHERE singleton=1;
+            END;
+            CREATE TRIGGER IF NOT EXISTS e12a6_candidate_projection_guard_update
+            AFTER UPDATE ON e12a6_candidate_state_projection BEGIN
+                UPDATE e12a6_current_state_projection_guard SET generation=generation+1 WHERE singleton=1;
+            END;
+            CREATE TRIGGER IF NOT EXISTS e12a6_candidate_projection_guard_delete
+            AFTER DELETE ON e12a6_candidate_state_projection BEGIN
+                UPDATE e12a6_current_state_projection_guard SET generation=generation+1 WHERE singleton=1;
+            END;
+            CREATE TRIGGER IF NOT EXISTS e12a6_evidence_projection_guard_insert
+            AFTER INSERT ON e12a6_evidence_state_projection BEGIN
+                UPDATE e12a6_current_state_projection_guard SET generation=generation+1 WHERE singleton=1;
+            END;
+            CREATE TRIGGER IF NOT EXISTS e12a6_evidence_projection_guard_update
+            AFTER UPDATE ON e12a6_evidence_state_projection BEGIN
+                UPDATE e12a6_current_state_projection_guard SET generation=generation+1 WHERE singleton=1;
+            END;
+            CREATE TRIGGER IF NOT EXISTS e12a6_evidence_projection_guard_delete
+            AFTER DELETE ON e12a6_evidence_state_projection BEGIN
+                UPDATE e12a6_current_state_projection_guard SET generation=generation+1 WHERE singleton=1;
+            END;
+            CREATE TRIGGER IF NOT EXISTS e12a6_action_projection_guard_insert
+            AFTER INSERT ON e12a6_action_state_projection BEGIN
+                UPDATE e12a6_current_state_projection_guard SET generation=generation+1 WHERE singleton=1;
+            END;
+            CREATE TRIGGER IF NOT EXISTS e12a6_action_projection_guard_update
+            AFTER UPDATE ON e12a6_action_state_projection BEGIN
+                UPDATE e12a6_current_state_projection_guard SET generation=generation+1 WHERE singleton=1;
+            END;
+            CREATE TRIGGER IF NOT EXISTS e12a6_action_projection_guard_delete
+            AFTER DELETE ON e12a6_action_state_projection BEGIN
+                UPDATE e12a6_current_state_projection_guard SET generation=generation+1 WHERE singleton=1;
+            END;
+            """)
+            meta = self.db.execute(
+                "SELECT schema_version,initialized_through_seq,initialized_event_count "
+                "FROM e12a6_current_state_projection_meta WHERE singleton=1"
+            ).fetchone()
+            current = self.db.execute(
+                "SELECT COUNT(*) AS event_count,COALESCE(MAX(seq),0) AS high_water "
+                "FROM memory_events WHERE event_type='e12a6_lifecycle'"
+            ).fetchone()
+            guard = self.db.execute(
+                "SELECT generation,validated_generation FROM e12a6_current_state_projection_guard WHERE singleton=1"
+            ).fetchone()
+            if (guard_existed and guard is not None
+                    and guard["generation"] == guard["validated_generation"]
+                    and meta is not None
+                    and meta["schema_version"] == "e12a6-current-state-v1"
+                    and meta["initialized_event_count"] == current["event_count"]
+                    and meta["initialized_through_seq"] == current["high_water"]
+                    and not action_projection_migrated):
+                return
+            if guard_existed:
+                self.rebuild_e12a6_current_state_projection()
+                return
+
+            # Legacy databases receive one full keyset audit before switching to
+            # generation-guarded O(1) validation on subsequent opens.
             # High-water metadata alone cannot detect deleted/replaced projection
             # rows when the event count is unchanged. Compare the identity keysets
             # against the authoritative log before accepting the projection.
@@ -629,6 +703,9 @@ class ZPCMMemory:
                     and candidate_keys_match
                     and evidence_keys_match
                     and action_keys_match):
+                self.db.execute(
+                    "UPDATE e12a6_current_state_projection_guard SET validated_generation=generation WHERE singleton=1"
+                )
                 return
             self.rebuild_e12a6_current_state_projection()
 
@@ -733,6 +810,9 @@ class ZPCMMemory:
                     "singleton,schema_version,initialized_through_seq,initialized_event_count) "
                     "VALUES(1,'e12a6-current-state-v1',?,?)",
                     (high_water,event_count),
+                )
+                self.db.execute(
+                    "UPDATE e12a6_current_state_projection_guard SET validated_generation=generation WHERE singleton=1"
                 )
                 self.db.execute("COMMIT")
             except Exception:
@@ -1674,6 +1754,9 @@ class ZPCMMemory:
                         (scope, seq),
                     )
                 self._advance_authorization_consumption_checkpoint(scope, seq)
+                self.db.execute(
+                    "UPDATE e12a6_current_state_projection_guard SET validated_generation=generation WHERE singleton=1"
+                )
                 self.db.execute("COMMIT")
                 return {"sequence":seq,"payload_digest":digest(payload),"replayed":replay}
             except sqlite3.IntegrityError as exc:
@@ -1878,6 +1961,9 @@ class ZPCMMemory:
                         "event_id": event_id, "sequence": seq,
                         "payload_digest": digest(payload), "replayed": replay,
                     })
+                self.db.execute(
+                    "UPDATE e12a6_current_state_projection_guard SET validated_generation=generation WHERE singleton=1"
+                )
                 self.db.execute("COMMIT")
                 return receipts
             except sqlite3.IntegrityError as exc:
