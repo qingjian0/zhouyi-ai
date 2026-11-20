@@ -391,7 +391,12 @@ class Tests(unittest.TestCase):
    self.m._ensure_e12a6_current_state_projection()
   finally:
    self.m.db.set_trace_callback(None)
-  self.assertFalse(any(" EXCEPT " in sql.upper() for sql in statements))
+  upper_sql=[sql.upper() for sql in statements]
+  self.assertFalse(any(" EXCEPT " in sql for sql in upper_sql))
+  self.assertFalse(any(
+   "FROM MEMORY_EVENTS WHERE EVENT_TYPE='E12A6_LIFECYCLE'" in sql
+   and ("COUNT(" in sql or "MAX(SEQ)" in sql)
+   for sql in upper_sql))
 
  def test_current_state_projection_generation_detects_equal_count_row_replacement(self):
   first=self._append_candidate_history_event(
@@ -462,6 +467,27 @@ class Tests(unittest.TestCase):
   triggers={row["name"] for row in self.m.db.execute(
    "SELECT name FROM sqlite_master WHERE type='trigger'")}
   self.assertIn("e12a6_candidate_projection_guard_update",triggers)
+
+
+ def test_current_state_projection_rebuilds_if_meta_trigger_was_removed(self):
+  self.m.db.execute("DROP TRIGGER e12a6_current_state_meta_insert")
+  self._append_candidate_history_event(
+   "e12a6:candidate:rel:meta-trigger@1",
+   {"kind":"candidate_registered","body":{"candidate":{
+    "candidate_id":"rel:meta-trigger","version":1,"evidence_ids":[]}}},0)
+  meta=self.m.db.execute(
+   "SELECT initialized_event_count FROM e12a6_current_state_projection_meta "
+   "WHERE singleton=1").fetchone()
+  self.assertEqual(meta["initialized_event_count"],0)
+  self.m.close()
+  self.m=ZPCMMemory(self.path)
+  meta=self.m.db.execute(
+   "SELECT initialized_event_count FROM e12a6_current_state_projection_meta "
+   "WHERE singleton=1").fetchone()
+  self.assertEqual(meta["initialized_event_count"],1)
+  triggers={row["name"] for row in self.m.db.execute(
+   "SELECT name FROM sqlite_master WHERE type='trigger'")}
+  self.assertIn("e12a6_current_state_meta_insert",triggers)
 
 
 if __name__=="__main__":unittest.main()
