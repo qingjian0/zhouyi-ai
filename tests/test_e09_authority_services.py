@@ -20,6 +20,10 @@ from prototype.e09_verification_receipt import verify_e09_verification_receipt
 from prototype.e09_observation_receipt import E09ObservationReceiptVerifier
 from prototype.e09_domain_registry import E09DomainBinding, StaticE09DomainRegistry
 from prototype.shared_evidence_protocol import STRICT_PROTOCOL_VERSION, SQLiteEvidenceStore
+from prototype.observation_contract import (
+    EpistemicStatus, EvidenceRef, GroundingStatus, RecordEnvelope,
+    SemanticUnitCandidate, TruthStatus, UnitKind, record_digest,
+)
 
 
 class _Authenticator:
@@ -59,6 +63,43 @@ class _NamedSigner:
         if issuer_id != self.key_id:
             raise ValueError("unexpected signer key ID")
         return base64.b64encode(self.private_key.sign(message)).decode("ascii")
+
+
+class _CandidateStore:
+    def __init__(self, candidate):
+        self.candidate = candidate
+
+    def get_candidate(self, record_id):
+        if self.candidate.envelope.record_id != record_id:
+            return None
+        return self.candidate
+
+
+def _candidate_record(scope):
+    return SemanticUnitCandidate(
+        envelope=RecordEnvelope(
+            schema_version="m2-record-v1",
+            record_id="m2:candidate:1",
+            record_kind="SemanticUnitCandidate",
+            producer="test-extractor",
+            producer_version="1",
+            recorded_at="2026-11-12T00:00:00Z",
+            scope=scope,
+            source_refs=(EvidenceRef(
+                document_id="doc-1",
+                chunk_id="chunk-1",
+                content_sha256=hashlib.sha256(b"candidate-source").hexdigest(),
+                byte_start=0,
+                byte_end=1,
+                source_version="m1-v1",
+            ),),
+        ),
+        kind=UnitKind.EVENT,
+        surface_forms=("candidate",),
+        grounding_status=GroundingStatus.GROUNDED,
+        epistemic_status=EpistemicStatus.ASSERTED,
+        truth_status=TruthStatus.UNKNOWN,
+    )
 
 
 def _identity(workload_id, issuer_id, roles, scopes):
@@ -257,20 +298,22 @@ class E09AuthorityServiceTests(unittest.TestCase):
             encoding=serialization.Encoding.Raw,
             format=serialization.PublicFormat.Raw,
         )
+        candidate_record = _candidate_record(self.scope)
+        candidate_digest = record_digest(candidate_record)
         verifier = E09VerifierService(
             self.store, signature_verifier=self.keyring.verify,
             verifier_id=self.keyring.verifier_id,
             clock=_FixedClock(datetime(2026, 11, 12, 0, 30, tzinfo=timezone.utc)),
             receipt_signer=_NamedSigner(verifier_private, self.keyring.verifier_id),
             domain_registry=self.domain_registry,
+            candidate_store=_CandidateStore(candidate_record),
         )
-        candidate_digest = hashlib.sha256(b"candidate body").hexdigest()
         receipt = verifier.issue_yixiang_observation_receipt(
             episode_id=self.episode,
             evidence_refs=[reveal_ref],
             scope=self.scope,
             learner_track=self.track,
-            candidate_record_id="m2:candidate:1",
+            candidate_record_id=candidate_record.envelope.record_id,
             candidate_record_digest=candidate_digest,
         )
         receipt_keyring = E09Ed25519IssuerKeyring({
@@ -284,7 +327,7 @@ class E09AuthorityServiceTests(unittest.TestCase):
         )
         verified = trusted_verifier.verify(
             receipt,
-            candidate_record_id="m2:candidate:1",
+            candidate_record_id=candidate_record.envelope.record_id,
             candidate_record_digest=candidate_digest,
             expected_scope=self.scope,
         )
@@ -294,6 +337,41 @@ class E09AuthorityServiceTests(unittest.TestCase):
         self.assertEqual(verified.domain_registry_version, "v1")
         self.assertEqual(verified.candidate_record_digest, candidate_digest)
         self.assertEqual(receipt["audience"], "zhouyi-m2-yixiang-adapter")
+
+    def test_observation_receipt_issuance_rejects_unstored_or_substituted_candidates(self):
+        reveal_ref = self._prior_prediction()
+        verifier_private = Ed25519PrivateKey.generate()
+        signer = _NamedSigner(verifier_private, self.keyring.verifier_id)
+        candidate_record = _candidate_record(self.scope)
+        verifier = E09VerifierService(
+            self.store, signature_verifier=self.keyring.verify,
+            verifier_id=self.keyring.verifier_id,
+            clock=_FixedClock(datetime(2026, 11, 12, 0, 30, tzinfo=timezone.utc)),
+            receipt_signer=signer,
+            domain_registry=self.domain_registry,
+        )
+        digest = record_digest(candidate_record)
+        with self.assertRaisesRegex(E09AuthorizationError, "authoritative M2 candidate store is required"):
+            verifier.issue_yixiang_observation_receipt(
+                episode_id=self.episode, evidence_refs=[reveal_ref], scope=self.scope,
+                learner_track=self.track, candidate_record_id=candidate_record.envelope.record_id,
+                candidate_record_digest=digest,
+            )
+
+        verifier = E09VerifierService(
+            self.store, signature_verifier=self.keyring.verify,
+            verifier_id=self.keyring.verifier_id,
+            clock=_FixedClock(datetime(2026, 11, 12, 0, 30, tzinfo=timezone.utc)),
+            receipt_signer=signer,
+            domain_registry=self.domain_registry,
+            candidate_store=_CandidateStore(candidate_record),
+        )
+        with self.assertRaisesRegex(E09AuthorizationError, "does not match the authoritative M2 candidate"):
+            verifier.issue_yixiang_observation_receipt(
+                episode_id=self.episode, evidence_refs=[reveal_ref], scope=self.scope,
+                learner_track=self.track, candidate_record_id=candidate_record.envelope.record_id,
+                candidate_record_digest=hashlib.sha256(b"substituted").hexdigest(),
+            )
 
     def test_verifier_rejects_caller_supplied_world_family_override(self):
         reveal_ref = self._prior_prediction()
