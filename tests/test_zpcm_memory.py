@@ -376,4 +376,70 @@ class Tests(unittest.TestCase):
   self.assertIsNone(row["candidate_version"])
 
 
+ def test_current_state_projection_generation_fast_path_skips_history_keysets(self):
+  self._append_candidate_history_event(
+   "e12a6:candidate:rel:fast@1",
+   {"kind":"candidate_registered","body":{"candidate":{
+    "candidate_id":"rel:fast","version":1,"evidence_ids":[]}}},0)
+  guard=self.m.db.execute(
+   "SELECT generation,validated_generation FROM e12a6_current_state_projection_guard "
+   "WHERE singleton=1").fetchone()
+  self.assertEqual(guard["generation"],guard["validated_generation"])
+  statements=[]
+  self.m.db.set_trace_callback(statements.append)
+  try:
+   self.m._ensure_e12a6_current_state_projection()
+  finally:
+   self.m.db.set_trace_callback(None)
+  self.assertFalse(any(" EXCEPT " in sql.upper() for sql in statements))
+
+ def test_current_state_projection_generation_detects_equal_count_row_replacement(self):
+  first=self._append_candidate_history_event(
+   "e12a6:candidate:rel:first@1",
+   {"kind":"candidate_registered","body":{"candidate":{
+    "candidate_id":"rel:first","version":1,"evidence_ids":[]}}},0)
+  self._append_candidate_history_event(
+   "e12a6:candidate:rel:second@1",
+   {"kind":"candidate_registered","body":{"candidate":{
+    "candidate_id":"rel:second","version":1,"evidence_ids":[]}}},first["sequence"])
+  before=self.m.db.execute(
+   "SELECT COUNT(*) FROM e12a6_candidate_state_projection").fetchone()[0]
+  self.m.db.execute(
+   "DELETE FROM e12a6_candidate_state_projection WHERE scope=? AND candidate_id=?",
+   ("project","rel:first"))
+  self.m.db.execute(
+   "INSERT INTO e12a6_candidate_state_projection("
+   "scope,candidate_id,candidate_version,candidate_json,source_seq) VALUES(?,?,?,?,?)",
+   ("project","rel:rogue",1,canonical({"candidate_id":"rel:rogue","version":1}),first["sequence"]))
+  after=self.m.db.execute(
+   "SELECT COUNT(*) FROM e12a6_candidate_state_projection").fetchone()[0]
+  self.assertEqual(before,after)
+  guard=self.m.db.execute(
+   "SELECT generation,validated_generation FROM e12a6_current_state_projection_guard "
+   "WHERE singleton=1").fetchone()
+  self.assertNotEqual(guard["generation"],guard["validated_generation"])
+  self.m.close()
+  self.m=ZPCMMemory(self.path)
+  ids={row["candidate_id"] for row in self.m.db.execute(
+   "SELECT candidate_id FROM e12a6_candidate_state_projection")}
+  self.assertEqual(ids,{"rel:first","rel:second"})
+
+ def test_current_state_projection_generation_detects_value_tampering(self):
+  self._append_candidate_history_event(
+   "e12a6:candidate:rel:tamper@1",
+   {"kind":"candidate_registered","body":{"candidate":{
+    "candidate_id":"rel:tamper","version":1,"evidence_ids":[]}}},0)
+  self.m.db.execute(
+   "UPDATE e12a6_candidate_state_projection SET candidate_json=? "
+   "WHERE scope=? AND candidate_id=?",
+   ("{}","project","rel:tamper"))
+  self.m.close()
+  self.m=ZPCMMemory(self.path)
+  row=self.m.db.execute(
+   "SELECT candidate_json FROM e12a6_candidate_state_projection "
+   "WHERE scope=? AND candidate_id=?",
+   ("project","rel:tamper")).fetchone()
+  self.assertEqual(json.loads(row["candidate_json"])["candidate_id"],"rel:tamper")
+
+
 if __name__=="__main__":unittest.main()
