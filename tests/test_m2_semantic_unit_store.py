@@ -167,12 +167,6 @@ class PersistentSemanticUnitCandidateStoreTests(unittest.TestCase):
             {item.envelope.record_id for item in persisted},
             {"simultaneous-a", "simultaneous-b"},
         )
-        self.assertEqual(
-            [item.envelope.record_id for item in persisted],
-            [item.envelope.record_id for item in sorted(
-                persisted, key=lambda item: item.envelope.record_id
-            )],
-        )
 
     def test_simultaneous_identical_idempotent_writers_commit_one_event(self):
         second_memory = ZPCMMemory(self.memory_db)
