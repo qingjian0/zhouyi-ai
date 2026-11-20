@@ -17,6 +17,7 @@ from prototype.e12a6_unix_socket import (
     E12A6IPCError, E12A6PeerCredentials, E12A6UnixSocketServer,
 )
 from prototype.e12a6_writer_runtime import E12A6WriterRuntime
+from prototype.e09_authority_services import E09Clock
 from prototype.e12a6_writer_service import E12A6WorkloadAuthenticator
 from prototype.typed_csg_gcr import TypedCandidateProposal
 from prototype.typed_hypergraph_unifier import (
@@ -346,6 +347,7 @@ class E12A6UDSWriterApplication:
         receipt_signature_verifier: Callable[[str, str, bytes, str], bool],
         trusted_verifier_id: str,
         allowed_uids: set[int] | frozenset[int],
+        clock: E09Clock | None = None,
     ) -> None:
         if not isinstance(scope, str) or not scope.strip():
             raise ValueError("scope must be a non-empty string")
@@ -371,6 +373,7 @@ class E12A6UDSWriterApplication:
         self._authenticator = authenticator
         self._receipt_signature_verifier = receipt_signature_verifier
         self._trusted_verifier_id = trusted_verifier_id
+        self._clock = clock
 
     def _dispatch(self, peer: E12A6PeerCredentials, request: dict[str, Any]) -> dict[str, Any]:
         credential = self._mapping.get((peer.uid, peer.gid))
@@ -398,6 +401,7 @@ class E12A6UDSWriterApplication:
             receipt_signature_verifier=self._receipt_signature_verifier,
             trusted_verifier_id=self._trusted_verifier_id,
             scope=self._scope,
+            clock=self._clock,
         )
         self._runtime = runtime
         try:
