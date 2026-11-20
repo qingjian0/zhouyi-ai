@@ -19,6 +19,7 @@ from prototype.shared_evidence_protocol import (
     EventReceipt,
     SQLiteEvidenceStore,
 )
+from prototype.observation_contract import record_digest
 from prototype.e09_domain_registry import (
     E09DomainBinding, E09DomainRegistry, E09DomainRegistryError,
 )
@@ -457,6 +458,7 @@ class E09VerifierService:
         receipt_signer: E09GrantSigner | None = None,
         receipt_ttl: timedelta = timedelta(minutes=1),
         domain_registry: E09DomainRegistry | None = None,
+        candidate_store: Any | None = None,
     ) -> None:
         if not isinstance(store, SQLiteEvidenceStore):
             raise TypeError("store must be SQLiteEvidenceStore")
@@ -477,6 +479,9 @@ class E09VerifierService:
         if domain_registry is not None and not callable(getattr(domain_registry, "resolve", None)):
             raise TypeError("domain_registry must implement resolve")
         self._domain_registry = domain_registry
+        if candidate_store is not None and not callable(getattr(candidate_store, "get_candidate", None)):
+            raise TypeError("candidate_store must implement get_candidate")
+        self._candidate_store = candidate_store
 
     def verify_branch_merge_authorization(self, **request: Any):
         """Verify with the service clock; caller-supplied now is rejected."""
@@ -494,6 +499,120 @@ class E09VerifierService:
             now=current,
             domain_registry=self._domain_registry,
             **request,
+        )
+
+    def issue_yixiang_observation_receipt(
+        self,
+        *,
+        episode_id: str,
+        evidence_refs: tuple[str, ...] | list[str],
+        scope: str,
+        learner_track: str,
+        candidate_record_id: str,
+        candidate_record_digest: str,
+    ) -> dict[str, Any]:
+        """Issue a short-lived receipt binding E09 observations to one M2 snapshot.
+
+        The caller supplies the candidate identity/digest, but never supplies
+        domain metadata or observation metadata. Those values are resolved from
+        the authoritative E09 event chain and trusted domain registry.
+        """
+        if self._receipt_signer is None:
+            raise E09AuthorizationError("observation receipt signer is not configured")
+        if self._domain_registry is None:
+            raise E09AuthorizationError("trusted E09 domain registry is required")
+        for name, value in (
+            ("episode_id", episode_id), ("scope", scope),
+            ("learner_track", learner_track), ("candidate_record_id", candidate_record_id),
+            ("candidate_record_digest", candidate_record_digest),
+        ):
+            if not isinstance(value, str) or not value.strip():
+                raise E09AuthorizationError(f"{name} must be a non-empty string")
+        if (len(candidate_record_digest) != 64
+                or any(char not in "0123456789abcdef" for char in candidate_record_digest)):
+            raise E09AuthorizationError("candidate_record_digest must be lowercase SHA-256")
+        if self._candidate_store is None:
+            raise E09AuthorizationError("authoritative M2 candidate store is required to issue observation receipts")
+        try:
+            candidate = self._candidate_store.get_candidate(candidate_record_id)
+        except Exception as exc:
+            raise E09AuthenticationError("authoritative M2 candidate lookup failed") from exc
+        if candidate is None:
+            raise E09AuthorizationError("candidate record does not exist in the authoritative M2 store")
+        try:
+            stored_record_id = candidate.envelope.record_id
+            stored_scope = candidate.envelope.scope
+            stored_digest = record_digest(candidate)
+        except Exception as exc:
+            raise E09AuthenticationError("authoritative M2 candidate record is malformed") from exc
+        if (stored_record_id != candidate_record_id or stored_scope != scope
+                or stored_digest != candidate_record_digest):
+            raise E09AuthorizationError(
+                "candidate ID, scope or digest does not match the authoritative M2 candidate"
+            )
+        if (not isinstance(evidence_refs, (tuple, list)) or not evidence_refs
+                or any(not isinstance(ref, str) or not ref.strip() for ref in evidence_refs)
+                or len(evidence_refs) != len(set(evidence_refs))):
+            raise E09AuthorizationError("evidence_refs must be a non-empty unique reference list")
+
+        current = self._clock.now()
+        if not isinstance(current, datetime) or current.tzinfo is None:
+            raise E09AuthenticationError("verifier clock must return a timezone-aware datetime")
+        current = current.astimezone(timezone.utc)
+        resolved = []
+        domains = set()
+        for ref in sorted(evidence_refs):
+            try:
+                item = resolve_e09_reveal(
+                    self._store,
+                    episode_id=episode_id,
+                    evidence_ref=ref,
+                    scope=scope,
+                    learner_track=learner_track,
+                    domain_registry=self._domain_registry,
+                )
+            except Exception as exc:
+                raise E09AuthenticationError(
+                    f"E09 observation reference {ref!r} failed authoritative verification"
+                ) from exc
+            if not item.domain_id or not item.domain_registry_id or not item.domain_registry_version:
+                raise E09AuthorizationError("legacy or unbound E09 evidence cannot issue observation receipts")
+            domains.add((
+                item.domain_id, item.world_family,
+                item.domain_registry_id, item.domain_registry_version,
+            ))
+            prefix = "opaque-e09-event-digest:"
+            if not item.provenance.startswith(prefix):
+                raise E09AuthenticationError("E09 evidence provenance digest is missing")
+            event_digest = item.provenance[len(prefix):]
+            if len(event_digest) != 64 or any(char not in "0123456789abcdef" for char in event_digest):
+                raise E09AuthenticationError("E09 evidence provenance digest is malformed")
+            resolved.append({
+                "event_id": item.evidence_id,
+                "event_digest": event_digest,
+                "observation_id": item.observation_id,
+                "episode_id": item.episode_id,
+            })
+        if len(domains) != 1:
+            raise E09AuthorizationError("candidate observations must share one trusted domain binding")
+        domain_id, world_family, registry_id, registry_version = next(iter(domains))
+        from prototype.e09_observation_receipt import build_observation_receipt
+
+        return build_observation_receipt(
+            signer=self._receipt_signer,
+            verifier_id=self.verifier_id,
+            episode_id=episode_id,
+            scope=scope,
+            learner_track=learner_track,
+            candidate_record_id=candidate_record_id,
+            candidate_record_digest=candidate_record_digest,
+            domain_id=domain_id,
+            world_family=world_family,
+            domain_registry_id=registry_id,
+            domain_registry_version=registry_version,
+            observations=resolved,
+            issued_at=current,
+            expires_at=current + self._receipt_ttl,
         )
 
     def issue_verification_receipt(self, **request: Any) -> dict[str, Any]:
