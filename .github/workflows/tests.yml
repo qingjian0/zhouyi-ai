@@ -75,6 +75,20 @@ jobs:
         timeout-minutes: 5
         run: python -m prototype.e12a6_rss_benchmark --sizes 1000,10000,50000 --event-mix mixed
 
+  m2-rss-benchmark:
+    name: M2 candidate-store startup/lookup/stream RSS benchmark
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install E09 verification dependency
+        run: python -m pip install "cryptography>=42,<47" "numpy>=1.26,<3"
+      - name: Run isolated M2 candidate-store RSS benchmark
+        timeout-minutes: 15
+        run: python -m prototype.m2_rss_benchmark --sizes 1000,10000,50000 --page-size 64
+
   detect-research:
     runs-on: ubuntu-latest
     outputs:
