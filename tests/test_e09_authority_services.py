@@ -188,45 +188,6 @@ class E09AuthorityServiceTests(unittest.TestCase):
         )
         return reveal_ref
 
-    def test_observation_input_is_stored_only_for_authority_resolved_learner(self):
-        resolver = StaticE09LearnerBindingResolver({
-            (self.episode, self.scope, self.track): "spiffe://zhouyi/learner",
-        })
-        authority = E09AuthorityService(
-            self.store, authenticator=self.authenticator, signer=_Signer(self.private),
-            clock=_FixedClock(datetime(2026, 11, 12, 0, 0, tzinfo=timezone.utc)),
-            max_grant_ttl=timedelta(hours=1), domain_registry=self.domain_registry,
-            learner_binding_resolver=resolver,
-        )
-        inputs = {"features": [0, 1, 2], "source": "fixture"}
-        result = authority.put_observation_input(
-            "observer-cert", episode_id=self.episode, scope=self.scope,
-            learner_track=self.track, feature_schema_version="e09-features-v1",
-            payload=inputs,
-        )
-        self.assertEqual(result["payload_ref"], digest_payload(inputs))
-        self.assertEqual(self.store.get_payload(result["payload_ref"]), inputs)
-        self.assertNotIn("assigned_learner_workload_id", result)
-
-        with self.assertRaises(E09AuthorizationError):
-            authority.put_observation_input(
-                "observer-cert", episode_id=self.episode, scope=self.scope,
-                learner_track="unassigned-track",
-                feature_schema_version="e09-features-v1", payload=inputs,
-            )
-        with self.assertRaisesRegex(E09AuthorizationError, "exceeds"):
-            authority.put_observation_input(
-                "observer-cert", episode_id=self.episode, scope=self.scope,
-                learner_track=self.track, feature_schema_version="e09-features-v1",
-                payload={"oversized": "x" * 1_048_577},
-            )
-        with self.assertRaises(E09AuthorizationError):
-            self.authority.put_observation_input(
-                "observer-cert", episode_id=self.episode, scope=self.scope,
-                learner_track=self.track, feature_schema_version="e09-features-v1",
-                payload=inputs,
-            )
-
     def test_observation_payload_reference_requires_existing_verified_vault_entry(self):
         from prototype.shared_evidence_protocol import digest_payload
 
@@ -565,6 +526,45 @@ class E09AuthorityServiceTests(unittest.TestCase):
         self.assertEqual(event["actor_role"], "authorizer")
         self.assertFalse(receipt.replayed)
 
+
+    def test_observation_input_is_stored_only_for_authority_resolved_learner(self):
+        resolver = StaticE09LearnerBindingResolver({
+            (self.episode, self.scope, self.track): "spiffe://zhouyi/learner",
+        })
+        authority = E09AuthorityService(
+            self.store, authenticator=self.authenticator, signer=_Signer(self.private),
+            clock=_FixedClock(datetime(2026, 11, 12, 0, 0, tzinfo=timezone.utc)),
+            max_grant_ttl=timedelta(hours=1), domain_registry=self.domain_registry,
+            learner_binding_resolver=resolver,
+        )
+        inputs = {"features": [0, 1, 2], "source": "fixture"}
+        result = authority.put_observation_input(
+            "observer-cert", episode_id=self.episode, scope=self.scope,
+            learner_track=self.track, feature_schema_version="e09-features-v1",
+            payload=inputs,
+        )
+        self.assertEqual(result["payload_ref"], digest_payload(inputs))
+        self.assertEqual(self.store.get_payload(result["payload_ref"]), inputs)
+        self.assertNotIn("assigned_learner_workload_id", result)
+
+        with self.assertRaises(E09AuthorizationError):
+            authority.put_observation_input(
+                "observer-cert", episode_id=self.episode, scope=self.scope,
+                learner_track="unassigned-track",
+                feature_schema_version="e09-features-v1", payload=inputs,
+            )
+        with self.assertRaisesRegex(E09AuthorizationError, "exceeds"):
+            authority.put_observation_input(
+                "observer-cert", episode_id=self.episode, scope=self.scope,
+                learner_track=self.track, feature_schema_version="e09-features-v1",
+                payload={"oversized": "x" * 1_048_577},
+            )
+        with self.assertRaises(E09AuthorizationError):
+            self.authority.put_observation_input(
+                "observer-cert", episode_id=self.episode, scope=self.scope,
+                learner_track=self.track, feature_schema_version="e09-features-v1",
+                payload=inputs,
+            )
 
 if __name__ == "__main__":
     unittest.main()
