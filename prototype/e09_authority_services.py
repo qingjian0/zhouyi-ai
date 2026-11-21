@@ -324,6 +324,7 @@ class E09AuthorityService:
                 and event.get("payload", {}).get("structure_id") == payload["structure_id"]
                 and event.get("payload", {}).get("learner_track") == track
                 and event.get("payload", {}).get("scope") == scope
+                and event.get("protocol_version") == DOMAIN_BOUND_PROTOCOL_VERSION
             ]
             if len(matches) != 1:
                 raise E09AuthorizationError("structure parent version is missing or ambiguous")
@@ -336,6 +337,7 @@ class E09AuthorityService:
                 and event.get("payload", {}).get("learner_track") == track
                 and event.get("payload", {}).get("scope") == scope
                 and event.get("payload", {}).get("split") == "SUPPORT"
+                and event.get("protocol_version") == DOMAIN_BOUND_PROTOCOL_VERSION
             ]
             if len(matches) != 1:
                 raise E09AuthorizationError("structure support must reference a prior SUPPORT reveal")
@@ -409,13 +411,15 @@ class E09AuthorityService:
             reveal = reveal_events.get(reveal_id)
             if (reveal is None or reveal.get("payload", {}).get("learner_track") != track
                     or reveal.get("payload", {}).get("scope") != scope
-                    or reveal.get("payload", {}).get("split") != "SUPPORT"):
+                    or reveal.get("payload", {}).get("split") != "SUPPORT"
+                    or reveal.get("protocol_version") != DOMAIN_BOUND_PROTOCOL_VERSION):
                 raise E09AuthorizationError("revision trigger must be a prior SUPPORT reveal for this track")
         structures = [
             event for event in events
             if event.get("event_type") == "structure_version"
             and event.get("payload", {}).get("learner_track") == track
             and event.get("payload", {}).get("scope") == scope
+            and event.get("protocol_version") == DOMAIN_BOUND_PROTOCOL_VERSION
         ]
         before_events = [event for event in structures if event["payload"].get("version_id") == before[0]]
         after_events = [event for event in structures if event["payload"].get("version_id") == after[0]]
