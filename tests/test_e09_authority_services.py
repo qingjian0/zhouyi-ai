@@ -214,6 +214,12 @@ class E09AuthorityServiceTests(unittest.TestCase):
                 learner_track="unassigned-track",
                 feature_schema_version="e09-features-v1", payload=inputs,
             )
+        with self.assertRaisesRegex(E09AuthorizationError, "exceeds"):
+            authority.put_observation_input(
+                "observer-cert", episode_id=self.episode, scope=self.scope,
+                learner_track=self.track, feature_schema_version="e09-features-v1",
+                payload={"oversized": "x" * 1_048_577},
+            )
         with self.assertRaises(E09AuthorizationError):
             self.authority.put_observation_input(
                 "observer-cert", episode_id=self.episode, scope=self.scope,
