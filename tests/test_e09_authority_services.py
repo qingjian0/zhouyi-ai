@@ -546,6 +546,26 @@ class E09AuthorityServiceTests(unittest.TestCase):
         self.assertEqual(result["payload_ref"], digest_payload(inputs))
         self.assertEqual(self.store.get_payload(result["payload_ref"]), inputs)
         self.assertNotIn("assigned_learner_workload_id", result)
+        event_id = f"{self.episode}:authority-uploaded-observation"
+        authority.append_observation(
+            "observer-cert", episode_id=self.episode, event_id=event_id,
+            idempotency_key=event_id,
+            payload={
+                "observation_id": "authority-uploaded-observation",
+                "query_id": "authority-uploaded-query",
+                "scope": self.scope,
+                "split": "SUPPORT",
+                "learner_track": self.track,
+                "payload_ref": result["payload_ref"],
+                "feature_schema_version": result["feature_schema_version"],
+            },
+        )
+        stored = next(
+            event for event in self.store.replay_episode(self.episode)
+            if event["event_id"] == event_id
+        )
+        self.assertEqual(stored["payload_schema"], "observation@7")
+        self.assertEqual(stored["payload"]["payload_ref"], result["payload_ref"])
 
         with self.assertRaises(E09AuthorizationError):
             authority.put_observation_input(
