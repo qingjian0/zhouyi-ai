@@ -51,7 +51,6 @@ def _write_fixture(memory_path: Path, evidence_path: Path, count: int, scope: st
     )
     if not result.complete:
         raise RuntimeError("M2 benchmark evidence fixture did not complete")
-    ingestor.close()
     resolver = SQLiteEvidenceRefResolver(evidence_path)
     reference = resolver.make_reference("m2-rss-fixture", resolver_chunk_id(evidence_path))
     memory = ZPCMMemory(memory_path)
