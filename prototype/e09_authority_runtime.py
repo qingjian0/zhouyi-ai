@@ -13,7 +13,7 @@ from datetime import timedelta
 from pathlib import Path
 from typing import Any, Mapping
 
-from prototype.e09_authority_services import E09AuthorityService
+from prototype.e09_authority_services import E09AuthorityService, E09LearnerBindingResolver
 from prototype.e09_domain_registry import E09DomainRegistry
 from prototype.e12a6_unix_socket import E12A6PeerCredentials, E12A6UnixSocketServer
 from prototype.shared_evidence_protocol import SQLiteEvidenceStore
@@ -35,6 +35,7 @@ class E09AuthorityRuntime:
         uid_to_credential: Mapping[int, object],
         socket_gid: int,
         test_only_allow_same_uid: bool = False,
+        learner_binding_resolver: E09LearnerBindingResolver | None = None,
     ) -> None:
         self.database_path = Path(database_path)
         self.socket_path = Path(socket_path)
@@ -59,6 +60,11 @@ class E09AuthorityRuntime:
         self._authenticator = authenticator
         self._signer = signer
         self._domain_registry = domain_registry
+        if learner_binding_resolver is not None and not callable(
+            getattr(learner_binding_resolver, "resolve", None)
+        ):
+            raise TypeError("learner_binding_resolver must implement resolve")
+        self._learner_binding_resolver = learner_binding_resolver
         self._store: SQLiteEvidenceStore | None = None
         self._authority: E09AuthorityService | None = None
         self._server: E12A6UnixSocketServer | None = None
@@ -174,6 +180,7 @@ class E09AuthorityRuntime:
             self._authority = E09AuthorityService(
                 self._store, authenticator=self._authenticator,
                 signer=self._signer, domain_registry=self._domain_registry,
+                learner_binding_resolver=self._learner_binding_resolver,
             )
             self._server = E12A6UnixSocketServer(
                 self.socket_path, self._dispatch,
