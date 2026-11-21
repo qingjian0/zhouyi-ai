@@ -257,6 +257,14 @@ class E09AuthorityServiceTests(unittest.TestCase):
             "learner-cert", episode_id=self.episode, event_id=structure_id,
             idempotency_key=structure_id, payload=payload,
         )
+        with self.assertRaises(E09AuthorizationError):
+            self.authority.append_structure_version(
+                "learner-cert", episode_id=self.episode,
+                event_id=f"{self.episode}:structure:extra-causation",
+                idempotency_key=f"{self.episode}:structure:extra-causation",
+                payload={**payload, "version_id": "v-extra"},
+                causation_refs=["unrelated-event"],
+            )
         reveal_id = self._prior_prediction()
         bad_revision = {
             "revision_id": "r-bad", "operation": "INCREMENTAL_INDEX",
