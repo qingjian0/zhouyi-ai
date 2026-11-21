@@ -216,6 +216,15 @@ class SQLiteEvidenceStore:
             accepted_fields["observation@5"] = expected_fields | {
                 "learner_track", "learner_workload_id",
             }
+            # @6 adds an Authority-verified immutable payload-vault reference.
+            accepted_fields["observation@6"] = expected_fields | {
+                "payload_ref", "feature_schema_version",
+            }
+            # @7 composes payload-vault binding with trusted learner assignment.
+            accepted_fields["observation@7"] = expected_fields | {
+                "learner_track", "learner_workload_id",
+                "payload_ref", "feature_schema_version",
+            }
         if payload_schema not in accepted_fields:
             accepted = ", ".join(sorted(accepted_fields))
             raise ProtocolError(
@@ -228,10 +237,18 @@ class SQLiteEvidenceStore:
                 f"E09 {payload_schema} {event_type} closed schema mismatch; "
                 f"missing={sorted(missing)}, unknown={sorted(unknown)}"
             )
-        if event_type == "observation" and payload_schema == "observation@5":
+        if event_type == "observation" and payload_schema in ("observation@5", "observation@7"):
             if any(not isinstance(payload.get(field), str) or not payload[field].strip()
                    for field in ("learner_track", "learner_workload_id")):
-                raise ProtocolError("E09 observation@5 requires non-empty learner assignment fields")
+                raise ProtocolError(f"E09 {payload_schema} requires non-empty learner assignment fields")
+        if event_type == "observation" and payload_schema in ("observation@6", "observation@7"):
+            if any(not isinstance(payload.get(field), str) or not payload[field].strip()
+                   for field in ("payload_ref", "feature_schema_version")):
+                raise ProtocolError(f"E09 {payload_schema} requires payload_ref and feature_schema_version")
+            payload_ref = payload["payload_ref"]
+            if (len(payload_ref) != 64
+                    or any(char not in "0123456789abcdef" for char in payload_ref)):
+                raise ProtocolError("E09 observation payload_ref must be a lowercase SHA-256 digest")
         if actor_role != expected_role:
             raise ProtocolError(f"E09 v0.4 {event_type} requires actor_role={expected_role}")
         if not isinstance(integrity_metadata, dict) or set(integrity_metadata) != {"authenticated_workload"}:
