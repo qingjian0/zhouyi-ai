@@ -18,6 +18,7 @@ from prototype.shared_evidence_protocol import (
     STRICT_PROTOCOL_VERSION,
     EventReceipt,
     SQLiteEvidenceStore,
+    digest_payload,
 )
 from prototype.observation_contract import record_digest
 from prototype.e09_domain_registry import (
@@ -210,6 +211,47 @@ class E09AuthorityService:
             "world_family": binding.world_family,
             "domain_registry_id": binding.registry_id,
             "domain_registry_version": binding.registry_version,
+        }
+
+    def put_observation_input(
+        self,
+        credential: object,
+        *,
+        episode_id: str,
+        scope: str,
+        learner_track: str,
+        feature_schema_version: str,
+        payload: dict[str, Any],
+    ) -> dict[str, str]:
+        """Store immutable learner input under an Authority-resolved track assignment."""
+        for field, value in (
+            ("episode_id", episode_id), ("scope", scope),
+            ("learner_track", learner_track),
+            ("feature_schema_version", feature_schema_version),
+        ):
+            if not isinstance(value, str) or not value.strip():
+                raise E09AuthorizationError(f"{field} must be a non-empty string")
+        if not isinstance(payload, dict):
+            raise E09AuthorizationError("observation input payload must be an object")
+        principal = self._principal(credential, role="observer", scope=scope)
+        self._trusted_domain(scope)
+        if self._learner_binding_resolver is None:
+            raise E09AuthorizationError("trusted learner assignment resolver is not configured")
+        assigned = self._learner_binding_resolver.resolve(
+            episode_id=episode_id, scope=scope, learner_track=learner_track,
+        )
+        if not isinstance(assigned, str) or not assigned.strip():
+            raise E09AuthorizationError("no trusted learner workload is assigned to this episode/track")
+        payload_ref = digest_payload(payload)
+        try:
+            self._store.put_payload(payload_ref, payload)
+        except Exception as exc:
+            raise E09AuthorizationError("Authority could not persist the immutable observation input") from exc
+        return {
+            "payload_ref": payload_ref,
+            "feature_schema_version": feature_schema_version,
+            "assigned_learner_workload_id": assigned,
+            "observer_workload_id": principal.workload_id,
         }
 
     def append_observation(
