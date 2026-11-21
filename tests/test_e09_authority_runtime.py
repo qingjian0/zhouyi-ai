@@ -7,7 +7,7 @@ import unittest
 from pathlib import Path
 
 from prototype.e09_authority_runtime import E09AuthorityRuntime, E09AuthorityRuntimeError
-from prototype.e09_authority_services import E09AuthenticatedWorkload
+from prototype.e09_authority_services import E09AuthenticatedWorkload, StaticE09LearnerBindingResolver
 from prototype.e09_domain_registry import E09DomainBinding, StaticE09DomainRegistry
 
 
@@ -67,7 +67,7 @@ class E09AuthorityRuntimeTests(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def runtime(self, uid=None):
+    def runtime(self, uid=None, learner_binding_resolver=None):
         uid = os.getuid() if uid is None else uid
         return E09AuthorityRuntime(
             database_path=self.db_path,
@@ -78,6 +78,7 @@ class E09AuthorityRuntimeTests(unittest.TestCase):
             uid_to_credential={uid: "observer-cert"},
             socket_gid=os.getgid(),
             test_only_allow_same_uid=(uid == os.getuid()),
+            learner_binding_resolver=learner_binding_resolver,
         )
 
     def observation_request(self):
@@ -115,6 +116,31 @@ class E09AuthorityRuntimeTests(unittest.TestCase):
             self.assertEqual(len(events), 1)
             self.assertEqual(events[0]["actor_role"], "observer")
             self.assertEqual(events[0]["payload"]["domain_id"], "domain:runtime")
+
+    def test_uds_observation_uses_server_resolved_learner_assignment(self):
+        resolver = StaticE09LearnerBindingResolver({
+            ("ipc-episode", self.scope, "learner-track-a"): "spiffe://runtime/learner-a",
+        })
+        request = self.observation_request()
+        request["payload"]["learner_track"] = "learner-track-a"
+        with self.runtime(learner_binding_resolver=resolver) as runtime:
+            response = send_request(self.socket_path, request)
+            self.assertTrue(response["ok"])
+            event = runtime._store.replay_episode("ipc-episode")[0]
+            self.assertEqual(event["payload"]["learner_track"], "learner-track-a")
+            self.assertEqual(
+                event["payload"]["learner_workload_id"], "spiffe://runtime/learner-a"
+            )
+            self.assertEqual(event["payload_schema"], "observation@5")
+
+    def test_uds_observation_rejects_unassigned_learner_track(self):
+        resolver = StaticE09LearnerBindingResolver({})
+        request = self.observation_request()
+        request["payload"]["learner_track"] = "not-assigned"
+        with self.runtime(learner_binding_resolver=resolver) as runtime:
+            response = send_request(self.socket_path, request)
+            self.assertFalse(response["ok"])
+            self.assertEqual(runtime._store.replay_episode("ipc-episode"), [])
 
     def test_unallowlisted_peer_uid_is_rejected(self):
         with self.runtime(uid=os.getuid() + 100000) as runtime:
