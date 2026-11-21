@@ -250,7 +250,9 @@ class E09AuthorityService:
             payload=event_payload,
             actor_role="observer",
             integrity_metadata=_identity_metadata(principal),
-            payload_schema="observation@4",
+            payload_schema=(
+                "observation@5" if self._learner_binding_resolver is not None else "observation@4"
+            ),
             expected_sequence=expected_sequence,
             protocol_version=DOMAIN_BOUND_PROTOCOL_VERSION,
         )
