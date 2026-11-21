@@ -536,5 +536,41 @@ class PersistentSemanticUnitCandidateStoreTests(unittest.TestCase):
         self.assertEqual(hydrated.evidence_bytes, len(source.encode("utf-8")))
 
 
+    def test_store_construction_reads_only_high_water_metadata(self):
+        # Seed a non-trivial event history with payload bodies that must not be
+        # materialized merely to construct the append/read facade.
+        sequence = 0
+        body = "x" * 4096
+        for index in range(128):
+            receipt = self.memory.append_domain_event(
+                event_type="m2_semantic_unit_candidate",
+                event_id=f"startup-probe:{index}",
+                scope="project-a",
+                payload={"body": body, "index": index},
+                expected_sequence=sequence,
+            )
+            sequence = receipt["sequence"]
+
+        statements = []
+        self.memory.db.set_trace_callback(statements.append)
+        try:
+            reopened = PersistentSemanticUnitCandidateStore(
+                self.memory, self.resolver, scope="project-a",
+            )
+        finally:
+            self.memory.db.set_trace_callback(None)
+
+        self.assertEqual(reopened._last_sequence, sequence)
+        payload_reads = [
+            statement for statement in statements
+            if "payload_json" in statement.casefold()
+        ]
+        self.assertEqual(payload_reads, [])
+        self.assertTrue(any(
+            "MAX(seq)" in statement and "memory_events" in statement
+            for statement in statements
+        ))
+
+
 if __name__ == "__main__":
     unittest.main()
