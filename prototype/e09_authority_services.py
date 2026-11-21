@@ -321,6 +321,7 @@ class E09AuthorityService:
                 event for event in events
                 if event.get("event_type") == "structure_version"
                 and event.get("payload", {}).get("version_id") == version_id
+                and event.get("payload", {}).get("structure_id") == payload["structure_id"]
                 and event.get("payload", {}).get("learner_track") == track
                 and event.get("payload", {}).get("scope") == scope
             ]
@@ -339,8 +340,9 @@ class E09AuthorityService:
             if len(matches) != 1:
                 raise E09AuthorizationError("structure support must reference a prior SUPPORT reveal")
             required_causation.add(reveal_id)
-        if not required_causation.issubset(set(causation_refs)):
-            raise E09AuthorizationError("structure causation must include every parent and support event")
+        if (len(causation_refs) != len(set(causation_refs))
+                or set(causation_refs) != required_causation):
+            raise E09AuthorizationError("structure causation must exactly match its parent and support events")
         if not parents and supports:
             raise E09AuthorizationError("initial structure cannot cite support evidence without a parent")
         binding = self._trusted_domain(scope)
@@ -420,12 +422,14 @@ class E09AuthorityService:
         if len(before_events) != 1 or len(after_events) != 1:
             raise E09AuthorizationError("revision before/after structure version is missing or ambiguous")
         before_event, after_event = before_events[0], after_events[0]
-        if (before_event["event_id"] not in causation_refs
-                or after_event["event_id"] not in causation_refs
-                or any(ref not in causation_refs for ref in triggers)):
-            raise E09AuthorizationError("revision causation must include trigger and both version events")
+        expected_causation = {before_event["event_id"], after_event["event_id"], *triggers}
+        if (len(causation_refs) != len(set(causation_refs))
+                or set(causation_refs) != expected_causation):
+            raise E09AuthorizationError("revision causation must exactly match trigger and both version events")
+        before_payload = before_event["payload"]
         after_payload = after_event["payload"]
-        if (before[0] not in after_payload.get("parent_version_ids", [])
+        if (before_payload.get("structure_id") != after_payload.get("structure_id")
+                or before[0] not in after_payload.get("parent_version_ids", [])
                 or not set(triggers).issubset(set(after_payload.get("support_evidence_ids", [])))):
             raise E09AuthorizationError("revision after-version does not descend from its before-version and trigger")
         binding = self._trusted_domain(scope)
