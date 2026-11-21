@@ -153,6 +153,7 @@ class E09AuthorityService:
         clock: E09Clock | None = None,
         max_grant_ttl: timedelta = timedelta(minutes=5),
         domain_registry: E09DomainRegistry | None = None,
+        learner_binding_resolver: E09LearnerBindingResolver | None = None,
     ) -> None:
         if not isinstance(store, SQLiteEvidenceStore):
             raise TypeError("store must be SQLiteEvidenceStore")
@@ -170,6 +171,11 @@ class E09AuthorityService:
         if domain_registry is not None and not callable(getattr(domain_registry, "resolve", None)):
             raise TypeError("domain_registry must implement resolve")
         self._domain_registry = domain_registry
+        if learner_binding_resolver is not None and not callable(
+            getattr(learner_binding_resolver, "resolve", None)
+        ):
+            raise TypeError("learner_binding_resolver must implement resolve")
+        self._learner_binding_resolver = learner_binding_resolver
 
     def _principal(self, credential: object, *, role: str, scope: str) -> E09AuthenticatedWorkload:
         if not isinstance(scope, str) or not scope.strip():
