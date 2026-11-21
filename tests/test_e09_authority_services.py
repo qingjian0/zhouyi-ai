@@ -14,6 +14,7 @@ from prototype.e09_authority_services import (
     E09AuthorizationError,
     E09AuthorityService,
     E09VerifierService,
+    StaticE09LearnerBindingResolver,
 )
 from prototype.e09_ed25519_keyring import E09Ed25519IssuerKeyring
 from prototype.e09_verification_receipt import verify_e09_verification_receipt
@@ -186,6 +187,63 @@ class E09AuthorityServiceTests(unittest.TestCase):
             causation_refs=[commit_event],
         )
         return reveal_ref
+
+    def test_trusted_learner_assignment_is_resolved_and_enforced(self):
+        resolver = StaticE09LearnerBindingResolver({
+            (self.episode, self.scope, self.track): "spiffe://zhouyi/learner",
+        })
+        authority = E09AuthorityService(
+            self.store, authenticator=self.authenticator, signer=_Signer(self.private),
+            clock=_FixedClock(datetime(2026, 11, 12, 0, 0, tzinfo=timezone.utc)),
+            max_grant_ttl=timedelta(hours=1), domain_registry=self.domain_registry,
+            learner_binding_resolver=resolver,
+        )
+        observation_event = f"{self.episode}:bound-observation"
+        authority.append_observation(
+            "observer-cert", episode_id=self.episode, event_id=observation_event,
+            idempotency_key=observation_event,
+            payload={"observation_id": "bound-obs", "query_id": "bound-query",
+                     "scope": self.scope, "split": "SUPPORT", "learner_track": self.track},
+        )
+        stored = self.store.replay_episode(self.episode)[0]["payload"]
+        self.assertEqual(stored["learner_track"], self.track)
+        self.assertEqual(stored["learner_workload_id"], "spiffe://zhouyi/learner")
+
+        commit_payload = {
+            "prediction_id": "bound-prediction", "observation_id": "bound-obs",
+            "query_id": "bound-query", "scope": self.scope, "split": "SUPPORT",
+            "model_version": "model-1", "learner_track": self.track,
+            "decision_status": "PREDICT",
+            "interop_commit_digest": hashlib.sha256(b"bound-prediction").hexdigest(),
+        }
+        authority.append_prediction_commit(
+            "learner-cert", episode_id=self.episode,
+            event_id=f"{self.episode}:bound-commit",
+            idempotency_key=f"{self.episode}:bound-commit",
+            causation_refs=[observation_event], payload=commit_payload,
+        )
+        forged = dict(commit_payload, prediction_id="forged-track", learner_track="learner-b")
+        with self.assertRaises(E09AuthorizationError):
+            authority.append_prediction_commit(
+                "learner-cert", episode_id=self.episode,
+                event_id=f"{self.episode}:forged-commit",
+                idempotency_key=f"{self.episode}:forged-commit",
+                causation_refs=[observation_event], payload=forged,
+            )
+
+    def test_secure_binding_requires_track_and_known_assignment(self):
+        resolver = StaticE09LearnerBindingResolver({})
+        authority = E09AuthorityService(
+            self.store, authenticator=self.authenticator, signer=_Signer(self.private),
+            domain_registry=self.domain_registry, learner_binding_resolver=resolver,
+        )
+        with self.assertRaises(E09AuthorizationError):
+            authority.append_observation(
+                "observer-cert", episode_id=self.episode, event_id="unassigned-observation",
+                idempotency_key="unassigned-observation",
+                payload={"observation_id": "unassigned", "query_id": "unassigned",
+                         "scope": self.scope, "split": "SUPPORT", "learner_track": self.track},
+            )
 
     def test_authenticated_evaluator_role_is_derived_and_audited(self):
         reveal_ref = self._prior_prediction()

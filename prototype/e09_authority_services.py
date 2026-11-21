@@ -109,6 +109,33 @@ def _identity_metadata(principal: E09AuthenticatedWorkload) -> dict[str, Any]:
     }
 
 
+class E09LearnerBindingResolver(Protocol):
+    """Resolve an assigned learner workload from trusted episode/scope/track policy."""
+
+    def resolve(self, *, episode_id: str, scope: str, learner_track: str) -> str | None:
+        ...
+
+
+class StaticE09LearnerBindingResolver:
+    """Immutable deployment/test binding table; request data never creates assignments."""
+
+    def __init__(self, assignments: dict[tuple[str, str, str], str]) -> None:
+        if not isinstance(assignments, dict):
+            raise TypeError("assignments must be a dictionary")
+        normalized: dict[tuple[str, str, str], str] = {}
+        for key, workload_id in assignments.items():
+            if (not isinstance(key, tuple) or len(key) != 3
+                    or any(not isinstance(part, str) or not part.strip() for part in key)):
+                raise ValueError("assignment keys must be (episode_id, scope, learner_track)")
+            if not isinstance(workload_id, str) or not workload_id.strip():
+                raise ValueError("assigned workload IDs must be non-empty strings")
+            normalized[key] = workload_id
+        self._assignments = normalized
+
+    def resolve(self, *, episode_id: str, scope: str, learner_track: str) -> str | None:
+        return self._assignments.get((episode_id, scope, learner_track))
+
+
 class E09AuthorityService:
     """Narrow write facade deriving event roles from authenticated workload identity.
 
@@ -126,6 +153,7 @@ class E09AuthorityService:
         clock: E09Clock | None = None,
         max_grant_ttl: timedelta = timedelta(minutes=5),
         domain_registry: E09DomainRegistry | None = None,
+        learner_binding_resolver: E09LearnerBindingResolver | None = None,
     ) -> None:
         if not isinstance(store, SQLiteEvidenceStore):
             raise TypeError("store must be SQLiteEvidenceStore")
@@ -143,6 +171,11 @@ class E09AuthorityService:
         if domain_registry is not None and not callable(getattr(domain_registry, "resolve", None)):
             raise TypeError("domain_registry must implement resolve")
         self._domain_registry = domain_registry
+        if learner_binding_resolver is not None and not callable(
+            getattr(learner_binding_resolver, "resolve", None)
+        ):
+            raise TypeError("learner_binding_resolver must implement resolve")
+        self._learner_binding_resolver = learner_binding_resolver
 
     def _principal(self, credential: object, *, role: str, scope: str) -> E09AuthenticatedWorkload:
         if not isinstance(scope, str) or not scope.strip():
@@ -191,12 +224,24 @@ class E09AuthorityService:
     ) -> EventReceipt:
         """Append a v0.4 observation with domain provenance derived by E09."""
         required = {"observation_id", "query_id", "scope", "split"}
-        if not isinstance(payload, dict) or set(payload) != required:
+        allowed = required | {"learner_track"}
+        if (not isinstance(payload, dict) or not required.issubset(payload)
+                or not set(payload).issubset(allowed)):
             raise E09AuthorizationError("observation request must use the exact v0.4 caller schema")
         scope = payload.get("scope")
         principal = self._principal(credential, role="observer", scope=scope)
         binding = self._trusted_domain(scope)
         event_payload = {**payload, **self._domain_payload(binding)}
+        if self._learner_binding_resolver is not None:
+            learner_track = payload.get("learner_track")
+            if not isinstance(learner_track, str) or not learner_track.strip():
+                raise E09AuthorizationError("secure learner binding requires learner_track")
+            assigned = self._learner_binding_resolver.resolve(
+                episode_id=episode_id, scope=scope, learner_track=learner_track,
+            )
+            if not isinstance(assigned, str) or not assigned.strip():
+                raise E09AuthorizationError("no trusted learner workload is assigned to this episode/track")
+            event_payload["learner_workload_id"] = assigned
         return self._store.append_event(
             episode_id=episode_id,
             event_id=event_id,
@@ -205,7 +250,9 @@ class E09AuthorityService:
             payload=event_payload,
             actor_role="observer",
             integrity_metadata=_identity_metadata(principal),
-            payload_schema="observation@4",
+            payload_schema=(
+                "observation@5" if self._learner_binding_resolver is not None else "observation@4"
+            ),
             expected_sequence=expected_sequence,
             protocol_version=DOMAIN_BOUND_PROTOCOL_VERSION,
         )
@@ -247,6 +294,16 @@ class E09AuthorityService:
         if observation.get("event_id") not in causation_refs:
             raise E09AuthorizationError("prediction commit must cite its observation event")
         observed = observation["payload"]
+        if self._learner_binding_resolver is not None:
+            assigned = self._learner_binding_resolver.resolve(
+                episode_id=episode_id, scope=payload["scope"],
+                learner_track=payload["learner_track"],
+            )
+            if (not isinstance(assigned, str) or not assigned.strip()
+                    or observed.get("learner_track") != payload["learner_track"]
+                    or observed.get("learner_workload_id") != assigned
+                    or principal.workload_id != assigned):
+                raise E09AuthorizationError("prediction workload is not assigned to this observation track")
         for field in ("query_id", "scope", "split"):
             if payload[field] != observed[field]:
                 raise E09AuthorizationError(f"prediction commit {field} differs from observation")
