@@ -18,12 +18,16 @@ from prototype.shared_evidence_protocol import (
     STRICT_PROTOCOL_VERSION,
     EventReceipt,
     SQLiteEvidenceStore,
+    canonical_json,
     digest_payload,
 )
 from prototype.observation_contract import record_digest
 from prototype.e09_domain_registry import (
     E09DomainBinding, E09DomainRegistry, E09DomainRegistryError,
 )
+
+
+MAX_E09_OBSERVATION_INPUT_BYTES = 1_048_576
 
 
 class E09ServiceError(PermissionError):
@@ -233,6 +237,14 @@ class E09AuthorityService:
                 raise E09AuthorizationError(f"{field} must be a non-empty string")
         if not isinstance(payload, dict):
             raise E09AuthorizationError("observation input payload must be an object")
+        try:
+            payload_size = len(canonical_json(payload).encode("utf-8"))
+        except Exception as exc:
+            raise E09AuthorizationError("observation input payload must be canonical JSON data") from exc
+        if payload_size > MAX_E09_OBSERVATION_INPUT_BYTES:
+            raise E09AuthorizationError(
+                f"observation input payload exceeds {MAX_E09_OBSERVATION_INPUT_BYTES} bytes"
+            )
         principal = self._principal(credential, role="observer", scope=scope)
         self._trusted_domain(scope)
         if self._learner_binding_resolver is None:
