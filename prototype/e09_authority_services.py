@@ -224,10 +224,26 @@ class E09AuthorityService:
     ) -> EventReceipt:
         """Append a v0.4 observation with domain provenance derived by E09."""
         required = {"observation_id", "query_id", "scope", "split"}
-        allowed = required | {"learner_track"}
+        optional = {"learner_track", "payload_ref", "feature_schema_version"}
         if (not isinstance(payload, dict) or not required.issubset(payload)
-                or not set(payload).issubset(allowed)):
+                or not set(payload).issubset(required | optional)):
             raise E09AuthorizationError("observation request must use the exact v0.4 caller schema")
+        if ("payload_ref" in payload) != ("feature_schema_version" in payload):
+            raise E09AuthorizationError("payload_ref and feature_schema_version must be supplied together")
+        if "payload_ref" in payload:
+            payload_ref = payload["payload_ref"]
+            feature_schema = payload["feature_schema_version"]
+            if (not isinstance(payload_ref, str) or len(payload_ref) != 64
+                    or any(char not in "0123456789abcdef" for char in payload_ref)):
+                raise E09AuthorizationError("payload_ref must be a lowercase SHA-256 digest")
+            if not isinstance(feature_schema, str) or not feature_schema.strip():
+                raise E09AuthorizationError("feature_schema_version must be a non-empty string")
+            try:
+                self._store.get_payload(payload_ref)
+            except Exception as exc:
+                raise E09AuthorizationError(
+                    "observation payload_ref must resolve to an existing digest-verified payload"
+                ) from exc
         scope = payload.get("scope")
         principal = self._principal(credential, role="observer", scope=scope)
         binding = self._trusted_domain(scope)
@@ -251,7 +267,10 @@ class E09AuthorityService:
             actor_role="observer",
             integrity_metadata=_identity_metadata(principal),
             payload_schema=(
-                "observation@5" if self._learner_binding_resolver is not None else "observation@4"
+                "observation@7" if self._learner_binding_resolver is not None and "payload_ref" in payload
+                else "observation@6" if "payload_ref" in payload
+                else "observation@5" if self._learner_binding_resolver is not None
+                else "observation@4"
             ),
             expected_sequence=expected_sequence,
             protocol_version=DOMAIN_BOUND_PROTOCOL_VERSION,
