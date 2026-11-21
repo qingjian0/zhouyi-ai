@@ -235,6 +235,8 @@ class E09AuthorityService:
         ):
             if not isinstance(value, str) or not value.strip():
                 raise E09AuthorizationError(f"{field} must be a non-empty string")
+        principal = self._principal(credential, role="observer", scope=scope)
+        self._trusted_domain(scope)
         if not isinstance(payload, dict):
             raise E09AuthorizationError("observation input payload must be an object")
         try:
@@ -245,8 +247,6 @@ class E09AuthorityService:
             raise E09AuthorizationError(
                 f"observation input payload exceeds {MAX_E09_OBSERVATION_INPUT_BYTES} bytes"
             )
-        principal = self._principal(credential, role="observer", scope=scope)
-        self._trusted_domain(scope)
         if self._learner_binding_resolver is None:
             raise E09AuthorizationError("trusted learner assignment resolver is not configured")
         assigned = self._learner_binding_resolver.resolve(
