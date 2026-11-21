@@ -276,6 +276,168 @@ class E09AuthorityService:
             protocol_version=DOMAIN_BOUND_PROTOCOL_VERSION,
         )
 
+    def append_structure_version(
+        self,
+        credential: object,
+        *,
+        episode_id: str,
+        event_id: str,
+        idempotency_key: str,
+        payload: dict[str, Any],
+        causation_refs: tuple[str, ...] | list[str] = (),
+        expected_sequence: int | None = None,
+    ) -> EventReceipt:
+        """Append a learner structure version bound to prior parents and support reveals."""
+        required = {
+            "structure_id", "version_id", "kind", "definition",
+            "parent_version_ids", "support_evidence_ids", "learner_track", "scope",
+        }
+        if not isinstance(payload, dict) or set(payload) != required:
+            raise E09AuthorizationError("structure version request must use the exact secure schema")
+        scope = payload["scope"]
+        principal = self._principal(credential, role="learner", scope=scope)
+        track = payload["learner_track"]
+        if not isinstance(track, str) or not track.strip():
+            raise E09AuthorizationError("structure learner_track must be non-empty")
+        for field in ("structure_id", "version_id", "kind"):
+            if not isinstance(payload[field], str) or not payload[field].strip():
+                raise E09AuthorizationError(f"structure {field} must be non-empty")
+        if not isinstance(payload["definition"], dict):
+            raise E09AuthorizationError("structure definition must be an object")
+        parents = payload["parent_version_ids"]
+        supports = payload["support_evidence_ids"]
+        if (not isinstance(parents, list) or not isinstance(supports, list)
+                or any(not isinstance(v, str) or not v.strip() for v in parents + supports)
+                or len(parents) != len(set(parents)) or len(supports) != len(set(supports))):
+            raise E09AuthorizationError("structure parent/support references must be unique non-empty lists")
+        if not isinstance(causation_refs, (tuple, list)) or any(
+            not isinstance(ref, str) or not ref.strip() for ref in causation_refs
+        ):
+            raise E09AuthorizationError("structure causation refs must be non-empty strings")
+        events = self._store.replay_episode(episode_id)
+        required_causation: set[str] = set()
+        for version_id in parents:
+            matches = [
+                event for event in events
+                if event.get("event_type") == "structure_version"
+                and event.get("payload", {}).get("version_id") == version_id
+                and event.get("payload", {}).get("learner_track") == track
+                and event.get("payload", {}).get("scope") == scope
+            ]
+            if len(matches) != 1:
+                raise E09AuthorizationError("structure parent version is missing or ambiguous")
+            required_causation.add(matches[0]["event_id"])
+        for reveal_id in supports:
+            matches = [
+                event for event in events
+                if event.get("event_type") == "evidence_reveal"
+                and event.get("event_id") == reveal_id
+                and event.get("payload", {}).get("learner_track") == track
+                and event.get("payload", {}).get("scope") == scope
+                and event.get("payload", {}).get("split") == "SUPPORT"
+            ]
+            if len(matches) != 1:
+                raise E09AuthorizationError("structure support must reference a prior SUPPORT reveal")
+            required_causation.add(reveal_id)
+        if not required_causation.issubset(set(causation_refs)):
+            raise E09AuthorizationError("structure causation must include every parent and support event")
+        if not parents and supports:
+            raise E09AuthorizationError("initial structure cannot cite support evidence without a parent")
+        binding = self._trusted_domain(scope)
+        event_payload = {**payload, **self._domain_payload(binding)}
+        return self._store.append_event(
+            episode_id=episode_id, event_id=event_id, event_type="structure_version",
+            idempotency_key=idempotency_key, payload=event_payload, actor_role="learner",
+            causation_refs=causation_refs, integrity_metadata=_identity_metadata(principal),
+            payload_schema="structure_version@1", expected_sequence=expected_sequence,
+            protocol_version=DOMAIN_BOUND_PROTOCOL_VERSION,
+        )
+
+    def append_revision(
+        self,
+        credential: object,
+        *,
+        episode_id: str,
+        event_id: str,
+        idempotency_key: str,
+        payload: dict[str, Any],
+        causation_refs: tuple[str, ...] | list[str],
+        expected_sequence: int | None = None,
+    ) -> EventReceipt:
+        """Append a revision only when its trigger reveal and version transition are durable."""
+        required = {
+            "revision_id", "operation", "trigger_evidence_ids", "before_version_ids",
+            "after_version_ids", "learner_track", "training_example_count",
+            "candidate_evaluations", "scope",
+        }
+        if not isinstance(payload, dict) or set(payload) != required:
+            raise E09AuthorizationError("revision request must use the exact secure schema")
+        scope = payload["scope"]
+        principal = self._principal(credential, role="learner", scope=scope)
+        track = payload["learner_track"]
+        if not isinstance(track, str) or not track.strip():
+            raise E09AuthorizationError("revision learner_track must be non-empty")
+        for field in ("revision_id", "operation"):
+            if not isinstance(payload[field], str) or not payload[field].strip():
+                raise E09AuthorizationError(f"revision {field} must be non-empty")
+        for field in ("training_example_count", "candidate_evaluations"):
+            if type(payload[field]) is not int or payload[field] < 0:
+                raise E09AuthorizationError(f"revision {field} must be a non-negative integer")
+        triggers, before, after = (
+            payload["trigger_evidence_ids"], payload["before_version_ids"], payload["after_version_ids"]
+        )
+        for values, field in ((triggers, "trigger_evidence_ids"), (before, "before_version_ids"),
+                              (after, "after_version_ids")):
+            if (not isinstance(values, list) or not values
+                    or any(not isinstance(v, str) or not v.strip() for v in values)
+                    or len(values) != len(set(values))):
+                raise E09AuthorizationError(f"revision {field} must be a non-empty unique list")
+        if len(before) != 1 or len(after) != 1:
+            raise E09AuthorizationError("revision must identify exactly one before and after version")
+        if not isinstance(causation_refs, (tuple, list)) or any(
+            not isinstance(ref, str) or not ref.strip() for ref in causation_refs
+        ):
+            raise E09AuthorizationError("revision causation refs must be non-empty strings")
+        events = self._store.replay_episode(episode_id)
+        reveal_events = {
+            event["event_id"]: event for event in events
+            if event.get("event_type") == "evidence_reveal"
+        }
+        for reveal_id in triggers:
+            reveal = reveal_events.get(reveal_id)
+            if (reveal is None or reveal.get("payload", {}).get("learner_track") != track
+                    or reveal.get("payload", {}).get("scope") != scope
+                    or reveal.get("payload", {}).get("split") != "SUPPORT"):
+                raise E09AuthorizationError("revision trigger must be a prior SUPPORT reveal for this track")
+        structures = [
+            event for event in events
+            if event.get("event_type") == "structure_version"
+            and event.get("payload", {}).get("learner_track") == track
+            and event.get("payload", {}).get("scope") == scope
+        ]
+        before_events = [event for event in structures if event["payload"].get("version_id") == before[0]]
+        after_events = [event for event in structures if event["payload"].get("version_id") == after[0]]
+        if len(before_events) != 1 or len(after_events) != 1:
+            raise E09AuthorizationError("revision before/after structure version is missing or ambiguous")
+        before_event, after_event = before_events[0], after_events[0]
+        if (before_event["event_id"] not in causation_refs
+                or after_event["event_id"] not in causation_refs
+                or any(ref not in causation_refs for ref in triggers)):
+            raise E09AuthorizationError("revision causation must include trigger and both version events")
+        after_payload = after_event["payload"]
+        if (before[0] not in after_payload.get("parent_version_ids", [])
+                or not set(triggers).issubset(set(after_payload.get("support_evidence_ids", [])))):
+            raise E09AuthorizationError("revision after-version does not descend from its before-version and trigger")
+        binding = self._trusted_domain(scope)
+        event_payload = {**payload, **self._domain_payload(binding)}
+        return self._store.append_event(
+            episode_id=episode_id, event_id=event_id, event_type="revision",
+            idempotency_key=idempotency_key, payload=event_payload, actor_role="learner",
+            causation_refs=causation_refs, integrity_metadata=_identity_metadata(principal),
+            payload_schema="revision@1", expected_sequence=expected_sequence,
+            protocol_version=DOMAIN_BOUND_PROTOCOL_VERSION,
+        )
+
     def append_prediction_commit(
         self,
         credential: object,
