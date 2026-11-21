@@ -205,12 +205,12 @@ class SQLiteEvidenceStore:
                  "scope", "split", "commit_digest", "event_digest", *DOMAIN_FIELDS},
             ),
             "structure_version": (
-                "structure_version@1", "learner",
+                "structure_version@2", "learner",
                 {"structure_id", "version_id", "kind", "definition", "parent_version_ids",
                  "support_evidence_ids", "learner_track", "scope", *DOMAIN_FIELDS},
             ),
             "revision": (
-                "revision@1", "learner",
+                "revision@2", "learner",
                 {"revision_id", "operation", "trigger_evidence_ids", "before_version_ids",
                  "after_version_ids", "learner_track", "training_example_count",
                  "candidate_evaluations", "scope", *DOMAIN_FIELDS},
