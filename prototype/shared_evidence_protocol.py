@@ -204,6 +204,17 @@ class SQLiteEvidenceStore:
                 {"prediction_id", "learner_track", "target_or_feedback", "query_id",
                  "scope", "split", "commit_digest", "event_digest", *DOMAIN_FIELDS},
             ),
+            "structure_version": (
+                "structure_version@1", "learner",
+                {"structure_id", "version_id", "kind", "definition", "parent_version_ids",
+                 "support_evidence_ids", "learner_track", "scope", *DOMAIN_FIELDS},
+            ),
+            "revision": (
+                "revision@1", "learner",
+                {"revision_id", "operation", "trigger_evidence_ids", "before_version_ids",
+                 "after_version_ids", "learner_track", "training_example_count",
+                 "candidate_evaluations", "scope", *DOMAIN_FIELDS},
+            ),
         }
         contract = schemas.get(event_type)
         if contract is None:
