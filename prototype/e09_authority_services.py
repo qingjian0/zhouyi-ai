@@ -227,7 +227,7 @@ class E09AuthorityService:
         optional = {"learner_track", "payload_ref", "feature_schema_version"}
         if (not isinstance(payload, dict) or not required.issubset(payload)
                 or not set(payload).issubset(required | optional)):
-            raise E09AuthorizationError("observation request contains missing or unsupported fields")
+            raise E09AuthorizationError("observation request must use the exact v0.4 caller schema")
         if ("payload_ref" in payload) != ("feature_schema_version" in payload):
             raise E09AuthorizationError("payload_ref and feature_schema_version must be supplied together")
         if "payload_ref" in payload:
