@@ -250,8 +250,6 @@ class E09AuthorityService:
         return {
             "payload_ref": payload_ref,
             "feature_schema_version": feature_schema_version,
-            "assigned_learner_workload_id": assigned,
-            "observer_workload_id": principal.workload_id,
         }
 
     def append_observation(
