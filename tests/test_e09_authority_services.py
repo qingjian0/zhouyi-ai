@@ -188,6 +188,50 @@ class E09AuthorityServiceTests(unittest.TestCase):
         )
         return reveal_ref
 
+    def test_observation_payload_reference_requires_existing_verified_vault_entry(self):
+        from prototype.shared_evidence_protocol import digest_payload
+
+        inputs = {"features": ["a", "b"], "source": "test"}
+        payload_ref = digest_payload(inputs)
+        self.store.put_payload(payload_ref, inputs)
+        event_id = f"{self.episode}:payload-observation"
+        receipt = self.authority.append_observation(
+            "observer-cert", episode_id=self.episode, event_id=event_id,
+            idempotency_key=event_id,
+            payload={
+                "observation_id": "payload-observation",
+                "query_id": "payload-query",
+                "scope": self.scope,
+                "split": "SUPPORT",
+                "payload_ref": payload_ref,
+                "feature_schema_version": "e09-features-v1",
+            },
+        )
+        stored = next(
+            event for event in self.store.replay_episode(self.episode)
+            if event["event_id"] == event_id
+        )
+        self.assertEqual(stored["payload"]["payload_ref"], payload_ref)
+        self.assertEqual(stored["payload"]["feature_schema_version"], "e09-features-v1")
+        self.assertEqual(stored["payload_schema"], "observation@6")
+        self.assertEqual(receipt.event_id, event_id)
+
+        missing_ref = digest_payload({"missing": "vault-entry"})
+        with self.assertRaises(E09AuthorizationError):
+            self.authority.append_observation(
+                "observer-cert", episode_id=self.episode,
+                event_id=f"{self.episode}:missing-payload-observation",
+                idempotency_key=f"{self.episode}:missing-payload-observation",
+                payload={
+                    "observation_id": "missing-payload-observation",
+                    "query_id": "missing-payload-query",
+                    "scope": self.scope,
+                    "split": "SUPPORT",
+                    "payload_ref": missing_ref,
+                    "feature_schema_version": "e09-features-v1",
+                },
+            )
+
     def test_trusted_learner_assignment_is_resolved_and_enforced(self):
         resolver = StaticE09LearnerBindingResolver({
             (self.episode, self.scope, self.track): "spiffe://zhouyi/learner",
