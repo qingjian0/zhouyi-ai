@@ -209,14 +209,29 @@ class SQLiteEvidenceStore:
         if contract is None:
             raise ProtocolError("E09 v0.4 supports only observation, prediction_commit and evidence_reveal")
         expected_schema, expected_role, expected_fields = contract
-        if payload_schema != expected_schema:
-            raise ProtocolError(f"E09 v0.4 {event_type} requires payload_schema={expected_schema}")
-        if set(payload) != expected_fields:
-            missing, unknown = expected_fields - set(payload), set(payload) - expected_fields
+        accepted_fields = {expected_schema: expected_fields}
+        if event_type == "observation":
+            # @5 is an explicit, closed extension for Authority-resolved learner
+            # assignment. Legacy @4 observations remain byte-for-byte compatible.
+            accepted_fields["observation@5"] = expected_fields | {
+                "learner_track", "learner_workload_id",
+            }
+        if payload_schema not in accepted_fields:
+            accepted = ", ".join(sorted(accepted_fields))
             raise ProtocolError(
-                f"E09 v0.4 {event_type} closed schema mismatch; "
+                f"E09 v0.4 {event_type} requires payload_schema in {{{accepted}}}"
+            )
+        required_fields = accepted_fields[payload_schema]
+        if set(payload) != required_fields:
+            missing, unknown = required_fields - set(payload), set(payload) - required_fields
+            raise ProtocolError(
+                f"E09 {payload_schema} {event_type} closed schema mismatch; "
                 f"missing={sorted(missing)}, unknown={sorted(unknown)}"
             )
+        if event_type == "observation" and payload_schema == "observation@5":
+            if any(not isinstance(payload.get(field), str) or not payload[field].strip()
+                   for field in ("learner_track", "learner_workload_id")):
+                raise ProtocolError("E09 observation@5 requires non-empty learner assignment fields")
         if actor_role != expected_role:
             raise ProtocolError(f"E09 v0.4 {event_type} requires actor_role={expected_role}")
         if not isinstance(integrity_metadata, dict) or set(integrity_metadata) != {"authenticated_workload"}:
