@@ -1,4 +1,5 @@
 import base64
+from concurrent.futures import ThreadPoolExecutor
 import hashlib
 import json
 import os
@@ -457,16 +458,37 @@ class E12A6WriterServiceTests(unittest.TestCase):
         payload = wire_request()
         app = new_application().start()
         try:
+            wrong_scope = dict(payload)
+            wrong_scope["scope"] = "world/attacker"
+            rejected_scope = submit(wrong_scope)
+            self.assertFalse(rejected_scope["ok"])
+
             forged = dict(payload)
             forged["workload_id"] = "spiffe://attacker/admin"
-            rejected = submit(forged)
-            self.assertFalse(rejected["ok"])
+            rejected_identity = submit(forged)
+            self.assertFalse(rejected_identity["ok"])
+
+            expired = dict(payload)
+            expired["receipt"] = dict(payload["receipt"])
+            expired["receipt"]["expires_at"] = (self.now - timedelta(seconds=1)).isoformat()
+            expired["receipt"]["signature"] = base64.b64encode(
+                self.receipt_signer_private.sign(
+                    verification_receipt_signing_bytes(expired["receipt"])
+                )
+            ).decode("ascii")
+            rejected_expired = submit(expired)
+            self.assertFalse(rejected_expired["ok"])
             self.assertEqual(app._runtime.ledger._memory.replay_lifecycle_events(scope=self.scope), [])
-            first = submit(payload)
-            self.assertTrue(first["ok"])
-            self.assertFalse(first["result"]["replayed"])
-            self.assertEqual(first["result"]["submitter_workload_id"],
-                             "spiffe://zhouyi/candidate-submitter")
+
+            with ThreadPoolExecutor(max_workers=4) as pool:
+                concurrent = list(pool.map(submit, [payload] * 4))
+            self.assertTrue(all(item["ok"] for item in concurrent), concurrent)
+            self.assertEqual(sum(not item["result"]["replayed"] for item in concurrent), 1)
+            self.assertEqual(sum(item["result"]["replayed"] for item in concurrent), 3)
+            self.assertTrue(all(
+                item["result"]["submitter_workload_id"] == "spiffe://zhouyi/candidate-submitter"
+                for item in concurrent
+            ))
         finally:
             app.close()
 
