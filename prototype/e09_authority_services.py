@@ -353,7 +353,7 @@ class E09AuthorityService:
             episode_id=episode_id, event_id=event_id, event_type="structure_version",
             idempotency_key=idempotency_key, payload=event_payload, actor_role="learner",
             causation_refs=causation_refs, integrity_metadata=_identity_metadata(principal),
-            payload_schema="structure_version@1", expected_sequence=expected_sequence,
+            payload_schema="structure_version@2", expected_sequence=expected_sequence,
             protocol_version=DOMAIN_BOUND_PROTOCOL_VERSION,
         )
 
@@ -442,7 +442,7 @@ class E09AuthorityService:
             episode_id=episode_id, event_id=event_id, event_type="revision",
             idempotency_key=idempotency_key, payload=event_payload, actor_role="learner",
             causation_refs=causation_refs, integrity_metadata=_identity_metadata(principal),
-            payload_schema="revision@1", expected_sequence=expected_sequence,
+            payload_schema="revision@2", expected_sequence=expected_sequence,
             protocol_version=DOMAIN_BOUND_PROTOCOL_VERSION,
         )
 
