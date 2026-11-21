@@ -20,7 +20,7 @@ from prototype.e09_ed25519_keyring import E09Ed25519IssuerKeyring
 from prototype.e09_verification_receipt import verify_e09_verification_receipt
 from prototype.e09_observation_receipt import E09ObservationReceiptVerifier
 from prototype.e09_domain_registry import E09DomainBinding, StaticE09DomainRegistry
-from prototype.shared_evidence_protocol import STRICT_PROTOCOL_VERSION, SQLiteEvidenceStore
+from prototype.shared_evidence_protocol import STRICT_PROTOCOL_VERSION, SQLiteEvidenceStore, digest_payload
 from prototype.observation_contract import (
     EpistemicStatus, EvidenceRef, GroundingStatus, RecordEnvelope,
     SemanticUnitCandidate, TruthStatus, UnitKind, record_digest,
@@ -204,9 +204,7 @@ class E09AuthorityServiceTests(unittest.TestCase):
             learner_track=self.track, feature_schema_version="e09-features-v1",
             payload=inputs,
         )
-        self.assertEqual(result["payload_ref"], __import__(
-            "prototype.shared_evidence_protocol", fromlist=["digest_payload"]
-        ).digest_payload(inputs))
+        self.assertEqual(result["payload_ref"], digest_payload(inputs))
         self.assertEqual(self.store.get_payload(result["payload_ref"]), inputs)
         self.assertNotIn("assigned_learner_workload_id", result)
 
