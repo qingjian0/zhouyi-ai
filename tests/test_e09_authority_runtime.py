@@ -133,6 +133,29 @@ class E09AuthorityRuntimeTests(unittest.TestCase):
             )
             self.assertEqual(event["payload_schema"], "observation@5")
 
+    def test_uds_observation_input_upload_uses_server_side_track_binding(self):
+        resolver = StaticE09LearnerBindingResolver({
+            ("ipc-episode", self.scope, "learner-track-a"): "spiffe://runtime/learner-a",
+        })
+        request = {
+            "operation": "put_observation_input",
+            "episode_id": "ipc-episode",
+            "scope": self.scope,
+            "learner_track": "learner-track-a",
+            "feature_schema_version": "e09-features-v1",
+            "payload": {"features": [1, 2, 3]},
+        }
+        with self.runtime(learner_binding_resolver=resolver) as runtime:
+            response = send_request(self.socket_path, request)
+            self.assertTrue(response["ok"])
+            payload_ref = response["result"]["payload_ref"]
+            self.assertEqual(
+                runtime._store.get_payload(payload_ref), {"features": [1, 2, 3]}
+            )
+            forged = {**request, "learner_workload_id": "spiffe://attacker/learner"}
+            rejected = send_request(self.socket_path, forged)
+            self.assertFalse(rejected["ok"])
+
     def test_uds_observation_rejects_unassigned_learner_track(self):
         resolver = StaticE09LearnerBindingResolver({})
         request = self.observation_request()
