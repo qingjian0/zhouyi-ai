@@ -18,11 +18,16 @@ from prototype.shared_evidence_protocol import (
     STRICT_PROTOCOL_VERSION,
     EventReceipt,
     SQLiteEvidenceStore,
+    canonical_json,
+    digest_payload,
 )
 from prototype.observation_contract import record_digest
 from prototype.e09_domain_registry import (
     E09DomainBinding, E09DomainRegistry, E09DomainRegistryError,
 )
+
+
+MAX_E09_OBSERVATION_INPUT_BYTES = 1_048_576
 
 
 class E09ServiceError(PermissionError):
@@ -223,6 +228,53 @@ class E09AuthorityService:
         )
         if not isinstance(assigned, str) or not assigned.strip() or principal.workload_id != assigned:
             raise E09AuthorizationError("learner workload is not assigned to this episode track")
+
+    def put_observation_input(
+        self,
+        credential: object,
+        *,
+        episode_id: str,
+        scope: str,
+        learner_track: str,
+        feature_schema_version: str,
+        payload: dict[str, Any],
+    ) -> dict[str, str]:
+        """Store immutable learner input under an Authority-resolved track assignment."""
+        for field, value in (
+            ("episode_id", episode_id), ("scope", scope),
+            ("learner_track", learner_track),
+            ("feature_schema_version", feature_schema_version),
+        ):
+            if not isinstance(value, str) or not value.strip():
+                raise E09AuthorizationError(f"{field} must be a non-empty string")
+        self._principal(credential, role="observer", scope=scope)
+        self._trusted_domain(scope)
+        if not isinstance(payload, dict):
+            raise E09AuthorizationError("observation input payload must be an object")
+        try:
+            payload_size = len(canonical_json(payload).encode("utf-8"))
+        except Exception as exc:
+            raise E09AuthorizationError("observation input payload must be canonical JSON data") from exc
+        if payload_size > MAX_E09_OBSERVATION_INPUT_BYTES:
+            raise E09AuthorizationError(
+                f"observation input payload exceeds {MAX_E09_OBSERVATION_INPUT_BYTES} bytes"
+            )
+        if self._learner_binding_resolver is None:
+            raise E09AuthorizationError("trusted learner assignment resolver is not configured")
+        assigned = self._learner_binding_resolver.resolve(
+            episode_id=episode_id, scope=scope, learner_track=learner_track,
+        )
+        if not isinstance(assigned, str) or not assigned.strip():
+            raise E09AuthorizationError("no trusted learner workload is assigned to this episode/track")
+        payload_ref = digest_payload(payload)
+        try:
+            self._store.put_payload(payload_ref, payload)
+        except Exception as exc:
+            raise E09AuthorizationError("Authority could not persist the immutable observation input") from exc
+        return {
+            "payload_ref": payload_ref,
+            "feature_schema_version": feature_schema_version,
+        }
 
     def append_observation(
         self,
