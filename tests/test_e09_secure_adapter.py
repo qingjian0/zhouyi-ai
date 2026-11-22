@@ -58,11 +58,12 @@ class Signer:
         return "unused-test-signature"
 
 
-def make_authority(store, *, assigned=True):
+def make_authority(store, *, assigned=True, additional_assignments=None):
     assignments = (
         {(EPISODE, SCOPE, TRACK): "spiffe://test/learner"}
         if assigned else {}
     )
+    assignments.update(additional_assignments or {})
     return E09AuthorityService(
         store,
         authenticator=Authenticator(),
@@ -169,6 +170,79 @@ class E09SecureAdapterTests(unittest.TestCase):
         resumed.predict_and_commit("obs-after-restart", (0, 0, 2))
         self.assertEqual(resumed.replay()[-1]["event_type"], "prediction_commit")
         self.assertEqual(resumed.replay()[-1]["actor_role"], "learner")
+
+    def test_secure_resume_ignores_cross_track_observation_id_collision(self):
+        authority = make_authority(
+            self.store,
+            additional_assignments={
+                (EPISODE, SCOPE, "other-track"): "spiffe://test/other-learner",
+            },
+        )
+        adapter = E09SharedProtocolAdapter(
+            make_runner(), self.store,
+            episode_id=EPISODE, scope=SCOPE,
+            authority=authority,
+            observer_credential="observer",
+            learner_credential="learner",
+            evaluator_credential="evaluator",
+        )
+        commit = adapter.predict_and_commit("obs-shared-id", (0, 0, 2))
+        original = next(
+            event["payload"] for event in adapter.replay()
+            if event["event_type"] == "observation"
+        )
+        from prototype.shared_evidence_protocol import digest_payload
+        foreign_inputs = {"inputs": [1, 1, 2]}
+        foreign_ref = digest_payload(foreign_inputs)
+        self.store.put_payload(foreign_ref, foreign_inputs)
+        foreign_event_id = f"{EPISODE}:foreign-track-observation"
+        authority.append_observation(
+            "observer", episode_id=EPISODE,
+            event_id=foreign_event_id, idempotency_key=foreign_event_id,
+            payload={
+                "observation_id": "obs-shared-id",
+                "query_id": "foreign-query",
+                "scope": SCOPE,
+                "split": "SUPPORT",
+                "learner_track": "other-track",
+                "payload_ref": foreign_ref,
+                "feature_schema_version": "e09-features-v1",
+            },
+        )
+
+        self.store.close()
+        self.store = SQLiteEvidenceStore(self.database)
+        resumed_authority = make_authority(
+            self.store,
+            additional_assignments={
+                (EPISODE, SCOPE, "other-track"): "spiffe://test/other-learner",
+            },
+        )
+        def restore_incremental(snapshot):
+            restored = IncrementalConjunctionLearner(
+                DOMAINS, min_support=snapshot["min_support"]
+            )
+            for record in snapshot["observations"]:
+                for label in record["labels"]:
+                    restored.observe(tuple(record["inputs"]), label)
+            return restored
+
+        resumed = E09SharedProtocolAdapter.resume_srok(
+            self.store, episode_id=EPISODE, scope=SCOPE, split="SUPPORT",
+            learner_track=TRACK, version_prefix="e09",
+            learner_factory=restore_incremental,
+            authority=resumed_authority,
+            observer_credential="observer", learner_credential="learner",
+            evaluator_credential="evaluator",
+        )
+        self.assertEqual(
+            resumed.runner._predictions[commit["prediction_id"]].inputs,
+            tuple(self.store.get_payload(original["payload_ref"])["inputs"]),
+        )
+        self.assertEqual(
+            resumed.runner._predictions[commit["prediction_id"]].inputs,
+            (0, 0, 2),
+        )
 
     def test_secure_mode_fails_closed_without_assigned_learner_or_correct_roles(self):
         with self.assertRaises(E09ProtocolAdapterError):
