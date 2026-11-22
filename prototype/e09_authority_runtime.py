@@ -112,7 +112,8 @@ class E09AuthorityRuntime:
         if self._authority is None:
             raise E09AuthorityRuntimeError("E09 authority is not started")
         operation = request.get("operation")
-        if operation in ("append_observation", "append_prediction_commit", "append_evidence_reveal",\n                          "append_structure_version", "append_revision"):
+        if operation in ("append_observation", "append_prediction_commit", "append_evidence_reveal",
+                          "append_structure_version", "append_revision"):
             common = {"operation", "episode_id", "event_id", "idempotency_key", "payload"}
             expected = common | ({"expected_sequence"} if "expected_sequence" in request else set())
             if operation != "append_observation":
