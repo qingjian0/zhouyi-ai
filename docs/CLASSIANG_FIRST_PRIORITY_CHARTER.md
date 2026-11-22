@@ -149,3 +149,26 @@ automatically discover semantic counterexamples, split/merge ontological
 classes, or establish that upstream feature annotations are correct. Callers
 must retain the complete evidence examples and persist accepted versions
 through the project's lifecycle store if they need durable history.
+
+## 11. Unified symbolic cycle API (P0 integration increment)
+
+The prototype/classiang_pipeline.py module provides one orchestration entry
+point for the currently implemented symbolic primitives:
+
+- task-conditioned aspect selection;
+- evidence-grounded class induction and query membership;
+- optional bounded unsupervised feature-conjunction discovery;
+- optional static and dynamic relation-preservation assessment;
+- optional provenance-checked counterexample revision.
+
+Transfer gating is deliberately fail-closed: the class must have a
+discriminative boundary, the query must be provisionally accepted, at least
+one explicit transfer candidate must be evaluated, and all supplied transfer
+assessments must pass. A passed gate is only a structural/evidence result,
+not proof of semantic or causal equivalence.
+
+This API integrates existing components; it does not yet supply raw-text or
+multimodal feature extraction, learned feature proposal, autonomous entity
+mapping, calibrated confidence, ontology split/merge, persistent revision
+events, or real-domain Gold validation. Those remain explicit P0/P1/P2 work,
+not implied capabilities.
