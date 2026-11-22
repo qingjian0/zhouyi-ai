@@ -421,6 +421,25 @@ class E09AuthorityServiceTests(unittest.TestCase):
                 },
             )
 
+    def test_learner_track_observation_fails_closed_without_trusted_resolver(self):
+        event_id = f"{self.episode}:unbound-track-observation"
+        with self.assertRaisesRegex(E09AuthorizationError, "trusted learner assignment resolver"):
+            self.authority.append_observation(
+                "observer-cert", episode_id=self.episode, event_id=event_id,
+                idempotency_key=event_id,
+                payload={
+                    "observation_id": "unbound-track-observation",
+                    "query_id": "unbound-track-query",
+                    "scope": self.scope,
+                    "split": "SUPPORT",
+                    "learner_track": self.track,
+                },
+            )
+        self.assertFalse(any(
+            event["event_id"] == event_id
+            for event in self.store.replay_episode(self.episode)
+        ))
+
     def test_trusted_learner_assignment_is_resolved_and_enforced(self):
         resolver = StaticE09LearnerBindingResolver({
             (self.episode, self.scope, self.track): "spiffe://zhouyi/learner",
