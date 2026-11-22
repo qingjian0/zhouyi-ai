@@ -164,11 +164,25 @@ class E09SharedProtocolAdapter:
         idempotent. This remains a trusted single-process recovery path.
         """
         events = store.replay_episode(episode_id)
+        # Older trusted-runner episodes persisted learner_track but omitted
+        # scope on structure checkpoints. Accept that legacy shape only when
+        # every explicitly scoped event in this episode belongs to this scope;
+        # never let an unscoped checkpoint cross a known scope boundary.
+        episode_scopes = {
+            e["payload"].get("scope")
+            for e in events
+            if isinstance(e.get("payload"), dict)
+            and isinstance(e["payload"].get("scope"), str)
+        }
+        legacy_scope_is_unambiguous = not episode_scopes or episode_scopes == {scope}
         structures = [
             e for e in events
             if e["event_type"] == "structure_version"
-            and e["payload"].get("scope") == scope
             and e["payload"].get("learner_track") == learner_track
+            and (
+                e["payload"].get("scope") == scope
+                or ("scope" not in e["payload"] and legacy_scope_is_unambiguous)
+            )
         ]
         if not structures:
             raise E09ProtocolAdapterError("episode has no durable structure checkpoint")
@@ -405,6 +419,7 @@ class E09SharedProtocolAdapter:
             "parent_version_ids": [],
             "support_evidence_ids": [],
             "learner_track": self.learner_track,
+            "scope": self.scope,
         }
         if self._authority is not None:
             payload["scope"] = self.scope
