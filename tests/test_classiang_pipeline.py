@@ -2,6 +2,9 @@ import unittest
 from dataclasses import replace
 
 from prototype.analogy import AnalogyCandidate, Evidence, Relation
+from prototype.dynamic_analogy import (
+    DynamicAnalogyCandidate, RelationAtom, StateSnapshot, StateTransition, TransitionSystem,
+)
 from prototype.classiang_engine import (
     ClassExample, FeatureAtom, FeatureCandidate, Observation, select_aspects,
 )
@@ -116,6 +119,39 @@ class ClassiangPipelineTests(unittest.TestCase):
         self.assertIsNotNone(result.analogy_discovery)
         self.assertTrue(any(item.assessment.accepted
                             for item in result.analogy_discovery.candidates))
+        self.assertTrue(result.transfer_gate_passed)
+
+    def test_dynamic_transition_mapping_is_integrated(self):
+        source = TransitionSystem(
+            domain="mechanics",
+            entities=("a", "b"),
+            snapshots=(
+                StateSnapshot("s0", 0, (RelationAtom("a", "b", "supports"),)),
+                StateSnapshot("s1", 1, (RelationAtom("a", "b", "supports"),)),
+            ),
+            transitions=(StateTransition("s0", "s1", "advance"),),
+        )
+        target = TransitionSystem(
+            domain="biology",
+            entities=("x", "y"),
+            snapshots=(
+                StateSnapshot("t0", 0, (RelationAtom("x", "y", "supports"),)),
+                StateSnapshot("t1", 1, (RelationAtom("x", "y", "supports"),)),
+            ),
+            transitions=(StateTransition("t0", "t1", "advance"),),
+        )
+        dynamic = DynamicAnalogyCandidate(
+            candidate_id="dynamic-1",
+            source=source,
+            target=target,
+            entity_mapping={"a": "x", "b": "y"},
+            state_alignment=(("s0", "t0"), ("s1", "t1")),
+            validity_scope="two finite transition systems",
+        )
+        result = run_classiang_cycle(
+            self.request(analogy_candidate=None, dynamic_analogy_candidate=dynamic)
+        )
+        self.assertTrue(result.dynamic_analogy_assessment.accepted)
         self.assertTrue(result.transfer_gate_passed)
 
     def test_relation_mismatch_blocks_transfer(self):
