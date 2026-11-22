@@ -149,3 +149,24 @@ automatically discover semantic counterexamples, split/merge ontological
 classes, or establish that upstream feature annotations are correct. Callers
 must retain the complete evidence examples and persist accepted versions
 through the project's lifecycle store if they need durable history.
+
+## 11. Unified symbolic cycle API (P0 integration increment)
+
+The prototype/classiang_pipeline.py module provides one orchestration entry
+point for the currently implemented symbolic primitives:
+
+- source-text span adapter that binds caller-reviewed feature annotations to exact Unicode character offsets and evidence references (without claiming autonomous text understanding);
+- task-conditioned aspect selection;
+- explicit pairwise observation comparison under one declared task, reporting shared and distinct aspects, evidence references and context without treating overlap as semantic equivalence;
+- evidence-grounded class induction and query membership;
+- optional bounded unsupervised feature-conjunction discovery;
+- optional bounded injective entity-mapping discovery plus static and dynamic relation-preservation assessment;
+- optional provenance-checked counterexample revision.
+
+Transfer gating is deliberately fail-closed: the class must have a
+discriminative boundary, the query must be provisionally accepted, at least
+one explicit transfer candidate must be evaluated, and all supplied transfer
+assessments must pass. A passed gate is only a structural/evidence result,
+not proof of semantic or causal equivalence.
+
+This API integrates the currently available symbolic components and now exposes each symbolic stage, including explicit observation comparison. It does not yet supply raw-text or multimodal feature extraction, learned feature proposal, calibrated confidence, ontology split/merge, persistent revision events, or real-domain Gold validation. These remain follow-on research and engineering work; the symbolic P0 integration must not be described as autonomous concept learning.
