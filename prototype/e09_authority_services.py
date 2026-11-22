@@ -258,8 +258,7 @@ class E09AuthorityService:
                 ) from exc
         scope = payload.get("scope")
         principal = self._principal(credential, role="observer", scope=scope)
-        binding = self._trusted_domain(scope)
-        event_payload = {**payload, **self._domain_payload(binding)}
+        event_payload = {**payload, **trusted_domain}
         if self._learner_binding_resolver is not None:
             learner_track = payload.get("learner_track")
             if not isinstance(learner_track, str) or not learner_track.strip():
@@ -314,6 +313,7 @@ class E09AuthorityService:
         self._assert_learner_assignment(
             principal, episode_id=episode_id, scope=scope, learner_track=track,
         )
+        trusted_domain = self._domain_payload(self._trusted_domain(scope))
         for field in ("structure_id", "version_id", "kind"):
             if not isinstance(payload[field], str) or not payload[field].strip():
                 raise E09AuthorizationError(f"structure {field} must be non-empty")
@@ -343,6 +343,8 @@ class E09AuthorityService:
             ]
             if len(matches) != 1:
                 raise E09AuthorizationError("structure parent version is missing or ambiguous")
+            if trusted_domain != {field: matches[0].get("payload", {}).get(field) for field in trusted_domain}:
+                raise E09AuthorizationError("structure parent belongs to a different trusted domain version")
             required_causation.add(matches[0]["event_id"])
         for reveal_id in supports:
             matches = [
@@ -356,6 +358,8 @@ class E09AuthorityService:
             ]
             if len(matches) != 1:
                 raise E09AuthorizationError("structure support must reference a prior SUPPORT reveal")
+            if trusted_domain != {field: matches[0].get("payload", {}).get(field) for field in trusted_domain}:
+                raise E09AuthorizationError("structure support belongs to a different trusted domain version")
             required_causation.add(reveal_id)
         if (len(causation_refs) != len(set(causation_refs))
                 or set(causation_refs) != required_causation):
