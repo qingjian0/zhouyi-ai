@@ -1,8 +1,10 @@
+import base64
+import hashlib
 import tempfile
 import unittest
 from pathlib import Path
 
-from prototype.e09_counterexample_learner import CounterexampleRuleLearner, Example
+from prototype.e09_authority_services import (\n    E09AuthenticatedWorkload, E09AuthorityService, StaticE09LearnerBindingResolver,\n)\nfrom prototype.e09_domain_registry import E09DomainBinding, StaticE09DomainRegistry\nfrom prototype.e09_counterexample_learner import CounterexampleRuleLearner, Example
 from prototype.e09_incremental_learner import IncrementalConjunctionLearner
 from prototype.e09_prequential import PrequentialError, PrequentialRunner
 from prototype.e09_shared_protocol_adapter import E09SharedProtocolAdapter
@@ -17,6 +19,21 @@ BOOTSTRAP = [
     ("seed-3", Example((1, 0, 0), "no")),
     ("seed-4", Example((1, 1, 0), "no")),
 ]
+
+
+class _AdapterAuthenticator:
+    def __init__(self, identities):
+        self.identities = identities
+
+    def authenticate(self, credential):
+        if credential not in self.identities:
+            raise ValueError("unknown adapter test credential")
+        return self.identities[credential]
+
+
+class _AdapterSigner:
+    def sign(self, issuer_id, message):
+        return base64.b64encode(hashlib.sha256(issuer_id.encode() + message).digest()).decode("ascii")
 
 
 class E09SharedProtocolAdapterTests(unittest.TestCase):
@@ -39,6 +56,74 @@ class E09SharedProtocolAdapterTests(unittest.TestCase):
         return E09SharedProtocolAdapter(
             runner, self.store, episode_id=f"episode-{mode}", scope="e09/test", split=split
         )
+
+    def test_secure_mode_routes_all_writes_through_authority(self):
+        episode = "episode-secure-adapter"
+        scope = "e09/secure-test"
+        track = "e09"
+        identities = {
+            "observer": E09AuthenticatedWorkload(
+                "spiffe://test/observer", "issuer-observer", frozenset({"observer"}),
+                frozenset({scope}), "test", "mTLS", hashlib.sha256(b"observer").hexdigest(),
+            ),
+            "learner": E09AuthenticatedWorkload(
+                "spiffe://test/learner", "issuer-learner", frozenset({"learner"}),
+                frozenset({scope}), "test", "mTLS", hashlib.sha256(b"learner").hexdigest(),
+            ),
+            "evaluator": E09AuthenticatedWorkload(
+                "spiffe://test/evaluator", "issuer-evaluator", frozenset({"evaluator"}),
+                frozenset({scope}), "test", "mTLS", hashlib.sha256(b"evaluator").hexdigest(),
+            ),
+        }
+        authority = E09AuthorityService(
+            self.store,
+            authenticator=_AdapterAuthenticator(identities),
+            signer=_AdapterSigner(),
+            domain_registry=StaticE09DomainRegistry({
+                scope: E09DomainBinding(
+                    "domain:secure-test", "family:secure-test", "registry:test", "v1",
+                ),
+            }),
+            learner_binding_resolver=StaticE09LearnerBindingResolver({
+                (episode, scope, track): "spiffe://test/learner",
+            }),
+        )
+        learner = IncrementalConjunctionLearner(DOMAINS, min_support=2)
+        runner = PrequentialRunner(learner, revision_mode="INCREMENTAL_INDEX")
+        runner.bootstrap(BOOTSTRAP)
+        adapter = E09SharedProtocolAdapter(
+            runner, self.store, episode_id=episode, scope=scope,
+            authority=authority, observer_credential="observer",
+            learner_credential="learner", evaluator_credential="evaluator",
+        )
+        commit = adapter.predict_and_commit("obs-secure", (0, 0, 2))
+        adapter.reveal(commit["prediction_id"], "no")
+        adapter.revise(commit["prediction_id"])
+
+        events = adapter.replay()
+        self.assertEqual(
+            [event["event_type"] for event in events],
+            ["structure_version", "observation", "prediction_commit",
+             "evidence_reveal", "structure_version", "revision"],
+        )
+        self.assertTrue(all(event["protocol_version"] == "0.4" for event in events))
+        self.assertEqual(events[1]["payload"]["learner_workload_id"], "spiffe://test/learner")
+        self.assertEqual(events[2]["integrity_metadata"]["workload_id"], "spiffe://test/learner")
+        self.assertEqual(events[3]["integrity_metadata"]["workload_id"], "spiffe://test/evaluator")
+        self.assertEqual(events[0]["integrity_metadata"]["workload_id"], "spiffe://test/learner")
+        self.assertEqual(events[4]["payload"]["parent_version_ids"], ["e09-v1"])
+        self.assertEqual(events[5]["payload"]["before_version_ids"], ["e09-v1"])
+        self.assertEqual(events[5]["payload"]["after_version_ids"], ["e09-v2"])
+
+    def test_secure_mode_rejects_partial_or_unassigned_credentials(self):
+        learner = IncrementalConjunctionLearner(DOMAINS, min_support=2)
+        runner = PrequentialRunner(learner, revision_mode="INCREMENTAL_INDEX")
+        runner.bootstrap(BOOTSTRAP)
+        with self.assertRaisesRegex(Exception, "secure mode requires"):
+            E09SharedProtocolAdapter(
+                runner, self.store, episode_id="episode-incomplete-secure",
+                scope="e09/secure-test", authority=object(),
+            )
 
     def test_incremental_arm_persists_full_causal_chain(self):
         adapter = self.make_adapter("INCREMENTAL_INDEX")
