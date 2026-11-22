@@ -117,6 +117,114 @@ class E09AuthorityRuntimeTests(unittest.TestCase):
             self.assertEqual(events[0]["actor_role"], "observer")
             self.assertEqual(events[0]["payload"]["domain_id"], "domain:runtime")
 
+    def test_uds_dispatches_authenticated_structure_and_revision_lineage(self):
+        identities = {
+            "observer-cert": E09AuthenticatedWorkload(
+                workload_id="spiffe://runtime/observer", issuer_id="issuer:observer",
+                roles=frozenset({"observer"}), scopes=frozenset({self.scope}),
+                identity_provider="test-spiffe", authentication_method="mTLS",
+                credential_fingerprint="1" * 64,
+            ),
+            "learner-cert": E09AuthenticatedWorkload(
+                workload_id="spiffe://runtime/learner", issuer_id="issuer:learner",
+                roles=frozenset({"learner"}), scopes=frozenset({self.scope}),
+                identity_provider="test-spiffe", authentication_method="mTLS",
+                credential_fingerprint="2" * 64,
+            ),
+            "evaluator-cert": E09AuthenticatedWorkload(
+                workload_id="spiffe://runtime/evaluator", issuer_id="issuer:evaluator",
+                roles=frozenset({"evaluator"}), scopes=frozenset({self.scope}),
+                identity_provider="test-spiffe", authentication_method="mTLS",
+                credential_fingerprint="3" * 64,
+            ),
+        }
+
+        class MultiAuthenticator:
+            def authenticate(self, credential):
+                if credential not in identities:
+                    raise ValueError("unknown credential")
+                return identities[credential]
+
+        runtime = E09AuthorityRuntime(
+            database_path=self.db_path,
+            socket_path=self.socket_path,
+            authenticator=MultiAuthenticator(),
+            signer=Signer(),
+            domain_registry=self.registry,
+            uid_to_credential={os.getuid(): "learner-cert"},
+            socket_gid=os.getgid(),
+            test_only_allow_same_uid=True,
+        )
+        with runtime:
+            authority = runtime._authority
+            episode = "ipc-structure-revision"
+            observation_id = "obs-lineage"
+            observation_event_id = f"{episode}:observation:{observation_id}"
+            authority.append_observation(
+                "observer-cert", episode_id=episode, event_id=observation_event_id,
+                idempotency_key=observation_event_id,
+                payload={"observation_id": observation_id, "query_id": observation_id,
+                         "scope": self.scope, "split": "SUPPORT"},
+            )
+            prediction_id = "prediction-lineage"
+            commit_event_id = f"{episode}:prediction:{prediction_id}"
+            authority.append_prediction_commit(
+                "learner-cert", episode_id=episode, event_id=commit_event_id,
+                idempotency_key=commit_event_id, causation_refs=[observation_event_id],
+                payload={"prediction_id": prediction_id, "observation_id": observation_id,
+                         "model_version": "model-v1", "learner_track": "track-a",
+                         "decision_status": "PREDICT", "query_id": observation_id,
+                         "scope": self.scope, "split": "SUPPORT",
+                         "interop_commit_digest": "a" * 64},
+            )
+            reveal_event_id = f"{episode}:reveal:{prediction_id}"
+            authority.append_evidence_reveal(
+                "evaluator-cert", episode_id=episode, event_id=reveal_event_id,
+                idempotency_key=reveal_event_id, causation_refs=[commit_event_id],
+                payload={"prediction_id": prediction_id, "learner_track": "track-a",
+                         "target_or_feedback": "yes", "query_id": observation_id,
+                         "scope": self.scope, "split": "SUPPORT",
+                         "commit_digest": "b" * 64, "event_digest": "c" * 64},
+            )
+
+            def request(operation, event_id, payload, causation_refs=None):
+                body = {
+                    "operation": operation, "episode_id": episode, "event_id": event_id,
+                    "idempotency_key": event_id, "payload": payload,
+                }
+                if causation_refs is not None:
+                    body["causation_refs"] = causation_refs
+                response = send_request(self.socket_path, body)
+                self.assertTrue(response["ok"], response)
+                self.assertEqual(response["result"]["event_id"], event_id)
+
+            initial_id = f"{episode}:structure:v1"
+            initial_payload = {
+                "structure_id": "rules", "version_id": "v1", "kind": "rule_set",
+                "definition": {}, "parent_version_ids": [], "support_evidence_ids": [],
+                "learner_track": "track-a", "scope": self.scope,
+            }
+            request("append_structure_version", initial_id, initial_payload, [])
+
+            next_id = f"{episode}:structure:v2"
+            next_payload = {
+                **initial_payload, "version_id": "v2",
+                "parent_version_ids": ["v1"], "support_evidence_ids": [reveal_event_id],
+            }
+            request("append_structure_version", next_id, next_payload, [initial_id, reveal_event_id])
+
+            revision_id = f"{episode}:revision:r1"
+            request("append_revision", revision_id, {
+                "revision_id": "r1", "operation": "INCREMENTAL_INDEX",
+                "trigger_evidence_ids": [reveal_event_id], "before_version_ids": ["v1"],
+                "after_version_ids": ["v2"], "learner_track": "track-a",
+                "training_example_count": 1, "candidate_evaluations": 8,
+                "scope": self.scope,
+            }, [reveal_event_id, initial_id, next_id])
+            events = runtime._store.replay_episode(episode)
+            self.assertEqual(events[-1]["event_type"], "revision")
+            self.assertEqual(events[-1]["payload"]["domain_id"], "domain:runtime")
+
     def test_uds_observation_uses_server_resolved_learner_assignment(self):
         resolver = StaticE09LearnerBindingResolver({
             ("ipc-episode", self.scope, "learner-track-a"): "spiffe://runtime/learner-a",
