@@ -7,7 +7,6 @@ upstream annotation and mapping remains explicit and auditable.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Sequence
 
 from prototype.analogy import AnalogyCandidate, AnalogyAssessment, assess_analogy
 from prototype.classiang_discovery import (
