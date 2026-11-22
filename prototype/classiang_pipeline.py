@@ -76,6 +76,7 @@ class ClassiangCycleRequest:
     dynamic_analogy_candidate: DynamicAnalogyCandidate | None = None
     discovery_objects: tuple[ObjectView, ...] | None = None
     revision: RevisionRequest | None = None
+    comparison_observations: tuple[Observation, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -88,8 +89,65 @@ class ClassiangCycleResult:
     analogy_discovery: AnalogyDiscoveryResult | None
     dynamic_analogy_assessment: DynamicAnalogyAssessment | None
     revision: ClassRevisionResult | None
+    comparisons: tuple[ObservationComparison, ...]
     transfer_gate_passed: bool
     reason_codes: tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class ObservationComparison:
+    """Evidence-grounded aspect comparison; overlap is not semantic equivalence."""
+
+    left_observation_id: str
+    right_observation_id: str
+    purpose: str
+    left_aspects: tuple
+    right_aspects: tuple
+    shared_aspects: tuple
+    left_only_aspects: tuple
+    right_only_aspects: tuple
+    shared_evidence_refs: tuple[str, ...]
+    shared_context: tuple[str, ...]
+    same_domain: bool
+
+
+def compare_observations(
+    left: Observation,
+    right: Observation,
+    *,
+    purpose: str,
+    min_relevance: float = 0.5,
+) -> ObservationComparison:
+    """Compare two observations under the same task-conditioned aspect policy.
+
+    The result reports explicit intersections and differences only. Shared
+    features, evidence references, or context do not establish class identity,
+    causal equivalence, or a valid cross-domain transfer.
+    """
+    if not isinstance(left, Observation) or not isinstance(right, Observation):
+        raise ValueError("left and right must be Observation")
+    if left.observation_id == right.observation_id:
+        raise ValueError("observations must have distinct IDs")
+    left_selection = select_aspects(
+        left, purpose=purpose, min_relevance=min_relevance,
+    )
+    right_selection = select_aspects(
+        right, purpose=purpose, min_relevance=min_relevance,
+    )
+    left_set, right_set = set(left_selection.selected), set(right_selection.selected)
+    return ObservationComparison(
+        left_observation_id=left.observation_id,
+        right_observation_id=right.observation_id,
+        purpose=purpose,
+        left_aspects=left_selection.selected,
+        right_aspects=right_selection.selected,
+        shared_aspects=tuple(sorted(left_set & right_set)),
+        left_only_aspects=tuple(sorted(left_set - right_set)),
+        right_only_aspects=tuple(sorted(right_set - left_set)),
+        shared_evidence_refs=tuple(sorted(set(left.evidence_refs) & set(right.evidence_refs))),
+        shared_context=tuple(sorted(set(left.context) & set(right.context))),
+        same_domain=left.domain == right.domain,
+    )
 
 
 def run_classiang_cycle(request: ClassiangCycleRequest) -> ClassiangCycleResult:
@@ -128,6 +186,16 @@ def run_classiang_cycle(request: ClassiangCycleRequest) -> ClassiangCycleResult:
     membership = (
         assess_membership(request.query_observation, induction.hypothesis)
         if induction.hypothesis is not None else None
+    )
+
+    if not isinstance(request.comparison_observations, tuple):
+        raise ValueError("comparison_observations must be a tuple")
+    comparisons = tuple(
+        compare_observations(
+            request.query_observation, other,
+            purpose=request.purpose, min_relevance=request.min_relevance,
+        )
+        for other in request.comparison_observations
     )
 
     discovery = (
@@ -215,6 +283,7 @@ def run_classiang_cycle(request: ClassiangCycleRequest) -> ClassiangCycleResult:
         analogy_discovery=analogy_discovery,
         dynamic_analogy_assessment=dynamic_assessment,
         revision=revision_result,
+        comparisons=comparisons,
         transfer_gate_passed=transfer_gate_passed,
         reason_codes=tuple(reasons),
     )

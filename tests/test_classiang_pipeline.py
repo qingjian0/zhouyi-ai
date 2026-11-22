@@ -77,6 +77,35 @@ class ClassiangPipelineTests(unittest.TestCase):
         values.update(overrides)
         return ClassiangCycleRequest(**values)
 
+    def test_compare_stage_reports_shared_and_distinct_aspects(self):
+        from prototype.classiang_pipeline import compare_observations
+
+        left = make_observation(
+            "compare-left", (self.feature, self.feature2)
+        )
+        right = make_observation(
+            "compare-right", (self.feature, FeatureAtom("attribute", "metal"))
+        )
+        result = compare_observations(left, right, purpose="recognition")
+        self.assertEqual(result.shared_aspects, (self.feature,))
+        self.assertEqual(result.left_only_aspects, (self.feature2,))
+        self.assertEqual(
+            result.right_only_aspects, (FeatureAtom("attribute", "metal"),)
+        )
+        self.assertFalse(result.same_domain is False)
+        self.assertEqual(result.shared_evidence_refs, ())
+
+    def test_cycle_composes_comparison_without_promoting_similarity(self):
+        other = make_observation(
+            "comparison-target", (self.feature, FeatureAtom("attribute", "metal"))
+        )
+        result = run_classiang_cycle(
+            self.request(comparison_observations=(other,))
+        )
+        self.assertEqual(len(result.comparisons), 1)
+        self.assertEqual(result.comparisons[0].shared_aspects, (self.feature,))
+        self.assertTrue(result.transfer_gate_passed)
+
     def test_runs_discriminative_class_and_transfer_gates(self):
         result = run_classiang_cycle(self.request())
         self.assertEqual(result.induction.status.value, "discriminative")
