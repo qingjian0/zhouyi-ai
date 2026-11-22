@@ -258,12 +258,19 @@ class E09SharedProtocolAdapter:
                 split=EvidenceSplit(split.lower()),
                 model_version=payload["model_version"],
             )
-            if interop.commit_digest != payload["interop_commit_digest"]:
-                raise E09ProtocolAdapterError("reconstructed prediction commit digest mismatch")
+            if instance._authority is None:
+                if interop.commit_digest != payload["interop_commit_digest"]:
+                    raise E09ProtocolAdapterError("reconstructed prediction commit digest mismatch")
+                instance._commit_digests[prediction_id] = interop.commit_digest
+                instance._interop_commits[prediction_id] = interop
+            else:
+                # Authority v0.4 intentionally persists only the commit digest and
+                # decision metadata, not the prediction body. The latest durable
+                # structure snapshot already contains post-revision learner state;
+                # retain the immutable commit identity without fabricating a body.
+                instance._commit_digests[prediction_id] = payload["interop_commit_digest"]
             instance._committed_predictions.add(prediction_id)
-            instance._commit_digests[prediction_id] = interop.commit_digest
             instance._event_digests[prediction_id] = event["payload_digest"]
-            instance._interop_commits[prediction_id] = interop
             instance._prediction_queries[prediction_id] = observation_id
             if hasattr(learner, "last_inference"):
                 learner.last_inference = dict(
