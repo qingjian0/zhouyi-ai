@@ -409,26 +409,53 @@ class E09SharedProtocolAdapter:
         self._assert_healthy()
         try:
             input_values = tuple(inputs)
-            input_digest = digest_payload({"inputs": self._jsonable(input_values)})
-            self.store.put_payload(input_digest, {"inputs": self._jsonable(input_values)})
+            input_payload = {"inputs": self._jsonable(input_values)}
+            if self._authority is not None:
+                uploaded = self._authority.put_observation_input(
+                    self._observer_credential,
+                    episode_id=self.episode_id,
+                    scope=self.scope,
+                    learner_track=self.learner_track,
+                    feature_schema_version="e09-categorical-input-v1",
+                    payload=input_payload,
+                )
+                input_digest = uploaded["payload_ref"]
+            else:
+                input_digest = digest_payload(input_payload)
+                self.store.put_payload(input_digest, input_payload)
+
             observation_event_id = f"{self.episode_id}:observation:{observation_id}"
+            observation_payload = {
+                "observation_id": observation_id,
+                "query_id": observation_id,
+                "scope": self.scope,
+                "split": self.split,
+                "learner_track": self.learner_track,
+                "payload_ref": input_digest,
+                "feature_schema_version": "e09-categorical-input-v1",
+            }
             # The durable observation is sequenced before the learner predicts.
-            self.store.append_event(
-                episode_id=self.episode_id,
-                event_id=observation_event_id,
-                event_type="observation",
-                idempotency_key=observation_event_id,
-                actor_role="runner",
-                payload={
-                    "observation_id": observation_id,
-                    "query_id": observation_id,
-                    "scope": self.scope,
-                    "split": self.split,
-                    "payload_ref": input_digest,
-                    "feature_schema_version": "e09-categorical-input-v1",
-                },
-                protocol_version=STRICT_PROTOCOL_VERSION,
-            )
+            if self._authority is not None:
+                self._authority.append_observation(
+                    self._observer_credential,
+                    episode_id=self.episode_id,
+                    event_id=observation_event_id,
+                    idempotency_key=observation_event_id,
+                    payload=observation_payload,
+                )
+            else:
+                legacy_payload = dict(observation_payload)
+                legacy_payload.pop("learner_track")
+                self.store.append_event(
+                    episode_id=self.episode_id,
+                    event_id=observation_event_id,
+                    event_type="observation",
+                    idempotency_key=observation_event_id,
+                    actor_role="runner",
+                    payload=legacy_payload,
+                    protocol_version=STRICT_PROTOCOL_VERSION,
+                )
+
             commit = self.runner.predict_and_commit(observation_id, input_values)
             interop_commit = PredictionCommit(
                 commit_id=commit.prediction_id,
@@ -472,15 +499,25 @@ class E09SharedProtocolAdapter:
                 },
             }
             prediction_event_id = f"{self.episode_id}:prediction:{commit.prediction_id}"
-            prediction_receipt = self.store.commit_prediction(
-                episode_id=self.episode_id,
-                event_id=prediction_event_id,
-                idempotency_key=prediction_event_id,
-                actor_role="learner",
-                causation_refs=[observation_event_id],
-                payload=prediction_payload,
-                protocol_version=STRICT_PROTOCOL_VERSION,
-            )
+            if self._authority is not None:
+                prediction_receipt = self._authority.append_prediction_commit(
+                    self._learner_credential,
+                    episode_id=self.episode_id,
+                    event_id=prediction_event_id,
+                    idempotency_key=prediction_event_id,
+                    causation_refs=[observation_event_id],
+                    payload=prediction_payload,
+                )
+            else:
+                prediction_receipt = self.store.commit_prediction(
+                    episode_id=self.episode_id,
+                    event_id=prediction_event_id,
+                    idempotency_key=prediction_event_id,
+                    actor_role="learner",
+                    causation_refs=[observation_event_id],
+                    payload=prediction_payload,
+                    protocol_version=STRICT_PROTOCOL_VERSION,
+                )
             self._committed_predictions.add(commit.prediction_id)
             self._commit_digests[commit.prediction_id] = interop_commit.commit_digest
             self._event_digests[commit.prediction_id] = prediction_receipt.payload_digest
