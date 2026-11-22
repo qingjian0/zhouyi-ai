@@ -1,3 +1,4 @@
+import hashlib
 import json
 import os
 import socket
@@ -168,14 +169,15 @@ class E09AuthorityRuntimeTests(unittest.TestCase):
             )
             prediction_id = "prediction-lineage"
             commit_event_id = f"{episode}:prediction:{prediction_id}"
-            authority.append_prediction_commit(
+            semantic_digest = hashlib.sha256(prediction_id.encode()).hexdigest()
+            commit_receipt = authority.append_prediction_commit(
                 "learner-cert", episode_id=episode, event_id=commit_event_id,
                 idempotency_key=commit_event_id, causation_refs=[observation_event_id],
                 payload={"prediction_id": prediction_id, "observation_id": observation_id,
                          "model_version": "model-v1", "learner_track": "track-a",
                          "decision_status": "PREDICT", "query_id": observation_id,
                          "scope": self.scope, "split": "SUPPORT",
-                         "interop_commit_digest": "a" * 64},
+                         "interop_commit_digest": semantic_digest},
             )
             reveal_event_id = f"{episode}:reveal:{prediction_id}"
             authority.append_evidence_reveal(
@@ -184,7 +186,8 @@ class E09AuthorityRuntimeTests(unittest.TestCase):
                 payload={"prediction_id": prediction_id, "learner_track": "track-a",
                          "target_or_feedback": "yes", "query_id": observation_id,
                          "scope": self.scope, "split": "SUPPORT",
-                         "commit_digest": "b" * 64, "event_digest": "c" * 64},
+                         "commit_digest": semantic_digest,
+                         "event_digest": commit_receipt.payload_digest},
             )
 
             def request(operation, event_id, payload, causation_refs=None):
