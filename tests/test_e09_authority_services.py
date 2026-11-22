@@ -20,7 +20,7 @@ from prototype.e09_ed25519_keyring import E09Ed25519IssuerKeyring
 from prototype.e09_verification_receipt import verify_e09_verification_receipt
 from prototype.e09_observation_receipt import E09ObservationReceiptVerifier
 from prototype.e09_domain_registry import E09DomainBinding, StaticE09DomainRegistry
-from prototype.shared_evidence_protocol import STRICT_PROTOCOL_VERSION, SQLiteEvidenceStore
+from prototype.shared_evidence_protocol import STRICT_PROTOCOL_VERSION, SQLiteEvidenceStore, digest_payload
 from prototype.observation_contract import (
     EpistemicStatus, EvidenceRef, GroundingStatus, RecordEnvelope,
     SemanticUnitCandidate, TruthStatus, UnitKind, record_digest,
@@ -714,6 +714,66 @@ class E09AuthorityServiceTests(unittest.TestCase):
         self.assertEqual(event["payload"]["issuer_id"], "issuer-authority")
         self.assertEqual(event["actor_role"], "authorizer")
         self.assertFalse(receipt.replayed)
+
+
+    def test_observation_input_is_stored_only_for_authority_resolved_learner(self):
+        resolver = StaticE09LearnerBindingResolver({
+            (self.episode, self.scope, self.track): "spiffe://zhouyi/learner",
+        })
+        authority = E09AuthorityService(
+            self.store, authenticator=self.authenticator, signer=_Signer(self.private),
+            clock=_FixedClock(datetime(2026, 11, 12, 0, 0, tzinfo=timezone.utc)),
+            max_grant_ttl=timedelta(hours=1), domain_registry=self.domain_registry,
+            learner_binding_resolver=resolver,
+        )
+        inputs = {"features": [0, 1, 2], "source": "fixture"}
+        result = authority.put_observation_input(
+            "observer-cert", episode_id=self.episode, scope=self.scope,
+            learner_track=self.track, feature_schema_version="e09-features-v1",
+            payload=inputs,
+        )
+        self.assertEqual(result["payload_ref"], digest_payload(inputs))
+        self.assertEqual(self.store.get_payload(result["payload_ref"]), inputs)
+        self.assertNotIn("assigned_learner_workload_id", result)
+        event_id = f"{self.episode}:authority-uploaded-observation"
+        authority.append_observation(
+            "observer-cert", episode_id=self.episode, event_id=event_id,
+            idempotency_key=event_id,
+            payload={
+                "observation_id": "authority-uploaded-observation",
+                "query_id": "authority-uploaded-query",
+                "scope": self.scope,
+                "split": "SUPPORT",
+                "learner_track": self.track,
+                "payload_ref": result["payload_ref"],
+                "feature_schema_version": result["feature_schema_version"],
+            },
+        )
+        stored = next(
+            event for event in self.store.replay_episode(self.episode)
+            if event["event_id"] == event_id
+        )
+        self.assertEqual(stored["payload_schema"], "observation@7")
+        self.assertEqual(stored["payload"]["payload_ref"], result["payload_ref"])
+
+        with self.assertRaises(E09AuthorizationError):
+            authority.put_observation_input(
+                "observer-cert", episode_id=self.episode, scope=self.scope,
+                learner_track="unassigned-track",
+                feature_schema_version="e09-features-v1", payload=inputs,
+            )
+        with self.assertRaisesRegex(E09AuthorizationError, "exceeds"):
+            authority.put_observation_input(
+                "observer-cert", episode_id=self.episode, scope=self.scope,
+                learner_track=self.track, feature_schema_version="e09-features-v1",
+                payload={"oversized": "x" * 1_048_577},
+            )
+        with self.assertRaises(E09AuthorizationError):
+            self.authority.put_observation_input(
+                "observer-cert", episode_id=self.episode, scope=self.scope,
+                learner_track=self.track, feature_schema_version="e09-features-v1",
+                payload=inputs,
+            )
 
 
 if __name__ == "__main__":
