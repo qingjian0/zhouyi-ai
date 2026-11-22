@@ -1,4 +1,4 @@
-import json,tempfile,unittest
+import ast,json,tempfile,unittest
 from pathlib import Path
 from prototype.zpcm_memory import ZPCMError,ZPCMMemory,canonical
 from prototype.shared_evidence_protocol import SQLiteEvidenceStore
@@ -18,6 +18,17 @@ class Tests(unittest.TestCase):
    detail=" ".join(str(row[3]) for row in rows)
    with self.subTest(query=query_name):
     self.assertIn("memory_events_type_scope_seq",detail)
+
+ def test_public_domain_event_methods_have_one_canonical_definition(self):
+  source=Path(__file__).resolve().parents[1]/"prototype"/"zpcm_memory.py"
+  tree=ast.parse(source.read_text(encoding="utf-8"))
+  memory=next(node for node in tree.body if isinstance(node,ast.ClassDef) and node.name=="ZPCMMemory")
+  targets={"append_domain_event","iter_domain_events","get_domain_event","iter_domain_events_reverse"}
+  counts={name:0 for name in targets}
+  for node in memory.body:
+   if isinstance(node,(ast.FunctionDef,ast.AsyncFunctionDef)) and node.name in targets:
+    counts[node.name]+=1
+  self.assertEqual(counts,{name:1 for name in targets})
 
  def test_authorization_index_rebuild_streams_scoped_events(self):
   self.m.append_lifecycle_event(
