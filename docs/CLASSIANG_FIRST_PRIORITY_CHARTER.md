@@ -168,6 +168,6 @@ assessments must pass. A passed gate is only a structural/evidence result,
 not proof of semantic or causal equivalence.
 
 This API integrates existing components; it does not yet supply raw-text or
-multimodal feature extraction, learned feature proposal, learned feature proposal, calibrated confidence, ontology split/merge, persistent revision
+multimodal feature extraction, learned feature proposal, calibrated confidence, ontology split/merge, persistent revision
 events, or real-domain Gold validation. Those remain explicit P0/P1/P2 work,
 not implied capabilities.
