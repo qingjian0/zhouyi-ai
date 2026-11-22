@@ -560,25 +560,37 @@ class E09SharedProtocolAdapter:
                 learner_track=self.learner_track,
             )
             validate_reveal_binding(self._interop_commits[prediction_id], interop_reveal, require_context=True)
-            self.store.reveal_evidence(
-                episode_id=self.episode_id,
-                event_id=event_id,
-                idempotency_key=event_id,
-                actor_role="evaluator",
-                causation_refs=[f"{self.episode_id}:prediction:{prediction_id}"],
-                payload={
-                    "prediction_id": prediction_id,
-                    "query_id": self._prediction_queries[prediction_id],
-                    "scope": self.scope,
-                    "split": self.split,
-                    "commit_digest": interop_reveal.commit_digest,
-                    "event_digest": self._event_digests[prediction_id],
-                    "learner_track": self.learner_track,
-                    "target_or_feedback": self._jsonable(label),
-                    "reveal_source": source,
-                },
-                protocol_version=STRICT_PROTOCOL_VERSION,
-            )
+            reveal_payload = {
+                "prediction_id": prediction_id,
+                "query_id": self._prediction_queries[prediction_id],
+                "scope": self.scope,
+                "split": self.split,
+                "commit_digest": interop_reveal.commit_digest,
+                "event_digest": self._event_digests[prediction_id],
+                "learner_track": self.learner_track,
+                "target_or_feedback": self._jsonable(label),
+                "reveal_source": source,
+            }
+            reveal_causes = [f"{self.episode_id}:prediction:{prediction_id}"]
+            if self._authority is not None:
+                self._authority.append_evidence_reveal(
+                    self._evaluator_credential,
+                    episode_id=self.episode_id,
+                    event_id=event_id,
+                    idempotency_key=event_id,
+                    causation_refs=reveal_causes,
+                    payload=reveal_payload,
+                )
+            else:
+                self.store.reveal_evidence(
+                    episode_id=self.episode_id,
+                    event_id=event_id,
+                    idempotency_key=event_id,
+                    actor_role="evaluator",
+                    causation_refs=reveal_causes,
+                    payload=reveal_payload,
+                    protocol_version=STRICT_PROTOCOL_VERSION,
+                )
             # Source IDs remain in E09's provenance ledger, not learner-facing
             # protocol payloads; the protocol has no evaluator-only field ACL.
             # Only SUPPORT evidence may enter the learner's update path.
