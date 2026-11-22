@@ -12,6 +12,7 @@ from typing import Any, Callable, Sequence
 from prototype.shared_evidence_protocol import (
     EVIDENCE_SPLITS, STRICT_PROTOCOL_VERSION, SQLiteEvidenceStore, digest_payload,
 )
+from prototype.e09_authority_services import E09AuthorityService
 from prototype.e09_prequential import (
     PrequentialRunner, PrequentialError,
     PredictionCommit as RunnerPredictionCommit,
@@ -38,7 +39,11 @@ class E09SharedProtocolAdapter:
                  structure_id: str = "e09-rule-set",
                  structure_kind: str = "rule_set",
                  version_prefix: str = "e09",
-                 memory_projection: Any | None = None) -> None:
+                 memory_projection: Any | None = None,
+                 authority: E09AuthorityService | None = None,
+                 observer_credential: object | None = None,
+                 learner_credential: object | None = None,
+                 evaluator_credential: object | None = None) -> None:
         if not isinstance(episode_id, str) or not episode_id.strip():
             raise ValueError("episode_id must be non-empty")
         if not isinstance(learner_track, str) or not learner_track.strip():
@@ -62,6 +67,12 @@ class E09SharedProtocolAdapter:
         self.structure_kind = structure_kind
         self.version_prefix = version_prefix
         self.memory_projection = memory_projection
+        self._configure_authority(
+            authority=authority,
+            observer_credential=observer_credential,
+            learner_credential=learner_credential,
+            evaluator_credential=evaluator_credential,
+        )
         self._failed = False
         self._committed_predictions: set[str] = set()
         self._commit_digests: dict[str, str] = {}
@@ -76,6 +87,46 @@ class E09SharedProtocolAdapter:
             )
         self._append_initial_structure()
         self._sync_memory()
+
+    def _configure_authority(
+        self,
+        *,
+        authority: E09AuthorityService | None,
+        observer_credential: object | None,
+        learner_credential: object | None,
+        evaluator_credential: object | None,
+    ) -> None:
+        supplied = (authority, observer_credential, learner_credential, evaluator_credential)
+        if not any(value is not None for value in supplied):
+            self._authority = None
+            self._observer_credential = None
+            self._learner_credential = None
+            self._evaluator_credential = None
+            return
+        if (not isinstance(authority, E09AuthorityService)
+                or observer_credential is None
+                or learner_credential is None
+                or evaluator_credential is None):
+            raise E09ProtocolAdapterError(
+                "secure mode requires an E09AuthorityService and observer, learner, evaluator credentials"
+            )
+        try:
+            authority.validate_adapter_workloads(
+                episode_id=self.episode_id,
+                scope=self.scope,
+                learner_track=self.learner_track,
+                observer_credential=observer_credential,
+                learner_credential=learner_credential,
+                evaluator_credential=evaluator_credential,
+            )
+        except Exception as exc:
+            raise E09ProtocolAdapterError(
+                f"secure adapter workload validation failed: {exc}"
+            ) from exc
+        self._authority = authority
+        self._observer_credential = observer_credential
+        self._learner_credential = learner_credential
+        self._evaluator_credential = evaluator_credential
 
     def _sync_memory(self) -> None:
         if self.memory_projection is None:
@@ -101,6 +152,10 @@ class E09SharedProtocolAdapter:
         split: str, learner_track: str, version_prefix: str,
         learner_factory: Callable[[dict[str, Any]], Any],
         memory_projection: Any | None = None,
+        authority: E09AuthorityService | None = None,
+        observer_credential: object | None = None,
+        learner_credential: object | None = None,
+        evaluator_credential: object | None = None,
     ) -> "E09SharedProtocolAdapter":
         """Rebuild SROK/E09 in-memory state from durable events and checkpoints.
 
@@ -154,6 +209,12 @@ class E09SharedProtocolAdapter:
         instance.structure_kind = latest_payload["kind"]
         instance.version_prefix = version_prefix
         instance.memory_projection = memory_projection
+        instance._configure_authority(
+            authority=authority,
+            observer_credential=observer_credential,
+            learner_credential=learner_credential,
+            evaluator_credential=evaluator_credential,
+        )
         instance._failed = False
         instance._committed_predictions = set()
         instance._commit_digests = {}
