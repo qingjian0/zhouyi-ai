@@ -52,9 +52,10 @@ def valid_analogy():
 class ClassiangPipelineTests(unittest.TestCase):
     def setUp(self):
         self.feature = FeatureAtom("function", "transfers-load")
+        self.feature2 = FeatureAtom("process", "cyclic")
         self.positive = (
-            make_example("p1", (self.feature,)),
-            make_example("p2", (self.feature,)),
+            make_example("p1", (self.feature, self.feature2)),
+            make_example("p2", (self.feature, self.feature2)),
         )
         self.negative = (
             make_example("n1", (FeatureAtom("attribute", "blue"),)),
@@ -65,7 +66,7 @@ class ClassiangPipelineTests(unittest.TestCase):
             class_id="load-transfer",
             purpose="recognition",
             validity_scope="fixture-only",
-            query_observation=make_observation("query", (self.feature,)),
+            query_observation=make_observation("query", (self.feature, self.feature2)),
             positive_examples=self.positive,
             negative_examples=self.negative,
             analogy_candidate=valid_analogy(),
@@ -118,6 +119,7 @@ class ClassiangPipelineTests(unittest.TestCase):
         result = run_classiang_cycle(self.request(revision=revision))
         self.assertIsNotNone(result.revision)
         self.assertEqual(result.revision.active_hypothesis.version, 2)
+        self.assertEqual(result.revision.removed_required_features, (self.feature,))
         self.assertEqual(initial.version, 1)
 
 
