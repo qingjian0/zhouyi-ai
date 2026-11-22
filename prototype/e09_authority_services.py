@@ -258,7 +258,8 @@ class E09AuthorityService:
                 ) from exc
         scope = payload.get("scope")
         principal = self._principal(credential, role="observer", scope=scope)
-        event_payload = {**payload, **trusted_domain}
+        binding = self._trusted_domain(scope)
+        event_payload = {**payload, **self._domain_payload(binding)}
         if self._learner_binding_resolver is not None:
             learner_track = payload.get("learner_track")
             if not isinstance(learner_track, str) or not learner_track.strip():
@@ -366,8 +367,7 @@ class E09AuthorityService:
             raise E09AuthorizationError("structure causation must exactly match its parent and support events")
         if not parents and supports:
             raise E09AuthorizationError("initial structure cannot cite support evidence without a parent")
-        binding = self._trusted_domain(scope)
-        event_payload = {**payload, **self._domain_payload(binding)}
+        event_payload = {**payload, **trusted_domain}
         return self._store.append_event(
             episode_id=episode_id, event_id=event_id, event_type="structure_version",
             idempotency_key=idempotency_key, payload=event_payload, actor_role="learner",
