@@ -156,6 +156,7 @@ The prototype/classiang_pipeline.py module provides one orchestration entry
 point for the currently implemented symbolic primitives:
 
 - task-conditioned aspect selection;
+- explicit pairwise observation comparison under one declared task, reporting shared and distinct aspects, evidence references and context without treating overlap as semantic equivalence;
 - evidence-grounded class induction and query membership;
 - optional bounded unsupervised feature-conjunction discovery;
 - optional bounded injective entity-mapping discovery plus static and dynamic relation-preservation assessment;
@@ -167,7 +168,4 @@ one explicit transfer candidate must be evaluated, and all supplied transfer
 assessments must pass. A passed gate is only a structural/evidence result,
 not proof of semantic or causal equivalence.
 
-This API integrates existing components; it does not yet supply raw-text or
-multimodal feature extraction, learned feature proposal, calibrated confidence, ontology split/merge, persistent revision
-events, or real-domain Gold validation. Those remain explicit P0/P1/P2 work,
-not implied capabilities.
+This API integrates the currently available symbolic components and now exposes each symbolic stage, including explicit observation comparison. It does not yet supply raw-text or multimodal feature extraction, learned feature proposal, calibrated confidence, ontology split/merge, persistent revision events, or real-domain Gold validation. These remain follow-on research and engineering work; the symbolic P0 integration must not be described as autonomous concept learning.

@@ -95,6 +95,14 @@ class ClassiangPipelineTests(unittest.TestCase):
         self.assertTrue(result.same_domain)
         self.assertEqual(result.shared_evidence_refs, ())
 
+    def test_compare_rejects_same_observation_identity(self):
+        from prototype.classiang_pipeline import compare_observations
+
+        left = make_observation("same-id", (self.feature,))
+        right = make_observation("same-id", (self.feature2,))
+        with self.assertRaisesRegex(ValueError, "distinct IDs"):
+            compare_observations(left, right, purpose="recognition")
+
     def test_cycle_composes_comparison_without_promoting_similarity(self):
         other = make_observation(
             "comparison-target", (self.feature, FeatureAtom("attribute", "metal"))
