@@ -161,7 +161,7 @@ def _parse_sizes(value: str) -> list[int]:
 
 def main(argv: Iterable[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--sizes", type=_parse_sizes, default=_parse_sizes("1000,10000,50000"))
+    parser.add_argument("--sizes", type=_parse_sizes, default=_parse_sizes("1000,10000,50000,100000"))
     parser.add_argument("--scope", default="m2-rss-benchmark")
     parser.add_argument("--page-size", type=int, default=64)
     parser.add_argument("--probe", action="store_true", help=argparse.SUPPRESS)
