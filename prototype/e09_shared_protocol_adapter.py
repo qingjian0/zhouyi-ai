@@ -167,6 +167,7 @@ class E09SharedProtocolAdapter:
         structures = [
             e for e in events
             if e["event_type"] == "structure_version"
+            and e["payload"].get("scope") == scope
             and e["payload"].get("learner_track") == learner_track
         ]
         if not structures:
@@ -194,10 +195,22 @@ class E09SharedProtocolAdapter:
             raise E09ProtocolAdapterError("invalid durable model version") from exc
         runner.model_version = model_version
 
-        observations = {
-            e["payload"]["observation_id"]: e["payload"]
-            for e in events if e["event_type"] == "observation"
-        }
+        observations = {}
+        for event in events:
+            if event["event_type"] != "observation":
+                continue
+            payload = event["payload"]
+            if (payload.get("scope") != scope
+                    or payload.get("learner_track") != learner_track):
+                continue
+            observation_id = payload.get("observation_id")
+            if not isinstance(observation_id, str) or not observation_id.strip():
+                raise E09ProtocolAdapterError("learner observation has no valid durable identity")
+            if observation_id in observations:
+                raise E09ProtocolAdapterError(
+                    "learner track contains duplicate durable observation identities"
+                )
+            observations[observation_id] = payload
         instance = cls.__new__(cls)
         instance.runner = runner
         instance.store = store
@@ -228,7 +241,8 @@ class E09SharedProtocolAdapter:
             if event["event_type"] != "prediction_commit":
                 continue
             payload = event["payload"]
-            if payload.get("learner_track") != learner_track:
+            if (payload.get("scope") != scope
+                    or payload.get("learner_track") != learner_track):
                 continue
             prediction_id = payload["prediction_id"]
             observation_id = payload["observation_id"]
