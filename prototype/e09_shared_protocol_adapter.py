@@ -174,7 +174,7 @@ class E09SharedProtocolAdapter:
             if isinstance(e.get("payload"), dict)
             and isinstance(e["payload"].get("scope"), str)
         }
-        legacy_scope_is_unambiguous = not episode_scopes or episode_scopes == {scope}
+        legacy_scope_is_unambiguous = episode_scopes == {scope}
         structures = [
             e for e in events
             if e["event_type"] == "structure_version"
