@@ -61,6 +61,7 @@
 - [研究风险与证伪条件](docs/RISKS_AND_FALSIFICATION.md)
 - [类象认知主线与工程验收纲领](docs/CLASSIANG_FIRST_PRIORITY_CHARTER.md)
 - [统一类象闭环编排 API（含任务条件观测比较）](prototype/classiang_pipeline.py)
+- [文本证据跨度 Observation 适配器](prototype/classiang_text_adapter.py)
 - [开发路线图](ROADMAP.md)
 - [E02-I 关系演化协议（独立于 streaming drift 生命周期实验）](docs/E02I_RELATION_EVOLUTION.md)
 - [E02-I 关系演化原型](prototype/e02i_relation_evolution.py)

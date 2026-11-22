@@ -155,6 +155,7 @@ through the project's lifecycle store if they need durable history.
 The prototype/classiang_pipeline.py module provides one orchestration entry
 point for the currently implemented symbolic primitives:
 
+- source-text span adapter that binds caller-reviewed feature annotations to exact Unicode character offsets and evidence references (without claiming autonomous text understanding);
 - task-conditioned aspect selection;
 - explicit pairwise observation comparison under one declared task, reporting shared and distinct aspects, evidence references and context without treating overlap as semantic equivalence;
 - evidence-grounded class induction and query membership;

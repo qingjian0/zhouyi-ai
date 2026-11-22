@@ -16,7 +16,7 @@ from prototype.classiang_discovery import (
     DiscoveryResult, ObjectView, discover_classes,
 )
 from prototype.classiang_engine import (
-    AspectSelection, ClassExample, ClassHypothesis, ClassRevisionResult,
+    AspectSelection, ClassExample, ClassHypothesis, ClassRevisionResult, FeatureAtom,
     InductionResult, MembershipAssessment, MembershipDecision, Observation,
     assess_membership, induce_class, revise_class_with_counterexample,
     select_aspects,
@@ -101,11 +101,11 @@ class ObservationComparison:
     left_observation_id: str
     right_observation_id: str
     purpose: str
-    left_aspects: tuple
-    right_aspects: tuple
-    shared_aspects: tuple
-    left_only_aspects: tuple
-    right_only_aspects: tuple
+    left_aspects: tuple[FeatureAtom, ...]
+    right_aspects: tuple[FeatureAtom, ...]
+    shared_aspects: tuple[FeatureAtom, ...]
+    left_only_aspects: tuple[FeatureAtom, ...]
+    right_only_aspects: tuple[FeatureAtom, ...]
     shared_evidence_refs: tuple[str, ...]
     shared_context: tuple[str, ...]
     same_domain: bool
