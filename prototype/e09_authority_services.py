@@ -229,6 +229,34 @@ class E09AuthorityService:
         if not isinstance(assigned, str) or not assigned.strip() or principal.workload_id != assigned:
             raise E09AuthorizationError("learner workload is not assigned to this episode track")
 
+    def validate_adapter_workloads(
+        self,
+        *,
+        episode_id: str,
+        scope: str,
+        learner_track: str,
+        observer_credential: object,
+        learner_credential: object,
+        evaluator_credential: object,
+    ) -> None:
+        """Fail fast unless the three authenticated roles are valid for this track."""
+        if self._domain_registry is None:
+            raise E09AuthorizationError("trusted E09 domain registry is not configured")
+        if self._learner_binding_resolver is None:
+            raise E09AuthorizationError("trusted learner assignment resolver is not configured")
+        for name, value in (("episode_id", episode_id), ("scope", scope),
+                            ("learner_track", learner_track)):
+            if not isinstance(value, str) or not value.strip():
+                raise E09AuthorizationError(f"{name} must be a non-empty string")
+        self._principal(observer_credential, role="observer", scope=scope)
+        learner = self._principal(learner_credential, role="learner", scope=scope)
+        self._principal(evaluator_credential, role="evaluator", scope=scope)
+        assigned = self._learner_binding_resolver.resolve(
+            episode_id=episode_id, scope=scope, learner_track=learner_track,
+        )
+        if not isinstance(assigned, str) or not assigned.strip() or learner.workload_id != assigned:
+            raise E09AuthorizationError("learner credential is not assigned to the adapter track")
+
     def put_observation_input(
         self,
         credential: object,
