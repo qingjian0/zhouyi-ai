@@ -375,22 +375,34 @@ class E09SharedProtocolAdapter:
             "runner_model_version": self.runner.model_version,
             "runner_step": self.runner.step,
         }
-        self.store.append_event(
-            episode_id=self.episode_id,
-            event_id=f"{self.episode_id}:structure:{self._version_id}",
-            event_type="structure_version",
-            idempotency_key=f"{self.episode_id}:structure:{self._version_id}",
-            actor_role="learner",
-            payload={
-                "structure_id": self.structure_id,
-                "version_id": self._version_id,
-                "kind": self.structure_kind,
-                "definition": definition,
-                "parent_version_ids": [],
-                "support_evidence_ids": [],
-                "learner_track": self.learner_track,
-            },
-        )
+        event_id = f"{self.episode_id}:structure:{self._version_id}"
+        payload = {
+            "structure_id": self.structure_id,
+            "version_id": self._version_id,
+            "kind": self.structure_kind,
+            "definition": definition,
+            "parent_version_ids": [],
+            "support_evidence_ids": [],
+            "learner_track": self.learner_track,
+        }
+        if self._authority is not None:
+            payload["scope"] = self.scope
+            self._authority.append_structure_version(
+                self._learner_credential,
+                episode_id=self.episode_id,
+                event_id=event_id,
+                idempotency_key=event_id,
+                payload=payload,
+            )
+        else:
+            self.store.append_event(
+                episode_id=self.episode_id,
+                event_id=event_id,
+                event_type="structure_version",
+                idempotency_key=event_id,
+                actor_role="learner",
+                payload=payload,
+            )
 
     def predict_and_commit(self, observation_id: str,
                            inputs: Sequence[Any]) -> dict[str, Any]:
