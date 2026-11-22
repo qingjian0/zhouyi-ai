@@ -315,6 +315,68 @@ class E09AuthorityServiceTests(unittest.TestCase):
                 payload=revision, causation_refs=["reveal-1"],
             )
 
+    def test_structure_and_revision_reject_lineage_from_an_old_domain_binding(self):
+        initial_id = f"{self.episode}:structure:domain-v1"
+        initial = {
+            "structure_id": "rules", "version_id": "v1", "kind": "rule_set",
+            "definition": {}, "parent_version_ids": [], "support_evidence_ids": [],
+            "learner_track": self.track, "scope": self.scope,
+        }
+        self.authority.append_structure_version(
+            "learner-cert", episode_id=self.episode, event_id=initial_id,
+            idempotency_key=initial_id, payload=initial,
+        )
+        changed_registry = StaticE09DomainRegistry({
+            self.scope: E09DomainBinding(
+                domain_id="domain:authority-rotated", world_family="family-a",
+                registry_id="registry:authority", registry_version="v2",
+            ),
+        })
+        changed_authority = E09AuthorityService(
+            self.store, authenticator=self.authenticator, signer=_Signer(self.private),
+            clock=_FixedClock(datetime(2026, 11, 12, 0, 0, tzinfo=timezone.utc)),
+            max_grant_ttl=timedelta(hours=1), domain_registry=changed_registry,
+        )
+        with self.assertRaisesRegex(E09AuthorizationError, "different trusted domain"):
+            changed_authority.append_structure_version(
+                "learner-cert", episode_id=self.episode,
+                event_id=f"{self.episode}:structure:domain-v2",
+                idempotency_key=f"{self.episode}:structure:domain-v2",
+                payload={**initial, "version_id": "v2", "parent_version_ids": ["v1"]},
+                causation_refs=[initial_id],
+            )
+
+        reveal_id = self._prior_prediction()
+        before_id = f"{self.episode}:structure:before"
+        after_id = f"{self.episode}:structure:after"
+        before = {**initial, "version_id": "before"}
+        self.authority.append_structure_version(
+            "learner-cert", episode_id=self.episode, event_id=before_id,
+            idempotency_key=before_id, payload=before,
+        )
+        after = {
+            **before, "version_id": "after", "parent_version_ids": ["before"],
+            "support_evidence_ids": [reveal_id],
+        }
+        self.authority.append_structure_version(
+            "learner-cert", episode_id=self.episode, event_id=after_id,
+            idempotency_key=after_id, payload=after,
+            causation_refs=[before_id, reveal_id],
+        )
+        with self.assertRaisesRegex(E09AuthorizationError, "different trusted domain"):
+            changed_authority.append_revision(
+                "learner-cert", episode_id=self.episode,
+                event_id=f"{self.episode}:revision:domain-mismatch",
+                idempotency_key=f"{self.episode}:revision:domain-mismatch",
+                payload={
+                    "revision_id": "domain-mismatch", "operation": "INCREMENTAL_INDEX",
+                    "trigger_evidence_ids": [reveal_id], "before_version_ids": ["before"],
+                    "after_version_ids": ["after"], "learner_track": self.track,
+                    "training_example_count": 1, "candidate_evaluations": 1, "scope": self.scope,
+                },
+                causation_refs=[reveal_id, before_id, after_id],
+            )
+
     def test_observation_payload_reference_requires_existing_verified_vault_entry(self):
         from prototype.shared_evidence_protocol import digest_payload
 
