@@ -229,6 +229,34 @@ class E09AuthorityService:
         if not isinstance(assigned, str) or not assigned.strip() or principal.workload_id != assigned:
             raise E09AuthorizationError("learner workload is not assigned to this episode track")
 
+    def validate_adapter_workloads(
+        self,
+        *,
+        episode_id: str,
+        scope: str,
+        learner_track: str,
+        observer_credential: object,
+        learner_credential: object,
+        evaluator_credential: object,
+    ) -> None:
+        """Fail fast unless the three authenticated roles are valid for this track."""
+        if self._domain_registry is None:
+            raise E09AuthorizationError("trusted E09 domain registry is not configured")
+        if self._learner_binding_resolver is None:
+            raise E09AuthorizationError("trusted learner assignment resolver is not configured")
+        for name, value in (("episode_id", episode_id), ("scope", scope),
+                            ("learner_track", learner_track)):
+            if not isinstance(value, str) or not value.strip():
+                raise E09AuthorizationError(f"{name} must be a non-empty string")
+        self._principal(observer_credential, role="observer", scope=scope)
+        learner = self._principal(learner_credential, role="learner", scope=scope)
+        self._principal(evaluator_credential, role="evaluator", scope=scope)
+        assigned = self._learner_binding_resolver.resolve(
+            episode_id=episode_id, scope=scope, learner_track=learner_track,
+        )
+        if not isinstance(assigned, str) or not assigned.strip() or learner.workload_id != assigned:
+            raise E09AuthorizationError("learner credential is not assigned to the adapter track")
+
     def put_observation_input(
         self,
         credential: object,
@@ -541,8 +569,22 @@ class E09AuthorityService:
             "prediction_id", "observation_id", "model_version", "learner_track",
             "decision_status", "query_id", "scope", "split", "interop_commit_digest",
         }
-        if not isinstance(payload, dict) or set(payload) != required:
+        optional = {"prediction", "candidate_set_hash", "compute_cost"}
+        if (not isinstance(payload, dict) or not required.issubset(payload)
+                or not set(payload).issubset(required | optional)):
             raise E09AuthorizationError("prediction commit request must use the exact v0.4 caller schema")
+        if "candidate_set_hash" in payload and (
+            not isinstance(payload["candidate_set_hash"], str)
+            or len(payload["candidate_set_hash"]) != 64
+            or any(char not in "0123456789abcdef" for char in payload["candidate_set_hash"])
+        ):
+            raise E09AuthorizationError("candidate_set_hash must be a lowercase SHA-256 digest")
+        if "compute_cost" in payload and not isinstance(payload["compute_cost"], dict):
+            raise E09AuthorizationError("compute_cost must be an object")
+        try:
+            canonical_json({key: payload[key] for key in optional if key in payload})
+        except Exception as exc:
+            raise E09AuthorizationError("prediction extension fields must be canonical JSON data") from exc
         principal = self._principal(credential, role="learner", scope=payload.get("scope"))
         if not isinstance(causation_refs, (tuple, list)) or not all(
             isinstance(ref, str) and ref.strip() for ref in causation_refs
@@ -634,8 +676,13 @@ class E09AuthorityService:
             "prediction_id", "learner_track", "target_or_feedback", "query_id",
             "scope", "split", "commit_digest", "event_digest",
         }
-        if set(payload) != required:
+        optional = {"reveal_source"}
+        if not required.issubset(payload) or not set(payload).issubset(required | optional):
             raise E09AuthorizationError("reveal request must use the exact v0.4 caller schema")
+        if "reveal_source" in payload and (
+            not isinstance(payload["reveal_source"], str) or not payload["reveal_source"].strip()
+        ):
+            raise E09AuthorizationError("reveal_source must be a non-empty string")
         if not isinstance(causation_refs, (tuple, list)) or not all(
             isinstance(ref, str) and ref.strip() for ref in causation_refs
         ):
