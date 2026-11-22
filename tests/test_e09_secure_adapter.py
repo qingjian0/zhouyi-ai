@@ -87,7 +87,7 @@ class E09SecureAdapterTests(unittest.TestCase):
         self.addCleanup(self.tmp.cleanup)
         self.database = Path(self.tmp.name) / "e09.sqlite3"
         self.store = SQLiteEvidenceStore(self.database)
-        self.addCleanup(self.store.close)
+        self.addCleanup(lambda: self.store.close())
         self.authority = make_authority(self.store)
 
     def test_secure_mode_routes_all_event_writes_through_authenticated_authority(self):
