@@ -279,6 +279,42 @@ class E09AuthorityServiceTests(unittest.TestCase):
                 causation_refs=[reveal_id, structure_id],
             )
 
+    def test_structure_and_revision_require_the_assigned_learner_workload(self):
+        resolver = StaticE09LearnerBindingResolver({
+            (self.episode, self.scope, self.track): "spiffe://zhouyi/another-learner",
+        })
+        authority = E09AuthorityService(
+            self.store, authenticator=self.authenticator, signer=_Signer(self.private),
+            clock=_FixedClock(datetime(2026, 11, 12, 0, 0, tzinfo=timezone.utc)),
+            max_grant_ttl=timedelta(hours=1), domain_registry=self.domain_registry,
+            learner_binding_resolver=resolver,
+        )
+        structure = {
+            "structure_id": "rules", "version_id": "v1", "kind": "rule_set",
+            "definition": {}, "parent_version_ids": [], "support_evidence_ids": [],
+            "learner_track": self.track, "scope": self.scope,
+        }
+        with self.assertRaisesRegex(E09AuthorizationError, "not assigned"):
+            authority.append_structure_version(
+                "learner-cert", episode_id=self.episode,
+                event_id=f"{self.episode}:structure:wrong-learner",
+                idempotency_key=f"{self.episode}:structure:wrong-learner",
+                payload=structure,
+            )
+        revision = {
+            "revision_id": "r-wrong", "operation": "INCREMENTAL_INDEX",
+            "trigger_evidence_ids": ["reveal-1"], "before_version_ids": ["v1"],
+            "after_version_ids": ["v2"], "learner_track": self.track,
+            "training_example_count": 1, "candidate_evaluations": 1, "scope": self.scope,
+        }
+        with self.assertRaisesRegex(E09AuthorizationError, "not assigned"):
+            authority.append_revision(
+                "learner-cert", episode_id=self.episode,
+                event_id=f"{self.episode}:revision:wrong-learner",
+                idempotency_key=f"{self.episode}:revision:wrong-learner",
+                payload=revision, causation_refs=["reveal-1"],
+            )
+
     def test_observation_payload_reference_requires_existing_verified_vault_entry(self):
         from prototype.shared_evidence_protocol import digest_payload
 
