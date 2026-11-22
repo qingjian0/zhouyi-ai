@@ -6,7 +6,7 @@ from prototype.classiang_engine import (
     ClassExample, FeatureAtom, FeatureCandidate, Observation, select_aspects,
 )
 from prototype.classiang_pipeline import (
-    ClassiangCycleRequest, RevisionRequest, run_classiang_cycle,
+    AnalogyDiscoveryRequest, ClassiangCycleRequest, RevisionRequest, run_classiang_cycle,
 )
 
 
@@ -94,6 +94,29 @@ class ClassiangPipelineTests(unittest.TestCase):
         result = run_classiang_cycle(self.request(analogy_candidate=None))
         self.assertFalse(result.transfer_gate_passed)
         self.assertIn("NO_TRANSFER_CANDIDATE_EVALUATED", result.reason_codes)
+
+    def test_bounded_mapping_discovery_can_supply_transfer_candidate(self):
+        search = AnalogyDiscoveryRequest(
+            source_domain="mechanics",
+            target_domain="biology",
+            source_entities=("a", "b"),
+            target_entities=("x", "y"),
+            source_relations=(Relation("a", "b", "transfers-load"),),
+            target_relations=(Relation("x", "y", "transfers-load"),),
+            dimensions=("relation", "function"),
+            conditions=("same directed relation predicate",),
+            evidence=(Evidence("source:analogy", True),),
+            validity_scope="two finite fixture graphs",
+            max_evaluations=4,
+            max_results=4,
+        )
+        result = run_classiang_cycle(
+            self.request(analogy_candidate=None, analogy_discovery=search)
+        )
+        self.assertIsNotNone(result.analogy_discovery)
+        self.assertTrue(any(item.assessment.accepted
+                            for item in result.analogy_discovery.candidates))
+        self.assertTrue(result.transfer_gate_passed)
 
     def test_relation_mismatch_blocks_transfer(self):
         bad = replace(
