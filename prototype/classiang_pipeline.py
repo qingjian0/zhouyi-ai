@@ -231,6 +231,10 @@ def run_classiang_cycle(request: ClassiangCycleRequest) -> ClassiangCycleResult:
     revision_result = None
     if request.revision is not None:
         revision = request.revision
+        if (revision.hypothesis.class_id != request.class_id
+                or revision.hypothesis.purpose != request.purpose
+                or revision.hypothesis.validity_scope != request.validity_scope):
+            raise ValueError("revision hypothesis must match the cycle class, purpose and validity scope")
         revision_result = revise_class_with_counterexample(
             hypothesis=revision.hypothesis,
             positive_examples=revision.positive_examples,
@@ -249,6 +253,12 @@ def run_classiang_cycle(request: ClassiangCycleRequest) -> ClassiangCycleResult:
         ]
         if accepted_discoveries:
             transfer_assessments.append(accepted_discoveries[0])
+        elif analogy_discovery.candidates:
+            # Preserve a concrete failed assessment so the reason code and
+            # gate reflect rejection rather than pretending no candidate ran.
+            transfer_assessments.append(
+                analogy_discovery.candidates[0].assessment
+            )
     reasons: list[str] = []
     if induction.hypothesis is None:
         reasons.append("CLASS_INDUCTION_UNDERDETERMINED")

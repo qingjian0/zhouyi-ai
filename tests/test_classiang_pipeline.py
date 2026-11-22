@@ -191,6 +191,47 @@ class ClassiangPipelineTests(unittest.TestCase):
         self.assertTrue(result.dynamic_analogy_assessment.accepted)
         self.assertTrue(result.transfer_gate_passed)
 
+    def test_discovered_but_rejected_mapping_is_reported_as_failed_transfer(self):
+        search = AnalogyDiscoveryRequest(
+            source_domain="mechanics",
+            target_domain="biology",
+            source_entities=("a", "b"),
+            target_entities=("x", "y"),
+            source_relations=(Relation("a", "b", "transfers-load"),),
+            target_relations=(Relation("x", "y", "contains"),),
+            dimensions=("relation",),
+            conditions=("same directed relation predicate",),
+            evidence=(Evidence("source:analogy", True),),
+            validity_scope="two finite fixture graphs",
+            min_relation_f1=1.0,
+            max_evaluations=4,
+            max_results=4,
+        )
+        result = run_classiang_cycle(
+            self.request(analogy_candidate=None, analogy_discovery=search)
+        )
+        self.assertFalse(result.transfer_gate_passed)
+        self.assertIn(
+            "TRANSFER_STRUCTURE_OR_EVIDENCE_GATE_FAILED", result.reason_codes
+        )
+        self.assertNotIn("NO_TRANSFER_CANDIDATE_EVALUATED", result.reason_codes)
+
+    def test_revision_must_match_cycle_class_scope(self):
+        initial = run_classiang_cycle(
+            self.request(analogy_candidate=None)
+        ).induction.hypothesis
+        counterexample = make_example(
+            "ce-scope", (self.feature, FeatureAtom("attribute", "metal"))
+        )
+        revision = RevisionRequest(
+            hypothesis=replace(initial, validity_scope="another-scope"),
+            positive_examples=self.positive,
+            negative_examples=self.negative,
+            counterexample=counterexample,
+        )
+        with self.assertRaisesRegex(ValueError, "must match the cycle class"):
+            run_classiang_cycle(self.request(revision=revision))
+
     def test_relation_mismatch_blocks_transfer(self):
         bad = replace(
             valid_analogy(),
