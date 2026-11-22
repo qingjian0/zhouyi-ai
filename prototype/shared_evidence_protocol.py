@@ -310,13 +310,21 @@ class SQLiteEvidenceStore:
             observation = self._db.execute(
                 "SELECT payload_json, protocol_version FROM events WHERE episode_id=? AND event_type='observation' "
                 "AND json_extract(payload_json, '$.observation_id')=? "
-                "AND COALESCE(json_extract(payload_json, '$.learner_track'), 'legacy') "
-                "IN (?, 'legacy') "
-                "ORDER BY CASE WHEN COALESCE(json_extract(payload_json, '$.learner_track'), 'legacy')=? "
+                "AND ("
+                "COALESCE(json_extract(payload_json, '$.learner_track'), 'legacy')=? "
+                "OR (COALESCE(json_extract(payload_json, '$.learner_track'), 'legacy')='legacy' "
+                "AND NOT EXISTS (SELECT 1 FROM events AS foreign_observation "
+                "WHERE foreign_observation.episode_id=events.episode_id "
+                "AND foreign_observation.event_type='observation' "
+                "AND json_extract(foreign_observation.payload_json, '$.observation_id')=? "
+                "AND COALESCE(json_extract(foreign_observation.payload_json, '$.learner_track'), 'legacy') "
+                "NOT IN (?, 'legacy')))"
+                ") ORDER BY CASE WHEN COALESCE(json_extract(payload_json, '$.learner_track'), 'legacy')=? "
                 "THEN 0 ELSE 1 END LIMIT 1",
                 (
-                    episode_id, payload["observation_id"],
-                    payload["learner_track"], payload["learner_track"],
+                    episode_id, payload["observation_id"], payload["learner_track"],
+                    payload["observation_id"], payload["learner_track"],
+                    payload["learner_track"],
                 ),
             ).fetchone()
             if observation is None:
