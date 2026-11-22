@@ -403,6 +403,7 @@ class E09AuthorityService:
         self._assert_learner_assignment(
             principal, episode_id=episode_id, scope=scope, learner_track=track,
         )
+        trusted_domain = self._domain_payload(self._trusted_domain(scope))
         for field in ("revision_id", "operation"):
             if not isinstance(payload[field], str) or not payload[field].strip():
                 raise E09AuthorizationError(f"revision {field} must be non-empty")
@@ -436,6 +437,8 @@ class E09AuthorityService:
                     or reveal.get("payload", {}).get("split") != "SUPPORT"
                     or reveal.get("protocol_version") != DOMAIN_BOUND_PROTOCOL_VERSION):
                 raise E09AuthorizationError("revision trigger must be a prior SUPPORT reveal for this track")
+            if trusted_domain != {field: reveal.get("payload", {}).get(field) for field in trusted_domain}:
+                raise E09AuthorizationError("revision trigger belongs to a different trusted domain version")
         structures = [
             event for event in events
             if event.get("event_type") == "structure_version"
@@ -458,8 +461,10 @@ class E09AuthorityService:
                 or before[0] not in after_payload.get("parent_version_ids", [])
                 or not set(triggers).issubset(set(after_payload.get("support_evidence_ids", [])))):
             raise E09AuthorizationError("revision after-version does not descend from its before-version and trigger")
-        binding = self._trusted_domain(scope)
-        event_payload = {**payload, **self._domain_payload(binding)}
+        for version_event in (before_event, after_event):
+            if trusted_domain != {field: version_event.get("payload", {}).get(field) for field in trusted_domain}:
+                raise E09AuthorizationError("revision version belongs to a different trusted domain version")
+        event_payload = {**payload, **trusted_domain}
         return self._store.append_event(
             episode_id=episode_id, event_id=event_id, event_type="revision",
             idempotency_key=idempotency_key, payload=event_payload, actor_role="learner",
