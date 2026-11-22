@@ -158,7 +158,7 @@ point for the currently implemented symbolic primitives:
 - task-conditioned aspect selection;
 - evidence-grounded class induction and query membership;
 - optional bounded unsupervised feature-conjunction discovery;
-- optional static and dynamic relation-preservation assessment;
+- optional bounded injective entity-mapping discovery plus static and dynamic relation-preservation assessment;
 - optional provenance-checked counterexample revision.
 
 Transfer gating is deliberately fail-closed: the class must have a
@@ -168,7 +168,6 @@ assessments must pass. A passed gate is only a structural/evidence result,
 not proof of semantic or causal equivalence.
 
 This API integrates existing components; it does not yet supply raw-text or
-multimodal feature extraction, learned feature proposal, autonomous entity
-mapping, calibrated confidence, ontology split/merge, persistent revision
+multimodal feature extraction, learned feature proposal, learned feature proposal, calibrated confidence, ontology split/merge, persistent revision
 events, or real-domain Gold validation. Those remain explicit P0/P1/P2 work,
 not implied capabilities.
