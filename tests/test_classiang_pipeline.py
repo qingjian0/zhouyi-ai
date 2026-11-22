@@ -92,7 +92,7 @@ class ClassiangPipelineTests(unittest.TestCase):
         self.assertEqual(
             result.right_only_aspects, (FeatureAtom("attribute", "metal"),)
         )
-        self.assertFalse(result.same_domain is False)
+        self.assertTrue(result.same_domain)
         self.assertEqual(result.shared_evidence_refs, ())
 
     def test_cycle_composes_comparison_without_promoting_similarity(self):
