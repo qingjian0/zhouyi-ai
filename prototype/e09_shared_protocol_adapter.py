@@ -210,21 +210,32 @@ class E09SharedProtocolAdapter:
         runner.model_version = model_version
 
         observations = {}
+        legacy_observations = {}
+        foreign_track_observation_ids = set()
         for event in events:
             if event["event_type"] != "observation":
                 continue
             payload = event["payload"]
-            if (payload.get("scope") != scope
-                    or payload.get("learner_track") != learner_track):
+            if payload.get("scope") != scope:
                 continue
             observation_id = payload.get("observation_id")
             if not isinstance(observation_id, str) or not observation_id.strip():
                 raise E09ProtocolAdapterError("learner observation has no valid durable identity")
-            if observation_id in observations:
-                raise E09ProtocolAdapterError(
-                    "learner track contains duplicate durable observation identities"
-                )
-            observations[observation_id] = payload
+            observed_track = payload.get("learner_track")
+            if observed_track == learner_track:
+                if observation_id in observations:
+                    raise E09ProtocolAdapterError(
+                        "learner track contains duplicate durable observation identities"
+                    )
+                observations[observation_id] = payload
+            elif observed_track is None:
+                if observation_id in legacy_observations:
+                    raise E09ProtocolAdapterError(
+                        "legacy episode contains duplicate unbound observation identities"
+                    )
+                legacy_observations[observation_id] = payload
+            else:
+                foreign_track_observation_ids.add(observation_id)
         instance = cls.__new__(cls)
         instance.runner = runner
         instance.store = store
@@ -261,6 +272,11 @@ class E09SharedProtocolAdapter:
             prediction_id = payload["prediction_id"]
             observation_id = payload["observation_id"]
             observation = observations.get(observation_id)
+            if observation is None and observation_id not in foreign_track_observation_ids:
+                # Pre-track trusted-runner events intentionally omitted the
+                # learner_track field. Permit this fallback only when no
+                # explicitly foreign-track observation shares the identity.
+                observation = legacy_observations.get(observation_id)
             if observation is None:
                 raise E09ProtocolAdapterError("prediction has no durable observation")
             stored_input = store.get_payload(observation["payload_ref"])
