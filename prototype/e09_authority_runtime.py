@@ -112,7 +112,8 @@ class E09AuthorityRuntime:
         if self._authority is None:
             raise E09AuthorityRuntimeError("E09 authority is not started")
         operation = request.get("operation")
-        if operation in ("append_observation", "append_prediction_commit", "append_evidence_reveal"):
+        if operation in ("append_observation", "append_prediction_commit", "append_evidence_reveal",
+                          "append_structure_version", "append_revision"):
             common = {"operation", "episode_id", "event_id", "idempotency_key", "payload"}
             expected = common | ({"expected_sequence"} if "expected_sequence" in request else set())
             if operation != "append_observation":
@@ -132,8 +133,16 @@ class E09AuthorityRuntime:
                 receipt = self._authority.append_prediction_commit(
                     credential, causation_refs=request["causation_refs"], **kwargs,
                 )
-            else:
+            elif operation == "append_evidence_reveal":
                 receipt = self._authority.append_evidence_reveal(
+                    credential, causation_refs=request["causation_refs"], **kwargs,
+                )
+            elif operation == "append_structure_version":
+                receipt = self._authority.append_structure_version(
+                    credential, causation_refs=request["causation_refs"], **kwargs,
+                )
+            else:
+                receipt = self._authority.append_revision(
                     credential, causation_refs=request["causation_refs"], **kwargs,
                 )
             return self._receipt_dict(receipt)
