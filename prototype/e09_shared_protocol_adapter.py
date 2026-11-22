@@ -485,10 +485,13 @@ class E09SharedProtocolAdapter:
                 "split": self.split,
                 "model_version": f"{self.version_prefix}-model-{commit.model_version}",
                 "learner_track": self.learner_track,
-                "candidate_set_hash": digest_payload(self._snapshot()),
                 "decision_status": (
                     "PREDICT" if commit.prediction is not None else "ABSTAIN_AMBIGUOUS"
                 ),
+            }
+            legacy_prediction_payload = {
+                **prediction_payload,
+                "candidate_set_hash": digest_payload(self._snapshot()),
                 "prediction": self._jsonable(commit.prediction),
                 "compute_cost": {
                     "revision_mode": self.runner.REVISION_MODE,
@@ -515,7 +518,7 @@ class E09SharedProtocolAdapter:
                     idempotency_key=prediction_event_id,
                     actor_role="learner",
                     causation_refs=[observation_event_id],
-                    payload=prediction_payload,
+                    payload=legacy_prediction_payload,
                     protocol_version=STRICT_PROTOCOL_VERSION,
                 )
             self._committed_predictions.add(commit.prediction_id)
@@ -569,7 +572,6 @@ class E09SharedProtocolAdapter:
                 "event_digest": self._event_digests[prediction_id],
                 "learner_track": self.learner_track,
                 "target_or_feedback": self._jsonable(label),
-                "reveal_source": source,
             }
             reveal_causes = [f"{self.episode_id}:prediction:{prediction_id}"]
             if self._authority is not None:
@@ -669,6 +671,7 @@ class E09SharedProtocolAdapter:
                 "learner_track": self.learner_track,
                 "training_example_count": revision.training_example_count,
                 "candidate_evaluations": revision.candidate_evaluations,
+                "scope": self.scope,
             }
             revision_causes = [before_structure_event_id, structure_event_id, reveal_event_id]
             if self._authority is not None:
