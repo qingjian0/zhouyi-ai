@@ -1,4 +1,5 @@
 import unittest
+from dataclasses import replace
 
 from prototype.analogy import AnalogyCandidate, Evidence, Relation
 from prototype.classiang_engine import (
@@ -94,9 +95,9 @@ class ClassiangPipelineTests(unittest.TestCase):
         self.assertIn("NO_TRANSFER_CANDIDATE_EVALUATED", result.reason_codes)
 
     def test_relation_mismatch_blocks_transfer(self):
-        bad = valid_analogy()
-        bad = AnalogyCandidate(
-            **{**bad.__dict__, "target_relations": (Relation("x", "y", "contains"),)}
+        bad = replace(
+            valid_analogy(),
+            target_relations=(Relation("x", "y", "contains"),),
         )
         result = run_classiang_cycle(self.request(analogy_candidate=bad))
         self.assertFalse(result.transfer_gate_passed)
