@@ -112,6 +112,22 @@ class E09AuthorityRuntime:
         if self._authority is None:
             raise E09AuthorityRuntimeError("E09 authority is not started")
         operation = request.get("operation")
+        if operation == "put_observation_input":
+            required = {
+                "operation", "episode_id", "scope", "learner_track",
+                "feature_schema_version", "payload",
+            }
+            if set(request) != required:
+                raise E09AuthorityRuntimeError("observation input request schema is invalid")
+            return self._authority.put_observation_input(
+                credential,
+                episode_id=request["episode_id"],
+                scope=request["scope"],
+                learner_track=request["learner_track"],
+                feature_schema_version=request["feature_schema_version"],
+                payload=request["payload"],
+            )
+
         if operation in ("append_observation", "append_prediction_commit", "append_evidence_reveal",
                           "append_structure_version", "append_revision"):
             common = {"operation", "episode_id", "event_id", "idempotency_key", "payload"}
