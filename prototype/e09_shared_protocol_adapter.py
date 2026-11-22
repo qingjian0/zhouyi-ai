@@ -619,50 +619,77 @@ class E09SharedProtocolAdapter:
             after_version = f"{self.version_prefix}-v{revision.after_model_version}"
             snapshot = self._snapshot()
             structure_event_id = f"{self.episode_id}:structure:{after_version}"
-            self.store.append_event(
-                episode_id=self.episode_id,
-                event_id=structure_event_id,
-                event_type="structure_version",
-                idempotency_key=structure_event_id,
-                actor_role="learner",
-                causation_refs=[reveal_event_id],
-                payload={
-                    "structure_id": self.structure_id,
-                    "version_id": after_version,
-                    "kind": self.structure_kind,
-                    "definition": {
-                        "revision_mode": revision.operation,
-                        "snapshot_digest": digest_payload(snapshot),
-                        "snapshot": snapshot,
-                        "training_example_count": revision.training_example_count,
-                        "candidate_evaluations": revision.candidate_evaluations,
-                        "ledger_snapshot": self.runner.ledger.snapshot(),
-                        "runner_model_version": self.runner.model_version,
-                        "runner_step": self.runner.step,
-                    },
-                    "parent_version_ids": [before_version],
-                    "support_evidence_ids": [reveal_event_id],
-                    "learner_track": self.learner_track,
-                },
-            )
-            revision_event_id = f"{self.episode_id}:revision:{revision.revision_id}"
-            self.store.append_revision(
-                episode_id=self.episode_id,
-                event_id=revision_event_id,
-                idempotency_key=revision_event_id,
-                actor_role="learner",
-                causation_refs=[reveal_event_id, structure_event_id],
-                payload={
-                    "revision_id": revision.revision_id,
-                    "operation": revision.operation,
-                    "trigger_evidence_ids": [reveal_event_id],
-                    "before_version_ids": [before_version],
-                    "after_version_ids": [after_version],
-                    "learner_track": self.learner_track,
+            structure_payload = {
+                "structure_id": self.structure_id,
+                "version_id": after_version,
+                "kind": self.structure_kind,
+                "definition": {
+                    "revision_mode": revision.operation,
+                    "snapshot_digest": digest_payload(snapshot),
+                    "snapshot": snapshot,
                     "training_example_count": revision.training_example_count,
                     "candidate_evaluations": revision.candidate_evaluations,
+                    "ledger_snapshot": self.runner.ledger.snapshot(),
+                    "runner_model_version": self.runner.model_version,
+                    "runner_step": self.runner.step,
                 },
-            )
+                "parent_version_ids": [before_version],
+                "support_evidence_ids": [reveal_event_id],
+                "learner_track": self.learner_track,
+            }
+            before_structure_event_id = f"{self.episode_id}:structure:{before_version}"
+            if self._authority is not None:
+                structure_payload["scope"] = self.scope
+                self._authority.append_structure_version(
+                    self._learner_credential,
+                    episode_id=self.episode_id,
+                    event_id=structure_event_id,
+                    idempotency_key=structure_event_id,
+                    causation_refs=[before_structure_event_id, reveal_event_id],
+                    payload=structure_payload,
+                )
+            else:
+                self.store.append_event(
+                    episode_id=self.episode_id,
+                    event_id=structure_event_id,
+                    event_type="structure_version",
+                    idempotency_key=structure_event_id,
+                    actor_role="learner",
+                    causation_refs=[reveal_event_id],
+                    payload=structure_payload,
+                )
+
+            revision_event_id = f"{self.episode_id}:revision:{revision.revision_id}"
+            revision_payload = {
+                "revision_id": revision.revision_id,
+                "operation": revision.operation,
+                "trigger_evidence_ids": [reveal_event_id],
+                "before_version_ids": [before_version],
+                "after_version_ids": [after_version],
+                "learner_track": self.learner_track,
+                "training_example_count": revision.training_example_count,
+                "candidate_evaluations": revision.candidate_evaluations,
+            }
+            revision_causes = [before_structure_event_id, structure_event_id, reveal_event_id]
+            if self._authority is not None:
+                revision_payload["scope"] = self.scope
+                self._authority.append_revision(
+                    self._learner_credential,
+                    episode_id=self.episode_id,
+                    event_id=revision_event_id,
+                    idempotency_key=revision_event_id,
+                    causation_refs=revision_causes,
+                    payload=revision_payload,
+                )
+            else:
+                self.store.append_revision(
+                    episode_id=self.episode_id,
+                    event_id=revision_event_id,
+                    idempotency_key=revision_event_id,
+                    actor_role="learner",
+                    causation_refs=[reveal_event_id, structure_event_id],
+                    payload=revision_payload,
+                )
             self._version_id = after_version
             self._sync_memory()
             return {
