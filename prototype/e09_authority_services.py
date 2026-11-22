@@ -340,6 +340,14 @@ class E09AuthorityService:
         principal = self._principal(credential, role="observer", scope=scope)
         binding = self._trusted_domain(scope)
         event_payload = {**payload, **self._domain_payload(binding)}
+        if "learner_track" in payload and self._learner_binding_resolver is None:
+            # Never persist a learner-track claim that downstream replay could
+            # mistake for an Authority-owned workload assignment. Legacy v4/v6
+            # observations without a learner_track remain readable, but are
+            # deliberately unbound and cannot enter learner-scoped replay.
+            raise E09AuthorizationError(
+                "trusted learner assignment resolver is required for learner-track observations"
+            )
         if self._learner_binding_resolver is not None:
             learner_track = payload.get("learner_track")
             if not isinstance(learner_track, str) or not learner_track.strip():
