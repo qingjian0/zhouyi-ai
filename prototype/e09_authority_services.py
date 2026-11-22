@@ -569,22 +569,8 @@ class E09AuthorityService:
             "prediction_id", "observation_id", "model_version", "learner_track",
             "decision_status", "query_id", "scope", "split", "interop_commit_digest",
         }
-        optional = {"prediction", "candidate_set_hash", "compute_cost"}
-        if (not isinstance(payload, dict) or not required.issubset(payload)
-                or not set(payload).issubset(required | optional)):
+        if not isinstance(payload, dict) or set(payload) != required:
             raise E09AuthorizationError("prediction commit request must use the exact v0.4 caller schema")
-        if "candidate_set_hash" in payload and (
-            not isinstance(payload["candidate_set_hash"], str)
-            or len(payload["candidate_set_hash"]) != 64
-            or any(char not in "0123456789abcdef" for char in payload["candidate_set_hash"])
-        ):
-            raise E09AuthorizationError("candidate_set_hash must be a lowercase SHA-256 digest")
-        if "compute_cost" in payload and not isinstance(payload["compute_cost"], dict):
-            raise E09AuthorizationError("compute_cost must be an object")
-        try:
-            canonical_json({key: payload[key] for key in optional if key in payload})
-        except Exception as exc:
-            raise E09AuthorizationError("prediction extension fields must be canonical JSON data") from exc
         principal = self._principal(credential, role="learner", scope=payload.get("scope"))
         if not isinstance(causation_refs, (tuple, list)) or not all(
             isinstance(ref, str) and ref.strip() for ref in causation_refs
@@ -676,13 +662,8 @@ class E09AuthorityService:
             "prediction_id", "learner_track", "target_or_feedback", "query_id",
             "scope", "split", "commit_digest", "event_digest",
         }
-        optional = {"reveal_source"}
-        if not required.issubset(payload) or not set(payload).issubset(required | optional):
+        if set(payload) != required:
             raise E09AuthorizationError("reveal request must use the exact v0.4 caller schema")
-        if "reveal_source" in payload and (
-            not isinstance(payload["reveal_source"], str) or not payload["reveal_source"].strip()
-        ):
-            raise E09AuthorizationError("reveal_source must be a non-empty string")
         if not isinstance(causation_refs, (tuple, list)) or not all(
             isinstance(ref, str) and ref.strip() for ref in causation_refs
         ):
