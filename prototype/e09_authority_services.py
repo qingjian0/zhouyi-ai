@@ -212,6 +212,18 @@ class E09AuthorityService:
             "domain_registry_version": binding.registry_version,
         }
 
+    def _assert_learner_assignment(
+        self, principal: E09AuthenticatedWorkload, *, episode_id: str,
+        scope: str, learner_track: str,
+    ) -> None:
+        if self._learner_binding_resolver is None:
+            return
+        assigned = self._learner_binding_resolver.resolve(
+            episode_id=episode_id, scope=scope, learner_track=learner_track,
+        )
+        if not isinstance(assigned, str) or not assigned.strip() or principal.workload_id != assigned:
+            raise E09AuthorizationError("learner workload is not assigned to this episode track")
+
     def append_observation(
         self,
         credential: object,
@@ -299,6 +311,9 @@ class E09AuthorityService:
         track = payload["learner_track"]
         if not isinstance(track, str) or not track.strip():
             raise E09AuthorizationError("structure learner_track must be non-empty")
+        self._assert_learner_assignment(
+            principal, episode_id=episode_id, scope=scope, learner_track=track,
+        )
         for field in ("structure_id", "version_id", "kind"):
             if not isinstance(payload[field], str) or not payload[field].strip():
                 raise E09AuthorizationError(f"structure {field} must be non-empty")
@@ -381,6 +396,9 @@ class E09AuthorityService:
         track = payload["learner_track"]
         if not isinstance(track, str) or not track.strip():
             raise E09AuthorizationError("revision learner_track must be non-empty")
+        self._assert_learner_assignment(
+            principal, episode_id=episode_id, scope=scope, learner_track=track,
+        )
         for field in ("revision_id", "operation"):
             if not isinstance(payload[field], str) or not payload[field].strip():
                 raise E09AuthorizationError(f"revision {field} must be non-empty")
