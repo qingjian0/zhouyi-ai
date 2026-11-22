@@ -8,7 +8,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from prototype.analogy import AnalogyCandidate, AnalogyAssessment, assess_analogy
+from prototype.analogy import (
+    AnalogyCandidate, AnalogyAssessment, AnalogyDiscoveryResult, Evidence, Relation,
+    assess_analogy, discover_analogy_mappings,
+)
 from prototype.classiang_discovery import (
     DiscoveryResult, ObjectView, discover_classes,
 )
@@ -21,6 +24,25 @@ from prototype.classiang_engine import (
 from prototype.dynamic_analogy import (
     DynamicAnalogyAssessment, DynamicAnalogyCandidate, assess_dynamic_analogy,
 )
+
+
+@dataclass(frozen=True)
+class AnalogyDiscoveryRequest:
+    """Bounded graph-mapping search inputs; no semantic labels are inferred."""
+
+    source_domain: str
+    target_domain: str
+    source_entities: tuple[str, ...]
+    target_entities: tuple[str, ...]
+    source_relations: tuple[Relation, ...]
+    target_relations: tuple[Relation, ...]
+    dimensions: tuple[str, ...] = ("relation",)
+    conditions: tuple[str, ...] = ("mapping evaluated against supplied graph snapshots",)
+    evidence: tuple[Evidence, ...] = ()
+    validity_scope: str = "the supplied finite entity and relation graphs only"
+    min_relation_f1: float = 0.8
+    max_evaluations: int = 10000
+    max_results: int = 20
 
 
 @dataclass(frozen=True)
@@ -50,6 +72,7 @@ class ClassiangCycleRequest:
     negative_examples: tuple[ClassExample, ...] = ()
     min_relevance: float = 0.5
     analogy_candidate: AnalogyCandidate | None = None
+    analogy_discovery: AnalogyDiscoveryRequest | None = None
     dynamic_analogy_candidate: DynamicAnalogyCandidate | None = None
     discovery_objects: tuple[ObjectView, ...] | None = None
     revision: RevisionRequest | None = None
@@ -62,6 +85,7 @@ class ClassiangCycleResult:
     membership: MembershipAssessment | None
     discovery: DiscoveryResult | None
     analogy_assessment: AnalogyAssessment | None
+    analogy_discovery: AnalogyDiscoveryResult | None
     dynamic_analogy_assessment: DynamicAnalogyAssessment | None
     revision: ClassRevisionResult | None
     transfer_gate_passed: bool
@@ -114,6 +138,24 @@ def run_classiang_cycle(request: ClassiangCycleRequest) -> ClassiangCycleResult:
         assess_analogy(request.analogy_candidate)
         if request.analogy_candidate is not None else None
     )
+    analogy_discovery = None
+    if request.analogy_discovery is not None:
+        search = request.analogy_discovery
+        analogy_discovery = discover_analogy_mappings(
+            source_domain=search.source_domain,
+            target_domain=search.target_domain,
+            source_entities=search.source_entities,
+            target_entities=search.target_entities,
+            source_relations=search.source_relations,
+            target_relations=search.target_relations,
+            dimensions=search.dimensions,
+            conditions=search.conditions,
+            evidence=search.evidence,
+            validity_scope=search.validity_scope,
+            min_relation_f1=search.min_relation_f1,
+            max_evaluations=search.max_evaluations,
+            max_results=search.max_results,
+        )
     dynamic_assessment = (
         assess_dynamic_analogy(request.dynamic_analogy_candidate)
         if request.dynamic_analogy_candidate is not None else None
@@ -128,10 +170,17 @@ def run_classiang_cycle(request: ClassiangCycleRequest) -> ClassiangCycleResult:
             counterexample=revision.counterexample,
         )
 
-    transfer_assessments = tuple(
+    transfer_assessments = [
         item for item in (analogy_assessment, dynamic_assessment)
         if item is not None
-    )
+    ]
+    if analogy_discovery is not None:
+        accepted_discoveries = [
+            item.assessment for item in analogy_discovery.candidates
+            if item.assessment.accepted
+        ]
+        if accepted_discoveries:
+            transfer_assessments.append(accepted_discoveries[0])
     reasons: list[str] = []
     if induction.hypothesis is None:
         reasons.append("CLASS_INDUCTION_UNDERDETERMINED")
@@ -163,6 +212,7 @@ def run_classiang_cycle(request: ClassiangCycleRequest) -> ClassiangCycleResult:
         membership=membership,
         discovery=discovery,
         analogy_assessment=analogy_assessment,
+        analogy_discovery=analogy_discovery,
         dynamic_analogy_assessment=dynamic_assessment,
         revision=revision_result,
         transfer_gate_passed=transfer_gate_passed,
