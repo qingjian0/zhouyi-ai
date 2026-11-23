@@ -135,6 +135,47 @@ class SQLiteEvidenceStore:
           WHERE event_type='structure_version';
         """)
 
+    @classmethod
+    def open_read_only(cls, path: str | Path) -> "SQLiteEvidenceStore":
+        """Open an existing evidence snapshot without running schema migrations.
+
+        Unlike __init__, this factory never creates tables or changes journal
+        mode. SQLite read-only URI mode and query_only are both enabled, and
+        the expected verifier tables plus database integrity are checked
+        before the store is returned.
+        """
+        snapshot = Path(path)
+        if not snapshot.is_absolute():
+            raise ValueError("read-only evidence snapshot path must be absolute")
+        store = cls.__new__(cls)
+        store.path = str(snapshot)
+        store._lock = threading.RLock()
+        uri = snapshot.as_uri() + "?mode=ro&immutable=1"
+        try:
+            store._db = sqlite3.connect(
+                uri, uri=True, isolation_level=None, check_same_thread=False,
+            )
+            store._db.row_factory = sqlite3.Row
+            store._db.execute("PRAGMA query_only=ON")
+            query_only = store._db.execute("PRAGMA query_only").fetchone()[0]
+            required = {"events", "payload_vault"}
+            present = {
+                row[0] for row in store._db.execute(
+                    "SELECT name FROM sqlite_master WHERE type='table'"
+                ).fetchall()
+            }
+            if query_only != 1 or not required.issubset(present):
+                raise ProtocolError("snapshot schema or read-only mode is invalid")
+            integrity = store._db.execute("PRAGMA quick_check").fetchone()
+            if integrity is None or integrity[0] != "ok":
+                raise ProtocolError("snapshot database integrity check failed")
+            return store
+        except Exception:
+            connection = getattr(store, "_db", None)
+            if connection is not None:
+                connection.close()
+            raise
+
     @staticmethod
     def _validate_scope_split(payload: dict[str, Any], event_name: str) -> None:
         if not isinstance(payload.get("scope"), str) or not payload["scope"].strip():
