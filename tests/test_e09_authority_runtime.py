@@ -5,6 +5,7 @@ import socket
 import stat
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 from prototype.e09_authority_runtime import E09AuthorityRuntime, E09AuthorityRuntimeError
@@ -68,19 +69,35 @@ class E09AuthorityRuntimeTests(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def runtime(self, uid=None, learner_binding_resolver=None):
+    def runtime(self, uid=None, learner_binding_resolver=None, authenticator=None):
         uid = os.getuid() if uid is None else uid
-        return E09AuthorityRuntime(
-            database_path=self.db_path,
-            socket_path=self.socket_path,
-            authenticator=self.authenticator,
-            signer=Signer(),
-            domain_registry=self.registry,
-            uid_to_credential={uid: "observer-cert"},
-            socket_gid=os.getgid(),
-            test_only_allow_same_uid=(uid == os.getuid()),
-            learner_binding_resolver=learner_binding_resolver,
-        )
+        # Simulate a distinct service UID only for constructor policy validation.
+        # The UDS tests still run as this process UID and do not claim OS isolation.
+        with patch("prototype.e09_authority_runtime.os.geteuid", return_value=uid + 1):
+            return E09AuthorityRuntime(
+                database_path=self.db_path,
+                socket_path=self.socket_path,
+                authenticator=self.authenticator if authenticator is None else authenticator,
+                signer=Signer(),
+                domain_registry=self.registry,
+                uid_to_credential={uid: "observer-cert"},
+                socket_gid=os.getgid(),
+                learner_binding_resolver=learner_binding_resolver,
+            )
+
+    def test_same_uid_client_is_rejected_without_runtime_bypass(self):
+        with self.assertRaisesRegex(
+            E09AuthorityRuntimeError, "client UIDs must be distinct"
+        ):
+            E09AuthorityRuntime(
+                database_path=self.db_path,
+                socket_path=self.socket_path,
+                authenticator=self.authenticator,
+                signer=Signer(),
+                domain_registry=self.registry,
+                uid_to_credential={os.getuid(): "observer-cert"},
+                socket_gid=os.getgid(),
+            )
 
     def observation_request(self):
         return {
@@ -146,16 +163,7 @@ class E09AuthorityRuntimeTests(unittest.TestCase):
                     raise ValueError("unknown credential")
                 return identities[credential]
 
-        runtime = E09AuthorityRuntime(
-            database_path=self.db_path,
-            socket_path=self.socket_path,
-            authenticator=MultiAuthenticator(),
-            signer=Signer(),
-            domain_registry=self.registry,
-            uid_to_credential={os.getuid(): "learner-cert"},
-            socket_gid=os.getgid(),
-            test_only_allow_same_uid=True,
-        )
+        runtime = self.runtime(uid=os.getuid(), authenticator=MultiAuthenticator())
         with runtime:
             authority = runtime._authority
             episode = "ipc-structure-revision"
