@@ -69,7 +69,7 @@ class E09AuthorityRuntimeTests(unittest.TestCase):
     def tearDown(self):
         self.tmp.cleanup()
 
-    def runtime(self, uid=None, learner_binding_resolver=None, authenticator=None):
+    def runtime(self, uid=None, learner_binding_resolver=None, authenticator=None, uid_to_credential=None):
         uid = os.getuid() if uid is None else uid
         # Simulate a distinct service UID only for constructor policy validation.
         # The UDS tests still run as this process UID and do not claim OS isolation.
@@ -80,7 +80,7 @@ class E09AuthorityRuntimeTests(unittest.TestCase):
                 authenticator=self.authenticator if authenticator is None else authenticator,
                 signer=Signer(),
                 domain_registry=self.registry,
-                uid_to_credential={uid: "observer-cert"},
+                uid_to_credential={uid: "observer-cert"} if uid_to_credential is None else uid_to_credential,
                 socket_gid=os.getgid(),
                 learner_binding_resolver=learner_binding_resolver,
             )
@@ -163,7 +163,10 @@ class E09AuthorityRuntimeTests(unittest.TestCase):
                     raise ValueError("unknown credential")
                 return identities[credential]
 
-        runtime = self.runtime(uid=os.getuid(), authenticator=MultiAuthenticator())
+        runtime = self.runtime(
+            uid=os.getuid(), authenticator=MultiAuthenticator(),
+            uid_to_credential={os.getuid(): "learner-cert"},
+        )
         with runtime:
             authority = runtime._authority
             episode = "ipc-structure-revision"
@@ -206,7 +209,7 @@ class E09AuthorityRuntimeTests(unittest.TestCase):
                 if causation_refs is not None:
                     body["causation_refs"] = causation_refs
                 response = send_request(self.socket_path, body)
-                self.assertTrue(response["ok"], (response, runtime._server._errors))
+                self.assertTrue(response["ok"], response)
                 self.assertEqual(response["result"]["event_id"], event_id)
 
             initial_id = f"{episode}:structure:v1"
