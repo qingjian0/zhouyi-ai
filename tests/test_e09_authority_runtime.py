@@ -206,7 +206,7 @@ class E09AuthorityRuntimeTests(unittest.TestCase):
                 if causation_refs is not None:
                     body["causation_refs"] = causation_refs
                 response = send_request(self.socket_path, body)
-                self.assertTrue(response["ok"], response)
+                self.assertTrue(response["ok"], (response, runtime._server._errors))
                 self.assertEqual(response["result"]["event_id"], event_id)
 
             initial_id = f"{episode}:structure:v1"
