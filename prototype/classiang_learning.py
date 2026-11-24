@@ -215,6 +215,17 @@ class TrainableTextEncoder:
         rng = random.Random(seed)
         for record in rows:
             _validate_record(record)
+            token_spans = _tokenize(record.text)
+            token_starts = {token.start for token in token_spans}
+            token_ends = {token.end for token in token_spans}
+            for annotation in record.annotations:
+                if (annotation.end_char - annotation.start_char > self.max_span_chars
+                        or annotation.start_char not in token_starts
+                        or annotation.end_char not in token_ends):
+                    raise ValueError("annotation span is not representable by the configured tokenizer budget")
+                span_tokens = _tokenize(record.text[annotation.start_char:annotation.end_char])
+                if len(span_tokens) > self.max_tokens:
+                    raise ValueError("annotation span exceeds max_tokens")
             positives = {(a.start_char, a.end_char): a for a in record.annotations}
             candidates = _candidate_spans(
                 record.text, max_tokens=self.max_tokens,
