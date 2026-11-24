@@ -126,6 +126,8 @@ def _validate_record(record: TextRecord) -> None:
             not isinstance(x, str) or not x.strip() for x in ann.purposes
         ):
             raise ValueError("annotation purposes must be non-empty strings")
+        if len(ann.purposes) != len(set(ann.purposes)):
+            raise ValueError("annotation purposes must be unique")
 
 
 def load_records(path: str | Path) -> tuple[TextRecord, ...]:
