@@ -48,6 +48,30 @@ class ClassiangLearningTests(unittest.TestCase):
                       feature.evidence_refs[0])
         self.assertIn(("recognition", 1.0), feature.purpose_scores)
 
+    def test_task_scores_are_prevalence_not_normalized_across_tasks(self):
+        rows = []
+        for index, row in enumerate(records()[:4]):
+            annotation = row.annotations[0]
+            rows.append(TextRecord(
+                row.observation_id, row.subject_id, row.domain, row.source_id,
+                row.text, (TextAnnotation(
+                    annotation.start_char, annotation.end_char,
+                    annotation.dimension, annotation.value,
+                    ("recognition", "diagnosis"),
+                ),), row.context, row.group_id,
+            ))
+        model = TrainableTextEncoder().fit(tuple(rows))
+        query = records()[4]
+        observation = model.predict(
+            observation_id=query.observation_id, subject_id=query.subject_id,
+            domain=query.domain, source_id=query.source_id, text=query.text,
+            threshold=0.2,
+        )
+        self.assertEqual(
+            observation.features[0].purpose_scores,
+            (("diagnosis", 1.0), ("recognition", 1.0)),
+        )
+
     def test_group_disjoint_training_and_validation(self):
         model, report = train_and_evaluate(records(), seed=3)
         self.assertTrue(report["group_disjoint"])
