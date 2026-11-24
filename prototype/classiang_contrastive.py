@@ -81,27 +81,21 @@ class ContrastiveSpanEncoder:
         for row in rows:
             _validate_record(row)
             positives = {(a.start_char, a.end_char): a for a in row.annotations}
-            candidates = _candidate_spans(
-                row.text, max_tokens=self.max_tokens,
-                max_span_chars=self.max_span_chars,
-                max_candidates=self.max_candidates,
-            )
             positive_vectors = [
                 _sparse(row.text[start:end]) for start, end in positives
             ]
-            negatives = []
-            for start, end in candidates:
-                if (start, end) in positives or any(
-                    start < p_end and p_start < end for p_start, p_end in positives
-                ):
-                    continue
+            reviewed_negatives = []
+            for start, end in row.negative_annotations:
                 vector = _sparse(row.text[start:end])
-                similarity = max((_similarity(vector, pos) for pos in positive_vectors), default=0.0)
-                negatives.append((similarity, start, end, vector))
-            negatives.sort(key=lambda item: (-item[0], item[1], item[2]))
-            hard = negatives[:self.hard_negatives_per_record]
-            if not hard and negatives:
-                hard = rng.sample(negatives, min(len(negatives), self.hard_negatives_per_record))
+                similarity = max(
+                    (_similarity(vector, pos) for pos in positive_vectors),
+                    default=0.0,
+                )
+                reviewed_negatives.append((similarity, start, end, vector))
+            # Only explicitly reviewed negative spans are eligible. Unannotated
+            # spans are unknown, not negative examples.
+            reviewed_negatives.sort(key=lambda item: (-item[0], item[1], item[2]))
+            hard = reviewed_negatives[:self.hard_negatives_per_record]
             hard_count += len(hard)
             for (start, end), annotation in positives.items():
                 label = _label(annotation)
@@ -109,14 +103,29 @@ class ContrastiveSpanEncoder:
                 self.label_counts[label] += 1
                 for purpose in annotation.purposes:
                     self.purpose_counts[label][purpose] += 1
-            samples.extend((vector, NONE_LABEL, "hard_negative") for _, _, _, vector in hard)
+            samples.extend(
+                (vector, NONE_LABEL, "reviewed_hard_negative")
+                for _, _, _, vector in hard
+            )
         if not any(label != NONE_LABEL for _, label, _ in samples):
             raise ValueError("training data contains no positive annotations")
+        if hard_count == 0:
+            raise ValueError(
+                "contrastive training requires explicitly reviewed negative_annotations; "
+                "unannotated spans are unknown, not negatives"
+            )
         self.classes = tuple(sorted({label for _, label, _ in samples}))
         for label in self.classes:
             self.weights[label] = Counter()
-        order = list(range(len(samples)))
+        positive_order = [i for i, sample in enumerate(samples) if sample[1] != NONE_LABEL]
+        negative_order = [i for i, sample in enumerate(samples) if sample[1] == NONE_LABEL]
+        hard_start_epoch = max(1, self.epochs // 3)
         for epoch in range(self.epochs):
+            # Curriculum: establish positive class structure first, then add
+            # reviewed hard negatives to refine the decision boundary.
+            order = list(positive_order)
+            if epoch >= hard_start_epoch:
+                order.extend(negative_order)
             rng.shuffle(order)
             rate = self.learning_rate / math.sqrt(epoch + 1)
             for index in order:
@@ -269,8 +278,9 @@ def train_contrastive(records: tuple[TextRecord, ...], *, seed: int = 17,
         "validation": evaluate(model, validation, threshold=threshold),
         "limitations": [
             "CPU sparse linear margin baseline, not a pretrained language model",
-            "hard negatives are mined from unlabeled non-overlapping spans",
-            "unannotated spans may contain missed positives",
+            "hard negatives are selected only from explicitly reviewed negative_annotations",
+            "unannotated spans are treated as unknown, never as negative labels",
+            "hard negatives enter after a positive-only warmup curriculum",
             "scores are not calibrated probabilities",
             "no cross-chunk memory or semantic truth guarantee",
         ],
