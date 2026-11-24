@@ -17,7 +17,8 @@ from prototype.classiang_learning import (
 from prototype.classiang_pipeline import (
     ClassiangCycleRequest, ClassiangCycleResult, run_classiang_cycle,
 )
-from prototype.classiang_engine import ClassExample
+from prototype.classiang_engine import ClassExample, select_aspects
+from prototype.classiang_discovery import DiscoveryResult, ObjectView, discover_classes
 
 
 def load_reviewed_feedback(path: str | Path) -> tuple[TextRecord, ...]:
@@ -127,6 +128,37 @@ def train_deploy_workflow(
     target.write_text(json.dumps(report, ensure_ascii=False, indent=2) + "\n",
                       encoding="utf-8")
     return model, report
+
+
+def discover_text_classes(
+    model: TrainableTextEncoder,
+    records: tuple[TextRecord, ...],
+    *,
+    purpose: str,
+    min_relevance: float = 0.5,
+    min_support: float = 0.2,
+    max_order: int = 3,
+    max_candidate_evaluations: int = 10000,
+) -> DiscoveryResult:
+    """Turn model-proposed, evidence-grounded text features into unreviewed class candidates."""
+    objects = []
+    for row in records:
+        observation = model.predict(
+            observation_id=row.observation_id, subject_id=row.subject_id,
+            domain=row.domain, source_id=row.source_id, text=row.text,
+            context=row.context,
+        )
+        selected = select_aspects(
+            observation, purpose=purpose, min_relevance=min_relevance,
+        ).selected
+        objects.append(ObjectView(
+            object_id=row.observation_id, features=selected,
+            evidence_refs=observation.evidence_refs,
+        ))
+    return discover_classes(
+        tuple(objects), min_support=min_support, max_order=max_order,
+        max_candidate_evaluations=max_candidate_evaluations,
+    )
 
 
 def run_text_classiang_cycle(
