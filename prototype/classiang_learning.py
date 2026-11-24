@@ -134,8 +134,8 @@ def load_records(path: str | Path) -> tuple[TextRecord, ...]:
         raise ValueError("dataset must contain exactly schema_version and examples")
     if payload["schema_version"] != SCHEMA_VERSION:
         raise ValueError("unsupported text dataset schema_version")
-    if not isinstance(payload["examples"], list) or len(payload["examples"]) < 2:
-        raise ValueError("examples must contain at least two records")
+    if not isinstance(payload["examples"], list) or not payload["examples"]:
+        raise ValueError("examples must contain at least one record")
     records = []
     required = {"observation_id", "subject_id", "domain", "source_id", "text", "annotations"}
     for index, item in enumerate(payload["examples"]):
