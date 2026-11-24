@@ -72,6 +72,25 @@ class ClassiangLearningTests(unittest.TestCase):
             (("diagnosis", 1.0), ("recognition", 1.0)),
         )
 
+    def test_reviewed_negative_spans_are_validated_and_kept_separate(self):
+        row = records()[0]
+        negative_text = "narrow pipe"
+        start = row.text.index(negative_text)
+        reviewed = TextRecord(
+            row.observation_id, row.subject_id, row.domain, row.source_id,
+            row.text, row.annotations, row.context, row.group_id,
+            ((start, start + len(negative_text)),),
+        )
+        model = TrainableTextEncoder().fit((reviewed,))
+        self.assertGreater(model.training_records, 0)
+        with self.assertRaisesRegex(ValueError, "overlaps a positive"):
+            invalid = TextRecord(
+                row.observation_id, row.subject_id, row.domain, row.source_id,
+                row.text, row.annotations, row.context, row.group_id,
+                ((row.annotations[0].start_char, row.annotations[0].end_char),),
+            )
+            TrainableTextEncoder().fit((invalid,))
+
     def test_training_rejects_spans_outside_token_boundaries(self):
         row = records()[0]
         text = "xtransfers water"
