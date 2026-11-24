@@ -325,14 +325,15 @@ class TrainableTextEncoder:
         accepted = []
         for item in proposed:
             _, _, start, end, *_ = item
-            if any(start < other[2] and other[1] < end for other in accepted):
+            if any(start < other[3] and other[2] < end for other in accepted):
                 continue
             accepted.append(item)
             if len(accepted) >= max_features:
                 break
-        accepted.sort(key=lambda item: (item[1], item[2]))
+        accepted.sort(key=lambda item: (item[2], item[3]))
         refs = tuple(sorted({
-            f"text:{source_id}:chars:{start}-{end}" for _, start, end, *_ in accepted
+            f"text:{source_id}:chars:{start}-{end}"
+            for _, _, start, end, *_ in accepted
         }))
         features = tuple(
             FeatureCandidate(
@@ -341,7 +342,7 @@ class TrainableTextEncoder:
                 evidence_refs=(f"text:{source_id}:chars:{start}-{end}",),
                 purpose_scores=purpose_scores,
             )
-            for index, (_, start, end, dimension, value, purpose_scores) in enumerate(accepted)
+            for index, (_, _, start, end, dimension, value, purpose_scores) in enumerate(accepted)
         )
         observation = Observation(
             observation_id, subject_id, domain, refs or (f"text:{source_id}:document",),
