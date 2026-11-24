@@ -21,6 +21,7 @@ def sample_records():
                 ("recognition",),
             ),),
             group_id=f"source-family-{index}",
+            negative_annotations=((text.index("narrow pipe"), text.index("narrow pipe") + len("narrow pipe")),),
         ))
     return tuple(rows)
 
@@ -66,6 +67,20 @@ class ContrastiveSpanTrainingTests(unittest.TestCase):
     def test_rejects_empty_training_data(self):
         with self.assertRaisesRegex(ValueError, "must not be empty"):
             ContrastiveSpanEncoder().fit(())
+
+    def test_unannotated_text_is_not_silently_used_as_negative(self):
+        rows = tuple(
+            TextRecord(
+                observation_id=f"unknown-{index}", subject_id=f"unknown-subject-{index}",
+                domain="test", source_id=f"unknown-source-{index}",
+                text="object transfers water through a narrow pipe",
+                annotations=(),
+                group_id=f"unknown-group-{index}",
+            )
+            for index in range(2)
+        )
+        with self.assertRaisesRegex(ValueError, "explicitly reviewed negative_annotations"):
+            ContrastiveSpanEncoder().fit(rows)
 
 
 if __name__ == "__main__":
