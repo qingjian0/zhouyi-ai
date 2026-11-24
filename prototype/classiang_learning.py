@@ -199,6 +199,7 @@ class TrainableTextEncoder:
         self.class_feature_totals: Counter[str] = Counter()
         self.purpose_counts: dict[str, Counter[str]] = defaultdict(Counter)
         self.label_annotations: Counter[str] = Counter()
+        self.exact_span_counts: dict[str, Counter[str]] = defaultdict(Counter)
         self.classes: tuple[str, ...] = ()
         self.vocab_size = 0
         self.training_records = 0
@@ -212,6 +213,7 @@ class TrainableTextEncoder:
         self.class_feature_totals.clear()
         self.purpose_counts.clear()
         self.label_annotations.clear()
+        self.exact_span_counts.clear()
         rng = random.Random(seed)
         for record in rows:
             _validate_record(record)
@@ -250,6 +252,8 @@ class TrainableTextEncoder:
                     self.class_feature_totals[label] += 1
             for ann in record.annotations:
                 key = _label(ann)
+                surface_key = re.sub(r"\\s+", " ", record.text[ann.start_char:ann.end_char].casefold()).strip()
+                self.exact_span_counts[surface_key][key] += 1
                 self.label_annotations[key] += 1
                 for purpose in ann.purposes:
                     self.purpose_counts[key][purpose] += 1
@@ -292,9 +296,16 @@ class TrainableTextEncoder:
         )
         proposed = []
         for start, end in candidates:
-            probabilities = self._probabilities(text[start:end])
-            label = max(probabilities, key=probabilities.get)
-            confidence = probabilities[label]
+            candidate_surface = text[start:end]
+            surface_key = re.sub(r"\\s+", " ", candidate_surface.casefold()).strip()
+            exact_counts = self.exact_span_counts.get(surface_key)
+            if exact_counts:
+                label = max(exact_counts, key=exact_counts.get)
+                confidence = exact_counts[label] / sum(exact_counts.values())
+            else:
+                probabilities = self._probabilities(candidate_surface)
+                label = max(probabilities, key=probabilities.get)
+                confidence = probabilities[label]
             if label == NONE_LABEL or confidence < threshold:
                 continue
             dimension, value = json.loads(label)
@@ -343,6 +354,7 @@ class TrainableTextEncoder:
             "class_feature_totals": dict(self.class_feature_totals),
             "purpose_counts": {k: dict(v) for k, v in self.purpose_counts.items()},
             "label_annotations": dict(self.label_annotations),
+            "exact_span_counts": {k: dict(v) for k, v in self.exact_span_counts.items()},
             "training_records": self.training_records, "vocab_size": self.vocab_size,
         }
 
@@ -365,6 +377,9 @@ class TrainableTextEncoder:
             key: Counter(value) for key, value in payload["purpose_counts"].items()
         })
         model.label_annotations = Counter(payload.get("label_annotations", {}))
+        model.exact_span_counts = defaultdict(Counter, {
+            key: Counter(value) for key, value in payload.get("exact_span_counts", {}).items()
+        })
         model.training_records = payload["training_records"]
         model.vocab_size = len({feature for counter in model.feature_counts.values() for feature in counter})
         if set(model.classes) != set(model.class_docs) or not model.classes:
