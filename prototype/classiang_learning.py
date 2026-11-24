@@ -252,7 +252,7 @@ class TrainableTextEncoder:
                     self.class_feature_totals[label] += 1
             for ann in record.annotations:
                 key = _label(ann)
-                surface_key = re.sub(r"\\s+", " ", record.text[ann.start_char:ann.end_char].casefold()).strip()
+                surface_key = re.sub(r"\s+", " ", record.text[ann.start_char:ann.end_char].casefold()).strip()
                 self.exact_span_counts[surface_key][key] += 1
                 self.label_annotations[key] += 1
                 for purpose in ann.purposes:
@@ -297,7 +297,7 @@ class TrainableTextEncoder:
         proposed = []
         for start, end in candidates:
             candidate_surface = text[start:end]
-            surface_key = re.sub(r"\\s+", " ", candidate_surface.casefold()).strip()
+            surface_key = re.sub(r"\s+", " ", candidate_surface.casefold()).strip()
             exact_counts = self.exact_span_counts.get(surface_key)
             if exact_counts:
                 label = max(exact_counts, key=exact_counts.get)
