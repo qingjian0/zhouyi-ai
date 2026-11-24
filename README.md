@@ -10,7 +10,7 @@
 - 稳定分支：main（本轮未修改）。
 - 研发集成分支：dev（当前唯一研发集成目标）；新成果先在 dev 验收，再决定是否进入 main。
 - 已进入 dev：类象关系保持 OOD 基准、易象 M22–M26 模块、卦爻编码状态转移与 M21 配对输入校验，以及 N0.10、M1/M2、CPG-EI 等计算与数据支撑资产。
-- 类象认知核心已通过 PR #543 合并到 dev：任务条件取象、证据约束立类、无标签候选发现和已审阅观象轨迹适配；当前仍是符号 MVP，完整学习和真实跨域验收未完成。
+- 类象认知核心已通过 PR #543 合并到 dev；PR #607 已增加可复现 SROK 结构关系训练。新增 PR #608 提供监督式原始文本跨度特征学习、分组隔离验证、留一域评估、审阅反馈再训练入口，以及外部视觉区域适配协议；这些是可验证的学习基线，不等于通用语义理解或原生图像感知。
 - E12-A6/ZPCM：权威事件日志、candidate/evidence/action SQLite 当前状态投影（事务触发器）、digest 校验与原子重建、SQLite scratch 有界重放已进入 dev；启动仍为 O(N) 语义重放，持久化快速 checkpoint、故障压力和 exact-head RSS 验收未完成。
 - 近期已合并：PR #543（类象认知核心）、#544–#550（循环模型基线、评测协议、持久记忆包与证据恢复）、#551（有界词法检索）；更早成果见 Git 历史。
 - 已清理重复/过时 PR：#433、#438、#445–#449、#518。M22、M24–M26 文件与测试已在 dev；M23 的 dev 版本比旧 PR 分支更新。#433 的旧聚合分支没有带来 dev 缺失文件，保留的编码转移和配对校验改进已单独移植。
@@ -63,6 +63,10 @@
 - [统一类象闭环编排 API（含任务条件观测比较）](prototype/classiang_pipeline.py)
 - [可复现 SROK 训练入口](prototype/classiang_training.py)
 - [类象训练数据格式、运行与验收说明](docs/CLASSIANG_TRAINING_V1.md)
+- [可学习类象文本闭环 v1](docs/CLASSIANG_LEARNING_LOOP_V1.md)
+- [文本特征学习器](prototype/classiang_learning.py)
+- [文本学习与类象闭环编排](prototype/classiang_learning_workflow.py)
+- [外部视觉区域证据适配器](prototype/classiang_multimodal.py)
 - [文本证据跨度 Observation 适配器](prototype/classiang_text_adapter.py)
 - [开发路线图](ROADMAP.md)
 - [E02-I 关系演化协议（独立于 streaming drift 生命周期实验）](docs/E02I_RELATION_EVOLUTION.md)
@@ -77,8 +81,10 @@
 python -m unittest discover -s tests -v
 python -m prototype.e01_sparse_composition
 python -m prototype.e01_learned_ranker --json
-# 训练已标注的结构关系数据集（格式见 docs/CLASSIANG_TRAINING_V1.md）
+# 训练已标注的 SROK 结构关系数据集
 python -m prototype.classiang_training DATASET.json --checkpoint artifacts/classiang-srok.json --report artifacts/classiang-training-report.json
+# 从原始文本及审阅跨度标注训练文本特征提议器（格式见 docs/CLASSIANG_LEARNING_LOOP_V1.md）
+python -m prototype.classiang_learning TEXT_DATASET.json --checkpoint artifacts/classiang-text.json --report artifacts/classiang-text-report.json
 ```
 
 ## 研究状态标记
