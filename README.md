@@ -61,6 +61,8 @@
 - [研究风险与证伪条件](docs/RISKS_AND_FALSIFICATION.md)
 - [类象认知主线与工程验收纲领](docs/CLASSIANG_FIRST_PRIORITY_CHARTER.md)
 - [统一类象闭环编排 API（含任务条件观测比较）](prototype/classiang_pipeline.py)
+- [可复现 SROK 训练入口](prototype/classiang_training.py)
+- [类象训练数据格式、运行与验收说明](docs/CLASSIANG_TRAINING_V1.md)
 - [文本证据跨度 Observation 适配器](prototype/classiang_text_adapter.py)
 - [开发路线图](ROADMAP.md)
 - [E02-I 关系演化协议（独立于 streaming drift 生命周期实验）](docs/E02I_RELATION_EVOLUTION.md)
@@ -75,6 +77,8 @@
 python -m unittest discover -s tests -v
 python -m prototype.e01_sparse_composition
 python -m prototype.e01_learned_ranker --json
+# 训练已标注的结构关系数据集（格式见 docs/CLASSIANG_TRAINING_V1.md）
+python -m prototype.classiang_training DATASET.json --checkpoint artifacts/classiang-srok.json --report artifacts/classiang-training-report.json
 ```
 
 ## 研究状态标记
