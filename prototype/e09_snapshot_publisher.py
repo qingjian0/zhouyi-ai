@@ -35,15 +35,18 @@ class SnapshotPublication:
 class SQLiteEvidenceSnapshotPublisher:
     """Publish read-only verifier snapshots from a live Authority database.
 
-    The destination directory must already exist and must not be group/world
-    writable. The resulting file is owned by Authority, group-readable by Verifier (0440). Source DB and its SQLite sidecars
-    must be readable by the publisher; callers must not use immutable=1 because
+    The destination directory must already exist as Authority-owned, Verifier-group-owned
+    mode 0750. The resulting file is group-readable by Verifier (0440). Source DB
+    and its SQLite sidecars must be readable by the publisher; callers must not use
+    immutable=1 because
     that would bypass WAL visibility.
     """
 
     REQUIRED_TABLES = frozenset({"events", "idempotency", "payload_vault"})
 
-    def __init__(self, source_path: str | Path, destination_path: str | Path, *, reader_gid: int):
+    def __init__(
+        self, source_path: str | Path, destination_path: str | Path, *, reader_gid: int,
+    ):
         if type(reader_gid) is not int or reader_gid < 0:
             raise ValueError("reader_gid must be a non-negative integer")
         self.reader_gid = reader_gid

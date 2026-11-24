@@ -60,7 +60,7 @@ class SQLiteEvidenceSnapshotPublisherTests(unittest.TestCase):
             reader.close()
 
     def test_failed_publication_keeps_previous_snapshot_intact(self):
-        SQLiteEvidenceSnapshotPublisher(self.source, self.snapshot).publish()
+        SQLiteEvidenceSnapshotPublisher(self.source, self.snapshot, reader_gid=os.getegid()).publish()
         before = self.snapshot.read_bytes()
         invalid_source = self.root / "empty.sqlite3"
         sqlite3.connect(invalid_source).close()
@@ -69,7 +69,7 @@ class SQLiteEvidenceSnapshotPublisherTests(unittest.TestCase):
             SQLiteEvidenceSnapshotPublisher(invalid_source, self.snapshot).publish()
 
         self.assertEqual(self.snapshot.read_bytes(), before)
-        reader = SQLiteEvidenceReader(self.snapshot)
+        reader = SQLiteEvidenceStore.open_read_only(self.snapshot.resolve())
         try:
             self.assertEqual(len(reader.replay_episode("episode-1")), 1)
         finally:
