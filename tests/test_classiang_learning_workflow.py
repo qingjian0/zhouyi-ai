@@ -4,9 +4,9 @@ import unittest
 from pathlib import Path
 
 from prototype.classiang_learning_workflow import (
-    cross_domain_evaluation, load_reviewed_feedback, train_deploy_workflow,
+    cross_domain_evaluation, discover_text_classes, load_reviewed_feedback, train_deploy_workflow,
 )
-from prototype.classiang_learning import TextAnnotation, TextRecord
+from prototype.classiang_learning import TextAnnotation, TextRecord, TrainableTextEncoder
 
 
 def sample_records():
@@ -80,6 +80,28 @@ class ClassiangLearningWorkflowTests(unittest.TestCase):
             {x["held_out_domain"] for x in report["folds"]},
             {"mechanical", "biology"},
         )
+
+    def test_learned_text_features_feed_unreviewed_class_discovery(self):
+        source = []
+        for item in sample_records()["examples"][:4]:
+            annotation = item["annotations"][0]
+            source.append(TextRecord(
+                item["observation_id"], item["subject_id"], item["domain"],
+                item["source_id"], item["text"],
+                (TextAnnotation(
+                    annotation["start_char"], annotation["end_char"],
+                    annotation["dimension"], annotation["value"],
+                    tuple(annotation["purposes"]),
+                ),), (), item["group_id"],
+            ))
+        model = TrainableTextEncoder().fit(tuple(source))
+        result = discover_text_classes(
+            model, tuple(source), purpose="recognition", min_support=0.5,
+        )
+        self.assertEqual(result.object_count, 4)
+        self.assertTrue(result.candidates)
+        self.assertEqual(result.candidates[0].status, "unreviewed_candidate")
+        self.assertTrue(result.candidates[0].evidence_refs)
 
     def test_training_workflow_saves_checkpoint_and_report(self):
         with tempfile.TemporaryDirectory() as directory:
