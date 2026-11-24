@@ -102,6 +102,10 @@ def _candidate_spans(text: str, *, max_tokens: int, max_span_chars: int,
 def _validate_record(record: TextRecord) -> None:
     for name in ("observation_id", "subject_id", "domain", "source_id", "text"):
         _nonempty(getattr(record, name), name)
+    if not isinstance(record.group_id, str):
+        raise ValueError("group_id must be text")
+    if not isinstance(record.context, tuple) or any(not isinstance(x, str) for x in record.context):
+        raise ValueError("context must be a tuple of strings")
     if not isinstance(record.annotations, tuple):
         raise ValueError("annotations must be a tuple")
     seen: set[tuple[int, int]] = set()
@@ -176,11 +180,13 @@ class TrainableTextEncoder:
 
     def __init__(self, *, alpha: float = 0.5, max_tokens: int = 6,
                  max_span_chars: int = 32, max_candidates: int = 20000):
-        if not math.isfinite(alpha) or alpha <= 0:
+        if isinstance(alpha, bool) or not isinstance(alpha, (int, float)) or not math.isfinite(alpha) or alpha <= 0:
             raise ValueError("alpha must be positive and finite")
-        if not 1 <= max_tokens <= 12 or not 1 <= max_span_chars <= 128:
+        if (isinstance(max_tokens, bool) or not isinstance(max_tokens, int) or not 1 <= max_tokens <= 12
+                or isinstance(max_span_chars, bool) or not isinstance(max_span_chars, int)
+                or not 1 <= max_span_chars <= 128):
             raise ValueError("invalid span limits")
-        if max_candidates < 1:
+        if isinstance(max_candidates, bool) or not isinstance(max_candidates, int) or max_candidates < 1:
             raise ValueError("max_candidates must be positive")
         self.alpha = float(alpha)
         self.max_tokens = max_tokens
@@ -414,7 +420,7 @@ def evaluate(model: TrainableTextEncoder, records: tuple[TextRecord, ...],
             match = re.search(r":chars:(\d+)-(\d+)$", ref)
             if match:
                 actual.add((int(match.group(1)), int(match.group(2)),
-                            f"{feature.atom.dimension}\t{feature.atom.value}"))
+                            json.dumps([feature.atom.dimension, feature.atom.value], ensure_ascii=False, separators=(",", ":"))))
         tp += len(expected & actual)
         fp += len(actual - expected)
         fn += len(expected - actual)
