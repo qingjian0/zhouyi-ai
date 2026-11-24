@@ -62,6 +62,8 @@
 - [类象认知主线与工程验收纲领](docs/CLASSIANG_FIRST_PRIORITY_CHARTER.md)
 - [统一类象闭环编排 API（含任务条件观测比较）](prototype/classiang_pipeline.py)
 - [可复现 SROK 训练入口](prototype/classiang_training.py)
+- [类象训练框架：训练路线、数据协议与验收标准](docs/CLASSIANG_TRAINING_FRAMEWORK.md)
+- [困难负例对比学习器](prototype/classiang_contrastive.py)
 - [类象训练数据格式、运行与验收说明](docs/CLASSIANG_TRAINING_V1.md)
 - [可学习类象文本闭环 v1](docs/CLASSIANG_LEARNING_LOOP_V1.md)
 - [文本特征学习器](prototype/classiang_learning.py)
