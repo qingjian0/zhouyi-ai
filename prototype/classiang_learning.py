@@ -45,6 +45,8 @@ class TextRecord:
     annotations: tuple[TextAnnotation, ...]
     context: tuple[str, ...] = ()
     group_id: str = ""
+    # Only independently reviewed negatives belong here. Unannotated text is unknown.
+    negative_annotations: tuple[tuple[int, int], ...] = ()
 
 
 @dataclass(frozen=True)
@@ -108,6 +110,8 @@ def _validate_record(record: TextRecord) -> None:
         raise ValueError("context must be a tuple of strings")
     if not isinstance(record.annotations, tuple):
         raise ValueError("annotations must be a tuple")
+    if not isinstance(record.negative_annotations, tuple):
+        raise ValueError("negative_annotations must be a tuple")
     seen: set[tuple[int, int]] = set()
     for ann in record.annotations:
         if not isinstance(ann, TextAnnotation):
@@ -128,6 +132,15 @@ def _validate_record(record: TextRecord) -> None:
             raise ValueError("annotation purposes must be non-empty strings")
         if len(ann.purposes) != len(set(ann.purposes)):
             raise ValueError("annotation purposes must be unique")
+    for span in record.negative_annotations:
+        if (not isinstance(span, tuple) or len(span) != 2
+                or any(isinstance(x, bool) or not isinstance(x, int) for x in span)
+                or not 0 <= span[0] < span[1] <= len(record.text)):
+            raise ValueError("negative annotation offsets are outside the source text")
+        if not record.text[span[0]:span[1]].strip():
+            raise ValueError("negative annotation span must contain source text")
+        if any(span[0] < end and start < span[1] for start, end in seen):
+            raise ValueError("negative annotation overlaps a positive annotation")
 
 
 def load_records(path: str | Path) -> tuple[TextRecord, ...]:
@@ -145,7 +158,7 @@ def load_records(path: str | Path) -> tuple[TextRecord, ...]:
     records = []
     required = {"observation_id", "subject_id", "domain", "source_id", "text", "annotations"}
     for index, item in enumerate(payload["examples"]):
-        if not isinstance(item, dict) or not required <= set(item) or set(item) - (required | {"context", "group_id"}):
+        if not isinstance(item, dict) or not required <= set(item) or set(item) - (required | {"context", "group_id", "negative_annotations"}):
             raise ValueError(f"examples[{index}] has missing or unknown fields")
         annotations = item["annotations"]
         if not isinstance(annotations, list):
@@ -164,10 +177,20 @@ def load_records(path: str | Path) -> tuple[TextRecord, ...]:
         context = item.get("context", [])
         if not isinstance(context, list) or any(not isinstance(x, str) for x in context):
             raise ValueError("context must be a list of strings")
+        raw_negatives = item.get("negative_annotations", [])
+        if not isinstance(raw_negatives, list):
+            raise ValueError(f"examples[{index}].negative_annotations must be a list")
+        negative_spans = []
+        for negative in raw_negatives:
+            if (not isinstance(negative, dict)
+                    or set(negative) != {"start_char", "end_char"}):
+                raise ValueError(f"examples[{index}] contains an invalid negative annotation")
+            negative_spans.append((negative["start_char"], negative["end_char"]))
         record = TextRecord(
             item["observation_id"], item["subject_id"], item["domain"],
             item["source_id"], item["text"], tuple(converted),
             tuple(context), item.get("group_id", item["subject_id"]),
+            tuple(negative_spans),
         )
         _validate_record(record)
         records.append(record)
