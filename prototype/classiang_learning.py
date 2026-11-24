@@ -196,6 +196,7 @@ class TrainableTextEncoder:
         self.feature_counts: dict[str, Counter[str]] = defaultdict(Counter)
         self.class_feature_totals: Counter[str] = Counter()
         self.purpose_counts: dict[str, Counter[str]] = defaultdict(Counter)
+        self.label_annotations: Counter[str] = Counter()
         self.classes: tuple[str, ...] = ()
         self.vocab_size = 0
         self.training_records = 0
@@ -208,6 +209,7 @@ class TrainableTextEncoder:
         self.feature_counts.clear()
         self.class_feature_totals.clear()
         self.purpose_counts.clear()
+        self.label_annotations.clear()
         rng = random.Random(seed)
         for record in rows:
             _validate_record(record)
@@ -235,6 +237,7 @@ class TrainableTextEncoder:
                     self.class_feature_totals[label] += 1
             for ann in record.annotations:
                 key = _label(ann)
+                self.label_annotations[key] += 1
                 for purpose in ann.purposes:
                     self.purpose_counts[key][purpose] += 1
         self.classes = tuple(sorted(self.class_docs))
@@ -282,11 +285,11 @@ class TrainableTextEncoder:
             if label == NONE_LABEL or confidence < threshold:
                 continue
             dimension, value = json.loads(label)
-            purpose_total = sum(self.purpose_counts[label].values())
+            annotation_total = self.label_annotations[label]
             purpose_scores = tuple(sorted(
-                (purpose, count / purpose_total)
+                (purpose, count / annotation_total)
                 for purpose, count in self.purpose_counts[label].items()
-            )) if purpose_total else ()
+            )) if annotation_total else ()
             proposed.append((confidence, start, end, dimension, value, purpose_scores))
         proposed.sort(key=lambda item: (-item[0], item[1], -(item[2] - item[1])))
         accepted = []
@@ -326,6 +329,7 @@ class TrainableTextEncoder:
             "feature_counts": {k: dict(v) for k, v in self.feature_counts.items()},
             "class_feature_totals": dict(self.class_feature_totals),
             "purpose_counts": {k: dict(v) for k, v in self.purpose_counts.items()},
+            "label_annotations": dict(self.label_annotations),
             "training_records": self.training_records, "vocab_size": self.vocab_size,
         }
 
@@ -347,6 +351,7 @@ class TrainableTextEncoder:
         model.purpose_counts = defaultdict(Counter, {
             key: Counter(value) for key, value in payload["purpose_counts"].items()
         })
+        model.label_annotations = Counter(payload.get("label_annotations", {}))
         model.training_records = payload["training_records"]
         model.vocab_size = len({feature for counter in model.feature_counts.values() for feature in counter})
         if set(model.classes) != set(model.class_docs) or not model.classes:
