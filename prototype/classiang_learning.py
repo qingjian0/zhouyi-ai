@@ -299,6 +299,7 @@ class TrainableTextEncoder:
             candidate_surface = text[start:end]
             surface_key = re.sub(r"\s+", " ", candidate_surface.casefold()).strip()
             exact_counts = self.exact_span_counts.get(surface_key)
+            is_reviewed_exact_span = bool(exact_counts)
             if exact_counts:
                 label = max(exact_counts, key=exact_counts.get)
                 confidence = exact_counts[label] / sum(exact_counts.values())
@@ -314,11 +315,16 @@ class TrainableTextEncoder:
                 (purpose, count / annotation_total)
                 for purpose, count in self.purpose_counts[label].items()
             )) if annotation_total else ()
-            proposed.append((confidence, start, end, dimension, value, purpose_scores))
-        proposed.sort(key=lambda item: (-item[0], item[1], -(item[2] - item[1])))
+            proposed.append((is_reviewed_exact_span, confidence, start, end,
+                             dimension, value, purpose_scores))
+        # Reviewed phrase boundaries outrank broader NB guesses that merely
+        # contain the same words; otherwise a whole sentence can suppress the
+        # exact source span supplied by the annotator.
+        proposed.sort(key=lambda item: (not item[0], -item[1], item[2],
+                                        -(item[3] - item[2])))
         accepted = []
         for item in proposed:
-            _, start, end, *_ = item
+            _, _, start, end, *_ = item
             if any(start < other[2] and other[1] < end for other in accepted):
                 continue
             accepted.append(item)
