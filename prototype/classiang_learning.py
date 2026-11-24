@@ -61,7 +61,7 @@ def _nonempty(value: Any, field: str) -> str:
 
 
 def _label(annotation: TextAnnotation) -> str:
-    return f"{annotation.dimension}\t{annotation.value}"
+    return json.dumps([annotation.dimension, annotation.value], ensure_ascii=False, separators=(",", ":"))
 
 
 def _tokenize(text: str) -> tuple[TextToken, ...]:
@@ -191,6 +191,7 @@ class TrainableTextEncoder:
         self.class_feature_totals: Counter[str] = Counter()
         self.purpose_counts: dict[str, Counter[str]] = defaultdict(Counter)
         self.classes: tuple[str, ...] = ()
+        self.vocab_size = 0
         self.training_records = 0
 
     def fit(self, records: Iterable[TextRecord], *, seed: int = 17) -> "TrainableTextEncoder":
@@ -231,6 +232,7 @@ class TrainableTextEncoder:
                 for purpose in ann.purposes:
                     self.purpose_counts[key][purpose] += 1
         self.classes = tuple(sorted(self.class_docs))
+        self.vocab_size = len({feature for counter in self.feature_counts.values() for feature in counter})
         if not any(label != NONE_LABEL for label in self.classes):
             raise ValueError("training data contains no positive feature annotations")
         self.training_records = len(rows)
@@ -239,12 +241,12 @@ class TrainableTextEncoder:
     def _probabilities(self, surface: str) -> dict[str, float]:
         features = _span_features(surface)
         total_docs = sum(self.class_docs.values())
-        vocab = {f for counter in self.feature_counts.values() for f in counter}
+        vocab_size = max(1, self.vocab_size)
         scores = {}
         for label in self.classes:
             score = math.log((self.class_docs[label] + self.alpha) /
                              (total_docs + self.alpha * len(self.classes)))
-            denom = self.class_feature_totals[label] + self.alpha * max(1, len(vocab))
+            denom = self.class_feature_totals[label] + self.alpha * vocab_size
             counts = self.feature_counts[label]
             for feature in features:
                 score += math.log((counts[feature] + self.alpha) / denom)
@@ -273,7 +275,7 @@ class TrainableTextEncoder:
             confidence = probabilities[label]
             if label == NONE_LABEL or confidence < threshold:
                 continue
-            dimension, value = label.split("\t", 1)
+            dimension, value = json.loads(label)
             purpose_total = sum(self.purpose_counts[label].values())
             purpose_scores = tuple(sorted(
                 (purpose, count / purpose_total)
@@ -318,7 +320,7 @@ class TrainableTextEncoder:
             "feature_counts": {k: dict(v) for k, v in self.feature_counts.items()},
             "class_feature_totals": dict(self.class_feature_totals),
             "purpose_counts": {k: dict(v) for k, v in self.purpose_counts.items()},
-            "training_records": self.training_records,
+            "training_records": self.training_records, "vocab_size": self.vocab_size,
         }
 
     @classmethod
@@ -340,6 +342,7 @@ class TrainableTextEncoder:
             key: Counter(value) for key, value in payload["purpose_counts"].items()
         })
         model.training_records = payload["training_records"]
+        model.vocab_size = len({feature for counter in model.feature_counts.values() for feature in counter})
         if set(model.classes) != set(model.class_docs) or not model.classes:
             raise ValueError("checkpoint class index is inconsistent")
         if any(total < 0 for total in model.class_feature_totals.values()):
