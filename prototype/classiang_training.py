@@ -135,7 +135,7 @@ def train_and_evaluate(
             max_expansions=max_assignments_per_example, result_limit=1,
         )
         evaluated += 1
-        if prediction.abstained or not prediction.candidates:
+        if prediction.abstained or prediction.budget_exhausted or not prediction.candidates:
             abstentions += 1
             continue
         predicted_ids = tuple(node_id for _, node_id in prediction.candidates[0].role_bindings)
