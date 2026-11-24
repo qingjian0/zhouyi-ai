@@ -58,6 +58,19 @@ jobs:
         run: python -m unittest tests.test_m2_semantic_unit_store.PersistentSemanticUnitCandidateStoreTests.test_real_process_distinct_writers_reconcile_stale_sequence tests.test_m2_semantic_unit_store.PersistentSemanticUnitCandidateStoreTests.test_real_process_identical_writers_commit_one_event tests.test_m2_semantic_unit_store.PersistentSemanticUnitCandidateStoreTests.test_real_process_conflicting_same_id_writer_fails_closed -v
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
+      - name: Run four-scale synthetic Classiang training
+        timeout-minutes: 5
+        run: python -m prototype.classiang_multiscale_training --output-dir artifacts/classiang-multiscale | tee classiang-multiscale-training-report.json
+      - name: Upload four-scale Classiang training artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: classiang-four-scale-training
+          path: |
+            artifacts/classiang-multiscale/
+            classiang-multiscale-training-report.json
+          if-no-files-found: ignore
+          retention-days: 30
       - name: Run orchestrator CLI plan
         run: python -m orchestrator.cli orchestrator/examples/quickstart.json --plan
 
