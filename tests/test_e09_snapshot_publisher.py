@@ -66,7 +66,7 @@ class SQLiteEvidenceSnapshotPublisherTests(unittest.TestCase):
         sqlite3.connect(invalid_source).close()
 
         with self.assertRaises(SnapshotPublicationError):
-            SQLiteEvidenceSnapshotPublisher(invalid_source, self.snapshot).publish()
+            SQLiteEvidenceSnapshotPublisher(invalid_source, self.snapshot, reader_gid=os.getegid()).publish()
 
         self.assertEqual(self.snapshot.read_bytes(), before)
         reader = SQLiteEvidenceStore.open_read_only(self.snapshot.resolve())
@@ -77,13 +77,13 @@ class SQLiteEvidenceSnapshotPublisherTests(unittest.TestCase):
 
     def test_rejects_source_and_destination_alias(self):
         with self.assertRaises(SnapshotPublicationError):
-            SQLiteEvidenceSnapshotPublisher(self.source, self.source)
+            SQLiteEvidenceSnapshotPublisher(self.source, self.source, reader_gid=os.getegid())
 
     def test_rejects_symlink_source(self):
         link = self.root / "source-link.sqlite3"
         link.symlink_to(self.source)
         with self.assertRaises(SnapshotPublicationError):
-            SQLiteEvidenceSnapshotPublisher(link, self.snapshot)
+            SQLiteEvidenceSnapshotPublisher(link, self.snapshot, reader_gid=os.getegid())
 
     def test_rejects_group_or_world_writable_snapshot_directory(self):
         unsafe = self.root / "unsafe"
@@ -91,7 +91,7 @@ class SQLiteEvidenceSnapshotPublisherTests(unittest.TestCase):
         unsafe.chmod(0o770)
         try:
             with self.assertRaises(SnapshotPublicationError):
-                SQLiteEvidenceSnapshotPublisher(self.source, unsafe / "snapshot.sqlite3")
+                SQLiteEvidenceSnapshotPublisher(self.source, unsafe / "snapshot.sqlite3", reader_gid=os.getegid())
         finally:
             unsafe.chmod(0o700)
 
@@ -100,7 +100,7 @@ class SQLiteEvidenceSnapshotPublisherTests(unittest.TestCase):
         sidecar.write_bytes(b"stale")
         try:
             with self.assertRaises(SnapshotPublicationError):
-                SQLiteEvidenceSnapshotPublisher(self.source, self.snapshot).publish()
+                SQLiteEvidenceSnapshotPublisher(self.source, self.snapshot, reader_gid=os.getegid()).publish()
             self.assertFalse(self.snapshot.exists())
         finally:
             sidecar.unlink(missing_ok=True)
@@ -111,7 +111,7 @@ class SQLiteEvidenceSnapshotPublisherTests(unittest.TestCase):
         link = self.root / "verifier" / "link.sqlite3"
         link.symlink_to(real)
         with self.assertRaises(SnapshotPublicationError):
-            SQLiteEvidenceSnapshotPublisher(self.source, link)
+            SQLiteEvidenceSnapshotPublisher(self.source, link, reader_gid=os.getegid())
 
 
 if __name__ == "__main__":
