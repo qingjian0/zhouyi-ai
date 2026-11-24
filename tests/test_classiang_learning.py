@@ -74,14 +74,13 @@ class ClassiangLearningTests(unittest.TestCase):
 
     def test_training_rejects_spans_outside_token_boundaries(self):
         row = records()[0]
+        text = "xtransfers water"
         invalid = TextRecord(
             row.observation_id, row.subject_id, row.domain, row.source_id,
-            "x" + row.text,
+            text,
             (TextAnnotation(
-                row.annotations[0].start_char + 1,
-                row.annotations[0].end_char + 1,
-                row.annotations[0].dimension, row.annotations[0].value,
-                row.annotations[0].purposes,
+                1, len(text), row.annotations[0].dimension,
+                row.annotations[0].value, row.annotations[0].purposes,
             ),), row.context, row.group_id,
         )
         with self.assertRaisesRegex(ValueError, "not representable"):
