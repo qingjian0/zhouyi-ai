@@ -7,6 +7,7 @@ calibrated probabilities; predictions retain source offsets and can abstain.
 from __future__ import annotations
 
 from collections import Counter, defaultdict
+import argparse
 import hashlib
 import json
 import math
@@ -18,7 +19,7 @@ from typing import Iterable
 from prototype.classiang_engine import FeatureAtom, FeatureCandidate, Observation
 from prototype.classiang_learning import (
     NONE_LABEL, TextRecord, _candidate_spans, _label, _span_features,
-    _validate_record, _split_groups, evaluate,
+    _validate_record, _split_groups, evaluate, load_records,
 )
 
 
@@ -36,7 +37,7 @@ def _similarity(left: Counter[str], right: Counter[str]) -> float:
 
 
 class ContrastiveSpanEncoder:
-    """Sparse multiclass margin learner with per-record hard-negative mining."""
+    """Sparse multiclass margin learner with per-record reviewed hard negatives."""
 
     model_type = "classiang-contrastive-span-v1"
 
@@ -286,3 +287,38 @@ def train_contrastive(records: tuple[TextRecord, ...], *, seed: int = 17,
         ],
     }
     return model, report
+
+def main() -> int:
+    parser = argparse.ArgumentParser(
+        description="Train the reviewed-negative Classiang contrastive span baseline."
+    )
+    parser.add_argument("dataset", help="UTF-8 JSON dataset with reviewed negative_annotations")
+    parser.add_argument("--checkpoint", default="artifacts/classiang-contrastive.json")
+    parser.add_argument("--report", default="artifacts/classiang-contrastive-report.json")
+    parser.add_argument("--seed", type=int, default=17)
+    parser.add_argument("--validation-fraction", type=float, default=0.2)
+    parser.add_argument("--threshold", type=float, default=0.55)
+    args = parser.parse_args()
+    records = load_records(args.dataset)
+    model, report = train_contrastive(
+        records, seed=args.seed,
+        validation_fraction=args.validation_fraction,
+        threshold=args.threshold,
+    )
+    checkpoint_sha256 = model.save(args.checkpoint)
+    report["checkpoint_path"] = args.checkpoint
+    report["checkpoint_sha256"] = checkpoint_sha256
+    report["dataset_path"] = args.dataset
+    report["dataset_sha256"] = hashlib.sha256(Path(args.dataset).read_bytes()).hexdigest()
+    target = Path(args.report)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(
+        json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    print(json.dumps(report, ensure_ascii=False, indent=2))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
