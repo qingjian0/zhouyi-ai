@@ -71,6 +71,27 @@
 
 真实 Gold test 集必须冻结，不得用于训练、阈值选择或反复调参。
 
+## 对比训练运行
+
+数据集在每条记录中可附加经人工审阅的负例跨度：
+
+```json
+"negative_annotations": [
+  {"start_char": 31, "end_char": 42}
+]
+```
+
+运行对比训练：
+
+```bash
+python -m prototype.classiang_contrastive DATASET.json \
+  --checkpoint artifacts/classiang-contrastive.json \
+  --report artifacts/classiang-contrastive-report.json \
+  --seed 17 --validation-fraction 0.2
+```
+
+训练器先用正例进行预热，再加入已审阅困难负例；未标注文本不会被当作负例。训练报告同时记录数据集与检查点 SHA-256。
+
 ## 当前实现状态
 
 - 已有 SROK 结构关系训练入口。
