@@ -74,11 +74,14 @@ class ClassiangLearningTests(unittest.TestCase):
 
     def test_reviewed_negative_spans_are_validated_and_kept_separate(self):
         row = records()[0]
+        # Keep this fixture independent of the shared corpus wording: the
+        # reviewed negative span must actually exist in the source text.
+        text = row.text.replace("through pipe", "through narrow pipe")
         negative_text = "narrow pipe"
-        start = row.text.index(negative_text)
+        start = text.index(negative_text)
         reviewed = TextRecord(
             row.observation_id, row.subject_id, row.domain, row.source_id,
-            row.text, row.annotations, row.context, row.group_id,
+            text, row.annotations, row.context, row.group_id,
             ((start, start + len(negative_text)),),
         )
         model = TrainableTextEncoder().fit((reviewed,))
