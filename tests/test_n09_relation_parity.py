@@ -35,6 +35,28 @@ def parity_rows():
     return tuple(rows)
 
 
+def symmetric_parity_training_rows(groups: int = 64, seed: int = 11):
+    """Expand each magnitude triple over all eight sign patterns.
+
+    This balances every unary/pairwise feature against the parity label exactly,
+    while the exact Boolean truth table remains fully held out for evaluation.
+    """
+    rng = random.Random(seed)
+    rows = []
+    for index in range(groups):
+        magnitudes = tuple(rng.uniform(0.1, 1.0) for _ in range(3))
+        for signs in itertools.product((-1.0, 1.0), repeat=3):
+            values = tuple(a * b for a, b in zip(magnitudes, signs))
+            assignment = tuple(
+                Node(f"train-{index}-{role.name}-{sign:+.0f}", role.name, (sign,))
+                for role, sign in zip(ROLES, values)
+            )
+            label = 1 if values[0] * values[1] * values[2] > 0 else -1
+            rows.append(RelationClassificationExample(assignment, label))
+    random.Random(seed + 1).shuffle(rows)
+    return tuple(rows)
+
+
 def random_parity_rows(count: int, seed: int):
     rng = random.Random(seed)
     rows = []
@@ -60,40 +82,43 @@ def accuracy(model, rows):
 
 class LearnableSROKHighOrderParityTests(unittest.TestCase):
     def test_balanced_parity_requires_third_order_interaction(self):
-        rows = parity_rows()
+        training = symmetric_parity_training_rows()
+        held_out = parity_rows()
         ablated = {}
         for order in (1, 2):
             model = LearnableSROK(ROLES, feature_dim=1)
             model.fit_relation_classifier(
-                rows, epochs=300, learning_rate=0.1,
+                training, epochs=300, learning_rate=0.1,
                 l2=1e-4, interaction_order=order,
             )
             probabilities = [
                 model.predict_relation_probability(row.assignment,
                                                    interaction_order=order)
-                for row in rows
+                for row in held_out
             ]
             ablated[order] = sum(
                 abs(value - 0.5) for value in probabilities
             ) / len(probabilities)
-            self.assertAlmostEqual(accuracy_with_order(model, rows, order), 0.5, places=6)
+            self.assertAlmostEqual(accuracy_with_order(model, held_out, order), 0.5, places=6)
 
         self.assertLess(ablated[1], 1e-8)
         self.assertLess(ablated[2], 1e-8)
 
         third_order = LearnableSROK(ROLES, feature_dim=1)
         history = third_order.fit_relation_classifier(
-            rows, epochs=300, learning_rate=0.1,
+            training, epochs=300, learning_rate=0.1,
             l2=1e-4, interaction_order=3,
         )
         self.assertLess(history[-1], history[0])
-        self.assertEqual(accuracy(third_order, rows), 1.0)
+        self.assertEqual(accuracy(third_order, held_out), 1.0)
         self.assertGreater(abs(third_order.weights[-1]), 0.5)
 
     def test_role_permutation_preserves_symmetric_parity_probability(self):
         rows = parity_rows()
         model = LearnableSROK(ROLES, feature_dim=1)
-        model.fit_relation_classifier(rows, epochs=300, learning_rate=0.1)
+        model.fit_relation_classifier(
+            symmetric_parity_training_rows(), epochs=300, learning_rate=0.1
+        )
         assignment = rows[-1].assignment
         expected = model.predict_relation_probability(assignment)
         for permutation in itertools.permutations(assignment):
@@ -101,9 +126,10 @@ class LearnableSROKHighOrderParityTests(unittest.TestCase):
             self.assertAlmostEqual(actual, expected, places=10)
 
     def test_relation_score_ranks_joint_candidate_retrieval(self):
-        rows = parity_rows()
         model = LearnableSROK(ROLES, feature_dim=1)
-        model.fit_relation_classifier(rows, epochs=300, learning_rate=0.1)
+        model.fit_relation_classifier(
+            symmetric_parity_training_rows(), epochs=300, learning_rate=0.1
+        )
         candidates = tuple(
             Node(f"{role.name}-{value:+.0f}", role.name, (value,),
                  evidence_ids=(f"evidence-{role.name}-{value:+.0f}",))
