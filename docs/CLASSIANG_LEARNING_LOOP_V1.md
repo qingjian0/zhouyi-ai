@@ -25,6 +25,9 @@ UTF-8 JSON：
       "source_id": "licensed-doc-001",
       "group_id": "source-family-001",
       "text": "A pump transfers water through a pipe.",
+      "negative_annotations": [
+        {"start_char": 33, "end_char": 37}
+      ],
       "context": ["maintenance", "description"],
       "annotations": [
         {
@@ -40,7 +43,7 @@ UTF-8 JSON：
 }
 \`\`\`
 
-跨度是 Python Unicode code-point 半开区间。可选字段 `negative_annotations` 用于记录经人工审阅确认的负例跨度，例如 `{"start_char": 31, "end_char": 42}`；负例不得与正例重叠。未标注文本默认是未知，不等于负例。每条标注必须精确对应原文；\`dimension\` 必须属于现有八类取象维度。至少需要两个独立 group，推荐按来源族、对象族或事件族分组，不能把同源段落拆到训练和验证两侧。
+跨度是 Python Unicode code-point 半开区间。训练切分中必须至少包含经人工审阅确认的 `negative_annotations` 负例跨度，例如 `{"start_char": 33, "end_char": 37}`；负例不得与正例重叠。没有正例和负例标注的记录会被跳过，不参与训练或评估。未标注文本默认是未知，不等于负例。每条标注必须精确对应原文；\`dimension\` 必须属于现有八类取象维度。至少需要两个独立 group，推荐按来源族、对象族或事件族分组，不能把同源段落拆到训练和验证两侧。
 
 ## 训练与部署
 
