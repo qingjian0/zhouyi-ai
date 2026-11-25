@@ -110,6 +110,24 @@ class ClassiangLearningTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "explicitly reviewed negative_annotations"):
             TrainableTextEncoder().fit(rows)
 
+    def test_unreviewed_only_records_are_skipped_not_used_as_negative(self):
+        model = TrainableTextEncoder().fit(records()[:4] + (
+            TextRecord(
+                "unknown-only", "unknown-subject", "test", "unknown-source",
+                "unreviewed material", (),
+            ),
+        ))
+        self.assertEqual(model.training_records, 4)
+        report = evaluate(model, (
+            TextRecord(
+                "unknown-eval", "unknown-subject", "test", "unknown-source",
+                "unreviewed material", (),
+            ),
+        ))
+        self.assertEqual(report["evaluated_records"], 0)
+        self.assertEqual(report["unreviewed_records_skipped"], 1)
+        self.assertEqual(report["false_positive"], 0)
+
     def test_training_rejects_spans_outside_token_boundaries(self):
         row = records()[0]
         text = "xtransfers water"
