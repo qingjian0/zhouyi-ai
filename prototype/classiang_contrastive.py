@@ -45,8 +45,8 @@ class ContrastiveSpanEncoder:
                  margin: float = 1.0, hard_negatives_per_record: int = 48,
                  max_tokens: int = 6, max_span_chars: int = 32,
                  max_candidates: int = 20000):
-        if isinstance(epochs, bool) or not isinstance(epochs, int) or not 1 <= epochs <= 100:
-            raise ValueError("epochs must be an integer in [1, 100]")
+        if isinstance(epochs, bool) or not isinstance(epochs, int) or not 2 <= epochs <= 100:
+            raise ValueError("epochs must be an integer in [2, 100] to allow positive-only warmup")
         if not math.isfinite(learning_rate) or learning_rate <= 0:
             raise ValueError("learning_rate must be positive and finite")
         if not math.isfinite(margin) or margin <= 0:
@@ -78,6 +78,7 @@ class ContrastiveSpanEncoder:
         self.purpose_counts.clear()
         self.label_counts.clear()
         hard_count = 0
+        training_records_used = 0
         rng = random.Random(seed)
         for row in rows:
             _validate_record(row)
@@ -95,6 +96,9 @@ class ContrastiveSpanEncoder:
                 reviewed_negatives.append((similarity, start, end, vector))
             # Only explicitly reviewed negative spans are eligible. Unannotated
             # spans are unknown, not negative examples.
+            if not positives and not reviewed_negatives:
+                continue
+            training_records_used += 1
             reviewed_negatives.sort(key=lambda item: (-item[0], item[1], item[2]))
             hard = reviewed_negatives[:self.hard_negatives_per_record]
             hard_count += len(hard)
@@ -142,7 +146,7 @@ class ContrastiveSpanEncoder:
                         self.weights[gold][feature] += rate * value
                         if predicted != gold:
                             self.weights[predicted][feature] -= rate * value
-        self.training_records = len(rows)
+        self.training_records = training_records_used
         self.training_samples = len(samples)
         self.hard_negative_samples = hard_count
         self.vocabulary_size = len({feature for vector, _, _ in samples for feature in vector})
