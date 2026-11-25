@@ -25,9 +25,9 @@ def load_reviewed_feedback(path: str | Path) -> tuple[TextRecord, ...]:
     """Load reviewed accept/correct/reject events as supervised records.
 
     Each event's record uses the same fields as one dataset example. A reject
-    event must carry an empty annotation list and therefore becomes an explicit
-    hard-negative document. Event IDs are unique and every source span is
-    revalidated by the normal dataset loader.
+    event must carry an empty positive-annotation list and at least one
+    explicitly reviewed negative span. Event IDs are unique and every source
+    span is revalidated by the normal dataset loader.
     """
     target = Path(path)
     if not target.exists():
@@ -54,8 +54,14 @@ def load_reviewed_feedback(path: str | Path) -> tuple[TextRecord, ...]:
         record = event["record"]
         if not isinstance(record, dict):
             raise ValueError("feedback record must be an object")
-        if event["decision"] == "reject" and record.get("annotations") != []:
-            raise ValueError("rejected feedback must be an explicit empty-annotation record")
+        if event["decision"] == "reject":
+            if record.get("annotations") != []:
+                raise ValueError("rejected feedback must be an explicit empty-annotation record")
+            negatives = record.get("negative_annotations")
+            if not isinstance(negatives, list) or not negatives:
+                raise ValueError(
+                    "rejected feedback must include explicitly reviewed negative_annotations spans"
+                )
         events.append(record)
     if not events:
         return ()
