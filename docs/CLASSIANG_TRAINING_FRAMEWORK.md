@@ -44,7 +44,7 @@
 - `observation_id`、`subject_id`、`domain`、`source_id`、`group_id`
 - 原始文本或结构化观测
 - 正例跨度及其类象维度、值、用途
-- 经人工确认的负例跨度（若有）
+- 经人工确认的负例跨度；每个训练切分必须有明确负例监督，未标注记录可保留但不参与训练
 - 来源 URL/文献标识、许可证、采集时间、来源族和标注者/审阅状态
 
 字符跨度采用 Python Unicode codepoint 的半开区间 `[start_char, end_char)`。原文不得在标注后被静默规范化；如需规范化，必须保存原文与偏移映射。
@@ -59,7 +59,7 @@
 
 ## 评估协议
 
-- 精确跨度 Precision / Recall / F1
+- 精确跨度 Precision / Recall / F1；未标注跨度保持未知，不计作负例，评估报告必须单列未知预测
 - 类别 Macro-F1 与每类混淆矩阵
 - 明确未知/弃权的 coverage-risk 曲线
 - 来源族隔离与留一领域测试
