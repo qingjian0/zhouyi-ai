@@ -70,7 +70,7 @@ observation = model.predict(
 
 ## 反馈学习
 
-\`append_reviewed_feedback\` 将人工审核事件追加到 JSONL。事件必须包含唯一 event_id、reviewer_id、decision（accept/correct/reject）和完整 record。reject 必须是空 annotations 的显式负例。用 \`train_deploy_workflow(..., feedback_path=...)\` 将审核后的样本加入训练集，重新训练并生成新检查点；旧检查点不被覆盖，除非调用方指定相同输出路径。
+\`append_reviewed_feedback\` 将人工审核事件追加到 JSONL。事件必须包含唯一 event_id、reviewer_id、decision（accept/correct/reject）和完整 record。reject 必须同时满足空正例标注和至少一个明确审阅的 negative_annotations 跨度；不能把整篇未标注文本自动转成负例。用 \`train_deploy_workflow(..., feedback_path=...)\` 将审核后的样本加入训练集，重新训练并生成新检查点；旧检查点不被覆盖，除非调用方指定相同输出路径。
 
 ## 跨域评估
 
@@ -85,6 +85,6 @@ observation = model.predict(
 - 当前文本模型是监督式多项式朴素贝叶斯跨度提议基线，不是大语言模型或通用语义理解器。
 - 它只能提出训练集中见过的 \`dimension=value\` 标签；未知概念应通过阈值弃权，不会凭空创造新本体。
 - purpose_scores 是训练标注频率，不是校准概率；不得解释为真理或因果置信度。
-- 现有 Naive Bayes 基线仍使用未标注候选作为弱负例，存在标注遗漏污染风险；新对比学习器只使用显式审阅的 `negative_annotations`，未标注跨度一律视为未知。
+- Naive Bayes 基线与对比学习器统一只使用显式审阅的 negative_annotations 作为负例；未标注跨度一律视为未知，不参与负例训练，也不直接计为评估假阳性。评估报告同时列出未知预测和已审阅负例误报率。新对比学习器只使用显式审阅的 `negative_annotations`，未标注跨度一律视为未知。
 - 图像适配器不是图像编码器。音频、视频也尚未实现原生感知。
 - 通过单测或合成数据只能验证工程协议。真实跨域能力必须用许可清晰、独立标注、来源族隔离的 Gold 集评估。
