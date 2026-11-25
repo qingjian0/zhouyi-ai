@@ -11,6 +11,7 @@ import argparse
 import hashlib
 import json
 from pathlib import Path
+import re
 from typing import Any
 
 from prototype.classiang_learning import TextAnnotation, TextRecord, TrainableTextEncoder, evaluate, train_and_evaluate
@@ -48,6 +49,10 @@ def _record(
         source_id=f"{doc_id}:chunk:{chunk_index:05d}",
         text=text,
         annotations=tuple(annotations),
+        negative_annotations=tuple(
+            (match.start(), match.end())
+            for match in re.finditer(r"样本\d+", text)
+        ),
         context=(
             f"length_band={band}",
             f"document_id={doc_id}",
@@ -68,10 +73,10 @@ def build_band_records(band: str, *, documents: int = 4) -> tuple[TextRecord, ..
     for doc_no in range(documents):
         doc_id = f"synthetic-{band}-doc-{doc_no:03d}"
         if band == "short_sentence":
-            text = "耐磨防水"
+            text = "样本0耐磨防水"
             annotations = [
-                TextAnnotation(0, 2, "attribute", "耐磨"),
-                TextAnnotation(2, 4, "attribute", "防水"),
+                TextAnnotation(3, 5, "attribute", "耐磨"),
+                TextAnnotation(5, 7, "attribute", "防水"),
             ]
             records.append(_record(
                 doc_id=doc_id, band=band, chunk_index=0, global_offset=0,
@@ -169,6 +174,10 @@ def train_all_bands(
                         "text": row.text,
                         "context": list(row.context),
                         "group_id": row.group_id,
+                        "negative_annotations": [
+                            {"start_char": start, "end_char": end}
+                            for start, end in row.negative_annotations
+                        ],
                         "annotations": [
                             {
                                 "start_char": ann.start_char,
