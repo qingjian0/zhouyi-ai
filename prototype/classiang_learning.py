@@ -472,7 +472,41 @@ def _split_groups(records: tuple[TextRecord, ...], fraction: float, seed: int):
         raise ValueError("at least two independent groups are required")
     random.Random(seed).shuffle(groups)
     count = min(len(groups) - 1, max(1, round(len(groups) * fraction)))
-    validation = set(groups[:count])
+    by_group = {
+        group: tuple(row for row in records if (row.group_id or row.subject_id) == group)
+        for group in groups
+    }
+    has_positive = {
+        group: any(row.annotations for row in rows)
+        for group, rows in by_group.items()
+    }
+    has_reviewed_negative = {
+        group: any(row.negative_annotations for row in rows)
+        for group, rows in by_group.items()
+    }
+    has_reviewed_labels = {
+        group: has_positive[group] or has_reviewed_negative[group]
+        for group in groups
+    }
+
+    # Hold out only groups that leave at least one positive-supervision group
+    # and one reviewed-negative group in training. Prefer a labelled validation
+    # group so the split produces a meaningful evaluation set.
+    validation: set[str] = set()
+    candidates = [g for g in groups if has_reviewed_labels[g]]
+    candidates.extend(g for g in groups if not has_reviewed_labels[g])
+    for group in candidates:
+        if len(validation) >= count:
+            break
+        remaining = set(groups) - validation - {group}
+        if (any(has_positive[g] for g in remaining)
+                and any(has_reviewed_negative[g] for g in remaining)):
+            validation.add(group)
+    if not validation or not any(has_reviewed_labels[g] for g in validation):
+        raise ValueError(
+            "group split cannot produce a reviewed validation group while retaining "
+            "positive and reviewed-negative supervision in training"
+        )
     train = tuple(row for row in records if (row.group_id or row.subject_id) not in validation)
     valid = tuple(row for row in records if (row.group_id or row.subject_id) in validation)
     if not train or not valid:
