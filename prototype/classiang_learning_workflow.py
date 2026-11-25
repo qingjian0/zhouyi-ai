@@ -88,7 +88,7 @@ def cross_domain_evaluation(records: tuple[TextRecord, ...], *, threshold: float
                 or not any(row.negative_annotations for row in train)
                 or not any(row.annotations or row.negative_annotations for row in test)):
             folds.append({"held_out_domain": held_out, "status": "not_run",
-                          "reason": "training fold lacks positive/reviewed-negative supervision or held-out domain has no reviewed labels"})
+                          "reason": "training fold lacks positive annotations, reviewed negative supervision, or held-out domain has no reviewed labels"})
             continue
         model = TrainableTextEncoder().fit(train)
         folds.append({
