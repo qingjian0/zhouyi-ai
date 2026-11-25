@@ -31,6 +31,7 @@ def parity_rows():
         )
         label = 1 if bits[0] * bits[1] * bits[2] > 0 else -1
         rows.append(RelationClassificationExample(assignment, label))
+    random.Random(17).shuffle(rows)
     return tuple(rows)
 
 
@@ -108,8 +109,10 @@ class LearnableSROKHighOrderParityTests(unittest.TestCase):
                  evidence_ids=(f"evidence-{role.name}-{value:+.0f}",))
             for role in ROLES for value in (-1.0, 1.0)
         )
+        randomized_candidates = list(candidates)
+        random.Random(23).shuffle(randomized_candidates)
         prediction = model.predict(
-            candidates, retrieval_mode="joint", search_strategy="product",
+            randomized_candidates, retrieval_mode="joint", search_strategy="product",
             max_expansions=8, result_limit=3,
         )
         self.assertFalse(prediction.abstained)
