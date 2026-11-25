@@ -87,6 +87,32 @@ class ClassiangLearningWorkflowTests(unittest.TestCase):
             {"mechanical", "biology"},
         )
 
+    def test_cross_domain_fold_skips_when_training_has_no_reviewed_negatives(self):
+        rows = []
+        for item in sample_records()["examples"]:
+            annotations = tuple(TextAnnotation(
+                x["start_char"], x["end_char"], x["dimension"], x["value"],
+                tuple(x["purposes"]),
+            ) for x in item["annotations"])
+            negatives = tuple(
+                (x["start_char"], x["end_char"])
+                for x in item["negative_annotations"]
+            )
+            if item["domain"] == "mechanical":
+                negatives = ()
+            rows.append(TextRecord(
+                item["observation_id"], item["subject_id"], item["domain"],
+                item["source_id"], item["text"], annotations, (),
+                item["group_id"], negatives,
+            ))
+        report = cross_domain_evaluation(tuple(rows), threshold=0.2)
+        mechanical_train_fold = next(
+            fold for fold in report["folds"]
+            if fold["held_out_domain"] == "biology"
+        )
+        self.assertEqual(mechanical_train_fold["status"], "not_run")
+        self.assertIn("reviewed negative supervision", mechanical_train_fold["reason"])
+
     def test_learned_text_features_feed_unreviewed_class_discovery(self):
         source = []
         for item in sample_records()["examples"][:4]:
