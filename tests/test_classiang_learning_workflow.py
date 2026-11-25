@@ -19,6 +19,10 @@ def sample_records():
             "observation_id": f"obs-{i}", "subject_id": f"subject-{i}",
             "domain": domain, "source_id": f"src-{i}", "text": text,
             "group_id": f"group-{i}",
+            "negative_annotations": [{
+                "start_char": text.index("object"),
+                "end_char": text.index("object") + len("object"),
+            }],
             "annotations": [{
                 "start_char": start, "end_char": start + len("transfers water"),
                 "dimension": "function", "value": "transfers-water",
@@ -72,6 +76,8 @@ class ClassiangLearningWorkflowTests(unittest.TestCase):
                 item["observation_id"], item["subject_id"], item["domain"],
                 item["source_id"], item["text"], annotations, (),
                 item["group_id"],
+                tuple((x["start_char"], x["end_char"])
+                      for x in item["negative_annotations"]),
             ))
         report = cross_domain_evaluation(tuple(rows), threshold=0.2)
         self.assertEqual(report["status"], "evaluated")
@@ -93,6 +99,8 @@ class ClassiangLearningWorkflowTests(unittest.TestCase):
                     annotation["dimension"], annotation["value"],
                     tuple(annotation["purposes"]),
                 ),), (), item["group_id"],
+                tuple((x["start_char"], x["end_char"])
+                      for x in item["negative_annotations"]),
             ))
         model = TrainableTextEncoder().fit(tuple(source))
         result = discover_text_classes(
