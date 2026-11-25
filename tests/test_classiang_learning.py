@@ -4,8 +4,8 @@ import unittest
 from pathlib import Path
 
 from prototype.classiang_learning import (
-    TextAnnotation, TextRecord, TrainableTextEncoder, append_reviewed_feedback,
-    evaluate, train_and_evaluate,
+    NONE_LABEL, TextAnnotation, TextRecord, TrainableTextEncoder,
+    append_reviewed_feedback, evaluate, train_and_evaluate,
 )
 from prototype.classiang_multimodal import (
     ImageRegionClaim, observation_from_image_regions,
@@ -27,6 +27,7 @@ def records():
                 ("recognition",),
             ),),
             group_id=f"group-{index}",
+            negative_annotations=((text.index("pipe"), text.index("pipe") + len("pipe")),),
         ))
     return tuple(rows)
 
@@ -58,7 +59,7 @@ class ClassiangLearningTests(unittest.TestCase):
                     annotation.start_char, annotation.end_char,
                     annotation.dimension, annotation.value,
                     ("recognition", "diagnosis"),
-                ),), row.context, row.group_id,
+                ),), row.context, row.group_id, row.negative_annotations,
             ))
         model = TrainableTextEncoder().fit(tuple(rows))
         query = records()[4]
@@ -93,6 +94,21 @@ class ClassiangLearningTests(unittest.TestCase):
                 ((row.annotations[0].start_char, row.annotations[0].end_char),),
             )
             TrainableTextEncoder().fit((invalid,))
+
+    def test_only_explicitly_reviewed_spans_enter_the_negative_class(self):
+        model = TrainableTextEncoder().fit(records()[:1])
+        self.assertEqual(model.class_docs[NONE_LABEL], 1)
+
+    def test_unannotated_spans_are_not_used_as_negative_training_examples(self):
+        rows = tuple(
+            TextRecord(
+                row.observation_id, row.subject_id, row.domain, row.source_id,
+                row.text, row.annotations, row.context, row.group_id,
+            )
+            for row in records()[:4]
+        )
+        with self.assertRaisesRegex(ValueError, "explicitly reviewed negative_annotations"):
+            TrainableTextEncoder().fit(rows)
 
     def test_training_rejects_spans_outside_token_boundaries(self):
         row = records()[0]
