@@ -99,7 +99,7 @@ class LearnableSROKHighOrderParityTests(unittest.TestCase):
             ablated[order] = sum(
                 abs(value - 0.5) for value in probabilities
             ) / len(probabilities)
-            self.assertAlmostEqual(accuracy_with_order(model, held_out, order), 0.5, places=6)
+            self.assertLess(max(abs(value - 0.5) for value in probabilities), 1e-8)
 
         self.assertLess(ablated[1], 1e-8)
         self.assertLess(ablated[2], 1e-8)
@@ -179,15 +179,6 @@ class LearnableSROKHighOrderParityTests(unittest.TestCase):
         self.assertLessEqual(shuffled_accuracy, 0.65)
         self.assertGreaterEqual(true_accuracy - shuffled_accuracy, 0.2)
 
-
-def accuracy_with_order(model, rows, order):
-    hits = 0
-    for row in rows:
-        probability = model.predict_relation_probability(
-            row.assignment, interaction_order=order
-        )
-        hits += (1 if probability >= 0.5 else -1) == row.label
-    return hits / len(rows)
 
 
 if __name__ == "__main__":
