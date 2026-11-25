@@ -108,13 +108,16 @@ class ContrastiveSpanEncoder:
                 (vector, NONE_LABEL, "reviewed_hard_negative")
                 for _, _, _, vector in hard
             )
-        if not any(label != NONE_LABEL for _, label, _ in samples):
-            raise ValueError("training data contains no positive annotations")
+        # Report the missing contrastive supervision explicitly before checking
+        # class labels; otherwise an all-unannotated dataset hides the more
+        # actionable requirement that reviewed negatives are absent.
         if hard_count == 0:
             raise ValueError(
                 "contrastive training requires explicitly reviewed negative_annotations; "
                 "unannotated spans are unknown, not negatives"
             )
+        if not any(label != NONE_LABEL for _, label, _ in samples):
+            raise ValueError("training data contains no positive annotations")
         self.classes = tuple(sorted({label for _, label, _ in samples}))
         for label in self.classes:
             self.weights[label] = Counter()
