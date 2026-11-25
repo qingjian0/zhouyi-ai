@@ -64,6 +64,21 @@ class ContrastiveSpanTrainingTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "digest mismatch"):
                 ContrastiveSpanEncoder.load(path)
 
+    def test_unknown_only_records_are_not_counted_as_training(self):
+        rows = sample_records()[:6]
+        unknown = TextRecord(
+            observation_id="unknown-only", subject_id="unknown-subject",
+            domain="test", source_id="unknown-source",
+            text="unreviewed material", annotations=(),
+            group_id="unknown-group",
+        )
+        model = ContrastiveSpanEncoder().fit(rows + (unknown,))
+        self.assertEqual(model.training_records, 6)
+
+    def test_positive_warmup_requires_at_least_two_epochs(self):
+        with self.assertRaisesRegex(ValueError, "positive-only warmup"):
+            ContrastiveSpanEncoder(epochs=1)
+
     def test_rejects_empty_training_data(self):
         with self.assertRaisesRegex(ValueError, "must not be empty"):
             ContrastiveSpanEncoder().fit(())
