@@ -48,8 +48,8 @@ def symmetric_parity_training_rows(groups: int = 64, seed: int = 11):
         for signs in itertools.product((-1.0, 1.0), repeat=3):
             values = tuple(a * b for a, b in zip(magnitudes, signs))
             assignment = tuple(
-                Node(f"train-{index}-{role.name}-{sign:+.0f}", role.name, (sign,))
-                for role, sign in zip(ROLES, values)
+                Node(f"train-{index}-{role.name}-{sign:+.0f}", role.name, (value,))
+                for role, sign, value in zip(ROLES, signs, values)
             )
             label = 1 if values[0] * values[1] * values[2] > 0 else -1
             rows.append(RelationClassificationExample(assignment, label))
@@ -131,9 +131,12 @@ class LearnableSROKHighOrderParityTests(unittest.TestCase):
             symmetric_parity_training_rows(), epochs=300, learning_rate=0.1
         )
         candidates = tuple(
-            Node(f"{role.name}-{value:+.0f}", role.name, (value,),
-                 evidence_ids=(f"evidence-{role.name}-{value:+.0f}",))
-            for role in ROLES for value in (-1.0, 1.0)
+            Node(
+                f"{role.name}-{label}", role.name, (value,),
+                evidence_ids=(f"evidence-{role.name}-{label}",),
+            )
+            for role in ROLES
+            for label, value in (("negative", -0.1), ("positive", 1.0))
         )
         randomized_candidates = list(candidates)
         random.Random(23).shuffle(randomized_candidates)
@@ -145,7 +148,8 @@ class LearnableSROKHighOrderParityTests(unittest.TestCase):
         self.assertEqual(prediction.reason, "ACCEPTED")
         self.assertEqual(
             prediction.candidates[0].role_bindings,
-            (("r0", "r0-+1"), ("r1", "r1-+1"), ("r2", "r2-+1")),
+            (("r0", "r0-positive"), ("r1", "r1-positive"),
+             ("r2", "r2-positive")),
         )
         self.assertTrue(prediction.candidates[0].evidence_ids)
 
