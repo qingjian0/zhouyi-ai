@@ -150,6 +150,20 @@ class ClassiangLearningTests(unittest.TestCase):
         self.assertGreaterEqual(report["validation"]["f1"], 0.0)
         self.assertIsNotNone(model)
 
+    def test_group_split_keeps_sparse_reviewed_negatives_in_training(self):
+        rows = tuple(
+            TextRecord(
+                row.observation_id, row.subject_id, row.domain, row.source_id,
+                row.text, row.annotations, row.context, row.group_id,
+                row.negative_annotations if index == 0 else (),
+            )
+            for index, row in enumerate(records())
+        )
+        _model, report = train_and_evaluate(rows, seed=3)
+        self.assertIn("group-0", report["train_groups"])
+        self.assertTrue(report["group_disjoint"])
+        self.assertGreater(report["validation"]["evaluated_records"], 0)
+
     def test_checkpoint_digest_round_trip_and_tamper_detection(self):
         model = TrainableTextEncoder().fit(records()[:4])
         with tempfile.TemporaryDirectory() as directory:
