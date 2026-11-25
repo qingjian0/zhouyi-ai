@@ -132,15 +132,21 @@ def _validate_record(record: TextRecord) -> None:
             raise ValueError("annotation purposes must be non-empty strings")
         if len(ann.purposes) != len(set(ann.purposes)):
             raise ValueError("annotation purposes must be unique")
+    negative_seen: set[tuple[int, int]] = set()
     for span in record.negative_annotations:
         if (not isinstance(span, tuple) or len(span) != 2
                 or any(isinstance(x, bool) or not isinstance(x, int) for x in span)
                 or not 0 <= span[0] < span[1] <= len(record.text)):
             raise ValueError("negative annotation offsets are outside the source text")
+        if span in negative_seen:
+            raise ValueError("duplicate negative annotation span")
         if not record.text[span[0]:span[1]].strip():
             raise ValueError("negative annotation span must contain source text")
         if any(span[0] < end and start < span[1] for start, end in seen):
             raise ValueError("negative annotation overlaps a positive annotation")
+        if any(span[0] < end and start < span[1] for start, end in negative_seen):
+            raise ValueError("negative annotations must not overlap each other")
+        negative_seen.add(span)
 
 
 def load_records(path: str | Path) -> tuple[TextRecord, ...]:
@@ -237,7 +243,7 @@ class TrainableTextEncoder:
         self.purpose_counts.clear()
         self.label_annotations.clear()
         self.exact_span_counts.clear()
-        rng = random.Random(seed)
+        reviewed_negative_count = 0
         for record in rows:
             _validate_record(record)
             token_spans = _tokenize(record.text)
@@ -252,21 +258,20 @@ class TrainableTextEncoder:
                 if len(span_tokens) > self.max_tokens:
                     raise ValueError("annotation span exceeds max_tokens")
             positives = {(a.start_char, a.end_char): a for a in record.annotations}
-            candidates = _candidate_spans(
-                record.text, max_tokens=self.max_tokens,
-                max_span_chars=self.max_span_chars,
-                max_candidates=self.max_candidates,
-            )
-            negatives = [span for span in candidates if span not in positives and not any(
-                span[0] < end and start < span[1]
-                for start, end in positives
-            )]
-            if len(negatives) > 256:
-                negatives = sorted(rng.sample(negatives, 256))
+            negatives = list(record.negative_annotations)
+            for start, end in negatives:
+                if (end - start > self.max_span_chars
+                        or start not in token_starts or end not in token_ends):
+                    raise ValueError(
+                        "reviewed negative span is not representable by the configured tokenizer budget"
+                    )
+                if len(_tokenize(record.text[start:end])) > self.max_tokens:
+                    raise ValueError("reviewed negative span exceeds max_tokens")
+            reviewed_negative_count += len(negatives)
             samples = [(span, _label(ann)) for span, ann in positives.items()]
             samples.extend((span, NONE_LABEL) for span in negatives)
             if not samples:
-                raise ValueError("each training record must yield positive or negative span samples")
+                raise ValueError("each training record must yield positive or reviewed negative span samples")
             for (start, end), label in samples:
                 self.class_docs[label] += 1
                 features = _span_features(record.text[start:end])
@@ -280,6 +285,11 @@ class TrainableTextEncoder:
                 self.label_annotations[key] += 1
                 for purpose in ann.purposes:
                     self.purpose_counts[key][purpose] += 1
+        if reviewed_negative_count == 0:
+            raise ValueError(
+                "training data requires explicitly reviewed negative_annotations; "
+                "unannotated spans are unknown, not negatives"
+            )
         self.classes = tuple(sorted(self.class_docs))
         self.vocab_size = len({feature for counter in self.feature_counts.values() for feature in counter})
         if not any(label != NONE_LABEL for label in self.classes):
@@ -469,6 +479,9 @@ def _split_groups(records: tuple[TextRecord, ...], fraction: float, seed: int):
 def evaluate(model: TrainableTextEncoder, records: tuple[TextRecord, ...],
              *, threshold: float = 0.55) -> dict[str, Any]:
     tp = fp = fn = 0
+    unknown_predictions = 0
+    reviewed_negative_predictions = 0
+    reviewed_negative_total = 0
     exact_records = 0
     for row in records:
         predicted = model.predict(
@@ -484,10 +497,19 @@ def evaluate(model: TrainableTextEncoder, records: tuple[TextRecord, ...],
             if match:
                 actual.add((int(match.group(1)), int(match.group(2)),
                             json.dumps([feature.atom.dimension, feature.atom.value], ensure_ascii=False, separators=(",", ":"))))
-        tp += len(expected & actual)
-        fp += len(actual - expected)
+        reviewed_negatives = set(row.negative_annotations)
+        known_spans = {(start, end) for start, end, _ in expected} | reviewed_negatives
+        known_actual = {item for item in actual if item[:2] in known_spans}
+        tp += len(expected & known_actual)
+        fp += len(known_actual - expected)
         fn += len(expected - actual)
-        exact_records += int(expected == actual)
+        unknown_predictions += len(actual - known_actual)
+        reviewed_negative_predictions += len({
+            (start, end) for start, end, _ in actual
+            if (start, end) in reviewed_negatives
+        })
+        reviewed_negative_total += len(reviewed_negatives)
+        exact_records += int(expected == known_actual)
     precision = tp / (tp + fp) if tp + fp else 0.0
     recall = tp / (tp + fn) if tp + fn else 0.0
     return {
@@ -495,6 +517,14 @@ def evaluate(model: TrainableTextEncoder, records: tuple[TextRecord, ...],
         "false_negative": fn, "precision": precision, "recall": recall,
         "f1": 2 * precision * recall / (precision + recall) if precision + recall else 0.0,
         "exact_record_match": exact_records / len(records),
+        "unknown_predictions": unknown_predictions,
+        "reviewed_negative_spans": reviewed_negative_total,
+        "reviewed_negative_predictions": reviewed_negative_predictions,
+        "reviewed_negative_false_positive_rate": (
+            reviewed_negative_predictions / reviewed_negative_total
+            if reviewed_negative_total else None
+        ),
+        "metric_scope": "reviewed_spans_only; unannotated predictions remain unknown and are excluded from false positives",
     }
 
 
@@ -509,10 +539,18 @@ def train_and_evaluate(records: tuple[TextRecord, ...], *, seed: int = 17,
         "validation_groups": sorted({r.group_id or r.subject_id for r in validation}),
         "group_disjoint": not ({r.group_id or r.subject_id for r in train} &
                                {r.group_id or r.subject_id for r in validation}),
-        "training": {"records": model.training_records, "classes": len(model.classes)},
+        "training": {
+            "records": model.training_records, "classes": len(model.classes),
+            "reviewed_negative_spans": model.class_docs.get(NONE_LABEL, 0),
+        },
         "validation": evaluate(model, validation, threshold=threshold),
-        "limitations": ["supervised span-label baseline", "known feature labels only",
-                        "no OCR or image encoder", "no causal or semantic truth guarantee"],
+        "limitations": [
+            "supervised span-label baseline",
+            "only explicitly reviewed negative_annotations are used as negative training labels",
+            "unannotated spans remain unknown and are excluded from false-positive evaluation",
+            "known feature labels only", "no OCR or image encoder",
+            "no causal or semantic truth guarantee",
+        ],
     }
     return model, report
 
