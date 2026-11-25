@@ -244,6 +244,7 @@ class TrainableTextEncoder:
         self.label_annotations.clear()
         self.exact_span_counts.clear()
         reviewed_negative_count = 0
+        training_records_used = 0
         for record in rows:
             _validate_record(record)
             token_spans = _tokenize(record.text)
@@ -271,7 +272,10 @@ class TrainableTextEncoder:
             samples = [(span, _label(ann)) for span, ann in positives.items()]
             samples.extend((span, NONE_LABEL) for span in negatives)
             if not samples:
-                raise ValueError("each training record must yield positive or reviewed negative span samples")
+                # A record with no reviewed labels is unknown, not a negative
+                # training example. Keep it out of the learner's statistics.
+                continue
+            training_records_used += 1
             for (start, end), label in samples:
                 self.class_docs[label] += 1
                 features = _span_features(record.text[start:end])
@@ -294,7 +298,7 @@ class TrainableTextEncoder:
         self.vocab_size = len({feature for counter in self.feature_counts.values() for feature in counter})
         if not any(label != NONE_LABEL for label in self.classes):
             raise ValueError("training data contains no positive feature annotations")
-        self.training_records = len(rows)
+        self.training_records = training_records_used
         return self
 
     def _probabilities(self, surface: str) -> dict[str, float]:
@@ -483,7 +487,13 @@ def evaluate(model: TrainableTextEncoder, records: tuple[TextRecord, ...],
     reviewed_negative_predictions = 0
     reviewed_negative_total = 0
     exact_records = 0
+    evaluated_records = 0
+    unreviewed_records_skipped = 0
     for row in records:
+        if not row.annotations and not row.negative_annotations:
+            unreviewed_records_skipped += 1
+            continue
+        evaluated_records += 1
         predicted = model.predict(
             observation_id=row.observation_id, subject_id=row.subject_id,
             domain=row.domain, source_id=row.source_id, text=row.text,
@@ -513,10 +523,12 @@ def evaluate(model: TrainableTextEncoder, records: tuple[TextRecord, ...],
     precision = tp / (tp + fp) if tp + fp else 0.0
     recall = tp / (tp + fn) if tp + fn else 0.0
     return {
-        "records": len(records), "true_positive": tp, "false_positive": fp,
+        "records": len(records), "evaluated_records": evaluated_records,
+        "unreviewed_records_skipped": unreviewed_records_skipped,
+        "true_positive": tp, "false_positive": fp,
         "false_negative": fn, "precision": precision, "recall": recall,
         "f1": 2 * precision * recall / (precision + recall) if precision + recall else 0.0,
-        "exact_record_match": exact_records / len(records),
+        "exact_record_match": exact_records / evaluated_records if evaluated_records else 0.0,
         "unknown_predictions": unknown_predictions,
         "reviewed_negative_spans": reviewed_negative_total,
         "reviewed_negative_predictions": reviewed_negative_predictions,
