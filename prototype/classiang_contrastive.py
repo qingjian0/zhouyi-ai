@@ -188,7 +188,9 @@ class ContrastiveSpanEncoder:
                 for purpose, count in self.purpose_counts[label].items()
             )) if total_annotations else ()
             proposed.append((confidence, start, end, dimension, value, purposes))
-        proposed.sort(key=lambda item: (-item[0], item[1], -(item[2] - item[1])))
+        # When model scores tie, prefer the narrower source span. This avoids
+        # absorbing adjacent punctuation or context into a reviewed phrase.
+        proposed.sort(key=lambda item: (-item[0], item[1], item[2] - item[1]))
         accepted = []
         for item in proposed:
             _, start, end, *_ = item
