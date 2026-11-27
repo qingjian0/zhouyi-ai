@@ -1,9 +1,10 @@
 """ZhouyiAI Omega: first trainable hybrid foundation-model prototype.
 
 This research MVP combines causal language processing, recurrent state updates,
-and a learned classiang relational workspace. It is independently initialized
-and trained; it does not load another model's weights. It is not a claim of
-general intelligence or Transformer replacement.
+a learned classiang relational workspace, and a pairwise CPG-EI composition
+proposal head. It is independently initialized and trained; it does not load
+another model's weights. It is not a claim of general intelligence or
+Transformer replacement.
 
 Install the optional dependency with: pip install -e .[model]
 """
@@ -45,13 +46,31 @@ class OmegaConfig:
         return asdict(self)
 
 
-class ClassiangWorkspace(nn.Module):
-    """Per-position latent-aspect assignment plus learned slot relations.
+class CPGEIComposer(nn.Module):
+    """Bounded pairwise composition proposal scorer over learned classiang slots.
 
-    It never pools across future token positions: each position is assigned
-    independently, while the learned relation graph acts over latent slots.
-    This preserves causal next-token prediction.
+    This is an initial trainable composition head, not the full CPG-EI search
+    algorithm. Higher-order and non-adjacent composition policies remain
+    separately testable extensions.
     """
+
+    def __init__(self, d_model: int) -> None:
+        super().__init__()
+        self.score = nn.Sequential(
+            nn.Linear(2 * d_model, d_model),
+            nn.GELU(),
+            nn.Linear(d_model, 1),
+        )
+
+    def forward(self, slots: Tensor) -> Tensor:
+        left = slots.unsqueeze(2).expand(-1, -1, slots.shape[1], -1)
+        right = slots.unsqueeze(1).expand(-1, slots.shape[1], -1, -1)
+        pair_features = torch.cat((left + right, left * right), dim=-1)
+        return self.score(pair_features).squeeze(-1)
+
+
+class ClassiangWorkspace(nn.Module):
+    """Per-position latent-aspect assignment plus learned slot relations."""
 
     def __init__(self, config: OmegaConfig) -> None:
         super().__init__()
@@ -64,21 +83,25 @@ class ClassiangWorkspace(nn.Module):
         self.relation_out = nn.Linear(d_model, d_model)
         self.output = nn.Linear(d_model, d_model)
         self.norm = nn.LayerNorm(d_model)
+        self.composer = CPGEIComposer(d_model)
         self.scale = d_model ** -0.5
 
-    def forward(self, causal_tokens: Tensor) -> tuple[Tensor, Tensor, Tensor]:
-        q = self.relation_q(self.slots)
-        k = self.relation_k(self.slots)
-        v = self.relation_v(self.slots)
+    def forward(self, causal_tokens: Tensor) -> tuple[Tensor, Tensor, Tensor, Tensor]:
+        batch = causal_tokens.shape[0]
+        slots = self.slots.unsqueeze(0).expand(batch, -1, -1)
+        q = self.relation_q(slots)
+        k = self.relation_k(slots)
+        v = self.relation_v(slots)
         relation_logits = torch.matmul(q, k.transpose(-1, -2)) * self.scale
         relation_weights = torch.softmax(relation_logits, dim=-1)
-        related_slots = self.slots + self.relation_out(torch.matmul(relation_weights, v))
+        related_slots = slots + self.relation_out(torch.matmul(relation_weights, v))
 
         token_queries = self.assignment(causal_tokens)
-        assignment_logits = torch.einsum("btd,sd->bts", token_queries, related_slots) * self.scale
+        assignment_logits = torch.einsum("btd,bsd->bts", token_queries, related_slots) * self.scale
         assignments = torch.softmax(assignment_logits, dim=-1)
-        context = torch.einsum("bts,sd->btd", assignments, related_slots)
-        return self.norm(causal_tokens + self.output(context)), assignments, relation_logits
+        context = torch.einsum("bts,bsd->btd", assignments, related_slots)
+        composition_logits = self.composer(related_slots)
+        return self.norm(causal_tokens + self.output(context)), assignments, relation_logits, composition_logits
 
 
 class OmegaBlock(nn.Module):
@@ -106,20 +129,20 @@ class OmegaBlock(nn.Module):
         self.output_norm = nn.LayerNorm(d_model)
         self.dropout = nn.Dropout(config.dropout)
 
-    def forward(self, x: Tensor) -> tuple[Tensor, Tensor]:
+    def forward(self, x: Tensor) -> tuple[Tensor, Tensor, Tensor]:
         seq_len = x.shape[1]
         causal_mask = torch.triu(
             torch.ones(seq_len, seq_len, dtype=torch.bool, device=x.device), diagonal=1
         )
         attended = self.attention(x, src_mask=causal_mask)
         recurrent, _ = self.recurrent(x)
-        classiang, _assignments, relation_logits = self.classiang(recurrent)
+        classiang, _assignments, relation_logits, composition_logits = self.classiang(recurrent)
         gates = torch.softmax(
             self.mix(torch.cat((attended, recurrent, classiang), dim=-1)), dim=-1
         )
         branches = torch.stack((attended, recurrent, classiang), dim=-2)
         mixed = torch.sum(branches * gates.unsqueeze(-1), dim=-2)
-        return self.output_norm(x + self.dropout(mixed)), relation_logits
+        return self.output_norm(x + self.dropout(mixed)), relation_logits, composition_logits
 
 
 class OmegaModel(nn.Module):
@@ -146,14 +169,17 @@ class OmegaModel(nn.Module):
         positions = torch.arange(seq_len, device=input_ids.device).unsqueeze(0)
         x = self.token_embedding(input_ids) + self.position_embedding(positions)
         relation_logits = []
+        composition_logits = []
         for block in self.blocks:
-            x, relation = block(x)
+            x, relation, composition = block(x)
             relation_logits.append(relation)
+            composition_logits.append(composition)
         hidden = self.final_norm(x)
         return {
             "logits": self.lm_head(hidden),
             "hidden_states": hidden,
             "relation_logits": torch.stack(relation_logits, dim=0),
+            "composition_logits": torch.stack(composition_logits, dim=0),
         }
 
     def parameter_count(self) -> int:
