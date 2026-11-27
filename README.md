@@ -67,6 +67,7 @@
 - [困难负例对比学习器](prototype/classiang_contrastive.py)
 - [类象训练数据格式、运行与验收说明](docs/CLASSIANG_TRAINING_V1.md)
 - [可学习类象文本闭环 v1](docs/CLASSIANG_LEARNING_LOOP_V1.md)
+- [类象主动审阅队列 v1](docs/CLASSIANG_REVIEW_QUEUE_V1.md)
 - [文本特征学习器](prototype/classiang_learning.py)
 - [文本学习与类象闭环编排](prototype/classiang_learning_workflow.py)
 - [外部视觉区域证据适配器](prototype/classiang_multimodal.py)
@@ -88,6 +89,8 @@ python -m prototype.e01_learned_ranker --json
 python -m prototype.classiang_training DATASET.json --checkpoint artifacts/classiang-srok.json --report artifacts/classiang-training-report.json
 # 从原始文本及审阅跨度标注训练文本特征提议器（格式见 docs/CLASSIANG_LEARNING_LOOP_V1.md）
 python -m prototype.classiang_learning TEXT_DATASET.json --checkpoint artifacts/classiang-text.json --report artifacts/classiang-text-report.json
+# 为未审阅跨度生成有来源的人工审阅队列（不自动写入 Gold 标签）
+python -m prototype.classiang_review_queue TEXT_DATASET.json --checkpoint artifacts/classiang-text.json --output artifacts/classiang-review-queue.json
 ```
 
 ## 研究状态标记
