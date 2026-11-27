@@ -13,7 +13,7 @@ Zhouyi-AI 以**类象认知**为第一研究主线：从观测中取象、按任
 ## 当前集成基线
 
 - 集成分支：`dev`；稳定分支：`main`。
-- 类象代码集成检查点：`3e4f441ee352cfa67532c84541208410992ad620`（PR #612 squash merge）；其后仅有 README/路线图状态校准提交，`main` 未修改。PR #611 与 #612 的 exact-head tests 工作流 #45704311911 / #45708102630 均成功；PR #612 合并提交的整仓工作流 #46012208888 正在运行，detect-research 与 E12-A6 RSS 已成功，M2 RSS 和 unit-tests（含四尺度及困难负例训练）仍在执行，尚未宣布整仓验收通过。
+- 类象代码集成检查点：`e7840d2ea9393b5781ae71db9d62e24f8794f4f0`（PR #613 active review queue squash merge）；其前的 PR #612 合并提交 `3e4f441` 整仓工作流 #46012208888 已全部成功（unit-tests、E12-A6/M2 RSS、四尺度训练、困难负例 smoke、Orchestrator CLI）；PR #613 exact-head 工作流 #46013654515 也成功。PR #614 是对困难负例模型精确跨度边界的回归修复，正在 exact-head 验证；`main` 未修改。
 - 近期已合并 PR #543（类象认知核心）、#544–#551（计算、循环模型、记忆与检索支撑）、#605（统一类象闭环）、#607（SROK 结构关系训练）、#611（类象训练框架与困难负例对比学习）、#612（三阶关系对照测试）。#611/#612 exact-head tests 均成功；合并后整仓集成结果仍须单独验收。
 - #539 的强杀测试验证 SQLite 权威事件提交后、scratch-state mutation 前进程退出，再由新进程恢复；它不等同于断电、磁盘故障或完整 checkpoint 验收。
 - `9452d6f` 的整仓 `tests` 工作流 #44390349072 已完成：`unit-tests` 与 `detect-research` 均 success，研究评估矩阵按路径条件 skipped；该结果验证的是代码提交 `9452d6f`，不是后续仅修改路线图的 `f4f5317`。
@@ -24,7 +24,7 @@ Zhouyi-AI 以**类象认知**为第一研究主线：从观测中取象、按任
 
 | 工作流 | 已落地 | 尚未通过的关键验收 |
 |---|---|---|
-| **类象认知主线** | `classiang_engine.py` 的任务条件取象、证据约束立类、成员拒绝/弃权与反例局部修订；`classiang_pipeline.py` 统一比较、静态/动态关系映射和 fail-closed 迁移门；`classiang_learning.py` 监督式文本跨度特征学习；`classiang_learning_workflow.py` 审阅反馈再训练、跨域评估与候选发现；`classiang_contrastive.py` 仅使用已审阅困难负例；SROK 结构关系训练及 #612 三阶 parity/随机标签控制 | 仍缺许可清晰、独立标注的真实多域 Gold 集、真实跨域端到端迁移验收、自动语义特征提议质量、类别拆分/合并与原生像素级感知。当前文本模型是 CPU 稀疏监督基线；合成三阶测试不证明真实语义泛化。 |
+| **类象认知主线** | `classiang_engine.py` 任务条件取象、证据约束立类、成员拒绝/弃权与反例局部修订；`classiang_pipeline.py` 统一比较、关系映射和 fail-closed 迁移门；`classiang_learning.py` 监督式文本跨度学习；`classiang_learning_workflow.py` 审阅反馈再训练、跨域评估与候选发现；PR #613 新增基于熵/间隔的证据保真主动审阅队列（pending_review，不自动生成 Gold）；SROK 三阶 parity/随机标签控制（#612） | 仍缺许可清晰、独立标注的真实多域 Gold 集、真实跨域端到端迁移验收、自动语义特征提议质量、类别拆分/合并与原生像素级感知。CI 合并后报告发现 contrastive smoke 的精确跨度召回为 0（标点扩展边界），PR #614 正在修复；四尺度 NB 的 1.0 指标仅来自合成模板，不证明语义泛化。 |
 | ZPCM / E12-A6 | 追加式权威事件日志、SQLite 持久化、事件摘要校验、授权 receipt/nonce 唯一索引、候选历史索引和授权历史 keyset 分页；候选/证据/动作投影与 high-water/count 元数据由同事务触发器维护；`PersistentLifecycleLedger` 使用临时 SQLite scratch state，普通写入不再 deepcopy 全账本；新增持久 checkpoint v2：事件前缀 digest、授权投影 digest、snapshot header digest、分类型有界 page、page digest/manifest digest；checkpoint 发布在 `BEGIN IMMEDIATE` 事务内原子完成；恢复校验通过后从 checkpoint 高水位只做 suffix 语义重放，损坏时回退权威日志全量重放 | checkpoint 的事件前缀完整性校验仍扫描 O(N) 权威事件，故不是 O(1) 启动；scratch state 仍是进程级临时库；50 万条合成候选历史中 checkpoint 恢复约 21.58 秒、全量重放约 26.27 秒，峰值 RSS 均约 31 MiB，ZPCM 初始化另约 12.6 秒；当前分页 checkpoint exact-head 完整测试、发布中断/磁盘故障、并发 adapter、清理失败及生产事件混合负载仍待验收 |
 | M1 数据摄取 | UTF-8 分块读取、Manifest、Chunk Digest、SQLite 持久化、恢复和有界 chunk 读取 | 跨 Chunk tokenizer 一致性、整篇 reference 对照、大文本吞吐与 RSS exact-head 报告 |
 | M2 Observation | Observation DTO、EvidenceRef、Lazy Store、SQLite 索引、Keyset Paging、来源校验与重启恢复 | 大规模 RSS 实测、Gold 标注、语义提取质量、abstention 与独立标注评估 |
@@ -55,7 +55,7 @@ Zhouyi-AI 以**类象认知**为第一研究主线：从观测中取象、按任
 4. 持久 checkpoint v2 已实现：先验证权威事件前缀和页面摘要，再将 checkpoint 状态流式 hydrate 到临时 SQLite scratch state，仅对 checkpoint 之后的 suffix 做语义重放；checkpoint 缺失/损坏时回退全量权威事件重放。当前前缀 digest 仍需 O(N) 扫描，因此只减少语义重放，不构成 O(1) 启动；下一步应评估可验证的分段事件链摘要/持久投影 generation，不能牺牲篡改检测。
 5. append 与 candidate/evidence/action 投影已通过 SQLite 触发器置于同一事务；checkpoint 页面与 manifest 元数据也在单个 `BEGIN IMMEDIATE` 事务内发布。仍需针对 checkpoint 发布中断、磁盘故障和并发恢复增加故障注入；保留 E09 receipt/nonce、split、状态迁移、幂等和 digest 约束。
 6. 保留 `ledger`/`snapshot()` 作为显式 O(total state) 兼容导出接口，普通启动和按需读取不得隐式调用。
-7. 验收：投影删除/损坏重建、事件篡改拒绝、并发写入、崩溃注入、snapshot 与 replay oracle 一致；在 1K/10K/50K/100K/500K 事件规模报告 RSS、Python allocation、SQLite cache/page、恢复耗时。
+7. 已完成的 OS 观测：E12-A6 mixed history 在 1K/10K/50K records（3K/30K/150K events）峰值 RSS 约 28.8 MB，恢复吞吐约 16.8K events/s；M2 candidate store 在 1K/10K/50K/100K records 峰值 RSS 约 33.3/35.8/38.2/38.2 MB，point lookup 约 0.82–0.86 ms，64-record 首屏约 29 ms，逐条 keyset stream。均为 GitHub Linux fresh-process 合成观测；尚缺 500K 规模、Python allocation/SQLite cache-page 细分、生产事件分布及设备侧复测。
 
 **完成定义：** 不以“存在 SQLite 表”或单元测试通过作为完成；必须有 exact-head 测试、重建/崩溃测试和 OS RSS 结果。
 
