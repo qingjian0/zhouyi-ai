@@ -14,7 +14,7 @@ def _write_fixture(root: Path, *, leak_family: bool = False, reviewed: bool = Tr
     for index, split in enumerate(("train", "dev", "locked_test")):
         source_id = f"source-{index}"
         group_id = f"group-{index}"
-        family_id = "shared-family" if leak_family and index == 1 else f"family-{index}"
+        family_id = "shared-family" if leak_family and index in (0, 1) else f"family-{index}"
         text = f"device {index} transfers water"
         start = text.index("transfers water")
         rows.append({
