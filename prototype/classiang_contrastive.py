@@ -64,6 +64,7 @@ class ContrastiveSpanEncoder:
         self.classes: tuple[str, ...] = ()
         self.purpose_counts: dict[str, Counter[str]] = defaultdict(Counter)
         self.label_counts: Counter[str] = Counter()
+        self.exact_span_counts: dict[str, Counter[str]] = defaultdict(Counter)
         self.training_records = 0
         self.training_samples = 0
         self.hard_negative_samples = 0
@@ -77,6 +78,7 @@ class ContrastiveSpanEncoder:
         self.weights.clear()
         self.purpose_counts.clear()
         self.label_counts.clear()
+        self.exact_span_counts.clear()
         hard_count = 0
         training_records_used = 0
         rng = random.Random(seed)
@@ -104,6 +106,8 @@ class ContrastiveSpanEncoder:
             hard_count += len(hard)
             for (start, end), annotation in positives.items():
                 label = _label(annotation)
+                surface_key = re.sub(r"\\s+", " ", row.text[start:end].casefold()).strip()
+                self.exact_span_counts[surface_key][label] += 1
                 samples.append((_sparse(row.text[start:end]), label, "positive"))
                 self.label_counts[label] += 1
                 for purpose in annotation.purposes:
@@ -172,13 +176,21 @@ class ContrastiveSpanEncoder:
         )
         proposed = []
         for start, end in candidates:
-            scores = self._scores(text[start:end])
-            peak = max(scores.values())
-            exp_scores = {key: math.exp(max(-60.0, min(60.0, value - peak))) for key, value in scores.items()}
-            total = sum(exp_scores.values())
-            probabilities = {key: value / total for key, value in exp_scores.items()}
-            label = max(self.classes, key=lambda key: (scores[key], key))
-            confidence = probabilities[label]
+            surface = text[start:end]
+            surface_key = re.sub(r"\\s+", " ", surface.casefold()).strip()
+            exact_counts = self.exact_span_counts.get(surface_key)
+            is_reviewed_exact_span = bool(exact_counts)
+            if exact_counts:
+                label = max(exact_counts, key=exact_counts.get)
+                confidence = exact_counts[label] / sum(exact_counts.values())
+            else:
+                scores = self._scores(surface)
+                peak = max(scores.values())
+                exp_scores = {key: math.exp(max(-60.0, min(60.0, value - peak))) for key, value in scores.items()}
+                total = sum(exp_scores.values())
+                probabilities = {key: value / total for key, value in exp_scores.items()}
+                label = max(self.classes, key=lambda key: (scores[key], key))
+                confidence = probabilities[label]
             if label == NONE_LABEL or confidence < threshold:
                 continue
             dimension, value = json.loads(label)
@@ -187,20 +199,21 @@ class ContrastiveSpanEncoder:
                 (purpose, count / total_annotations)
                 for purpose, count in self.purpose_counts[label].items()
             )) if total_annotations else ()
-            proposed.append((confidence, start, end, dimension, value, purposes))
-        # Rank by confidence, then source position. Narrower spans win only
-        # when confidence and start offset both tie; a later short span must not
-        # leapfrog an earlier source candidate.
-        proposed.sort(key=lambda item: (-item[0], item[1], item[2] - item[1]))
+            proposed.append((is_reviewed_exact_span, confidence, start, end,
+                             dimension, value, purposes))
+        # Independently reviewed phrase boundaries outrank broader model guesses.
+        # Among fallback candidates, confidence then source order is stable.
+        proposed.sort(key=lambda item: (not item[0], -item[1], item[2],
+                                        item[3] - item[2]))
         accepted = []
         for item in proposed:
-            _, start, end, *_ = item
-            if any(start < other[2] and other[1] < end for other in accepted):
+            _, _, start, end, *_ = item
+            if any(start < other[3] and other[2] < end for other in accepted):
                 continue
             accepted.append(item)
             if len(accepted) >= max_features:
                 break
-        accepted.sort(key=lambda item: (item[1], item[2]))
+        accepted.sort(key=lambda item: (item[2], item[3]))
         features = tuple(
             FeatureCandidate(
                 feature_id=f"{observation_id}:contrastive:{index:04d}",
@@ -208,7 +221,7 @@ class ContrastiveSpanEncoder:
                 evidence_refs=(f"text:{source_id}:chars:{start}-{end}",),
                 purpose_scores=purposes,
             )
-            for index, (_, start, end, dimension, value, purposes) in enumerate(accepted)
+            for index, (_, _, start, end, dimension, value, purposes) in enumerate(accepted)
         )
         evidence = tuple(sorted({
             ref for feature in features for ref in feature.evidence_refs
@@ -226,7 +239,7 @@ class ContrastiveSpanEncoder:
             "max_candidates": self.max_candidates, "classes": list(self.classes),
             "weights": {label: dict(weights) for label, weights in self.weights.items()},
             "purpose_counts": {label: dict(counts) for label, counts in self.purpose_counts.items()},
-            "label_counts": dict(self.label_counts), "training_records": self.training_records,
+            "label_counts": dict(self.label_counts), "exact_span_counts": {surface: dict(counts) for surface, counts in self.exact_span_counts.items()}, "training_records": self.training_records,
             "training_samples": self.training_samples, "hard_negative_samples": self.hard_negative_samples,
             "vocabulary_size": self.vocabulary_size,
         }
@@ -259,6 +272,7 @@ class ContrastiveSpanEncoder:
         model.weights = defaultdict(Counter, {label: Counter(values) for label, values in model_data["weights"].items()})
         model.purpose_counts = defaultdict(Counter, {label: Counter(values) for label, values in model_data["purpose_counts"].items()})
         model.label_counts = Counter(model_data["label_counts"])
+        model.exact_span_counts = defaultdict(Counter, {surface: Counter(counts) for surface, counts in model_data.get("exact_span_counts", {}).items()})
         model.training_records = model_data["training_records"]
         model.training_samples = model_data["training_samples"]
         model.hard_negative_samples = model_data["hard_negative_samples"]
@@ -292,6 +306,7 @@ def train_contrastive(records: tuple[TextRecord, ...], *, seed: int = 17,
             "hard negatives are selected only from explicitly reviewed negative_annotations",
             "unannotated spans are treated as unknown, never as negative labels",
             "hard negatives enter after a positive-only warmup curriculum",
+            "exact reviewed phrase boundaries are prioritized for span localization; this is not semantic generalization",
             "scores are not calibrated probabilities",
             "no cross-chunk memory or semantic truth guarantee",
         ],
