@@ -110,6 +110,19 @@ class ClassiangReviewQueueTests(unittest.TestCase):
                 self.records, self.model, model_sha256="not-a-digest",
             )
 
+    def test_candidate_span_budget_skips_records_without_silent_truncation(self):
+        constrained = TrainableTextEncoder(max_candidates=1).fit(self.records)
+        queue = build_review_queue(
+            self.records, constrained, model_sha256=self.model_sha256,
+            max_candidates_per_record=1,
+        )
+        self.assertEqual(queue["candidate_spans_scored"], 0)
+        self.assertEqual(len(queue["skipped_records"]), len(self.records))
+        self.assertTrue(all(
+            row["reason"] == "candidate_span_budget_exceeded"
+            for row in queue["skipped_records"]
+        ))
+
     def test_rejects_untrained_model_and_empty_records(self):
         with self.assertRaisesRegex(ValueError, "trained"):
             build_review_queue(
