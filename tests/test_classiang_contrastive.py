@@ -61,10 +61,10 @@ class ContrastiveSpanTrainingTests(unittest.TestCase):
         model = ContrastiveSpanEncoder().fit(rows[:6], seed=5)
         positive_label = next(label for label in model.classes if label != "__none__")
         model._scores = lambda _surface: {positive_label: 1.0, "__none__": 0.0}
-        text = "abcdefghij later"
+        text = "abcdefghij"
         with patch(
             "prototype.classiang_contrastive._candidate_spans",
-            return_value=[(0, 10), (11, 16)],
+            return_value=[(0, 10), (5, 6)],
         ):
             observation = model.predict(
                 observation_id="tie-order", subject_id="tie-subject",
