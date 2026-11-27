@@ -1,11 +1,11 @@
 """ZhouyiAI Omega: first trainable hybrid foundation-model prototype.
 
-This is a research MVP, not a claim of general intelligence or Transformer
-replacement. It combines token-level language processing with recurrent state
-updates and a learned classiang relational workspace. The classiang workspace
-is internal to the model and is trained jointly with the language objective.
+This research MVP combines causal language processing, recurrent state updates,
+and a learned classiang relational workspace. It is independently initialized
+and trained; it does not load another model's weights. It is not a claim of
+general intelligence or Transformer replacement.
 
-Install the optional dependency with pip install -e .[model].
+Install the optional dependency with: pip install -e .[model]
 """
 from __future__ import annotations
 
@@ -15,7 +15,7 @@ from typing import Any
 try:
     import torch
     from torch import Tensor, nn
-except ImportError as exc:  # pragma: no cover - exercised on minimal installs
+except ImportError as exc:  # pragma: no cover
     raise ImportError(
         "ZhouyiAI Omega requires PyTorch. Install the optional model dependency."
     ) from exc
@@ -34,12 +34,10 @@ class OmegaConfig:
     def __post_init__(self) -> None:
         if self.vocab_size < 2:
             raise ValueError("vocab_size must be >= 2")
-        if self.d_model < 8 or self.d_model % self.n_heads:
-            raise ValueError("d_model must be >= 8 and divisible by n_heads")
-        if self.n_heads < 1 or self.n_layers < 1:
-            raise ValueError("n_heads and n_layers must be positive")
-        if self.num_classiang_slots < 2 or self.max_seq_len < 2:
-            raise ValueError("num_classiang_slots and max_seq_len must be >= 2")
+        if self.n_heads < 1 or self.d_model < 8 or self.d_model % self.n_heads:
+            raise ValueError("d_model must be >= 8 and divisible by positive n_heads")
+        if self.n_layers < 1 or self.num_classiang_slots < 2 or self.max_seq_len < 2:
+            raise ValueError("n_layers, slots and max_seq_len must be positive (slots >= 2)")
         if not 0.0 <= self.dropout < 1.0:
             raise ValueError("dropout must be in [0, 1)")
 
@@ -48,46 +46,43 @@ class OmegaConfig:
 
 
 class ClassiangWorkspace(nn.Module):
-    """Learned latent aspects and typed relational message passing."""
+    """Per-position latent-aspect assignment plus learned slot relations.
+
+    It never pools across future token positions: each position is assigned
+    independently, while the learned relation graph acts over latent slots.
+    This preserves causal next-token prediction.
+    """
 
     def __init__(self, config: OmegaConfig) -> None:
         super().__init__()
         d_model = config.d_model
         self.slots = nn.Parameter(torch.randn(config.num_classiang_slots, d_model) * 0.02)
-        self.read = nn.MultiheadAttention(d_model, config.n_heads, batch_first=True,
-                                          dropout=config.dropout)
-        self.token_read = nn.MultiheadAttention(d_model, config.n_heads, batch_first=True,
-                                                dropout=config.dropout)
+        self.assignment = nn.Linear(d_model, d_model, bias=False)
         self.relation_q = nn.Linear(d_model, d_model, bias=False)
         self.relation_k = nn.Linear(d_model, d_model, bias=False)
         self.relation_v = nn.Linear(d_model, d_model, bias=False)
         self.relation_out = nn.Linear(d_model, d_model)
-        self.slot_norm = nn.LayerNorm(d_model)
-        self.token_norm = nn.LayerNorm(d_model)
+        self.output = nn.Linear(d_model, d_model)
+        self.norm = nn.LayerNorm(d_model)
         self.scale = d_model ** -0.5
 
-    def forward(self, tokens: Tensor) -> tuple[Tensor, Tensor, Tensor]:
-        batch = tokens.shape[0]
-        slots = self.slots.unsqueeze(0).expand(batch, -1, -1)
-        observed_slots, _ = self.read(slots, tokens, tokens, need_weights=False)
-        slots = self.slot_norm(slots + observed_slots)
-
-        q = self.relation_q(slots)
-        k = self.relation_k(slots)
-        v = self.relation_v(slots)
+    def forward(self, causal_tokens: Tensor) -> tuple[Tensor, Tensor, Tensor]:
+        q = self.relation_q(self.slots)
+        k = self.relation_k(self.slots)
+        v = self.relation_v(self.slots)
         relation_logits = torch.matmul(q, k.transpose(-1, -2)) * self.scale
         relation_weights = torch.softmax(relation_logits, dim=-1)
-        related = torch.matmul(relation_weights, v)
-        slots = self.slot_norm(slots + self.relation_out(related))
+        related_slots = self.slots + self.relation_out(torch.matmul(relation_weights, v))
 
-        token_context, _assignments = self.token_read(
-            tokens, slots, slots, need_weights=True, average_attn_weights=True
-        )
-        return self.token_norm(tokens + token_context), slots, relation_logits
+        token_queries = self.assignment(causal_tokens)
+        assignment_logits = torch.einsum("btd,sd->bts", token_queries, related_slots) * self.scale
+        assignments = torch.softmax(assignment_logits, dim=-1)
+        context = torch.einsum("bts,sd->btd", assignments, related_slots)
+        return self.norm(causal_tokens + self.output(context)), assignments, relation_logits
 
 
 class OmegaBlock(nn.Module):
-    """Hybrid block: attention, recurrent state update, and classiang workspace."""
+    """Hybrid block: causal attention, recurrent state, and classiang relations."""
 
     def __init__(self, config: OmegaConfig) -> None:
         super().__init__()
@@ -112,17 +107,23 @@ class OmegaBlock(nn.Module):
         self.dropout = nn.Dropout(config.dropout)
 
     def forward(self, x: Tensor) -> tuple[Tensor, Tensor]:
-        attended = self.attention(x)
+        seq_len = x.shape[1]
+        causal_mask = torch.triu(
+            torch.ones(seq_len, seq_len, dtype=torch.bool, device=x.device), diagonal=1
+        )
+        attended = self.attention(x, src_mask=causal_mask)
         recurrent, _ = self.recurrent(x)
-        classiang, _slots, relation_logits = self.classiang(x)
-        gates = torch.softmax(self.mix(torch.cat((attended, recurrent, classiang), dim=-1)), dim=-1)
-        stacked = torch.stack((attended, recurrent, classiang), dim=-2)
-        mixed = torch.sum(stacked * gates.unsqueeze(-1), dim=-2)
+        classiang, _assignments, relation_logits = self.classiang(recurrent)
+        gates = torch.softmax(
+            self.mix(torch.cat((attended, recurrent, classiang), dim=-1)), dim=-1
+        )
+        branches = torch.stack((attended, recurrent, classiang), dim=-2)
+        mixed = torch.sum(branches * gates.unsqueeze(-1), dim=-2)
         return self.output_norm(x + self.dropout(mixed)), relation_logits
 
 
 class OmegaModel(nn.Module):
-    """A small, independently initialized hybrid language/类象 model."""
+    """An independently initialized hybrid language/类象 model."""
 
     def __init__(self, config: OmegaConfig) -> None:
         super().__init__()
@@ -137,7 +138,7 @@ class OmegaModel(nn.Module):
     def forward(self, input_ids: Tensor) -> dict[str, Tensor]:
         if input_ids.ndim != 2:
             raise ValueError("input_ids must have shape [batch, sequence]")
-        batch, seq_len = input_ids.shape
+        _, seq_len = input_ids.shape
         if seq_len > self.config.max_seq_len:
             raise ValueError(
                 f"sequence length {seq_len} exceeds max_seq_len={self.config.max_seq_len}"
@@ -174,7 +175,7 @@ def causal_language_loss(logits: Tensor, input_ids: Tensor) -> Tensor:
 
 
 def save_checkpoint(model: OmegaModel, path: str) -> None:
-    """Save portable model configuration and independently learned parameters."""
+    """Save model configuration and independently learned parameters."""
     torch.save(
         {
             "format": "zhouyi-ai-omega-v1",
