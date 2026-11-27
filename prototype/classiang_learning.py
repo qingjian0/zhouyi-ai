@@ -319,6 +319,17 @@ class TrainableTextEncoder:
         denom = sum(exp_scores.values())
         return {key: value / denom for key, value in exp_scores.items()}
 
+    def score_span(self, surface: str) -> dict[str, float]:
+        """Return model-relative class scores for one candidate span.
+
+        These softmax-normalized scores are useful for ranking review
+        candidates; they are not calibrated probabilities.
+        """
+        _nonempty(surface, "surface")
+        if not self.classes:
+            raise ValueError("model has not been trained")
+        return self._probabilities(surface)
+
     def predict(self, *, observation_id: str, subject_id: str, domain: str,
                 source_id: str, text: str, context: tuple[str, ...] = (),
                 threshold: float = 0.55, max_features: int = 64) -> Observation:
