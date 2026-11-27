@@ -132,6 +132,7 @@ def build_review_queue(
                 continue
             surface = record.text[start:end]
             probabilities = model.score_span(surface)
+            candidate_spans_scored += 1
             if not probabilities:
                 continue
             ranked = sorted(
@@ -188,7 +189,6 @@ def build_review_queue(
                 "score_interpretation": "uncalibrated_model_relative_softmax",
                 "review_status": "pending_review",
             })
-            candidate_spans_scored += 1
 
     candidates.sort(key=lambda item: (
         -item["normalized_entropy"],
