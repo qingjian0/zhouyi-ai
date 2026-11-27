@@ -1,5 +1,6 @@
 import tempfile
 import unittest
+from unittest.mock import patch
 from pathlib import Path
 
 from prototype.classiang_learning import TextAnnotation, TextRecord
@@ -54,6 +55,27 @@ class ContrastiveSpanTrainingTests(unittest.TestCase):
             self.assertLess(end, len(row.text) + 1)
             self.assertEqual(feature.atom.value, "transfers-water")
             self.assertEqual(row.text[start:end], "transfers water")
+
+    def test_equal_scores_preserve_source_order_before_span_width(self):
+        rows = sample_records()
+        model = ContrastiveSpanEncoder().fit(rows[:6], seed=5)
+        positive_label = next(label for label in model.classes if label != "__none__")
+        model._scores = lambda _surface: {positive_label: 1.0, "__none__": 0.0}
+        text = "abcdefghij later"
+        with patch(
+            "prototype.classiang_contrastive._candidate_spans",
+            return_value=[(0, 10), (11, 16)],
+        ):
+            observation = model.predict(
+                observation_id="tie-order", subject_id="tie-subject",
+                domain="test", source_id="tie-source", text=text,
+                threshold=0.5,
+            )
+        self.assertEqual(len(observation.features), 1)
+        self.assertEqual(
+            observation.features[0].evidence_refs,
+            ("text:tie-source:chars:0-10",),
+        )
 
     def test_checkpoint_round_trip_and_integrity(self):
         model = ContrastiveSpanEncoder().fit(sample_records()[:6], seed=7)
