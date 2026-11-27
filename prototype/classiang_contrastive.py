@@ -23,7 +23,14 @@ from prototype.classiang_learning import (
 
 
 def _sparse(surface: str) -> Counter[str]:
-    return Counter(_span_features(surface))
+    """Return an L2-normalized span vector so longer enclosing spans do not win
+    merely by accumulating more token and character features.
+    """
+    raw = Counter(_span_features(surface))
+    norm = math.sqrt(sum(value * value for value in raw.values()))
+    if norm == 0.0:
+        return raw
+    return Counter({feature: value / norm for feature, value in raw.items()})
 
 
 def _dot(left: Counter[str], right: Counter[str]) -> float:
@@ -291,7 +298,7 @@ def train_contrastive(records: tuple[TextRecord, ...], *, seed: int = 17,
             "hard negatives are selected only from explicitly reviewed negative_annotations",
             "unannotated spans are treated as unknown, never as negative labels",
             "hard negatives enter after a positive-only warmup curriculum",
-            "exact reviewed phrase boundaries are prioritized for span localization; this is not semantic generalization",
+            "candidate spans are ranked from L2-normalized sparse features; this is not semantic generalization",
             "scores are not calibrated probabilities",
             "no cross-chunk memory or semantic truth guarantee",
         ],
