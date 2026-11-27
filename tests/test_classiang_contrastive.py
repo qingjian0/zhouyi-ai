@@ -77,6 +77,28 @@ class ContrastiveSpanTrainingTests(unittest.TestCase):
             ("text:tie-source:chars:0-10",),
         )
 
+    def test_same_start_equal_score_prefers_narrow_exact_boundary_without_phrase_memory(self):
+        rows = sample_records()
+        model = ContrastiveSpanEncoder().fit(rows[:6], seed=5)
+        positive_label = next(label for label in model.classes if label != "__none__")
+        model._scores = lambda _surface: {positive_label: 1.0, "__none__": 0.0}
+        text = "transfers water;"
+        with patch(
+            "prototype.classiang_contrastive._candidate_spans",
+            return_value=[(0, len(text)), (0, len("transfers water"))],
+        ):
+            observation = model.predict(
+                observation_id="same-start-tie", subject_id="tie-subject",
+                domain="test", source_id="tie-source", text=text,
+                threshold=0.5,
+            )
+        self.assertEqual(len(observation.features), 1)
+        self.assertEqual(
+            observation.features[0].evidence_refs,
+            ("text:tie-source:chars:0-15",),
+        )
+        self.assertNotIn("exact_span_counts", model.to_dict())
+
     def test_checkpoint_round_trip_and_integrity(self):
         model = ContrastiveSpanEncoder().fit(sample_records()[:6], seed=7)
         with tempfile.TemporaryDirectory() as directory:
@@ -84,7 +106,7 @@ class ContrastiveSpanTrainingTests(unittest.TestCase):
             digest = model.save(path)
             restored = ContrastiveSpanEncoder.load(path)
             self.assertEqual(restored.to_dict(), model.to_dict())
-            self.assertEqual(restored.exact_span_counts, model.exact_span_counts)
+            self.assertNotIn("exact_span_counts", restored.to_dict())
             self.assertEqual(len(digest), 64)
             path.write_text(path.read_text(encoding="utf-8").replace('"epochs": 12', '"epochs": 13'), encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "digest mismatch"):
