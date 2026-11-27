@@ -13,7 +13,6 @@ import json
 import math
 from pathlib import Path
 import random
-import re
 from typing import Iterable
 
 from prototype.classiang_engine import FeatureAtom, FeatureCandidate, Observation
@@ -200,7 +199,7 @@ class ContrastiveSpanEncoder:
             accepted.append(item)
             if len(accepted) >= max_features:
                 break
-        accepted.sort(key=lambda item: (item[2], item[3]))
+        accepted.sort(key=lambda item: (item[1], item[2]))
         features = tuple(
             FeatureCandidate(
                 feature_id=f"{observation_id}:contrastive:{index:04d}",
