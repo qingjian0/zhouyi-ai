@@ -145,13 +145,20 @@ class ContrastiveSpanEncoder:
             for index in order:
                 vector, gold, _kind = samples[index]
                 scores = {label: _dot(vector, self.weights[label]) for label in self.classes}
-                predicted = max(self.classes, key=lambda label: (scores[label], label))
-                best_other = max((scores[label] for label in self.classes if label != gold), default=0.0)
-                if predicted != gold or scores[gold] < best_other + self.margin:
+                other_labels = [label for label in self.classes if label != gold]
+                best_other_label = (
+                    max(other_labels, key=lambda label: (scores[label], label))
+                    if other_labels else None
+                )
+                best_other = scores[best_other_label] if best_other_label is not None else 0.0
+                # Multiclass hinge update: push the gold class up and the
+                # highest-scoring competing class down whenever the margin
+                # is violated, even when argmax already equals the gold label.
+                if scores[gold] < best_other + self.margin:
                     for feature, value in vector.items():
                         self.weights[gold][feature] += rate * value
-                        if predicted != gold:
-                            self.weights[predicted][feature] -= rate * value
+                        if best_other_label is not None:
+                            self.weights[best_other_label][feature] -= rate * value
         self.training_records = training_records_used
         self.training_samples = len(samples)
         self.hard_negative_samples = hard_count
