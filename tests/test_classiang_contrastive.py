@@ -9,7 +9,7 @@ from prototype.classiang_contrastive import ContrastiveSpanEncoder, train_contra
 def sample_records():
     rows = []
     for index in range(8):
-        text = f"device{index} transfers water through a narrow pipe"
+        text = f"device{index} transfers water; through a narrow pipe"
         phrase = "transfers water"
         start = text.index(phrase)
         rows.append(TextRecord(
@@ -34,6 +34,8 @@ class ContrastiveSpanTrainingTests(unittest.TestCase):
         self.assertIn("__none__", model.classes)
         self.assertGreaterEqual(report["validation"]["f1"], 0.0)
         self.assertLessEqual(report["validation"]["f1"], 1.0)
+        self.assertGreater(report["validation"]["true_positive"], 0)
+        self.assertGreater(report["validation"]["recall"], 0.0)
 
     def test_predict_preserves_source_evidence_offsets(self):
         rows = sample_records()
@@ -51,6 +53,7 @@ class ContrastiveSpanTrainingTests(unittest.TestCase):
             self.assertGreaterEqual(start, 0)
             self.assertLess(end, len(row.text) + 1)
             self.assertEqual(feature.atom.value, "transfers-water")
+            self.assertEqual(row.text[start:end], "transfers water")
 
     def test_checkpoint_round_trip_and_integrity(self):
         model = ContrastiveSpanEncoder().fit(sample_records()[:6], seed=7)
