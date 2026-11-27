@@ -29,7 +29,7 @@ Zhouyi-AI 以**类象认知**为第一研究主线：从观测中取象、按任
 | M1 数据摄取 | UTF-8 分块读取、Manifest、Chunk Digest、SQLite 持久化、恢复和有界 chunk 读取 | 跨 Chunk tokenizer 一致性、整篇 reference 对照、大文本吞吐与 RSS exact-head 报告 |
 | M2 Observation | Observation DTO、EvidenceRef、Lazy Store、SQLite 索引、Keyset Paging、来源校验与重启恢复 | 大规模 RSS 实测、Gold 标注、语义提取质量、abstention 与独立标注评估 |
 | N0.10 / SROK | SROK 组合内核、LearnableSROK、JSONL 流式/out-of-core runner、SQLite 元数据、checkpoint 恢复、locked-test 评估与 RSS 工具；`20bd82b` exact-head 整仓测试和百万行专项工作流均成功；1K/10K/100K/1M 每 split 均执行两轮训练，1M 每 split（总计 200 万行）耗时 201.286 秒，峰值 RSS 27,508 KiB（相对基线 +5,348 KiB），loss 1.3863→0.7705，dev 100 万行完成流式读取 | 该结果来自合成数据，不能证明真实任务准确率/泛化；仍需独立验证 group-disjoint split、恢复一致性、materialized oracle 数值一致性，以及更丰富训练预算下的学习效果 |
-| CPG-EI | 有限候选语法、符号搜索、经验贝叶斯 few-shot、混合算子发现、motif/optimizer 诊断、扩展合成语料；`45100bd` exact-head 的三种子组合语法 OOD 基准成功：24 个合成教师族/1,536 条记录，锁定集 bit accuracy：符号 68.95%、全多项式 46.68%、符号支持混合 56.84%；符号方法完整状态准确率 32.29%，优于另两者 | 该协议是 operator-grammar OOD、每个教师族都用自身 train split 适配，不是 held-out-family zero-shot；神经或非有限语法 meta-learner、预算公平强基线、更深组合 OOD 和跨分布验证仍未完成；结果只适用于声明的合成任务 |
+| CPG-EI | 已集成有限语法符号搜索、混合算子发现、经验贝叶斯 few-shot、优化器/motif 诊断及 1,600 教师族扩展语料（#517、#520、#528）；#528 三种子 locked test 的 16/32/64 support bit accuracy 为 92.60%/98.55%/99.51%，优于多数类基线；混合算子有限候选发现报告 99.9707% bit accuracy、99.5313% 真值函数恢复率；组合语法 OOD 符号基线 68.95%，全多项式 46.68%，符号支持混合 56.84%（#517）；#529 类象关系保持 OOD 基准及 #530 易象状态编码/配对校验已合并 dev | 上述均为有限合成语法/规则族结果，few-shot 仍是符号经验贝叶斯而非神经 meta-learner；组合 OOD 仍有明显误差。非有限语法跨族学习、强预算匹配基线、更深组合 OOD、真实多域 Gold 类象数据及易象先验独立消融仍未完成；不得外推为真实语义或因果能力 |
 | 易象 / Yixiang（领域知识源） | 卦爻编码、状态转移、五行关系、经典文本与结构保持映射原型 | 真实古籍 Gold 语料、独立标注/仲裁、页码来源追踪、消融、因果/语义层级验证和真实任务评估；不得将领域规则硬编码为通用类象边界 |
 | 集成编排 | Orchestrator、实验协议、测试与工作流自动化 | 证据摄取→表征→候选发现→学习→评估→生命周期持久化的完整 clean-checkout E2E 闭环 |
 
