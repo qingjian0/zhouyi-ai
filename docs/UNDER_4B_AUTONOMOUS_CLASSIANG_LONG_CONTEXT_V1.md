@@ -62,18 +62,19 @@ Required comparisons: sliding-window baseline, retrieval-only baseline, recurren
 
 A 1M-token context claim passes only when a single end-to-end test ingests 1,000,000 tokenizer-counted input tokens, retrieves evidence from early/middle/late regions, detects planted conflicts, and answers held-out questions with auditable source spans under a declared hardware budget.
 
-### 3.3 Long output: resumable generation protocol
+### 3.3 Long output: one continuous logical generation stream
 
-A 1M-token output is a streaming-generation target, not a single in-memory response:
+The 1M-output target is **one continuous logical generation session** for one task, counted by the declared tokenizer. Streaming and persistence are runtime mechanisms, not permission to concatenate independent answers:
 
-- Generate bounded segments with explicit continuation state and segment IDs.
-- Persist a rolling outline, claims ledger, definitions, unresolved items, and generated-content digest.
-- Run consistency checks between segments; preserve references to earlier claims.
-- Support pause, resume, cancellation, and deterministic continuation where the runtime permits.
+- Keep one logical token stream and one evolving model state from the first token to token 1,000,000.
+- The transport/storage layer may flush bounded byte/token chunks and assign monotonically increasing checkpoint offsets. These are persistence boundaries only, not independently prompted segments.
+- Persist the exact decoder/recurrent state, output offset, rolling constraints, claims ledger, definitions, unresolved items, and content digest needed to resume the same generation session.
+- Support pause, resume, and cancellation. A resumed run must continue from the committed state without silently restarting, skipping, duplicating, summarizing, or substituting output.
+- If exact state restoration is unavailable, report the divergence and do not count the run as a successful exact-resume acceptance.
 - Apply token, time, memory, and tool budgets; never promise unbounded execution.
-- Evaluate factual consistency and repetition at multiple distances, not only next-token quality.
+- Evaluate factual consistency, repetition, and constraint drift at multiple distances, not only next-token quality.
 
-Acceptance requires successfully emitting and validating a tokenizer-counted 1,000,000 output tokens across resumable segments, with no missing/duplicated segment IDs, bounded memory, and pre-registered quality thresholds. This is distinct from proving that the model can reason well over a 1M-token input.
+Acceptance requires a tokenizer-counted 1,000,000-token output from one logical generation stream. Persisted chunks must reconstruct the exact emitted stream in order, with no missing or duplicated tokens; independently generated completions concatenated together do not pass. This is distinct from proving that the model can reason well over a 1M-token input.
 
 ## 4. Autonomous exploration and evolution loop
 
@@ -167,7 +168,7 @@ To support any claim of superiority over GPT/DeepSeek, publish a preregistered, 
 
 ## 8. Immediate implementation order
 
-1. Audit and reconcile the current dev state after PR #614; do not branch-sprawl or duplicate existing modules.
+1. Audit and reconcile the current dev state after PR #614 and the exact-span follow-up; do not branch-sprawl or duplicate existing modules.
 2. Produce one canonical experiment manifest and dataset registry.
 3. Repair and validate current span-learning failures on exact-head tests.
 4. Establish real, licensed, independently reviewed Chinese and cross-domain Gold sets.
@@ -182,6 +183,19 @@ To support any claim of superiority over GPT/DeepSeek, publish a preregistered, 
 This repository integration can define architecture, implement code, run GitHub-hosted CI, and analyze artifacts. It does not itself provide a guaranteed multi-GPU training cluster, licensed large-scale corpus, or a persistent million-token inference service. A real pretraining/fine-tuning run requires declared hardware, dataset access, runtime, and compute budget.
 
 Therefore the present deliverable is an architecture and falsifiable acceptance protocol. It is **not** a trained model, a completed 4B checkpoint, a demonstrated 1M-context runtime, or evidence of superiority over GPT/DeepSeek.
+
+## 9. Repository readiness snapshot (dev baseline)
+
+Audited against `dev` at commit `6740112f20bba4a92ea6f835ac77be04e4ce3933`:
+
+- The repository already contains the Classiang observation, class formation, contrastive span, review-queue, evidence-ingestion, SROK/CPG-EI, event-ledger, token-count, and streaming-memory components. Reuse these interfaces; do not create a parallel agent or evidence stack.
+- The current contrastive text learner is a CPU sparse-feature/margin baseline. It is not a pretrained language model or a sub-4B neural backbone. `pyproject.toml` declares no mandatory ML framework dependency; the optional dependency is `tokenizers`.
+- The latest integrated synthetic contrastive smoke run (workflow run 46039564165) used 12 generated records, with 10 train and 2 validation records. Its reported validation F1 was 1.0, but the report explicitly labels the data synthetic and the result a pipeline smoke test. It is not evidence of real semantic or cross-domain generalization. The run's checkpoint also exposed an exact-phrase label lookup; follow-up PR #616 removes that shortcut and must pass exact-head CI before merge.
+- The classical source catalog contains 148 candidate works. The structured quotation corpus contains 43 candidate records and 52 unreviewed claims; the casebook contains 26 unreviewed cases. These are research/evidence candidates, not an adjudicated training Gold set or a licensed large-scale pretraining corpus.
+- Streaming evidence ingestion, evidence retrieval, and tokenizer-count manifests exist. However, the long-context specification explicitly does not claim a demonstrated 1M-token / 64-MiB runtime, lossless semantic compression of arbitrary text, or complete native language generation. No end-to-end 1M-input inference run, 1M-continuous-output run, or sub-4B checkpoint has been demonstrated in this audit.
+- The review queue correctly keeps model proposals separate from Gold; independent source verification and annotation adjudication remain required before supervised training.
+
+This snapshot is a repository audit, not a model evaluation. It must be refreshed when the `dev` base changes.
 
 ## 10. Release definition
 
