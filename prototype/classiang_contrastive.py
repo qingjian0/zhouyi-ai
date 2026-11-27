@@ -188,10 +188,10 @@ class ContrastiveSpanEncoder:
                 for purpose, count in self.purpose_counts[label].items()
             )) if total_annotations else ()
             proposed.append((confidence, start, end, dimension, value, purposes))
-        # When model scores tie, prefer the narrower source span before source
-        # position. This avoids absorbing adjacent context or punctuation into
-        # a reviewed phrase when an equally scoring exact span is available.
-        proposed.sort(key=lambda item: (-item[0], item[2] - item[1], item[1]))
+        # Rank by confidence, then source position. Narrower spans win only
+        # when confidence and start offset both tie; a later short span must not
+        # leapfrog an earlier source candidate.
+        proposed.sort(key=lambda item: (-item[0], item[1], item[2] - item[1]))
         accepted = []
         for item in proposed:
             _, start, end, *_ = item
