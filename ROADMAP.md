@@ -13,8 +13,8 @@ Zhouyi-AI 以**类象认知**为第一研究主线：从观测中取象、按任
 ## 当前集成基线
 
 - 集成分支：`dev`；稳定分支：`main`。
-- 当前集成基线：`dev` HEAD `99b17c7ce346f7b8f0857745286f6dbd90fdd4e3`（PR #551 squash merge）；`main` 未修改。该提交后的 dev 全量测试正在运行，不能把 PR 分支 CI 直接等同于合并后集成验证。
-- 近期已合并 PR #543（类象认知核心）、#544–#548（循环模型与基准评测）、#549–#550（有界记忆包和证据恢复）、#551（有界词法检索）。各 PR 的 exact-head 检查均已通过；#551 合并后的 dev 全量测试仍在运行。
+- 当前集成基线：`dev` HEAD `3e4f441ee352cfa67532c84541208410992ad620`（PR #612 squash merge）；`main` 未修改。PR #611 与 #612 的 exact-head tests 工作流 #45704311911 / #45708102630 均成功；当前未取得该 merge HEAD 的完整集成工作流结果，因此 dev 合并后全量集成验收仍待确认。
+- 近期已合并 PR #543（类象认知核心）、#544–#551（计算、循环模型、记忆与检索支撑）、#605（统一类象闭环）、#607（SROK 结构关系训练）、#611（类象训练框架与困难负例对比学习）、#612（三阶关系对照测试）。#611/#612 exact-head tests 均成功；合并后整仓集成结果仍须单独验收。
 - #539 的强杀测试验证 SQLite 权威事件提交后、scratch-state mutation 前进程退出，再由新进程恢复；它不等同于断电、磁盘故障或完整 checkpoint 验收。
 - `9452d6f` 的整仓 `tests` 工作流 #44390349072 已完成：`unit-tests` 与 `detect-research` 均 success，研究评估矩阵按路径条件 skipped；该结果验证的是代码提交 `9452d6f`，不是后续仅修改路线图的 `f4f5317`。
 - 当前研发重点已调整为类象主线：先整合观象/取象/立类/比类/推类/验类/修类；再补齐真实数据与独立标注、跨域泛化和端到端学习闭环。E12-A6、M1/M2、N0.10、CPG-EI 作为支撑能力按类象关键路径调度；易象古籍 Gold 建设作为重要领域数据分支。
@@ -24,7 +24,7 @@ Zhouyi-AI 以**类象认知**为第一研究主线：从观测中取象、按任
 
 | 工作流 | 已落地 | 尚未通过的关键验收 |
 |---|---|---|
-| **类象认知主线** | `prototype/classiang_engine.py` 任务条件取象、正/负例差异立类、证据绑定、跨领域正例、暂定接受/拒绝/弃权；`prototype/classiang_discovery.py` 有界 Apriori 无标签候选发现与来源追踪；`prototype/classiang_adapters.py` 将已审阅的 `yixiang_formation.FormationTrace` 接入类象 Observation，保留证据引用并要求显式维度/任务分数；27 项类象专项单测；并复用 `analogy.py`、`dynamic_analogy.py`、`yixiang_formation.py`、M56/M58 | 尚未接入原始文本/多模态观测解析、可学习特征提议、类别拆分/合并与反例驱动修订；需要真实多域 Gold 标注、强基线和端到端迁移评估。MVP 仍是符号规则，不等于已学习的类象能力 |
+| **类象认知主线** | `classiang_engine.py` 的任务条件取象、证据约束立类、成员拒绝/弃权与反例局部修订；`classiang_pipeline.py` 统一比较、静态/动态关系映射和 fail-closed 迁移门；`classiang_learning.py` 监督式文本跨度特征学习；`classiang_learning_workflow.py` 审阅反馈再训练、跨域评估与候选发现；`classiang_contrastive.py` 仅使用已审阅困难负例；SROK 结构关系训练及 #612 三阶 parity/随机标签控制 | 仍缺许可清晰、独立标注的真实多域 Gold 集、真实跨域端到端迁移验收、自动语义特征提议质量、类别拆分/合并与原生像素级感知。当前文本模型是 CPU 稀疏监督基线；合成三阶测试不证明真实语义泛化。 |
 | ZPCM / E12-A6 | 追加式权威事件日志、SQLite 持久化、事件摘要校验、授权 receipt/nonce 唯一索引、候选历史索引和授权历史 keyset 分页；候选/证据/动作投影与 high-water/count 元数据由同事务触发器维护；`PersistentLifecycleLedger` 使用临时 SQLite scratch state，普通写入不再 deepcopy 全账本；新增持久 checkpoint v2：事件前缀 digest、授权投影 digest、snapshot header digest、分类型有界 page、page digest/manifest digest；checkpoint 发布在 `BEGIN IMMEDIATE` 事务内原子完成；恢复校验通过后从 checkpoint 高水位只做 suffix 语义重放，损坏时回退权威日志全量重放 | checkpoint 的事件前缀完整性校验仍扫描 O(N) 权威事件，故不是 O(1) 启动；scratch state 仍是进程级临时库；50 万条合成候选历史中 checkpoint 恢复约 21.58 秒、全量重放约 26.27 秒，峰值 RSS 均约 31 MiB，ZPCM 初始化另约 12.6 秒；当前分页 checkpoint exact-head 完整测试、发布中断/磁盘故障、并发 adapter、清理失败及生产事件混合负载仍待验收 |
 | M1 数据摄取 | UTF-8 分块读取、Manifest、Chunk Digest、SQLite 持久化、恢复和有界 chunk 读取 | 跨 Chunk tokenizer 一致性、整篇 reference 对照、大文本吞吐与 RSS exact-head 报告 |
 | M2 Observation | Observation DTO、EvidenceRef、Lazy Store、SQLite 索引、Keyset Paging、来源校验与重启恢复 | 大规模 RSS 实测、Gold 标注、语义提取质量、abstention 与独立标注评估 |
@@ -41,7 +41,7 @@ Zhouyi-AI 以**类象认知**为第一研究主线：从观测中取象、按任
 2. 将八类类象维度统一为可扩展、多标签的特征视图；明确维度标签不是类别结论，表面相似不能代替关系/机制保持。
 3. 新增 `prototype/classiang_engine.py` 作为统一符号 MVP：任务条件取象、正负例差异立类和证据门控；将 `analogy.py`、`dynamic_analogy.py`、`yixiang_formation.py`、M56/M58 原型逐步纳入统一接口，保留旧 API 兼容适配。
 4. 形成可审查的类象候选与类别版本：对象/域、任务目的、特征选择理由、关系映射、适用条件、证据谱系、反例、未知/拒绝状态及修订历史。
-5. 首批符号 MVP 已实现任务条件特征筛选、正例/负例差异立类、无标签频繁特征组合提议、三态成员判断，并新增已审阅观象记录到类象输入的证据保真适配器；下一步补齐反例驱动的类别修订、跨域关系映射和可学习提议器。不得把规则基线或生成器内自洽结果宣称为学习成果。
+5. 已完成的符号阶段包括任务条件特征筛选、正负例立类、三态成员判断、跨域关系映射评估、观测比较和证据约束的局部反例修订（PR #605）。PR #611 增加监督式文本跨度学习、分组隔离验证、审阅反馈、四尺度合成训练和困难负例对比学习；PR #612 增加实际 LearnableSROK 三阶交互、低阶消融、角色置换和随机标签控制。下一步转向真实 Gold 数据、独立标注、跨域迁移和语义特征质量验证。不得把合成结果或上游人工特征标注宣称为自主语义理解。
 6. 验收至少覆盖：高表面相似但结构不兼容、低表面相似但关系保持、任务/上下文变化、关系反转、开放集新类、类别边界、反例导致的局部修订、跨域与组合 OOD。
 7. 建立无类象机制、表面相似、特征匹配、关系图匹配、机制/过程匹配及可学习模型的同输入、同数据拆分、预算匹配基线；报告拒绝质量、校准、迁移收益和成本。
 
