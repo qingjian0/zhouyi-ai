@@ -39,3 +39,8 @@ The report binds the dataset SHA-256 and counts records, sources, source familie
 ## Current status
 
 This is an executable contract and validator, not a claim that the repository already contains a qualifying real-world Gold corpus. Existing synthetic training fixtures do not satisfy the purpose of a real Gold evaluation set.
+
+## Integration boundary
+
+This PR ships the standalone validator and its contract. The existing legacy training entrypoints do **not** invoke it automatically yet. Therefore, a real Gold training run is not considered admitted merely because a manifest exists: the orchestration layer must call this validator successfully **before** the learner loads the dataset, and an integration test must prove that invalid manifests stop the run before model construction. Synthetic smoke-training paths remain separate and must be labeled synthetic.
+
