@@ -84,6 +84,7 @@ class ContrastiveSpanTrainingTests(unittest.TestCase):
             digest = model.save(path)
             restored = ContrastiveSpanEncoder.load(path)
             self.assertEqual(restored.to_dict(), model.to_dict())
+            self.assertEqual(restored.exact_span_counts, model.exact_span_counts)
             self.assertEqual(len(digest), 64)
             path.write_text(path.read_text(encoding="utf-8").replace('"epochs": 12', '"epochs": 13'), encoding="utf-8")
             with self.assertRaisesRegex(ValueError, "digest mismatch"):
