@@ -283,3 +283,111 @@ loader preserves unknown annotations for audit but excludes them from the
 objective. Supply separate train and dev JSONL files through
 `--train-gold-labels` and `--dev-gold-labels`; the pipeline validates each
 against its corresponding generated graph and rejects weak candidate labels.
+
+
+## 15. Strict M19 → M1 → M2 native Gold admission
+
+The native trainer no longer treats a reviewed pair JSONL row as sufficient
+proof of historical-text Gold. Every train and dev label must have a matching
+admission JSONL record and pass the executable adapter in
+`prototype/classiang_native_admission.py`.
+
+The orchestration command requires all five inputs together:
+
+```bash
+python -m prototype.classiang_native_train path/to/manifest.json \
+  --train-gold-labels train-gold.jsonl \
+  --dev-gold-labels dev-gold.jsonl \
+  --m1-evidence-db evidence.sqlite3 \
+  --train-gold-admission train-admission.jsonl \
+  --dev-gold-admission dev-admission.jsonl \
+  --checkpoint artifacts/classiang-native-role-binding.json \
+  --training-report artifacts/classiang-native-training-report.json
+```
+
+Each admission JSONL line has this top-level shape:
+
+```json
+{
+  "example_id": "pair-0001",
+  "m19": {
+    "case_id": "case-0001",
+    "claim_kind": "taxonomic_similarity",
+    "independence_group": "work:example",
+    "source": {
+      "source_status": "critical_edition",
+      "work_id": "work-id",
+      "edition_id": "edition-id",
+      "witness_id": "witness-id",
+      "locator": "卷/篇/段",
+      "transcription": "经核验的原文",
+      "verification_refs": ["scan:page-1"],
+      "verified_by": ["source-verifier"],
+      "verification_note": "影印页与转录逐字核对"
+    },
+    "annotations": [],
+    "adjudication": {}
+  },
+  "m19_reference_map": {
+    "scan:page-1": {
+      "document_id": "m1-document",
+      "chunk_id": "m1-chunk",
+      "content_sha256": "64 lowercase hex characters",
+      "byte_start": 0,
+      "byte_end": 64,
+      "source_version": "manifest-sha256:..."
+    }
+  },
+  "native_evidence_map": {
+    "native-evidence-id": [
+      {
+        "document_id": "m1-document",
+        "chunk_id": "m1-chunk",
+        "content_sha256": "64 lowercase hex characters",
+        "byte_start": 0,
+        "byte_end": 64,
+        "source_version": "manifest-sha256:..."
+      }
+    ]
+  },
+  "m2": {
+    "case": {
+      "case_id": "case-0001",
+      "domain": "classical",
+      "expected_units": [
+        {"kind": "CONCEPT", "canonical_key": "concept:example", "role_bindings": []}
+      ]
+    },
+    "split": "train",
+    "source_lineage_ids": ["work-id", "edition-id", "witness-id"],
+    "evidence_refs": [],
+    "annotation_status": "ADJUDICATED",
+    "gold_evidence_spans": []
+  }
+}
+```
+
+The abbreviated arrays/objects above must be populated with the full M19 DTO
+fields and actual M1/M2 records; empty annotations, adjudication, references,
+or spans are not admissible. For the dev file, the M2 split value is
+`validation`. The M19 reference map must cover source-verification evidence,
+both reviewers' evidence, and final-adjudication evidence. The native evidence
+map must cover every evidence ID used by the pair and its selected relations.
+Every mapped M1 reference must be present in the M2 record and have at least
+one Gold byte span.
+
+At runtime the adapter reconstructs the typed M19 and M2 records, runs
+`assess_review_packet()`, resolves each M1 reference through
+`SQLiteEvidenceRefResolver`, and runs `verify_gold_evidence_spans()` against
+the configured SQLite database. Caller-provided receipt strings are ignored.
+The native label's reviewer and adjudicator identities must match the M19
+reviewer set and final adjudicator. Final accept/reject decisions must agree
+with positive/explicit-negative labels; conditional acceptance must carry its
+scope conditions. Unknown remains auditable and is excluded by the learner.
+
+The train/dev admission files are checked for M2 case, source-lineage, and M1
+document leakage before learning. This is a structural admission gate, not
+proof that the human annotations are correct. Real source licensing, scan
+verification, reviewer independence, and annotation quality remain external
+governance responsibilities. The repository's current candidate corpus is
+still unreviewed, so no real historical-text training claim is made.
