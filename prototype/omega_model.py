@@ -119,6 +119,7 @@ class OmegaBlock(nn.Module):
 
     def __init__(self, config: OmegaConfig) -> None:
         super().__init__()
+        self.config = config
         d_model = config.d_model
         self.attention = nn.TransformerEncoderLayer(
             d_model=d_model,
