@@ -7,6 +7,7 @@ artifacts for validation; locked-test labels are never passed to it.
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
 import subprocess
 import sys
@@ -42,6 +43,12 @@ def run_native_training(
         "--split", "train",
     ]
     subprocess.run(preparation, check=True)
+    train_admission = json.loads(Path(dataset_report).read_text(encoding="utf-8"))
+    if train_admission.get("training_eligible") is not True:
+        raise RuntimeError(
+            "training stopped: exporter produced unreviewed candidate pairs; "
+            "independent relation-pair adjudications are required"
+        )
     validation_preparation = [
         python, "-m", "prototype.classiang_native_dataset", str(manifest),
         "--graph-out", str(validation_graph_out),
@@ -51,6 +58,11 @@ def run_native_training(
         "--split", "dev",
     ]
     subprocess.run(validation_preparation, check=True)
+    dev_admission = json.loads(Path(validation_dataset_report).read_text(encoding="utf-8"))
+    if dev_admission.get("training_eligible") is not True:
+        raise RuntimeError(
+            "validation stopped: dev split has no independently adjudicated relation-pair labels"
+        )
     learner = [
         python, "-m", "prototype.classiang_native_learning",
         str(graph_out), str(labels_out),

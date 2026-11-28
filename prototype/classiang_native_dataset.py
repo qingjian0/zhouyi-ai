@@ -114,7 +114,7 @@ def build_training_corpus(
                 example_id=_stable_id("example", record.observation_id, "positive", str(index)),
                 group_id=record.group_id, source_family=family,
                 relation_ids=relation_ids, evidence_ids=evidence_ids,
-                label=1, reviewed=True,
+                label=1, reviewed=False, label_basis="weak_cooccurrence_proxy",
             ))
         family_records.setdefault(family, []).append({
             "observation_id": record.observation_id,
@@ -157,7 +157,7 @@ def build_training_corpus(
                 example_id=_stable_id("example", family, "cross-record-negative", str(index), *relation_ids),
                 group_id="|".join(group_ids), source_family=family,
                 relation_ids=relation_ids, evidence_ids=evidence_ids,
-                label=0, reviewed=True,
+                label=0, reviewed=False, label_basis="weak_cooccurrence_proxy",
             ))
             negative_examples += 1
 
@@ -186,7 +186,9 @@ def build_training_corpus(
         "exported_source_family_count": family_count,
         "positive_examples": sum(row.label == 1 for row in labels),
         "negative_examples": sum(row.label == 0 for row in labels),
-        "negative_sampling": "cross_observation_same_source_family_weak_negative",
+        "negative_sampling": "cross_observation_same_source_family_unreviewed_candidate_only",
+        "training_eligible": False,
+        "label_basis": "weak_cooccurrence_proxy",
         "label_shortcut_control": {
             "positive_relation_types": ["has_aspect"],
             "negative_relation_types": ["has_aspect"],
@@ -198,6 +200,7 @@ def build_training_corpus(
         "locked_test_loaded_into_learner_artifact": False,
         "limitations": [
             "the first objective is weak supervision for within-record co-observation versus cross-record pairing, not analogy or causal validity",
+            "all exported pair labels are unreviewed candidate proposals, not Gold labels; they cannot enter a learner",
             "the negative pairs are not semantically adjudicated hard negatives; they encode a different-observation sampling rule",
             "shared-subject overlap is confounded with the label and can be learned as a shortcut",
             "general composition learning requires independently reviewed relation-pair compatibility labels",

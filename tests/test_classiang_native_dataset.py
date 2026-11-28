@@ -93,7 +93,7 @@ def _write_manifest(root):
 
 
 class NativeDatasetBuilderTests(unittest.TestCase):
-    def test_exports_only_train_split_and_produces_trainable_labels(self):
+    def test_exports_only_train_split_and_marks_pairs_as_unreviewed_candidates(self):
         with tempfile.TemporaryDirectory() as directory:
             manifest = _write_manifest(Path(directory))
             graph, labels, report = build_training_corpus(manifest)
@@ -102,29 +102,20 @@ class NativeDatasetBuilderTests(unittest.TestCase):
         self.assertEqual(report["excluded_locked_test_records"], 1)
         self.assertFalse(report["locked_test_loaded_into_learner_artifact"])
         self.assertEqual({row.source_family for row in labels}, {"family-a", "family-b"})
-        self.assertTrue(all(
-            item.source_family in {"family-a", "family-b"}
-            for item in graph.evidence
-        ))
+        self.assertTrue(all(item.source_family in {"family-a", "family-b"} for item in graph.evidence))
         self.assertGreater(report["positive_examples"], 0)
         self.assertGreater(report["negative_examples"], 0)
-        self.assertEqual(report["negative_sampling"], "cross_observation_same_source_family_weak_negative")
+        self.assertEqual(report["negative_sampling"], "cross_observation_same_source_family_unreviewed_candidate_only")
+        self.assertFalse(report["training_eligible"])
+        self.assertTrue(all(not row.reviewed for row in labels))
+        self.assertTrue(all(row.label_basis == "weak_cooccurrence_proxy" for row in labels))
         relation_map = {row.relation_id: row for row in graph.relations}
         self.assertEqual({row.relation_type for row in graph.relations}, {"has_aspect"})
         for row in labels:
-            subjects = {
-                dict(relation_map[relation_id].roles)["subject"]
-                for relation_id in row.relation_ids
-            }
+            subjects = {dict(relation_map[rid].roles)["subject"] for rid in row.relation_ids}
             self.assertEqual(len(subjects), 1 if row.label == 1 else 2)
-        model, evaluation = train_and_evaluate_role_model(
-            graph, labels, seed=7, dimension=8, epochs=30,
-        )
-        self.assertGreater(model.trained_examples, 0)
-        self.assertTrue(evaluation["source_family_disjoint"])
-        self.assertTrue(evaluation["shared_symbol_ratio_diagnostic"]["label_defining_in_current_exporter"])
-        self.assertIn("shared-subject overlap", evaluation["shared_symbol_ratio_diagnostic"]["interpretation"])
-        self.assertIn("validation_vocabulary_coverage", evaluation)
+        with self.assertRaisesRegex(ValueError, "human_reviewed_pair"):
+            train_and_evaluate_role_model(graph, labels, seed=7, dimension=8, epochs=30)
 
     def test_cli_exports_round_trip_compatible_training_artifacts(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -152,44 +143,31 @@ class NativeDatasetBuilderTests(unittest.TestCase):
         self.assertEqual(report["labels_sha256"], labels_digest)
         self.assertEqual({row.source_family for row in labels}, {"family-a", "family-b"})
 
-    def test_one_command_runs_isolated_gold_to_checkpoint_pipeline(self):
+    def test_one_command_refuses_weak_pairs_before_checkpoint_creation(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             manifest = _write_manifest(root)
-            graph_path = root / "out" / "graph.json"
-            labels_path = root / "out" / "labels.jsonl"
-            dataset_report = root / "out" / "dataset-report.json"
-            validation_graph = root / "out" / "dev-graph.json"
-            validation_labels = root / "out" / "dev-labels.jsonl"
-            validation_dataset_report = root / "out" / "dev-dataset-report.json"
             checkpoint = root / "out" / "model.json"
-            training_report = root / "out" / "training-report.json"
-            subprocess.run(
-                [
-                    sys.executable, "-m", "prototype.classiang_native_train",
-                    str(manifest), "--graph-out", str(graph_path),
-                    "--labels-out", str(labels_path),
-                    "--dataset-report", str(dataset_report),
-                    "--validation-graph-out", str(validation_graph),
-                    "--validation-labels-out", str(validation_labels),
-                    "--validation-dataset-report", str(validation_dataset_report),
-                    "--checkpoint", str(checkpoint),
-                    "--training-report", str(training_report),
-                    "--epochs", "30", "--dimension", "8",
-                ],
-                check=True, capture_output=True, text=True,
-            )
-            model = NativeRoleBindingModel.load(checkpoint)
-            dataset_summary = json.loads(dataset_report.read_text(encoding="utf-8"))
-            dev_summary = json.loads(validation_dataset_report.read_text(encoding="utf-8"))
-            train_summary = json.loads(training_report.read_text(encoding="utf-8"))
-        self.assertGreater(model.trained_examples, 0)
-        self.assertEqual(model.dimension, 8)
-        self.assertEqual(dataset_summary["excluded_locked_test_records"], 1)
-        self.assertEqual(dev_summary["exported_split"], "dev")
-        self.assertTrue(train_summary["source_family_disjoint"])
-        self.assertEqual(train_summary["validation_mode"], "manifest_dev_split")
-        self.assertEqual(train_summary["model_type"], "classiang-native-role-binding-v1")
+            with self.assertRaises(subprocess.CalledProcessError):
+                subprocess.run(
+                    [
+                        sys.executable, "-m", "prototype.classiang_native_train",
+                        str(manifest), "--graph-out", str(root / "out" / "graph.json"),
+                        "--labels-out", str(root / "out" / "labels.jsonl"),
+                        "--dataset-report", str(root / "out" / "dataset-report.json"),
+                        "--validation-graph-out", str(root / "out" / "dev-graph.json"),
+                        "--validation-labels-out", str(root / "out" / "dev-labels.jsonl"),
+                        "--validation-dataset-report", str(root / "out" / "dev-dataset-report.json"),
+                        "--checkpoint", str(checkpoint),
+                        "--training-report", str(root / "out" / "training-report.json"),
+                        "--epochs", "30", "--dimension", "8",
+                    ],
+                    check=True, capture_output=True, text=True,
+                )
+            summary = json.loads((root / "out" / "dataset-report.json").read_text(encoding="utf-8"))
+            self.assertFalse(summary["training_eligible"])
+            self.assertFalse(checkpoint.exists())
+            self.assertFalse((root / "out" / "training-report.json").exists())
 
     def test_invalid_gold_manifest_stops_before_checkpoint_creation(self):
         with tempfile.TemporaryDirectory() as directory:

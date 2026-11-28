@@ -39,6 +39,7 @@ class CompositionLabel:
     evidence_ids: tuple[str, ...]
     label: int
     reviewed: bool
+    label_basis: str = "human_reviewed_pair"
 
     def validate(self, graph: SymbolGraph) -> None:
         for name in ("example_id", "group_id", "source_family"):
@@ -59,6 +60,8 @@ class CompositionLabel:
             raise ValueError("evidence_ids must be unique")
         if isinstance(self.label, bool) or not isinstance(self.label, int) or self.label not in (0, 1):
             raise ValueError("label must be integer 0 or 1")
+        if self.label_basis != "human_reviewed_pair":
+            raise ValueError("only independently adjudicated human_reviewed_pair labels may enter training")
         if not isinstance(self.reviewed, bool) or not self.reviewed:
             raise ValueError("only reviewed labels may enter training")
         relation_map = {item.relation_id: item for item in graph.relations}
@@ -363,6 +366,7 @@ def labels_from_jsonl(path: str | Path) -> tuple[CompositionLabel, ...]:
                 evidence_ids=tuple(item["evidence_ids"]),
                 label=item["label"],
                 reviewed=item["reviewed"],
+                label_basis=item.get("label_basis", "human_reviewed_pair"),
             ))
         except (KeyError, TypeError, json.JSONDecodeError) as exc:
             raise ValueError(f"invalid label JSONL at line {line_number}: {exc}") from exc

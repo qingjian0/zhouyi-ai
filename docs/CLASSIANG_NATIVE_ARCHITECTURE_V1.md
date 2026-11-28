@@ -201,14 +201,14 @@ python -m prototype.classiang_native_train path/to/manifest.json \\
   --training-report artifacts/classiang-native-training-report.json
 ```
 
-该命令分别启动 train 与 dev 数据准备子进程，再启动学习器子进程：train 图/标签用于拟合，dev 图/标签用于独立验证；locked-test 标签不传入学习器。任一准入或导出阶段失败，均不会构造模型。
+该命令分别启动 train 与 dev 数据准备子进程。**当前 exporter 只产生弱共现候选，不产生人工仲裁的关系对标签，因此编排器会在启动学习器前 fail-closed，不会生成模型检查点。** 只有接入独立审核的 relation-pair compatibility annotations、且 train/dev 均满足准入契约后，才允许启动学习器；locked-test 标签永不传入学习器。
 
 当前第一版监督语义明确限定为：
 
-- 正例：同一人工审核记录中共同标注的两个正向类象属性；两条关系共享同一个 observed subject。
-- 负例：同一 source family 中来自两个不同观察记录的正向属性配对；两条关系具有相同的 has_aspect 类型，但指向不同 observed subject。
+- 候选正例：同一记录中共同标注的两个正向类象属性；两条关系共享同一个 observed subject。该共现只表示同一记录内共同出现，不等价于人工确认两者可组合。
+- 候选负例：同一 source family 中来自两个不同观察记录的正向属性配对；两条关系具有相同的 has_aspect 类型，但指向不同 observed subject。不同记录不构成语义不兼容的证据。
 
-正负样本共享基础关系类型，因此不能仅凭 has_aspect / negative-marker 关系类型读取标签。证据 ID 包含 observation ID，避免同一来源内不同记录的相同字符偏移发生碰撞。train 与 dev 分别导出，locked-test 记录不会进入任何学习器输入。
+正负候选共享基础关系类型，因此不能仅凭 has_aspect / negative-marker 关系类型读取候选来源。它们的标签来源只是采样规则，不是 Gold。所有候选均以 `reviewed: false`、`label_basis: weak_cooccurrence_proxy` 导出，训练器明确拒绝此类标签。证据 ID 包含 observation ID，避免同一来源内不同记录的相同字符偏移发生碰撞。train 与 dev 分别导出，locked-test 记录不会进入任何学习器输入。
 
 **重要限制：当前负例不是经过语义仲裁的 hard negative。** 它只是从同一来源族的不同 observation 中抽取关系对。正例共享 observed subject，负例不共享 observed subject，因此 shared-subject overlap 与标签完全混杂。模型可以只学习“关系对是否共享主体”而不学习类象兼容性或组合规律。当前数据只能用于验证数据管线和结构特征的可学习性，不得作为类象组合能力的证据。
 
