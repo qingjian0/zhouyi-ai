@@ -47,24 +47,27 @@ def _dataset_record(name, source_id):
 
 def _write_manifest(root):
     split_rows = (
-        ("train-a", "source-a", "family-a", "train"),
-        ("train-b", "source-b", "family-b", "train"),
-        ("dev-c", "source-c", "family-c", "dev"),
+        ("train-a1", "source-a", "family-a", "train"),
+        ("train-a2", "source-a", "family-a", "train"),
+        ("train-b1", "source-b", "family-b", "train"),
+        ("train-b2", "source-b", "family-b", "train"),
+        ("dev-c1", "source-c", "family-c", "dev"),
+        ("dev-c2", "source-c", "family-c", "dev"),
         ("test-d", "source-d", "family-d", "locked_test"),
     )
     examples = []
-    sources = []
+    sources_by_id = {}
     groups = []
     for name, source_id, family_id, split in split_rows:
         examples.append(_dataset_record(name, source_id))
-        sources.append({
+        sources_by_id[source_id] = {
             "source_id": source_id,
             "source_family_id": family_id,
             "source_uri": f"https://example.test/{source_id}",
             "license_id": "CC-BY-4.0",
             "license_verified": True,
             "training_use_allowed": True,
-        })
+        }
         groups.append({
             "group_id": f"group:{name}",
             "source_id": source_id,
@@ -81,7 +84,7 @@ def _write_manifest(root):
             "sha256": hashlib.sha256(raw).hexdigest(),
         },
         "split_policy": "source_family_disjoint_v1",
-        "sources": sources,
+        "sources": list(sources_by_id.values()),
         "groups": groups,
     }
     manifest_path = root / "manifest.json"
@@ -94,8 +97,8 @@ class NativeDatasetBuilderTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             manifest = _write_manifest(Path(directory))
             graph, labels, report = build_training_corpus(manifest)
-        self.assertEqual(report["records_used"], 2)
-        self.assertEqual(report["excluded_dev_records"], 1)
+        self.assertEqual(report["records_used"], 4)
+        self.assertEqual(report["excluded_dev_records"], 2)
         self.assertEqual(report["excluded_locked_test_records"], 1)
         self.assertFalse(report["locked_test_loaded_into_learner_artifact"])
         self.assertEqual({row.source_family for row in labels}, {"family-a", "family-b"})
@@ -105,6 +108,15 @@ class NativeDatasetBuilderTests(unittest.TestCase):
         ))
         self.assertGreater(report["positive_examples"], 0)
         self.assertGreater(report["negative_examples"], 0)
+        self.assertEqual(report["negative_sampling"], "cross_observation_same_source_family")
+        relation_map = {row.relation_id: row for row in graph.relations}
+        self.assertEqual({row.relation_type for row in graph.relations}, {"has_aspect"})
+        for row in labels:
+            subjects = {
+                dict(relation_map[relation_id].roles)["subject"]
+                for relation_id in row.relation_ids
+            }
+            self.assertEqual(len(subjects), 1 if row.label == 1 else 2)
         model, evaluation = train_and_evaluate_role_model(
             graph, labels, seed=7, dimension=8, epochs=30,
         )
