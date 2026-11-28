@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import asdict
+from dataclasses import asdict, replace
 import hashlib
 import io
 import json
@@ -183,6 +183,27 @@ class NativeGoldAdmissionTests(unittest.TestCase):
         )
         self.assertEqual(len(receipts), 1)
         self.assertEqual(receipts[0].example_id, label.example_id)
+    def test_m19_abstention_is_preserved_as_reviewed_unknown(self):
+        graph, label = self.graph_and_label()
+        unknown = CompositionLabel(**{**label.__dict__, "label": 2})
+        packet = self.packet()
+        final = replace(
+            packet.adjudication, decision="abstain",
+            rationale="原文上下文不足以确定该关系是否成立，保留未决状态。",
+            shared_basis=(),
+        )
+        packet = replace(packet, adjudication=final)
+        refs = {
+            key: self.m1_ref
+            for key in ("scan:page-11", "passage:3", "adjudication:record-1")
+        }
+        receipt = verify_native_gold_admission(
+            packet=packet, record=self.record(), graph=graph, label=unknown,
+            resolver=self.resolver, m19_reference_map=refs,
+            native_evidence_map={"native-e1": (self.m1_ref,), "native-e2": (self.m1_ref,)},
+            expected_split=DatasetSplit.TRAIN,
+        )
+        self.assertEqual(receipt.example_id, label.example_id)
     def test_rejects_label_conflicting_with_final_adjudication(self):
         graph, label = self.graph_and_label()
         rejected = CompositionLabel(
