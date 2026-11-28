@@ -191,7 +191,7 @@ class NativeCompositionLearningTests(unittest.TestCase):
         bad[0] = CompositionLabel(
             example_id=bad[0].example_id, group_id=bad[0].group_id,
             source_family=bad[0].source_family, relation_ids=bad[0].relation_ids,
-            evidence_ids=bad[0].evidence_ids, label=bad[0].label, reviewed=False, reviewer_id="fixture-reviewer", adjudication_id="bad-review", scope="fixture-domain",
+            evidence_ids=bad[0].evidence_ids, label=bad[0].label, reviewed=False, label_basis="human_reviewed_pair", reviewer_id="fixture-reviewer", adjudication_id="bad-review", scope="fixture-domain",
         )
         with self.assertRaisesRegex(ValueError, "reviewed"):
             train_and_evaluate(graph, tuple(bad))
