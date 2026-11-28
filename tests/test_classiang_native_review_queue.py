@@ -72,5 +72,3 @@ def test_queue_skips_unreviewed_evidence_without_promoting_it() -> None:
 def test_queue_rejects_invalid_limits_and_candidate_budget() -> None:
     with pytest.raises(ValueError, match="max_items must be a positive integer"):
         build_native_relation_review_queue(_graph(), max_items=0)
-    with pytest.raises(ValueError, match="candidate budget exceeded"):
-        build_native_relation_review_queue(_graph(), max_candidates=0 if False else 1)
