@@ -7,6 +7,7 @@ import unittest
 from pathlib import Path
 
 from prototype.classiang_native_dataset import build_training_corpus
+from prototype.classiang_native_train import run_native_training
 from prototype.classiang_native_learning import (
     NativeRoleBindingModel, graph_from_json, labels_from_jsonl, train_and_evaluate_role_model,
 )
@@ -165,6 +166,27 @@ class NativeDatasetBuilderTests(unittest.TestCase):
         self.assertEqual(dataset_summary["excluded_locked_test_records"], 1)
         self.assertTrue(train_summary["source_family_disjoint"])
         self.assertEqual(train_summary["model_type"], "classiang-native-role-binding-v1")
+
+    def test_invalid_gold_manifest_stops_before_checkpoint_creation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest = _write_manifest(root)
+            payload = json.loads(manifest.read_text(encoding="utf-8"))
+            payload["dataset"]["sha256"] = "0" * 64
+            manifest.write_text(json.dumps(payload), encoding="utf-8")
+            checkpoint = root / "out" / "model.json"
+            with self.assertRaises(subprocess.CalledProcessError):
+                run_native_training(
+                    manifest,
+                    graph_out=root / "out" / "graph.json",
+                    labels_out=root / "out" / "labels.jsonl",
+                    dataset_report=root / "out" / "dataset-report.json",
+                    checkpoint=checkpoint,
+                    training_report=root / "out" / "training-report.json",
+                    epochs=10, dimension=8,
+                )
+            self.assertFalse(checkpoint.exists())
+            self.assertFalse((root / "out" / "training-report.json").exists())
 
     def test_rejects_record_pair_budget_overflow(self):
         with tempfile.TemporaryDirectory() as directory:
