@@ -29,7 +29,7 @@ def _install_gold_labels(graph_path: str | Path, source_path: str | Path, target
     target = Path(target_path)
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(
-        "".join(json.dumps(asdict(row), ensure_ascii=False, sort_keys=True) + "\\n" for row in labels),
+        "".join(json.dumps(asdict(row), ensure_ascii=False, sort_keys=True) + "\n" for row in labels),
         encoding="utf-8",
     )
     return {
@@ -51,7 +51,7 @@ def _mark_gold_admission(report_path: str | Path, source_path: str | Path, metad
         "candidate_labels_replaced": True,
         "gold_label_source": str(source_path),
     })
-    report_file.write_text(json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2) + "\\n", encoding="utf-8")
+    report_file.write_text(json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2) + "\n", encoding="utf-8")
 
 
 def run_native_training(
