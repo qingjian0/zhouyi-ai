@@ -8,7 +8,7 @@ from pathlib import Path
 
 from prototype.classiang_native_dataset import build_training_corpus
 from prototype.classiang_native_learning import (
-    graph_from_json, labels_from_jsonl, train_and_evaluate_role_model,
+    NativeRoleBindingModel, graph_from_json, labels_from_jsonl, train_and_evaluate_role_model,
 )
 
 
@@ -135,6 +135,36 @@ class NativeDatasetBuilderTests(unittest.TestCase):
         self.assertEqual(report["graph_sha256"], graph_digest)
         self.assertEqual(report["labels_sha256"], labels_digest)
         self.assertEqual({row.source_family for row in labels}, {"family-a", "family-b"})
+
+    def test_one_command_runs_isolated_gold_to_checkpoint_pipeline(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest = _write_manifest(root)
+            graph_path = root / "out" / "graph.json"
+            labels_path = root / "out" / "labels.jsonl"
+            dataset_report = root / "out" / "dataset-report.json"
+            checkpoint = root / "out" / "model.json"
+            training_report = root / "out" / "training-report.json"
+            subprocess.run(
+                [
+                    sys.executable, "-m", "prototype.classiang_native_train",
+                    str(manifest), "--graph-out", str(graph_path),
+                    "--labels-out", str(labels_path),
+                    "--dataset-report", str(dataset_report),
+                    "--checkpoint", str(checkpoint),
+                    "--training-report", str(training_report),
+                    "--epochs", "30", "--dimension", "8",
+                ],
+                check=True, capture_output=True, text=True,
+            )
+            model = NativeRoleBindingModel.load(checkpoint)
+            dataset_summary = json.loads(dataset_report.read_text(encoding="utf-8"))
+            train_summary = json.loads(training_report.read_text(encoding="utf-8"))
+        self.assertGreater(model.trained_examples, 0)
+        self.assertEqual(model.dimension, 8)
+        self.assertEqual(dataset_summary["excluded_locked_test_records"], 1)
+        self.assertTrue(train_summary["source_family_disjoint"])
+        self.assertEqual(train_summary["model_type"], "classiang-native-role-binding-v1")
 
     def test_rejects_record_pair_budget_overflow(self):
         with tempfile.TemporaryDirectory() as directory:
