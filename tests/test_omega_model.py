@@ -13,6 +13,7 @@ from prototype.omega_model import (
     OmegaConfig,
     OmegaModel,
     causal_language_loss,
+    classiang_composition_consistency_loss,
     load_checkpoint,
     save_checkpoint,
     generate,
@@ -43,6 +44,16 @@ class OmegaModelTests(unittest.TestCase):
         self.assertTrue(torch.isfinite(loss))
         loss.backward()
         self.assertIsNotNone(self.model.token_embedding.weight.grad)
+
+    def test_composition_head_receives_auxiliary_gradient(self):
+        tokens = torch.randint(0, self.config.vocab_size, (2, 9))
+        outputs = self.model(tokens)
+        loss = classiang_composition_consistency_loss(
+            outputs["relation_logits"], outputs["composition_logits"]
+        )
+        self.assertTrue(torch.isfinite(loss))
+        loss.backward()
+        self.assertIsNotNone(self.model.blocks[0].classiang.composer.score[0].weight.grad)
 
     def test_future_tokens_do_not_change_prefix_logits(self):
         self.model.eval()
