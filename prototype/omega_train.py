@@ -39,6 +39,12 @@ def sample_batch(tokens: torch.Tensor, batch_size: int, seq_len: int,
 
 
 def train(args: argparse.Namespace) -> dict:
+    if args.steps < 1 or args.batch_size < 1 or args.eval_batches < 1:
+        raise ValueError("steps, batch_size and eval_batches must be >= 1")
+    if not 0.0 < args.validation_fraction < 0.5:
+        raise ValueError("validation_fraction must be between 0 and 0.5")
+    if args.learning_rate <= 0 or args.dropout < 0 or args.dropout >= 1:
+        raise ValueError("learning_rate must be positive and dropout must be in [0, 1)")
     random.seed(args.seed)
     torch.manual_seed(args.seed)
     text = Path(args.corpus).read_text(encoding="utf-8")
