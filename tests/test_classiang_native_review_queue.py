@@ -44,8 +44,8 @@ class NativeRelationReviewQueueTests(unittest.TestCase):
         self.assertEqual(queue["candidate_count"], 1)
         self.assertEqual(queue["selected_count"], 1)
         item = queue["items"][0]
-        self.assertEqual(item["relation_ids"], ["r1", "r2"])
-        self.assertEqual(item["evidence_ids"], ["e1", "e2"])
+        self.assertEqual(item["relation_ids"], ("r1", "r2"))
+        self.assertEqual(item["evidence_ids"], ("e1", "e2"))
         self.assertEqual(item["source_family"], "family-a")
         self.assertIsNone(item["annotation"]["decision"])
         self.assertEqual(item["gold_status"], "not_gold")
