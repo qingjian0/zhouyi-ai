@@ -166,7 +166,7 @@ class NativeCompositionLearningTests(unittest.TestCase):
             source_family=first.source_family, relation_ids=first.relation_ids,
             evidence_ids=first.evidence_ids, label=2, reviewed=True,
             label_basis="human_reviewed_pair", reviewer_id="fixture-reviewer",
-            adjudication_id="unknown-adjudication", scope="fixture-domain", conditions=("unconditional",),
+            adjudication_id="unknown-adjudication", scope="fixture-domain",
             conditions=("only-under-condition-x",),
         )
         model, report = train_and_evaluate(graph, labels + (unknown,), seed=11, epochs=5)
