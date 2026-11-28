@@ -8,18 +8,21 @@ resolved and hashed against the configured M1 database before admission.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
+from pathlib import Path
 from typing import Mapping, Sequence
 
 from prototype.classiang_native import SymbolGraph
 from prototype.classiang_native_learning import CompositionLabel
 from prototype.evidence_ref_resolver import SQLiteEvidenceRefResolver
 from prototype.m2_extraction_dataset import (
-    AnnotatedExtractionRecord, DatasetSplit, ExtractionDatasetManifest,
+    AnnotationStatus, AnnotatedExtractionRecord, DatasetSplit, ExtractionDatasetManifest, GoldUnitEvidenceSpan,
 )
+from prototype.m2_extraction_evaluation import ExtractionGoldCase, GoldSemanticUnit
 from prototype.m2_gold_evidence_verifier import verify_gold_evidence_spans
-from prototype.observation_contract import EvidenceRef
+from prototype.observation_contract import EvidenceRef, UnitKind
 from prototype.yixiang_annotation_adjudication import (
-    ReviewPacket, ReviewStatus, assess_review_packet,
+    FinalAdjudication, IndependentAnnotation, ReviewPacket, ReviewStatus, SourceVerification, assess_review_packet,
 )
 
 
@@ -181,3 +184,128 @@ def verify_native_gold_dataset(
                 f"M2/M1 verification failed for {row.case.case_id}: {exc}"
             ) from exc
     return tuple(receipt.verification_sha256 for receipt in receipts)
+
+
+def _m1_ref_from_json(value: dict) -> EvidenceRef:
+    if not isinstance(value, dict):
+        raise NativeGoldAdmissionError("M1 EvidenceRef JSON must be an object")
+    try:
+        return EvidenceRef(**value)
+    except (TypeError, ValueError) as exc:
+        raise NativeGoldAdmissionError(f"invalid M1 EvidenceRef: {exc}") from exc
+
+
+def _review_packet_from_json(value: dict) -> ReviewPacket:
+    try:
+        source = SourceVerification(**value["source"])
+        annotations = tuple(IndependentAnnotation(**row) for row in value["annotations"])
+        adjudication_data = value.get("adjudication")
+        adjudication = FinalAdjudication(**adjudication_data) if adjudication_data is not None else None
+        return ReviewPacket(
+            case_id=value["case_id"], claim_kind=value["claim_kind"],
+            independence_group=value["independence_group"], source=source,
+            annotations=annotations, adjudication=adjudication,
+        )
+    except (KeyError, TypeError, ValueError) as exc:
+        raise NativeGoldAdmissionError(f"invalid serialized M19 ReviewPacket: {exc}") from exc
+
+
+def _m2_record_from_json(value: dict) -> AnnotatedExtractionRecord:
+    try:
+        case_data = value["case"]
+        units = tuple(
+            GoldSemanticUnit(
+                kind=UnitKind(item["kind"]),
+                canonical_key=item["canonical_key"],
+                role_bindings=tuple(tuple(pair) for pair in item.get("role_bindings", ())),
+            )
+            for item in case_data["expected_units"]
+        )
+        case = ExtractionGoldCase(case_data["case_id"], case_data["domain"], units)
+        refs = tuple(_m1_ref_from_json(item) for item in value["evidence_refs"])
+        spans = tuple(
+            GoldUnitEvidenceSpan(
+                unit_index=item["unit_index"],
+                evidence_ref=_m1_ref_from_json(item["evidence_ref"]),
+                byte_start=item["byte_start"], byte_end=item["byte_end"],
+                span_sha256=item["span_sha256"],
+            )
+            for item in value["gold_evidence_spans"]
+        )
+        return AnnotatedExtractionRecord(
+            case=case, split=DatasetSplit(value["split"]),
+            source_lineage_ids=tuple(value["source_lineage_ids"]),
+            evidence_refs=refs,
+            annotation_status=AnnotationStatus(value["annotation_status"]),
+            gold_evidence_spans=spans,
+        )
+    except (KeyError, TypeError, ValueError) as exc:
+        raise NativeGoldAdmissionError(f"invalid serialized M2 AnnotatedExtractionRecord: {exc}") from exc
+
+
+def verify_native_gold_admission_jsonl(
+    *,
+    graph: SymbolGraph,
+    labels: Sequence[CompositionLabel],
+    admission_path: str | Path,
+    m1_database: str | Path,
+    expected_split: DatasetSplit,
+) -> tuple[NativeGoldAdmissionReceipt, ...]:
+    """Verify one typed M19/M2 admission packet for every native label.
+
+    JSONL is a transport format only. The M1 resolver and M2 span verifier are
+    executed against the configured SQLite database; caller-supplied receipts
+    or digests are never trusted as proof.
+    """
+    path = Path(admission_path)
+    if not path.is_file():
+        raise NativeGoldAdmissionError(f"Gold admission JSONL does not exist: {path}")
+    bundles: dict[str, dict] = {}
+    for line_number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        if not line.strip():
+            continue
+        try:
+            bundle = json.loads(line)
+        except json.JSONDecodeError as exc:
+            raise NativeGoldAdmissionError(f"invalid admission JSONL at line {line_number}: {exc}") from exc
+        if not isinstance(bundle, dict) or not isinstance(bundle.get("example_id"), str):
+            raise NativeGoldAdmissionError(f"admission line {line_number} requires example_id")
+        example_id = bundle["example_id"]
+        if example_id in bundles:
+            raise NativeGoldAdmissionError(f"duplicate admission example_id: {example_id}")
+        bundles[example_id] = bundle
+
+    labels_by_id = {row.example_id: row for row in labels}
+    if len(labels_by_id) != len(labels):
+        raise NativeGoldAdmissionError("native labels contain duplicate example IDs")
+    if set(bundles) != set(labels_by_id):
+        raise NativeGoldAdmissionError(
+            f"admission coverage mismatch: missing={sorted(set(labels_by_id)-set(bundles))}, "
+            f"extra={sorted(set(bundles)-set(labels_by_id))}"
+        )
+
+    resolver = SQLiteEvidenceRefResolver(m1_database)
+    receipts = []
+    for example_id in sorted(labels_by_id):
+        bundle = bundles[example_id]
+        try:
+            packet = _review_packet_from_json(bundle["m19"])
+            record = _m2_record_from_json(bundle["m2"])
+            m19_map = {
+                key: _m1_ref_from_json(value)
+                for key, value in bundle["m19_reference_map"].items()
+            }
+            native_map = {
+                key: tuple(_m1_ref_from_json(item) for item in values)
+                for key, values in bundle["native_evidence_map"].items()
+            }
+        except (KeyError, TypeError, ValueError, AttributeError) as exc:
+            raise NativeGoldAdmissionError(
+                f"invalid admission bundle for {example_id}: {exc}"
+            ) from exc
+        receipts.append(verify_native_gold_admission(
+            packet=packet, record=record, graph=graph, label=labels_by_id[example_id],
+            resolver=resolver, m19_reference_map=m19_map,
+            native_evidence_map=native_map, expected_split=expected_split,
+        ))
+    return tuple(receipts)
