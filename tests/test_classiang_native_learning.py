@@ -45,12 +45,12 @@ def training_fixture():
             CompositionLabel(
                 example_id=f"{family}-positive", group_id=family,
                 source_family=family, relation_ids=tuple(relation_ids[:2]),
-                evidence_ids=tuple(evidence_ids[:2]), label=1, reviewed=True, reviewer_id="fixture-reviewer", adjudication_id=f"{family}-positive", scope="fixture-domain",
+                evidence_ids=tuple(evidence_ids[:2]), label=1, reviewed=True, label_basis="human_reviewed_pair", reviewer_id="fixture-reviewer", adjudication_id=f"{family}-positive", scope="fixture-domain",
             ),
             CompositionLabel(
                 example_id=f"{family}-negative", group_id=family,
                 source_family=family, relation_ids=tuple(relation_ids[2:]),
-                evidence_ids=tuple(evidence_ids[2:]), label=0, reviewed=True, reviewer_id="fixture-reviewer", adjudication_id=f"{family}-negative", scope="fixture-domain",
+                evidence_ids=tuple(evidence_ids[2:]), label=0, reviewed=True, label_basis="human_reviewed_pair", reviewer_id="fixture-reviewer", adjudication_id=f"{family}-negative", scope="fixture-domain",
             ),
         ))
     return SymbolGraph(tuple(evidence), tuple(symbols), tuple(relations)), tuple(labels)
@@ -158,6 +158,33 @@ class NativeCompositionLearningTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "unknown relation ID"):
             model.predict_probability(graph, ("missing-relation",))
 
+    def test_unknown_gold_annotations_are_excluded_from_training(self):
+        graph, labels = training_fixture()
+        first = labels[0]
+        unknown = CompositionLabel(
+            example_id="family-0-unknown", group_id=first.group_id,
+            source_family=first.source_family, relation_ids=first.relation_ids,
+            evidence_ids=first.evidence_ids, label=2, reviewed=True,
+            label_basis="human_reviewed_pair", reviewer_id="fixture-reviewer",
+            adjudication_id="unknown-adjudication", scope="fixture-domain",
+            conditions=("only-under-condition-x",),
+        )
+        model, report = train_and_evaluate(graph, labels + (unknown,), seed=11, epochs=5)
+        self.assertGreater(model.trained_examples, 0)
+        self.assertEqual(report["unknown_annotations_excluded"], 1)
+
+    def test_gold_pair_requires_adjudication_metadata(self):
+        graph, labels = training_fixture()
+        first = labels[0]
+        incomplete = CompositionLabel(
+            example_id="missing-adjudication", group_id=first.group_id,
+            source_family=first.source_family, relation_ids=first.relation_ids,
+            evidence_ids=first.evidence_ids, label=1, reviewed=True,
+            label_basis="human_reviewed_pair",
+        )
+        with self.assertRaisesRegex(ValueError, "reviewer_id"):
+            incomplete.validate(graph)
+
     def test_rejects_unreviewed_labels(self):
         graph, labels = training_fixture()
         bad = list(labels)
@@ -175,7 +202,7 @@ class NativeCompositionLearningTests(unittest.TestCase):
         leaked = CompositionLabel(
             example_id="cross-family-copy", group_id="family-1",
             source_family="family-1", relation_ids=first.relation_ids,
-            evidence_ids=first.evidence_ids, label=0, reviewed=True, reviewer_id="fixture-reviewer", adjudication_id="leak-review", scope="fixture-domain", reviewer_id="fixture-reviewer", adjudication_id=f"{family}-negative", scope="fixture-domain",
+            evidence_ids=first.evidence_ids, label=0, reviewed=True, label_basis="human_reviewed_pair", reviewer_id="fixture-reviewer", adjudication_id="leak-review", scope="fixture-domain",
         )
         with self.assertRaisesRegex(ValueError, "source_family"):
             train_and_evaluate(graph, labels + (leaked,))
