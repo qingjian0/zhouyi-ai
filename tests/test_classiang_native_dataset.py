@@ -1,11 +1,15 @@
 import hashlib
 import json
+import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
 from prototype.classiang_native_dataset import build_training_corpus
-from prototype.classiang_native_learning import train_and_evaluate_role_model
+from prototype.classiang_native_learning import (
+    graph_from_json, labels_from_jsonl, train_and_evaluate_role_model,
+)
 
 
 def _dataset_record(name, source_id):
@@ -105,6 +109,30 @@ class NativeDatasetBuilderTests(unittest.TestCase):
         )
         self.assertGreater(model.trained_examples, 0)
         self.assertTrue(evaluation["source_family_disjoint"])
+
+    def test_cli_exports_round_trip_compatible_training_artifacts(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest = _write_manifest(root)
+            graph_path = root / "out" / "graph.json"
+            labels_path = root / "out" / "labels.jsonl"
+            report_path = root / "out" / "report.json"
+            subprocess.run(
+                [
+                    sys.executable, "-m", "prototype.classiang_native_dataset",
+                    str(manifest), "--graph-out", str(graph_path),
+                    "--labels-out", str(labels_path), "--report-out", str(report_path),
+                ],
+                check=True, capture_output=True, text=True,
+            )
+            graph = graph_from_json(graph_path)
+            labels = labels_from_jsonl(labels_path)
+            report = json.loads(report_path.read_text(encoding="utf-8"))
+        graph.validate()
+        self.assertTrue(labels)
+        self.assertEqual(report["graph_sha256"], hashlib.sha256(graph_path.read_bytes()).hexdigest())
+        self.assertEqual(report["labels_sha256"], hashlib.sha256(labels_path.read_bytes()).hexdigest())
+        self.assertEqual({row.source_family for row in labels}, {"family-a", "family-b"})
 
     def test_rejects_record_pair_budget_overflow(self):
         with tempfile.TemporaryDirectory() as directory:
