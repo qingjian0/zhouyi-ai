@@ -148,7 +148,12 @@ Zhouyi-AI 的核心不是把类象标签附加到语言模型，也不是把 Tra
 
 ## 11. 当前可执行训练接口
 
-第一版可训练组件采用确定性的逻辑回归评分器，输入为五项显式结构描述特征，用于给有界关系组合排序。它尚不是通用的类象表示学习模型。
+当前实现包含两个层级：
+
+- **结构基线评分器**：确定性逻辑回归，输入为五项显式结构描述特征。
+- **原生角色绑定学习器**：学习象元类型、属性键/值、关系类型和角色的向量表征，通过关系—角色绑定能量对组合进行评分，不依赖 token 自注意力。
+
+角色绑定学习器仍是小规模实验模型：它的输入属性来自已构造的符号图，不具备自主感知或通用语义理解能力；关系算子也尚未覆盖高阶过程、时序和反事实推演。
 
 训练输入由两个文件组成：
 
@@ -161,10 +166,11 @@ Zhouyi-AI 的核心不是把类象标签附加到语言模型，也不是把 Tra
 
 ```bash
 python -m prototype.classiang_native_learning graph.json labels.jsonl \
-  --checkpoint artifacts/classiang-composition.json \
-  --report artifacts/classiang-composition-report.json
+  --model role-binding --dimension 16 \
+  --checkpoint artifacts/classiang-role-binding.json \
+  --report artifacts/classiang-role-binding-report.json
 ```
 
-报告包含随机种子、来源族切分、混淆矩阵、准确率、精确率、召回率、Brier 分数，以及图结构、标签和检查点的 SHA-256 摘要。模型分数只表示结构兼容性排序；高分不证明语义同一、类比有效或因果关系成立。
+报告包含随机种子、来源族切分、混淆矩阵、准确率、精确率、召回率、Brier 分数，以及图结构、标签和检查点的 SHA-256 摘要。使用 --model linear 可运行结构基线。模型分数只表示结构兼容性排序；高分不证明语义同一、类比有效或因果关系成立。
 
 该学习器只是后续原生角色/关系参数化表示、多目标组合学习、拒答校准和独立 OOD 基准的起点。不得将其称为 Zhouyi-AI 基础模型。
