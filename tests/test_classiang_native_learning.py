@@ -93,11 +93,15 @@ class NativeCompositionLearningTests(unittest.TestCase):
     def test_native_role_binding_model_trains_and_round_trips(self):
         graph, labels = training_fixture()
         model, report = train_and_evaluate_role_model(
-            graph, labels, seed=11, dimension=8, epochs=20,
+            graph, labels, seed=11, dimension=8, epochs=100,
         )
         self.assertEqual(model.trained_examples, report["train_examples"])
         self.assertTrue(report["source_family_disjoint"])
         self.assertEqual(model.dimension, 8)
+        held_out = int(report["validation_source_families"][0].split("-")[-1])
+        positive = model.predict_probability(graph, (f"r{held_out}-a", f"r{held_out}-b"))
+        negative = model.predict_probability(graph, (f"r{held_out}-c", f"r{held_out}-d"))
+        self.assertGreater(positive, negative)
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "role-model.json"
             digest = model.save(path)
