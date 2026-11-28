@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from dataclasses import asdict
 import hashlib
 import io
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -9,6 +11,7 @@ from pathlib import Path
 from prototype.classiang_native import EvidenceRef as NativeEvidenceRef, Relation, Symbol, SymbolGraph
 from prototype.classiang_native_admission import (
     NativeGoldAdmissionError, verify_native_gold_admission,
+    verify_native_gold_admission_jsonl,
 )
 from prototype.classiang_native_learning import CompositionLabel
 from prototype.evidence_ref_resolver import SQLiteEvidenceRefResolver
@@ -157,6 +160,29 @@ class NativeGoldAdmissionTests(unittest.TestCase):
                 AnnotationStatus.ADJUDICATED, (),
             )
 
+    def test_jsonl_loader_reconstructs_typed_m19_m2_and_resolves_real_m1(self):
+        graph, label = self.graph_and_label()
+        bundle = {
+            "example_id": label.example_id,
+            "m19": asdict(self.packet()),
+            "m19_reference_map": {
+                key: asdict(self.m1_ref)
+                for key in ("scan:page-11", "passage:3", "adjudication:record-1")
+            },
+            "native_evidence_map": {
+                "native-e1": [asdict(self.m1_ref)],
+                "native-e2": [asdict(self.m1_ref)],
+            },
+            "m2": asdict(self.record()),
+        }
+        path = Path(self.temp.name) / "admission.jsonl"
+        path.write_text(json.dumps(bundle, ensure_ascii=False) + "\\n", encoding="utf-8")
+        receipts = verify_native_gold_admission_jsonl(
+            graph=graph, labels=(label,), admission_path=path,
+            m1_database=self.database, expected_split=DatasetSplit.TRAIN,
+        )
+        self.assertEqual(len(receipts), 1)
+        self.assertEqual(receipts[0].example_id, label.example_id)
     def test_rejects_label_conflicting_with_final_adjudication(self):
         graph, label = self.graph_and_label()
         rejected = CompositionLabel(
