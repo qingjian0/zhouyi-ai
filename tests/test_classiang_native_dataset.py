@@ -94,7 +94,7 @@ class NativeDatasetBuilderTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             manifest = _write_manifest(Path(directory))
             graph, labels, report = build_training_corpus(manifest)
-        self.assertEqual(report["train_records_used"], 2)
+        self.assertEqual(report["records_used"], 2)
         self.assertEqual(report["excluded_dev_records"], 1)
         self.assertEqual(report["excluded_locked_test_records"], 1)
         self.assertFalse(report["locked_test_loaded_into_learner_artifact"])
