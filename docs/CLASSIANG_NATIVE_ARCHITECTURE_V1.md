@@ -422,3 +422,42 @@ two reviewer records, and distinct adjudication; the final decision and
 scope conditions must then be encoded into the native Gold label. The exact
 M1 EvidenceRef mapping and M2 byte spans are still mandatory, and the existing
 `classiang_native_admission.py` gate remains the only path into Gold training.
+
+
+## 17. M19 adjudication import for native relation pairs
+
+```bash
+python -m prototype.classiang_native_annotation_import graph.json \
+  artifacts/native-relation-review-queue.json \
+  adjudicated-m19-m1-m2.jsonl \
+  --labels-out artifacts/native-gold-labels.jsonl \
+  --admission-out artifacts/native-gold-admission.jsonl
+```
+
+The importer binds each completed annotation to an existing `review_item_id`
+and verifies the queue digest before accepting it. Each adjudication JSONL row
+must contain:
+
+- `review_item_id`: an item from the exact generated queue;
+- `m19`: the complete serialized typed `ReviewPacket`, including verified
+  source metadata, two independent annotations, and a distinct final adjudicator;
+- `m19_reference_map`: actual M1 EvidenceRef mappings for every M19 source,
+  reviewer, and adjudicator evidence reference;
+- `native_evidence_map`: actual M1 EvidenceRef mappings for every native
+  evidence ID used by the queued relation pair;
+- `m2`: the complete M2 annotated extraction record with source lineage,
+  evidence references, adjudicated status, and byte-exact Gold spans.
+
+The importer rejects unknown or duplicate queue items, tampered queue digests,
+incomplete/non-adjudicated M19 packets, and invalid relation/evidence bindings.
+It maps M19 accept/reject/conditional/abstain to positive/explicit-negative/
+positive-with-conditions/unknown respectively. Reviewer identity is selected
+deterministically from the two independent reviewers; the final adjudicator is
+kept separate. Unknown remains auditable and is excluded from the training
+objective.
+
+The importer only serializes labels and admission bundles. It does not mint
+M1 references, fabricate M2 spans, or certify Gold. The resulting admission
+JSONL must still pass `classiang_native_admission.py` against the real M1
+SQLite database, including byte-level M2 verification and train/dev isolation,
+before any training command can consume it.
