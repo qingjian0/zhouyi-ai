@@ -258,6 +258,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: omega-foundation-model-smoke
-          path: artifacts/omega-smoke*
+          path: |\n            artifacts/omega-smoke*\n            artifacts/reviewed-classiang-manifest.json\n            artifacts/reviewed-classiang-corpus.txt
           if-no-files-found: ignore
           retention-days: 14
