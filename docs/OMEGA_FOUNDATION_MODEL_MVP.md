@@ -12,7 +12,7 @@ Each Omega block combines three paths:
 2. **Recurrent state path** — a GRU that carries information forward through the sequence without attending to future positions.
 3. **Classiang workspace** — learned latent-aspect slots, per-position assignments, and a trainable slot-to-slot relation graph. A pairwise CPG-EI proposal head scores candidate slot compositions.
 
-A learned gate mixes the three paths. The language-model head is tied to the token embedding. The training objective is next-token cross entropy; classiang relations and composition proposals are currently auxiliary representations, not yet supervised against a grounded classiang ontology.
+A learned gate mixes the three paths. The language-model head is tied to the token embedding. The training objective combines next-token cross entropy with a low-weight composition-consistency regularizer. The CPG-EI pairwise proposal head is trained to approximate a symmetrized, detached relation-graph distribution. This makes the proposal head trainable, but it is only an internal consistency signal—not semantic supervision, a verified analogy label, or proof that a proposed composition is valid.
 
 ## Causality and limitations
 
