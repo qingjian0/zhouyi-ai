@@ -402,3 +402,303 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
+
+
+@dataclass
+class NativeRoleBindingModel:
+    """Learned role-bound symbol representations with no token-attention path.
+
+    Symbol vectors are composed from symbol-type, attribute-key, and
+    attribute-value embeddings. A relation-role operator scores each bound
+    symbol; the energy of a composition is the mean over its role bindings.
+    This is an experimental native structural learner, not a foundation model.
+    """
+
+    dimension: int
+    symbol_type_embeddings: dict[str, list[float]]
+    attribute_key_embeddings: dict[str, list[float]]
+    attribute_value_embeddings: dict[str, list[float]]
+    relation_embeddings: dict[str, list[float]]
+    role_embeddings: dict[str, list[float]]
+    bias: float = 0.0
+    trained_examples: int = 0
+    epochs: int = 0
+
+    @classmethod
+    def initialize(
+        cls, graph: SymbolGraph, training_labels: Sequence[CompositionLabel],
+        *, dimension: int = 16, seed: int = 17,
+    ) -> "NativeRoleBindingModel":
+        if isinstance(dimension, bool) or not isinstance(dimension, int) or dimension < 2:
+            raise ValueError("dimension must be an integer >= 2")
+        graph.validate()
+        relation_map = {item.relation_id: item for item in graph.relations}
+        symbol_map = {item.symbol_id: item for item in graph.symbols}
+        used_relations = {
+            relation_id for row in training_labels for relation_id in row.relation_ids
+        }
+        if not used_relations:
+            raise ValueError("training labels must reference at least one relation")
+        used_symbols: set[str] = set()
+        relation_types: set[str] = set()
+        roles: set[str] = set()
+        for relation_id in used_relations:
+            relation = relation_map[relation_id]
+            relation_types.add(relation.relation_type)
+            for role, symbol_id in relation.roles:
+                roles.add(role)
+                used_symbols.add(symbol_id)
+        symbol_types: set[str] = set()
+        attribute_keys: set[str] = set()
+        attribute_values: set[str] = set()
+        for symbol_id in used_symbols:
+            symbol = symbol_map[symbol_id]
+            symbol_types.add(symbol.symbol_type)
+            for key, value in symbol.attributes:
+                attribute_keys.add(key)
+                attribute_values.add(value)
+        rng = random.Random(seed)
+        scale = 0.1 / math.sqrt(dimension)
+
+        def table(keys: set[str]) -> dict[str, list[float]]:
+            return {
+                key: [rng.uniform(-scale, scale) for _ in range(dimension)]
+                for key in sorted(keys)
+            }
+
+        return cls(
+            dimension=dimension,
+            symbol_type_embeddings=table(symbol_types),
+            attribute_key_embeddings=table(attribute_keys),
+            attribute_value_embeddings=table(attribute_values),
+            relation_embeddings=table(relation_types),
+            role_embeddings=table(roles),
+        )
+
+    def _symbol_parts(self, symbol: Symbol):
+        parts = []
+        if symbol.symbol_type in self.symbol_type_embeddings:
+            parts.append(("symbol_type_embeddings", symbol.symbol_type))
+        for key, value in symbol.attributes:
+            if key in self.attribute_key_embeddings:
+                parts.append(("attribute_key_embeddings", key))
+            if value in self.attribute_value_embeddings:
+                parts.append(("attribute_value_embeddings", value))
+        if not parts:
+            raise ValueError("symbol has no representation in the trained vocabulary")
+        return parts
+
+    def _symbol_vector(self, symbol: Symbol) -> tuple[list[float], list[tuple[str, str]]]:
+        parts = self._symbol_parts(symbol)
+        vector = [0.0] * self.dimension
+        for table_name, key in parts:
+            embedding = getattr(self, table_name)[key]
+            for index, value in enumerate(embedding):
+                vector[index] += value / len(parts)
+        return vector, parts
+
+    def _energy_terms(self, graph: SymbolGraph, relation_ids: tuple[str, ...]):
+        relation_map = {item.relation_id: item for item in graph.relations}
+        symbol_map = {item.symbol_id: item for item in graph.symbols}
+        terms = []
+        for relation_id in relation_ids:
+            if relation_id not in relation_map:
+                raise ValueError(f"unknown relation ID: {relation_id}")
+            relation = relation_map[relation_id]
+            if relation.relation_type not in self.relation_embeddings:
+                raise ValueError("relation type is outside the trained vocabulary")
+            relation_vector = self.relation_embeddings[relation.relation_type]
+            for role, symbol_id in relation.roles:
+                if role not in self.role_embeddings:
+                    raise ValueError("role is outside the trained vocabulary")
+                symbol_vector, parts = self._symbol_vector(symbol_map[symbol_id])
+                role_vector = self.role_embeddings[role]
+                terms.append((symbol_vector, parts, relation_vector, role_vector))
+        if not terms:
+            raise ValueError("composition contains no role bindings")
+        return terms
+
+    def predict_probability(self, graph: SymbolGraph, relation_ids: tuple[str, ...]) -> float:
+        terms = self._energy_terms(graph, relation_ids)
+        scale = math.sqrt(self.dimension)
+        energy = sum(
+            sum(s * (r + q) for s, r, q in zip(symbol, relation, role)) / scale
+            for symbol, _, relation, role in terms
+        ) / len(terms)
+        return _sigmoid(self.bias + energy)
+
+    def fit(
+        self, graph: SymbolGraph, labels: Sequence[CompositionLabel], *,
+        epochs: int = 100, learning_rate: float = 0.03,
+        l2: float = 0.0001, seed: int = 17,
+    ) -> "NativeRoleBindingModel":
+        if not labels or not any(row.label == 0 for row in labels) or not any(row.label == 1 for row in labels):
+            raise ValueError("training requires both positive and negative reviewed labels")
+        if isinstance(epochs, bool) or not isinstance(epochs, int) or epochs < 1:
+            raise ValueError("epochs must be a positive integer")
+        for name, value in (("learning_rate", learning_rate), ("l2", l2)):
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or value < 0:
+                raise ValueError(f"{name} must be finite and non-negative")
+        if learning_rate == 0:
+            raise ValueError("learning_rate must be positive")
+        for row in labels:
+            row.validate(graph)
+        rng = random.Random(seed)
+        scale = math.sqrt(self.dimension)
+        for _ in range(epochs):
+            order = list(range(len(labels)))
+            rng.shuffle(order)
+            for row_index in order:
+                row = labels[row_index]
+                terms = self._energy_terms(graph, row.relation_ids)
+                term_scale = 1.0 / (len(terms) * scale)
+                energy = sum(
+                    sum(s * (r + q) for s, r, q in zip(symbol, relation, role)) / scale
+                    for symbol, _, relation, role in terms
+                ) / len(terms)
+                error = _sigmoid(self.bias + energy) - row.label
+                for symbol_vector, parts, relation_vector, role_vector in terms:
+                    symbol_gradient = [
+                        error * (relation_vector[i] + role_vector[i]) * term_scale
+                        for i in range(self.dimension)
+                    ]
+                    relation_gradient = [
+                        error * symbol_vector[i] * term_scale
+                        for i in range(self.dimension)
+                    ]
+                    for table_name, key in parts:
+                        embedding = getattr(self, table_name)[key]
+                        part_scale = 1.0 / len(parts)
+                        for i in range(self.dimension):
+                            embedding[i] -= learning_rate * (
+                                symbol_gradient[i] * part_scale + l2 * embedding[i]
+                            )
+                    relation = relation_vector
+                    role = role_vector
+                    for i in range(self.dimension):
+                        relation[i] -= learning_rate * (
+                            relation_gradient[i] + l2 * relation[i]
+                        )
+                        role[i] -= learning_rate * (
+                            relation_gradient[i] + l2 * role[i]
+                        )
+                self.bias -= learning_rate * error
+        self.trained_examples = len(labels)
+        self.epochs = epochs
+        return self
+
+    def to_dict(self) -> dict:
+        return {
+            "schema_version": 1,
+            "model_type": "classiang-native-role-binding-v1",
+            "dimension": self.dimension,
+            "symbol_type_embeddings": self.symbol_type_embeddings,
+            "attribute_key_embeddings": self.attribute_key_embeddings,
+            "attribute_value_embeddings": self.attribute_value_embeddings,
+            "relation_embeddings": self.relation_embeddings,
+            "role_embeddings": self.role_embeddings,
+            "bias": self.bias,
+            "trained_examples": self.trained_examples,
+            "epochs": self.epochs,
+        }
+
+    def save(self, path: str | Path) -> str:
+        target = Path(path)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        payload = json.dumps(self.to_dict(), ensure_ascii=False, sort_keys=True, indent=2) + "\\n"
+        temporary = target.with_suffix(target.suffix + ".tmp")
+        temporary.write_text(payload, encoding="utf-8")
+        temporary.replace(target)
+        return hashlib.sha256(target.read_bytes()).hexdigest()
+
+    @classmethod
+    def load(cls, path: str | Path) -> "NativeRoleBindingModel":
+        data = json.loads(Path(path).read_text(encoding="utf-8"))
+        if data.get("schema_version") != 1 or data.get("model_type") != "classiang-native-role-binding-v1":
+            raise ValueError("unsupported native role-binding checkpoint")
+        dimension = data.get("dimension")
+        if isinstance(dimension, bool) or not isinstance(dimension, int) or dimension < 2:
+            raise ValueError("invalid checkpoint dimension")
+        names = (
+            "symbol_type_embeddings", "attribute_key_embeddings",
+            "attribute_value_embeddings", "relation_embeddings", "role_embeddings",
+        )
+        tables = {}
+        for name in names:
+            table = data.get(name)
+            if not isinstance(table, dict):
+                raise ValueError(f"invalid checkpoint table: {name}")
+            checked = {}
+            for key, vector in table.items():
+                if not isinstance(key, str) or not key or not isinstance(vector, list) or len(vector) != dimension:
+                    raise ValueError(f"invalid checkpoint vector in {name}")
+                if any(isinstance(x, bool) or not isinstance(x, (int, float)) or not math.isfinite(x) for x in vector):
+                    raise ValueError(f"non-finite checkpoint vector in {name}")
+                checked[key] = [float(x) for x in vector]
+            tables[name] = checked
+        bias = data.get("bias")
+        if isinstance(bias, bool) or not isinstance(bias, (int, float)) or not math.isfinite(bias):
+            raise ValueError("invalid checkpoint bias")
+        return cls(
+            dimension=dimension, **tables, bias=float(bias),
+            trained_examples=int(data.get("trained_examples", 0)),
+            epochs=int(data.get("epochs", 0)),
+        )
+
+
+def train_and_evaluate_role_model(
+    graph: SymbolGraph, labels: Sequence[CompositionLabel], *,
+    seed: int = 17, dimension: int = 16, epochs: int = 100,
+    learning_rate: float = 0.03, validation_fraction: float = 0.2,
+    threshold: float = 0.5,
+) -> tuple[NativeRoleBindingModel, dict]:
+    graph.validate()
+    if not labels:
+        raise ValueError("labels must be non-empty")
+    for row in labels:
+        row.validate(graph)
+    train, validation = _split_by_group(labels, validation_fraction, seed)
+    train_relations = {rid for row in train for rid in row.relation_ids}
+    validation_relations = {rid for row in validation for rid in row.relation_ids}
+    if train_relations & validation_relations:
+        raise ValueError("relation IDs must not cross source-family train/validation split")
+    if (isinstance(threshold, bool) or not isinstance(threshold, (int, float))
+            or not math.isfinite(threshold) or not 0.0 <= threshold <= 1.0):
+        raise ValueError("threshold must be finite and in [0, 1]")
+    model = NativeRoleBindingModel.initialize(
+        graph, train, dimension=dimension, seed=seed,
+    ).fit(
+        graph, train, epochs=epochs, learning_rate=learning_rate, seed=seed,
+    )
+    probabilities = [model.predict_probability(graph, row.relation_ids) for row in validation]
+    truth = [row.label for row in validation]
+    predictions = [int(value >= threshold) for value in probabilities]
+    tp = sum(p == 1 and y == 1 for p, y in zip(predictions, truth))
+    fp = sum(p == 1 and y == 0 for p, y in zip(predictions, truth))
+    fn = sum(p == 0 and y == 1 for p, y in zip(predictions, truth))
+    tn = sum(p == 0 and y == 0 for p, y in zip(predictions, truth))
+    report = {
+        "schema_version": 1,
+        "model_type": "classiang-native-role-binding-v1",
+        "dimension": dimension,
+        "seed": seed,
+        "epochs": epochs,
+        "train_examples": len(train),
+        "validation_examples": len(validation),
+        "train_source_families": sorted({row.source_family for row in train}),
+        "validation_source_families": sorted({row.source_family for row in validation}),
+        "source_family_disjoint": not ({row.source_family for row in train} & {row.source_family for row in validation}),
+        "confusion_matrix": {"tp": tp, "fp": fp, "fn": fn, "tn": tn},
+        "accuracy": (tp + tn) / len(truth),
+        "precision": tp / (tp + fp) if tp + fp else 0.0,
+        "recall": tp / (tp + fn) if tp + fn else 0.0,
+        "brier_score": sum((p - y) ** 2 for p, y in zip(probabilities, truth)) / len(truth),
+        "limitations": [
+            "learned embeddings are composed from symbol type and explicit attribute key/value fields",
+            "relation-role energy is a simple bilinear operator, not a general semantic model",
+            "requires reviewed evidence-bound labels",
+            "unseen relation types or roles are outside the trained vocabulary",
+            "evaluation is source-family holdout over a fixed graph; independent OOD benchmarks remain required",
+        ],
+    }
+    return model, report
