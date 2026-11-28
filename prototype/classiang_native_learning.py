@@ -7,13 +7,13 @@ structures; it does not establish semantic or causal truth.
 """
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass
+from dataclasses import dataclass
 import hashlib
 import json
 import math
 from pathlib import Path
 import random
-from typing import Iterable, Sequence
+from typing import Sequence
 
 from prototype.classiang_native import Composition, Relation, SymbolGraph, compose_relations
 
@@ -243,8 +243,6 @@ def train_and_evaluate(
     if len(ids) != len(set(ids)):
         raise ValueError("example IDs must be unique")
     train, validation = _split_by_group(labels, validation_fraction, seed)
-    relation_map = {item.relation_id: item for item in graph.relations}
-
     def materialize(rows):
         return [
             (_features(graph, row.relation_ids), row.label)
