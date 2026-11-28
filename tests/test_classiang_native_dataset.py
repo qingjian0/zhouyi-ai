@@ -144,6 +144,9 @@ class NativeDatasetBuilderTests(unittest.TestCase):
             graph_path = root / "out" / "graph.json"
             labels_path = root / "out" / "labels.jsonl"
             dataset_report = root / "out" / "dataset-report.json"
+            validation_graph = root / "out" / "dev-graph.json"
+            validation_labels = root / "out" / "dev-labels.jsonl"
+            validation_dataset_report = root / "out" / "dev-dataset-report.json"
             checkpoint = root / "out" / "model.json"
             training_report = root / "out" / "training-report.json"
             subprocess.run(
@@ -152,6 +155,9 @@ class NativeDatasetBuilderTests(unittest.TestCase):
                     str(manifest), "--graph-out", str(graph_path),
                     "--labels-out", str(labels_path),
                     "--dataset-report", str(dataset_report),
+                    "--validation-graph-out", str(validation_graph),
+                    "--validation-labels-out", str(validation_labels),
+                    "--validation-dataset-report", str(validation_dataset_report),
                     "--checkpoint", str(checkpoint),
                     "--training-report", str(training_report),
                     "--epochs", "30", "--dimension", "8",
@@ -160,11 +166,14 @@ class NativeDatasetBuilderTests(unittest.TestCase):
             )
             model = NativeRoleBindingModel.load(checkpoint)
             dataset_summary = json.loads(dataset_report.read_text(encoding="utf-8"))
+            dev_summary = json.loads(validation_dataset_report.read_text(encoding="utf-8"))
             train_summary = json.loads(training_report.read_text(encoding="utf-8"))
         self.assertGreater(model.trained_examples, 0)
         self.assertEqual(model.dimension, 8)
         self.assertEqual(dataset_summary["excluded_locked_test_records"], 1)
+        self.assertEqual(dev_summary["exported_split"], "dev")
         self.assertTrue(train_summary["source_family_disjoint"])
+        self.assertEqual(train_summary["validation_mode"], "manifest_dev_split")
         self.assertEqual(train_summary["model_type"], "classiang-native-role-binding-v1")
 
     def test_invalid_gold_manifest_stops_before_checkpoint_creation(self):
@@ -181,6 +190,9 @@ class NativeDatasetBuilderTests(unittest.TestCase):
                     graph_out=root / "out" / "graph.json",
                     labels_out=root / "out" / "labels.jsonl",
                     dataset_report=root / "out" / "dataset-report.json",
+                    validation_graph_out=root / "out" / "dev-graph.json",
+                    validation_labels_out=root / "out" / "dev-labels.jsonl",
+                    validation_dataset_report=root / "out" / "dev-dataset-report.json",
                     checkpoint=checkpoint,
                     training_report=root / "out" / "training-report.json",
                     epochs=10, dimension=8,
