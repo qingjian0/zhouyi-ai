@@ -250,7 +250,8 @@ def assess_relation_mapping(
     """Check an explicit role mapping; no mapping is inferred from similarity."""
     if not isinstance(source, Relation) or not isinstance(target, Relation):
         raise ValueError("source and target must be Relation")
-    _unique(tuple(evidence_ids), "assessment evidence_ids")
+    evidence = tuple(evidence_ids)
+    _unique(evidence, "assessment evidence_ids", minimum=1)
     mapping: dict[str, str] = {}
     targets: set[str] = set()
     for pair in role_mapping:
@@ -272,10 +273,10 @@ def assess_relation_mapping(
     matched = tuple(sorted(mapping.items()))
     if source.relation_type != target.relation_type or missing or extra:
         return StructuralAssessment(
-            Decision.ABSTAIN, matched, missing, extra, tuple(sorted(set(evidence_ids))),
+            Decision.ABSTAIN, matched, missing, extra, tuple(sorted(set(evidence))),
             ("RELATION_TYPE_OR_ROLE_STRUCTURE_NOT_PRESERVED",),
         )
     return StructuralAssessment(
-        Decision.ACCEPT, matched, (), (), tuple(sorted(set(evidence_ids))),
+        Decision.ACCEPT, matched, (), (), tuple(sorted(set(evidence))),
         ("EXPLICIT_ROLE_STRUCTURE_PRESERVED_ONLY",),
     )
