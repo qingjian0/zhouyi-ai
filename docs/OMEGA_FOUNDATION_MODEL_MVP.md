@@ -18,7 +18,7 @@ A learned gate mixes the three paths. The language-model head is tied to the tok
 
 - Attention uses an explicit upper-triangular causal mask.
 - Recurrent state is forward-only.
-- Classiang assignment is computed independently at each token position against learned slots, so it does not pool future token states.
+- Classiang slots and their relation graph are conditioned independently at each token position by the forward-only recurrent state; the workspace does not pool future token states.
 - The composition head currently scores ordered slot pairs. It is not the complete non-autoregressive CPG-EI search or a validated implementation of arbitrary non-contiguous composition.
 - The included character tokenizer is only for smoke tests. Production Chinese/multilingual tokenization and corpus governance are not included.
 - The learned slots are not automatically meaningful 易象. Semantic grounding requires source-linked data, explicit labels or constraints, and held-out evaluation.
