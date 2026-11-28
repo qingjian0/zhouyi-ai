@@ -808,6 +808,33 @@ def train_and_evaluate_role_model(
     fp = sum(p == 1 and y == 0 for p, y in zip(predictions, truth))
     fn = sum(p == 0 and y == 1 for p, y in zip(predictions, truth))
     tn = sum(p == 0 and y == 0 for p, y in zip(predictions, truth))
+    shared_ratio_by_label = {
+        str(label): [
+            NativeRoleBindingModel._shared_symbol_ratio(
+                graph if validation_mode == "source_family_holdout_from_train" else evaluation_graph,
+                row.relation_ids,
+            )
+            for row in validation if row.label == label
+        ]
+        for label in (0, 1)
+    }
+    shared_ratio_summary = {
+        "negative_mean": (
+            sum(shared_ratio_by_label["0"]) / len(shared_ratio_by_label["0"])
+            if shared_ratio_by_label["0"] else None
+        ),
+        "positive_mean": (
+            sum(shared_ratio_by_label["1"]) / len(shared_ratio_by_label["1"])
+            if shared_ratio_by_label["1"] else None
+        ),
+        "label_defining_in_current_exporter": True,
+        "interpretation": (
+            "The current exporter defines positives as within-observation pairs "
+            "and negatives as cross-observation pairs, so shared-subject overlap "
+            "is confounded with the label. Scores do not establish general "
+            "composition learning."
+        ),
+    }
     report = {
         "schema_version": 1,
         "model_type": "classiang-native-role-binding-v1",
@@ -829,6 +856,7 @@ def train_and_evaluate_role_model(
         "recall": tp / (tp + fn) if tp + fn else 0.0,
         "brier_score": sum((p - y) ** 2 for p, y in zip(probabilities, truth)) / len(truth),
         "learned_shared_symbol_weight": model.shared_symbol_weight,
+        "shared_symbol_ratio_diagnostic": shared_ratio_summary,
         "validation_vocabulary_coverage": {
             "examples": len(validation_coverage),
             "mean_coverage": (
