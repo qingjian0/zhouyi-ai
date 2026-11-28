@@ -15,7 +15,7 @@ import subprocess
 import sys
 
 from prototype.classiang_native_learning import graph_from_json, labels_from_jsonl
-from prototype.classiang_native_admission import verify_native_gold_admission_jsonl
+from prototype.classiang_native_admission import (\n    assert_native_gold_split_disjoint, verify_native_gold_admission_jsonl,\n)
 from prototype.m2_extraction_dataset import DatasetSplit
 
 
@@ -71,10 +71,12 @@ def _mark_gold_admission(report_path: str | Path, source_path: str | Path, metad
             "explicit_negative_marker_used": False,
             "shared_subject_overlap_is_label_defining": None,
             "general_composition_supervision": False,
-            "requires_independent_reviewed_relation_pair_labels": False,
+            "requires_independent_reviewed_relation_pair_labels": True,
             "label_source": "external_gold_annotations",
         },
         "external_gold_labels_sha256": metadata["sha256"],
+        "m19_m1_m2_verified_examples": metadata["m19_m1_m2_verified_examples"],
+        "m19_m1_m2_receipts_sha256": metadata["m19_m1_m2_receipts_sha256"],
         "candidate_labels_replaced": True,
         "gold_label_source": str(source_path),
     })
