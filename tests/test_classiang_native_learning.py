@@ -6,7 +6,7 @@ from pathlib import Path
 
 from prototype.classiang_native import EvidenceRef, Relation, Symbol, SymbolGraph
 from prototype.classiang_native_learning import (
-    CompositionLabel, NativeCompositionScorer, _features, graph_from_json, train_and_evaluate,
+    CompositionLabel, NativeCompositionScorer, NativeRoleBindingModel, _features, graph_from_json, train_and_evaluate, train_and_evaluate_role_model,
 )
 
 
@@ -78,6 +78,27 @@ class NativeCompositionLearningTests(unittest.TestCase):
             path.write_text(json.dumps(payload), encoding="utf-8")
             restored = graph_from_json(path)
         self.assertEqual(restored, graph)
+
+    def test_native_role_binding_model_trains_and_round_trips(self):
+        graph, labels = training_fixture()
+        model, report = train_and_evaluate_role_model(
+            graph, labels, seed=11, dimension=8, epochs=20,
+        )
+        self.assertEqual(model.trained_examples, report["train_examples"])
+        self.assertTrue(report["source_family_disjoint"])
+        self.assertEqual(model.dimension, 8)
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "role-model.json"
+            digest = model.save(path)
+            restored = NativeRoleBindingModel.load(path)
+            self.assertEqual(len(digest), 64)
+            self.assertEqual(restored.to_dict(), model.to_dict())
+
+    def test_role_binding_rejects_unknown_relation_type(self):
+        graph, labels = training_fixture()
+        model = NativeRoleBindingModel.initialize(graph, labels[:2], dimension=8)
+        with self.assertRaisesRegex(ValueError, "unknown relation ID"):
+            model.predict_probability(graph, ("missing-relation",))
 
     def test_rejects_unreviewed_labels(self):
         graph, labels = training_fixture()
