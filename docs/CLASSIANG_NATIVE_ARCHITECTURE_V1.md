@@ -255,3 +255,31 @@ or `unknown`; unknown is retained for audit but excluded from loss and metrics.
 Automatically generated co-observation candidates use
 `label_basis: "weak_cooccurrence_proxy"` and `reviewed: false`; the normal
 trainer rejects them. They must never be represented as Gold.
+
+
+Example Gold JSONL row (one JSON object per line):
+
+```json
+{
+  "annotation_schema_version": 1,
+  "example_id": "pair-0001",
+  "group_id": "source-group-01",
+  "source_family": "family-01",
+  "relation_ids": ["relation-a", "relation-b"],
+  "evidence_ids": ["evidence-a", "evidence-b"],
+  "label": "positive",
+  "reviewed": true,
+  "label_basis": "human_reviewed_pair",
+  "reviewer_id": "reviewer-identifier",
+  "adjudication_id": "adjudication-record-identifier",
+  "scope": "the stated domain and task",
+  "conditions": ["unconditional"]
+}
+```
+
+Use `explicit_negative` for an independently adjudicated incompatibility and
+`unknown` when evidence is insufficient or scope-dependent. The training
+loader preserves unknown annotations for audit but excludes them from the
+objective. Supply separate train and dev JSONL files through
+`--train-gold-labels` and `--dev-gold-labels`; the pipeline validates each
+against its corresponding generated graph and rejects weak candidate labels.
