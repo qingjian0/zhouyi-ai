@@ -164,7 +164,7 @@ def build_training_corpus(
         for index, pair in enumerate(negative_pairs):
             relation_ids = tuple(sorted(pair))
             evidence_ids = tuple(sorted(set().union(*(
-                set(next(item.evidence_ids for item in relations if item.relation_id == rid))
+                set(relation_evidence_by_id[rid])
                 for rid in relation_ids
             ))))
             labels.append(CompositionLabel(
