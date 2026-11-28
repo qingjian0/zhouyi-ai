@@ -39,9 +39,14 @@ class CompositionLabel:
     evidence_ids: tuple[str, ...]
     label: int
     reviewed: bool
-    label_basis: str = "human_reviewed_pair"
+    label_basis: str = "unclassified"
+    reviewer_id: str | None = None
+    adjudication_id: str | None = None
+    scope: str | None = None
+    conditions: tuple[str, ...] = ()
+    annotation_schema_version: int = 1
 
-    def validate(self, graph: SymbolGraph) -> None:
+    def validate(self, graph: SymbolGraph, *, allow_weak: bool = False) -> None:
         for name in ("example_id", "group_id", "source_family"):
             value = getattr(self, name)
             if not isinstance(value, str) or not value.strip():
@@ -58,12 +63,30 @@ class CompositionLabel:
             raise ValueError("evidence_ids must be non-empty strings")
         if len(set(self.evidence_ids)) != len(self.evidence_ids):
             raise ValueError("evidence_ids must be unique")
-        if isinstance(self.label, bool) or not isinstance(self.label, int) or self.label not in (0, 1):
-            raise ValueError("label must be integer 0 or 1")
-        if self.label_basis != "human_reviewed_pair":
-            raise ValueError("only independently adjudicated human_reviewed_pair labels may enter training")
-        if not isinstance(self.reviewed, bool) or not self.reviewed:
-            raise ValueError("only reviewed labels may enter training")
+        if isinstance(self.label, bool) or not isinstance(self.label, int) or self.label not in (0, 1, 2):
+            raise ValueError("label must be 0 (explicit-negative), 1 (positive), or 2 (unknown)")
+        if self.annotation_schema_version != 1:
+            raise ValueError("unsupported composition annotation schema version")
+        if not isinstance(self.reviewed, bool):
+            raise ValueError("reviewed must be a boolean")
+        if self.label_basis == "human_reviewed_pair":
+            if not self.reviewed:
+                raise ValueError("Gold pair annotations must be independently reviewed")
+            for name in ("reviewer_id", "adjudication_id", "scope"):
+                value = getattr(self, name)
+                if not isinstance(value, str) or not value.strip():
+                    raise ValueError(f"Gold pair annotations require non-empty {name}")
+            if not isinstance(self.conditions, tuple) or any(not isinstance(v, str) or not v.strip() for v in self.conditions):
+                raise ValueError("Gold pair annotation conditions must be non-empty strings")
+        elif self.label_basis == "weak_cooccurrence_proxy":
+            if self.reviewed:
+                raise ValueError("weak co-occurrence candidates cannot be marked reviewed")
+            if not allow_weak:
+                raise ValueError("only independently adjudicated human_reviewed_pair labels may enter training")
+        else:
+            raise ValueError("label_basis must be human_reviewed_pair or weak_cooccurrence_proxy")
+        if self.label == 2 and self.label_basis != "human_reviewed_pair":
+            raise ValueError("unknown labels must be independently reviewed Gold annotations")
         relation_map = {item.relation_id: item for item in graph.relations}
         evidence_map = {item.evidence_id: item for item in graph.evidence}
         if not set(self.relation_ids) <= set(relation_map):
@@ -247,6 +270,10 @@ def train_and_evaluate(
         if not isinstance(row, CompositionLabel):
             raise ValueError("labels must contain CompositionLabel")
         row.validate(graph)
+    unknown_count = sum(row.label == 2 for row in labels)
+    labels = tuple(row for row in labels if row.label in (0, 1))
+    if not labels or {row.label for row in labels} != {0, 1}:
+        raise ValueError("training requires positive and explicit-negative Gold labels; unknown labels are excluded")
     ids = [row.example_id for row in labels]
     if len(ids) != len(set(ids)):
         raise ValueError("example IDs must be unique")
@@ -284,6 +311,7 @@ def train_and_evaluate(
         "threshold": threshold,
         "train_examples": len(train),
         "validation_examples": len(validation),
+        "unknown_annotations_excluded": unknown_count,
         "train_source_families": sorted({r.source_family for r in train}),
         "validation_source_families": sorted({r.source_family for r in validation}),
         "source_family_disjoint": not ({r.source_family for r in train} & {r.source_family for r in validation}),
@@ -364,9 +392,14 @@ def labels_from_jsonl(path: str | Path) -> tuple[CompositionLabel, ...]:
                 source_family=item["source_family"],
                 relation_ids=tuple(item["relation_ids"]),
                 evidence_ids=tuple(item["evidence_ids"]),
-                label=item["label"],
+                label={"positive": 1, "explicit_negative": 0, "unknown": 2}.get(item["label"], item["label"]),
                 reviewed=item["reviewed"],
-                label_basis=item.get("label_basis", "human_reviewed_pair"),
+                label_basis=item.get("label_basis", "unclassified"),
+                reviewer_id=item.get("reviewer_id"),
+                adjudication_id=item.get("adjudication_id"),
+                scope=item.get("scope"),
+                conditions=tuple(item.get("conditions", ())),
+                annotation_schema_version=item.get("annotation_schema_version", 1),
             ))
         except (KeyError, TypeError, json.JSONDecodeError) as exc:
             raise ValueError(f"invalid label JSONL at line {line_number}: {exc}") from exc
@@ -750,9 +783,14 @@ def train_and_evaluate_role_model(
         raise ValueError("labels must be non-empty")
     for row in labels:
         row.validate(graph)
+    unknown_train_count = sum(row.label == 2 for row in labels)
+    labels = tuple(row for row in labels if row.label in (0, 1))
+    if not labels or {row.label for row in labels} != {0, 1}:
+        raise ValueError("training requires positive and explicit-negative Gold labels; unknown labels are excluded")
 
     if (validation_graph is None) != (validation_labels is None):
         raise ValueError("validation_graph and validation_labels must be supplied together")
+    unknown_validation_count = 0
     if validation_labels is None:
         train, validation = _split_by_group(labels, validation_fraction, seed)
         evaluation_graph = graph
@@ -765,6 +803,10 @@ def train_and_evaluate_role_model(
         validation_graph.validate()
         for row in validation_labels:
             row.validate(validation_graph)
+        unknown_validation_count = sum(row.label == 2 for row in validation_labels)
+        validation_labels = tuple(row for row in validation_labels if row.label in (0, 1))
+        if not validation_labels or {row.label for row in validation_labels} != {0, 1}:
+            raise ValueError("validation requires positive and explicit-negative Gold labels; unknown labels are excluded")
         train_evidence = {item.evidence_id for item in graph.evidence}
         validation_evidence = {item.evidence_id for item in validation_graph.evidence}
         if train_evidence & validation_evidence:
@@ -851,6 +893,8 @@ def train_and_evaluate_role_model(
         "threshold": threshold,
         "train_examples": len(train),
         "validation_examples": len(validation),
+        "unknown_train_annotations_excluded": unknown_train_count,
+        "unknown_validation_annotations_excluded": unknown_validation_count,
         "train_source_families": sorted(train_families),
         "validation_source_families": sorted(validation_families),
         "source_family_disjoint": not (train_families & validation_families),
