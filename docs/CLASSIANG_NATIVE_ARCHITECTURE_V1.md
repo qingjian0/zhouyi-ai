@@ -146,18 +146,18 @@ Zhouyi-AI 的核心不是把类象标签附加到语言模型，也不是把 Tra
 
 本文定义目标架构和实现约束，不证明模型已实现或能力已成立。实现状态以代码、测试、数据和精确 commit 为准。
 
-## 11. Current executable training interface
+## 11. 当前可执行训练接口
 
-The first trainable component is intentionally narrow: a deterministic logistic scorer over five explicit structure descriptors. It ranks bounded relation compositions; it is not yet a learned general-purpose symbol representation.
+第一版可训练组件采用确定性的逻辑回归评分器，输入为五项显式结构描述特征，用于给有界关系组合排序。它尚不是通用的类象表示学习模型。
 
-Training inputs are supplied as two files:
+训练输入由两个文件组成：
 
-- Graph JSON (`schema_version: 1`): `evidence`, `symbols`, and `relations` arrays matching the dataclasses in `prototype/classiang_native.py`.
-- Label JSONL: one reviewed example per line with `example_id`, `group_id`, `source_family`, `relation_ids`, `evidence_ids`, binary `label`, and `reviewed: true`.
+- **图结构 JSON（schema_version: 1）**：包含 `evidence`、`symbols`、`relations` 三个数组，字段对应 `prototype/classiang_native.py` 中的数据结构。
+- **标签 JSONL**：每行一条经审核的组合样本，字段包括 `example_id`、`group_id`、`source_family`、`relation_ids`、`evidence_ids`、二元标签 `label` 和 `reviewed: true`。
 
-A label's evidence must cover all referenced relation evidence and belong to its declared source family. The evaluation split is by source family, and relation IDs may not cross train/validation partitions. At least two source families are required; the training partition must contain both positive and negative examples.
+标签证据必须覆盖所引用关系的全部证据，且只能属于声明的来源族。训练/验证按来源族隔离，同一关系 ID 不允许跨越两个集合。至少需要两个来源族，并且训练集必须同时包含正例和负例。
 
-Run:
+运行命令：
 
 ```bash
 python -m prototype.classiang_native_learning graph.json labels.jsonl \
@@ -165,6 +165,6 @@ python -m prototype.classiang_native_learning graph.json labels.jsonl \
   --report artifacts/classiang-composition-report.json
 ```
 
-The report records seed, source-family split, confusion matrix, accuracy, precision, recall, Brier score, and SHA-256 digests of graph, labels, and checkpoint. The score is a structural compatibility ranking only. A high score does not prove semantic identity, analogy validity, or causality.
+报告包含随机种子、来源族切分、混淆矩阵、准确率、精确率、召回率、Brier 分数，以及图结构、标签和检查点的 SHA-256 摘要。模型分数只表示结构兼容性排序；高分不证明语义同一、类比有效或因果关系成立。
 
-This first learner is a stepping stone for later native parameterized role/relational representations, multi-objective composition learning, calibrated abstention, and independent OOD benchmarks. Do not call it the Zhouyi-AI foundation model.
+该学习器只是后续原生角色/关系参数化表示、多目标组合学习、拒答校准和独立 OOD 基准的起点。不得将其称为 Zhouyi-AI 基础模型。
