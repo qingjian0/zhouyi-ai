@@ -184,7 +184,7 @@ graph.validate()
 
 ## 13. Gold 文本数据到原生训练图
 
-`prototype/classiang_native_dataset.py` 是数据准备阶段，先调用 Gold manifest 准入校验，再将**仅 train split** 导出为原生图和标签：
+`prototype/classiang_native_dataset.py` 是数据准备阶段，先调用 Gold manifest 准入校验，再按 `--split train` 或 `--split dev` 分别导出原生图和标签；不允许导出 locked-test：
 
 ```bash
 python -m prototype.classiang_native_dataset path/to/manifest.json \\
@@ -201,14 +201,14 @@ python -m prototype.classiang_native_train path/to/manifest.json \\
   --training-report artifacts/classiang-native-training-report.json
 ```
 
-该命令先启动数据准备子进程，再启动只接收 train-only 图和标签的学习器子进程；前一阶段失败则不会构造模型。
+该命令分别启动 train 与 dev 数据准备子进程，再启动学习器子进程：train 图/标签用于拟合，dev 图/标签用于独立验证；locked-test 标签不传入学习器。任一准入或导出阶段失败，均不会构造模型。
 
 当前第一版监督语义明确限定为：
 
 - 正例：同一人工审核记录中共同标注的两个正向类象属性；
 - 负例：一个正向类象属性与同一记录中明确人工审核的负向跨度配对。
 
-没有显式负向跨度的记录不会被伪造为负例；不足两个正向属性的记录不会生成组合监督。每条标签保留来源族、group、关系 ID 和证据跨度。dev 与 locked-test 记录不会进入导出的训练图/标签；locked-test 仍应由隔离评估器在模型预测封存后使用。
+没有显式负向跨度的记录不会被伪造为负例；不足两个正向属性的记录不会生成组合监督。每条标签保留来源族、group、关系 ID 和证据跨度。train 与 dev 分别导出，locked-test 记录不会进入任何学习器输入；locked-test 仍应由隔离评估器在模型预测封存后使用。
 
 这是一种受限的**记录内结构共现目标**，不是通用类比正确性或因果有效性的标签。真实任务能力仍需独立 Gold、OOD 和反例评测证明。
 
