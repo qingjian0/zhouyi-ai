@@ -57,7 +57,7 @@ class CompositionLabel:
             raise ValueError("evidence_ids must be non-empty strings")
         if len(set(self.evidence_ids)) != len(self.evidence_ids):
             raise ValueError("evidence_ids must be unique")
-        if isinstance(self.label, bool) or self.label not in (0, 1):
+        if isinstance(self.label, bool) or not isinstance(self.label, int) or self.label not in (0, 1):
             raise ValueError("label must be integer 0 or 1")
         if not isinstance(self.reviewed, bool) or not self.reviewed:
             raise ValueError("only reviewed labels may enter training")
@@ -70,8 +70,8 @@ class CompositionLabel:
         if any(not evidence_map[item].reviewed for item in self.evidence_ids):
             raise ValueError("label references unreviewed evidence")
         evidence_families = {evidence_map[item].source_family for item in self.evidence_ids}
-        if self.source_family not in evidence_families:
-            raise ValueError("label source_family is not represented by its evidence")
+        if evidence_families != {self.source_family}:
+            raise ValueError("label evidence must belong to exactly its declared source_family")
         relation_evidence = set().union(*(set(relation_map[r].evidence_ids) for r in self.relation_ids))
         if not relation_evidence <= set(self.evidence_ids):
             raise ValueError("label evidence must cover all relation evidence")
