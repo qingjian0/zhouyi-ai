@@ -146,7 +146,32 @@ Zhouyi-AI 的核心不是把类象标签附加到语言模型，也不是把 Tra
 
 本文定义目标架构和实现约束，不证明模型已实现或能力已成立。实现状态以代码、测试、数据和精确 commit 为准。
 
-## 11. 当前可执行训练接口
+## 11. 认知引擎到原生图的适配器
+
+`prototype/classiang_native_adapter.py` 将现有证据约束类形成引擎接入原生符号图：
+
+- 输入为已验证的 `Observation`、可选的 `ClassHypothesis` 和显式证据目录；
+- 观察主体、观察属性、类别假设、必需属性和负边界分别映射为符号；
+- `has_aspect`、`class_requires_aspect`、`class_excludes_boundary` 等关系保留角色方向和证据引用；
+- 显式矛盾必须单独提供逐项证据映射；缺少映射、证据缺失或未审核证据均失败关闭；
+- 适配器不生成证据元数据、不推断语义等价，也不把未评分属性当成负例。
+
+最小示例：
+
+```python
+from prototype.classiang_native_adapter import observation_to_symbol_graph
+
+graph = observation_to_symbol_graph(
+    observation,
+    evidence_catalog,  # {evidence_id: reviewed EvidenceRef}
+    hypothesis=class_hypothesis,
+)
+graph.validate()
+```
+
+这一步打通了现有类形成/反例边界与原生计算图的数据通路；它仍然是人工/上游提供属性候选的结构适配，不代表模型已经自主感知或端到端学习类象。
+
+## 12. 当前可执行训练接口
 
 当前实现包含两个层级：
 
@@ -173,4 +198,4 @@ python -m prototype.classiang_native_learning graph.json labels.jsonl \
 
 报告包含随机种子、来源族切分、混淆矩阵、准确率、精确率、召回率、Brier 分数，以及图结构、标签和检查点的 SHA-256 摘要。使用 --model linear 可运行结构基线。模型分数只表示结构兼容性排序；高分不证明语义同一、类比有效或因果关系成立。
 
-该学习器只是后续原生角色/关系参数化表示、多目标组合学习、拒答校准和独立 OOD 基准的起点。不得将其称为 Zhouyi-AI 基础模型。
+该学习器与认知引擎适配器只是后续原生角色/关系参数化表示、多目标组合学习、拒答校准和独立 OOD 基准的起点。不得将其称为 Zhouyi-AI 基础模型。
