@@ -63,8 +63,10 @@ class CPGEIComposer(nn.Module):
         )
 
     def forward(self, slots: Tensor) -> Tensor:
-        left = slots.unsqueeze(2).expand(-1, -1, slots.shape[1], -1)
-        right = slots.unsqueeze(1).expand(-1, slots.shape[1], -1, -1)
+        # Supports [B,S,D] and context-conditioned [B,T,S,D] slot tensors.
+        count = slots.shape[-2]
+        left = slots.unsqueeze(-2).expand(*slots.shape[:-2], count, count, slots.shape[-1])
+        right = slots.unsqueeze(-3).expand(*slots.shape[:-2], count, count, slots.shape[-1])
         pair_features = torch.cat((left + right, left * right), dim=-1)
         return self.score(pair_features).squeeze(-1)
 
@@ -77,6 +79,7 @@ class ClassiangWorkspace(nn.Module):
         d_model = config.d_model
         self.slots = nn.Parameter(torch.randn(config.num_classiang_slots, d_model) * 0.02)
         self.assignment = nn.Linear(d_model, d_model, bias=False)
+        self.context_to_slots = nn.Linear(d_model, d_model, bias=False)
         self.relation_q = nn.Linear(d_model, d_model, bias=False)
         self.relation_k = nn.Linear(d_model, d_model, bias=False)
         self.relation_v = nn.Linear(d_model, d_model, bias=False)
@@ -87,8 +90,11 @@ class ClassiangWorkspace(nn.Module):
         self.scale = d_model ** -0.5
 
     def forward(self, causal_tokens: Tensor) -> tuple[Tensor, Tensor, Tensor, Tensor]:
-        batch = causal_tokens.shape[0]
-        slots = self.slots.unsqueeze(0).expand(batch, -1, -1)
+        # Each time position gets its own context-conditioned relation graph.
+        # Since causal_tokens comes from a forward-only GRU, no future token leaks in.
+        batch, seq_len, _ = causal_tokens.shape
+        slots = self.slots.view(1, 1, self.slots.shape[0], self.slots.shape[1])
+        slots = slots + self.context_to_slots(causal_tokens).unsqueeze(-2)
         q = self.relation_q(slots)
         k = self.relation_k(slots)
         v = self.relation_v(slots)
@@ -97,9 +103,9 @@ class ClassiangWorkspace(nn.Module):
         related_slots = slots + self.relation_out(torch.matmul(relation_weights, v))
 
         token_queries = self.assignment(causal_tokens)
-        assignment_logits = torch.einsum("btd,bsd->bts", token_queries, related_slots) * self.scale
+        assignment_logits = torch.einsum("btd,btsd->bts", token_queries, related_slots) * self.scale
         assignments = torch.softmax(assignment_logits, dim=-1)
-        context = torch.einsum("bts,bsd->btd", assignments, related_slots)
+        context = torch.einsum("bts,btsd->btd", assignments, related_slots)
         composition_logits = self.composer(related_slots)
         return self.norm(causal_tokens + self.output(context)), assignments, relation_logits, composition_logits
 
