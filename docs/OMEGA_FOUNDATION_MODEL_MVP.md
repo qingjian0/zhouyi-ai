@@ -6,7 +6,7 @@ Omega is the first independently initialized, trainable language-model prototype
 
 ## Hybrid architecture
 
-Each Omega block combines three paths:
+Each Omega block combines three paths. The trainer exposes `--branch-mode hybrid|attention_only|recurrent_only|classiang_only` so matched ablations can disable unused branches rather than merely masking their outputs:
 
 1. **Causal attention path** — a conventional causal self-attention baseline retained for the first hybrid milestone and for controlled ablations.
 2. **Recurrent state path** — a GRU that carries information forward through the sequence without attending to future positions.
