@@ -173,6 +173,7 @@ class NativeCompositionScorer:
             "feature_names": list(FEATURE_NAMES),
             "weights": self.weights,
             "bias": self.bias,
+            "shared_symbol_weight": self.shared_symbol_weight,
             "trained_examples": self.trained_examples,
             "epochs": self.epochs,
         }
@@ -438,6 +439,7 @@ class NativeRoleBindingModel:
     relation_embeddings: dict[str, list[float]]
     role_embeddings: dict[str, list[float]]
     bias: float = 0.0
+    shared_symbol_weight: float = 0.0
     trained_examples: int = 0
     epochs: int = 0
 
@@ -535,6 +537,20 @@ class NativeRoleBindingModel:
             raise ValueError("composition contains no role bindings")
         return terms
 
+    @staticmethod
+    def _shared_symbol_ratio(graph: SymbolGraph, relation_ids: tuple[str, ...]) -> float:
+        relation_map = {item.relation_id: item for item in graph.relations}
+        symbol_sets = [
+            {symbol_id for _, symbol_id in relation_map[relation_id].roles}
+            for relation_id in relation_ids
+        ]
+        union: set[str] = set()
+        shared: set[str] = set()
+        for current in symbol_sets:
+            shared |= union & current
+            union |= current
+        return len(shared) / max(1, len(union))
+
     def score(self, graph: SymbolGraph, composition: Composition) -> float:
         return self.predict_probability(graph, composition.relation_ids)
 
@@ -545,7 +561,10 @@ class NativeRoleBindingModel:
             sum(s * (r + q) for s, r, q in zip(symbol, relation, role)) / scale
             for symbol, _, relation, role in terms
         ) / len(terms)
-        return _sigmoid(self.bias + energy)
+        structural_interaction = self.shared_symbol_weight * self._shared_symbol_ratio(
+            graph, relation_ids,
+        )
+        return _sigmoid(self.bias + energy + structural_interaction)
 
     def fit(
         self, graph: SymbolGraph, labels: Sequence[CompositionLabel], *,
@@ -576,7 +595,10 @@ class NativeRoleBindingModel:
                     sum(s * (r + q) for s, r, q in zip(symbol, relation, role)) / scale
                     for symbol, _, relation, role in terms
                 ) / len(terms)
-                error = _sigmoid(self.bias + energy) - row.label
+                shared_ratio = self._shared_symbol_ratio(graph, row.relation_ids)
+                error = _sigmoid(
+                    self.bias + energy + self.shared_symbol_weight * shared_ratio
+                ) - row.label
                 for symbol_vector, parts, relation_vector, role_vector in terms:
                     symbol_gradient = [
                         error * (relation_vector[i] + role_vector[i]) * term_scale
@@ -602,6 +624,9 @@ class NativeRoleBindingModel:
                         role[i] -= learning_rate * (
                             relation_gradient[i] + l2 * role[i]
                         )
+                self.shared_symbol_weight -= learning_rate * (
+                    error * shared_ratio + l2 * self.shared_symbol_weight
+                )
                 self.bias -= learning_rate * error
         self.trained_examples = len(labels)
         self.epochs = epochs
@@ -661,6 +686,7 @@ class NativeRoleBindingModel:
             raise ValueError("invalid checkpoint bias")
         return cls(
             dimension=dimension, **tables, bias=float(bias),
+            shared_symbol_weight=float(data.get("shared_symbol_weight", 0.0)),
             trained_examples=int(data.get("trained_examples", 0)),
             epochs=int(data.get("epochs", 0)),
         )
