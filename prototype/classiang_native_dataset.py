@@ -69,8 +69,15 @@ def build_training_corpus(
     used_records = 0
     relation_evidence_by_id: dict[str, tuple[str, ...]] = {}
     for record in train_records:
-        if len(record.annotations) < 2 or not record.negative_annotations:
+        positive_count = len(record.annotations)
+        negative_count = len(record.negative_annotations)
+        if positive_count < 2 or negative_count < 1:
             continue
+        pair_count = positive_count * (positive_count - 1) // 2 + positive_count * negative_count
+        if pair_count > max_pairs_per_record:
+            raise ValueError(
+                f"record {record.observation_id} exceeds max_pairs_per_record"
+            )
         source = sources[record.source_id]
         family = source["source_family_id"]
         positive_relations: list[str] = []
