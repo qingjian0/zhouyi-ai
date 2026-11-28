@@ -524,6 +524,9 @@ class NativeRoleBindingModel:
             raise ValueError("composition contains no role bindings")
         return terms
 
+    def score(self, graph: SymbolGraph, composition: Composition) -> float:
+        return self.predict_probability(graph, composition.relation_ids)
+
     def predict_probability(self, graph: SymbolGraph, relation_ids: tuple[str, ...]) -> float:
         terms = self._energy_terms(graph, relation_ids)
         scale = math.sqrt(self.dimension)
