@@ -303,7 +303,7 @@ def train_and_evaluate(
 
 def rank_compositions(
     graph: SymbolGraph,
-    model: NativeCompositionScorer,
+    model: NativeCompositionScorer | NativeRoleBindingModel,
     *,
     max_depth: int = 3,
     max_candidates: int = 1000,
