@@ -1,8 +1,8 @@
 """Build a reviewed, source-family-aware native training graph from Gold text data.
 
 This is a data-preparation command, not the learner. It validates the Gold
-manifest before exporting only train-split records; dev and locked-test labels
-are excluded from the emitted graph and JSONL.
+manifest before exporting one requested train or dev split. Locked-test labels
+are never exported to learner artifacts.
 """
 from __future__ import annotations
 
@@ -57,8 +57,8 @@ def build_training_corpus(
         row["source_id"]: row
         for row in manifest["sources"]
     }
-    # This process is the data-preparation boundary. The learner receives only
-    # the emitted train-only graph and labels, never dev or locked-test labels.
+    # This process is the data-preparation boundary. Each invocation emits
+    # exactly one manifest split; locked-test labels are never exported.
     records = load_records(dataset_path)
     split_records = tuple(
         row for row in records
@@ -192,7 +192,7 @@ def build_training_corpus(
     )
     graph.validate()
     if not labels or not any(row.label == 1 for row in labels) or not any(row.label == 0 for row in labels):
-        raise ValueError("train split must yield both positive and negative structural examples")
+        raise ValueError(f"{split} split must yield both positive and negative structural examples")
     family_count = len({row.source_family for row in labels})
     if split == "train" and family_count < 1:
         raise ValueError("train split must contain at least one source family")
