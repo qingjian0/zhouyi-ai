@@ -182,7 +182,27 @@ graph.validate()
 
 它不自动生成证据、不绕过人工审核，也不会将结构匹配升级为语义或因果结论。若类别假设的证据未出现在证据目录中，适配过程直接失败。
 
-## 13. 当前可执行训练接口
+## 13. Gold 文本数据到原生训练图
+
+`prototype/classiang_native_dataset.py` 是数据准备阶段，先调用 Gold manifest 准入校验，再将**仅 train split** 导出为原生图和标签：
+
+```bash
+python -m prototype.classiang_native_dataset path/to/manifest.json \\
+  --graph-out artifacts/native-train-graph.json \\
+  --labels-out artifacts/native-train-labels.jsonl \\
+  --report-out artifacts/native-dataset-report.json
+```
+
+当前第一版监督语义明确限定为：
+
+- 正例：同一人工审核记录中共同标注的两个正向类象属性；
+- 负例：一个正向类象属性与同一记录中明确人工审核的负向跨度配对。
+
+没有显式负向跨度的记录不会被伪造为负例；不足两个正向属性的记录不会生成组合监督。每条标签保留来源族、group、关系 ID 和证据跨度。dev 与 locked-test 记录不会进入导出的训练图/标签；locked-test 仍应由隔离评估器在模型预测封存后使用。
+
+这是一种受限的**记录内结构共现目标**，不是通用类比正确性或因果有效性的标签。真实任务能力仍需独立 Gold、OOD 和反例评测证明。
+
+## 14. 当前可执行训练接口
 
 当前实现包含两个层级：
 
