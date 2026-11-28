@@ -18,6 +18,9 @@ def run_native_training(
     graph_out: str | Path,
     labels_out: str | Path,
     dataset_report: str | Path,
+    validation_graph_out: str | Path,
+    validation_labels_out: str | Path,
+    validation_dataset_report: str | Path,
     checkpoint: str | Path,
     training_report: str | Path,
     seed: int = 17,
@@ -36,11 +39,23 @@ def run_native_training(
         "--labels-out", str(labels_out),
         "--report-out", str(dataset_report),
         "--max-pairs-per-record", str(max_pairs_per_record),
+        "--split", "train",
     ]
     subprocess.run(preparation, check=True)
+    validation_preparation = [
+        python, "-m", "prototype.classiang_native_dataset", str(manifest),
+        "--graph-out", str(validation_graph_out),
+        "--labels-out", str(validation_labels_out),
+        "--report-out", str(validation_dataset_report),
+        "--max-pairs-per-record", str(max_pairs_per_record),
+        "--split", "dev",
+    ]
+    subprocess.run(validation_preparation, check=True)
     learner = [
         python, "-m", "prototype.classiang_native_learning",
         str(graph_out), str(labels_out),
+        "--validation-graph", str(validation_graph_out),
+        "--validation-labels", str(validation_labels_out),
         "--model", "role-binding",
         "--checkpoint", str(checkpoint),
         "--report", str(training_report),
@@ -60,6 +75,9 @@ def main() -> int:
     parser.add_argument("--graph-out", default="artifacts/classiang-native-train-graph.json")
     parser.add_argument("--labels-out", default="artifacts/classiang-native-train-labels.jsonl")
     parser.add_argument("--dataset-report", default="artifacts/classiang-native-dataset-report.json")
+    parser.add_argument("--validation-graph-out", default="artifacts/classiang-native-dev-graph.json")
+    parser.add_argument("--validation-labels-out", default="artifacts/classiang-native-dev-labels.jsonl")
+    parser.add_argument("--validation-dataset-report", default="artifacts/classiang-native-dev-dataset-report.json")
     parser.add_argument("--checkpoint", default="artifacts/classiang-native-role-binding.json")
     parser.add_argument("--training-report", default="artifacts/classiang-native-training-report.json")
     parser.add_argument("--seed", type=int, default=17)
@@ -73,7 +91,11 @@ def main() -> int:
     run_native_training(
         args.manifest,
         graph_out=args.graph_out, labels_out=args.labels_out,
-        dataset_report=args.dataset_report, checkpoint=args.checkpoint,
+        dataset_report=args.dataset_report,
+        validation_graph_out=args.validation_graph_out,
+        validation_labels_out=args.validation_labels_out,
+        validation_dataset_report=args.validation_dataset_report,
+        checkpoint=args.checkpoint,
         training_report=args.training_report, seed=args.seed,
         epochs=args.epochs, learning_rate=args.learning_rate,
         validation_fraction=args.validation_fraction, threshold=args.threshold,
