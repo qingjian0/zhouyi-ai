@@ -15,7 +15,9 @@ import subprocess
 import sys
 
 from prototype.classiang_native_learning import graph_from_json, labels_from_jsonl
-from prototype.classiang_native_admission import (\n    assert_native_gold_split_disjoint, verify_native_gold_admission_jsonl,\n)
+from prototype.classiang_native_admission import (
+    assert_native_gold_split_disjoint, verify_native_gold_admission_jsonl,
+)
 from prototype.m2_extraction_dataset import DatasetSplit
 
 
