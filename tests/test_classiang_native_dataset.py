@@ -1,5 +1,6 @@
 import hashlib
 import json
+from dataclasses import asdict, replace
 import subprocess
 import sys
 import tempfile
@@ -168,6 +169,64 @@ class NativeDatasetBuilderTests(unittest.TestCase):
             self.assertFalse(summary["training_eligible"])
             self.assertFalse(checkpoint.exists())
             self.assertFalse((root / "out" / "training-report.json").exists())
+
+    def test_one_command_accepts_independently_reviewed_train_and_dev_gold_labels(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            manifest = _write_manifest(root)
+            train_graph, train_candidates, _ = build_training_corpus(manifest, split="train")
+            dev_graph, dev_candidates, _ = build_training_corpus(manifest, split="dev")
+            train_gold = root / "train-gold.jsonl"
+            dev_gold = root / "dev-gold.jsonl"
+
+            # Synthetic reviewer metadata exists only to test pipeline wiring;
+            # it is not a claim that generated fixture labels are real Gold data.
+            def write_gold(path, candidates):
+                rows = [
+                    replace(
+                        row, reviewed=True, label_basis="human_reviewed_pair",
+                        reviewer_id="test-only-reviewer",
+                        adjudication_id=f"test-only:{row.example_id}",
+                        scope="synthetic-test-fixture",
+                        conditions=("synthetic-test-only",),
+                    )
+                    for row in candidates
+                ]
+                path.write_text(
+                    "".join(json.dumps(asdict(row), sort_keys=True) + "\\n" for row in rows),
+                    encoding="utf-8",
+                )
+
+            write_gold(train_gold, train_candidates)
+            write_gold(dev_gold, dev_candidates)
+            checkpoint = root / "out" / "model.json"
+            training_report = root / "out" / "training-report.json"
+            run_native_training(
+                manifest,
+                graph_out=root / "out" / "graph.json",
+                labels_out=root / "out" / "labels.jsonl",
+                dataset_report=root / "out" / "dataset-report.json",
+                validation_graph_out=root / "out" / "dev-graph.json",
+                validation_labels_out=root / "out" / "dev-labels.jsonl",
+                validation_dataset_report=root / "out" / "dev-dataset-report.json",
+                checkpoint=checkpoint,
+                training_report=training_report,
+                train_gold_labels=train_gold,
+                dev_gold_labels=dev_gold,
+                epochs=5,
+                dimension=8,
+            )
+            model = NativeRoleBindingModel.load(checkpoint)
+            train_report = json.loads((root / "out" / "dataset-report.json").read_text(encoding="utf-8"))
+            dev_report = json.loads((root / "out" / "dev-dataset-report.json").read_text(encoding="utf-8"))
+            learner_report = json.loads(training_report.read_text(encoding="utf-8"))
+        self.assertGreater(model.trained_examples, 0)
+        self.assertTrue(train_report["training_eligible"])
+        self.assertTrue(dev_report["training_eligible"])
+        self.assertTrue(train_report["candidate_labels_replaced"])
+        self.assertEqual(train_report["label_basis"], "human_reviewed_pair")
+        self.assertTrue(learner_report["source_family_disjoint"])
+        self.assertEqual(learner_report["validation_mode"], "manifest_dev_split")
 
     def test_invalid_gold_manifest_stops_before_checkpoint_creation(self):
         with tempfile.TemporaryDirectory() as directory:
