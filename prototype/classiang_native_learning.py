@@ -694,6 +694,10 @@ def train_and_evaluate_role_model(
         validation_graph.validate()
         for row in validation_labels:
             row.validate(validation_graph)
+        train_evidence = {item.evidence_id for item in graph.evidence}
+        validation_evidence = {item.evidence_id for item in validation_graph.evidence}
+        if train_evidence & validation_evidence:
+            raise ValueError("evidence IDs must not cross train/validation split")
         train, validation = tuple(labels), tuple(validation_labels)
         evaluation_graph = validation_graph
         validation_mode = "manifest_dev_split"
