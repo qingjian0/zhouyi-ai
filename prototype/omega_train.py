@@ -17,7 +17,7 @@ from pathlib import Path
 
 import torch
 
-from prototype.omega_model import OmegaConfig, OmegaModel, causal_language_loss, save_checkpoint
+from prototype.omega_model import (\n    OmegaConfig, OmegaModel, causal_language_loss,\n    classiang_composition_consistency_loss, save_checkpoint,\n)
 
 
 def encode_corpus(text: str) -> tuple[list[str], list[int]]:
@@ -67,7 +67,7 @@ def train(args: argparse.Namespace) -> dict:
         model.train()
         batch = sample_batch(train_tokens, args.batch_size, args.seq_len, device)
         optimizer.zero_grad(set_to_none=True)
-        loss = causal_language_loss(model(batch)["logits"], batch)
+        outputs = model(batch)\n        language_loss = causal_language_loss(outputs["logits"], batch)\n        composition_loss = classiang_composition_consistency_loss(\n            outputs["relation_logits"], outputs["composition_logits"]\n        )\n        loss = language_loss + args.composition_loss_weight * composition_loss
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         optimizer.step()
@@ -96,7 +96,7 @@ def train(args: argparse.Namespace) -> dict:
         "validation_characters": len(valid_tokens),
         "steps": args.steps,
         "sequence_length": args.seq_len,
-        "initial_step_loss": initial_loss,
+        "initial_step_loss": initial_loss,\n        "composition_loss_weight": args.composition_loss_weight,
         "validation_loss": validation_loss,
         "validation_perplexity": math.exp(min(validation_loss, 20.0)),
         "checkpoint": str(checkpoint),
@@ -125,7 +125,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--n-layers", type=int, default=2)
     parser.add_argument("--classiang-slots", type=int, default=16)
     parser.add_argument("--dropout", type=float, default=0.1)
-    parser.add_argument("--learning-rate", type=float, default=3e-4)
+    parser.add_argument("--learning-rate", type=float, default=3e-4)\n    parser.add_argument("--composition-loss-weight", type=float, default=0.1)
     parser.add_argument("--validation-fraction", type=float, default=0.1)
     parser.add_argument("--eval-batches", type=int, default=20)
     parser.add_argument("--seed", type=int, default=17)
