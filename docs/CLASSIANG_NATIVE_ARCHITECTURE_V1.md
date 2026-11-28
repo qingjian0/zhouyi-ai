@@ -208,9 +208,11 @@ python -m prototype.classiang_native_train path/to/manifest.json \\
 - 正例：同一人工审核记录中共同标注的两个正向类象属性；两条关系共享同一个 observed subject。
 - 负例：同一 source family 中来自两个不同观察记录的正向属性配对；两条关系具有相同的 has_aspect 类型，但指向不同 observed subject。
 
-正负样本因此共享基础关系类型，不能仅凭 has_aspect / negative-marker 关系类型读取标签。证据 ID 包含 observation ID，避免同一来源内不同记录的相同字符偏移发生碰撞。没有足够同源不同记录构成 hard negative 的 split 会失败关闭，不伪造负例。train 与 dev 分别导出，locked-test 记录不会进入任何学习器输入；locked-test 仍应由隔离评估器在模型预测封存后使用。
+正负样本共享基础关系类型，因此不能仅凭 has_aspect / negative-marker 关系类型读取标签。证据 ID 包含 observation ID，避免同一来源内不同记录的相同字符偏移发生碰撞。train 与 dev 分别导出，locked-test 记录不会进入任何学习器输入。
 
-这是一种受限的**同记录共现与跨记录结构负例区分目标**，不是通用类比正确性或因果有效性的标签。跨记录负例只表示本监督任务中未共同观察到，不证明两个属性在语义上绝不兼容。真实任务能力仍需独立 Gold、OOD 和反例评测证明。
+**重要限制：当前负例不是经过语义仲裁的 hard negative。** 它只是从同一来源族的不同 observation 中抽取关系对。正例共享 observed subject，负例不共享 observed subject，因此 shared-subject overlap 与标签完全混杂。模型可以只学习“关系对是否共享主体”而不学习类象兼容性或组合规律。当前数据只能用于验证数据管线和结构特征的可学习性，不得作为类象组合能力的证据。
+
+下一阶段必须在 Gold schema 中加入独立人工审核的 relation-pair compatibility annotation（positive / explicit-negative / unknown，带 reviewer、adjudication、证据和条件范围），并按 source family、对象族和关系模板族隔离切分。只有这类独立标签才可用于组合泛化训练；跨记录抽样只能作为未标注候选，不得自动赋负标签。真实任务能力仍需独立 Gold、OOD、反事实和反例评测证明。
 
 ## 14. 当前可执行训练接口
 
@@ -219,7 +221,7 @@ python -m prototype.classiang_native_train path/to/manifest.json \\
 - **结构基线评分器**：确定性逻辑回归，输入为五项显式结构描述特征。
 - **原生角色绑定学习器**：学习象元类型、属性键/值、关系类型和角色的向量表征，通过关系—角色绑定能量与可学习的共享象元交互项对组合进行评分，不依赖 token 自注意力。
 
-角色绑定学习器仍是小规模实验模型：它的输入属性来自已构造的符号图，不具备自主感知或通用语义理解能力；关系算子也尚未覆盖高阶过程、时序和反事实推演。
+角色绑定学习器仍是小规模实验模型：它的输入属性来自已构造的符号图，不具备自主感知或通用语义理解能力；关系算子也尚未覆盖高阶过程、时序和反事实推演。当前 exporter 的 shared-subject 结构与标签混杂，训练报告必须输出该捷径诊断；验证报告同时输出符号类型、属性键和值的词表覆盖率，避免部分 OOV 被静默忽略后误读分数。
 
 训练输入由两个文件组成：
 
