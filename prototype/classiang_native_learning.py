@@ -382,15 +382,26 @@ def main() -> None:
     parser.add_argument("--threshold", type=float, default=0.5)
     parser.add_argument("--model", choices=("linear", "role-binding"), default="role-binding")
     parser.add_argument("--dimension", type=int, default=16)
+    parser.add_argument("--validation-graph")
+    parser.add_argument("--validation-labels")
     args = parser.parse_args()
+    if bool(args.validation_graph) != bool(args.validation_labels):
+        parser.error("--validation-graph and --validation-labels must be supplied together")
     graph = graph_from_json(args.graph)
     labels = labels_from_jsonl(args.labels)
     if args.model == "role-binding":
+        validation_graph = graph_from_json(args.validation_graph) if args.validation_graph else None
+        validation_labels = labels_from_jsonl(args.validation_labels) if args.validation_labels else None
         model, report = train_and_evaluate_role_model(
-            graph, labels, seed=args.seed, dimension=args.dimension,
+            graph, labels, validation_graph=validation_graph,
+            validation_labels=validation_labels,
+            seed=args.seed, dimension=args.dimension,
             epochs=args.epochs, learning_rate=args.learning_rate,
             validation_fraction=args.validation_fraction, threshold=args.threshold,
         )
+        if args.validation_graph:
+            report["validation_graph_sha256"] = hashlib.sha256(Path(args.validation_graph).read_bytes()).hexdigest()
+            report["validation_labels_sha256"] = hashlib.sha256(Path(args.validation_labels).read_bytes()).hexdigest()
     else:
         model, report = train_and_evaluate(
             graph, labels, seed=args.seed, epochs=args.epochs,
@@ -657,6 +668,8 @@ class NativeRoleBindingModel:
 
 def train_and_evaluate_role_model(
     graph: SymbolGraph, labels: Sequence[CompositionLabel], *,
+    validation_graph: SymbolGraph | None = None,
+    validation_labels: Sequence[CompositionLabel] | None = None,
     seed: int = 17, dimension: int = 16, epochs: int = 200,
     learning_rate: float = 0.1, validation_fraction: float = 0.2,
     threshold: float = 0.5,
@@ -666,23 +679,54 @@ def train_and_evaluate_role_model(
         raise ValueError("labels must be non-empty")
     for row in labels:
         row.validate(graph)
-    example_ids = [row.example_id for row in labels]
-    if len(example_ids) != len(set(example_ids)):
-        raise ValueError("example IDs must be unique")
-    train, validation = _split_by_group(labels, validation_fraction, seed)
+
+    if (validation_graph is None) != (validation_labels is None):
+        raise ValueError("validation_graph and validation_labels must be supplied together")
+    if validation_labels is None:
+        train, validation = _split_by_group(labels, validation_fraction, seed)
+        evaluation_graph = graph
+        validation_mode = "source_family_holdout_from_train"
+    else:
+        if not validation_labels:
+            raise ValueError("validation_labels must be non-empty")
+        if not isinstance(validation_graph, SymbolGraph):
+            raise ValueError("validation_graph must be SymbolGraph")
+        validation_graph.validate()
+        for row in validation_labels:
+            row.validate(validation_graph)
+        train, validation = tuple(labels), tuple(validation_labels)
+        evaluation_graph = validation_graph
+        validation_mode = "manifest_dev_split"
+
+    train_ids = [row.example_id for row in train]
+    validation_ids = [row.example_id for row in validation]
+    if len(train_ids) != len(set(train_ids)) or len(validation_ids) != len(set(validation_ids)):
+        raise ValueError("example IDs must be unique within each split")
+    if set(train_ids) & set(validation_ids):
+        raise ValueError("example IDs must not cross train/validation split")
+    train_families = {row.source_family for row in train}
+    validation_families = {row.source_family for row in validation}
+    if train_families & validation_families:
+        raise ValueError("source families must not cross train/validation split")
     train_relations = {rid for row in train for rid in row.relation_ids}
     validation_relations = {rid for row in validation for rid in row.relation_ids}
     if train_relations & validation_relations:
-        raise ValueError("relation IDs must not cross source-family train/validation split")
+        raise ValueError("relation IDs must not cross train/validation split")
+    if not any(row.label == 0 for row in validation) or not any(row.label == 1 for row in validation):
+        raise ValueError("validation requires both positive and negative reviewed labels")
     if (isinstance(threshold, bool) or not isinstance(threshold, (int, float))
             or not math.isfinite(threshold) or not 0.0 <= threshold <= 1.0):
         raise ValueError("threshold must be finite and in [0, 1]")
+
     model = NativeRoleBindingModel.initialize(
         graph, train, dimension=dimension, seed=seed,
     ).fit(
         graph, train, epochs=epochs, learning_rate=learning_rate, seed=seed,
     )
-    probabilities = [model.predict_probability(graph, row.relation_ids) for row in validation]
+    probabilities = [
+        model.predict_probability(evaluation_graph, row.relation_ids)
+        for row in validation
+    ]
     truth = [row.label for row in validation]
     predictions = [int(value >= threshold) for value in probabilities]
     tp = sum(p == 1 and y == 1 for p, y in zip(predictions, truth))
@@ -696,13 +740,14 @@ def train_and_evaluate_role_model(
         "seed": seed,
         "epochs": epochs,
         "learning_rate": learning_rate,
-        "validation_fraction": validation_fraction,
+        "validation_mode": validation_mode,
+        "validation_fraction": validation_fraction if validation_mode == "source_family_holdout_from_train" else None,
         "threshold": threshold,
         "train_examples": len(train),
         "validation_examples": len(validation),
-        "train_source_families": sorted({row.source_family for row in train}),
-        "validation_source_families": sorted({row.source_family for row in validation}),
-        "source_family_disjoint": not ({row.source_family for row in train} & {row.source_family for row in validation}),
+        "train_source_families": sorted(train_families),
+        "validation_source_families": sorted(validation_families),
+        "source_family_disjoint": not (train_families & validation_families),
         "confusion_matrix": {"tp": tp, "fp": fp, "fn": fn, "tn": tn},
         "accuracy": (tp + tn) / len(truth),
         "precision": tp / (tp + fp) if tp + fp else 0.0,
@@ -713,7 +758,7 @@ def train_and_evaluate_role_model(
             "relation-role energy is a simple bilinear operator, not a general semantic model",
             "requires reviewed evidence-bound labels",
             "unseen relation types or roles are outside the trained vocabulary",
-            "evaluation is source-family holdout over a fixed graph; independent OOD benchmarks remain required",
+            "evaluation is source-family disjoint; independent OOD benchmarks remain required",
         ],
     }
     return model, report
