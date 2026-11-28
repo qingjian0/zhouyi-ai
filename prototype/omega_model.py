@@ -220,7 +220,7 @@ def save_checkpoint(model: OmegaModel, path: str) -> None:
 
 
 def load_checkpoint(path: str, *, map_location: str = "cpu") -> OmegaModel:
-    payload = torch.load(path, map_location=map_location, weights_only=False)
+    payload = torch.load(path, map_location=map_location, weights_only=True)
     if payload.get("format") != "zhouyi-ai-omega-v1":
         raise ValueError("unsupported ZhouyiAI Omega checkpoint format")
     model = OmegaModel(OmegaConfig(**payload["config"]))
