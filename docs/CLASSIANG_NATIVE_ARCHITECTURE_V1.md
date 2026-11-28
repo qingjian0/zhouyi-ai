@@ -193,6 +193,16 @@ python -m prototype.classiang_native_dataset path/to/manifest.json \\
   --report-out artifacts/native-dataset-report.json
 ```
 
+也可以使用隔离编排入口一次完成数据准备和训练：
+
+```bash
+python -m prototype.classiang_native_train path/to/manifest.json \\
+  --checkpoint artifacts/classiang-native-role-binding.json \\
+  --training-report artifacts/classiang-native-training-report.json
+```
+
+该命令先启动数据准备子进程，再启动只接收 train-only 图和标签的学习器子进程；前一阶段失败则不会构造模型。
+
 当前第一版监督语义明确限定为：
 
 - 正例：同一人工审核记录中共同标注的两个正向类象属性；
