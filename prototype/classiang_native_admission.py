@@ -83,22 +83,21 @@ def verify_native_gold_admission(
         raise NativeGoldAdmissionError("native label reviewer_id must identify one of the M19 independent reviewers")
     if label.adjudication_id != final.adjudicator_id:
         raise NativeGoldAdmissionError("native label adjudication_id must match the independent M19 adjudicator")
-    if final.decision not in {"accept", "conditional", "reject"}:
-        raise NativeGoldAdmissionError("abstained M19 adjudications cannot become pair labels")
-    if label.label == 2:
-        if label.label_basis != "human_reviewed_pair" or not label.reviewed:
-            raise NativeGoldAdmissionError("unknown labels must remain explicitly reviewed")
-    elif label.label not in (0, 1):
+    if label.label not in (0, 1, 2):
         raise NativeGoldAdmissionError("native Gold label must be positive, explicit-negative, or unknown")
     if label.label_basis != "human_reviewed_pair" or not label.reviewed:
         raise NativeGoldAdmissionError("native learner labels must be independently adjudicated Gold")
-    if label.label != 2:
-        if (final.decision == "accept" and label.label != 1) or (final.decision == "reject" and label.label != 0):
-            raise NativeGoldAdmissionError("native pair label conflicts with the final M19 adjudication decision")
-        if final.decision == "conditional" and (label.label != 1 or not set(final.scope_conditions) <= set(label.conditions)):
-            raise NativeGoldAdmissionError("conditional M19 acceptance requires a positive label carrying every adjudicated condition")
-    elif final.decision == "abstain":
-        raise NativeGoldAdmissionError("abstained M19 adjudications cannot be represented as unknown Gold labels")
+    if final.decision == "abstain":
+        if label.label != 2:
+            raise NativeGoldAdmissionError("M19 abstention must be preserved as an unknown Gold label")
+    elif label.label == 2:
+        raise NativeGoldAdmissionError("unknown Gold labels require an explicit M19 abstention")
+    elif (final.decision == "accept" and label.label != 1) or (final.decision == "reject" and label.label != 0):
+        raise NativeGoldAdmissionError("native pair label conflicts with the final M19 adjudication decision")
+    elif final.decision == "conditional" and (
+        label.label != 1 or not set(final.scope_conditions) <= set(label.conditions)
+    ):
+        raise NativeGoldAdmissionError("conditional M19 acceptance requires a positive label carrying every adjudicated condition")
 
     m19_refs = set(packet.source.verification_refs)
     m19_refs.update(final.evidence_refs)
