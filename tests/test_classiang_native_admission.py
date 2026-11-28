@@ -146,7 +146,9 @@ class NativeGoldAdmissionTests(unittest.TestCase):
 
     def test_requires_m1_mapping_for_every_selected_relation_evidence(self):
         graph, label = self.graph_and_label()
-        partial = replace(label, evidence_ids=("native-e1",))
+        # Keep the pair-level label internally valid, but omit the M1 mapping
+        # for evidence carried by the second selected relation.
+        partial = replace(label, evidence_ids=("native-e1", "native-e2"))
         with self.assertRaisesRegex(NativeGoldAdmissionError, "native graph evidence"):
             verify_native_gold_admission(
                 packet=self.packet(), record=self.record(), graph=graph, label=partial,
