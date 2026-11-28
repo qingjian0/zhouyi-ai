@@ -262,3 +262,22 @@ def generate(
             next_token = torch.multinomial(probabilities, num_samples=1)
         output = torch.cat((output, next_token), dim=1)
     return output
+
+
+
+def classiang_composition_consistency_loss(
+    relation_logits: Tensor, composition_logits: Tensor
+) -> Tensor:
+    """Train the CPG-EI proposal head to approximate a symmetric relation prior.
+
+    The target is detached and derived from the learned relation graph in both
+    directions. This is an internal consistency regularizer, not semantic
+    supervision or proof that a proposed composition is valid.
+    """
+    if relation_logits.shape != composition_logits.shape or relation_logits.ndim < 2:
+        raise ValueError("relation and composition logits must have identical [..., S, S] shapes")
+    forward = torch.softmax(relation_logits.detach(), dim=-1)
+    reverse = torch.softmax(relation_logits.detach().transpose(-1, -2), dim=-1)
+    target = 0.5 * (forward + reverse)
+    prediction = torch.softmax(composition_logits, dim=-1)
+    return nn.functional.mse_loss(prediction, target)
