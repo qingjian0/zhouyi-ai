@@ -15,6 +15,7 @@ from prototype.omega_model import (
     causal_language_loss,
     load_checkpoint,
     save_checkpoint,
+    generate,
 )
 
 
@@ -52,6 +53,13 @@ class OmegaModelTests(unittest.TestCase):
             left_logits = self.model(left)["logits"][:, :4]
             right_logits = self.model(right)["logits"][:, :4]
         self.assertTrue(torch.allclose(left_logits, right_logits, atol=1e-6, rtol=1e-6))
+
+    def test_generation_and_context_limit(self):
+        prompt = torch.tensor([[1, 2, 3]])
+        result = generate(self.model, prompt, max_new_tokens=4)
+        self.assertEqual(tuple(result.shape), (1, 7))
+        with self.assertRaises(ValueError):
+            generate(self.model, prompt, max_new_tokens=14)
 
     def test_checkpoint_round_trip(self):
         tokens = torch.randint(0, self.config.vocab_size, (1, 7))
