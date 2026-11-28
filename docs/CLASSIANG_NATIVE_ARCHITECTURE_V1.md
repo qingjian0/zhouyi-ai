@@ -145,3 +145,26 @@ Zhouyi-AI 的核心不是把类象标签附加到语言模型，也不是把 Tra
 ## 10. 状态声明
 
 本文定义目标架构和实现约束，不证明模型已实现或能力已成立。实现状态以代码、测试、数据和精确 commit 为准。
+
+## 11. Current executable training interface
+
+The first trainable component is intentionally narrow: a deterministic logistic scorer over five explicit structure descriptors. It ranks bounded relation compositions; it is not yet a learned general-purpose symbol representation.
+
+Training inputs are supplied as two files:
+
+- Graph JSON (`schema_version: 1`): `evidence`, `symbols`, and `relations` arrays matching the dataclasses in `prototype/classiang_native.py`.
+- Label JSONL: one reviewed example per line with `example_id`, `group_id`, `source_family`, `relation_ids`, `evidence_ids`, binary `label`, and `reviewed: true`.
+
+A label's evidence must cover all referenced relation evidence and belong to its declared source family. The evaluation split is by source family, and relation IDs may not cross train/validation partitions. At least two source families are required; the training partition must contain both positive and negative examples.
+
+Run:
+
+```bash
+python -m prototype.classiang_native_learning graph.json labels.jsonl \
+  --checkpoint artifacts/classiang-composition.json \
+  --report artifacts/classiang-composition-report.json
+```
+
+The report records seed, source-family split, confusion matrix, accuracy, precision, recall, Brier score, and SHA-256 digests of graph, labels, and checkpoint. The score is a structural compatibility ranking only. A high score does not prove semantic identity, analogy validity, or causality.
+
+This first learner is a stepping stone for later native parameterized role/relational representations, multi-objective composition learning, calibrated abstention, and independent OOD benchmarks. Do not call it the Zhouyi-AI foundation model.
