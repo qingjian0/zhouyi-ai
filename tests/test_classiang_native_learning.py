@@ -1,10 +1,12 @@
+import json
 import tempfile
 import unittest
+from dataclasses import asdict
 from pathlib import Path
 
 from prototype.classiang_native import EvidenceRef, Relation, Symbol, SymbolGraph
 from prototype.classiang_native_learning import (
-    CompositionLabel, NativeCompositionScorer, _features, train_and_evaluate,
+    CompositionLabel, NativeCompositionScorer, _features, graph_from_json, train_and_evaluate,
 )
 
 
@@ -62,6 +64,20 @@ class NativeCompositionLearningTests(unittest.TestCase):
             restored = NativeCompositionScorer.load(path)
             self.assertEqual(len(digest), 64)
             self.assertEqual(restored.to_dict(), model.to_dict())
+
+    def test_graph_json_loader_round_trip(self):
+        graph, _ = training_fixture()
+        payload = {
+            "schema_version": 1,
+            "evidence": [asdict(item) for item in graph.evidence],
+            "symbols": [asdict(item) for item in graph.symbols],
+            "relations": [asdict(item) for item in graph.relations],
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / "graph.json"
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            restored = graph_from_json(path)
+        self.assertEqual(restored, graph)
 
     def test_rejects_unreviewed_labels(self):
         graph, labels = training_fixture()
