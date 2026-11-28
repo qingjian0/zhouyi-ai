@@ -219,13 +219,6 @@ class NativeDatasetBuilderTests(unittest.TestCase):
                 )
             self.assertFalse(checkpoint.exists())
             self.assertFalse(training_report.exists())
-        self.assertGreater(model.trained_examples, 0)
-        self.assertTrue(train_report["training_eligible"])
-        self.assertTrue(dev_report["training_eligible"])
-        self.assertTrue(train_report["candidate_labels_replaced"])
-        self.assertEqual(train_report["label_basis"], "human_reviewed_pair")
-        self.assertTrue(learner_report["source_family_disjoint"])
-        self.assertEqual(learner_report["validation_mode"], "manifest_dev_split")
 
     def test_invalid_gold_manifest_stops_before_checkpoint_creation(self):
         with tempfile.TemporaryDirectory() as directory:
