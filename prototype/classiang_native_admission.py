@@ -79,6 +79,10 @@ def verify_native_gold_admission(
         )
     final = packet.adjudication
     assert final is not None
+    if label.reviewer_id not in assessment.reviewer_ids:
+        raise NativeGoldAdmissionError("native label reviewer_id must identify one of the M19 independent reviewers")
+    if label.adjudication_id != final.adjudicator_id:
+        raise NativeGoldAdmissionError("native label adjudication_id must match the independent M19 adjudicator")
     if final.decision not in {"accept", "conditional", "reject"}:
         raise NativeGoldAdmissionError("abstained M19 adjudications cannot become pair labels")
     if label.label == 2:
@@ -309,3 +313,44 @@ def verify_native_gold_admission_jsonl(
             native_evidence_map=native_map, expected_split=expected_split,
         ))
     return tuple(receipts)
+
+
+def assert_native_gold_split_disjoint(
+    train_admission_path: str | Path,
+    dev_admission_path: str | Path,
+) -> None:
+    """Reject source-lineage, M1-document, and case reuse across train/dev."""
+    partitions = []
+    for split_name, path in (("train", train_admission_path), ("dev", dev_admission_path)):
+        source = Path(path)
+        if not source.is_file():
+            raise NativeGoldAdmissionError(f"{split_name} admission JSONL does not exist: {source}")
+        records = []
+        for line_number, line in enumerate(source.read_text(encoding="utf-8").splitlines(), 1):
+            if not line.strip():
+                continue
+            try:
+                bundle = json.loads(line)
+                record = _m2_record_from_json(bundle["m2"])
+            except (json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
+                raise NativeGoldAdmissionError(
+                    f"invalid {split_name} M2 record at line {line_number}: {exc}"
+                ) from exc
+            if record.split is not (DatasetSplit.TRAIN if split_name == "train" else DatasetSplit.VALIDATION):
+                raise NativeGoldAdmissionError(f"{split_name} admission contains a record assigned to {record.split.value}")
+            records.append(record)
+        partitions.append(records)
+
+    train, dev = partitions
+    train_cases = {row.case.case_id for row in train}
+    dev_cases = {row.case.case_id for row in dev}
+    if train_cases & dev_cases:
+        raise NativeGoldAdmissionError("M2 case IDs leak across train/dev")
+    train_lineage = {item for row in train for item in row.source_lineage_ids}
+    dev_lineage = {item for row in dev for item in row.source_lineage_ids}
+    if train_lineage & dev_lineage:
+        raise NativeGoldAdmissionError("M2 source lineage leaks across train/dev")
+    train_documents = {ref.document_id for row in train for ref in row.evidence_refs}
+    dev_documents = {ref.document_id for row in dev for ref in row.evidence_refs}
+    if train_documents & dev_documents:
+        raise NativeGoldAdmissionError("M1 evidence documents leak across train/dev")
