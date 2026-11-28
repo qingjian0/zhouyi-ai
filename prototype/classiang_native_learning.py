@@ -684,9 +684,14 @@ class NativeRoleBindingModel:
         bias = data.get("bias")
         if isinstance(bias, bool) or not isinstance(bias, (int, float)) or not math.isfinite(bias):
             raise ValueError("invalid checkpoint bias")
+        shared_symbol_weight = data.get("shared_symbol_weight", 0.0)
+        if (isinstance(shared_symbol_weight, bool)
+                or not isinstance(shared_symbol_weight, (int, float))
+                or not math.isfinite(shared_symbol_weight)):
+            raise ValueError("invalid checkpoint shared-symbol weight")
         return cls(
             dimension=dimension, **tables, bias=float(bias),
-            shared_symbol_weight=float(data.get("shared_symbol_weight", 0.0)),
+            shared_symbol_weight=float(shared_symbol_weight),
             trained_examples=int(data.get("trained_examples", 0)),
             epochs=int(data.get("epochs", 0)),
         )
@@ -783,6 +788,7 @@ def train_and_evaluate_role_model(
         "precision": tp / (tp + fp) if tp + fp else 0.0,
         "recall": tp / (tp + fn) if tp + fn else 0.0,
         "brier_score": sum((p - y) ** 2 for p, y in zip(probabilities, truth)) / len(truth),
+        "learned_shared_symbol_weight": model.shared_symbol_weight,
         "limitations": [
             "learned embeddings are composed from symbol type and explicit attribute key/value fields",
             "relation-role energy is a simple bilinear operator, not a general semantic model",
