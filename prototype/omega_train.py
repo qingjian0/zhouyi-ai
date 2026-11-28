@@ -63,7 +63,7 @@ def train(args: argparse.Namespace) -> dict:
     config = OmegaConfig(
         vocab_size=len(vocab), d_model=args.d_model, n_heads=args.n_heads,
         n_layers=args.n_layers, num_classiang_slots=args.classiang_slots,
-        max_seq_len=args.seq_len, dropout=args.dropout,
+        max_seq_len=args.seq_len, dropout=args.dropout, branch_mode=args.branch_mode,
     )
     model = OmegaModel(config).to(device)
     optimizer = torch.optim.AdamW(model.parameters(), lr=args.learning_rate)
@@ -135,7 +135,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--n-heads", type=int, default=4)
     parser.add_argument("--n-layers", type=int, default=2)
     parser.add_argument("--classiang-slots", type=int, default=16)
-    parser.add_argument("--dropout", type=float, default=0.1)
+    parser.add_argument("--dropout", type=float, default=0.1)\n    parser.add_argument("--branch-mode", choices=["hybrid", "attention_only", "recurrent_only", "classiang_only"], default="hybrid")
     parser.add_argument("--learning-rate", type=float, default=3e-4)
     parser.add_argument("--composition-loss-weight", type=float, default=0.1)
     parser.add_argument("--validation-fraction", type=float, default=0.1)
