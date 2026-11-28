@@ -67,6 +67,13 @@ class OmegaModelTests(unittest.TestCase):
                 output = OmegaModel(config)(tokens)
                 self.assertEqual(tuple(output["logits"].shape), (2, 9, 31))
                 self.assertTrue(torch.isfinite(output["logits"]).all())
+                model = OmegaModel(config).eval()
+                left = torch.tensor([[1, 2, 3, 4, 5, 6, 7]])
+                right = torch.tensor([[1, 2, 3, 4, 8, 9, 10]])
+                with torch.no_grad():
+                    left_prefix = model(left)["logits"][:, :4]
+                    right_prefix = model(right)["logits"][:, :4]
+                self.assertTrue(torch.allclose(left_prefix, right_prefix, atol=1e-6, rtol=1e-6))
 
     def test_future_tokens_do_not_change_prefix_logits(self):
         self.model.eval()
