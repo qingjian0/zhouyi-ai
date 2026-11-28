@@ -176,7 +176,7 @@ class NativeGoldAdmissionTests(unittest.TestCase):
             "m2": asdict(self.record()),
         }
         path = Path(self.temp.name) / "admission.jsonl"
-        path.write_text(json.dumps(bundle, ensure_ascii=False) + "\\n", encoding="utf-8")
+        path.write_text(json.dumps(bundle, ensure_ascii=False) + "\n", encoding="utf-8")
         receipts = verify_native_gold_admission_jsonl(
             graph=graph, labels=(label,), admission_path=path,
             m1_database=self.database, expected_split=DatasetSplit.TRAIN,
