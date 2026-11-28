@@ -46,7 +46,7 @@ def build_native_relation_review_queue(
         if isinstance(value, bool) or not isinstance(value, int) or value < 1:
             raise ValueError(f"{name} must be a positive integer")
 
-    graph.validate()
+    graph.validate(require_reviewed=False)
     evidence = {item.evidence_id: item for item in graph.evidence}
     eligible = []
     skipped_relations = []
