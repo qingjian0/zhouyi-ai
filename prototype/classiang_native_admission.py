@@ -201,14 +201,37 @@ def _m1_ref_from_json(value: dict) -> EvidenceRef:
 
 def _review_packet_from_json(value: dict) -> ReviewPacket:
     try:
-        source = SourceVerification(**value["source"])
-        annotations = tuple(IndependentAnnotation(**row) for row in value["annotations"])
+        source_data = dict(value["source"])
+        for field in ("verification_refs", "verified_by"):
+            source_data[field] = tuple(source_data[field])
+        source = SourceVerification(**source_data)
+
+        annotation_fields = (
+            "shared_basis", "non_shared_basis", "scope_conditions",
+            "required_invariants", "known_counterexamples", "evidence_refs",
+        )
+        annotations = []
+        for raw_annotation in value["annotations"]:
+            annotation_data = dict(raw_annotation)
+            for field in annotation_fields:
+                annotation_data[field] = tuple(annotation_data[field])
+            annotations.append(IndependentAnnotation(**annotation_data))
+
         adjudication_data = value.get("adjudication")
-        adjudication = FinalAdjudication(**adjudication_data) if adjudication_data is not None else None
+        adjudication = None
+        if adjudication_data is not None:
+            adjudication_data = dict(adjudication_data)
+            for field in (
+                "evidence_refs", "relation_families", "shared_basis",
+                "non_shared_basis", "scope_conditions", "required_invariants",
+                "known_counterexamples",
+            ):
+                adjudication_data[field] = tuple(adjudication_data[field])
+            adjudication = FinalAdjudication(**adjudication_data)
         return ReviewPacket(
             case_id=value["case_id"], claim_kind=value["claim_kind"],
             independence_group=value["independence_group"], source=source,
-            annotations=annotations, adjudication=adjudication,
+            annotations=tuple(annotations), adjudication=adjudication,
         )
     except (KeyError, TypeError, ValueError) as exc:
         raise NativeGoldAdmissionError(f"invalid serialized M19 ReviewPacket: {exc}") from exc
