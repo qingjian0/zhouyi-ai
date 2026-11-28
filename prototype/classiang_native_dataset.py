@@ -28,6 +28,7 @@ def _stable_id(prefix: str, *parts: str) -> str:
 def build_training_corpus(
     manifest_path: str | Path,
     *,
+    split: str = "train",
     max_pairs_per_record: int = 256,
 ) -> tuple[SymbolGraph, tuple[CompositionLabel, ...], dict]:
     """Validate Gold admission, then export train-only relation compositions.
@@ -40,6 +41,8 @@ def build_training_corpus(
     These labels teach structural co-occurrence vs explicit negative evidence;
     they do not establish analogy, semantic equivalence, or causal validity.
     """
+    if split not in {"train", "dev"}:
+        raise ValueError("only train and dev splits may be exported to the learner")
     if isinstance(max_pairs_per_record, bool) or not isinstance(max_pairs_per_record, int) or max_pairs_per_record < 1:
         raise ValueError("max_pairs_per_record must be a positive integer")
     manifest_file = Path(manifest_path).resolve()
@@ -57,9 +60,9 @@ def build_training_corpus(
     # This process is the data-preparation boundary. The learner receives only
     # the emitted train-only graph and labels, never dev or locked-test labels.
     records = load_records(dataset_path)
-    train_records = tuple(
+    split_records = tuple(
         row for row in records
-        if groups[row.group_id]["split"] == "train"
+        if groups[row.group_id]["split"] == split
     )
 
     evidence_by_id: dict[str, EvidenceRef] = {}
@@ -68,7 +71,7 @@ def build_training_corpus(
     labels: list[CompositionLabel] = []
     used_records = 0
     relation_evidence_by_id: dict[str, tuple[str, ...]] = {}
-    for record in train_records:
+    for record in split_records:
         positive_count = len(record.annotations)
         negative_count = len(record.negative_annotations)
         if positive_count < 2 or negative_count < 1:
@@ -191,17 +194,21 @@ def build_training_corpus(
     if not labels or not any(row.label == 1 for row in labels) or not any(row.label == 0 for row in labels):
         raise ValueError("train split must yield both positive and negative structural examples")
     family_count = len({row.source_family for row in labels})
-    if family_count < 2:
-        raise ValueError("at least two train source families are required for leakage-safe evaluation")
+    if split == "train" and family_count < 1:
+        raise ValueError("train split must contain at least one source family")
+    if split == "dev" and family_count < 1:
+        raise ValueError("dev split must contain at least one source family")
     report = {
         "schema_version": 1,
         "dataset_sha256": admission["dataset_sha256"],
         "dataset_record_count": admission["record_count"],
-        "train_record_count": len(train_records),
-        "train_records_used": used_records,
-        "excluded_dev_records": admission["records_by_split"]["dev"],
+        "exported_split": split,
+        "exported_record_count": len(split_records),
+        "records_used": used_records,
+        "excluded_train_records": admission["records_by_split"]["train"] if split != "train" else 0,
+        "excluded_dev_records": admission["records_by_split"]["dev"] if split != "dev" else 0,
         "excluded_locked_test_records": admission["records_by_split"]["locked_test"],
-        "train_source_family_count": family_count,
+        "exported_source_family_count": family_count,
         "positive_examples": sum(row.label == 1 for row in labels),
         "negative_examples": sum(row.label == 0 for row in labels),
         "label_semantics": {
@@ -237,9 +244,11 @@ def main() -> int:
     parser.add_argument("--labels-out", default="artifacts/classiang-native-train-labels.jsonl")
     parser.add_argument("--report-out", default="artifacts/classiang-native-dataset-report.json")
     parser.add_argument("--max-pairs-per-record", type=int, default=256)
+    parser.add_argument("--split", choices=("train", "dev"), default="train")
     args = parser.parse_args()
     graph, labels, report = build_training_corpus(
-        args.manifest, max_pairs_per_record=args.max_pairs_per_record,
+        args.manifest, split=args.split,
+        max_pairs_per_record=args.max_pairs_per_record,
     )
     graph_payload = {
         "schema_version": 1,
