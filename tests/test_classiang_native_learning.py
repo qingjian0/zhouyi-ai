@@ -6,7 +6,7 @@ from pathlib import Path
 
 from prototype.classiang_native import EvidenceRef, Relation, Symbol, SymbolGraph
 from prototype.classiang_native_learning import (
-    CompositionLabel, NativeCompositionScorer, NativeRoleBindingModel, _features, graph_from_json, train_and_evaluate, train_and_evaluate_role_model,
+    CompositionLabel, NativeCompositionScorer, NativeRoleBindingModel, _features, graph_from_json, rank_compositions, train_and_evaluate, train_and_evaluate_role_model,
 )
 
 
@@ -104,6 +104,19 @@ class NativeCompositionLearningTests(unittest.TestCase):
             restored = NativeRoleBindingModel.load(path)
             self.assertEqual(len(digest), 64)
             self.assertEqual(restored.to_dict(), model.to_dict())
+
+    def test_role_binding_scores_bounded_compositions(self):
+        graph, labels = training_fixture()
+        model, _ = train_and_evaluate_role_model(
+            graph, labels, seed=11, dimension=8, epochs=20,
+        )
+        ranked = rank_compositions(graph, model, max_depth=2, max_candidates=100)
+        self.assertTrue(ranked)
+        self.assertTrue(all(0.0 <= score <= 1.0 for score, _ in ranked))
+        self.assertEqual(
+            list(ranked),
+            sorted(ranked, key=lambda item: (-item[0], item[1].relation_ids)),
+        )
 
     def test_role_binding_rejects_unknown_relation_type(self):
         graph, labels = training_fixture()
