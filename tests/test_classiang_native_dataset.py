@@ -128,10 +128,12 @@ class NativeDatasetBuilderTests(unittest.TestCase):
             graph = graph_from_json(graph_path)
             labels = labels_from_jsonl(labels_path)
             report = json.loads(report_path.read_text(encoding="utf-8"))
+            graph_digest = hashlib.sha256(graph_path.read_bytes()).hexdigest()
+            labels_digest = hashlib.sha256(labels_path.read_bytes()).hexdigest()
         graph.validate()
         self.assertTrue(labels)
-        self.assertEqual(report["graph_sha256"], hashlib.sha256(graph_path.read_bytes()).hexdigest())
-        self.assertEqual(report["labels_sha256"], hashlib.sha256(labels_path.read_bytes()).hexdigest())
+        self.assertEqual(report["graph_sha256"], graph_digest)
+        self.assertEqual(report["labels_sha256"], labels_digest)
         self.assertEqual({row.source_family for row in labels}, {"family-a", "family-b"})
 
     def test_rejects_record_pair_budget_overflow(self):
