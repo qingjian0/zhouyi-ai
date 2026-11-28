@@ -173,7 +173,6 @@ class NativeCompositionScorer:
             "feature_names": list(FEATURE_NAMES),
             "weights": self.weights,
             "bias": self.bias,
-            "shared_symbol_weight": self.shared_symbol_weight,
             "trained_examples": self.trained_examples,
             "epochs": self.epochs,
         }
@@ -643,6 +642,7 @@ class NativeRoleBindingModel:
             "relation_embeddings": self.relation_embeddings,
             "role_embeddings": self.role_embeddings,
             "bias": self.bias,
+            "shared_symbol_weight": self.shared_symbol_weight,
             "trained_examples": self.trained_examples,
             "epochs": self.epochs,
         }
