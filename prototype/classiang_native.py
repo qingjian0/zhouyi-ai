@@ -209,6 +209,9 @@ def compose_relations(
             if require_shared_symbol and not shared:
                 continue
             evidence = set().union(*(evidence_by_relation[item.relation_id] for item in group))
+            if ids not in found and len(found) >= max_candidates:
+                truncated = True
+                break
             found[ids] = Composition(
                 relation_ids=ids,
                 symbol_ids=tuple(sorted(union_symbols)),
@@ -216,9 +219,6 @@ def compose_relations(
                 shared_symbols=tuple(sorted(shared)),
                 depth=size,
             )
-            if len(found) >= max_candidates:
-                truncated = True
-                break
         if truncated:
             break
     candidates = tuple(found[key] for key in sorted(found))
@@ -252,6 +252,9 @@ def assess_relation_mapping(
         raise ValueError("source and target must be Relation")
     evidence = tuple(evidence_ids)
     _unique(evidence, "assessment evidence_ids", minimum=1)
+    allowed_evidence = set(source.evidence_ids) | set(target.evidence_ids)
+    if not set(evidence) <= allowed_evidence:
+        raise ValueError("assessment evidence must come from the supplied relations")
     mapping: dict[str, str] = {}
     targets: set[str] = set()
     for pair in role_mapping:
