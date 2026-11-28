@@ -193,7 +193,7 @@ class NativeDatasetBuilderTests(unittest.TestCase):
                     for row in candidates
                 ]
                 path.write_text(
-                    "".join(json.dumps(asdict(row), sort_keys=True) + "\\n" for row in rows),
+                    "".join(json.dumps(asdict(row), sort_keys=True) + "\n" for row in rows),
                     encoding="utf-8",
                 )
 
