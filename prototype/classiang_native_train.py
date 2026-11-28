@@ -34,6 +34,8 @@ def _install_gold_labels(graph_path: str | Path, source_path: str | Path, target
     )
     return {
         "annotation_count": len(labels),
+        "positive_count": sum(row.label == 1 for row in labels),
+        "explicit_negative_count": sum(row.label == 0 for row in labels),
         "unknown_count": sum(row.label == 2 for row in labels),
         "sha256": hashlib.sha256(target.read_bytes()).hexdigest(),
     }
@@ -46,7 +48,19 @@ def _mark_gold_admission(report_path: str | Path, source_path: str | Path, metad
         "training_eligible": True,
         "label_basis": "human_reviewed_pair",
         "external_gold_annotations": metadata["annotation_count"],
+        "positive_examples": metadata["positive_count"],
+        "negative_examples": metadata["explicit_negative_count"],
         "unknown_annotations": metadata["unknown_count"],
+        "negative_sampling": "independently_reviewed_relation_pair_annotations",
+        "label_shortcut_control": {
+            "positive_relation_types": report.get("label_shortcut_control", {}).get("positive_relation_types", []),
+            "negative_relation_types": report.get("label_shortcut_control", {}).get("negative_relation_types", []),
+            "explicit_negative_marker_used": False,
+            "shared_subject_overlap_is_label_defining": None,
+            "general_composition_supervision": False,
+            "requires_independent_reviewed_relation_pair_labels": False,
+            "label_source": "external_gold_annotations",
+        },
         "external_gold_labels_sha256": metadata["sha256"],
         "candidate_labels_replaced": True,
         "gold_label_source": str(source_path),
