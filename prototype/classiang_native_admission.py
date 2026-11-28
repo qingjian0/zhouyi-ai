@@ -112,9 +112,18 @@ def verify_native_gold_admission(
     graph.validate()
     label.validate(graph)
     graph_evidence = {item.evidence_id for item in graph.evidence}
+    relation_by_id = {item.relation_id: item for item in graph.relations}
+    missing_relations = sorted(set(label.relation_ids) - set(relation_by_id))
+    if missing_relations:
+        raise NativeGoldAdmissionError(f"label references relations absent from graph: {missing_relations}")
+    # Bind not only the pair-level evidence list but every evidence reference
+    # carried by each selected relation. Otherwise a caller could omit a
+    # relation's own provenance while retaining a superficially valid label.
     selected_native = set(label.evidence_ids)
+    for relation_id in label.relation_ids:
+        selected_native.update(relation_by_id[relation_id].evidence_ids)
     if not selected_native <= graph_evidence:
-        raise NativeGoldAdmissionError("label references native evidence absent from graph")
+        raise NativeGoldAdmissionError("label or selected relation references native evidence absent from graph")
     missing_native = sorted(item for item in selected_native if item not in native_evidence_map)
     if missing_native:
         raise NativeGoldAdmissionError(f"native graph evidence lacks explicit M1 mapping: {missing_native}")
