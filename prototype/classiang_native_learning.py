@@ -376,8 +376,8 @@ def main() -> None:
     parser.add_argument("--checkpoint", default="artifacts/classiang-composition.json")
     parser.add_argument("--report", default="artifacts/classiang-composition-report.json")
     parser.add_argument("--seed", type=int, default=17)
-    parser.add_argument("--epochs", type=int, default=100)
-    parser.add_argument("--learning-rate", type=float, default=0.05)
+    parser.add_argument("--epochs", type=int, default=200)
+    parser.add_argument("--learning-rate", type=float, default=0.1)
     parser.add_argument("--validation-fraction", type=float, default=0.2)
     parser.add_argument("--threshold", type=float, default=0.5)
     parser.add_argument("--model", choices=("linear", "role-binding"), default="role-binding")
@@ -464,7 +464,7 @@ class NativeRoleBindingModel:
                 attribute_keys.add(key)
                 attribute_values.add(value)
         rng = random.Random(seed)
-        scale = 0.1 / math.sqrt(dimension)
+        scale = 0.5 / math.sqrt(dimension)
 
         def table(keys: set[str]) -> dict[str, list[float]]:
             return {
@@ -538,7 +538,7 @@ class NativeRoleBindingModel:
 
     def fit(
         self, graph: SymbolGraph, labels: Sequence[CompositionLabel], *,
-        epochs: int = 100, learning_rate: float = 0.03,
+        epochs: int = 200, learning_rate: float = 0.1,
         l2: float = 0.0001, seed: int = 17,
     ) -> "NativeRoleBindingModel":
         if not labels or not any(row.label == 0 for row in labels) or not any(row.label == 1 for row in labels):
@@ -657,8 +657,8 @@ class NativeRoleBindingModel:
 
 def train_and_evaluate_role_model(
     graph: SymbolGraph, labels: Sequence[CompositionLabel], *,
-    seed: int = 17, dimension: int = 16, epochs: int = 100,
-    learning_rate: float = 0.03, validation_fraction: float = 0.2,
+    seed: int = 17, dimension: int = 16, epochs: int = 200,
+    learning_rate: float = 0.1, validation_fraction: float = 0.2,
     threshold: float = 0.5,
 ) -> tuple[NativeRoleBindingModel, dict]:
     graph.validate()
