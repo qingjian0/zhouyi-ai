@@ -108,7 +108,7 @@ class NativeDatasetBuilderTests(unittest.TestCase):
         ))
         self.assertGreater(report["positive_examples"], 0)
         self.assertGreater(report["negative_examples"], 0)
-        self.assertEqual(report["negative_sampling"], "cross_observation_same_source_family")
+        self.assertEqual(report["negative_sampling"], "cross_observation_same_source_family_weak_negative")
         relation_map = {row.relation_id: row for row in graph.relations}
         self.assertEqual({row.relation_type for row in graph.relations}, {"has_aspect"})
         for row in labels:
@@ -122,6 +122,9 @@ class NativeDatasetBuilderTests(unittest.TestCase):
         )
         self.assertGreater(model.trained_examples, 0)
         self.assertTrue(evaluation["source_family_disjoint"])
+        self.assertTrue(evaluation["shared_symbol_ratio_diagnostic"]["label_defining_in_current_exporter"])
+        self.assertIn("shared-subject overlap", evaluation["shared_symbol_ratio_diagnostic"]["interpretation"])
+        self.assertIn("validation_vocabulary_coverage", evaluation)
 
     def test_cli_exports_round_trip_compatible_training_artifacts(self):
         with tempfile.TemporaryDirectory() as directory:
