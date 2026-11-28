@@ -45,12 +45,12 @@ def training_fixture():
             CompositionLabel(
                 example_id=f"{family}-positive", group_id=family,
                 source_family=family, relation_ids=tuple(relation_ids[:2]),
-                evidence_ids=tuple(evidence_ids[:2]), label=1, reviewed=True, label_basis="human_reviewed_pair", reviewer_id="fixture-reviewer", adjudication_id=f"{family}-positive", scope="fixture-domain",
+                evidence_ids=tuple(evidence_ids[:2]), label=1, reviewed=True, label_basis="human_reviewed_pair", reviewer_id="fixture-reviewer", adjudication_id=f"{family}-positive", scope="fixture-domain", conditions=("unconditional",),
             ),
             CompositionLabel(
                 example_id=f"{family}-negative", group_id=family,
                 source_family=family, relation_ids=tuple(relation_ids[2:]),
-                evidence_ids=tuple(evidence_ids[2:]), label=0, reviewed=True, label_basis="human_reviewed_pair", reviewer_id="fixture-reviewer", adjudication_id=f"{family}-negative", scope="fixture-domain",
+                evidence_ids=tuple(evidence_ids[2:]), label=0, reviewed=True, label_basis="human_reviewed_pair", reviewer_id="fixture-reviewer", adjudication_id=f"{family}-negative", scope="fixture-domain", conditions=("unconditional",),
             ),
         ))
     return SymbolGraph(tuple(evidence), tuple(symbols), tuple(relations)), tuple(labels)
@@ -166,7 +166,7 @@ class NativeCompositionLearningTests(unittest.TestCase):
             source_family=first.source_family, relation_ids=first.relation_ids,
             evidence_ids=first.evidence_ids, label=2, reviewed=True,
             label_basis="human_reviewed_pair", reviewer_id="fixture-reviewer",
-            adjudication_id="unknown-adjudication", scope="fixture-domain",
+            adjudication_id="unknown-adjudication", scope="fixture-domain", conditions=("unconditional",),
             conditions=("only-under-condition-x",),
         )
         model, report = train_and_evaluate(graph, labels + (unknown,), seed=11, epochs=5)
@@ -191,7 +191,7 @@ class NativeCompositionLearningTests(unittest.TestCase):
         bad[0] = CompositionLabel(
             example_id=bad[0].example_id, group_id=bad[0].group_id,
             source_family=bad[0].source_family, relation_ids=bad[0].relation_ids,
-            evidence_ids=bad[0].evidence_ids, label=bad[0].label, reviewed=False, label_basis="human_reviewed_pair", reviewer_id="fixture-reviewer", adjudication_id="bad-review", scope="fixture-domain",
+            evidence_ids=bad[0].evidence_ids, label=bad[0].label, reviewed=False, label_basis="human_reviewed_pair", reviewer_id="fixture-reviewer", adjudication_id="bad-review", scope="fixture-domain", conditions=("unconditional",),
         )
         with self.assertRaisesRegex(ValueError, "reviewed"):
             train_and_evaluate(graph, tuple(bad))
@@ -202,7 +202,7 @@ class NativeCompositionLearningTests(unittest.TestCase):
         leaked = CompositionLabel(
             example_id="cross-family-copy", group_id="family-1",
             source_family="family-1", relation_ids=first.relation_ids,
-            evidence_ids=first.evidence_ids, label=0, reviewed=True, label_basis="human_reviewed_pair", reviewer_id="fixture-reviewer", adjudication_id="leak-review", scope="fixture-domain",
+            evidence_ids=first.evidence_ids, label=0, reviewed=True, label_basis="human_reviewed_pair", reviewer_id="fixture-reviewer", adjudication_id="leak-review", scope="fixture-domain", conditions=("unconditional",),
         )
         with self.assertRaisesRegex(ValueError, "source_family"):
             train_and_evaluate(graph, labels + (leaked,))
