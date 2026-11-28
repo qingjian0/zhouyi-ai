@@ -67,7 +67,10 @@ def build_training_corpus(
     relations: list[Relation] = []
     labels: list[CompositionLabel] = []
     used_records = 0
+    relation_evidence_by_id: dict[str, tuple[str, ...]] = {}
     for record in train_records:
+        if len(record.annotations) < 2 or not record.negative_annotations:
+            continue
         source = sources[record.source_id]
         family = source["source_family_id"]
         positive_relations: list[str] = []
@@ -101,6 +104,7 @@ def build_training_corpus(
                 context=record.context,
             ))
             positive_relations.append(relation_id)
+            relation_evidence_by_id[relation_id] = (evidence_id,)
 
         for index, (start, end) in enumerate(record.negative_annotations):
             evidence_id = f"text:{record.source_id}:chars:{start}-{end}"
@@ -124,6 +128,7 @@ def build_training_corpus(
                 (evidence_id,), context=record.context,
             ))
             negative_relations.append(relation_id)
+            relation_evidence_by_id[relation_id] = (evidence_id,)
 
         positive_pairs = list(combinations(positive_relations, 2))
         negative_pairs = [
@@ -147,7 +152,7 @@ def build_training_corpus(
         for index, pair in enumerate(positive_pairs):
             relation_ids = tuple(sorted(pair))
             evidence_ids = tuple(sorted(set().union(*(
-                set(next(item.evidence_ids for item in relations if item.relation_id == rid))
+                set(relation_evidence_by_id[rid])
                 for rid in relation_ids
             ))))
             labels.append(CompositionLabel(
