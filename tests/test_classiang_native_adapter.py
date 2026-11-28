@@ -1,5 +1,6 @@
 import unittest
 
+from prototype.classiang_learning import TextAnnotation, TextRecord, TrainableTextEncoder
 from prototype.classiang_engine import (
     ClassExample, FeatureAtom, FeatureCandidate, Observation,
     induce_class, select_aspects,
@@ -78,6 +79,44 @@ class NativeAdapterTests(unittest.TestCase):
             "class_excludes_boundary",
             {item.relation_type for item in graph.relations},
         )
+
+    def test_text_encoder_prediction_enters_native_graph_with_span_provenance(self):
+        records = []
+        for index in range(2):
+            text = "moves water; stops water"
+            positive_start = text.index("moves water")
+            negative_start = text.index("stops water")
+            records.append(TextRecord(
+                observation_id=f"train-{index}",
+                subject_id=f"subject-{index}",
+                domain="mechanics",
+                source_id=f"source-{index}",
+                text=text,
+                annotations=(TextAnnotation(
+                    positive_start, positive_start + len("moves water"),
+                    "function", "moves-water", ("recognition",),
+                ),),
+                group_id=f"group-{index}",
+                negative_annotations=((negative_start, negative_start + len("stops water")),),
+            ))
+        encoder = TrainableTextEncoder(max_tokens=3, max_span_chars=24)
+        encoder.fit(records)
+        observation = encoder.predict(
+            observation_id="query-1", subject_id="query-subject",
+            domain="mechanics", source_id="query-source",
+            text="moves water", threshold=0.55, max_features=1,
+        )
+        self.assertTrue(observation.features)
+        catalog = {
+            evidence_id: reviewed(evidence_id, "query-family")
+            for evidence_id in observation.evidence_refs
+        }
+        graph = observation_to_symbol_graph(observation, catalog)
+        self.assertTrue(graph.relations)
+        self.assertTrue(all(
+            relation.evidence_ids[0].startswith("text:query-source:chars:")
+            for relation in graph.relations
+        ))
 
     def test_contradictions_require_explicit_provenance(self):
         contradiction = FeatureAtom("function", "does-not-transfer")
