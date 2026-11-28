@@ -170,7 +170,7 @@ class NativeDatasetBuilderTests(unittest.TestCase):
             self.assertFalse(checkpoint.exists())
             self.assertFalse((root / "out" / "training-report.json").exists())
 
-    def test_one_command_accepts_independently_reviewed_train_and_dev_gold_labels(self):
+    def test_one_command_rejects_pair_labels_without_m19_m1_m2_admission(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             manifest = _write_manifest(root)
@@ -201,25 +201,24 @@ class NativeDatasetBuilderTests(unittest.TestCase):
             write_gold(dev_gold, dev_candidates)
             checkpoint = root / "out" / "model.json"
             training_report = root / "out" / "training-report.json"
-            run_native_training(
-                manifest,
-                graph_out=root / "out" / "graph.json",
-                labels_out=root / "out" / "labels.jsonl",
-                dataset_report=root / "out" / "dataset-report.json",
-                validation_graph_out=root / "out" / "dev-graph.json",
-                validation_labels_out=root / "out" / "dev-labels.jsonl",
-                validation_dataset_report=root / "out" / "dev-dataset-report.json",
-                checkpoint=checkpoint,
-                training_report=training_report,
-                train_gold_labels=train_gold,
-                dev_gold_labels=dev_gold,
-                epochs=5,
-                dimension=8,
-            )
-            model = NativeRoleBindingModel.load(checkpoint)
-            train_report = json.loads((root / "out" / "dataset-report.json").read_text(encoding="utf-8"))
-            dev_report = json.loads((root / "out" / "dev-dataset-report.json").read_text(encoding="utf-8"))
-            learner_report = json.loads(training_report.read_text(encoding="utf-8"))
+            with self.assertRaisesRegex(ValueError, "must be supplied together"):
+                run_native_training(
+                    manifest,
+                    graph_out=root / "out" / "graph.json",
+                    labels_out=root / "out" / "labels.jsonl",
+                    dataset_report=root / "out" / "dataset-report.json",
+                    validation_graph_out=root / "out" / "dev-graph.json",
+                    validation_labels_out=root / "out" / "dev-labels.jsonl",
+                    validation_dataset_report=root / "out" / "dev-dataset-report.json",
+                    checkpoint=checkpoint,
+                    training_report=training_report,
+                    train_gold_labels=train_gold,
+                    dev_gold_labels=dev_gold,
+                    epochs=5,
+                    dimension=8,
+                )
+            self.assertFalse(checkpoint.exists())
+            self.assertFalse(training_report.exists())
         self.assertGreater(model.trained_examples, 0)
         self.assertTrue(train_report["training_eligible"])
         self.assertTrue(dev_report["training_eligible"])
