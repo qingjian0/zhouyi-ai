@@ -8,6 +8,7 @@ dependencies = []
 
 [project.optional-dependencies]
 tokenizers = ["tokenizers>=0.20,<1"]
+model = ["torch>=2.4,<3"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
