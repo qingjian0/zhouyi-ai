@@ -32,7 +32,8 @@ class OmegaModelTests(unittest.TestCase):
         result = self.model(tokens)
         self.assertEqual(tuple(result["logits"].shape), (2, 9, 31))
         self.assertEqual(tuple(result["hidden_states"].shape), (2, 9, 32))
-        self.assertEqual(tuple(result["relation_logits"].shape), (2, 5, 5))
+        self.assertEqual(tuple(result["relation_logits"].shape), (2, 2, 5, 5))
+        self.assertEqual(tuple(result["composition_logits"].shape), (2, 2, 5, 5))
         self.assertGreater(self.model.parameter_count(), 0)
 
     def test_language_loss_backpropagates(self):
