@@ -663,6 +663,9 @@ def train_and_evaluate_role_model(
         raise ValueError("labels must be non-empty")
     for row in labels:
         row.validate(graph)
+    example_ids = [row.example_id for row in labels]
+    if len(example_ids) != len(set(example_ids)):
+        raise ValueError("example IDs must be unique")
     train, validation = _split_by_group(labels, validation_fraction, seed)
     train_relations = {rid for row in train for rid in row.relation_ids}
     validation_relations = {rid for row in validation for rid in row.relation_ids}
@@ -689,6 +692,9 @@ def train_and_evaluate_role_model(
         "dimension": dimension,
         "seed": seed,
         "epochs": epochs,
+        "learning_rate": learning_rate,
+        "validation_fraction": validation_fraction,
+        "threshold": threshold,
         "train_examples": len(train),
         "validation_examples": len(validation),
         "train_source_families": sorted({row.source_family for row in train}),
