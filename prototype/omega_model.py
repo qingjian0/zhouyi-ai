@@ -79,6 +79,7 @@ class ClassiangWorkspace(nn.Module):
 
     def __init__(self, config: OmegaConfig) -> None:
         super().__init__()
+        self.config = config
         d_model = config.d_model
         self.slots = nn.Parameter(torch.randn(config.num_classiang_slots, d_model) * 0.02)
         self.assignment = nn.Linear(d_model, d_model, bias=False)
