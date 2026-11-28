@@ -214,7 +214,7 @@ def build_training_corpus(
 def _write_json(path: str | Path, payload: dict) -> None:
     target = Path(path)
     target.parent.mkdir(parents=True, exist_ok=True)
-    encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\\n"
+    encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True, indent=2) + "\n"
     with tempfile.NamedTemporaryFile(
         "w", encoding="utf-8", dir=target.parent, delete=False,
     ) as handle:
@@ -243,7 +243,7 @@ def main() -> int:
     _write_json(args.graph_out, graph_payload)
     labels_path = Path(args.labels_out)
     labels_path.parent.mkdir(parents=True, exist_ok=True)
-    encoded = "".join(json.dumps(asdict(row), ensure_ascii=False, sort_keys=True) + "\\n" for row in labels)
+    encoded = "".join(json.dumps(asdict(row), ensure_ascii=False, sort_keys=True) + "\n" for row in labels)
     labels_path.write_text(encoded, encoding="utf-8")
     report["graph_sha256"] = hashlib.sha256(Path(args.graph_out).read_bytes()).hexdigest()
     report["labels_sha256"] = hashlib.sha256(labels_path.read_bytes()).hexdigest()
