@@ -47,7 +47,9 @@ The run writes:
 - a JSON vocabulary file beside the checkpoint;
 - a JSON report with train/validation loss and limitations.
 
-The default tokenizer treats each Unicode character as one token and is not suitable as a production tokenizer.\n\n**Do not train on the current classical xiang seed corpus yet.** The current `dev` snapshot has 43 candidate records and 52 claims marked unreviewed; candidate quotations are not approved training ground truth. Training data must pass the project\u2019s source, text, review, rights, and leakage gates before being exported to a plain-text corpus. The generic trainer accepts a UTF-8 text file and cannot independently verify its provenance.
+The default tokenizer treats each Unicode character as one token and is not suitable as a production tokenizer.
+
+**Do not train on the current classical-xiang seed corpus yet.** The current `dev` snapshot has 43 candidate records and 52 claims marked unreviewed; candidate quotations are not approved training ground truth. Use `prototype.omega_corpus_gate` to export only records with reviewed claims, witness-verified text, and explicit allowlisted text/database licenses. The exporter writes a provenance manifest and refuses to treat candidate quotations as approved ground truth. The generic trainer accepts a UTF-8 text file and cannot independently verify its provenance.
 
 ## Test
 
