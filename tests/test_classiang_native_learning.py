@@ -125,6 +125,33 @@ class NativeCompositionLearningTests(unittest.TestCase):
             sorted(ranked, key=lambda item: (-item[0], item[1].relation_ids)),
         )
 
+    def test_role_binding_reports_partial_oov_vocabulary_coverage(self):
+        graph, labels = training_fixture()
+        model = NativeRoleBindingModel.initialize(graph, labels[:2], dimension=8)
+        relation_map = {item.relation_id: item for item in graph.relations}
+        selected_symbols = {
+            symbol_id
+            for relation_id in labels[0].relation_ids
+            for _, symbol_id in relation_map[relation_id].roles
+        }
+        target_id = sorted(selected_symbols)[0]
+        changed_symbols = []
+        for symbol in graph.symbols:
+            if symbol.symbol_id == target_id:
+                changed_symbols.append(Symbol(
+                    symbol.symbol_id, symbol.domain, symbol.symbol_type,
+                    symbol.attributes + (("novel_attribute", "never_seen_value"),),
+                    symbol.evidence_ids, symbol.context, symbol.version,
+                ))
+            else:
+                changed_symbols.append(symbol)
+        oov_graph = SymbolGraph(graph.evidence, tuple(changed_symbols), graph.relations)
+        coverage = model.vocabulary_coverage(oov_graph, labels[0].relation_ids)
+        self.assertGreater(coverage["unknown_fields"], 0)
+        self.assertGreater(coverage["unknown"]["attribute_keys"], 0)
+        self.assertGreater(coverage["unknown"]["attribute_values"], 0)
+        self.assertLess(coverage["coverage"], 1.0)
+
     def test_role_binding_rejects_unknown_relation_type(self):
         graph, labels = training_fixture()
         model = NativeRoleBindingModel.initialize(graph, labels[:2], dimension=8)
