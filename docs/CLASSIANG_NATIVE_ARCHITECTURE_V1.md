@@ -391,3 +391,34 @@ proof that the human annotations are correct. Real source licensing, scan
 verification, reviewer independence, and annotation quality remain external
 governance responsibilities. The repository's current candidate corpus is
 still unreviewed, so no real historical-text training claim is made.
+
+
+## 16. Native relation-composition review queue
+
+The existing `classiang_review_queue.py` ranks unreviewed text spans. Native
+relation combinations require a separate candidate generator because the
+annotation target is a set of graph relations, not a token span. The companion
+`prototype/classiang_native_review_queue.py` reuses the native graph and emits
+deterministic, label-agnostic pair tasks:
+
+```bash
+python -m prototype.classiang_native_review_queue graph.json \
+  --output artifacts/native-relation-review-queue.json \
+  --max-items 500 \
+  --max-per-source-family 50 \
+  --max-per-relation 10
+```
+
+The generator only pairs relations whose evidence is reviewed and belongs to
+the same source family. It preserves relation roles, conditions, context,
+source locators, and the union of native evidence IDs. Unreviewed evidence is
+excluded; mixed-family relation evidence is excluded. Candidate generation
+does not assign a positive, negative, or unknown label. Each item starts as
+`pending_independent_review` / `not_gold`.
+
+The queue is an annotation worklist, not an M19 packet and not a training
+dataset. Annotators must independently complete the M19 source verification,
+two reviewer records, and distinct adjudication; the final decision and
+scope conditions must then be encoded into the native Gold label. The exact
+M1 EvidenceRef mapping and M2 byte spans are still mandatory, and the existing
+`classiang_native_admission.py` gate remains the only path into Gold training.
