@@ -8,6 +8,7 @@ structures; it does not establish semantic or causal truth.
 from __future__ import annotations
 
 from dataclasses import dataclass
+import argparse
 import hashlib
 import json
 import math
@@ -15,7 +16,9 @@ from pathlib import Path
 import random
 from typing import Sequence
 
-from prototype.classiang_native import Composition, Relation, SymbolGraph, compose_relations
+from prototype.classiang_native import (
+    Composition, EvidenceRef, Relation, Symbol, SymbolGraph, compose_relations,
+)
 
 FEATURE_NAMES = (
     "depth",
@@ -95,13 +98,12 @@ def _features(graph: SymbolGraph, relation_ids: tuple[str, ...]) -> tuple[float,
     condition_sets = [set(item.conditions) for item in selected]
     common_conditions = set.intersection(*condition_sets) if condition_sets else set()
     evidence = set().union(*(set(item.evidence_ids) for item in selected))
-    graph_evidence = {item.evidence_id for item in graph.evidence}
     return (
         float(len(selected)),
         len(shared) / max(1, len(union)),
         len(types) / max(1, len(selected)),
         len(common_conditions) / max(1, len(set().union(*condition_sets))),
-        len(evidence) / max(1, len(graph_evidence)),
+        len(evidence) / max(1, sum(len(item.evidence_ids) for item in selected)),
     )
 
 
@@ -284,7 +286,8 @@ def train_and_evaluate(
             "requires reviewed evidence-bound composition labels",
             "not a perception model or language model",
             "scores candidate structural compatibility, not semantic or causal truth",
-            "evaluation is source-family holdout only; larger independent benchmarks remain required",
+            "evaluation is source-family holdout over reviewed labels; relation structures are supplied as a fixed graph",
+            "larger independent benchmarks and out-of-domain evaluation remain required",
         ],
     }
     return model, report
@@ -306,6 +309,37 @@ def rank_compositions(
     ))
 
 
+def graph_from_json(path: str | Path) -> SymbolGraph:
+    data = json.loads(Path(path).read_text(encoding="utf-8"))
+    if not isinstance(data, dict) or data.get("schema_version") != 1:
+        raise ValueError("graph JSON must use schema_version 1")
+    try:
+        graph = SymbolGraph(
+            evidence=tuple(EvidenceRef(**item) for item in data["evidence"]),
+            symbols=tuple(Symbol(
+                symbol_id=item["symbol_id"], domain=item["domain"],
+                symbol_type=item["symbol_type"],
+                attributes=tuple(tuple(pair) for pair in item["attributes"]),
+                evidence_ids=tuple(item["evidence_ids"]),
+                context=tuple(item.get("context", ())),
+                version=item.get("version", 1),
+            ) for item in data["symbols"]),
+            relations=tuple(Relation(
+                relation_id=item["relation_id"], relation_type=item["relation_type"],
+                roles=tuple(tuple(pair) for pair in item["roles"]),
+                evidence_ids=tuple(item["evidence_ids"]),
+                conditions=tuple(item.get("conditions", ())),
+                context=tuple(item.get("context", ())),
+                version=item.get("version", 1),
+            ) for item in data["relations"]),
+            schema_version=data.get("schema_version", 1),
+        )
+    except (KeyError, TypeError) as exc:
+        raise ValueError(f"invalid graph JSON structure: {exc}") from exc
+    graph.validate()
+    return graph
+
+
 def labels_from_jsonl(path: str | Path) -> tuple[CompositionLabel, ...]:
     rows = []
     for line_number, line in enumerate(Path(path).read_text(encoding="utf-8").splitlines(), 1):
@@ -325,3 +359,38 @@ def labels_from_jsonl(path: str | Path) -> tuple[CompositionLabel, ...]:
         except (KeyError, TypeError, json.JSONDecodeError) as exc:
             raise ValueError(f"invalid label JSONL at line {line_number}: {exc}") from exc
     return tuple(rows)
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("graph", help="schema-v1 evidence-bound symbol graph JSON")
+    parser.add_argument("labels", help="reviewed composition labels JSONL")
+    parser.add_argument("--checkpoint", default="artifacts/classiang-composition.json")
+    parser.add_argument("--report", default="artifacts/classiang-composition-report.json")
+    parser.add_argument("--seed", type=int, default=17)
+    parser.add_argument("--epochs", type=int, default=100)
+    parser.add_argument("--learning-rate", type=float, default=0.05)
+    parser.add_argument("--validation-fraction", type=float, default=0.2)
+    parser.add_argument("--threshold", type=float, default=0.5)
+    args = parser.parse_args()
+    graph = graph_from_json(args.graph)
+    labels = labels_from_jsonl(args.labels)
+    model, report = train_and_evaluate(
+        graph, labels, seed=args.seed, epochs=args.epochs,
+        learning_rate=args.learning_rate,
+        validation_fraction=args.validation_fraction, threshold=args.threshold,
+    )
+    report["graph_sha256"] = hashlib.sha256(Path(args.graph).read_bytes()).hexdigest()
+    report["labels_sha256"] = hashlib.sha256(Path(args.labels).read_bytes()).hexdigest()
+    report["checkpoint_sha256"] = model.save(args.checkpoint)
+    report_path = Path(args.report)
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text(
+        json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2) + "\n",
+        encoding="utf-8",
+    )
+    print(json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2))
+
+
+if __name__ == "__main__":
+    main()
