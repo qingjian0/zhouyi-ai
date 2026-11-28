@@ -45,6 +45,7 @@ def _install_gold_labels(
     )
     return {
         "annotation_count": len(labels),
+        "source_families": sorted({row.source_family for row in labels}),
         "positive_count": sum(row.label == 1 for row in labels),
         "explicit_negative_count": sum(row.label == 0 for row in labels),
         "unknown_count": sum(row.label == 2 for row in labels),
@@ -147,6 +148,9 @@ def run_native_training(
         admission_path=dev_gold_admission, m1_evidence_db=m1_evidence_db,
         expected_split=DatasetSplit.VALIDATION,
     )
+    shared_source_families = sorted(set(train_metadata["source_families"]) & set(dev_metadata["source_families"]))
+    if shared_source_families:
+        raise ValueError(f"Gold source-family leakage across train/dev: {shared_source_families}")
     _mark_gold_admission(dataset_report, train_gold_labels, train_metadata)
     _mark_gold_admission(validation_dataset_report, dev_gold_labels, dev_metadata)
     learner = [
