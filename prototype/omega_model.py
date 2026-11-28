@@ -220,3 +220,39 @@ def load_checkpoint(path: str, *, map_location: str = "cpu") -> OmegaModel:
     model = OmegaModel(OmegaConfig(**payload["config"]))
     model.load_state_dict(payload["state_dict"], strict=True)
     return model
+
+
+@torch.no_grad()
+def generate(
+    model: OmegaModel,
+    input_ids: Tensor,
+    *,
+    max_new_tokens: int = 64,
+    temperature: float = 0.0,
+    top_k: int | None = None,
+) -> Tensor:
+    """Generate tokens autoregressively; temperature=0 selects greedy decoding."""
+    if input_ids.ndim != 2 or input_ids.shape[1] < 1:
+        raise ValueError("input_ids must have shape [batch, non-empty sequence]")
+    if max_new_tokens < 0 or input_ids.shape[1] + max_new_tokens > model.config.max_seq_len:
+        raise ValueError("prompt plus max_new_tokens must fit max_seq_len")
+    if temperature < 0:
+        raise ValueError("temperature must be >= 0")
+    if top_k is not None and top_k < 1:
+        raise ValueError("top_k must be >= 1")
+    model.eval()
+    output = input_ids
+    for _ in range(max_new_tokens):
+        logits = model(output)["logits"][:, -1, :]
+        if temperature == 0:
+            next_token = logits.argmax(dim=-1, keepdim=True)
+        else:
+            logits = logits / temperature
+            if top_k is not None:
+                k = min(top_k, logits.shape[-1])
+                threshold = torch.topk(logits, k, dim=-1).values[:, -1:]
+                logits = logits.masked_fill(logits < threshold, float("-inf"))
+            probabilities = torch.softmax(logits, dim=-1)
+            next_token = torch.multinomial(probabilities, num_samples=1)
+        output = torch.cat((output, next_token), dim=1)
+    return output
