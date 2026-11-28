@@ -228,3 +228,46 @@ jobs:
       - name: Run evaluation group
         run: |
           ${{ matrix.commands }}
+
+  omega-model-tests:
+    name: Omega foundation-model tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Install Omega model dependency
+        run: python -m pip install -e '.[model]'
+      - name: Run Omega unit tests
+        run: python -m unittest discover -s tests -p 'test_omega_model.py' -v
+      - name: Run reviewed-corpus gate tests
+        run: python -m unittest discover -s tests -p 'test_omega_corpus_gate.py' -v
+      - name: Audit classical-xiang seed corpus without bypassing gates
+        run: |
+          python -m prototype.omega_corpus_gate data/classical_xiang_corpus.v0.1.json \
+            --output artifacts/reviewed-classiang-corpus.txt \
+            --manifest artifacts/reviewed-classiang-manifest.json
+      - name: Run tiny-corpus training smoke test
+        run: |
+          mkdir -p artifacts
+          printf '周易类象学习测试。方以类聚物以群分。同声相应同气相求。类象需要辨异并审查推论边界。\n%.0s' {1..40} > omega-smoke-corpus.txt
+          python -m prototype.omega_train omega-smoke-corpus.txt \
+            --steps 5 --seq-len 8 --batch-size 2 --d-model 16 \
+            --n-heads 4 --n-layers 1 --classiang-slots 4 \
+            --eval-batches 2 --checkpoint artifacts/omega-smoke.pt \
+            --report artifacts/omega-smoke-report.json
+      - name: Run checkpoint generation smoke test
+        run: python -m prototype.omega_generate artifacts/omega-smoke.pt "周易" --max-new-tokens 2
+      - name: Upload Omega smoke artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: omega-foundation-model-smoke
+          path: |
+            artifacts/omega-smoke*
+            artifacts/reviewed-classiang-manifest.json
+            artifacts/reviewed-classiang-corpus.txt
+          if-no-files-found: ignore
+          retention-days: 14
