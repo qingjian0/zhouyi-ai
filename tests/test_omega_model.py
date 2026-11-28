@@ -55,6 +55,19 @@ class OmegaModelTests(unittest.TestCase):
         loss.backward()
         self.assertIsNotNone(self.model.blocks[0].classiang.composer.score[0].weight.grad)
 
+    def test_all_ablation_modes_produce_finite_logits(self):
+        tokens = torch.randint(0, self.config.vocab_size, (2, 9))
+        for mode in ("hybrid", "attention_only", "recurrent_only", "classiang_only"):
+            with self.subTest(mode=mode):
+                config = OmegaConfig(
+                    vocab_size=self.config.vocab_size, d_model=32, n_heads=4,
+                    n_layers=1, num_classiang_slots=5, max_seq_len=16,
+                    dropout=0.0, branch_mode=mode,
+                )
+                output = OmegaModel(config)(tokens)
+                self.assertEqual(tuple(output["logits"].shape), (2, 9, 31))
+                self.assertTrue(torch.isfinite(output["logits"]).all())
+
     def test_future_tokens_do_not_change_prefix_logits(self):
         self.model.eval()
         prefix = torch.tensor([[1, 2, 3, 4]])
