@@ -39,8 +39,15 @@ class NativeClassiangTests(unittest.TestCase):
         self.assertEqual(candidate.evidence_ids, ("e1", "e2"))
 
     def test_composition_reports_budget_exhaustion(self):
-        result = compose_relations(graph(), max_depth=2, max_candidates=1)
+        base = graph()
+        extra = Relation(
+            "r3", "interacts",
+            (("source", "a"), ("target", "c")), ("e1", "e2"),
+        )
+        dense = SymbolGraph(base.evidence, base.symbols, base.relations + (extra,))
+        result = compose_relations(dense, max_depth=2, max_candidates=1)
         self.assertTrue(result.truncated)
+        self.assertEqual(len(result.candidates), 1)
         self.assertEqual(result.reason, "BUDGET_EXHAUSTED")
 
     def test_composition_rejects_invalid_budget(self):
@@ -72,6 +79,12 @@ class NativeClassiangTests(unittest.TestCase):
                 source, source,
                 role_mapping=(("agent", "agent"), ("patient", "patient")),
                 evidence_ids=(),
+            )
+        with self.assertRaisesRegex(ValueError, "supplied relations"):
+            assess_relation_mapping(
+                source, source,
+                role_mapping=(("agent", "agent"), ("patient", "patient")),
+                evidence_ids=("fabricated-evidence",),
             )
 
     def test_mapping_rejects_non_injective_role_assignment(self):
