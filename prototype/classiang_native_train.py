@@ -7,10 +7,51 @@ artifacts for validation; locked-test labels are never passed to it.
 from __future__ import annotations
 
 import argparse
+from dataclasses import asdict
+import hashlib
 import json
 from pathlib import Path
 import subprocess
 import sys
+
+from prototype.classiang_native_learning import graph_from_json, labels_from_jsonl
+
+
+def _install_gold_labels(graph_path: str | Path, source_path: str | Path, target_path: str | Path) -> dict:
+    graph = graph_from_json(graph_path)
+    labels = labels_from_jsonl(source_path)
+    if not labels:
+        raise ValueError(f"Gold annotation file is empty: {source_path}")
+    for row in labels:
+        row.validate(graph)
+        if row.label_basis != "human_reviewed_pair":
+            raise ValueError("external annotation files must contain only human_reviewed_pair Gold labels")
+    target = Path(target_path)
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(
+        "".join(json.dumps(asdict(row), ensure_ascii=False, sort_keys=True) + "\\n" for row in labels),
+        encoding="utf-8",
+    )
+    return {
+        "annotation_count": len(labels),
+        "unknown_count": sum(row.label == 2 for row in labels),
+        "sha256": hashlib.sha256(target.read_bytes()).hexdigest(),
+    }
+
+
+def _mark_gold_admission(report_path: str | Path, source_path: str | Path, metadata: dict) -> None:
+    report_file = Path(report_path)
+    report = json.loads(report_file.read_text(encoding="utf-8"))
+    report.update({
+        "training_eligible": True,
+        "label_basis": "human_reviewed_pair",
+        "external_gold_annotations": metadata["annotation_count"],
+        "unknown_annotations": metadata["unknown_count"],
+        "external_gold_labels_sha256": metadata["sha256"],
+        "candidate_labels_replaced": True,
+        "gold_label_source": str(source_path),
+    })
+    report_file.write_text(json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2) + "\\n", encoding="utf-8")
 
 
 def run_native_training(
@@ -31,8 +72,12 @@ def run_native_training(
     threshold: float = 0.5,
     dimension: int = 16,
     max_pairs_per_record: int = 256,
+    train_gold_labels: str | Path | None = None,
+    dev_gold_labels: str | Path | None = None,
 ) -> None:
     """Prepare isolated train/dev artifacts, then launch the learner on them."""
+    if (train_gold_labels is None) != (dev_gold_labels is None):
+        raise ValueError("train_gold_labels and dev_gold_labels must be supplied together")
     python = sys.executable
     preparation = [
         python, "-m", "prototype.classiang_native_dataset", str(manifest),
@@ -43,12 +88,6 @@ def run_native_training(
         "--split", "train",
     ]
     subprocess.run(preparation, check=True)
-    train_admission = json.loads(Path(dataset_report).read_text(encoding="utf-8"))
-    if train_admission.get("training_eligible") is not True:
-        raise RuntimeError(
-            "training stopped: exporter produced unreviewed candidate pairs; "
-            "independent relation-pair adjudications are required"
-        )
     validation_preparation = [
         python, "-m", "prototype.classiang_native_dataset", str(manifest),
         "--graph-out", str(validation_graph_out),
@@ -58,11 +97,15 @@ def run_native_training(
         "--split", "dev",
     ]
     subprocess.run(validation_preparation, check=True)
-    dev_admission = json.loads(Path(validation_dataset_report).read_text(encoding="utf-8"))
-    if dev_admission.get("training_eligible") is not True:
+    if train_gold_labels is None:
         raise RuntimeError(
-            "validation stopped: dev split has no independently adjudicated relation-pair labels"
+            "training stopped: exporter output contains only unreviewed candidate pairs; "
+            "supply --train-gold-labels and --dev-gold-labels with independently adjudicated labels"
         )
+    train_metadata = _install_gold_labels(graph_out, train_gold_labels, labels_out)
+    dev_metadata = _install_gold_labels(validation_graph_out, dev_gold_labels, validation_labels_out)
+    _mark_gold_admission(dataset_report, train_gold_labels, train_metadata)
+    _mark_gold_admission(validation_dataset_report, dev_gold_labels, dev_metadata)
     learner = [
         python, "-m", "prototype.classiang_native_learning",
         str(graph_out), str(labels_out),
@@ -99,6 +142,8 @@ def main() -> int:
     parser.add_argument("--threshold", type=float, default=0.5)
     parser.add_argument("--dimension", type=int, default=16)
     parser.add_argument("--max-pairs-per-record", type=int, default=256)
+    parser.add_argument("--train-gold-labels", help="JSONL of independently reviewed train pair annotations")
+    parser.add_argument("--dev-gold-labels", help="JSONL of independently reviewed dev pair annotations")
     args = parser.parse_args()
     run_native_training(
         args.manifest,
@@ -112,6 +157,7 @@ def main() -> int:
         epochs=args.epochs, learning_rate=args.learning_rate,
         validation_fraction=args.validation_fraction, threshold=args.threshold,
         dimension=args.dimension, max_pairs_per_record=args.max_pairs_per_record,
+        train_gold_labels=args.train_gold_labels, dev_gold_labels=args.dev_gold_labels,
     )
     return 0
 
