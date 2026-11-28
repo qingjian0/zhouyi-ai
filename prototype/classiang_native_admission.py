@@ -85,6 +85,10 @@ def verify_native_gold_admission(
         raise NativeGoldAdmissionError("native Gold label must be positive, explicit-negative, or unknown")
     if label.label_basis != "human_reviewed_pair" or not label.reviewed:
         raise NativeGoldAdmissionError("native learner labels must be independently adjudicated Gold")
+    if (final.decision == "accept" and label.label != 1) or (final.decision == "reject" and label.label != 0):
+        raise NativeGoldAdmissionError("native pair label conflicts with the final M19 adjudication decision")
+    if final.decision == "conditional" and (label.label != 1 or not set(final.scope_conditions) <= set(label.conditions)):
+        raise NativeGoldAdmissionError("conditional M19 acceptance requires a positive label carrying every adjudicated condition")
 
     m19_refs = set(packet.source.verification_refs)
     m19_refs.update(final.evidence_refs)
@@ -124,6 +128,9 @@ def verify_native_gold_admission(
         raise NativeGoldAdmissionError("M2 source lineage must exactly bind M19 work, edition, and witness")
     if not record.gold_evidence_spans:
         raise NativeGoldAdmissionError("M2 record must contain byte-exact Gold evidence spans")
+    span_refs = {span.evidence_ref for span in record.gold_evidence_spans}
+    if not mapped_refs <= span_refs:
+        raise NativeGoldAdmissionError("every M19/native evidence mapping must have at least one byte-exact M2 span")
 
     try:
         verification = verify_gold_evidence_spans(record, resolver)
