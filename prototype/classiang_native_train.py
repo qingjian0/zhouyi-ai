@@ -1,8 +1,8 @@
 """Run the Gold-admitted native Classiang preparation and learner as isolated processes.
 
-The preparation child validates the manifest and exports only train-split
-artifacts. The learner child receives only those artifacts; dev and locked-test
-labels are never passed to the learner process.
+Preparation children validate the manifest and export train and dev artifacts
+separately. The learner child receives train artifacts for fitting and dev
+artifacts for validation; locked-test labels are never passed to it.
 """
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ def run_native_training(
     dimension: int = 16,
     max_pairs_per_record: int = 256,
 ) -> None:
-    """Prepare admitted train-only artifacts, then launch the isolated learner."""
+    """Prepare isolated train/dev artifacts, then launch the learner on them."""
     python = sys.executable
     preparation = [
         python, "-m", "prototype.classiang_native_dataset", str(manifest),
