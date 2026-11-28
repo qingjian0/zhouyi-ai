@@ -12,7 +12,7 @@ from prototype.classiang_native_learning import (
 
 def training_fixture():
     evidence = []
-    symbols = [Symbol("hub", "domain", "node", (("role", "hub"),), ("e0",))]
+    symbols = [Symbol("hub", "domain", "node", (("role", "hub"),), ("e0-a",))]
     relations = []
     labels = []
     for i in range(4):
