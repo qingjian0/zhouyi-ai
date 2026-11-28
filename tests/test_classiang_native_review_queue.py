@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import pytest
+import unittest
 
 from prototype.classiang_native import EvidenceRef, Relation, Symbol, SymbolGraph
 from prototype.classiang_native_review_queue import build_native_relation_review_queue
@@ -37,38 +37,43 @@ def _graph(*, include_unreviewed: bool = False) -> SymbolGraph:
     return SymbolGraph(evidence=evidence, symbols=symbols, relations=relations)
 
 
-def test_queue_generates_only_same_source_family_relation_pairs() -> None:
-    queue = build_native_relation_review_queue(_graph())
+class NativeRelationReviewQueueTests(unittest.TestCase):
+    def test_queue_generates_only_same_source_family_relation_pairs(self) -> None:
+        queue = build_native_relation_review_queue(_graph())
 
-    assert queue["candidate_count"] == 1
-    assert queue["selected_count"] == 1
-    item = queue["items"][0]
-    assert item["relation_ids"] == ["r1", "r2"]
-    assert item["evidence_ids"] == ["e1", "e2"]
-    assert item["source_family"] == "family-a"
-    assert item["annotation"]["decision"] is None
-    assert item["gold_status"] == "not_gold"
-    assert queue["selection_policy"]["label_agnostic"] is True
+        self.assertEqual(queue["candidate_count"], 1)
+        self.assertEqual(queue["selected_count"], 1)
+        item = queue["items"][0]
+        self.assertEqual(item["relation_ids"], ["r1", "r2"])
+        self.assertEqual(item["evidence_ids"], ["e1", "e2"])
+        self.assertEqual(item["source_family"], "family-a")
+        self.assertIsNone(item["annotation"]["decision"])
+        self.assertEqual(item["gold_status"], "not_gold")
+        self.assertTrue(queue["selection_policy"]["label_agnostic"])
+
+    def test_queue_is_deterministic_and_respects_relation_caps(self) -> None:
+        graph = _graph()
+        first = build_native_relation_review_queue(graph, max_per_relation=1)
+        second = build_native_relation_review_queue(graph, max_per_relation=1)
+
+        self.assertEqual(first, second)
+        self.assertEqual(first["queue_sha256"], second["queue_sha256"])
+        self.assertEqual(first["selected_count"], 1)
+
+    def test_queue_skips_unreviewed_evidence_without_promoting_it(self) -> None:
+        queue = build_native_relation_review_queue(_graph(include_unreviewed=True))
+
+        self.assertEqual(queue["candidate_count"], 1)
+        self.assertEqual(queue["selected_count"], 1)
+        self.assertIn(
+            {"relation_id": "r4", "reason": "unreviewed_evidence"},
+            queue["skipped_relations"],
+        )
+
+    def test_queue_rejects_invalid_limits_and_candidate_budget(self) -> None:
+        with self.assertRaisesRegex(ValueError, "max_items must be a positive integer"):
+            build_native_relation_review_queue(_graph(), max_items=0)
 
 
-def test_queue_is_deterministic_and_respects_relation_caps() -> None:
-    graph = _graph()
-    first = build_native_relation_review_queue(graph, max_per_relation=1)
-    second = build_native_relation_review_queue(graph, max_per_relation=1)
-
-    assert first == second
-    assert first["queue_sha256"] == second["queue_sha256"]
-    assert first["selected_count"] == 1
-
-
-def test_queue_skips_unreviewed_evidence_without_promoting_it() -> None:
-    queue = build_native_relation_review_queue(_graph(include_unreviewed=True))
-
-    assert queue["candidate_count"] == 1
-    assert queue["selected_count"] == 1
-    assert {"relation_id": "r4", "reason": "unreviewed_evidence"} in queue["skipped_relations"]
-
-
-def test_queue_rejects_invalid_limits_and_candidate_budget() -> None:
-    with pytest.raises(ValueError, match="max_items must be a positive integer"):
-        build_native_relation_review_queue(_graph(), max_items=0)
+if __name__ == "__main__":
+    unittest.main()
