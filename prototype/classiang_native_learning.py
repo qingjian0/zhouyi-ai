@@ -76,8 +76,8 @@ class CompositionLabel:
                 value = getattr(self, name)
                 if not isinstance(value, str) or not value.strip():
                     raise ValueError(f"Gold pair annotations require non-empty {name}")
-            if not isinstance(self.conditions, tuple) or any(not isinstance(v, str) or not v.strip() for v in self.conditions):
-                raise ValueError("Gold pair annotation conditions must be non-empty strings")
+            if not isinstance(self.conditions, tuple) or not self.conditions or any(not isinstance(v, str) or not v.strip() for v in self.conditions):
+                raise ValueError("Gold pair annotations require explicit non-empty conditions (use 'unconditional' when applicable)")
         elif self.label_basis == "weak_cooccurrence_proxy":
             if self.reviewed:
                 raise ValueError("weak co-occurrence candidates cannot be marked reviewed")
