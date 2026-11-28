@@ -47,13 +47,13 @@ The run writes:
 - a JSON vocabulary file beside the checkpoint;
 - a JSON report with train/validation loss and limitations.
 
-The default tokenizer treats each Unicode character as one token and is not suitable as a production tokenizer.
+The default tokenizer treats each Unicode character as one token and is not suitable as a production tokenizer.\n\n**Do not train on the current classical xiang seed corpus yet.** The current `dev` snapshot has 43 candidate records and 52 claims marked unreviewed; candidate quotations are not approved training ground truth. Training data must pass the project\u2019s source, text, review, rights, and leakage gates before being exported to a plain-text corpus. The generic trainer accepts a UTF-8 text file and cannot independently verify its provenance.
 
 ## Test
 
 ```bash
 pip install -e '.[model]'
-python -m unittest tests.test_omega_model -v
+python -m unittest discover -s tests -p "test_omega_model.py" -v
 ```
 
 ## Next research gates
