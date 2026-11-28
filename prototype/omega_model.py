@@ -31,6 +31,7 @@ class OmegaConfig:
     num_classiang_slots: int = 16
     max_seq_len: int = 512
     dropout: float = 0.1
+    branch_mode: str = "hybrid"
 
     def __post_init__(self) -> None:
         if self.vocab_size < 2:
@@ -41,6 +42,8 @@ class OmegaConfig:
             raise ValueError("n_layers, slots and max_seq_len must be positive (slots >= 2)")
         if not 0.0 <= self.dropout < 1.0:
             raise ValueError("dropout must be in [0, 1)")
+        if self.branch_mode not in {"hybrid", "attention_only", "recurrent_only", "classiang_only"}:
+            raise ValueError("unsupported branch_mode")
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -136,7 +139,24 @@ class OmegaBlock(nn.Module):
         self.dropout = nn.Dropout(config.dropout)
 
     def forward(self, x: Tensor) -> tuple[Tensor, Tensor, Tensor]:
-        seq_len = x.shape[1]
+        mode = self.config.branch_mode
+        batch, seq_len, width = x.shape
+        empty_rel = x.new_zeros((batch, seq_len, self.config.num_classiang_slots,
+                                 self.config.num_classiang_slots))
+        if mode == "attention_only":
+            causal_mask = torch.triu(
+                torch.ones(seq_len, seq_len, dtype=torch.bool, device=x.device), diagonal=1
+            )
+            attended = self.attention(x, src_mask=causal_mask)
+            return self.output_norm(x + self.dropout(attended)), empty_rel, empty_rel
+        if mode == "recurrent_only":
+            recurrent, _ = self.recurrent(x)
+            return self.output_norm(x + self.dropout(recurrent)), empty_rel, empty_rel
+        if mode == "classiang_only":
+            recurrent, _ = self.recurrent(x)
+            classiang, _assignments, relation_logits, composition_logits = self.classiang(recurrent)
+            return self.output_norm(x + self.dropout(classiang)), relation_logits, composition_logits
+
         causal_mask = torch.triu(
             torch.ones(seq_len, seq_len, dtype=torch.bool, device=x.device), diagonal=1
         )
