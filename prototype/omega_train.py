@@ -17,7 +17,10 @@ from pathlib import Path
 
 import torch
 
-from prototype.omega_model import (\n    OmegaConfig, OmegaModel, causal_language_loss,\n    classiang_composition_consistency_loss, save_checkpoint,\n)
+from prototype.omega_model import (
+    OmegaConfig, OmegaModel, causal_language_loss,
+    classiang_composition_consistency_loss, save_checkpoint,
+)
 
 
 def encode_corpus(text: str) -> tuple[list[str], list[int]]:
@@ -45,6 +48,8 @@ def train(args: argparse.Namespace) -> dict:
         raise ValueError("validation_fraction must be between 0 and 0.5")
     if args.learning_rate <= 0 or args.dropout < 0 or args.dropout >= 1:
         raise ValueError("learning_rate must be positive and dropout must be in [0, 1)")
+    if args.composition_loss_weight < 0:
+        raise ValueError("composition_loss_weight must be >= 0")
     random.seed(args.seed)
     torch.manual_seed(args.seed)
     text = Path(args.corpus).read_text(encoding="utf-8")
@@ -67,7 +72,12 @@ def train(args: argparse.Namespace) -> dict:
         model.train()
         batch = sample_batch(train_tokens, args.batch_size, args.seq_len, device)
         optimizer.zero_grad(set_to_none=True)
-        outputs = model(batch)\n        language_loss = causal_language_loss(outputs["logits"], batch)\n        composition_loss = classiang_composition_consistency_loss(\n            outputs["relation_logits"], outputs["composition_logits"]\n        )\n        loss = language_loss + args.composition_loss_weight * composition_loss
+        outputs = model(batch)
+        language_loss = causal_language_loss(outputs["logits"], batch)
+        composition_loss = classiang_composition_consistency_loss(
+            outputs["relation_logits"], outputs["composition_logits"]
+        )
+        loss = language_loss + args.composition_loss_weight * composition_loss
         loss.backward()
         torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
         optimizer.step()
@@ -96,7 +106,8 @@ def train(args: argparse.Namespace) -> dict:
         "validation_characters": len(valid_tokens),
         "steps": args.steps,
         "sequence_length": args.seq_len,
-        "initial_step_loss": initial_loss,\n        "composition_loss_weight": args.composition_loss_weight,
+        "initial_step_loss": initial_loss,
+        "composition_loss_weight": args.composition_loss_weight,
         "validation_loss": validation_loss,
         "validation_perplexity": math.exp(min(validation_loss, 20.0)),
         "checkpoint": str(checkpoint),
@@ -125,7 +136,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--n-layers", type=int, default=2)
     parser.add_argument("--classiang-slots", type=int, default=16)
     parser.add_argument("--dropout", type=float, default=0.1)
-    parser.add_argument("--learning-rate", type=float, default=3e-4)\n    parser.add_argument("--composition-loss-weight", type=float, default=0.1)
+    parser.add_argument("--learning-rate", type=float, default=3e-4)
+    parser.add_argument("--composition-loss-weight", type=float, default=0.1)
     parser.add_argument("--validation-fraction", type=float, default=0.1)
     parser.add_argument("--eval-batches", type=int, default=20)
     parser.add_argument("--seed", type=int, default=17)
