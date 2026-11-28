@@ -242,3 +242,16 @@ python -m prototype.classiang_native_learning graph.json labels.jsonl \
 报告包含随机种子、来源族切分、混淆矩阵、准确率、精确率、召回率、Brier 分数，以及图结构、标签和检查点的 SHA-256 摘要。使用 --model linear 可运行结构基线。模型分数只表示结构兼容性排序；高分不证明语义同一、类比有效或因果关系成立。
 
 该学习器与认知引擎适配器只是后续原生角色/关系参数化表示、多目标组合学习、拒答校准和独立 OOD 基准的起点。不得将其称为 Zhouyi-AI 基础模型。
+
+
+## Composition-pair annotation schema (v1)
+
+Composition-pair labels are distinct from evidence review: reviewed evidence does
+not mean the relation-pair compatibility judgment has been reviewed. Gold JSONL
+rows declare `label_basis: "human_reviewed_pair"`, `reviewed: true`,
+`reviewer_id`, `adjudication_id`, `scope`, `conditions`, and evidence-bound
+`relation_ids` / `evidence_ids`. Labels are `positive`, `explicit_negative`,
+or `unknown`; unknown is retained for audit but excluded from loss and metrics.
+Automatically generated co-observation candidates use
+`label_basis: "weak_cooccurrence_proxy"` and `reviewed: false`; the normal
+trainer rejects them. They must never be represented as Gold.
