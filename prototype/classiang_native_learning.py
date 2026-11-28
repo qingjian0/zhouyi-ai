@@ -550,6 +550,42 @@ class NativeRoleBindingModel:
             union |= current
         return len(shared) / max(1, len(union))
 
+    def vocabulary_coverage(self, graph: SymbolGraph, relation_ids: Sequence[str]) -> dict:
+        """Report categorical symbol fields that fall outside the fitted vocabulary.
+
+        Partial OOV fields are currently omitted from symbol vectors; exposing
+        their counts prevents validation scores from hiding vocabulary loss.
+        A symbol with no known fields still fails closed in _symbol_parts.
+        """
+        relation_map = {item.relation_id: item for item in graph.relations}
+        symbol_map = {item.symbol_id: item for item in graph.symbols}
+        totals = {"symbol_types": 0, "attribute_keys": 0, "attribute_values": 0}
+        unknown = {"symbol_types": 0, "attribute_keys": 0, "attribute_values": 0}
+        for relation_id in relation_ids:
+            if relation_id not in relation_map:
+                raise ValueError(f"unknown relation ID: {relation_id}")
+            for _, symbol_id in relation_map[relation_id].roles:
+                symbol = symbol_map[symbol_id]
+                totals["symbol_types"] += 1
+                if symbol.symbol_type not in self.symbol_type_embeddings:
+                    unknown["symbol_types"] += 1
+                for key, value in symbol.attributes:
+                    totals["attribute_keys"] += 1
+                    totals["attribute_values"] += 1
+                    if key not in self.attribute_key_embeddings:
+                        unknown["attribute_keys"] += 1
+                    if value not in self.attribute_value_embeddings:
+                        unknown["attribute_values"] += 1
+        total_fields = sum(totals.values())
+        unknown_fields = sum(unknown.values())
+        return {
+            "total_fields": total_fields,
+            "unknown_fields": unknown_fields,
+            "coverage": (total_fields - unknown_fields) / total_fields if total_fields else 1.0,
+            "totals": totals,
+            "unknown": unknown,
+        }
+
     def score(self, graph: SymbolGraph, composition: Composition) -> float:
         return self.predict_probability(graph, composition.relation_ids)
 
@@ -758,6 +794,10 @@ def train_and_evaluate_role_model(
     ).fit(
         graph, train, epochs=epochs, learning_rate=learning_rate, seed=seed,
     )
+    validation_coverage = [
+        model.vocabulary_coverage(evaluation_graph, row.relation_ids)
+        for row in validation
+    ]
     probabilities = [
         model.predict_probability(evaluation_graph, row.relation_ids)
         for row in validation
@@ -789,11 +829,26 @@ def train_and_evaluate_role_model(
         "recall": tp / (tp + fn) if tp + fn else 0.0,
         "brier_score": sum((p - y) ** 2 for p, y in zip(probabilities, truth)) / len(truth),
         "learned_shared_symbol_weight": model.shared_symbol_weight,
+        "validation_vocabulary_coverage": {
+            "examples": len(validation_coverage),
+            "mean_coverage": (
+                sum(item["coverage"] for item in validation_coverage)
+                / len(validation_coverage)
+            ),
+            "total_fields": sum(item["total_fields"] for item in validation_coverage),
+            "unknown_fields": sum(item["unknown_fields"] for item in validation_coverage),
+            "unknown_by_field": {
+                name: sum(item["unknown"][name] for item in validation_coverage)
+                for name in ("symbol_types", "attribute_keys", "attribute_values")
+            },
+        },
         "limitations": [
             "learned embeddings are composed from symbol type and explicit attribute key/value fields",
             "relation-role energy is a simple bilinear operator, not a general semantic model",
             "requires reviewed evidence-bound labels",
             "unseen relation types or roles are outside the trained vocabulary",
+            "partial unseen symbol types and attribute keys/values are omitted from symbol vectors; validation coverage is reported explicitly",
+            "the first-generation cross-record negative objective is structurally confounded with shared-subject overlap and is not evidence of general composition learning",
             "evaluation is source-family disjoint; independent OOD benchmarks remain required",
         ],
     }
