@@ -409,9 +409,6 @@ def main() -> None:
     print(json.dumps(report, ensure_ascii=False, sort_keys=True, indent=2))
 
 
-if __name__ == "__main__":
-    main()
-
 
 @dataclass
 class NativeRoleBindingModel:
@@ -711,3 +708,7 @@ def train_and_evaluate_role_model(
         ],
     }
     return model, report
+
+
+if __name__ == "__main__":
+    main()
