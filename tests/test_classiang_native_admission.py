@@ -81,7 +81,7 @@ class NativeGoldAdmissionTests(unittest.TestCase):
             relation_ids=("relation-1", "relation-2"),
             evidence_ids=("native-e1", "native-e2"), label=1, reviewed=True,
             label_basis="human_reviewed_pair", reviewer_id="reviewer-a",
-            adjudication_id="adjudication-1", scope="taxonomic",
+            adjudication_id="adjudicator-c", scope="taxonomic",
             conditions=("unconditional",),
         )
         return graph, label
