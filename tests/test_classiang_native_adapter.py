@@ -1,6 +1,7 @@
 import unittest
 
-from prototype.classiang_learning import TextAnnotation, TextRecord, TrainableTextEncoder
+from prototype.classiang_learning import TextAnnotation, TextRecord
+from prototype.classiang_contrastive import ContrastiveSpanEncoder
 from prototype.classiang_engine import (
     ClassExample, FeatureAtom, FeatureCandidate, Observation,
     induce_class, select_aspects,
@@ -80,43 +81,47 @@ class NativeAdapterTests(unittest.TestCase):
             {item.relation_type for item in graph.relations},
         )
 
-    def test_text_encoder_prediction_enters_native_graph_with_span_provenance(self):
+    def test_contrastive_text_encoder_prediction_enters_native_graph(self):
         records = []
-        for index in range(2):
-            text = "moves water; stops water"
-            positive_start = text.index("moves water")
-            negative_start = text.index("stops water")
+        for index in range(8):
+            text = f"device{index} transfers water; through a narrow pipe"
+            phrase = "transfers water"
+            start = text.index(phrase)
+            negative_start = text.index("narrow pipe")
             records.append(TextRecord(
-                observation_id=f"train-{index}",
+                observation_id=f"obs-{index}",
                 subject_id=f"subject-{index}",
-                domain="mechanics",
+                domain="mechanical" if index < 4 else "biology",
                 source_id=f"source-{index}",
                 text=text,
                 annotations=(TextAnnotation(
-                    positive_start, positive_start + len("moves water"),
-                    "function", "moves-water", ("recognition",),
+                    start, start + len(phrase), "function", "transfers-water",
+                    ("recognition",),
                 ),),
-                group_id=f"group-{index}",
-                negative_annotations=((negative_start, negative_start + len("stops water")),),
+                group_id=f"source-family-{index}",
+                negative_annotations=((
+                    negative_start, negative_start + len("narrow pipe"),
+                ),),
             ))
-        encoder = TrainableTextEncoder(max_tokens=3, max_span_chars=24)
-        encoder.fit(records)
+        encoder = ContrastiveSpanEncoder(epochs=20, learning_rate=0.35)
+        encoder.fit(records[:6], seed=3)
+        row = records[6]
         observation = encoder.predict(
-            observation_id="query-1", subject_id="query-subject",
-            domain="mechanics", source_id="query-source",
-            text="moves water", threshold=0.55, max_features=1,
+            observation_id=row.observation_id, subject_id=row.subject_id,
+            domain=row.domain, source_id=row.source_id, text=row.text,
+            threshold=0.2, max_features=1,
         )
         self.assertTrue(observation.features)
+        self.assertEqual(observation.features[0].atom.value, "transfers-water")
         catalog = {
             evidence_id: reviewed(evidence_id, "query-family")
             for evidence_id in observation.evidence_refs
         }
         graph = observation_to_symbol_graph(observation, catalog)
         self.assertTrue(graph.relations)
-        self.assertTrue(all(
-            relation.evidence_ids[0].startswith("text:query-source:chars:")
-            for relation in graph.relations
-        ))
+        relation = graph.relations[0]
+        self.assertEqual(relation.relation_type, "has_aspect")
+        self.assertTrue(relation.evidence_ids[0].startswith("text:source-6:chars:"))
 
     def test_contradictions_require_explicit_provenance(self):
         contradiction = FeatureAtom("function", "does-not-transfer")
