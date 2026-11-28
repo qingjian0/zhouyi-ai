@@ -15,9 +15,14 @@ import subprocess
 import sys
 
 from prototype.classiang_native_learning import graph_from_json, labels_from_jsonl
+from prototype.classiang_native_admission import verify_native_gold_admission_jsonl
+from prototype.m2_extraction_dataset import DatasetSplit
 
 
-def _install_gold_labels(graph_path: str | Path, source_path: str | Path, target_path: str | Path) -> dict:
+def _install_gold_labels(
+    graph_path: str | Path, source_path: str | Path, target_path: str | Path, *,
+    admission_path: str | Path, m1_evidence_db: str | Path, expected_split: DatasetSplit,
+) -> dict:
     graph = graph_from_json(graph_path)
     labels = labels_from_jsonl(source_path)
     if not labels:
@@ -26,6 +31,10 @@ def _install_gold_labels(graph_path: str | Path, source_path: str | Path, target
         row.validate(graph)
         if row.label_basis != "human_reviewed_pair":
             raise ValueError("external annotation files must contain only human_reviewed_pair Gold labels")
+    admission_receipts = verify_native_gold_admission_jsonl(
+        graph=graph, labels=labels, admission_path=admission_path,
+        m1_database=m1_evidence_db, expected_split=expected_split,
+    )
     target = Path(target_path)
     target.parent.mkdir(parents=True, exist_ok=True)
     target.write_text(
@@ -38,6 +47,10 @@ def _install_gold_labels(graph_path: str | Path, source_path: str | Path, target
         "explicit_negative_count": sum(row.label == 0 for row in labels),
         "unknown_count": sum(row.label == 2 for row in labels),
         "sha256": hashlib.sha256(target.read_bytes()).hexdigest(),
+        "m19_m1_m2_verified_examples": len(admission_receipts),
+        "m19_m1_m2_receipts_sha256": hashlib.sha256(
+            "".join(item.m2_verification_sha256 for item in admission_receipts).encode("ascii")
+        ).hexdigest(),
     }
 
 
@@ -88,10 +101,14 @@ def run_native_training(
     max_pairs_per_record: int = 256,
     train_gold_labels: str | Path | None = None,
     dev_gold_labels: str | Path | None = None,
+    m1_evidence_db: str | Path | None = None,
+    train_gold_admission: str | Path | None = None,
+    dev_gold_admission: str | Path | None = None,
 ) -> None:
     """Prepare isolated train/dev artifacts, then launch the learner on them."""
-    if (train_gold_labels is None) != (dev_gold_labels is None):
-        raise ValueError("train_gold_labels and dev_gold_labels must be supplied together")
+    supplied = (train_gold_labels, dev_gold_labels, m1_evidence_db, train_gold_admission, dev_gold_admission)
+    if any(value is None for value in supplied) and any(value is not None for value in supplied):
+        raise ValueError("train/dev Gold labels, M1 evidence DB, and train/dev admission JSONL must be supplied together")
     python = sys.executable
     preparation = [
         python, "-m", "prototype.classiang_native_dataset", str(manifest),
@@ -116,8 +133,16 @@ def run_native_training(
             "training stopped: exporter output contains only unreviewed candidate pairs; "
             "supply --train-gold-labels and --dev-gold-labels with independently adjudicated labels"
         )
-    train_metadata = _install_gold_labels(graph_out, train_gold_labels, labels_out)
-    dev_metadata = _install_gold_labels(validation_graph_out, dev_gold_labels, validation_labels_out)
+    train_metadata = _install_gold_labels(
+        graph_out, train_gold_labels, labels_out,
+        admission_path=train_gold_admission, m1_evidence_db=m1_evidence_db,
+        expected_split=DatasetSplit.TRAIN,
+    )
+    dev_metadata = _install_gold_labels(
+        validation_graph_out, dev_gold_labels, validation_labels_out,
+        admission_path=dev_gold_admission, m1_evidence_db=m1_evidence_db,
+        expected_split=DatasetSplit.VALIDATION,
+    )
     _mark_gold_admission(dataset_report, train_gold_labels, train_metadata)
     _mark_gold_admission(validation_dataset_report, dev_gold_labels, dev_metadata)
     learner = [
@@ -158,6 +183,9 @@ def main() -> int:
     parser.add_argument("--max-pairs-per-record", type=int, default=256)
     parser.add_argument("--train-gold-labels", help="JSONL of independently reviewed train pair annotations")
     parser.add_argument("--dev-gold-labels", help="JSONL of independently reviewed dev pair annotations")
+    parser.add_argument("--m1-evidence-db", help="SQLite M1 immutable evidence database required for Gold admission")
+    parser.add_argument("--train-gold-admission", help="JSONL of M19/M2/native evidence mappings for every train label")
+    parser.add_argument("--dev-gold-admission", help="JSONL of M19/M2/native evidence mappings for every dev label")
     args = parser.parse_args()
     run_native_training(
         args.manifest,
@@ -172,6 +200,9 @@ def main() -> int:
         validation_fraction=args.validation_fraction, threshold=args.threshold,
         dimension=args.dimension, max_pairs_per_record=args.max_pairs_per_record,
         train_gold_labels=args.train_gold_labels, dev_gold_labels=args.dev_gold_labels,
+        m1_evidence_db=args.m1_evidence_db,
+        train_gold_admission=args.train_gold_admission,
+        dev_gold_admission=args.dev_gold_admission,
     )
     return 0
 
