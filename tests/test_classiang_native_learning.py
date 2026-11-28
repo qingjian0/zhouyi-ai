@@ -12,36 +12,47 @@ from prototype.classiang_native_learning import (
 
 def training_fixture():
     evidence = []
-    symbols = [Symbol("hub", "domain", "node", (("role", "hub"),), ("e0-a",))]
+    symbols = []
     relations = []
     labels = []
     for i in range(4):
         family = f"family-{i}"
-        e_left, e_right = f"e{i}-a", f"e{i}-b"
-        evidence.extend((
-            EvidenceRef(e_left, f"source-{i}", family, "p.1", "CC-BY-4.0", True),
-            EvidenceRef(e_right, f"source-{i}", family, "p.2", "CC-BY-4.0", True),
-        ))
-        left_symbol, right_symbol = f"node-{i}-a", f"node-{i}-b"
+        evidence_ids = [f"e{i}-{suffix}" for suffix in ("a", "b", "c", "d")]
+        evidence.extend(
+            EvidenceRef(eid, f"source-{i}", family, f"p.{index + 1}", "CC-BY-4.0", True)
+            for index, eid in enumerate(evidence_ids)
+        )
+        hub, a, b, c_symbol, d, e, f_symbol = (
+            f"node-{i}-{suffix}" for suffix in ("hub", "a", "b", "c", "d", "e", "f")
+        )
         symbols.extend((
-            Symbol(left_symbol, "domain", "node", (("index", str(i)),), (e_left,)),
-            Symbol(right_symbol, "domain", "node", (("index", str(i + 1)),), (e_right,)),
+            Symbol(hub, "domain", "node", (("role", "hub"),), tuple(evidence_ids[:2])),
+            Symbol(a, "domain", "node", (("index", str(i)),), (evidence_ids[0],)),
+            Symbol(b, "domain", "node", (("index", str(i + 1)),), (evidence_ids[1],)),
+            Symbol(c_symbol, "domain", "node", (("index", "c"),), (evidence_ids[2],)),
+            Symbol(d, "domain", "node", (("index", "d"),), (evidence_ids[2],)),
+            Symbol(e, "domain", "node", (("index", "e"),), (evidence_ids[3],)),
+            Symbol(f_symbol, "domain", "node", (("index", "f"),), (evidence_ids[3],)),
         ))
-        r_left, r_right = f"r{i}-a", f"r{i}-b"
+        relation_ids = [f"r{i}-{suffix}" for suffix in ("a", "b", "c", "d")]
         relations.extend((
-            Relation(r_left, "connects", (("source", "hub"), ("target", left_symbol)), (e_left,)),
-            Relation(r_right, "connects", (("source", "hub"), ("target", right_symbol)), (e_right,)),
+            Relation(relation_ids[0], "connects", (("source", hub), ("target", a)), (evidence_ids[0],)),
+            Relation(relation_ids[1], "connects", (("source", hub), ("target", b)), (evidence_ids[1],)),
+            Relation(relation_ids[2], "connects", (("source", c_symbol), ("target", d)), (evidence_ids[2],)),
+            Relation(relation_ids[3], "connects", (("source", e), ("target", f_symbol)), (evidence_ids[3],)),
         ))
-        for label, suffix in ((1, "positive"), (0, "negative")):
-            labels.append(CompositionLabel(
-                example_id=f"{family}-{suffix}",
-                group_id=family,
-                source_family=family,
-                relation_ids=(r_left, r_right),
-                evidence_ids=(e_left, e_right),
-                label=label,
-                reviewed=True,
-            ))
+        labels.extend((
+            CompositionLabel(
+                example_id=f"{family}-positive", group_id=family,
+                source_family=family, relation_ids=tuple(relation_ids[:2]),
+                evidence_ids=tuple(evidence_ids[:2]), label=1, reviewed=True,
+            ),
+            CompositionLabel(
+                example_id=f"{family}-negative", group_id=family,
+                source_family=family, relation_ids=tuple(relation_ids[2:]),
+                evidence_ids=tuple(evidence_ids[2:]), label=0, reviewed=True,
+            ),
+        ))
     return SymbolGraph(tuple(evidence), tuple(symbols), tuple(relations)), tuple(labels)
 
 
@@ -132,7 +143,7 @@ class NativeCompositionLearningTests(unittest.TestCase):
         values = _features(graph, labels[0].relation_ids)
         self.assertEqual(len(values), 5)
         self.assertTrue(all(isinstance(value, float) for value in values))
-        self.assertEqual(values[1], 1.0)
+        self.assertAlmostEqual(values[1], 1.0 / 3.0)
 
 
 if __name__ == "__main__":
