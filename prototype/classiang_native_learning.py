@@ -66,6 +66,9 @@ class CompositionLabel:
             raise ValueError("label references unknown evidence")
         if any(not evidence_map[item].reviewed for item in self.evidence_ids):
             raise ValueError("label references unreviewed evidence")
+        evidence_families = {evidence_map[item].source_family for item in self.evidence_ids}
+        if self.source_family not in evidence_families:
+            raise ValueError("label source_family is not represented by its evidence")
         relation_evidence = set().union(*(set(relation_map[r].evidence_ids) for r in self.relation_ids))
         if not relation_evidence <= set(self.evidence_ids):
             raise ValueError("label evidence must cover all relation evidence")
