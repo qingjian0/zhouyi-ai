@@ -98,6 +98,7 @@ class NativeCompositionLearningTests(unittest.TestCase):
         self.assertEqual(model.trained_examples, report["train_examples"])
         self.assertTrue(report["source_family_disjoint"])
         self.assertEqual(model.dimension, 8)
+        self.assertNotEqual(model.shared_symbol_weight, 0.0)
         held_out = int(report["validation_source_families"][0].split("-")[-1])
         positive = model.predict_probability(graph, (f"r{held_out}-a", f"r{held_out}-b"))
         negative = model.predict_probability(graph, (f"r{held_out}-c", f"r{held_out}-d"))
