@@ -248,6 +248,14 @@ def train_and_evaluate(
     if len(ids) != len(set(ids)):
         raise ValueError("example IDs must be unique")
     train, validation = _split_by_group(labels, validation_fraction, seed)
+    train_relation_ids = {rid for row in train for rid in row.relation_ids}
+    validation_relation_ids = {rid for row in validation for rid in row.relation_ids}
+    if train_relation_ids & validation_relation_ids:
+        raise ValueError("relation IDs must not cross source-family train/validation split")
+    if (isinstance(threshold, bool) or not isinstance(threshold, (int, float))
+            or not math.isfinite(threshold) or not 0.0 <= threshold <= 1.0):
+        raise ValueError("threshold must be finite and in [0, 1]")
+
     def materialize(rows):
         return [
             (_features(graph, row.relation_ids), row.label)
