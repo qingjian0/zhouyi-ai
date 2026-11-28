@@ -380,14 +380,23 @@ def main() -> None:
     parser.add_argument("--learning-rate", type=float, default=0.05)
     parser.add_argument("--validation-fraction", type=float, default=0.2)
     parser.add_argument("--threshold", type=float, default=0.5)
+    parser.add_argument("--model", choices=("linear", "role-binding"), default="role-binding")
+    parser.add_argument("--dimension", type=int, default=16)
     args = parser.parse_args()
     graph = graph_from_json(args.graph)
     labels = labels_from_jsonl(args.labels)
-    model, report = train_and_evaluate(
-        graph, labels, seed=args.seed, epochs=args.epochs,
-        learning_rate=args.learning_rate,
-        validation_fraction=args.validation_fraction, threshold=args.threshold,
-    )
+    if args.model == "role-binding":
+        model, report = train_and_evaluate_role_model(
+            graph, labels, seed=args.seed, dimension=args.dimension,
+            epochs=args.epochs, learning_rate=args.learning_rate,
+            validation_fraction=args.validation_fraction, threshold=args.threshold,
+        )
+    else:
+        model, report = train_and_evaluate(
+            graph, labels, seed=args.seed, epochs=args.epochs,
+            learning_rate=args.learning_rate,
+            validation_fraction=args.validation_fraction, threshold=args.threshold,
+        )
     report["graph_sha256"] = hashlib.sha256(Path(args.graph).read_bytes()).hexdigest()
     report["labels_sha256"] = hashlib.sha256(Path(args.labels).read_bytes()).hexdigest()
     report["checkpoint_sha256"] = model.save(args.checkpoint)
@@ -605,7 +614,7 @@ class NativeRoleBindingModel:
     def save(self, path: str | Path) -> str:
         target = Path(path)
         target.parent.mkdir(parents=True, exist_ok=True)
-        payload = json.dumps(self.to_dict(), ensure_ascii=False, sort_keys=True, indent=2) + "\\n"
+        payload = json.dumps(self.to_dict(), ensure_ascii=False, sort_keys=True, indent=2) + "\n"
         temporary = target.with_suffix(target.suffix + ".tmp")
         temporary.write_text(payload, encoding="utf-8")
         temporary.replace(target)
