@@ -144,6 +144,20 @@ class NativeGoldAdmissionTests(unittest.TestCase):
                 expected_split=DatasetSplit.TRAIN,
             )
 
+    def test_requires_m1_mapping_for_every_selected_relation_evidence(self):
+        graph, label = self.graph_and_label()
+        partial = replace(label, evidence_ids=("native-e1",))
+        with self.assertRaisesRegex(NativeGoldAdmissionError, "native graph evidence"):
+            verify_native_gold_admission(
+                packet=self.packet(), record=self.record(), graph=graph, label=partial,
+                resolver=self.resolver,
+                m19_reference_map={
+                    key: self.m1_ref
+                    for key in ("scan:page-11", "passage:3", "adjudication:record-1")
+                },
+                native_evidence_map={"native-e1": (self.m1_ref,)},
+                expected_split=DatasetSplit.TRAIN,
+            )
     def test_rejects_m1_ref_not_bound_to_an_m2_span(self):
         graph, label = self.graph_and_label()
         m19_map = {
